@@ -1,16 +1,16 @@
 // src/controllers/auth.controller.js
-const User = require('../models/user.model'); // <--- ADD THIS LINE
-const OutboxMessage = require('../models/outboxMessage.model');
-const RegistrationLead = require('../models/registrationLead.model');
-const Account = require('../models/account.model');
-const Company = require('../models/company.model');
-const CompanyUser = require('../models/companyUser.model');
-const Role = require('../models/role.model');
-const Menu = require('../models/menu.model');
+const User = require('./user.model'); // <--- ADD THIS LINE
+const OutboxMessage = require('../../platform/outboxMessage.model');
+const RegistrationLead = require('../saas/registrationLead.model');
+const Account = require('../saas/account.model');
+const Company = require('../saas/company.model');
+const CompanyUser = require('../saas/companyUser.model');
+const Role = require('../saas/role.model');
+const Menu = require('../saas/menu.model');
 
-const Module = require('../models/module.model');
-const CompanyModule = require('../models/companyModule.model');
-const RoleMenu = require('../models/roleMenu.model');
+const Module = require('../saas/module.model');
+const CompanyModule = require('../saas/companyModule.model');
+const RoleMenu = require('../saas/roleMenu.model');
 
 const crypto = require('crypto'); // Built into Node.js, no npm install needed
 
@@ -18,7 +18,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
 const { JWT_SECRET } = process.env;
-const { sequelize } = require('../config/db');
+const { sequelize } = require('../../platform/db');
 const { v4: uuidv4 } = require('uuid');
 const { Storage } = require('@google-cloud/storage');
 

@@ -1,11 +1,11 @@
 // src/routes/admin.routes.js
 const express = require('express');
 const router = express.Router();
-const adminController = require('../controllers/admin.controller');
+const adminController = require('./admin.controller');
 
 // Import your middlewares
-const { verifyToken } = require('../middleware/auth.middleware'); // Adjust path to wherever your JWT verifier is
-const { isSystemAdmin } = require('../middleware/rbac.middleware');
+const { verifyToken } = require('../../platform/auth.middleware'); // Adjust path to wherever your JWT verifier is
+const { isSystemAdmin } = require('./rbac.middleware');
 
 // Apply BOTH middlewares to all routes in this file
 router.use(verifyToken);

@@ -1,8 +1,8 @@
-const User = require('../models/user.model');
-const Role = require('../models/role.model');
-const CompanyUser = require('../models/companyUser.model');
+const User = require('../identity/user.model');
+const Role = require('./role.model');
+const CompanyUser = require('./companyUser.model');
 const bcrypt = require('bcryptjs');
-const { sequelize } = require('../config/db');
+const { sequelize } = require('../../platform/db');
 
 // --- 1. ROLE MANAGEMENT ---
 

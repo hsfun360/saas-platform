@@ -1,6 +1,6 @@
-const { sequelize } = require('../config/db');
-const User = require('../models/user.model');
-const OutboxMessage = require('../models/outboxMessage.model');
+const { sequelize } = require('../../platform/db');
+const User = require('./user.model');
+const OutboxMessage = require('../../platform/outboxMessage.model');
 const { v4: uuidv4 } = require('uuid'); // Ensure you have 'uuid' installed (npm install uuid)
 
 /**

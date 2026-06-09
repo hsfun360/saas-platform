@@ -1,7 +1,7 @@
 // src/models/user.model.js
 
 const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/db');
+const { sequelize } = require('../../platform/db');
 
 const User = sequelize.define('User', {
     // Unique identifier, automatically managed by Sequelize

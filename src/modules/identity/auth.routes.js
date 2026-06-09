@@ -1,16 +1,16 @@
 // src/routes/auth.routes.js
 
 const router = require('express').Router();
-const authController = require('../controllers/auth.controller'); // We will create this next
-const User = require('../models/user.model'); // Use your existing Sequelize model
+const authController = require('./auth.controller'); // We will create this next
+const User = require('./user.model'); // Use your existing Sequelize model
 const jwt = require('jsonwebtoken');
-const OutboxMessage = require('../models/outboxMessage.model');
-const { sequelize } = require('../config/db');
+const OutboxMessage = require('../../platform/outboxMessage.model');
+const { sequelize } = require('../../platform/db');
 const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 
 // Add the import at the top (adjust path based on where you saved the function)
-const { updateProfileWithOutbox } = require('../services/user.service');
+const { updateProfileWithOutbox } = require('./user.service');
 
 // Test Route to verify that the auth routes are working
 // GET: /api/auth/debug-test
