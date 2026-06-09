@@ -1,12 +1,24 @@
 # Dependency folders
 node_modules
+
 # Build output folders
 dist
 build
-# Configuration and secrets
+
+# Secrets & credentials (NEVER bake these into the image)
 .env
+.env.*
+src/config/gcs-key.json
+*.pem
+*.key
+
+# Dev notes / docs / scratch files (not needed at runtime, may contain secrets)
+*.md
+*.txt
+
 # Git files
 .git
 .gitignore
+
 # Log files
 npm-debug.log*
