@@ -1,0 +1,105 @@
+gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://asia-southeast1-docker.pkg.dev
+
+gcloud config list project
+gcloud auth list
+
+docker tag my-local-image:latest [FULL_REPOSITORY_PATH_HERE]/my-image:latest
+docker push [FULL_REPOSITORY_PATH_HERE]/my-image:latest
+
+docker build -t asia-southeast1-docker.pkg.dev/membership-project-199610/login-api/login-api:latest .
+docker push asia-southeast1-docker.pkg.dev/membership-project-199610/login-api/login-api:latest
+
+docker tag login-api:latest asia-southeast1-docker.pkg.dev/membership-project-199610/login-api/login-api:latest
+
+docker build -t $env:REGION-docker.pkg.dev/$env:PROJECT_ID/$env:IMAGE_NAME/$env:IMAGE_NAME`:latest` .
+
+docker build -t asia-southeast1-docker.pkg.dev/membership-project-199610/login-api/login-api:latest .
+
+
+docker tag my-local-image:latest [FULL_REPOSITORY_PATH_HERE]/my-image:latest
+docker tag login-api-local:latest $env:REGION-docker.pkg.dev/$env:PROJECT_ID/$env:IMAGE_NAME/$env:IMAGE_NAME`:latest`
+
+
+
+
+$env:PROJECT_ID="membership-project-199610"
+$env:IMAGE_NAME="login-api"
+$env:REGION="asia-southeast1"
+
+docker build --platform linux/amd64 -t asia-southeast1-docker.pkg.dev/membership-project-199610/login-api/your-app-image:latest .
+
+docker build --platform linux/amd64 -t login-api-local:latest .
+docker tag login-api-local:latest "asia-southeast1-docker.pkg.dev/membership-project-199610/login-api/login-api:latest"
+docker push "asia-southeast1-docker.pkg.dev/membership-project-199610/login-api/login-api:latest"
+
+docker build -t $env:REGION-docker.pkg.dev/$env:PROJECT_ID/$env:IMAGE_NAME/$env:IMAGE_NAME`:latest` .
+docker push $env:REGION-docker.pkg.dev/$env:PROJECT_ID/$env:IMAGE_NAME/$env:IMAGE_NAME`:latest`
+
+docker run -p 8080:8080 `
+  --env DATABASE_URL="postgres://USER:PASSWORD@host.docker.internal:5432/loginDB" `
+  login-api-local:latest
+
+docker run -p 8080:8080 `
+  --env DATABASE_URL="postgres://postgres:Ifc@1234@20.212.81.135:1029/loginDB" `
+  login-api-local:latest
+
+docker run -p 8080:8080 `
+  --env DATABASE_URL="postgres://[CORRECT_USER]:[CORRECT_PASSWORD]@host.docker.internal:5432/[DB_NAME]" `
+  login-api-local:latest
+
+
+$env:PROJECT_ID="membership-project-199610"
+$env:IMAGE_NAME="login-api"
+$env:REGION="asia-southeast1"
+$env:JWT_SECRET="498402a598f20d0ad628c17ec5f24a6d531ab0f4df49d5dc854c30e8fb37fc48"
+
+docker build --platform linux/amd64 -t login-api-local:latest . --no-cache
+
+# 2. Upload the fresh package
+$FULL_TAG = "$($env:REGION)-docker.pkg.dev/$($env:PROJECT_ID)/$($env:IMAGE_NAME)/$($env:IMAGE_NAME):latest"
+docker tag login-api-local:latest $FULL_TAG
+docker push $FULL_TAG
+
+# 3. Deploy Revision 18 (this tells Cloud Run to use the new package)
+gcloud run deploy $env:IMAGE_NAME `
+  --image $FULL_TAG `
+  --platform managed `
+  --region $env:REGION `
+  --allow-unauthenticated `
+  --set-env-vars DATABASE_URL="postgres://postgres:Ifc%401234@20.212.81.135:1029/loginDB" `
+  --set-env-vars JWT_SECRET=$env:JWT_SECRET `
+  --set-env-vars ADMIN_EMAILS="hsfun360@gmail.com"
+
+If gcloud run deploy hit error may use 'npm start' (for local deployment) to dianouse first
+
+$FULL_TAG = "$($env:REGION)-docker.pkg.dev/$($env:PROJECT_ID)/$($env:IMAGE_NAME)/($env:IMAGE_NAME):latest"
+
+docker tag login-api-local:latest "asia-southeast1-docker.pkg.dev/membership-project-199610/login-api/login-api:latest"
+
+docker tag login-api-local:latest $FULL_TAG
+
+docker push $FULL_TAG
+docker push "asia-southeast1-docker.pkg.dev/membership-project-199610/login-api/login-api:latest"
+
+gcloud run deploy $env:IMAGE_NAME `
+  --image "asia-southeast1-docker.pkg.dev/membership-project-199610/login-api/login-api:latest" `
+  --platform managed `
+  --region $env:REGION `
+  --allow-unauthenticated `
+  --set-env-vars DATABASE_URL="postgres://postgres:Ifc@1234@20.212.81.135:1029/loginDB" `
+  --set-env-vars JWT_SECRET=$env:JWT_SECRET
+
+498402a598f20d0ad628c17ec5f24a6d531ab0f4df49d5dc854c30e8fb37fc48
+
+npm install uuid
+npm install jsonwebtoken
+npm install bcrypt
+npm install geoip-lite
+
+
+              // "fileReplacements": [
+              //   {
+              //     "replace": "src/environments/environment.ts",
+              //     "with": "src/environments/environment.prod.ts"
+              //   }
+              // ],

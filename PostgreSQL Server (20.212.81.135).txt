@@ -1,0 +1,6 @@
+20.212.81.135:1029
+postgres
+Ifc@1234
+
+dbcreator_user
+Ifc@1234

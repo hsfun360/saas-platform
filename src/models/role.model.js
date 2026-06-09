@@ -1,0 +1,20 @@
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db');
+
+const Role = sequelize.define('Role', {
+    id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true
+    },
+    companyId: {
+        type: DataTypes.UUID,
+        allowNull: true // Some roles might be global (e.g., System Admin), so this can be nullable
+    },
+    name: {
+        type: DataTypes.STRING,
+        allowNull: false // e.g., "Pro Shop Cashier"
+    }
+});
+
+module.exports = Role;

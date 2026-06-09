@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Secrets & environment
+.env
+.env.*
+src/config/gcs-key.json
+*.pem
+*.key
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db

@@ -1,0 +1,34 @@
+LoginApp/
+├── .angular/                  (Angular CLI internal configuration)
+├── node_modules/              (Dependencies)
+├── src/                       (Source code for your application)
+│   ├── app/                   (Core application modules and components)
+│   │   ├── app.component.ts   (Main root component)
+│   │   ├── app.module.ts      (Main module where HttpClientModule was added)
+│   │   ├── auth/              (Optional: folder for authentication components/services)
+│   │   │   ├── login/         (Component for the login form)
+│   │   │   └── register/      (Component for the registration form)
+│   │   └── auth.service.ts    (The service you just created)
+│   ├── assets/                (Static assets like images, icons)
+│   ├── environments/          <-- THIS FOLDER IS CRITICAL (If missing, create it)
+│   │   ├── environment.ts     (Development configuration)
+│   │   └── environment.prod.ts (Production configuration)
+│   ├── favicon.ico
+│   ├── index.html             (Main HTML entry point)
+│   ├── main.ts                (Application bootstrap file)
+│   └── styles.css
+├── angular.json               (Angular CLI project configuration)
+├── package.json               (Project dependencies and scripts)
+└── tsconfig.json              (TypeScript configuration)
+
+ng generate component role-management --skip-import
+
+npm install @angular/platform-browser-dynamic --save
+
+
+Product-Led Growth (PLG) or Self-Serve Onboarding
+RBAC (Role-Based Access Control)
+Enterprise Identity and Access Management (IAM) engine
+
+monorepo
+monolithic backend Or a microservices architecture?

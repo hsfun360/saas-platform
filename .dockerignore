@@ -1,0 +1,12 @@
+# Dependency folders
+node_modules
+# Build output folders
+dist
+build
+# Configuration and secrets
+.env
+# Git files
+.git
+.gitignore
+# Log files
+npm-debug.log*
