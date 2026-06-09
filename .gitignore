@@ -8,6 +8,9 @@ src/config/gcs-key.json
 *.pem
 *.key
 
+# Dev notes / scratch files (may contain credentials)
+*.txt
+
 # Logs
 *.log
 npm-debug.log*
