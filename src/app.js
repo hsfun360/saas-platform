@@ -113,9 +113,18 @@ async function initializeDB() {
 }
 
 // --- DATABASE SEEDER ---
+// ⚠️ DESTRUCTIVE: this wipes Roles/Menus/Modules before re-creating them.
+// It must NEVER run automatically on Cloud Run — each autoscaled instance boot
+// would otherwise wipe runtime data. It only runs when explicitly requested via
+// RUN_SEED=true (see `npm run seed`), intended for a fresh/dev database.
 async function seedDatabase() {
+    if (process.env.RUN_SEED !== 'true') {
+        console.log('⏭️  Skipping seeder (set RUN_SEED=true to wipe + reseed).');
+        return;
+    }
+
     try {
-        // 👇 TEMPORARY WIPE BLOCK
+        // 👇 WIPE BLOCK (only reached when RUN_SEED=true)
         console.log('🧹 Wiping old seed data...');
         await CompanyUser.update({ roleId: null }, { where: {} });
         await RoleMenu.destroy({ where: {} });
