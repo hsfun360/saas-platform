@@ -17,7 +17,7 @@ const crypto = require('crypto'); // Built into Node.js, no npm install needed
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
-const { getPrivateKey } = require('../../platform/jwt.keys');
+const { getPrivateKey, getPublicKey } = require('../../platform/jwt.keys');
 const { sequelize } = require('../../platform/db');
 const { v4: uuidv4 } = require('uuid');
 const { Storage } = require('@google-cloud/storage');
@@ -909,7 +909,7 @@ exports.activateAccount = async (req, res) => {
         // 1. Verify the JWT and extract the lead's data
         let decoded;
         try {
-            decoded = jwt.verify(token, getPrivateKey(), { algorithms: ['RS256'] });
+            decoded = jwt.verify(token, getPublicKey(), { algorithms: ['RS256'] });
         } catch (err) {
             return res.status(400).json({ message: 'Invalid or expired activation link. Please register again.' });
         }
