@@ -8,6 +8,7 @@ const OutboxMessage = require('../../platform/outboxMessage.model');
 const { sequelize } = require('../../platform/db');
 const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
+const { getPublicKey } = require('../../platform/jwt.keys');
 
 // Add the import at the top (adjust path based on where you saved the function)
 const { updateProfileWithOutbox } = require('./user.service');
@@ -25,7 +26,7 @@ const authenticateToken = (req, res, next) => {
 
     if (!token) return res.status(401).json({ message: "No token provided" });
 
-    jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret', (err, user) => {
+    jwt.verify(token, getPublicKey(), { algorithms: ['RS256'] }, (err, user) => {
         if (err) return res.status(403).json({ message: "Invalid or expired token" });
         req.user = user;
         next();

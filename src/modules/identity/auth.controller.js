@@ -17,7 +17,7 @@ const crypto = require('crypto'); // Built into Node.js, no npm install needed
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
-const { JWT_SECRET } = process.env;
+const { getPrivateKey } = require('../../platform/jwt.keys');
 const { sequelize } = require('../../platform/db');
 const { v4: uuidv4 } = require('uuid');
 const { Storage } = require('@google-cloud/storage');
@@ -43,8 +43,9 @@ const generateToken = (userId, email, companyId=null, companyName=null, isSystem
             companyName: companyName,
             isSystemAdmin: isSystemAdmin
          }, 
-         process.env.JWT_SECRET, 
+         getPrivateKey(),
          {
+            algorithm: 'RS256',
             expiresIn: '24h', // Token expires in 24 hours for better security
          }
     );
@@ -857,8 +858,8 @@ exports.registerLead = async (req, res) => {
                 companyName, 
                 subscriptionPlan: subscriptionPlan || 'BASIC' 
             }, 
-            process.env.JWT_SECRET, 
-            { expiresIn: '24h' }
+            getPrivateKey(),
+            { algorithm: 'RS256', expiresIn: '24h' }
         );
 
         // 6. Generate the Activation Link
@@ -908,7 +909,7 @@ exports.activateAccount = async (req, res) => {
         // 1. Verify the JWT and extract the lead's data
         let decoded;
         try {
-            decoded = jwt.verify(token, process.env.JWT_SECRET);
+            decoded = jwt.verify(token, getPrivateKey(), { algorithms: ['RS256'] });
         } catch (err) {
             return res.status(400).json({ message: 'Invalid or expired activation link. Please register again.' });
         }

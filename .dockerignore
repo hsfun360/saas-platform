@@ -20,5 +20,8 @@ src/config/gcs-key.json
 .git
 .gitignore
 
+# Dev scripts
+scripts/
+
 # Log files
 npm-debug.log*

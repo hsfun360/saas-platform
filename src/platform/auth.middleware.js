@@ -1,5 +1,6 @@
 // src/middleware/auth.middleware.js
 const jwt = require('jsonwebtoken');
+const { getPublicKey } = require('./jwt.keys');
 
 exports.verifyToken = (req, res, next) => {
     // 1. Get the token from the Authorization header
@@ -14,8 +15,8 @@ exports.verifyToken = (req, res, next) => {
         token = token.slice(7, token.length).trimLeft();
     }
 
-    // 3. Verify the token using your secret key
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    // 3. Verify the token using your RSA public key
+    jwt.verify(token, getPublicKey(), { algorithms: ['RS256'] }, (err, decoded) => {
         if (err) {
             return res.status(401).json({ message: "Unauthorized! Token is expired or invalid." });
         }
