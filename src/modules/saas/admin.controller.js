@@ -243,10 +243,18 @@ exports.createSubscription = async (req, res) => {
             authMethod: 'local'
         }, { transaction });
 
+        // The subscriber's first user is the workspace owner: default them to a
+        // per-company "Tenant Admin" role (scoped to this new company).
+        const tenantAdminRole = await Role.create({
+            companyId: company.id,
+            name: 'Tenant Admin',
+            description: 'Full administrative access to the company workspace.'
+        }, { transaction });
+
         await CompanyUser.create({
             userId: user.id,
             companyId: company.id,
-            roleId: null,
+            roleId: tenantAdminRole.id,
             isActive: true
         }, { transaction });
 
@@ -261,7 +269,9 @@ exports.createSubscription = async (req, res) => {
                 companyId: company.id,
                 userId: user.id,
                 email: user.email,
-                companyName: company.name
+                companyName: company.name,
+                roleId: tenantAdminRole.id,
+                roleName: tenantAdminRole.name
             }
         });
     } catch (error) {
