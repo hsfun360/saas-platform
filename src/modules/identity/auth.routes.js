@@ -216,8 +216,8 @@ const requireTenantAdmin = async (req, res, next) => {
 router.get('/company/dashboard-stats', authenticateToken, requireTenant, authController.getDashboardStats);
 
 // 👇 ADD THESE TWO NEW ROUTES FOR ROLE MANAGEMENT 👇
-router.get('/company/menus', authenticateToken, requireTenant, authController.getAvailableMenus);
-router.post('/company/roles', authenticateToken, requireTenant, authController.createRole);
+router.get('/company/menus', authenticateToken, requireTenant, requireTenantAdmin, authController.getAvailableMenus);
+router.post('/company/roles', authenticateToken, requireTenant, requireTenantAdmin, authController.createRole);
 
 // --- TENANT USER MANAGEMENT (Tenant Admin only) ---
 router.get('/company/roles', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listTenantRoles);
