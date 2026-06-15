@@ -11,6 +11,7 @@ router.use(isSystemAdmin);
 // Role Management
 router.post('/roles', adminController.createRole);
 router.get('/roles', adminController.getRoles);
+router.get('/menus', adminController.listMenus);
 
 // User Management
 router.get('/users', adminController.listUsers);

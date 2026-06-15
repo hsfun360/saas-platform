@@ -3,53 +3,100 @@ const Role = require('./role.model');
 const Account = require('./account.model');
 const Company = require('./company.model');
 const CompanyUser = require('./companyUser.model');
+const Menu = require('./menu.model');
+const Module = require('./module.model');
+const RoleMenu = require('./roleMenu.model');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { sequelize } = require('../../platform/db');
 
 // --- 1. ROLE MANAGEMENT ---
 
-// POST /api/roles
+// POST /api/admin/roles
+// Body: { name, description?, companyId?, menuIds?: string[] }
+// Creates the role and (optionally) grants it the selected menu permissions,
+// both in a single transaction.
 exports.createRole = async (req, res) => {
+    const transaction = await sequelize.transaction();
     try {
-        const { name, description, companyId } = req.body;
+        const { name, description, companyId, menuIds } = req.body;
 
         if (!name) {
+            await transaction.rollback();
             return res.status(400).json({ message: "Role name is required." });
         }
 
         const targetCompanyId = companyId || null;
 
-        const existingRole = await Role.findOne({ 
-            where: { name: name, companyId: targetCompanyId } 
+        const existingRole = await Role.findOne({
+            where: { name: name, companyId: targetCompanyId },
+            transaction,
         });
 
         if (existingRole) {
+            await transaction.rollback();
             return res.status(409).json({ message: "Role already exists for this workspace." });
         }
 
         const newRole = await Role.create({
             name,
             description,
-            companyId: targetCompanyId
-        });
+            companyId: targetCompanyId,
+        }, { transaction });
 
+        // Grant the selected menu permissions via the RoleMenu junction table.
+        if (Array.isArray(menuIds) && menuIds.length > 0) {
+            const roleMenuData = menuIds.map(menuId => ({ roleId: newRole.id, menuId }));
+            await RoleMenu.bulkCreate(roleMenuData, { transaction });
+        }
+
+        await transaction.commit();
         res.status(201).json({ message: "Role created successfully", role: newRole });
     } catch (error) {
+        if (transaction && !transaction.finished) {
+            await transaction.rollback();
+        }
         console.error("Error creating role:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
 
-// GET /api/roles?companyId=XYZ
+// GET /api/admin/roles?companyId=XYZ
+// Returns roles with their granted menus (PermittedMenus) for display.
 exports.getRoles = async (req, res) => {
     try {
-        const targetCompanyId = req.query.companyId || null; 
-        
-        const roles = await Role.findAll({ where: { companyId: targetCompanyId } });
+        const targetCompanyId = req.query.companyId || null;
+
+        const roles = await Role.findAll({
+            where: { companyId: targetCompanyId },
+            include: [{
+                model: Menu,
+                as: 'PermittedMenus',
+                attributes: ['id', 'name'],
+                through: { attributes: [] },
+            }],
+            order: [['name', 'ASC']],
+        });
         res.status(200).json(roles);
     } catch (error) {
         console.error("Error fetching roles:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// GET /api/admin/menus
+// Returns every menu (grouped by module via the included Module) so the admin
+// can pick permissions when creating a system role. Unlike the tenant endpoint,
+// this is NOT filtered by company subscription.
+exports.listMenus = async (req, res) => {
+    try {
+        const menus = await Menu.findAll({
+            include: [{ model: Module, as: 'Module', attributes: ['name', 'icon'] }],
+            order: [['moduleId', 'ASC'], ['name', 'ASC']],
+        });
+        res.status(200).json(menus);
+    } catch (error) {
+        console.error("Error fetching menus:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
