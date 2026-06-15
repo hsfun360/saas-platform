@@ -13,6 +13,10 @@ const { getPublicKey } = require('../../platform/jwt.keys');
 // Add the import at the top (adjust path based on where you saved the function)
 const { updateProfileWithOutbox } = require('./user.service');
 
+// Tenant-scoped user management (Tenant Admin manages users within their company)
+const tenantController = require('../saas/tenant.controller');
+const { hasTenantAdminRole } = require('../saas/tenant');
+
 // Test Route to verify that the auth routes are working
 // GET: /api/auth/debug-test
 router.get('/debug-test', (req, res) => {
@@ -190,6 +194,20 @@ const requireSystemAdmin = (req, res, next) => {
     next();
 };
 
+// Guard for tenant administration (must hold the Tenant Admin role for this company)
+const requireTenantAdmin = async (req, res, next) => {
+    try {
+        const isAdmin = await hasTenantAdminRole(req.user?.id, req.user?.companyId);
+        if (!isAdmin) {
+            return res.status(403).json({ message: "Access denied: Tenant Administrators only." });
+        }
+        next();
+    } catch (error) {
+        console.error("Tenant Admin Auth Error:", error);
+        res.status(500).json({ message: "Internal server error during authorization check." });
+    }
+};
+
 // --- SECURE SAAS ROUTES ---
 // Notice how we stack the middleware:
 // 1. authenticateToken checks if they are logged in at all.
@@ -200,5 +218,11 @@ router.get('/company/dashboard-stats', authenticateToken, requireTenant, authCon
 // 👇 ADD THESE TWO NEW ROUTES FOR ROLE MANAGEMENT 👇
 router.get('/company/menus', authenticateToken, requireTenant, authController.getAvailableMenus);
 router.post('/company/roles', authenticateToken, requireTenant, authController.createRole);
+
+// --- TENANT USER MANAGEMENT (Tenant Admin only) ---
+router.get('/company/roles', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listTenantRoles);
+router.get('/company/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listTenantUsers);
+router.post('/company/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createTenantUser);
+router.post('/company/users/assign-role', authenticateToken, requireTenant, requireTenantAdmin, tenantController.assignTenantUserRole);
 
 module.exports = router;

@@ -85,6 +85,21 @@ exports.getRoles = async (req, res) => {
     }
 };
 
+// GET /api/admin/modules
+// Returns every module so the admin can flag which ones a new subscriber gets.
+exports.listModules = async (req, res) => {
+    try {
+        const modules = await Module.findAll({
+            attributes: ['id', 'name', 'icon'],
+            order: [['name', 'ASC']],
+        });
+        res.status(200).json(modules);
+    } catch (error) {
+        console.error("Error fetching modules:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // GET /api/admin/menus
 // Returns every menu (grouped by module via the included Module) so the admin
 // can pick permissions when creating a system role. Unlike the tenant endpoint,
@@ -205,7 +220,7 @@ exports.createSubscription = async (req, res) => {
     const transaction = await sequelize.transaction();
 
     try {
-        const { email, password, fullName, companyName, subscriptionPlan, registrationNumber, timezone, phone } = req.body;
+        const { email, password, fullName, companyName, subscriptionPlan, registrationNumber, timezone, phone, moduleIds } = req.body;
 
         if (!email || !password || !fullName || !companyName) {
             await transaction.rollback();
@@ -252,24 +267,28 @@ exports.createSubscription = async (req, res) => {
             description: 'Full administrative access to the company workspace.'
         }, { transaction });
 
-        // Provision the workspace so the Tenant Admin has full access: subscribe
-        // the company to every module (including System Setup) and grant the
-        // Tenant Admin role all of those modules' menus. This lets them use
-        // System Setup to create tenant users and assign them roles.
-        const allModules = await Module.findAll({ attributes: ['id'], transaction });
-        if (allModules.length > 0) {
+        // Subscribe the company to the SELECTED modules and grant the Tenant Admin
+        // all of those modules' menus. The set of modules is chosen per-subscriber
+        // (independent of plan); include "System Setup" to let the Tenant Admin
+        // manage tenant users and roles.
+        const selectedModuleIds = Array.isArray(moduleIds) ? moduleIds : [];
+        if (selectedModuleIds.length > 0) {
             await CompanyModule.bulkCreate(
-                allModules.map(m => ({ companyId: company.id, moduleId: m.id, isActive: true })),
+                selectedModuleIds.map(moduleId => ({ companyId: company.id, moduleId, isActive: true })),
                 { transaction }
             );
-        }
 
-        const allMenus = await Menu.findAll({ attributes: ['id'], transaction });
-        if (allMenus.length > 0) {
-            await RoleMenu.bulkCreate(
-                allMenus.map(menu => ({ roleId: tenantAdminRole.id, menuId: menu.id })),
-                { transaction }
-            );
+            const subscribedMenus = await Menu.findAll({
+                where: { moduleId: selectedModuleIds },
+                attributes: ['id'],
+                transaction,
+            });
+            if (subscribedMenus.length > 0) {
+                await RoleMenu.bulkCreate(
+                    subscribedMenus.map(menu => ({ roleId: tenantAdminRole.id, menuId: menu.id })),
+                    { transaction }
+                );
+            }
         }
 
         await CompanyUser.create({
