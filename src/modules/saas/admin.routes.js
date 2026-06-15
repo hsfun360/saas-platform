@@ -13,6 +13,7 @@ router.post('/roles', adminController.createRole);
 router.get('/roles', adminController.getRoles);
 
 // User Management
+router.get('/users', adminController.listUsers);
 router.post('/users', adminController.createUser);
 router.post('/users/assign-role', adminController.assignUserToRole);
 

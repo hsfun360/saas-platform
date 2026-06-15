@@ -56,6 +56,21 @@ exports.getRoles = async (req, res) => {
 
 // --- 2. USER MANAGEMENT ---
 
+// GET /api/admin/users
+// Lightweight user list to populate the "assign user to role" picker.
+exports.listUsers = async (req, res) => {
+    try {
+        const users = await User.findAll({
+            attributes: ['id', 'email', 'full_name', 'authMethod', 'createdAt'],
+            order: [['createdAt', 'DESC']],
+        });
+        res.status(200).json(users);
+    } catch (error) {
+        console.error("Error listing users:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // POST /api/users
 exports.createUser = async (req, res) => {
     try {
