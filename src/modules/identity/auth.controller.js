@@ -11,6 +11,7 @@ const Menu = require('../saas/menu.model');
 const Module = require('../saas/module.model');
 const CompanyModule = require('../saas/companyModule.model');
 const RoleMenu = require('../saas/roleMenu.model');
+const { isUserSystemAdmin } = require('../saas/systemAdmin');
 
 const crypto = require('crypto'); // Built into Node.js, no npm install needed
 
@@ -158,8 +159,8 @@ exports.login = async (req, res) => {
         // --- MASTER RBAC LOGIN LOGIC ---
         
         // Check if they are a Master Admin
-        const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
-        const isSystemAdmin = adminEmails.includes(user.email.toLowerCase());
+        // DB-backed system-admin check (System Admin role), with ADMIN_EMAILS break-glass.
+        const isSystemAdmin = await isUserSystemAdmin(user.id, user.email);
 
         // Find all workspaces this user belongs to
         let workspaces = await CompanyUser.findAll({ where: { userId: user.id } });
@@ -370,8 +371,8 @@ exports.googleLogin = async (req, res) => {
 
         // --- MASTER RBAC LOGIN LOGIC ---
         // 1. Check if they are a Master Admin
-        const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
-        const isSystemAdmin = adminEmails.includes(user.email.toLowerCase());
+        // DB-backed system-admin check (System Admin role), with ADMIN_EMAILS break-glass.
+        const isSystemAdmin = await isUserSystemAdmin(user.id, user.email);
 
         // 2. Find all workspaces this user belongs to
         let workspaces = await CompanyUser.findAll({ where: { userId: user.id } });
@@ -568,7 +569,8 @@ exports.microsoftLogin = async (req, res) => {
         }
 
         // 3. Generate Token & Commit
-        const token = generateToken(user.id, user.email);
+        const isSystemAdmin = await isUserSystemAdmin(user.id, user.email);
+        const token = generateToken(user.id, user.email, null, null, isSystemAdmin);
         await transaction.commit();
 
         // 4. Send back to Angular
