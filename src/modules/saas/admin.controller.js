@@ -6,6 +6,7 @@ const CompanyUser = require('./companyUser.model');
 const Menu = require('./menu.model');
 const Module = require('./module.model');
 const RoleMenu = require('./roleMenu.model');
+const CompanyModule = require('./companyModule.model');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { sequelize } = require('../../platform/db');
@@ -250,6 +251,26 @@ exports.createSubscription = async (req, res) => {
             name: 'Tenant Admin',
             description: 'Full administrative access to the company workspace.'
         }, { transaction });
+
+        // Provision the workspace so the Tenant Admin has full access: subscribe
+        // the company to every module (including System Setup) and grant the
+        // Tenant Admin role all of those modules' menus. This lets them use
+        // System Setup to create tenant users and assign them roles.
+        const allModules = await Module.findAll({ attributes: ['id'], transaction });
+        if (allModules.length > 0) {
+            await CompanyModule.bulkCreate(
+                allModules.map(m => ({ companyId: company.id, moduleId: m.id, isActive: true })),
+                { transaction }
+            );
+        }
+
+        const allMenus = await Menu.findAll({ attributes: ['id'], transaction });
+        if (allMenus.length > 0) {
+            await RoleMenu.bulkCreate(
+                allMenus.map(menu => ({ roleId: tenantAdminRole.id, menuId: menu.id })),
+                { transaction }
+            );
+        }
 
         await CompanyUser.create({
             userId: user.id,
