@@ -1,0 +1,9 @@
+{
+  // After clicking "Commit", automatically push to (and pull from) GitHub.
+  // Use "push" instead of "sync" if you only want to push without pulling.
+  "git.postCommitCommand": "sync",
+
+  // Periodically fetch from the remote so the Source Control view shows
+  // when your branch is ahead/behind GitHub.
+  "git.autofetch": true
+}

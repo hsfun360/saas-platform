@@ -1,7 +1,10 @@
-const User = require('../identity/user.model');
+﻿const User = require('../identity/user.model');
 const Role = require('./role.model');
+const Account = require('./account.model');
+const Company = require('./company.model');
 const CompanyUser = require('./companyUser.model');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { sequelize } = require('../../platform/db');
 
 // --- 1. ROLE MANAGEMENT ---
@@ -15,7 +18,6 @@ exports.createRole = async (req, res) => {
             return res.status(400).json({ message: "Role name is required." });
         }
 
-        // If companyId is provided, it's a Tenant Role. If null, it's an Internal SaaS Role.
         const targetCompanyId = companyId || null;
 
         const existingRole = await Role.findOne({ 
@@ -42,7 +44,6 @@ exports.createRole = async (req, res) => {
 // GET /api/roles?companyId=XYZ
 exports.getRoles = async (req, res) => {
     try {
-        // Fetch internal roles if no companyId is passed
         const targetCompanyId = req.query.companyId || null; 
         
         const roles = await Role.findAll({ where: { companyId: targetCompanyId } });
@@ -64,17 +65,14 @@ exports.createUser = async (req, res) => {
             return res.status(400).json({ message: "Email, password, and full name are required." });
         }
 
-        // Check if user already exists across the ENTIRE system
         const existingUser = await User.findOne({ where: { email: email.toLowerCase() } });
         if (existingUser) {
             return res.status(409).json({ message: "User with this email already exists." });
         }
 
-        // Hash the password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // Create the global user identity
         const newUser = await User.create({
             email: email.toLowerCase(),
             password: hashedPassword,
@@ -82,7 +80,6 @@ exports.createUser = async (req, res) => {
             phone: phone || null
         });
 
-        // Remove password from the response for security
         newUser.password = undefined;
 
         res.status(201).json({ message: "User created successfully", user: newUser });
@@ -103,13 +100,11 @@ exports.assignUserToRole = async (req, res) => {
             return res.status(400).json({ message: "User ID and Role ID are required." });
         }
 
-        // Verify the user exists
         const user = await User.findByPk(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found." });
         }
 
-        // Verify the role exists
         const role = await Role.findByPk(roleId);
         if (!role) {
             return res.status(404).json({ message: "Role not found." });
@@ -117,19 +112,16 @@ exports.assignUserToRole = async (req, res) => {
 
         const targetCompanyId = companyId || null;
 
-        // Ensure we aren't creating a duplicate assignment for this specific workspace
         const existingAssignment = await CompanyUser.findOne({
             where: { userId, companyId: targetCompanyId }
         });
 
         if (existingAssignment) {
-            // Update their existing role in this workspace
             existingAssignment.roleId = roleId;
             await existingAssignment.save();
             return res.status(200).json({ message: "User role updated successfully.", assignment: existingAssignment });
         }
 
-        // Create a new workspace/role assignment
         const newAssignment = await CompanyUser.create({
             userId,
             roleId,
@@ -140,5 +132,99 @@ exports.assignUserToRole = async (req, res) => {
     } catch (error) {
         console.error("Error assigning role:", error);
         res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// --- 4. PROVISION A SUBSCRIBER (SYSTEM ADMIN PORTAL) ---
+
+// POST /api/admin/subscriptions
+exports.createSubscription = async (req, res) => {
+    const transaction = await sequelize.transaction();
+
+    try {
+        const { email, password, fullName, companyName, subscriptionPlan, registrationNumber, timezone, phone } = req.body;
+
+        if (!email || !password || !fullName || !companyName) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "Email, password, full name, and company name are required." });
+        }
+
+        const existingUser = await User.findOne({ where: { email: email.toLowerCase() } });
+        if (existingUser) {
+            await transaction.rollback();
+            return res.status(409).json({ message: "A user with this email already exists." });
+        }
+
+        const account = await Account.create({
+            companyName,
+            subscriptionPlan: subscriptionPlan || 'BASIC',
+            status: 'ACTIVE'
+        }, { transaction });
+
+        const company = await Company.create({
+            accountId: account.id,
+            name: companyName,
+            registrationNumber: registrationNumber || null,
+            timezone: timezone || 'Asia/Kuala_Lumpur',
+            isActive: true
+        }, { transaction });
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const user = await User.create({
+            email: email.toLowerCase(),
+            password: hashedPassword,
+            full_name: fullName,
+            phone: phone || null,
+            isVerified: true,
+            authMethod: 'local'
+        }, { transaction });
+
+        await CompanyUser.create({
+            userId: user.id,
+            companyId: company.id,
+            roleId: null,
+            isActive: true
+        }, { transaction });
+
+        await transaction.commit();
+
+        user.password = undefined;
+
+        res.status(201).json({
+            message: "Subscriber account created successfully!",
+            data: {
+                accountId: account.id,
+                companyId: company.id,
+                userId: user.id,
+                email: user.email,
+                companyName: company.name
+            }
+        });
+    } catch (error) {
+        if (transaction && !transaction.finished) {
+            await transaction.rollback();
+        }
+        console.error("Subscription Creation Error:", error);
+        res.status(500).json({ message: "Failed to create subscriber account." });
+    }
+};
+
+// GET /api/admin/subscriptions
+exports.listSubscriptions = async (req, res) => {
+    try {
+        const accounts = await Account.findAll({
+            include: [{
+                model: Company,
+                as: 'Companies'
+            }],
+            order: [['createdAt', 'DESC']]
+        });
+
+        res.status(200).json(accounts);
+    } catch (error) {
+        console.error("List Subscriptions Error:", error);
+        res.status(500).json({ message: "Failed to fetch subscribers." });
     }
 };

@@ -1,20 +1,23 @@
-// src/routes/admin.routes.js
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const adminController = require('./admin.controller');
 
-// Import your middlewares
-const { verifyToken } = require('../../platform/auth.middleware'); // Adjust path to wherever your JWT verifier is
+const { verifyToken } = require('../../platform/auth.middleware');
 const { isSystemAdmin } = require('./rbac.middleware');
 
-// Apply BOTH middlewares to all routes in this file
 router.use(verifyToken);
 router.use(isSystemAdmin);
 
-// Now these routes are bulletproof
+// Role Management
 router.post('/roles', adminController.createRole);
 router.get('/roles', adminController.getRoles);
+
+// User Management
 router.post('/users', adminController.createUser);
 router.post('/users/assign-role', adminController.assignUserToRole);
+
+// Subscription / Subscriber Management (System Admin Portal)
+router.post('/subscriptions', adminController.createSubscription);
+router.get('/subscriptions', adminController.listSubscriptions);
 
 module.exports = router;
