@@ -380,8 +380,9 @@ exports.listCompanyUsers = async (req, res) => {
 };
 
 // POST /api/admin/companies/:companyId/tenant-admin   Body: { userId }
-// Promote a chosen company member to the company's Tenant Admin role.
-// Lockout-safe (additive: it never removes an existing admin).
+// Transfer the company's Tenant Admin to a chosen member: demote any existing
+// Tenant Admin(s), then promote the chosen user. Always leaves exactly the
+// chosen user as Tenant Admin (no lockout, since it ends with one admin).
 exports.setTenantAdmin = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
@@ -410,11 +411,18 @@ exports.setTenantAdmin = async (req, res) => {
             return res.status(404).json({ message: "User is not a member of this company." });
         }
 
+        // True transfer: demote any current Tenant Admin(s) in this company...
+        await CompanyUser.update(
+            { roleId: null },
+            { where: { companyId, roleId: tenantAdminRole.id }, transaction }
+        );
+
+        // ...then promote the chosen user.
         membership.roleId = tenantAdminRole.id;
         await membership.save({ transaction });
 
         await transaction.commit();
-        res.status(200).json({ message: "Tenant Admin updated successfully.", roleId: tenantAdminRole.id });
+        res.status(200).json({ message: "Tenant Admin transferred successfully.", roleId: tenantAdminRole.id });
     } catch (error) {
         if (transaction && !transaction.finished) {
             await transaction.rollback();
