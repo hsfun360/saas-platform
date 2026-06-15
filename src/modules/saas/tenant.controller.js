@@ -149,6 +149,18 @@ exports.assignTenantUserRole = async (req, res) => {
             return res.status(404).json({ message: "User is not a member of your workspace." });
         }
 
+        // Last-admin lockout protection: don't allow demoting the company's only
+        // Tenant Admin (that would leave the workspace with no one who can manage it).
+        const tenantAdminRole = await Role.findOne({ where: { companyId, name: 'Tenant Admin' } });
+        if (tenantAdminRole && membership.roleId === tenantAdminRole.id && roleId !== tenantAdminRole.id) {
+            const adminCount = await CompanyUser.count({ where: { companyId, roleId: tenantAdminRole.id } });
+            if (adminCount <= 1) {
+                return res.status(409).json({
+                    message: "Cannot remove the last Tenant Admin. Assign another Tenant Admin first.",
+                });
+            }
+        }
+
         membership.roleId = roleId;
         await membership.save();
 

@@ -23,4 +23,8 @@ router.post('/users/assign-role', adminController.assignUserToRole);
 router.post('/subscriptions', adminController.createSubscription);
 router.get('/subscriptions', adminController.listSubscriptions);
 
+// Tenant Admin management (platform override for a specific company)
+router.get('/companies/:companyId/users', adminController.listCompanyUsers);
+router.post('/companies/:companyId/tenant-admin', adminController.setTenantAdmin);
+
 module.exports = router;

@@ -340,3 +340,86 @@ exports.listSubscriptions = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch subscribers." });
     }
 };
+
+// --- 5. TENANT ADMIN MANAGEMENT (platform override) ---
+
+// GET /api/admin/companies/:companyId/users
+// List a specific company's users + their role (System Admin can view any company).
+exports.listCompanyUsers = async (req, res) => {
+    try {
+        const { companyId } = req.params;
+        const memberships = await CompanyUser.findAll({
+            where: { companyId },
+            include: [{ model: Role, as: 'Role', attributes: ['id', 'name'] }],
+        });
+
+        const userIds = memberships.map(m => m.userId);
+        const users = await User.findAll({
+            where: { id: userIds },
+            attributes: ['id', 'email', 'full_name', 'authMethod'],
+        });
+        const userById = new Map(users.map(u => [u.id, u]));
+
+        const result = memberships.map(m => {
+            const u = userById.get(m.userId);
+            return {
+                id: m.userId,
+                email: u ? u.email : null,
+                full_name: u ? u.full_name : null,
+                authMethod: u ? u.authMethod : null,
+                roleId: m.roleId,
+                roleName: m.Role ? m.Role.name : null,
+            };
+        });
+
+        res.status(200).json(result);
+    } catch (error) {
+        console.error("Error listing company users:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// POST /api/admin/companies/:companyId/tenant-admin   Body: { userId }
+// Promote a chosen company member to the company's Tenant Admin role.
+// Lockout-safe (additive: it never removes an existing admin).
+exports.setTenantAdmin = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const { companyId } = req.params;
+        const { userId } = req.body;
+
+        if (!userId) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "User ID is required." });
+        }
+
+        // Find or create the company's Tenant Admin role (older companies may lack it).
+        const [tenantAdminRole] = await Role.findOrCreate({
+            where: { companyId, name: 'Tenant Admin' },
+            defaults: {
+                companyId,
+                name: 'Tenant Admin',
+                description: 'Full administrative access to the company workspace.',
+            },
+            transaction,
+        });
+
+        const membership = await CompanyUser.findOne({ where: { userId, companyId }, transaction });
+        if (!membership) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "User is not a member of this company." });
+        }
+
+        membership.roleId = tenantAdminRole.id;
+        await membership.save({ transaction });
+
+        await transaction.commit();
+        res.status(200).json({ message: "Tenant Admin updated successfully.", roleId: tenantAdminRole.id });
+    } catch (error) {
+        if (transaction && !transaction.finished) {
+            await transaction.rollback();
+        }
+        console.error("Error setting tenant admin:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
