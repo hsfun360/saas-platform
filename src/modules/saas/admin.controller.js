@@ -234,7 +234,7 @@ exports.createSubscription = async (req, res) => {
         }
 
         const account = await Account.create({
-            companyName,
+            subscriberName,
             subscriptionPlan: subscriptionPlan || 'BASIC',
             status: 'ACTIVE'
         }, { transaction });
@@ -309,7 +309,7 @@ exports.createSubscription = async (req, res) => {
                 companyId: company.id,
                 userId: user.id,
                 email: user.email,
-                companyName: company.name,
+                
                 roleId: tenantAdminRole.id,
                 roleName: tenantAdminRole.name
             }
@@ -334,7 +334,12 @@ exports.listSubscriptions = async (req, res) => {
             order: [['createdAt', 'DESC']]
         });
 
-        res.status(200).json(accounts);
+        // Map subscriberName back to companyName to keep the frontend interface unchanged
+        const mapped = accounts.map(a => ({
+            ...a.toJSON(),
+            companyName: a.subscriberName,
+        }));
+        res.status(200).json(mapped);
     } catch (error) {
         console.error("List Subscriptions Error:", error);
         res.status(500).json({ message: "Failed to fetch subscribers." });
@@ -431,3 +436,5 @@ exports.setTenantAdmin = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
+

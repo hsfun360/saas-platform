@@ -1,4 +1,4 @@
-const { DataTypes } = require('sequelize');
+﻿const { DataTypes } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 
 const Account = sequelize.define('Account', {
@@ -7,7 +7,7 @@ const Account = sequelize.define('Account', {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
     },
-    companyName: {
+    subscriberName: {
         type: DataTypes.STRING,
         allowNull: false,
     },
