@@ -234,7 +234,9 @@ exports.createSubscription = async (req, res) => {
         }
 
         const account = await Account.create({
-            subscriberName,
+            // The request still sends `companyName` (the subscriber's name); the
+            // Account column was renamed to `subscriberName` to avoid confusion.
+            subscriberName: companyName,
             subscriptionPlan: subscriptionPlan || 'BASIC',
             status: 'ACTIVE'
         }, { transaction });
@@ -309,7 +311,6 @@ exports.createSubscription = async (req, res) => {
                 companyId: company.id,
                 userId: user.id,
                 email: user.email,
-                
                 roleId: tenantAdminRole.id,
                 roleName: tenantAdminRole.name
             }

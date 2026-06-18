@@ -7,8 +7,25 @@
 const User = require('../identity/user.model');
 const CompanyUser = require('./companyUser.model');
 const Role = require('./role.model');
+const Company = require('./company.model');
+const Module = require('./module.model');
+const CompanyModule = require('./companyModule.model');
+const Menu = require('./menu.model');
+const RoleMenu = require('./roleMenu.model');
 const bcrypt = require('bcryptjs');
 const { sequelize } = require('../../platform/db');
+
+// Resolve the Account a Tenant Admin belongs to. The JWT only carries the
+// caller's active companyId, so we derive the accountId from that company.
+// Returns null if the company can't be found.
+async function resolveAccountId(companyId, transaction) {
+    if (!companyId) return null;
+    const company = await Company.findByPk(companyId, {
+        attributes: ['id', 'accountId'],
+        transaction,
+    });
+    return company ? company.accountId : null;
+}
 
 // GET /api/auth/company/roles  -> roles defined for the caller's company
 exports.listTenantRoles = async (req, res) => {
@@ -167,6 +184,144 @@ exports.assignTenantUserRole = async (req, res) => {
         res.status(200).json({ message: "User role updated successfully." });
     } catch (error) {
         console.error("Error assigning tenant user role:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// --- COMPANY (BUSINESS ENTITY) MANAGEMENT (Tenant Admin only) ---
+//
+// A subscriber's Tenant Admin can create additional companies (physical business
+// entities) under their own Account and choose which modules each one needs.
+// Everything is scoped to the caller's Account (derived from req.user.companyId),
+// so a Tenant Admin can never create or list companies for another subscriber.
+
+// GET /api/auth/company/available-modules
+// All system modules the admin can pick from when creating a company.
+exports.listAvailableModules = async (req, res) => {
+    try {
+        const modules = await Module.findAll({
+            attributes: ['id', 'name', 'icon', 'description'],
+            order: [['name', 'ASC']],
+        });
+        res.status(200).json(modules);
+    } catch (error) {
+        console.error("Error listing available modules:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// GET /api/auth/companies  -> companies under the caller's Account
+exports.listCompanies = async (req, res) => {
+    try {
+        const accountId = await resolveAccountId(req.user.companyId);
+        if (!accountId) {
+            return res.status(404).json({ message: "Your account could not be resolved." });
+        }
+
+        const companies = await Company.findAll({
+            where: { accountId },
+            include: [{ model: Module, as: 'SubscribedModules', attributes: ['id', 'name', 'icon'], through: { attributes: [] } }],
+            order: [['createdAt', 'DESC']],
+        });
+
+        res.status(200).json(companies);
+    } catch (error) {
+        console.error("Error listing companies:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// POST /api/auth/companies  -> create a company under the caller's Account
+// Body: { name, registrationNumber?, timezone?, moduleIds?: string[] }
+exports.createCompany = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const accountId = await resolveAccountId(req.user.companyId, transaction);
+        if (!accountId) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "Your account could not be resolved." });
+        }
+
+        const { name, registrationNumber, timezone, moduleIds } = req.body;
+        if (!name || !name.trim()) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "Company name is required." });
+        }
+
+        // Validate the selected modules actually exist (any system module is allowed).
+        const selectedModuleIds = Array.isArray(moduleIds) ? [...new Set(moduleIds)] : [];
+        if (selectedModuleIds.length > 0) {
+            const found = await Module.count({ where: { id: selectedModuleIds }, transaction });
+            if (found !== selectedModuleIds.length) {
+                await transaction.rollback();
+                return res.status(400).json({ message: "One or more selected modules do not exist." });
+            }
+        }
+
+        const company = await Company.create({
+            accountId,
+            name: name.trim(),
+            registrationNumber: registrationNumber || null,
+            timezone: timezone || 'Asia/Kuala_Lumpur',
+            isActive: true,
+        }, { transaction });
+
+        // Seed a per-company Tenant Admin role (mirrors how the first company is
+        // provisioned in admin.createSubscription).
+        const tenantAdminRole = await Role.create({
+            companyId: company.id,
+            name: 'Tenant Admin',
+            description: 'Full administrative access to the company workspace.',
+        }, { transaction });
+
+        // Subscribe the company to the selected modules and grant the Tenant Admin
+        // role access to those modules' menus.
+        if (selectedModuleIds.length > 0) {
+            await CompanyModule.bulkCreate(
+                selectedModuleIds.map(moduleId => ({ companyId: company.id, moduleId, isActive: true })),
+                { transaction }
+            );
+
+            const subscribedMenus = await Menu.findAll({
+                where: { moduleId: selectedModuleIds },
+                attributes: ['id'],
+                transaction,
+            });
+            if (subscribedMenus.length > 0) {
+                await RoleMenu.bulkCreate(
+                    subscribedMenus.map(menu => ({ roleId: tenantAdminRole.id, menuId: menu.id })),
+                    { transaction }
+                );
+            }
+        }
+
+        // Make the creating admin a Tenant Admin of the new company so they can
+        // switch into it and manage it. (companyId is part of the CompanyUser
+        // unique key, so this never collides with their existing membership.)
+        await CompanyUser.create({
+            userId: req.user.id,
+            companyId: company.id,
+            roleId: tenantAdminRole.id,
+            isActive: true,
+        }, { transaction });
+
+        await transaction.commit();
+
+        res.status(201).json({
+            message: "Company created successfully.",
+            company: {
+                id: company.id,
+                name: company.name,
+                registrationNumber: company.registrationNumber,
+                timezone: company.timezone,
+                isActive: company.isActive,
+            },
+        });
+    } catch (error) {
+        if (transaction && !transaction.finished) {
+            await transaction.rollback();
+        }
+        console.error("Error creating company:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };

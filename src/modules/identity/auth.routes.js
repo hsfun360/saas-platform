@@ -225,4 +225,11 @@ router.get('/company/users', authenticateToken, requireTenant, requireTenantAdmi
 router.post('/company/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createTenantUser);
 router.post('/company/users/assign-role', authenticateToken, requireTenant, requireTenantAdmin, tenantController.assignTenantUserRole);
 
+// --- COMPANY (BUSINESS ENTITY) MANAGEMENT (Tenant Admin only) ---
+// A subscriber's Tenant Admin can create additional companies under their account
+// and choose which modules each company needs.
+router.get('/company/available-modules', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listAvailableModules);
+router.get('/companies', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listCompanies);
+router.post('/companies', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createCompany);
+
 module.exports = router;
