@@ -15,6 +15,7 @@ const { updateProfileWithOutbox } = require('./user.service');
 
 // Tenant-scoped user management (Tenant Admin manages users within their company)
 const tenantController = require('../saas/tenant.controller');
+const invitationController = require('../saas/invitation.controller');
 const { hasTenantAdminRole } = require('../saas/tenant');
 
 // Test Route to verify that the auth routes are working
@@ -224,6 +225,25 @@ router.get('/company/roles', authenticateToken, requireTenant, requireTenantAdmi
 router.get('/company/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listTenantUsers);
 router.post('/company/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createTenantUser);
 router.post('/company/users/assign-role', authenticateToken, requireTenant, requireTenantAdmin, tenantController.assignTenantUserRole);
+
+// Add an EXISTING same-account user as a collaborator on the caller's company.
+router.post('/company/collaborators', authenticateToken, requireTenant, requireTenantAdmin, tenantController.addCollaborator);
+
+// --- COLLABORATOR INVITATIONS (consent-based cross-tenant bridge) ---
+// Admin side (Tenant Admin within their company):
+router.post('/company/invitations', authenticateToken, requireTenant, requireTenantAdmin, invitationController.createInvitation);
+router.get('/company/invitations', authenticateToken, requireTenant, requireTenantAdmin, invitationController.listCompanyInvitations);
+router.post('/company/invitations/:id/revoke', authenticateToken, requireTenant, requireTenantAdmin, invitationController.revokeInvitation);
+// Invitee side (any logged-in user, matched by their own email):
+router.get('/invitations', authenticateToken, invitationController.listMyInvitations);
+router.post('/invitations/:id/accept', authenticateToken, invitationController.acceptInvitation);
+router.post('/invitations/:id/decline', authenticateToken, invitationController.declineInvitation);
+
+// --- WORKSPACE SWITCHING (any logged-in collaborator) ---
+// List the companies the user can access, and switch the active workspace
+// (re-issues a JWT scoped to the chosen company) without re-login.
+router.get('/workspaces', authenticateToken, authController.listWorkspaces);
+router.post('/switch-workspace', authenticateToken, authController.switchWorkspace);
 
 // --- COMPANY (BUSINESS ENTITY) MANAGEMENT (Tenant Admin only) ---
 // A subscriber's Tenant Admin can create additional companies under their account

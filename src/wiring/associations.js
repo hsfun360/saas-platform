@@ -22,6 +22,7 @@ const CompanyModule = require('../modules/saas/companyModule.model');
 const Role = require('../modules/saas/role.model');
 const RoleMenu = require('../modules/saas/roleMenu.model');
 const RegistrationLead = require('../modules/saas/registrationLead.model');
+const Invitation = require('../modules/saas/invitation.model');
 
 // --- DEFINE SAAS RELATIONSHIPS ---
 
@@ -53,6 +54,11 @@ Menu.belongsToMany(Role, { through: RoleMenu, foreignKey: 'menuId', as: 'Roles' 
 Role.hasMany(CompanyUser, { foreignKey: 'roleId', as: 'AssignedUsers' });
 CompanyUser.belongsTo(Role, { foreignKey: 'roleId', as: 'Role' });
 
+// 8. Collaborator Invitations (consent-based cross-tenant bridge)
+Invitation.belongsTo(Company, { foreignKey: 'companyId', as: 'Company' });
+Invitation.belongsTo(Account, { foreignKey: 'accountId', as: 'Account' });
+Invitation.belongsTo(Role, { foreignKey: 'roleId', as: 'Role' });
+
 module.exports = {
     User,
     OutboxMessage,
@@ -65,4 +71,5 @@ module.exports = {
     Role,
     RoleMenu,
     RegistrationLead,
+    Invitation,
 };

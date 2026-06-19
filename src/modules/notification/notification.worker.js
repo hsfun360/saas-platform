@@ -89,6 +89,41 @@ async function sendPasswordResetSuccessEmail(toEmail) {
     await transporter.sendMail(mailOptions);
 }
 
+// 4b. The email sending for a collaborator invitation
+async function sendCollaboratorInviteEmail(toEmail, payload) {
+    const company = payload.companyName || 'a company';
+    const subscriber = payload.subscriberName ? ` (${payload.subscriberName})` : '';
+    const roleLine = payload.roleName
+        ? `<p>You'll join with the role: <strong>${payload.roleName}</strong>.</p>`
+        : '';
+
+    const mailOptions = {
+        from: `"Your App Name" <${process.env.EMAIL_USER}>`,
+        to: toEmail,
+        subject: `You've been invited to collaborate on ${company}`,
+        html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 5px; max-width: 520px; margin: 0 auto;">
+                <h2 style="color: #1e3a8a;">You've been invited to collaborate</h2>
+                <p>You've been invited to join <strong>${company}</strong>${subscriber} as a collaborator.</p>
+                ${roleLine}
+                <p>Sign in to review and accept the invitation. If you don't have an account yet, you can create one with this email address — your invitation will be waiting on your dashboard.</p>
+                <a href="${payload.acceptLink}" style="display: inline-block; padding: 12px 24px; background-color: #16a34a; color: white; text-decoration: none; border-radius: 5px; margin-top: 15px; font-weight: bold;">
+                    Review Invitation
+                </a>
+                <p style="margin-top: 20px; font-size: 12px; color: #777;">
+                    If the button doesn't work, copy and paste this link into your browser:<br>
+                    ${payload.acceptLink}
+                </p>
+                <p style="margin-top: 20px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 10px;">
+                    If you weren't expecting this, you can safely ignore this email — no access is granted unless you accept.
+                </p>
+            </div>
+        `
+    };
+
+    await transporter.sendMail(mailOptions);
+}
+
 // 5. The email sending for profile updates (Security Alert)
 async function sendProfileUpdateEmail(toEmail, payload) {
     const mailOptions = {
@@ -197,6 +232,12 @@ async function processOutboxSafely() {
 
                     await sendAccountActivationEmail(msg.payload.email, msg.payload.companyName, msg.payload.activationLink);
                     console.log(`[OUTBOX WORKER] Account activation email sent to ${msg.payload.email}`);
+                }
+
+                else if (msg.type === 'CollaboratorInvited') {
+
+                    await sendCollaboratorInviteEmail(msg.payload.email, msg.payload);
+                    console.log(`[OUTBOX WORKER] Collaborator invitation email sent to ${msg.payload.email}`);
                 }
 
                 // Mark as done

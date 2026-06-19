@@ -325,3 +325,86 @@ exports.createCompany = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
+// POST /api/auth/company/collaborators  -> add an EXISTING user to the caller's company
+// Body: { email, roleId }
+//
+// Fast path for the SAME-ACCOUNT case: a Tenant Admin can directly add a person
+// who already belongs to their subscriber account as a collaborator on another
+// of the account's companies (with a possibly different role). Cross-account /
+// global identities go through the consent-based invitation flow instead
+// (see invitation.controller.js), so no admin can attach an outsider unilaterally.
+exports.addCollaborator = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const companyId = req.user.companyId;
+        const accountId = await resolveAccountId(companyId, transaction);
+        if (!accountId) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "Your account could not be resolved." });
+        }
+
+        const { email, roleId } = req.body;
+        if (!email || !email.trim()) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "Email is required." });
+        }
+
+        // If a role was chosen, it must belong to THIS company.
+        if (roleId) {
+            const role = await Role.findOne({ where: { id: roleId, companyId }, transaction });
+            if (!role) {
+                await transaction.rollback();
+                return res.status(400).json({ message: "Selected role does not belong to your workspace." });
+            }
+        }
+
+        // The user must already exist. Creating brand-new users is handled by
+        // createTenantUser (which collects a password).
+        const user = await User.findOne({ where: { email: email.toLowerCase() }, transaction });
+        if (!user) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "No user with that email exists. Use \"Create user\" to add a new user." });
+        }
+
+        // Same-account restriction: the user must already be a member of at least
+        // one company under THIS subscriber account.
+        const memberships = await CompanyUser.findAll({ where: { userId: user.id }, attributes: ['companyId'], transaction });
+        const memberCompanyIds = memberships.map(m => m.companyId).filter(Boolean);
+        const sharesAccount = memberCompanyIds.length > 0 && await Company.count({
+            where: { id: memberCompanyIds, accountId },
+            transaction,
+        }) > 0;
+        if (!sharesAccount) {
+            await transaction.rollback();
+            return res.status(403).json({ message: "That user belongs to a different account and cannot be added." });
+        }
+
+        // Already a collaborator on this company?
+        const already = await CompanyUser.findOne({ where: { userId: user.id, companyId }, transaction });
+        if (already) {
+            await transaction.rollback();
+            return res.status(409).json({ message: "That person is already a collaborator on this company." });
+        }
+
+        await CompanyUser.create({
+            userId: user.id,
+            companyId,
+            roleId: roleId || null,
+            isActive: true,
+        }, { transaction });
+
+        await transaction.commit();
+
+        res.status(201).json({
+            message: "Collaborator added to this company.",
+            user: { id: user.id, email: user.email, full_name: user.full_name },
+        });
+    } catch (error) {
+        if (transaction && !transaction.finished) {
+            await transaction.rollback();
+        }
+        console.error("Error adding collaborator:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};

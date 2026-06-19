@@ -249,6 +249,126 @@ exports.login = async (req, res) => {
     }
 };
 
+// Resolve the role name + permitted menus for a user within one workspace.
+// companyId is null for the System Administration workspace. Mirrors the
+// resolution done inline by login (Scenario C).
+async function resolveWorkspaceContext(userId, companyId) {
+    let companyName = 'SYSTEM ADMINISTRATION';
+    let resolvedCompanyId = null;
+
+    if (companyId !== null) {
+        const company = await Company.findByPk(companyId);
+        if (!company) return null;
+        resolvedCompanyId = company.id;
+        companyName = company.name;
+    }
+
+    const membership = await CompanyUser.findOne({ where: { userId, companyId } });
+    if (!membership) return null;
+
+    let roleName = 'User';
+    let menus = [];
+    if (membership.roleId) {
+        const userRole = await Role.findByPk(membership.roleId, {
+            include: [{ model: Menu, as: 'PermittedMenus', include: [{ model: Module, as: 'Module' }] }],
+        });
+        if (userRole) {
+            roleName = userRole.name;
+            if (userRole.PermittedMenus) {
+                menus = userRole.PermittedMenus.map(m => ({
+                    name: m.name,
+                    route: m.route,
+                    icon: m.icon,
+                    moduleName: m.Module ? m.Module.name : 'Core Club Management',
+                    moduleIcon: m.Module ? m.Module.icon : 'business',
+                }));
+            }
+        }
+    }
+
+    return { companyId: resolvedCompanyId, companyName, roleName, menus };
+}
+
+// GET /api/auth/workspaces  -> every company the logged-in user can access,
+// with the role they hold in each. Used to populate the workspace switcher.
+exports.listWorkspaces = async (req, res) => {
+    try {
+        const memberships = await CompanyUser.findAll({ where: { userId: req.user.id } });
+
+        const workspaces = [];
+        for (const m of memberships) {
+            if (m.companyId === null) {
+                let roleName = 'User';
+                if (m.roleId) {
+                    const role = await Role.findByPk(m.roleId);
+                    if (role) roleName = role.name;
+                }
+                workspaces.push({ companyId: 'SYSTEM', companyName: '🛡️ System Administration', roleName });
+                continue;
+            }
+            const company = await Company.findByPk(m.companyId);
+            if (!company) continue;
+            let roleName = 'User';
+            if (m.roleId) {
+                const role = await Role.findByPk(m.roleId);
+                if (role) roleName = role.name;
+            }
+            workspaces.push({ companyId: company.id, companyName: company.name, roleName });
+        }
+
+        res.status(200).json(workspaces);
+    } catch (error) {
+        console.error("List workspaces error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// POST /api/auth/switch-workspace  -> re-issue a JWT scoped to another company
+// the user already belongs to. Body: { companyId }  ('SYSTEM' for system admin).
+// Lets a multi-company user move between their companies without re-entering
+// their password, picking up the correct role + menus for the target company.
+exports.switchWorkspace = async (req, res) => {
+    try {
+        const { companyId } = req.body;
+        if (companyId === undefined || companyId === null) {
+            return res.status(400).json({ message: "companyId is required." });
+        }
+
+        const targetId = companyId === 'SYSTEM' ? null : companyId;
+
+        // The membership check IS the security gate: a user can only switch into a
+        // workspace they already belong to.
+        const context = await resolveWorkspaceContext(req.user.id, targetId);
+        if (!context) {
+            return res.status(403).json({ message: "You do not have access to that workspace." });
+        }
+
+        const user = await User.findByPk(req.user.id, {
+            attributes: ['id', 'email', 'full_name', 'profilePicture'],
+        });
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        const isSystemAdmin = await isUserSystemAdmin(user.id, user.email);
+        const token = generateToken(user.id, user.email, context.companyId, context.companyName, isSystemAdmin);
+
+        res.status(200).json({
+            message: "Workspace switched successfully",
+            token,
+            email: user.email,
+            fullName: user.full_name || 'User',
+            profilePicture: user.profilePicture || null,
+            menus: context.menus,
+            roleName: context.roleName,
+            companyName: context.companyName,
+        });
+    } catch (error) {
+        console.error("Switch workspace error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 exports.verifyEmail = async (req, res) => {
     const { token } = req.params;
 
