@@ -261,6 +261,11 @@ exports.createSubscription = async (req, res) => {
             authMethod: 'local'
         }, { transaction });
 
+        // Record this user as the subscriber's SuperUser (account owner): they
+        // administer every company under the account, not just this first one.
+        account.ownerUserId = user.id;
+        await account.save({ transaction });
+
         // The subscriber's first user is the workspace owner: default them to a
         // per-company "Tenant Admin" role (scoped to this new company).
         const tenantAdminRole = await Role.create({

@@ -12,6 +12,7 @@ const Module = require('../saas/module.model');
 const CompanyModule = require('../saas/companyModule.model');
 const RoleMenu = require('../saas/roleMenu.model');
 const { isUserSystemAdmin } = require('../saas/systemAdmin');
+const { getOwnedAccountIds, isAccountAdminForCompany } = require('../saas/account');
 
 const crypto = require('crypto'); // Built into Node.js, no npm install needed
 
@@ -264,12 +265,23 @@ async function resolveWorkspaceContext(userId, companyId) {
     }
 
     const membership = await CompanyUser.findOne({ where: { userId, companyId } });
-    if (!membership) return null;
+
+    let roleId = membership ? membership.roleId : null;
+    if (!membership) {
+        // The System workspace always requires an explicit membership.
+        if (companyId === null) return null;
+        // Subscriber SuperUser: the account owner may enter any company in their
+        // account without a membership row, taking that company's Tenant Admin role.
+        const isOwner = await isAccountAdminForCompany(userId, companyId);
+        if (!isOwner) return null;
+        const adminRole = await Role.findOne({ where: { companyId, name: 'Tenant Admin' } });
+        roleId = adminRole ? adminRole.id : null;
+    }
 
     let roleName = 'User';
     let menus = [];
-    if (membership.roleId) {
-        const userRole = await Role.findByPk(membership.roleId, {
+    if (roleId) {
+        const userRole = await Role.findByPk(roleId, {
             include: [{ model: Menu, as: 'PermittedMenus', include: [{ model: Module, as: 'Module' }] }],
         });
         if (userRole) {
@@ -295,7 +307,9 @@ exports.listWorkspaces = async (req, res) => {
     try {
         const memberships = await CompanyUser.findAll({ where: { userId: req.user.id } });
 
-        const workspaces = [];
+        // Keyed by companyId (or 'SYSTEM') so owned-account companies don't duplicate
+        // a membership the user already holds.
+        const byKey = new Map();
         for (const m of memberships) {
             if (m.companyId === null) {
                 let roleName = 'User';
@@ -303,7 +317,7 @@ exports.listWorkspaces = async (req, res) => {
                     const role = await Role.findByPk(m.roleId);
                     if (role) roleName = role.name;
                 }
-                workspaces.push({ companyId: 'SYSTEM', companyName: '🛡️ System Administration', roleName });
+                byKey.set('SYSTEM', { companyId: 'SYSTEM', companyName: '🛡️ System Administration', roleName });
                 continue;
             }
             const company = await Company.findByPk(m.companyId);
@@ -313,10 +327,22 @@ exports.listWorkspaces = async (req, res) => {
                 const role = await Role.findByPk(m.roleId);
                 if (role) roleName = role.name;
             }
-            workspaces.push({ companyId: company.id, companyName: company.name, roleName });
+            byKey.set(company.id, { companyId: company.id, companyName: company.name, roleName });
         }
 
-        res.status(200).json(workspaces);
+        // Subscriber SuperUser: include EVERY company under accounts this user owns,
+        // even those without an explicit membership row.
+        const ownedAccountIds = await getOwnedAccountIds(req.user.id);
+        if (ownedAccountIds.length > 0) {
+            const owned = await Company.findAll({ where: { accountId: ownedAccountIds } });
+            for (const c of owned) {
+                if (!byKey.has(c.id)) {
+                    byKey.set(c.id, { companyId: c.id, companyName: c.name, roleName: 'Tenant Admin' });
+                }
+            }
+        }
+
+        res.status(200).json([...byKey.values()]);
     } catch (error) {
         console.error("List workspaces error:", error);
         res.status(500).json({ message: "Internal server error" });
