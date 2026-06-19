@@ -142,7 +142,8 @@ function setupInviteHappyPath() {
     sequelize.transaction = fn(async () => tx);
     // Company.findByPk serves both resolveAccountId (accountId) and the email payload (name).
     Company.findByPk = fn(async () => ({ id: 'company-A', accountId: 'acct-X', name: 'Acme Co' }));
-    Account.findByPk = fn(async () => ({ subscriberName: 'Acme Subscriber' }));
+    // admin-1 owns account acct-X (account SuperUser → administers company-A).
+    Account.findByPk = fn(async () => ({ id: 'acct-X', subscriberName: 'Acme Subscriber', ownerUserId: 'admin-1' }));
     User.findOne = fn(async () => null);          // unknown email by default
     CompanyUser.findOne = fn(async () => null);   // not already a collaborator here
     Invitation.findOne = fn(async () => null);    // no pending invite

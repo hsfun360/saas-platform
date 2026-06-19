@@ -14,6 +14,7 @@ const Menu = require('./menu.model');
 const RoleMenu = require('./roleMenu.model');
 const bcrypt = require('bcryptjs');
 const { sequelize } = require('../../platform/db');
+const { hasTenantAdminRole } = require('./tenant');
 
 // Resolve the Account a Tenant Admin belongs to. The JWT only carries the
 // caller's active companyId, so we derive the accountId from that company.
@@ -27,10 +28,31 @@ async function resolveAccountId(companyId, transaction) {
     return company ? company.accountId : null;
 }
 
-// GET /api/auth/company/roles  -> roles defined for the caller's company
+// Pick the company an operation targets: an explicit companyId the caller is
+// allowed to administer (the account owner, or that company's Tenant Admin), or
+// the caller's active company when none is given. This is what lets an account
+// SuperUser manage users in ANY company of their subscriber from one screen,
+// while a per-company Tenant Admin stays confined to their own company.
+// Returns { companyId } on success, or { status, message } to return as an error.
+async function resolveTargetCompany(req, explicitCompanyId) {
+    const companyId = explicitCompanyId || req.user.companyId;
+    if (!companyId) {
+        return { status: 400, message: "No company specified." };
+    }
+    const allowed = await hasTenantAdminRole(req.user.id, companyId);
+    if (!allowed) {
+        return { status: 403, message: "You don't have admin rights for that company." };
+    }
+    return { companyId };
+}
+
+// GET /api/auth/company/roles[?companyId=]  -> roles defined for a company
 exports.listTenantRoles = async (req, res) => {
     try {
-        const companyId = req.user.companyId;
+        const target = await resolveTargetCompany(req, req.query.companyId);
+        if (target.status) return res.status(target.status).json({ message: target.message });
+        const companyId = target.companyId;
+
         const roles = await Role.findAll({
             where: { companyId },
             attributes: ['id', 'name', 'description'],
@@ -43,10 +65,13 @@ exports.listTenantRoles = async (req, res) => {
     }
 };
 
-// GET /api/auth/company/users  -> users in the caller's company, with their role
+// GET /api/auth/company/users[?companyId=]  -> users in a company, with their role
 exports.listTenantUsers = async (req, res) => {
     try {
-        const companyId = req.user.companyId;
+        const target = await resolveTargetCompany(req, req.query.companyId);
+        if (target.status) return res.status(target.status).json({ message: target.message });
+        const companyId = target.companyId;
+
         const memberships = await CompanyUser.findAll({
             where: { companyId },
             include: [
@@ -81,14 +106,17 @@ exports.listTenantUsers = async (req, res) => {
     }
 };
 
-// POST /api/auth/company/users  -> create a user in the caller's company
-// Body: { email, password, fullName, phone?, roleId? }
+// POST /api/auth/company/users  -> create a user and place them in a company
+// Body: { email, password, fullName, phone?, roleId?, companyId? }
 exports.createTenantUser = async (req, res) => {
+    const { email, password, fullName, phone, roleId, companyId: bodyCompanyId } = req.body;
+
+    const target = await resolveTargetCompany(req, bodyCompanyId);
+    if (target.status) return res.status(target.status).json({ message: target.message });
+    const companyId = target.companyId;
+
     const transaction = await sequelize.transaction();
     try {
-        const companyId = req.user.companyId;
-        const { email, password, fullName, phone, roleId } = req.body;
-
         if (!email || !password || !fullName) {
             await transaction.rollback();
             return res.status(400).json({ message: "Email, password, and full name are required." });
@@ -143,16 +171,19 @@ exports.createTenantUser = async (req, res) => {
     }
 };
 
-// POST /api/auth/company/users/assign-role  -> set a user's role within the company
-// Body: { userId, roleId }
+// POST /api/auth/company/users/assign-role  -> set a user's role within a company
+// Body: { userId, roleId, companyId? }
 exports.assignTenantUserRole = async (req, res) => {
     try {
-        const companyId = req.user.companyId;
-        const { userId, roleId } = req.body;
+        const { userId, roleId, companyId: bodyCompanyId } = req.body;
 
         if (!userId || !roleId) {
             return res.status(400).json({ message: "User ID and Role ID are required." });
         }
+
+        const target = await resolveTargetCompany(req, bodyCompanyId);
+        if (target.status) return res.status(target.status).json({ message: target.message });
+        const companyId = target.companyId;
 
         // The role must belong to this company.
         const role = await Role.findOne({ where: { id: roleId, companyId } });
@@ -184,6 +215,45 @@ exports.assignTenantUserRole = async (req, res) => {
         res.status(200).json({ message: "User role updated successfully." });
     } catch (error) {
         console.error("Error assigning tenant user role:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// POST /api/auth/company/users/revoke  -> remove a user from a company
+// Body: { userId, companyId? }  (deletes the CompanyUser link; global identity
+// and the user's access to OTHER companies are untouched.)
+exports.revokeTenantUser = async (req, res) => {
+    try {
+        const { userId, companyId: bodyCompanyId } = req.body;
+        if (!userId) {
+            return res.status(400).json({ message: "User ID is required." });
+        }
+
+        const target = await resolveTargetCompany(req, bodyCompanyId);
+        if (target.status) return res.status(target.status).json({ message: target.message });
+        const companyId = target.companyId;
+
+        const membership = await CompanyUser.findOne({ where: { userId, companyId } });
+        if (!membership) {
+            return res.status(404).json({ message: "User is not a member of that company." });
+        }
+
+        // Last-admin lockout protection: don't remove the company's only Tenant
+        // Admin, or the workspace would be left with no one who can manage it.
+        const tenantAdminRole = await Role.findOne({ where: { companyId, name: 'Tenant Admin' } });
+        if (tenantAdminRole && membership.roleId === tenantAdminRole.id) {
+            const adminCount = await CompanyUser.count({ where: { companyId, roleId: tenantAdminRole.id } });
+            if (adminCount <= 1) {
+                return res.status(409).json({
+                    message: "Cannot remove the last Tenant Admin. Assign another Tenant Admin first.",
+                });
+            }
+        }
+
+        await membership.destroy();
+        res.status(200).json({ message: "User removed from this company." });
+    } catch (error) {
+        console.error("Error revoking tenant user:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
@@ -335,16 +405,20 @@ exports.createCompany = async (req, res) => {
 // global identities go through the consent-based invitation flow instead
 // (see invitation.controller.js), so no admin can attach an outsider unilaterally.
 exports.addCollaborator = async (req, res) => {
+    const { email, roleId, companyId: bodyCompanyId } = req.body;
+
+    const target = await resolveTargetCompany(req, bodyCompanyId);
+    if (target.status) return res.status(target.status).json({ message: target.message });
+    const companyId = target.companyId;
+
     const transaction = await sequelize.transaction();
     try {
-        const companyId = req.user.companyId;
         const accountId = await resolveAccountId(companyId, transaction);
         if (!accountId) {
             await transaction.rollback();
             return res.status(404).json({ message: "Your account could not be resolved." });
         }
 
-        const { email, roleId } = req.body;
         if (!email || !email.trim()) {
             await transaction.rollback();
             return res.status(400).json({ message: "Email is required." });

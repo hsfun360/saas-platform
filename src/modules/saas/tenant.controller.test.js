@@ -14,6 +14,7 @@ const assert = require('node:assert');
 const User = require('../identity/user.model');
 const CompanyUser = require('./companyUser.model');
 const Company = require('./company.model');
+const Account = require('./account.model');
 const Role = require('./role.model');
 const { sequelize } = require('../../platform/db');
 const controller = require('./tenant.controller');
@@ -47,6 +48,8 @@ beforeEach(() => {
     sequelize.transaction = fn(async () => tx);
     // resolveAccountId() looks the admin's company up to find its accountId.
     Company.findByPk = fn(async () => ({ id: 'company-A', accountId: 'acct-X' }));
+    // admin-1 owns account acct-X, so they administer company-A (account SuperUser).
+    Account.findByPk = fn(async () => ({ id: 'acct-X', ownerUserId: 'admin-1' }));
     Role.findOne = fn(async () => ({ id: 'role-1', companyId: 'company-A' }));
     CompanyUser.create = fn(async () => ({}));
     CompanyUser.findOne = fn(async () => null);

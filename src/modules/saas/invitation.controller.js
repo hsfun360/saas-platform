@@ -23,6 +23,7 @@ const Role = require('./role.model');
 const User = require('../identity/user.model');
 const OutboxMessage = require('../../platform/outboxMessage.model');
 const { sequelize } = require('../../platform/db');
+const { hasTenantAdminRole } = require('./tenant');
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:4200';
@@ -33,11 +34,15 @@ async function resolveAccountId(companyId, transaction) {
     return company ? company.accountId : null;
 }
 
-// POST /api/auth/company/invitations  { email, roleId }
+// POST /api/auth/company/invitations  { email, roleId, companyId? }
 exports.createInvitation = async (req, res) => {
+    const companyId = req.body.companyId || req.user.companyId;
+    if (!companyId || !(await hasTenantAdminRole(req.user.id, companyId))) {
+        return res.status(403).json({ message: "You don't have admin rights for that company." });
+    }
+
     const transaction = await sequelize.transaction();
     try {
-        const companyId = req.user.companyId;
         const accountId = await resolveAccountId(companyId, transaction);
         if (!accountId) {
             await transaction.rollback();
@@ -125,10 +130,13 @@ exports.createInvitation = async (req, res) => {
     }
 };
 
-// GET /api/auth/company/invitations  -> this company's pending invitations
+// GET /api/auth/company/invitations[?companyId=]  -> a company's pending invitations
 exports.listCompanyInvitations = async (req, res) => {
     try {
-        const companyId = req.user.companyId;
+        const companyId = req.query.companyId || req.user.companyId;
+        if (!companyId || !(await hasTenantAdminRole(req.user.id, companyId))) {
+            return res.status(403).json({ message: "You don't have admin rights for that company." });
+        }
         const invitations = await Invitation.findAll({
             where: { companyId, status: 'pending' },
             include: [{ model: Role, as: 'Role', attributes: ['id', 'name'] }],
@@ -153,10 +161,12 @@ exports.listCompanyInvitations = async (req, res) => {
 // POST /api/auth/company/invitations/:id/revoke
 exports.revokeInvitation = async (req, res) => {
     try {
-        const companyId = req.user.companyId;
-        const invitation = await Invitation.findOne({ where: { id: req.params.id, companyId } });
+        const invitation = await Invitation.findByPk(req.params.id);
         if (!invitation) {
             return res.status(404).json({ message: "Invitation not found." });
+        }
+        if (!(await hasTenantAdminRole(req.user.id, invitation.companyId))) {
+            return res.status(403).json({ message: "You don't have admin rights for that company." });
         }
         if (invitation.status !== 'pending') {
             return res.status(409).json({ message: `Invitation is already ${invitation.status}.` });
