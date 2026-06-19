@@ -359,25 +359,32 @@ exports.addCollaborator = async (req, res) => {
             }
         }
 
-        // The user must already exist. Creating brand-new users is handled by
-        // createTenantUser (which collects a password).
-        const user = await User.findOne({ where: { email: email.toLowerCase() }, transaction });
-        if (!user) {
-            await transaction.rollback();
-            return res.status(404).json({ message: "No user with that email exists. Use \"Create user\" to add a new user." });
+        // Resolve the user (if any) and whether they already belong to this
+        // subscriber account (member of at least one company under it).
+        const user = await User.findOne({
+            where: { email: email.toLowerCase() },
+            attributes: ['id', 'email', 'full_name'],
+            transaction,
+        });
+
+        let sharesAccount = false;
+        if (user) {
+            const memberships = await CompanyUser.findAll({ where: { userId: user.id }, attributes: ['companyId'], transaction });
+            const memberCompanyIds = memberships.map(m => m.companyId).filter(Boolean);
+            sharesAccount = memberCompanyIds.length > 0 && await Company.count({
+                where: { id: memberCompanyIds, accountId },
+                transaction,
+            }) > 0;
         }
 
-        // Same-account restriction: the user must already be a member of at least
-        // one company under THIS subscriber account.
-        const memberships = await CompanyUser.findAll({ where: { userId: user.id }, attributes: ['companyId'], transaction });
-        const memberCompanyIds = memberships.map(m => m.companyId).filter(Boolean);
-        const sharesAccount = memberCompanyIds.length > 0 && await Company.count({
-            where: { id: memberCompanyIds, accountId },
-            transaction,
-        }) > 0;
-        if (!sharesAccount) {
+        // ONE generic outcome whether the email is unknown OR belongs to another
+        // account — so this endpoint can't be used to probe which emails exist on
+        // the platform. Both cases route the admin to the consent-based invite.
+        if (!user || !sharesAccount) {
             await transaction.rollback();
-            return res.status(403).json({ message: "That user belongs to a different account and cannot be added." });
+            return res.status(422).json({
+                message: "That person isn't in your account yet. Use \"Invite Collaborator\" to invite them by email.",
+            });
         }
 
         // Already a collaborator on this company?

@@ -206,15 +206,14 @@ exports.acceptInvitation = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
         const invitation = await Invitation.findByPk(req.params.id, { transaction });
-        if (!invitation || invitation.status !== 'pending') {
-            await transaction.rollback();
-            return res.status(404).json({ message: "Invitation not found or no longer valid." });
-        }
 
-        // The consent gate: only the invited identity can accept.
-        if (invitation.email.toLowerCase() !== (req.user.email || '').toLowerCase()) {
+        // The consent gate: a non-addressee is treated identically to a missing
+        // invitation, so invitation IDs can't be probed by guessing.
+        const addressedToCaller =
+            invitation && invitation.email.toLowerCase() === (req.user.email || '').toLowerCase();
+        if (!invitation || invitation.status !== 'pending' || !addressedToCaller) {
             await transaction.rollback();
-            return res.status(403).json({ message: "This invitation was not addressed to you." });
+            return res.status(404).json({ message: "Invitation not found or no longer available." });
         }
 
         if (invitation.expiresAt && new Date(invitation.expiresAt).getTime() < Date.now()) {
@@ -261,11 +260,11 @@ exports.acceptInvitation = async (req, res) => {
 exports.declineInvitation = async (req, res) => {
     try {
         const invitation = await Invitation.findByPk(req.params.id);
-        if (!invitation || invitation.status !== 'pending') {
-            return res.status(404).json({ message: "Invitation not found or no longer valid." });
-        }
-        if (invitation.email.toLowerCase() !== (req.user.email || '').toLowerCase()) {
-            return res.status(403).json({ message: "This invitation was not addressed to you." });
+        // Non-addressee is treated identically to a missing invitation (no ID probing).
+        const addressedToCaller =
+            invitation && invitation.email.toLowerCase() === (req.user.email || '').toLowerCase();
+        if (!invitation || invitation.status !== 'pending' || !addressedToCaller) {
+            return res.status(404).json({ message: "Invitation not found or no longer available." });
         }
         invitation.status = 'declined';
         await invitation.save();
