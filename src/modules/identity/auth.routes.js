@@ -226,6 +226,8 @@ router.get('/company/users', authenticateToken, requireTenant, requireTenantAdmi
 router.post('/company/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createTenantUser);
 router.post('/company/users/assign-role', authenticateToken, requireTenant, requireTenantAdmin, tenantController.assignTenantUserRole);
 router.post('/company/users/revoke', authenticateToken, requireTenant, requireTenantAdmin, tenantController.revokeTenantUser);
+// Account-wide, person-centric view for the redesigned User Management screen.
+router.get('/account/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listAccountUsers);
 
 // Add an EXISTING same-account user as a collaborator on the caller's company.
 router.post('/company/collaborators', authenticateToken, requireTenant, requireTenantAdmin, tenantController.addCollaborator);

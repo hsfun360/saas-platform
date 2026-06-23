@@ -12,9 +12,11 @@ const Module = require('./module.model');
 const CompanyModule = require('./companyModule.model');
 const Menu = require('./menu.model');
 const RoleMenu = require('./roleMenu.model');
+const Invitation = require('./invitation.model');
 const bcrypt = require('bcryptjs');
 const { sequelize } = require('../../platform/db');
 const { hasTenantAdminRole } = require('./tenant');
+const { isAccountOwner } = require('./account');
 
 // Resolve the Account a Tenant Admin belongs to. The JWT only carries the
 // caller's active companyId, so we derive the accountId from that company.
@@ -254,6 +256,96 @@ exports.revokeTenantUser = async (req, res) => {
         res.status(200).json({ message: "User removed from this company." });
     } catch (error) {
         console.error("Error revoking tenant user:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// GET /api/auth/account/users  -> account-wide, person-centric view for the
+// redesigned User Management screen. Returns the companies the caller may
+// administer (each with its roles), every person who is a member of any of those
+// companies (with their per-company role), and pending invitations — everything
+// the UI needs to manage "who is in which company as what role" in one payload.
+exports.listAccountUsers = async (req, res) => {
+    try {
+        const accountId = await resolveAccountId(req.user.companyId);
+        if (!accountId) {
+            return res.status(404).json({ message: "Your account could not be resolved." });
+        }
+
+        // Companies the caller may administer: all of them if they own the account,
+        // otherwise only the ones where they hold the Tenant Admin role.
+        let companies;
+        if (await isAccountOwner(req.user.id, accountId)) {
+            companies = await Company.findAll({ where: { accountId }, attributes: ['id', 'name'], order: [['name', 'ASC']] });
+        } else {
+            const adminLinks = await CompanyUser.findAll({
+                where: { userId: req.user.id },
+                include: [{ model: Role, as: 'Role', where: { name: 'Tenant Admin' }, required: true, attributes: [] }],
+                attributes: ['companyId'],
+            });
+            const adminIds = adminLinks.map(l => l.companyId).filter(Boolean);
+            companies = adminIds.length
+                ? await Company.findAll({ where: { id: adminIds, accountId }, attributes: ['id', 'name'], order: [['name', 'ASC']] })
+                : [];
+        }
+
+        const companyIds = companies.map(c => c.id);
+        const companyNameById = new Map(companies.map(c => [c.id, c.name]));
+
+        // Roles per administrable company (for the role dropdowns).
+        const roles = companyIds.length
+            ? await Role.findAll({ where: { companyId: companyIds }, attributes: ['id', 'name', 'companyId'], order: [['name', 'ASC']] })
+            : [];
+        const rolesByCompany = {};
+        for (const r of roles) {
+            (rolesByCompany[r.companyId] ||= []).push({ id: r.id, name: r.name });
+        }
+        const companiesOut = companies.map(c => ({ id: c.id, name: c.name, roles: rolesByCompany[c.id] || [] }));
+
+        // Memberships in those companies, grouped into people.
+        const memberships = companyIds.length
+            ? await CompanyUser.findAll({ where: { companyId: companyIds }, include: [{ model: Role, as: 'Role', attributes: ['id', 'name'] }] })
+            : [];
+        const userIds = [...new Set(memberships.map(m => m.userId))];
+        const users = userIds.length ? await User.findAll({ where: { id: userIds }, attributes: ['id', 'email', 'full_name'] }) : [];
+        const userById = new Map(users.map(u => [u.id, u]));
+
+        const peopleMap = new Map();
+        for (const m of memberships) {
+            const u = userById.get(m.userId);
+            if (!u) continue;
+            if (!peopleMap.has(m.userId)) {
+                peopleMap.set(m.userId, { id: u.id, email: u.email, full_name: u.full_name, memberships: [] });
+            }
+            peopleMap.get(m.userId).memberships.push({
+                companyId: m.companyId,
+                companyName: companyNameById.get(m.companyId) || null,
+                roleId: m.roleId,
+                roleName: m.Role ? m.Role.name : null,
+            });
+        }
+        const people = [...peopleMap.values()].sort((a, b) => (a.email || '').localeCompare(b.email || ''));
+
+        // Pending invitations across those companies.
+        const invites = companyIds.length
+            ? await Invitation.findAll({
+                where: { companyId: companyIds, status: 'pending' },
+                include: [{ model: Role, as: 'Role', attributes: ['name'] }],
+                order: [['createdAt', 'DESC']],
+            })
+            : [];
+        const invitations = invites.map(i => ({
+            id: i.id,
+            email: i.email,
+            companyId: i.companyId,
+            companyName: companyNameById.get(i.companyId) || null,
+            roleName: i.Role ? i.Role.name : null,
+            expiresAt: i.expiresAt,
+        }));
+
+        res.status(200).json({ companies: companiesOut, people, invitations });
+    } catch (error) {
+        console.error("List account users error:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
