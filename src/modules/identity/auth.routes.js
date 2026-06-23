@@ -222,6 +222,9 @@ router.post('/company/roles', authenticateToken, requireTenant, requireTenantAdm
 
 // --- TENANT USER MANAGEMENT (Tenant Admin only) ---
 router.get('/company/roles', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listTenantRoles);
+router.get('/company/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.getTenantRole);
+router.put('/company/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateTenantRole);
+router.delete('/company/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.deleteTenantRole);
 router.get('/company/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listTenantUsers);
 router.post('/company/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createTenantUser);
 router.post('/company/users/assign-role', authenticateToken, requireTenant, requireTenantAdmin, tenantController.assignTenantUserRole);

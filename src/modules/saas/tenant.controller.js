@@ -67,6 +67,142 @@ exports.listTenantRoles = async (req, res) => {
     }
 };
 
+// GET /api/auth/company/roles/:roleId[?companyId=]  -> a single role with the exact
+// set of menu IDs it grants, so the Role Management screen can prefill its edit form.
+exports.getTenantRole = async (req, res) => {
+    try {
+        const target = await resolveTargetCompany(req, req.query.companyId);
+        if (target.status) return res.status(target.status).json({ message: target.message });
+
+        const role = await Role.findOne({
+            where: { id: req.params.roleId, companyId: target.companyId },
+            attributes: ['id', 'name', 'description'],
+        });
+        if (!role) return res.status(404).json({ message: "Role not found." });
+
+        const grants = await RoleMenu.findAll({
+            where: { roleId: role.id },
+            attributes: ['menuId'],
+        });
+
+        res.status(200).json({
+            id: role.id,
+            name: role.name,
+            description: role.description,
+            menuIds: grants.map(g => g.menuId),
+        });
+    } catch (error) {
+        console.error("Error fetching tenant role:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// PUT /api/auth/company/roles/:roleId  -> update a role's name/description and its
+// menu permissions to an exact set (diff-based add/revoke).
+// Body: { roleName?, description?, menuIds: string[], companyId? }.
+// The built-in "Tenant Admin" role is system-managed and rejected here so its
+// permissions can never be narrowed (which could lock the admin out).
+exports.updateTenantRole = async (req, res) => {
+    const target = await resolveTargetCompany(req, req.body.companyId);
+    if (target.status) return res.status(target.status).json({ message: target.message });
+    const companyId = target.companyId;
+
+    const transaction = await sequelize.transaction();
+    try {
+        const role = await Role.findOne({ where: { id: req.params.roleId, companyId }, transaction });
+        if (!role) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "Role not found." });
+        }
+        if (role.name === 'Tenant Admin') {
+            await transaction.rollback();
+            return res.status(400).json({ message: "The Tenant Admin role is managed by the system and can't be edited." });
+        }
+
+        const desired = Array.isArray(req.body.menuIds) ? [...new Set(req.body.menuIds)] : [];
+        if (desired.length === 0) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "A role must keep at least one menu permission." });
+        }
+        const found = await Menu.count({ where: { id: desired }, transaction });
+        if (found !== desired.length) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "One or more selected menus do not exist." });
+        }
+
+        // Update the name/description only when provided. An empty description
+        // string clears it; an empty/whitespace name is ignored (kept as-is).
+        const updates = {};
+        if (typeof req.body.roleName === 'string' && req.body.roleName.trim()) {
+            updates.name = req.body.roleName.trim();
+        }
+        if (typeof req.body.description === 'string') {
+            updates.description = req.body.description.trim() || null;
+        }
+        if (Object.keys(updates).length > 0) await role.update(updates, { transaction });
+
+        // Diff the granted menus and apply the minimal add/remove.
+        const current = await RoleMenu.findAll({ where: { roleId: role.id }, attributes: ['menuId'], transaction });
+        const currentIds = current.map(c => c.menuId);
+        const toAdd = desired.filter(id => !currentIds.includes(id));
+        const toRemove = currentIds.filter(id => !desired.includes(id));
+        if (toAdd.length > 0) {
+            await RoleMenu.bulkCreate(toAdd.map(menuId => ({ roleId: role.id, menuId })), { transaction });
+        }
+        if (toRemove.length > 0) {
+            await RoleMenu.destroy({ where: { roleId: role.id, menuId: toRemove }, transaction });
+        }
+
+        await transaction.commit();
+        const updated = await Role.findByPk(role.id, { attributes: ['id', 'name', 'description'] });
+        res.status(200).json({ message: "Role updated.", role: updated });
+    } catch (error) {
+        if (transaction && !transaction.finished) await transaction.rollback();
+        console.error("Error updating tenant role:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// DELETE /api/auth/company/roles/:roleId[?companyId=]  -> hard-delete a role and its
+// menu grants. Blocked when the role is still assigned to users (reassign them
+// first) or when it's the system-managed "Tenant Admin" role.
+exports.deleteTenantRole = async (req, res) => {
+    const target = await resolveTargetCompany(req, req.query.companyId);
+    if (target.status) return res.status(target.status).json({ message: target.message });
+    const companyId = target.companyId;
+
+    const transaction = await sequelize.transaction();
+    try {
+        const role = await Role.findOne({ where: { id: req.params.roleId, companyId }, transaction });
+        if (!role) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "Role not found." });
+        }
+        if (role.name === 'Tenant Admin') {
+            await transaction.rollback();
+            return res.status(400).json({ message: "The Tenant Admin role is managed by the system and can't be deleted." });
+        }
+
+        const inUse = await CompanyUser.count({ where: { companyId, roleId: role.id }, transaction });
+        if (inUse > 0) {
+            await transaction.rollback();
+            return res.status(409).json({
+                message: `${inUse} user(s) still have this role. Change their role on the User Management screen first, then delete it.`,
+            });
+        }
+
+        await RoleMenu.destroy({ where: { roleId: role.id }, transaction });
+        await role.destroy({ transaction });
+
+        await transaction.commit();
+        res.status(200).json({ message: "Role deleted." });
+    } catch (error) {
+        if (transaction && !transaction.finished) await transaction.rollback();
+        console.error("Error deleting tenant role:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // GET /api/auth/company/users[?companyId=]  -> users in a company, with their role
 exports.listTenantUsers = async (req, res) => {
     try {
