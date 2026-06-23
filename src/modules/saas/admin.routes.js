@@ -14,6 +14,15 @@ router.get('/roles', adminController.getRoles);
 router.get('/menus', adminController.listMenus);
 router.get('/modules', adminController.listModules);
 
+// Modules & Menus Maintenance (master–detail catalogue management)
+router.post('/modules', adminController.createModule);
+router.put('/modules/:moduleId', adminController.updateModule);
+router.delete('/modules/:moduleId', adminController.deleteModule);
+router.get('/modules/:moduleId/menus', adminController.listModuleMenus);
+router.post('/menus', adminController.createMenu);
+router.put('/menus/:menuId', adminController.updateMenu);
+router.delete('/menus/:menuId', adminController.deleteMenu);
+
 // User Management
 router.get('/users', adminController.listUsers);
 router.post('/users', adminController.createUser);

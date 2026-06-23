@@ -90,7 +90,7 @@ exports.getRoles = async (req, res) => {
 exports.listModules = async (req, res) => {
     try {
         const modules = await Module.findAll({
-            attributes: ['id', 'name', 'icon'],
+            attributes: ['id', 'name', 'icon', 'description'],
             order: [['name', 'ASC']],
         });
         res.status(200).json(modules);
@@ -113,6 +113,192 @@ exports.listMenus = async (req, res) => {
         res.status(200).json(menus);
     } catch (error) {
         console.error("Error fetching menus:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// --- 1b. MODULES & MENUS MAINTENANCE (System Admin master–detail) ---
+// Modules are the "master" catalogue (a product area, e.g. "Golf Management");
+// each Menu is a "detail" navigation entry belonging to one module. Subscribers
+// subscribe to Modules (CompanyModule); Roles grant access to Menus (RoleMenu).
+
+// POST /api/admin/modules  Body: { name, icon?, description? }
+exports.createModule = async (req, res) => {
+    try {
+        const name = (req.body.name || '').trim();
+        if (!name) return res.status(400).json({ message: "Module name is required." });
+
+        const existing = await Module.findOne({ where: { name } });
+        if (existing) return res.status(409).json({ message: "A module with that name already exists." });
+
+        const icon = (req.body.icon || '').trim();
+        const module = await Module.create({
+            name,
+            icon: icon || undefined, // fall back to the model default ('widgets')
+            description: (req.body.description || '').trim() || null,
+        });
+        res.status(201).json({ message: "Module created.", module });
+    } catch (error) {
+        console.error("Error creating module:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// PUT /api/admin/modules/:moduleId  Body: { name?, icon?, description? }
+exports.updateModule = async (req, res) => {
+    try {
+        const module = await Module.findByPk(req.params.moduleId);
+        if (!module) return res.status(404).json({ message: "Module not found." });
+
+        const updates = {};
+        if (typeof req.body.name === 'string' && req.body.name.trim()) {
+            const name = req.body.name.trim();
+            if (name !== module.name) {
+                const dup = await Module.findOne({ where: { name } });
+                if (dup) return res.status(409).json({ message: "A module with that name already exists." });
+            }
+            updates.name = name;
+        }
+        if (typeof req.body.icon === 'string') updates.icon = req.body.icon.trim() || 'widgets';
+        if (typeof req.body.description === 'string') updates.description = req.body.description.trim() || null;
+
+        await module.update(updates);
+        res.status(200).json({ message: "Module updated.", module });
+    } catch (error) {
+        console.error("Error updating module:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// DELETE /api/admin/modules/:moduleId
+// Blocked while any company still subscribes to the module (remove it from those
+// companies first). Otherwise cascade-removes the module's menus and any RoleMenu
+// grants to those menus, then the module itself — all in one transaction.
+exports.deleteModule = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const module = await Module.findByPk(req.params.moduleId, { transaction });
+        if (!module) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "Module not found." });
+        }
+
+        const subscribers = await CompanyModule.count({ where: { moduleId: module.id }, transaction });
+        if (subscribers > 0) {
+            await transaction.rollback();
+            return res.status(409).json({
+                message: `${subscribers} company(ies) still subscribe to this module. Remove it from those companies first.`,
+            });
+        }
+
+        const menus = await Menu.findAll({ where: { moduleId: module.id }, attributes: ['id'], transaction });
+        const menuIds = menus.map(m => m.id);
+        if (menuIds.length > 0) {
+            await RoleMenu.destroy({ where: { menuId: menuIds }, transaction });
+            await Menu.destroy({ where: { id: menuIds }, transaction });
+        }
+        await module.destroy({ transaction });
+
+        await transaction.commit();
+        res.status(200).json({ message: "Module deleted." });
+    } catch (error) {
+        if (transaction && !transaction.finished) await transaction.rollback();
+        console.error("Error deleting module:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// GET /api/admin/modules/:moduleId/menus  -> the menus of one module (detail pane)
+exports.listModuleMenus = async (req, res) => {
+    try {
+        const module = await Module.findByPk(req.params.moduleId, { attributes: ['id'] });
+        if (!module) return res.status(404).json({ message: "Module not found." });
+
+        const menus = await Menu.findAll({
+            where: { moduleId: req.params.moduleId },
+            attributes: ['id', 'name', 'route', 'icon', 'parentId', 'moduleId'],
+            order: [['name', 'ASC']],
+        });
+        res.status(200).json(menus);
+    } catch (error) {
+        console.error("Error fetching module menus:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// POST /api/admin/menus  Body: { name, route, icon?, moduleId, parentId? }
+exports.createMenu = async (req, res) => {
+    try {
+        const name = (req.body.name || '').trim();
+        const route = (req.body.route || '').trim();
+        const moduleId = req.body.moduleId;
+        if (!name || !route || !moduleId) {
+            return res.status(400).json({ message: "Menu name, route and module are required." });
+        }
+
+        const module = await Module.findByPk(moduleId);
+        if (!module) return res.status(400).json({ message: "The selected module does not exist." });
+
+        const icon = (req.body.icon || '').trim();
+        const menu = await Menu.create({
+            name,
+            route,
+            icon: icon || undefined, // fall back to the model default ('folder')
+            moduleId,
+            parentId: req.body.parentId || null,
+        });
+        res.status(201).json({ message: "Menu created.", menu });
+    } catch (error) {
+        console.error("Error creating menu:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// PUT /api/admin/menus/:menuId  Body: { name?, route?, icon?, moduleId?, parentId? }
+exports.updateMenu = async (req, res) => {
+    try {
+        const menu = await Menu.findByPk(req.params.menuId);
+        if (!menu) return res.status(404).json({ message: "Menu not found." });
+
+        const updates = {};
+        if (typeof req.body.name === 'string' && req.body.name.trim()) updates.name = req.body.name.trim();
+        if (typeof req.body.route === 'string' && req.body.route.trim()) updates.route = req.body.route.trim();
+        if (typeof req.body.icon === 'string') updates.icon = req.body.icon.trim() || 'folder';
+        if (typeof req.body.moduleId === 'string' && req.body.moduleId) {
+            const module = await Module.findByPk(req.body.moduleId);
+            if (!module) return res.status(400).json({ message: "The selected module does not exist." });
+            updates.moduleId = req.body.moduleId;
+        }
+        if ('parentId' in req.body) updates.parentId = req.body.parentId || null;
+
+        await menu.update(updates);
+        res.status(200).json({ message: "Menu updated.", menu });
+    } catch (error) {
+        console.error("Error updating menu:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// DELETE /api/admin/menus/:menuId
+// Removes the menu and any RoleMenu grants to it (so no role keeps a dangling
+// permission to a deleted menu).
+exports.deleteMenu = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const menu = await Menu.findByPk(req.params.menuId, { transaction });
+        if (!menu) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "Menu not found." });
+        }
+
+        await RoleMenu.destroy({ where: { menuId: menu.id }, transaction });
+        await menu.destroy({ transaction });
+
+        await transaction.commit();
+        res.status(200).json({ message: "Menu deleted." });
+    } catch (error) {
+        if (transaction && !transaction.finished) await transaction.rollback();
+        console.error("Error deleting menu:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
