@@ -14,6 +14,10 @@ const Role = sequelize.define('Role', {
     name: {
         type: DataTypes.STRING,
         allowNull: false // e.g., "Pro Shop Cashier"
+    },
+    description: {
+        type: DataTypes.STRING,
+        allowNull: true // optional human-readable description, shown in Role Management
     }
 });
 
