@@ -396,6 +396,132 @@ exports.createCompany = async (req, res) => {
     }
 };
 
+// PUT /api/auth/companies/:companyId/modules  -> set a company's modules to an
+// exact set (diff-based add/revoke). Body: { moduleIds: string[] }.
+//
+// Added modules are subscribed and their menus granted to the company's Tenant
+// Admin role. Revoked modules are HARD-removed: the CompanyModule link is deleted
+// and those modules' menus are stripped from EVERY role in the company, so no one
+// retains access to a module the company no longer has.
+exports.updateCompanyModules = async (req, res) => {
+    const target = await resolveTargetCompany(req, req.params.companyId);
+    if (target.status) return res.status(target.status).json({ message: target.message });
+    const companyId = target.companyId;
+
+    const desired = Array.isArray(req.body.moduleIds) ? [...new Set(req.body.moduleIds)] : [];
+
+    const transaction = await sequelize.transaction();
+    try {
+        // Every requested module must exist.
+        if (desired.length > 0) {
+            const found = await Module.count({ where: { id: desired }, transaction });
+            if (found !== desired.length) {
+                await transaction.rollback();
+                return res.status(400).json({ message: "One or more selected modules do not exist." });
+            }
+        }
+
+        const current = await CompanyModule.findAll({ where: { companyId }, attributes: ['moduleId'], transaction });
+        const currentIds = current.map(c => c.moduleId);
+        const toAdd = desired.filter(id => !currentIds.includes(id));
+        const toRemove = currentIds.filter(id => !desired.includes(id));
+
+        // --- ADD: subscribe + grant the new modules' menus to the Tenant Admin role ---
+        if (toAdd.length > 0) {
+            await CompanyModule.bulkCreate(
+                toAdd.map(moduleId => ({ companyId, moduleId, isActive: true })),
+                { transaction }
+            );
+
+            const tenantAdminRole = await Role.findOne({ where: { companyId, name: 'Tenant Admin' }, transaction });
+            if (tenantAdminRole) {
+                const menus = await Menu.findAll({ where: { moduleId: toAdd }, attributes: ['id'], transaction });
+                if (menus.length > 0) {
+                    const already = await RoleMenu.findAll({
+                        where: { roleId: tenantAdminRole.id, menuId: menus.map(m => m.id) },
+                        attributes: ['menuId'],
+                        transaction,
+                    });
+                    const have = new Set(already.map(r => r.menuId));
+                    const grants = menus.filter(m => !have.has(m.id)).map(m => ({ roleId: tenantAdminRole.id, menuId: m.id }));
+                    if (grants.length > 0) await RoleMenu.bulkCreate(grants, { transaction });
+                }
+            }
+        }
+
+        // --- REVOKE (hard): delete the link + strip menus from ALL roles in the company ---
+        if (toRemove.length > 0) {
+            await CompanyModule.destroy({ where: { companyId, moduleId: toRemove }, transaction });
+
+            const roles = await Role.findAll({ where: { companyId }, attributes: ['id'], transaction });
+            const roleIds = roles.map(r => r.id);
+            if (roleIds.length > 0) {
+                const menus = await Menu.findAll({ where: { moduleId: toRemove }, attributes: ['id'], transaction });
+                const menuIds = menus.map(m => m.id);
+                if (menuIds.length > 0) {
+                    await RoleMenu.destroy({ where: { roleId: roleIds, menuId: menuIds }, transaction });
+                }
+            }
+        }
+
+        await transaction.commit();
+        res.status(200).json({ message: "Company modules updated.", added: toAdd.length, removed: toRemove.length });
+    } catch (error) {
+        if (transaction && !transaction.finished) {
+            await transaction.rollback();
+        }
+        console.error("Error updating company modules:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// PUT /api/auth/companies/:companyId  -> update a company's profile / billing details
+// Body may include any of: name, registrationNumber, taxRegistrationNumber, email,
+// phone, website, addressLine1, addressLine2, city, state, postalCode, country,
+// timezone. Only provided fields are changed; an empty string clears a field.
+exports.updateCompany = async (req, res) => {
+    const target = await resolveTargetCompany(req, req.params.companyId);
+    if (target.status) return res.status(target.status).json({ message: target.message });
+
+    try {
+        const company = await Company.findByPk(target.companyId);
+        if (!company) {
+            return res.status(404).json({ message: "Company not found." });
+        }
+
+        const b = req.body;
+
+        // Name is required: if it's being changed it must be non-empty.
+        if (b.name !== undefined) {
+            if (!b.name || !b.name.trim()) {
+                return res.status(400).json({ message: "Company name is required." });
+            }
+            company.name = b.name.trim();
+        }
+
+        // Optional profile fields: set when provided; empty string clears to null.
+        const fields = [
+            'registrationNumber', 'taxRegistrationNumber', 'email', 'phone', 'website',
+            'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'country', 'timezone',
+        ];
+        for (const f of fields) {
+            if (b[f] !== undefined) {
+                const v = typeof b[f] === 'string' ? b[f].trim() : b[f];
+                company[f] = v === '' ? null : v;
+            }
+        }
+        // timezone is NOT NULL — never let it be cleared.
+        if (!company.timezone) company.timezone = 'Asia/Kuala_Lumpur';
+
+        await company.save();
+
+        res.status(200).json({ message: "Company profile updated.", company });
+    } catch (error) {
+        console.error("Error updating company:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // POST /api/auth/company/collaborators  -> add an EXISTING user to the caller's company
 // Body: { email, roleId }
 //

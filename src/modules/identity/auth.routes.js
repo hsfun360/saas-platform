@@ -252,5 +252,7 @@ router.post('/switch-workspace', authenticateToken, authController.switchWorkspa
 router.get('/company/available-modules', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listAvailableModules);
 router.get('/companies', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listCompanies);
 router.post('/companies', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createCompany);
+router.put('/companies/:companyId/modules', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateCompanyModules);
+router.put('/companies/:companyId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateCompany);
 
 module.exports = router;
