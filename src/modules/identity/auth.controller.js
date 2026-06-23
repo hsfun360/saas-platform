@@ -13,6 +13,7 @@ const CompanyModule = require('../saas/companyModule.model');
 const RoleMenu = require('../saas/roleMenu.model');
 const { isUserSystemAdmin } = require('../saas/systemAdmin');
 const { getOwnedAccountIds, isAccountAdminForCompany } = require('../saas/account');
+const { hasTenantAdminRole } = require('../saas/tenant');
 
 const crypto = require('crypto'); // Built into Node.js, no npm install needed
 
@@ -1184,7 +1185,12 @@ exports.getDashboardStats = async (req, res) => {
 // 1. Get all Menus this Company is allowed to see (based on their subscriptions)
 exports.getAvailableMenus = async (req, res) => {
     try {
-        const companyId = req.user.companyId;
+        // Menus depend on the company's subscribed modules. companyId may be given
+        // explicitly (Role Management picker) or default to the active company.
+        const companyId = req.query.companyId || req.user.companyId;
+        if (!companyId || !(await hasTenantAdminRole(req.user.id, companyId))) {
+            return res.status(403).json({ message: "You don't have admin rights for that company." });
+        }
 
         // Find which modules this club is subscribed to
         const subscriptions = await CompanyModule.findAll({ where: { companyId, isActive: true } });
@@ -1205,20 +1211,28 @@ exports.getAvailableMenus = async (req, res) => {
 
 // 2. Create a brand new Custom Role
 exports.createRole = async (req, res) => {
+    // Role is tied to a specific company. companyId may be given explicitly (the
+    // Role Management company picker) or defaults to the caller's active company;
+    // either way the caller must be able to administer that company.
+    const companyId = req.body.companyId || req.user.companyId;
+    if (!companyId || !(await hasTenantAdminRole(req.user.id, companyId))) {
+        return res.status(403).json({ message: "You don't have admin rights for that company." });
+    }
+
     // We use a transaction because we are inserting into TWO tables (Role and RoleMenu)
     const transaction = await sequelize.transaction();
     try {
-        const companyId = req.user.companyId;
         const { roleName, menuIds } = req.body; // menuIds is an array of UUIDs sent from Angular checkboxes
 
         if (!roleName || !menuIds || menuIds.length === 0) {
+            await transaction.rollback();
             return res.status(400).json({ message: "Role name and at least one menu are required." });
         }
 
         // A. Create the actual Role isolated to this specific company
-        const newRole = await Role.create({ 
-            companyId: companyId, 
-            name: roleName 
+        const newRole = await Role.create({
+            companyId: companyId,
+            name: roleName
         }, { transaction });
 
         // B. Map all the checked menus to this new role in the junction table
