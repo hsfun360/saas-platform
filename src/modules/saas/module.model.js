@@ -20,6 +20,10 @@ const Module = sequelize.define('Module', {
     description: {
         type: DataTypes.STRING,
         allowNull: true
+    },
+    landingRoute: {
+        type: DataTypes.STRING,
+        allowNull: true // the system's default dashboard route, e.g. '/golf'
     }
 });
 

@@ -90,7 +90,7 @@ exports.getRoles = async (req, res) => {
 exports.listModules = async (req, res) => {
     try {
         const modules = await Module.findAll({
-            attributes: ['id', 'name', 'icon', 'description'],
+            attributes: ['id', 'name', 'icon', 'description', 'landingRoute'],
             order: [['name', 'ASC']],
         });
         res.status(200).json(modules);
@@ -122,7 +122,7 @@ exports.listMenus = async (req, res) => {
 // each Menu is a "detail" navigation entry belonging to one module. Subscribers
 // subscribe to Modules (CompanyModule); Roles grant access to Menus (RoleMenu).
 
-// POST /api/admin/modules  Body: { name, icon?, description? }
+// POST /api/admin/modules  Body: { name, icon?, description?, landingRoute? }
 exports.createModule = async (req, res) => {
     try {
         const name = (req.body.name || '').trim();
@@ -136,6 +136,7 @@ exports.createModule = async (req, res) => {
             name,
             icon: icon || undefined, // fall back to the model default ('widgets')
             description: (req.body.description || '').trim() || null,
+            landingRoute: (req.body.landingRoute || '').trim() || null,
         });
         res.status(201).json({ message: "Module created.", module });
     } catch (error) {
@@ -144,7 +145,7 @@ exports.createModule = async (req, res) => {
     }
 };
 
-// PUT /api/admin/modules/:moduleId  Body: { name?, icon?, description? }
+// PUT /api/admin/modules/:moduleId  Body: { name?, icon?, description?, landingRoute? }
 exports.updateModule = async (req, res) => {
     try {
         const module = await Module.findByPk(req.params.moduleId);
@@ -161,6 +162,7 @@ exports.updateModule = async (req, res) => {
         }
         if (typeof req.body.icon === 'string') updates.icon = req.body.icon.trim() || 'widgets';
         if (typeof req.body.description === 'string') updates.description = req.body.description.trim() || null;
+        if (typeof req.body.landingRoute === 'string') updates.landingRoute = req.body.landingRoute.trim() || null;
 
         await module.update(updates);
         res.status(200).json({ message: "Module updated.", module });

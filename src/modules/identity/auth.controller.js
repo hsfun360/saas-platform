@@ -226,7 +226,8 @@ exports.login = async (req, res) => {
                         route: m.route,
                         icon: m.icon,
                         moduleName: m.Module ? m.Module.name : 'Core Club Management',
-                        moduleIcon: m.Module ? m.Module.icon : 'business'
+                        moduleIcon: m.Module ? m.Module.icon : 'business',
+                        moduleLanding: m.Module ? m.Module.landingRoute : null
                     }));
                 }
             }
@@ -294,6 +295,7 @@ async function resolveWorkspaceContext(userId, companyId) {
                     icon: m.icon,
                     moduleName: m.Module ? m.Module.name : 'Core Club Management',
                     moduleIcon: m.Module ? m.Module.icon : 'business',
+                    moduleLanding: m.Module ? m.Module.landingRoute : null,
                 }));
             }
         }
@@ -590,7 +592,8 @@ exports.googleLogin = async (req, res) => {
                         route: m.route,
                         icon: m.icon,
                         moduleName: m.Module ? m.Module.name : 'Core Club Management',
-                        moduleIcon: m.Module ? m.Module.icon : 'business'
+                        moduleIcon: m.Module ? m.Module.icon : 'business',
+                        moduleLanding: m.Module ? m.Module.landingRoute : null
                     }));
                 }
             }
