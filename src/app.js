@@ -29,8 +29,14 @@ const {
 } = require('./wiring/associations');
 
 // --- Module routers ---
+// Platform tier:
 const authRoutes = require('./modules/identity/auth.routes');
 const adminRoutes = require('./modules/saas/admin.routes');
+// Product tier (core systems) — stubs reserving the gateway seam. See
+// docs/systems/ for each service's spec and the cross-service rules.
+const membershipRoutes = require('./modules/membership/membership.routes');
+const golfRoutes = require('./modules/golf/golf.routes');
+const facilityRoutes = require('./modules/facility/facility.routes');
 
 // --- Build the Express application ---
 function createApp() {
@@ -51,8 +57,13 @@ function createApp() {
     app.get('/favicon.ico', (req, res) => res.status(204).end());
 
     // --- API Routes (gateway seam) ---
+    // Platform tier:
     app.use('/api/auth', authRoutes);
     app.use('/api/admin', adminRoutes);
+    // Product tier (core systems):
+    app.use('/api/membership', membershipRoutes);
+    app.use('/api/golf', golfRoutes);
+    app.use('/api/facility', facilityRoutes);
 
     // Simple Health Check Route
     app.get('/', (req, res) => {

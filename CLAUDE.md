@@ -8,6 +8,8 @@ here with an `@`-import line.
 
 - Project overview, workflows & deployment — [`docs/project-overview.md`](docs/project-overview.md)
 - Coding standards, architecture & constraints — [`docs/coding-standards.md`](docs/coding-standards.md)
+- Services catalog & microservices boundaries — [`docs/systems/`](docs/systems/) (per-service "skill" specs; start at the index)
 
 @docs/project-overview.md
 @docs/coding-standards.md
+@docs/systems/README.md
