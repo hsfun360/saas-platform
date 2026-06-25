@@ -1155,30 +1155,6 @@ exports.activateAccount = async (req, res) => {
     }
 };
 
-// --- SAAS DASHBOARD TEST ---
-exports.getDashboardStats = async (req, res) => {
-    try {
-        // 1. Grab the exact company ID from the token!
-        const companyId = req.user.companyId;
-
-        // 2. Generate some dummy data that "belongs" to this company
-        const stats = {
-            companyId: companyId, // Echoing it back to prove the backend knows who they are!
-            totalMembers: Math.floor(Math.random() * 100) + 10,
-            activeProjects: Math.floor(Math.random() * 15) + 1,
-            monthlyRevenue: "$" + (Math.floor(Math.random() * 5000) + 1000)
-        };
-
-        // 3. Send it back to Angular
-        res.status(200).json(stats);
-        
-    } catch (error) {
-        console.error("Dashboard Stats Error:", error);
-        res.status(500).json({ message: "Failed to fetch stats" });
-    }
-};
-
-
 // ==========================================
 // TENANT ADMIN: ROLE MANAGEMENT
 // ==========================================

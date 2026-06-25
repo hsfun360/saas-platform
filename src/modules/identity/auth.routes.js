@@ -213,10 +213,6 @@ const requireTenantAdmin = async (req, res, next) => {
 // Notice how we stack the middleware:
 // 1. authenticateToken checks if they are logged in at all.
 // 2. requireTenant checks if they actually belong to a Company workspace.
-// 3. authController.getDashboardStats finally serves the data.
-router.get('/company/dashboard-stats', authenticateToken, requireTenant, authController.getDashboardStats);
-
-// 👇 ADD THESE TWO NEW ROUTES FOR ROLE MANAGEMENT 👇
 router.get('/company/menus', authenticateToken, requireTenant, requireTenantAdmin, authController.getAvailableMenus);
 router.post('/company/roles', authenticateToken, requireTenant, requireTenantAdmin, authController.createRole);
 
