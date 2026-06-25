@@ -74,8 +74,24 @@ FK) and eager-loads become a token claim or a service call. New product services
 The Angular app stays a **single SPA behind the gateway** — one `environment.apiUrl`.
 Its feature areas map to the services (admin/control-plane UI vs. each product), and
 it can be split into **micro-frontends** later if needed, independently of the
-backend split. The sidebar is already menu-driven by the Control Plane, so adding a
-product surfaces by creating its Module + Menus (Modules & Menus admin screen).
+backend split.
+
+**Systems = Modules, surfaced by granted Menus.** Each system (Membership, Golf,
+Facility, Platform) is a top-level route namespace with its own landing dashboard,
+reached from the **apps switcher** in the top bar (active system lives in the URL).
+The shell is **menu-driven by the Control Plane**, so:
+
+- A system appears in the apps switcher **only once the logged-in role has at least
+  one Menu granted in that Module** (the switcher list is built from the user's
+  granted menus). So to surface Golf / Membership / Facility: create the Module +
+  a Menu for it (**Modules & Menus** admin screen) and grant that menu to a role
+  (**Role Management**). Creating the Module alone is not enough.
+- The per-system **dashboards are always reachable directly by route**
+  (`/golf`, `/membership`, `/facility`, `/platform`) regardless of menus.
+- Landing routes are currently a hard-coded map in `dashboard.ts` (`moduleLanding`);
+  the planned **Stage 2b** moves this to a Control-Plane `Module.landingRoute` field.
+- Possible follow-up: also list a **subscribed-but-menu-less** system in the switcher
+  (today it requires ≥1 granted menu).
 
 ## Migration plan (strangler-fig)
 
