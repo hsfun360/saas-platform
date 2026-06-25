@@ -158,7 +158,7 @@ async function seedDatabase() {
 
         // 2. Create Menus
         const coreMenus = await Menu.bulkCreate([
-            { name: 'Dashboard', route: '/dashboard', icon: 'dashboard', moduleId: coreModule.id },
+            { name: 'Dashboard', route: '/home', icon: 'dashboard', moduleId: coreModule.id },
             { name: 'Facilities Setup', route: '/facilities', icon: 'domain', moduleId: coreModule.id },
             { name: 'Booking Rule Setup', route: '/booking-rules', icon: 'rule', moduleId: coreModule.id },
             { name: 'Staff Management', route: '/staff', icon: 'people', moduleId: coreModule.id }
@@ -166,9 +166,10 @@ async function seedDatabase() {
         const golfMenus = await Menu.bulkCreate([
             { name: 'Tee Time Setup', route: '/golf/tee-times', icon: 'sports_golf', moduleId: golfModule.id }
         ]);
+        // Admin screens live under the /admin namespace (see frontend routing).
         const systemMenus = await Menu.bulkCreate([
-            { name: 'Role Management', route: '/dashboard/roles', icon: 'badge', moduleId: systemModule.id },
-            { name: 'User Management', route: '/dashboard/users', icon: 'manage_accounts', moduleId: systemModule.id }
+            { name: 'Role Management', route: '/admin/roles', icon: 'badge', moduleId: systemModule.id },
+            { name: 'User Management', route: '/admin/users', icon: 'manage_accounts', moduleId: systemModule.id }
         ]);
 
         // 3. Create SYSTEM Roles (companyId is NULL)
