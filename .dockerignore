@@ -1,0 +1,23 @@
+# Build artifacts & deps (the image rebuilds these)
+node_modules
+dist
+/.angular
+
+# Git / VCS
+.git
+.gitignore
+
+# Editor / AI assistant local config
+.vscode
+.claude
+.continue
+.cursor
+.gemini
+.editorconfig
+*.code-workspace
+
+# Docs / non-runtime
+docs
+*.md
+.pa11yci.json
+coverage
