@@ -1,0 +1,144 @@
+/* Centred auth-card layout — mirrors the login screen. The auth screens keep
+   their own scoped .btn-primary (single-dash) for this centred-card layout. */
+.register-page-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: var(--space-lg);
+  background-color: #f8f9fa;
+  box-sizing: border-box;
+}
+
+.register-card {
+  background: white;
+  padding: var(--space-xl);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  box-sizing: border-box;
+}
+
+.register-title {
+  text-align: center;
+  font-size: var(--font-h1);
+  font-weight: var(--weight-bold);
+  margin: 0 0 var(--space-lg);
+  color: #000;
+}
+
+/* Form elements */
+.form-group {
+  margin-bottom: var(--space-md);
+}
+
+label {
+  display: block;
+  font-weight: var(--weight-bold);
+  margin-bottom: var(--space-sm);
+  color: #000;
+}
+
+.form-control {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-sm);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: var(--font-body); /* >= 16px: prevents iOS zoom-on-focus */
+  box-sizing: border-box;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+}
+
+.form-control[aria-invalid='true'] {
+  border-color: #b91c1c;
+}
+
+.field-error {
+  color: #b91c1c;
+  font-size: var(--font-body-2);
+  margin-top: var(--space-xs);
+}
+
+/* Alerts */
+.alert {
+  padding: var(--space-md);
+  border-radius: 6px;
+  margin-bottom: var(--space-lg);
+  font-size: var(--font-body-2);
+}
+
+.alert-success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.alert-danger {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* Primary button (scoped auth-screen variant) */
+.btn-primary {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-sm);
+  background-color: #0d6efd;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: var(--font-body);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+  margin-top: var(--space-sm);
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #0b5ed7;
+}
+
+.btn-primary:focus-visible {
+  outline: 2px solid #0d6efd;
+  outline-offset: 2px;
+}
+
+.btn-primary:disabled {
+  background-color: #a5c8fd;
+  cursor: not-allowed;
+}
+
+/* Footer link row */
+.login-row {
+  text-align: center;
+  margin-top: var(--space-lg);
+  font-size: var(--font-body-2);
+}
+
+.login-row a {
+  color: #0d6efd;
+  text-decoration: none;
+  font-weight: var(--weight-bold);
+}
+
+.login-row a:hover {
+  text-decoration: underline;
+}
+
+/* Phone: let the card breathe edge-to-edge but keep gutters */
+@media (max-width: 480px) {
+  .register-page-container {
+    padding: var(--space-md);
+    align-items: flex-start;
+  }
+
+  .register-card {
+    padding: var(--space-lg);
+  }
+}
