@@ -182,6 +182,13 @@ export class Dashboard implements OnInit {
     'Facility Management': '/facility',
   };
 
+  // The active system's dashboard route (its configured landing). Powers the
+  // sidebar / bottom-nav "Dashboard" link, so it always points at THIS system's
+  // dashboard. Falls back to /home for a system without a dedicated dashboard.
+  get systemDashboardRoute(): string {
+    return this.moduleLanding[this.activeModule] || '/home';
+  }
+
   selectModule(moduleName: string, navigate = true): void {
     this.activeModule = moduleName;
     this.displayedMenus = this.allowedMenus.filter(m => m.moduleName === moduleName);
