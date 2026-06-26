@@ -1,0 +1,812 @@
+/* 1. Global Reset - Crucial to remove the horizontal scroll */
+:host {
+  display: block;
+  height: 100vh;
+  width: 100%;
+}
+
+/* --- GOOGLE STYLE TOP BAR --- */
+.google-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 var(--space-lg);
+  background-color: #202124;
+  color: white;
+  height: 80px;
+  /* Never let the fixed-height column flex compress the header when a tall
+     route fills the content area — it must stay a constant 80px. */
+  flex-shrink: 0;
+}
+
+/* Module title + workspace switcher stacked on two lines (left of the bar). */
+.brand-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+/* The switcher shrinks to the space left of the right-side icons, and the
+   company name truncates within it (same mechanism as the module title). */
+.workspace-switcher {
+  min-width: 0;
+  max-width: 100%;
+}
+.workspace-switcher > button {
+  min-width: 0;
+  max-width: 100%;
+}
+.switcher-company {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 200px;   /* cap on desktop; flex-shrinks below this on mobile */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* FORCE FLEXBOX TO KEEP ITEMS SIDE-BY-SIDE AND CENTERED */
+.topbar-left, .topbar-right {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-md); /* Spacing between items */
+  height: 100%; /* Take full height of header for perfect centering */
+}
+
+/* HAMBURGER MENU */
+.menu-btn {
+  background: transparent; /* Fixes the grey box issue */
+  border: none;
+  color: white;
+  font-size: 28px; /* Made larger */
+  cursor: pointer;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.menu-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.brand-title {
+  font-size: var(--font-h2);
+  font-weight: var(--weight-regular);
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.user-email {
+  font-size: var(--font-body-2);
+  color: #e8eaed;
+  margin-right: var(--space-sm);
+}
+
+/* RIGHT SIDE ICONS */
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 24px; /* Made larger */
+  cursor: pointer;
+  width: 48px; 
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.icon-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* --- AVATAR & DROPDOWN --- */
+.avatar-wrapper {
+  position: relative;
+  display: flex; /* Helps center the image vertically */
+  align-items: center;
+  cursor: pointer;
+  margin-left: var(--space-xs);
+}
+
+/* The colorful ring around the avatar */
+.topbar-avatar {
+  width: 40px; 
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid transparent;
+  background-image: linear-gradient(#202124, #202124), 
+                    linear-gradient(to right, #ea4335, #fbbc05, #34a853, #4285f4);
+  background-origin: border-box;
+  background-clip: content-box, border-box;
+}
+
+/* 👇 ADD THESE STYLES FOR THE HOVER TOOLTIP */
+.avatar-tooltip {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  top: 55px; /* Sits right under the header */
+  right: 0;
+  background-color: #3c4043; /* Google's dark tooltip color */
+  color: white;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 4px;
+  font-size: var(--font-body-2);
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  transition: opacity 0.2s, visibility 0.2s;
+  z-index: 1001;
+  pointer-events: none; /* Prevents the tooltip from blocking clicks */
+}
+
+/* Make it visible on hover */
+.avatar-wrapper:hover .avatar-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+.tooltip-header {
+  font-size: var(--font-overline);
+  color: #9aa0a6;
+  text-transform: uppercase;
+  margin-bottom: var(--space-xs);
+  letter-spacing: 0.5px;
+}
+
+.tooltip-name {
+  font-weight: var(--weight-semibold);
+  font-size: var(--font-body-2);
+  margin-bottom: 2px;
+}
+
+.tooltip-email {
+  color: #bdc1c6;
+}
+
+.avatar-wrapper:hover .dropdown-menu {
+  display: block;
+}
+
+/* 👇 EXACT GOOGLE DARK THEME DROPDOWN */
+.dark-google-menu {
+  display: block; 
+  position: absolute;
+  top: 55px; /* Slightly lower to clear the header */
+  right: 0px;
+  background-color: #2b2d31; /* Google's modern dark gray menu color */
+  border-radius: 28px; /* Very rounded corners */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  min-width: 340px; 
+  z-index: 1000;
+  padding: var(--space-md);
+  cursor: default; /* Stops the pointer cursor from the wrapper from bleeding in */
+}
+
+/* Top Bar (Email & Close) */
+.dropdown-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: var(--space-lg);
+}
+
+/* 👈 The invisible box that keeps the email perfectly centered */
+.spacer {
+  width: 36px; 
+}
+
+.dropdown-email-top {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-medium);
+  color: #e8eaed;
+}
+
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: #e8eaed;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+
+.close-btn:hover {
+  background-color: #3c4043;
+}
+
+/* Profile Center (Avatar & Greeting) */
+.dropdown-profile-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+}
+
+.large-avatar-wrapper {
+  position: relative;
+  display: inline-block;
+  margin-bottom: var(--space-sm);
+}
+
+.dropdown-large-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid transparent;
+  background-image: linear-gradient(#2b2d31, #2b2d31), 
+                    linear-gradient(to right, #ea4335, #fbbc05, #34a853, #4285f4);
+  background-origin: border-box;
+  background-clip: content-box, border-box;
+}
+
+/* The Camera Icon Badge */
+.camera-badge {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  background-color: #2b2d31;
+  border-radius: 50%;
+  padding: var(--space-xs);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  cursor: pointer;
+}
+
+.camera-badge:hover {
+  background-color: #3c4043;
+}
+
+.dropdown-greeting {
+  font-size: var(--font-h2);
+  font-weight: var(--weight-regular);
+  color: #e8eaed;
+}
+
+/* Action Buttons Container */
+.dropdown-actions-dark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md); /* Spacing between the buttons */
+  margin-bottom: var(--space-lg);
+}
+
+.pill-btn {
+  width: 100%;
+  border-radius: 24px;
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+
+/* "Manage Your Profile" Outline Button */
+.dark-google-menu .outline-btn {
+  background-color: transparent;
+  border: 1px solid #5f6368;
+  color: #8ab4f8 !important; /* 👈 Forces the Google Blue text */
+  padding: var(--space-sm) var(--space-lg);
+  max-width: 260px;
+}
+
+.dark-google-menu .outline-btn:hover {
+  background-color: rgba(138, 180, 248, 0.04);
+}
+
+/* "Sign out" Filled Button */
+.dark-google-menu .filled-btn {
+  background-color: #303134; 
+  border: none;
+  color: #e8eaed !important; /* 👈 Forces the White text */
+  padding: var(--space-md) var(--space-lg);
+}
+
+.dark-google-menu .filled-btn:hover {
+  background-color: #3c4043;
+}
+
+.dark-google-menu .close-btn {
+  position: static !important; 
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  
+  /* 👇 THE FIX: Force strict dimensions and kill any inherited button stretch */
+  border-radius: 50% !important; 
+  width: 36px !important; 
+  height: 36px !important; 
+  flex: 0 0 36px; /* Tells Flexbox: Do NOT shrink, Do NOT grow, stay exactly 36px */
+  padding: 0 !important; /* Wipes out any global button padding */
+  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+
+.dark-google-menu .close-btn:hover {
+  background-color: #3c4043;
+}
+
+/* "Sign out" Filled Button */
+.filled-btn {
+  background-color: #303134; /* Darker grey filled */
+  border: none;
+  color: #e8eaed;
+  padding: var(--space-md) var(--space-lg);
+}
+
+.filled-btn:hover {
+  background-color: #3c4043;
+}
+
+/* Footer (Privacy & Terms) */
+.dropdown-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-caption);
+  color: #9aa0a6;
+}
+
+.dropdown-footer a {
+  color: #9aa0a6;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.dropdown-footer a:hover {
+  color: #e8eaed;
+}
+
+.dropdown-menu button {
+  width: 100%;
+  padding: var(--space-sm) var(--space-lg);
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: #333;
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-medium);
+}
+
+.dropdown-menu button:hover {
+  background-color: #f1f3f4;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%; /* Changed from 100vw to 100% to avoid scrollbars */
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* Prevents the whole page from scrolling horizontally */
+  box-sizing: border-box;
+  font-family: 'Roboto', Arial, sans-serif;
+}
+
+/* 2. TOP HEADER - Left and Right Justified */
+.top-header {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* This pushes Left and Right to edges */
+  padding: 0 var(--space-sm); /* Reduced from 16px to 8px to get closer to the edge */
+  border-bottom: 1px solid #dadce0;
+  background: white;
+  z-index: 1100;
+  width: 100%;
+  box-sizing: border-box; /* Ensures padding doesn't break width */
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  /*gap: 8px; /* Space between hamburger and logo */
+}
+
+/* 3. THE HAMBURGER BUTTON - Perfect Circle Fix */
+.hamburger-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #5f6368;
+  
+  /* To make a perfect circle, width and height MUST be identical */
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  border-radius: 50%; /* This makes the circle */
+  transition: background 0.2s;
+  outline: none;
+}
+
+.hamburger-btn:hover {
+  background-color: rgba(60, 64, 67, 0.08); /* Gmail's exact hover color */
+}
+
+.logo-text {
+  font-size: var(--font-h2);
+  font-family: 'Product Sans', Arial, sans-serif;
+  color: #5f6368;
+  margin-left: var(--space-xs); /* Minimal gap between button and text */
+  white-space: nowrap;
+}
+
+/* 4. USER INFO - Right Justified */
+.header-right {
+  display: flex;
+  align-items: center;
+  padding-right: var(--space-sm);
+  gap: var(--space-sm); /* Space between email and avatar */
+}
+
+.user-email {
+  white-space: nowrap;
+  color: #5f6368;
+  font-size: var(--font-body-2);
+  margin-right: var(--space-sm);
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  background: #1a73e8;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--weight-bold);
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-medium);
+}
+
+/* 4. MAIN LAYOUT - Sidebar and Content Area */
+.main-layout {
+  display: flex;
+  flex-grow: 1;
+  width: 100%;
+  /* min-height:0 lets this row shrink within the 100vh column so a tall page
+     scrolls inside .content-area instead of inflating the row (which would
+     otherwise squeeze the header). */
+  min-height: 0;
+  overflow: hidden; /* Keeps the main layout from pushing out */
+  position: relative;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 72px; /* Icons only width */
+  background: white;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
+  white-space: nowrap;
+  border-right: 1px solid #dadce0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Pinned State (Pushes Content) */
+.sidebar.pinned {
+  width: 256px;
+  /*border-right: 1px solid #dadce0;*/
+}
+
+/* Hover State (When NOT pinned, it overlays) */
+.sidebar:not(.pinned):hover {
+  width: 256px;
+  position: absolute; /* Overlays over content */
+  height: 100%;
+  box-shadow: 0 8px 10px rgba(0,0,0,0.2);
+  /*box-shadow: 0 16px 10px 0 rgba(0,0,0,0.14), 0 11px 18px 0 rgba(0,0,0,0.12);*/
+  border-right: 1px solid #dadce0;
+}
+
+/* --- NAVIGATION ITEMS (The Final Gmail Fix) --- */
+.sidebar-nav {
+  flex-grow: 1;
+  padding-top: var(--space-sm);
+}
+
+/* 1. Reset the UL (Crucial: This removes the hidden 40px padding) */
+.sidebar-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-nav a, .logout-item {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  border-radius: 0 24px 24px 0;
+  color: #3c4043;
+  text-decoration: none;
+  border: none;
+  background: none;
+  width: 100%; 
+  transition: background 0.2s;
+  padding: 0; 
+  margin: 0;
+  overflow: hidden; /* Ensures text doesn't bleed out */
+}
+
+.sidebar-nav a:hover, .logout-item:hover {
+  background-color: #f1f3f4;
+}
+
+.sidebar-nav a.active {
+  background-color: #e8f0fe;
+  color: #1a73e8;
+  font-weight: var(--weight-bold);
+}
+
+/* 2. THE ICON: This must be exactly 72px to match the collapsed sidebar */
+.icon {
+  font-size: 20px;
+  width: 72px;      
+  min-width: 72px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Centers icon perfectly in the 72px space */
+  flex-shrink: 0;
+}
+
+/* 3. THE LABEL: Positioned right after the icon */
+.label {
+  opacity: 0;
+  transition: opacity 0.15s;
+  font-size: var(--font-body-2);
+  white-space: nowrap;
+  margin-left: var(--space-sm); /* Standard Gmail spacing between icon and text */
+}
+
+/* --- HOVER / PINNED BEHAVIOR --- */
+
+/* Show labels only when expanded */
+.sidebar.pinned .label, 
+.sidebar:hover .label { 
+  opacity: 1; 
+}
+
+/* Keep the icons centered even when expanded for that clean Gmail alignment */
+.sidebar.pinned .icon,
+.sidebar:hover .icon {
+  justify-content: center; 
+}
+
+/* CONTENT AREA */
+.content-area {
+  flex-grow: 1;
+  background-color: #f8f9fa;
+  padding: var(--space-lg);
+  overflow-y: auto; /* Allow vertical scroll only inside the content area */
+  box-sizing: border-box;
+  /*transition: margin-left 0.15s ease-in-out;*/
+
+  /* Add margin to prevent content from hiding behind collapsed sidebar */
+  /*margin-left: 0; */
+}
+
+/* If the sidebar is pinned, the content doesn't need to change because it's flexed.
+   If the sidebar is NOT pinned, it's 72px, and on hover it overlays. */
+
+/* ============================================================== */
+/* ADAPTIVE NAVIGATION                                            */
+/* Desktop: side nav (above). Mobile (<768px): the side nav       */
+/* becomes an off-canvas drawer + a fixed bottom navigation bar.  */
+/* ============================================================== */
+
+/* Bottom navigation bar — hidden on desktop, shown on mobile. */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 60px;
+  background: #ffffff;
+  border-top: 1px solid #dadce0;
+  z-index: 1000;
+}
+
+.bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 44px;
+  border: none;
+  background: none;
+  color: #5f6368;
+  font-size: var(--font-overline);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.bottom-nav-item.active {
+  color: #1a73e8;
+}
+
+.bottom-nav-item .material-icons {
+  font-size: 22px;
+}
+
+.bottom-nav-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Backdrop behind the mobile drawer — hidden unless mobile (below). */
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  /* Side nav becomes an off-canvas drawer toggled by the hamburger / "More". */
+  .sidebar {
+    position: fixed;
+    top: 80px;
+    bottom: 0;
+    left: 0;
+    width: 256px;
+    transform: translateX(-100%);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+  .sidebar.pinned {
+    transform: translateX(0);
+    width: 256px;
+  }
+  /* Always show labels in the full-width drawer; neutralise hover-expand. */
+  .sidebar .label {
+    opacity: 1;
+  }
+  .sidebar:not(.pinned):hover {
+    position: fixed;
+    width: 256px;
+    transform: translateX(-100%);
+    box-shadow: none;
+  }
+
+  /* Make room for the fixed bottom nav and tighten content padding. */
+  .content-area {
+    padding: var(--space-md);
+    padding-bottom: 84px;
+  }
+
+  /* Reveal the mobile chrome. */
+  .bottom-nav {
+    display: flex;
+  }
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    top: 80px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 999;
+  }
+}
+
+/* ============================================================== */
+/* MOBILE HEADER DECLUTTER (< 768px)                              */
+/* Keep on the bar: hamburger + (truncated) title + Apps + avatar.*/
+/* Hide: email/role text, Help, Settings, workspace-name label    */
+/* (Settings now lives in the avatar dropdown).                   */
+/* ============================================================== */
+.hide-mobile {
+  /* visible by default; hidden on mobile below */
+}
+
+@media (max-width: 767px) {
+  .hide-mobile {
+    display: none !important;
+  }
+
+  /* Hamburger flush to the left edge; a little room on the right for the avatar. */
+  .google-topbar {
+    padding: 0 var(--space-sm) 0 0;
+  }
+  .topbar-left,
+  .topbar-right {
+    gap: var(--space-sm);
+  }
+
+  /* Smaller icon buttons so they don't touch the top/bottom of the header. */
+  .menu-btn,
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+  }
+
+  /* Left group takes the remaining width and may shrink; right group (apps +
+     avatar) never shrinks, so the avatar can't be pushed off the edge. */
+  .topbar-left {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .topbar-right {
+    flex: 0 0 auto;
+  }
+  .menu-btn {
+    flex-shrink: 0;
+  }
+
+  /* Module title: smaller on mobile and truncates within the space that's left. */
+  .brand-title {
+    flex: 0 1 auto;
+    min-width: 0;
+    font-size: var(--font-h3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Cap the switcher company name to the viewport so it truncates and never
+     overflows the bar on a phone. */
+  .switcher-company {
+    max-width: 42vw;
+  }
+
+  /* With email/role hidden, drop the divider in front of the icon group. */
+  .header-actions {
+    border-left: none;
+    padding-left: 0;
+  }
+
+  /* The avatar must never be squeezed off-screen. */
+  .avatar-wrapper {
+    flex-shrink: 0;
+  }
+}

@@ -1,0 +1,80 @@
+<div class="profile-pic-container" style="text-align: center; margin-bottom: var(--space-lg);">
+  
+  <img 
+    [src]="selectedImagePreview || 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png'"
+    alt="Profile Picture" 
+    style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid #ccc; transition: 0.3s;"
+  >
+
+  @if (authMethod === 'local') {
+    <label for="fileUpload" style="cursor: pointer;">
+      <div style="font-size: var(--font-caption); color: #0062cc; margin-top: var(--space-xs);">Change Photo</div>
+    </label>
+    
+    <input 
+      type="file" 
+      id="fileUpload" 
+      accept="image/*" 
+      (change)="onFileSelected($event)" 
+      style="display: none;"
+    >
+  }
+</div>
+
+<div class="profile-container">
+  <div class="profile-card">
+    <div class="profile-header">
+      <h2>Edit Profile</h2>
+      <p>Manage your public information</p>
+    </div>
+
+    <form [formGroup]="profileForm" (ngSubmit)="onUpdateProfile()">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" formControlName="fullName" placeholder="Enter your name">
+      </div>
+
+      <div class="form-group">
+        <label>Email Address (Read-only)</label>
+        <input type="email" formControlName="email">
+      </div>
+
+      <div class="form-group">
+        <label>Phone Number</label>
+        <div class="phone-input-group">
+          <select formControlName="countryCode" class="country-select">
+            @for (item of countryCodes; track item.code) {
+              <option [value]="item.code">
+                {{ item.country }}
+              </option>
+            }
+          </select>
+    
+          <input 
+            type="tel" 
+            formControlName="phoneNumber" 
+            placeholder="123456789" 
+            class="phone-input"
+          >
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Bio</label>
+        <textarea formControlName="bio" rows="3" placeholder="Tell us about yourself"></textarea>
+      </div>
+
+      @if (successMessage) {
+        <div class="success-alert">
+          {{ successMessage }}
+        </div>
+      }
+
+      <div class="form-actions">
+        <button type="submit" [disabled]="profileForm.invalid" class="btn-save">
+          Save Changes
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

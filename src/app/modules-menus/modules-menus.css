@@ -1,0 +1,131 @@
+/* Master–detail layout: modules pane + menus pane side-by-side on desktop,
+   stacked on narrower screens. Defined as classes (not inline) so the global
+   mobile rule that collapses inline grids doesn't interfere. */
+.mm-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) 1fr;
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.mm-card {
+  background: white;
+  padding: var(--space-lg);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  min-width: 0;
+}
+
+/* List/card action-row pattern (see docs/project-overview.md):
+   content on the left, actions right on desktop; actions drop to a
+   full-width row below, left-justified, on mobile. */
+.mm-row {
+  display: grid;
+  /* minmax(0, 1fr) (not 1fr) so the main track can shrink below its content's
+     min-content width. The main cell here is a <button>, whose intrinsic min
+     size otherwise keeps the track from shrinking and its text spills into the
+     actions column. With this, long names/descriptions wrap instead. */
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "main actions";
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.mm-row--active {
+  border-color: #38bdf8;
+  background: #f0f9ff;
+}
+
+/* The module name is a button that selects the module (loads its menus).
+   It fills its grid cell by default (justify-self: stretch) — no width:100%,
+   which would feed the button's preferred width back into track sizing. */
+.mm-row__select {
+  grid-area: main;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-xs) 0;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mm-row__text {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere; /* never let a long token overflow the cell */
+}
+
+.mm-row__actions {
+  grid-area: actions;
+  display: flex;
+  gap: var(--space-xs);
+  justify-self: end; /* right-justified on desktop */
+  flex-shrink: 0; /* keep Edit/Delete intact; the main cell yields space */
+}
+
+/* Mobile "back to master" button — hidden on desktop where both panes show. */
+.mm-back {
+  display: none;
+  margin-bottom: var(--space-md);
+}
+
+/* ---- SlidingPaneLayout behaviour ----
+   Desktop (default above): master + detail side-by-side.
+   Mobile (≤ 768px): one pane at a time. By default the master (modules) list
+   shows; once a module is open (.mm-layout--detail, driven by the URL param)
+   the detail pane covers the master. */
+@media (max-width: 768px) {
+  .mm-layout {
+    grid-template-columns: 1fr;
+  }
+
+  /* Default: show master, hide detail. */
+  .mm-pane--detail {
+    display: none;
+  }
+
+  /* A module is open → detail covers master. */
+  .mm-layout--detail .mm-pane--master {
+    display: none;
+  }
+  .mm-layout--detail .mm-pane--detail {
+    display: block;
+    animation: mm-slide-in 0.2s ease;
+  }
+
+  .mm-back {
+    display: inline-flex;
+  }
+
+  /* Action rows stack: actions drop to a full-width row below, left-justified. */
+  .mm-row {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "main"
+      "actions";
+  }
+  .mm-row__actions {
+    justify-self: start;
+  }
+}
+
+@keyframes mm-slide-in {
+  from {
+    transform: translateX(8%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

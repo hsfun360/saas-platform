@@ -1,0 +1,250 @@
+<div class="app-container">
+
+  <header class="google-topbar" [style.background-color]="isSystemAdmin ? '#BE0000' : 'rgb(0, 60, 145)'">
+
+    <div class="topbar-left">
+      <button class="menu-btn" style="color: white" (click)="toggleSidebar()" aria-label="Toggle navigation menu" [attr.aria-expanded]="isSidebarPinned">☰</button>
+      <div class="brand-stack">
+        <div class="brand-row">
+          <h2 class="brand-title" style="color: white">
+            {{ activeModule | uppercase }}
+          </h2>
+
+          @if (isSystemAdmin) {
+            <span class="hide-mobile" style="background: #ef4444; color: white; padding: var(--space-xs) var(--space-sm); border-radius: 12px; font-size: var(--font-caption); font-weight: var(--weight-bold); margin-left: var(--space-md); border: 1px solid #fca5a5; letter-spacing: 0.5px;">
+              MASTER ADMIN
+            </span>
+          }
+        </div>
+
+        @if (workspaces().length > 1) {
+        <div class="workspace-switcher" style="position: relative;">
+          <button type="button" (click)="toggleWorkspaceDropdown($event)"
+                  [disabled]="switchingWorkspace()"
+                  aria-label="Switch workspace" aria-haspopup="true" [attr.aria-expanded]="isWorkspaceDropdownOpen"
+                  style="display: flex; align-items: center; gap: var(--space-sm); background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); padding: var(--space-xs) var(--space-sm); border-radius: 8px; cursor: pointer; font-size: var(--font-body-2);">
+            <span class="material-icons" style="font-size: 18px;">corporate_fare</span>
+            <span class="switcher-company">{{ activeCompanyName }}</span>
+            <span class="material-icons" style="font-size: 18px;">{{ switchingWorkspace() ? 'hourglass_empty' : 'unfold_more' }}</span>
+          </button>
+
+          @if (isWorkspaceDropdownOpen) {
+            <div (click)="$event.stopPropagation()"
+                 style="position: absolute; left: 0; top: 100%; margin-top: var(--space-sm); background: #334155; border-radius: 8px; min-width: 260px; padding: var(--space-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000;">
+              <div style="padding: var(--space-sm) var(--space-sm); font-size: var(--font-caption); font-weight: var(--weight-bold); color: #cbd5e1; border-bottom: 1px solid #475569; margin-bottom: var(--space-xs); text-transform: uppercase;">
+                Switch workspace
+              </div>
+              @for (ws of workspaces(); track ws.companyId) {
+                <button type="button" (click)="switchWorkspace(ws.companyId)"
+                        [disabled]="ws.companyId === currentCompanyId"
+                        [style.opacity]="ws.companyId === currentCompanyId ? '0.6' : '1'"
+                        [style.cursor]="ws.companyId === currentCompanyId ? 'default' : 'pointer'"
+                        style="width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-xs); background: transparent; border: none; color: white; padding: var(--space-sm); border-radius: 6px; text-align: left;">
+                  <span style="font-size: var(--font-body); display: flex; align-items: center; gap: var(--space-xs);">
+                    {{ ws.companyName }}
+                    @if (ws.companyId === currentCompanyId) {
+                      <span class="material-icons" style="font-size: 16px; color: #4ade80;">check</span>
+                    }
+                  </span>
+                  <span style="font-size: var(--font-caption); color: #cbd5e1;">{{ ws.roleName }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+        }
+      </div>
+    </div>
+
+    <div class="topbar-right" style="display: flex; align-items: center; gap: var(--space-md); height: 100%;">
+
+      <div class="hide-mobile" style="display: flex; flex-direction: column; text-align: right; justify-content: center;">
+        <span [style.color]="isSystemAdmin ? '#ffffff' : '#1e293b'" style="font-size: var(--font-body); font-weight: var(--weight-semibold); line-height: 1.2;">
+          {{ loggedInUser }}
+        </span>
+        <span [style.color]="isSystemAdmin ? '#fca5a5' : '#0284c7'" style="font-size: var(--font-caption); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; margin-top: var(--space-xs);">
+          {{ userRoleName }}
+        </span>
+      </div>
+
+      <div class="header-actions" style="display: flex; align-items: center; gap: var(--space-sm); border-left: 1px solid #e2e8f0; padding-left: var(--space-md);">
+        <button class="icon-btn hide-mobile" title="Help" aria-label="Help" style="color: white">?</button>
+        <button class="icon-btn hide-mobile" title="Settings" aria-label="Settings" routerLink="/settings" style="color: white">⚙</button>
+
+        <div style="position: relative; display: inline-block;">
+          <button class="icon-btn" title="Apps" aria-label="Apps" aria-haspopup="true" [attr.aria-expanded]="isAppsDropdownOpen" (click)="toggleAppsDropdown($event)" style="color: white">
+            <span class="material-icons" style="font-size: 24px; vertical-align: middle;">apps</span>
+          </button>
+
+          @if (isAppsDropdownOpen) {
+            <div class="dropdown-menu dark-google-menu" style="position: absolute; right: 0; top: 100%; margin-top: var(--space-sm); background: #334155; border-radius: 8px; min-width: 220px; padding: var(--space-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000;" (click)="$event.stopPropagation()">
+              <div style="padding: var(--space-sm); font-size: var(--font-caption); font-weight: var(--weight-bold); color: #cbd5e1; border-bottom: 1px solid #475569; margin-bottom: var(--space-xs); text-transform: uppercase;">
+                Your Apps
+              </div>
+
+              @for (mod of availableModules; track mod.name) {
+                <button type="button" (click)="selectModule(mod.name)" style="width: 100%; text-align: left; background: transparent; border: none; padding: var(--space-sm); color: white; cursor: pointer; border-radius: 6px; transition: background 0.2s; display: flex; align-items: center;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='transparent'">
+                  <span class="material-icons" style="margin-right: var(--space-sm); font-size: 20px; color: #38bdf8;">{{ mod.icon }}</span>
+                  <span style="font-size: var(--font-body);">{{ mod.name }}</span>
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="avatar-wrapper" style="position: relative; margin-left: var(--space-sm);">
+
+        <button type="button" class="avatar-trigger" (click)="toggleDropdown($event)"
+                aria-label="Account menu" aria-haspopup="true" [attr.aria-expanded]="isDropdownOpen"
+                style="background: transparent; border: none; padding: 0; cursor: pointer; display: flex; align-items: center;">
+          <span style="padding: var(--space-xs); border-radius: 50%; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"
+                onmouseover="this.style.borderColor='#0ea5e9'; this.style.boxShadow='0 0 0 2px rgba(14,165,233,0.1)'"
+                onmouseout="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
+            <img [src]="profilePictureUrl()" alt="User Avatar" (error)="onAvatarError()" title="Google Account&#10;{{ userFullName() }}&#10;{{ loggedInUser }}"
+                 style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
+          </span>
+        </button>
+
+        @if (isDropdownOpen) {
+          <div class="dropdown-menu" (click)="$event.stopPropagation()"
+               style="position: absolute; right: 0; top: calc(100% + 12px); background: #202124; border-radius: 28px; min-width: 350px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); border: 1px solid #3c4043; z-index: 1000; overflow: hidden; color: #e8eaed; font-family: Roboto, Arial, sans-serif; cursor: default;">
+
+            <div style="display: flex; flex-direction: column; align-items: center; padding: var(--space-lg) var(--space-lg) var(--space-md);">
+              <img [src]="profilePictureUrl()" alt="Large Avatar" (error)="onAvatarError()"
+                   style="width: 76px; height: 76px; border-radius: 50%; object-fit: cover; margin-bottom: var(--space-sm); border: 1px solid #3c4043;">
+
+              <div style="font-size: var(--font-h3); font-weight: var(--weight-medium); text-align: center; letter-spacing: 0.25px;">
+                Hi, {{ userFullName() }}!
+              </div>
+
+              <div style="font-size: var(--font-body); color: #9aa0a6; margin-top: var(--space-xs); text-align: center;">
+                {{ loggedInUser }}
+              </div>
+
+              <a routerLink="/profile"
+                 style="margin-top: var(--space-md); padding: var(--space-sm) var(--space-lg); border-radius: 100px; border: 1px solid #5f6368; color: #8ab4f8; font-size: var(--font-body); font-weight: var(--weight-medium); text-decoration: none; cursor: pointer; transition: background 0.2s;"
+                 onmouseover="this.style.background='#303134'" onmouseout="this.style.background='transparent'">
+                Manage your Profile
+              </a>
+
+              <a routerLink="/settings"
+                 style="margin-top: var(--space-sm); padding: var(--space-sm) var(--space-lg); border-radius: 100px; border: 1px solid #5f6368; color: #8ab4f8; font-size: var(--font-body); font-weight: var(--weight-medium); text-decoration: none; cursor: pointer; transition: background 0.2s;"
+                 onmouseover="this.style.background='#303134'" onmouseout="this.style.background='transparent'">
+                Settings
+              </a>
+            </div>
+
+            <div style="height: 1px; background: #3c4043; width: 100%;"></div>
+
+            <div style="padding: var(--space-md); display: flex; justify-content: center; background: #202124;">
+              <button type="button" (click)="onLogout()"
+                 style="display: flex; align-items: center; justify-content: center; padding: var(--space-sm) 40px; border-radius: 24px; border: 1px solid #5f6368; background: transparent; color: #e8eaed; font-size: var(--font-body); font-weight: var(--weight-medium); cursor: pointer; transition: background 0.2s;"
+                 onmouseover="this.style.background='#303134'" onmouseout="this.style.background='transparent'">
+                <span class="material-icons" style="font-size: 20px; margin-right: var(--space-sm); color: #e8eaed;">logout</span>
+                Sign out
+              </button>
+            </div>
+
+          </div>
+        }
+      </div>
+
+    </div>
+  </header>
+
+  <div class="main-layout">
+
+    <aside class="sidebar" [class.pinned]="isSidebarPinned">
+      <nav class="sidebar-nav">
+        <ul style="list-style: none; padding: 0; margin: 0;">
+
+          <li style="margin-bottom: var(--space-xs);">
+            <a routerLink="/home" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+              <span class="icon">🏠</span>
+              <span class="label">Home</span>
+            </a>
+          </li>
+
+          @for (menu of displayedMenus; track menu.route) {
+            <li style="margin-bottom: var(--space-xs);">
+              <a [routerLink]="menu.route" routerLinkActive="active">
+                <span class="icon material-icons">{{ menu.icon || 'folder' }}</span>
+                <span class="label">{{ menu.name }}</span>
+              </a>
+            </li>
+          }
+
+          @empty {
+            <li style="padding: var(--space-md); color: #64748b; font-size: var(--font-body);">
+              <span class="label">No extra menus assigned.</span>
+            </li>
+          }
+
+        </ul>
+      </nav>
+    </aside>
+
+    <main class="content-area">
+
+      @if (myInvitations().length > 0) {
+        <div style="margin-bottom: var(--space-lg); background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: var(--space-md) var(--space-lg);">
+          <h3 style="margin: 0 0 var(--space-sm); color: #1e3a8a; display: flex; align-items: center; gap: var(--space-sm); font-size: var(--font-h2);">
+            ✉️ Pending Invitations
+          </h3>
+          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-sm);">
+            @for (inv of myInvitations(); track inv.id) {
+              <li style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: var(--space-sm) var(--space-md);">
+                <div>
+                  <div style="font-size: var(--font-body); font-weight: var(--weight-semibold); color: #1e293b;">
+                    {{ inv.companyName }}
+                    @if (inv.subscriberName) { <span style="font-weight: var(--weight-regular); color: #64748b;">· {{ inv.subscriberName }}</span> }
+                  </div>
+                  <div style="font-size: var(--font-caption); color: #64748b; margin-top: var(--space-xs);">
+                    Role: {{ inv.roleName || 'No role' }}
+                  </div>
+                </div>
+                <div style="display: flex; gap: var(--space-sm);">
+                  <button type="button" (click)="acceptInvitation(inv.id)" [disabled]="respondingInvitationId() === inv.id"
+                          style="background: #16a34a; color: white; border: none; padding: var(--space-sm) var(--space-md); border-radius: 6px; font-weight: var(--weight-semibold); cursor: pointer;">
+                    Accept
+                  </button>
+                  <button type="button" (click)="declineInvitation(inv.id)" [disabled]="respondingInvitationId() === inv.id"
+                          style="background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: var(--space-sm) var(--space-md); border-radius: 6px; cursor: pointer;">
+                    Decline
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+
+      <router-outlet></router-outlet>
+    </main>
+
+  </div>
+
+  <!-- Mobile drawer backdrop (only visible < 768px when the drawer is open) -->
+  @if (isSidebarPinned) {
+    <div class="sidebar-backdrop" (click)="toggleSidebar()"></div>
+  }
+
+  <!-- Bottom navigation: primary destinations on mobile, hidden on desktop -->
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" routerLink="/home" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <span class="material-icons">home</span>
+      <span class="bottom-nav-label">Home</span>
+    </a>
+    @for (menu of displayedMenus.slice(0, 3); track menu.route) {
+      <a class="bottom-nav-item" [routerLink]="menu.route" routerLinkActive="active">
+        <span class="material-icons">{{ menu.icon || 'folder' }}</span>
+        <span class="bottom-nav-label">{{ menu.name }}</span>
+      </a>
+    }
+    <button type="button" class="bottom-nav-item" (click)="toggleSidebar()">
+      <span class="material-icons">menu</span>
+      <span class="bottom-nav-label">More</span>
+    </button>
+  </nav>
+</div>

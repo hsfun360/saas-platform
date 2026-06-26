@@ -1,0 +1,480 @@
+﻿<div class="saas-container">
+
+  <!-- ============================================================== -->
+  <!-- HEADER                                                         -->
+  <!-- ============================================================== -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🏢</span>
+      <div>
+        <h1>SaaS Administration</h1>
+        <p class="saas-subtitle">Provision &amp; manage subscriber accounts</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section tabs: a single-row underline strip that scrolls horizontally on
+       narrow screens (a partially-visible tab at the edge signals more). -->
+  <div class="tab-bar" role="tablist" aria-label="SaaS Administration sections">
+    <button type="button" class="tab-btn" role="tab" [class.active]="activeTab() === 'create'"
+            [attr.aria-selected]="activeTab() === 'create'" (click)="switchTab('create')">
+      ➕ New Subscriber
+    </button>
+    <button type="button" class="tab-btn" role="tab" [class.active]="activeTab() === 'list'"
+            [attr.aria-selected]="activeTab() === 'list'" (click)="switchTab('list')">
+      📋 All Subscribers
+    </button>
+    <button type="button" class="tab-btn" role="tab" [class.active]="activeTab() === 'roles'"
+            [attr.aria-selected]="activeTab() === 'roles'" (click)="switchTab('roles')">
+      🛡️ Roles
+    </button>
+    <button type="button" class="tab-btn" role="tab" [class.active]="activeTab() === 'users'"
+            [attr.aria-selected]="activeTab() === 'users'" (click)="switchTab('users')">
+      👤 Users
+    </button>
+    <button type="button" class="tab-btn" role="tab" [class.active]="activeTab() === 'assign'"
+            [attr.aria-selected]="activeTab() === 'assign'" (click)="switchTab('assign')">
+      🔗 Assign Role
+    </button>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- FLASH MESSAGES                                                 -->
+  <!-- ============================================================== -->
+  @if (successMessage()) {
+    <div class="flash flash-success">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')">✕</button>
+    </div>
+  }
+
+  @if (errorMessage()) {
+    <div class="flash flash-error">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')">✕</button>
+    </div>
+  }
+
+  <!-- ============================================================== -->
+  <!-- TAB 1: CREATE SUBSCRIBER FORM                                  -->
+  <!-- ============================================================== -->
+  @if (activeTab() === 'create') {
+    <div class="card">
+      <div class="card-header">
+        <h2>Create New Subscriber</h2>
+        <p class="card-desc">
+          Fill in the details below to provision a new tenant. An Account, Company, and
+          User will be created in a single transaction.
+        </p>
+      </div>
+
+      <form (ngSubmit)="onSubmit()" class="saas-form" #subscriberForm="ngForm">
+
+        <!-- Row 1: Email -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="email">Email <span class="required">*</span></label>
+            <input
+              id="email"
+              type="email"
+              [(ngModel)]="formModel.email"
+              name="email"
+              placeholder="admin@example.com"
+              required
+              autocomplete="off"
+            />
+          </div>
+          <div class="form-group">
+            <label for="fullName">Full Name <span class="required">*</span></label>
+            <input
+              id="fullName"
+              type="text"
+              [(ngModel)]="formModel.fullName"
+              name="fullName"
+              placeholder="John Tan"
+              required
+            />
+          </div>
+        </div>
+
+        <!-- Row 2: Password -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="password">Password <span class="required">*</span></label>
+            <input
+              id="password"
+              type="password"
+              [(ngModel)]="formModel.password"
+              name="password"
+              placeholder="Min 6 characters"
+              required
+              minlength="6"
+            />
+          </div>
+          <div class="form-group">
+            <label for="confirmPassword">Confirm Password <span class="required">*</span></label>
+            <input
+              id="confirmPassword"
+              type="password"
+              [(ngModel)]="formModel.confirmPassword"
+              name="confirmPassword"
+              placeholder="Re-enter password"
+              required
+            />
+          </div>
+        </div>
+
+        <!-- Row 3: Company -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="subscriberName">Subscriber / Company Name <span class="required">*</span></label>
+            <input
+              id="subscriberName"
+              type="text"
+              [(ngModel)]="formModel.subscriberName"
+              name="subscriberName"
+              placeholder="My Club Sdn Bhd"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="registrationNumber">Registration No.</label>
+            <input
+              id="registrationNumber"
+              type="text"
+              [(ngModel)]="formModel.registrationNumber"
+              name="registrationNumber"
+              placeholder="202501000001 (optional)"
+            />
+          </div>
+        </div>
+
+        <!-- Row 4: Plan & Phone -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="subscriptionPlan">Subscription Plan <span class="required">*</span></label>
+            <select
+              id="subscriptionPlan"
+              [(ngModel)]="formModel.subscriptionPlan"
+              name="subscriptionPlan"
+            >
+              @for (plan of subscriptionPlans; track plan) {
+                <option [value]="plan">{{ plan }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone No.</label>
+            <input
+              id="phone"
+              type="tel"
+              [(ngModel)]="formModel.phone"
+              name="phone"
+              placeholder="+6012-345 6789 (optional)"
+            />
+          </div>
+        </div>
+
+        <!-- Subscribed Modules -->
+        <div class="form-group">
+          <label>Subscribed Modules</label>
+          @if (modulesLoading()) {
+            <p class="cell-subtle">Loading modules…</p>
+          } @else if (modules.length === 0) {
+            <p class="cell-subtle">No modules available.</p>
+          } @else {
+            <div class="perm-menu-list">
+              @for (mod of modules; track mod.id) {
+                <label class="perm-item">
+                  <input type="checkbox"
+                         [checked]="selectedModuleIds.has(mod.id)"
+                         (change)="toggleModule(mod.id)" />
+                  <span>{{ mod.name }}</span>
+                </label>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Submit -->
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" [disabled]="loading()">
+            @if (loading()) {
+              <span class="spinner"></span> Creating…
+            } @else {
+              🚀 Create Subscriber Account
+            }
+          </button>
+          <button type="button" class="btn-secondary" (click)="resetForm()">
+            ↻ Reset
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+
+  <!-- ============================================================== -->
+  <!-- TAB 2: LIST ALL SUBSCRIBERS                                    -->
+  <!-- ============================================================== -->
+  @if (activeTab() === 'list') {
+    <div class="card">
+      <div class="card-header">
+        <h2>All Subscribers</h2>
+        <p class="card-desc">Every tenant provisioned through this portal.</p>
+      </div>
+
+      @if (listLoading()) {
+        <div class="loading-state">
+          <div class="spinner large"></div>
+          <p>Loading subscribers…</p>
+        </div>
+      } @else if (subscriptions.length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">📭</span>
+          <p>No subscribers yet. Create your first one!</p>
+        </div>
+      } @else {
+        <div class="data-list">
+          @for (sub of subscriptions; track sub.id) {
+            @let firstCompany = sub.Companies?.[0];
+            @let cid = firstCompany?.id;
+            <div class="data-card">
+              <div class="data-row">
+                <div class="data-row__main">
+                  <div class="data-card__title">{{ sub.subscriberName }}</div>
+                  <dl class="data-card__meta">
+                    <div class="meta"><dt>Account</dt><dd class="cell-mono">{{ sub.id | slice:0:8 }}…</dd></div>
+                    @if (firstCompany?.registrationNumber) {
+                      <div class="meta"><dt>Reg</dt><dd>{{ firstCompany?.registrationNumber }}</dd></div>
+                    }
+                    <div class="meta"><dt>Plan</dt><dd><span class="badge" [class.badge-pro]="sub.subscriptionPlan === 'PRO'" [class.badge-enterprise]="sub.subscriptionPlan === 'ENTERPRISE'">{{ sub.subscriptionPlan }}</span></dd></div>
+                    <div class="meta"><dt>Status</dt><dd><span class="status-dot" [class.active]="sub.status === 'ACTIVE'"></span>{{ sub.status }}</dd></div>
+                    <div class="meta"><dt>Users</dt><dd>{{ sub.Companies?.length || 0 }}</dd></div>
+                    <div class="meta"><dt>Created</dt><dd>{{ sub.createdAt | date:'mediumDate' }}</dd></div>
+                  </dl>
+                </div>
+                <div class="data-row__actions">
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="manageAdmin(cid)">
+                    {{ managingCompanyId === cid ? 'Close' : 'Manage Admin' }}
+                  </button>
+                </div>
+              </div>
+
+              @if (cid && managingCompanyId === cid) {
+                <div class="admin-panel">
+                  @if (companyUsersLoading()) {
+                    <p class="cell-subtle">Loading users…</p>
+                  } @else if (companyUsers.length === 0) {
+                    <p class="cell-subtle">No users in this company.</p>
+                  } @else {
+                    <div class="admin-panel-title">Set the Tenant Admin for {{ sub.subscriberName }}</div>
+                    @for (cu of companyUsers; track cu.id) {
+                      <div class="admin-user-row">
+                        <span class="admin-user-info">
+                          {{ cu.email }}
+                          @if (cu.roleName) { <span class="role-pill">{{ cu.roleName }}</span> }
+                        </span>
+                        @if (cu.roleName === 'Tenant Admin') {
+                          <span class="admin-current">✔ Tenant Admin</span>
+                        } @else {
+                          <button type="button" class="btn btn--primary btn--sm"
+                                  [disabled]="settingAdminUserId === cu.id"
+                                  (click)="setTenantAdmin(cid, cu.id)">
+                            Set as Admin
+                          </button>
+                        }
+                      </div>
+                    }
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ============================================================== -->
+  <!-- TAB 3: SYSTEM ROLES                                            -->
+  <!-- ============================================================== -->
+  @if (activeTab() === 'roles') {
+    <div class="card">
+      <div class="card-header">
+        <h2>System Roles</h2>
+        <p class="card-desc">Create platform-level roles. These are not tied to any tenant company.</p>
+      </div>
+
+      <form (ngSubmit)="onCreateRole()" class="saas-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="roleName">Role Name <span class="required">*</span></label>
+            <input id="roleName" type="text" name="roleName" [(ngModel)]="roleForm.name"
+                   placeholder="e.g. Account Dept" required />
+          </div>
+          <div class="form-group">
+            <label for="roleDesc">Description</label>
+            <input id="roleDesc" type="text" name="roleDesc" [(ngModel)]="roleForm.description"
+                   placeholder="Optional" />
+          </div>
+        </div>
+
+        <!-- Menu permissions (grouped by module) -->
+        <div class="form-group">
+          <label>Menu Permissions</label>
+          @if (menusLoading()) {
+            <p class="cell-subtle">Loading menus…</p>
+          } @else if (moduleNames.length === 0) {
+            <p class="cell-subtle">No menus available.</p>
+          } @else {
+            @for (modName of moduleNames; track modName) {
+              <div class="perm-module">
+                <div class="perm-module-title">{{ modName }}</div>
+                <div class="perm-menu-list">
+                  @for (menu of menusByModule[modName]; track menu.id) {
+                    <label class="perm-item">
+                      <input type="checkbox"
+                             [checked]="selectedMenuIds.has(menu.id)"
+                             (change)="toggleMenu(menu.id)" />
+                      <span>{{ menu.name }}</span>
+                    </label>
+                  }
+                </div>
+              </div>
+            }
+          }
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" [disabled]="roleSubmitting()">
+            @if (roleSubmitting()) { <span class="spinner"></span> Creating… } @else { ➕ Create Role }
+          </button>
+        </div>
+      </form>
+
+      @if (rolesLoading()) {
+        <div class="loading-state"><div class="spinner large"></div><p>Loading roles…</p></div>
+      } @else if (roles.length === 0) {
+        <div class="empty-state"><span class="empty-icon">📭</span><p>No system roles yet.</p></div>
+      } @else {
+        <div class="data-list">
+          @for (role of roles; track role.id) {
+            <div class="data-card">
+              <div class="data-card__title">{{ role.name }}</div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Description</dt><dd>{{ role.description || '—' }}</dd></div>
+                <div class="meta"><dt>Menus</dt><dd>{{ role.PermittedMenus?.length || 0 }}</dd></div>
+                <div class="meta"><dt>ID</dt><dd class="cell-mono">{{ role.id | slice:0:8 }}…</dd></div>
+              </dl>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ============================================================== -->
+  <!-- TAB 4: PLATFORM USERS                                          -->
+  <!-- ============================================================== -->
+  @if (activeTab() === 'users') {
+    <div class="card">
+      <div class="card-header">
+        <h2>Platform Users</h2>
+        <p class="card-desc">Create a local user account. Grant it a role under the "Assign Role" tab.</p>
+      </div>
+
+      <form (ngSubmit)="onCreateUser()" class="saas-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="uEmail">Email <span class="required">*</span></label>
+            <input id="uEmail" type="email" name="uEmail" [(ngModel)]="userForm.email"
+                   placeholder="user@example.com" required autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="uFullName">Full Name <span class="required">*</span></label>
+            <input id="uFullName" type="text" name="uFullName" [(ngModel)]="userForm.fullName"
+                   placeholder="Jane Doe" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="uPassword">Password <span class="required">*</span></label>
+            <input id="uPassword" type="password" name="uPassword" [(ngModel)]="userForm.password"
+                   placeholder="Min 6 characters" required minlength="6" />
+          </div>
+          <div class="form-group">
+            <label for="uPhone">Phone</label>
+            <input id="uPhone" type="tel" name="uPhone" [(ngModel)]="userForm.phone" placeholder="Optional" />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" [disabled]="userSubmitting()">
+            @if (userSubmitting()) { <span class="spinner"></span> Creating… } @else { ➕ Create User }
+          </button>
+        </div>
+      </form>
+
+      @if (usersLoading()) {
+        <div class="loading-state"><div class="spinner large"></div><p>Loading users…</p></div>
+      } @else if (users.length === 0) {
+        <div class="empty-state"><span class="empty-icon">📭</span><p>No users yet.</p></div>
+      } @else {
+        <div class="data-list">
+          @for (u of users; track u.id) {
+            <div class="data-card">
+              <div class="data-card__title">{{ u.email }}</div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Name</dt><dd>{{ u.full_name || '—' }}</dd></div>
+                <div class="meta"><dt>Method</dt><dd>{{ u.authMethod || 'local' }}</dd></div>
+                <div class="meta"><dt>ID</dt><dd class="cell-mono">{{ u.id | slice:0:8 }}…</dd></div>
+              </dl>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ============================================================== -->
+  <!-- TAB 5: ASSIGN USER → ROLE                                      -->
+  <!-- ============================================================== -->
+  @if (activeTab() === 'assign') {
+    <div class="card">
+      <div class="card-header">
+        <h2>Assign User to Role</h2>
+        <p class="card-desc">Grant a platform role to a user (system-level assignment).</p>
+      </div>
+
+      <form (ngSubmit)="onAssignRole()" class="saas-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aUser">User <span class="required">*</span></label>
+            <select id="aUser" name="aUser" [(ngModel)]="assignForm.userId" required>
+              <option value="" disabled>Select a user…</option>
+              @for (u of users; track u.id) {
+                <option [value]="u.id">{{ u.full_name ? u.full_name + ' — ' : '' }}{{ u.email }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="aRole">Role <span class="required">*</span></label>
+            <select id="aRole" name="aRole" [(ngModel)]="assignForm.roleId" required>
+              <option value="" disabled>Select a role…</option>
+              @for (role of roles; track role.id) {
+                <option [value]="role.id">{{ role.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" [disabled]="assignSubmitting()">
+            @if (assignSubmitting()) { <span class="spinner"></span> Assigning… } @else { 🔗 Assign Role }
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+</div>
+

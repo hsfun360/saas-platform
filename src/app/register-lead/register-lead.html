@@ -1,0 +1,88 @@
+<div class="registration-wrapper">
+  <div class="card form-container">
+    
+    <h2>Start your Free Trial</h2>
+    @if (!successMessage) {
+      <p>Set up your club's workspace in minutes.</p>
+    }
+
+    @if (successMessage) {
+      <div class="alert alert-success success-card">
+        <h3 style="color: green;">✉️ Check your inbox!</h3>
+        <p>{{ successMessage }}</p>
+        <p>Click the secure link in the email to set your password and activate your account.</p>
+      </div>
+    } @else {
+      <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+        
+        @if (errorMessage) {
+          <div class="alert alert-danger" style="color: red; margin-bottom: var(--space-md);">
+            {{ errorMessage }}
+          </div>
+        }
+
+        <div class="form-group" style="margin-bottom: var(--space-md);">
+          <label for="name">Your Full Name</label>
+          <input 
+            id="name" 
+            type="text" 
+            formControlName="name" 
+            placeholder="John Doe"
+            style="width: 100%; padding: var(--space-sm);"
+          >
+          @if (submitted && registerForm.get('name')?.errors?.['required']) {
+            <div style="color: red; font-size: var(--font-caption);">
+              Name is required.
+            </div>
+          }
+        </div>
+
+        <div class="form-group" style="margin-bottom: var(--space-md);">
+          <label for="companyName">Company / Club Name</label>
+          <input 
+            id="companyName" 
+            type="text" 
+            formControlName="companyName" 
+            placeholder="Acme Sports Club"
+            style="width: 100%; padding: var(--space-sm);"
+          >
+          @if (submitted && registerForm.get('companyName')?.errors?.['required']) {
+            <div style="color: red; font-size: var(--font-caption);">
+              Company Name is required.
+            </div>
+          }
+        </div>
+
+        <div class="form-group" style="margin-bottom: var(--space-lg);">
+          <label for="email">Work Email</label>
+          <input 
+            id="email" 
+            type="email" 
+            formControlName="email" 
+            placeholder="john@acme.com"
+            style="width: 100%; padding: var(--space-sm);"
+          >
+          @if (submitted && registerForm.get('email')?.errors) {
+            <div style="color: red; font-size: var(--font-caption);">
+              Please enter a valid email.
+            </div>
+          }
+        </div>
+
+        <button 
+          type="submit" 
+          [disabled]="loading" 
+          style="width: 100%; padding: var(--space-sm); background-color: #0062cc; color: white; border: none; cursor: pointer;"
+        >
+          {{ loading ? 'Generating Link...' : 'Create Account' }}
+        </button>
+
+      </form>
+    }
+
+    <div style="margin-top: var(--space-lg); text-align: center; font-size: var(--font-body-2);">
+       <p>Already have an account? <a routerLink="/login">Log in here</a></p>
+    </div>
+
+  </div>
+</div>

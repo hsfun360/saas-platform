@@ -1,0 +1,16 @@
+{
+  "defaults": {
+    "standard": "WCAG2AA",
+    "runners": ["axe", "htmlcs"],
+    "timeout": 30000,
+    "chromeLaunchConfig": { "args": ["--no-sandbox"] }
+  },
+  "urls": [
+    "http://localhost:4321/login",
+    "http://localhost:4321/register-user",
+    "http://localhost:4321/register-lead",
+    "http://localhost:4321/forgot-password",
+    "http://localhost:4321/reset-password",
+    "http://localhost:4321/setup-password"
+  ]
+}

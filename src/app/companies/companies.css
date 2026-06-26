@@ -1,0 +1,51 @@
+/* Company card summary layout.
+   Defined as a class (not inline) so the global mobile rule that collapses
+   inline `grid-template-columns` to one column doesn't interfere.
+
+   Desktop: info on the left (spans both rows), status badge top-right, and the
+   Edit actions on the right at the level of the info.
+   Mobile:  badge stays top-right, actions drop to a full-width row at the
+   bottom, left-justified. */
+.company-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "main  badge"
+    "main  actions";
+  column-gap: var(--space-md);
+  row-gap: var(--space-sm);
+  align-items: start;
+}
+
+.company-main {
+  grid-area: main;
+  min-width: 0; /* allow long names/chips to wrap instead of overflowing */
+}
+
+.company-badge {
+  grid-area: badge;
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.company-actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  justify-self: end; /* right-justified on desktop */
+  align-self: end;   /* sit level with the bottom of the info block */
+}
+
+@media (max-width: 767px) {
+  .company-summary {
+    grid-template-areas:
+      "main     badge"
+      "actions  actions";
+  }
+
+  .company-actions {
+    justify-self: start; /* bottom-left on mobile */
+    margin-top: var(--space-xs);
+  }
+}

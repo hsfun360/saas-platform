@@ -1,0 +1,265 @@
+<section style="max-width: 900px; margin: 0 auto; padding: var(--space-lg);">
+
+  <header style="margin-bottom: var(--space-lg);">
+    <h1 style="margin: 0 0 var(--space-xs); font-size: var(--font-h1); font-weight: var(--weight-bold); color: #1e293b;">Companies</h1>
+    <p style="margin: 0; color: #64748b; font-size: var(--font-body-2);">
+      Create the business entities under your subscription and choose the modules each one needs.
+    </p>
+  </header>
+
+  @if (successMessage()) {
+    <p role="status" aria-live="polite"
+       style="background: #ecfdf5; color: #065f46; border: 1px solid #6ee7b7; padding: var(--space-sm) var(--space-md); border-radius: 8px; font-size: var(--font-body-2);">
+      ✅ {{ successMessage() }}
+    </p>
+  }
+  @if (errorMessage()) {
+    <p role="alert" aria-live="assertive"
+       style="background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; padding: var(--space-sm) var(--space-md); border-radius: 8px; font-size: var(--font-body-2);">
+      ⚠️ {{ errorMessage() }}
+    </p>
+  }
+
+  <!-- Create company -->
+  <form [formGroup]="form" (ngSubmit)="onSubmit()"
+        style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: var(--space-lg); box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: var(--space-xl);">
+    <h2 style="margin: 0 0 var(--space-md); font-size: var(--font-h2); font-weight: var(--weight-semibold); color: #1e293b;">New company</h2>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
+      <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+        <label for="company-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Company name *</label>
+        <input id="company-name" type="text" formControlName="name" autocomplete="organization"
+               style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        @if (form.controls.name.touched && form.controls.name.invalid) {
+          <span style="color: #b91c1c; font-size: var(--font-caption);">A company name is required.</span>
+        }
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+        <label for="company-reg" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Registration number</label>
+        <input id="company-reg" type="text" formControlName="registrationNumber"
+               style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+        <label for="company-tz" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Timezone</label>
+        <input id="company-tz" type="text" formControlName="timezone"
+               style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+      </div>
+    </div>
+
+    <fieldset style="margin: var(--space-lg) 0 0; border: 1px solid #e2e8f0; border-radius: 8px; padding: var(--space-md);">
+      <legend style="font-size: var(--font-h3); font-weight: var(--weight-medium); color: #334155; padding: 0 var(--space-xs);">
+        Modules ({{ selectedCount() }} selected)
+      </legend>
+
+      @if (modulesLoading()) {
+        <p style="color: #64748b; font-size: var(--font-body-2); margin: var(--space-sm) 0 0;">Loading modules…</p>
+      } @else if (modules().length === 0) {
+        <p style="color: #64748b; font-size: var(--font-body-2); margin: var(--space-sm) 0 0;">No modules available.</p>
+      } @else {
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-sm); margin-top: var(--space-sm);">
+          @for (mod of modules(); track mod.id) {
+            <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm); border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;">
+              <input type="checkbox" [checked]="isModuleSelected(mod.id)" (change)="toggleModule(mod.id)"
+                     [attr.aria-label]="'Enable module ' + mod.name">
+              <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: #38bdf8;">{{ mod.icon || 'widgets' }}</span>
+              <span style="font-size: var(--font-body-2); color: #1e293b;">{{ mod.name }}</span>
+            </label>
+          }
+        </div>
+      }
+    </fieldset>
+
+    <div style="margin-top: var(--space-lg);">
+      <button type="submit" class="btn btn--primary" [disabled]="creating()">
+        {{ creating() ? 'Creating…' : 'Create company' }}
+      </button>
+    </div>
+  </form>
+
+  <!-- Existing companies -->
+  <h2 style="margin: 0 0 var(--space-sm); font-size: var(--font-h2); font-weight: var(--weight-semibold); color: #1e293b;">Your companies</h2>
+
+  @if (companiesLoading()) {
+    <p style="color: #64748b; font-size: var(--font-body-2);">Loading companies…</p>
+  } @else if (companies().length === 0) {
+    <p style="color: #64748b; font-size: var(--font-body-2);">No companies yet. Create your first one above.</p>
+  } @else {
+    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (company of companies(); track company.id) {
+        <li style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: var(--space-md) var(--space-lg); box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+          <div class="company-summary">
+            <div class="company-main">
+              <div style="font-size: var(--font-body); font-weight: var(--weight-semibold); color: #1e293b;">{{ company.name }}</div>
+              <div style="font-size: var(--font-caption); color: #64748b; margin-top: var(--space-xs);">
+                @if (company.registrationNumber) { <span>Reg: {{ company.registrationNumber }} · </span> }
+                <span>{{ company.timezone }}</span>
+              </div>
+
+              @if (company.SubscribedModules && company.SubscribedModules.length > 0) {
+                <div style="display: flex; flex-wrap: wrap; gap: var(--space-xs); margin-top: var(--space-sm);">
+                  @for (mod of company.SubscribedModules; track mod.id) {
+                    <span style="display: inline-flex; align-items: center; gap: var(--space-xs); background: #f1f5f9; color: #334155; font-size: var(--font-caption); padding: var(--space-xs) var(--space-sm); border-radius: 14px;">
+                      <span class="material-icons" aria-hidden="true" style="font-size: 14px; color: #38bdf8;">{{ mod.icon || 'widgets' }}</span>
+                      {{ mod.name }}
+                    </span>
+                  }
+                </div>
+              } @else {
+                <div style="margin-top: var(--space-sm); font-size: var(--font-caption); color: #64748b;">No modules assigned.</div>
+              }
+            </div>
+
+            <span class="company-badge" [style.background]="company.isActive ? '#dcfce7' : '#f1f5f9'"
+                  [style.color]="company.isActive ? '#166534' : '#64748b'"
+                  style="font-size: var(--font-overline); font-weight: var(--weight-bold); padding: var(--space-xs) var(--space-sm); border-radius: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
+              {{ company.isActive ? 'Active' : 'Inactive' }}
+            </span>
+
+            <!-- Actions: right of the info on desktop, full-width bottom-left on mobile.
+                 Hidden while EITHER editor is open for this company, so the user edits
+                 modules or details one at a time. -->
+            @if (editingCompanyId() !== company.id && editingProfileCompanyId() !== company.id) {
+              <div class="company-actions">
+                <button type="button" class="btn btn--secondary btn--sm" (click)="startEditModules(company)">
+                  <span class="material-icons" aria-hidden="true">tune</span>
+                  Edit modules
+                </button>
+                <button type="button" class="btn btn--secondary btn--sm" (click)="startEditProfile(company)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit details
+                </button>
+              </div>
+            }
+          </div>
+
+          <!-- Edit modules (add / revoke) — full-width panel below the summary -->
+          @if (editingCompanyId() === company.id) {
+            <div style="margin-top: var(--space-sm); border: 1px solid #e2e8f0; border-radius: 8px; padding: var(--space-md);">
+              <div style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155; margin-bottom: var(--space-sm);">
+                Modules ({{ editCount() }} selected)
+              </div>
+              @if (modules().length === 0) {
+                <p style="font-size: var(--font-body-2); color: #64748b; margin: 0;">No modules available.</p>
+              } @else {
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-sm);">
+                  @for (mod of modules(); track mod.id) {
+                    <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm); border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;">
+                      <input type="checkbox" [checked]="isEditModuleSelected(mod.id)" (change)="toggleEditModule(mod.id)"
+                             [attr.aria-label]="'Toggle module ' + mod.name + ' for ' + company.name">
+                      <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: #38bdf8;">{{ mod.icon || 'widgets' }}</span>
+                      <span style="font-size: var(--font-body-2); color: #1e293b;">{{ mod.name }}</span>
+                    </label>
+                  }
+                </div>
+              }
+              <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-md);">
+                <button type="button" class="btn btn--primary btn--sm" (click)="saveModules(company.id)" [disabled]="savingModules()">
+                  {{ savingModules() ? 'Saving…' : 'Save modules' }}
+                </button>
+                <button type="button" class="btn btn--secondary btn--sm" (click)="cancelEditModules()" [disabled]="savingModules()">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          }
+
+          <!-- Edit company profile / billing details -->
+          @if (editingProfileCompanyId() === company.id) {
+            <form [formGroup]="profileForm" (ngSubmit)="onSaveProfile(company.id)"
+                  style="margin-top: var(--space-sm); border: 1px solid #e2e8f0; border-radius: 8px; padding: var(--space-md);">
+              <div style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155; margin-bottom: var(--space-sm);">
+                Company details (used on invoices)
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm);">
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                  <label for="cd-name-{{ company.id }}" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Company name *</label>
+                  <input id="cd-name-{{ company.id }}" type="text" formControlName="name" autocomplete="organization"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                  @if (profileForm.controls.name.touched && profileForm.controls.name.invalid) {
+                    <span style="color: #b91c1c; font-size: var(--font-caption);">A company name is required.</span>
+                  }
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                  <label for="cd-email-{{ company.id }}" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Email</label>
+                  <input id="cd-email-{{ company.id }}" type="email" formControlName="email" autocomplete="email"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                  @if (profileForm.controls.email.touched && profileForm.controls.email.invalid) {
+                    <span style="color: #b91c1c; font-size: var(--font-caption);">Enter a valid email.</span>
+                  }
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                  <label for="cd-phone-{{ company.id }}" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Phone</label>
+                  <input id="cd-phone-{{ company.id }}" type="tel" formControlName="phone"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                  <label for="cd-web-{{ company.id }}" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Website</label>
+                  <input id="cd-web-{{ company.id }}" type="url" formControlName="website" placeholder="https://…"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                  <label for="cd-reg-{{ company.id }}" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Registration no.</label>
+                  <input id="cd-reg-{{ company.id }}" type="text" formControlName="registrationNumber"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                  <label for="cd-tax-{{ company.id }}" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Tax registration no.</label>
+                  <input id="cd-tax-{{ company.id }}" type="text" formControlName="taxRegistrationNumber"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                  <label for="cd-addr1-{{ company.id }}" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Address line 1</label>
+                  <input id="cd-addr1-{{ company.id }}" type="text" formControlName="addressLine1" autocomplete="address-line1"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                  <label for="cd-addr2-{{ company.id }}" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Address line 2</label>
+                  <input id="cd-addr2-{{ company.id }}" type="text" formControlName="addressLine2" autocomplete="address-line2"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                  <label for="cd-city-{{ company.id }}" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">City</label>
+                  <input id="cd-city-{{ company.id }}" type="text" formControlName="city" autocomplete="address-level2"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                  <label for="cd-state-{{ company.id }}" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">State</label>
+                  <input id="cd-state-{{ company.id }}" type="text" formControlName="state" autocomplete="address-level1"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                  <label for="cd-zip-{{ company.id }}" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Postal code</label>
+                  <input id="cd-zip-{{ company.id }}" type="text" formControlName="postalCode" autocomplete="postal-code"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                  <label for="cd-country-{{ company.id }}" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Country</label>
+                  <input id="cd-country-{{ company.id }}" type="text" formControlName="country" autocomplete="country-name"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                  <label for="cd-tz-{{ company.id }}" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Timezone</label>
+                  <input id="cd-tz-{{ company.id }}" type="text" formControlName="timezone"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                </div>
+              </div>
+
+              <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-md);">
+                <button type="submit" class="btn btn--primary btn--sm" [disabled]="savingProfile()">
+                  {{ savingProfile() ? 'Saving…' : 'Save details' }}
+                </button>
+                <button type="button" class="btn btn--secondary btn--sm" (click)="cancelEditProfile()" [disabled]="savingProfile()">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          }
+        </li>
+      }
+    </ul>
+  }
+
+</section>

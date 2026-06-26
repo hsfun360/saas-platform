@@ -1,0 +1,74 @@
+<div class="register-container">
+  <h2>Create an Account</h2>
+
+  @if (successMessage) {
+    <div class="alert alert-success" style="padding: var(--space-md); background-color: #d4edda; color: #155724; border-radius: 5px; margin-bottom: var(--space-lg);">
+      <strong>Success!</strong> {{ successMessage }}
+    </div>
+  }
+
+  @if (errorMessage) {
+    <div class="alert alert-danger" style="padding: var(--space-md); background-color: #f8d7da; color: #721c24; border-radius: 5px; margin-bottom: var(--space-lg);">
+      <strong>Oops!</strong> {{ errorMessage }}
+    </div>
+  }
+
+  @if (!successMessage) {
+    <form [formGroup]="registrationForm" (ngSubmit)="onSubmit()">
+      
+      <div class="form-group" style="margin-bottom: var(--space-md);">
+        <label for="email">Email Address</label>
+        <input 
+          type="email" 
+          id="email" 
+          formControlName="email" 
+          placeholder="Enter your email"
+          style="width: 100%; padding: var(--space-sm); margin-top: var(--space-xs);"
+        >
+        @if (f['email'].touched && f['email'].errors) {
+          <div style="color: red; font-size: var(--font-caption); margin-top: var(--space-xs);">
+            @if (f['email'].errors['required']) {
+              <span>Email is required.</span>
+            }
+            @if (f['email'].errors['email']) {
+              <span>Please enter a valid email address.</span>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="form-group" style="margin-bottom: var(--space-lg);">
+        <label for="password">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          formControlName="password" 
+          placeholder="Create a password (min 6 characters)"
+          style="width: 100%; padding: var(--space-sm); margin-top: var(--space-xs);"
+        >
+        @if (f['password'].touched && f['password'].errors) {
+          <div style="color: red; font-size: var(--font-caption); margin-top: var(--space-xs);">
+            @if (f['password'].errors['required']) {
+              <span>Password is required.</span>
+            }
+            @if (f['password'].errors['minlength']) {
+              <span>Password must be at least 6 characters.</span>
+            }
+          </div>
+        }
+      </div>
+
+      <button 
+        type="submit" 
+        [disabled]="registrationForm.invalid || isRegistering"
+        style="width: 100%; padding: var(--space-sm); background-color: #0062cc; color: white; border: none; border-radius: 5px; cursor: pointer;">
+        {{ isRegistering ? 'Registering...' : 'Register' }}
+      </button>
+
+    </form>
+    
+    <div style="text-align: center; margin-top: var(--space-md);">
+      <p style="font-size: var(--font-body-2);">Already have an account? <a routerLink="/login">Login here</a></p>
+    </div>
+  }
+</div>

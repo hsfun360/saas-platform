@@ -1,0 +1,106 @@
+.settings-container {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-lg);
+}
+
+.settings-card {
+  background: white;
+  width: 100%;
+  max-width: 700px;
+  /* padding: 32px; <-- REMOVED THIS SO IT CAN SHRINK! */
+  border-radius: 8px;
+  border: 1px solid #dadce0;
+}
+
+.settings-header {
+  /* REMOVED margin-bottom, padding-bottom, and border-bottom FROM HERE! */
+  display: flex;
+  justify-content: space-between;
+}
+
+.settings-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-lg) 0;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.setting-title {
+  font-size: var(--font-body);
+  font-weight: var(--weight-medium);
+  color: #202124;
+}
+
+.setting-description {
+  font-size: var(--font-body-2);
+  color: #5f6368;
+  margin-top: var(--space-xs);
+}
+
+/* --- THE TOGGLE SWITCH (SLIDER) --- */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #0062cc;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #0062cc;
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+.slider.round {
+  border-radius: 24px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
