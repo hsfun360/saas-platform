@@ -71,6 +71,13 @@ const User = sequelize.define('User', {
     microsoftId: {
         type: DataTypes.STRING,
         allowNull: true
+    },
+    // The workspace the user last entered, so a multi-company user can skip the
+    // selection page on the next login. Stores the companyId, or the literal
+    // 'SYSTEM' sentinel for the System Administration workspace. null = never set.
+    lastWorkspaceId: {
+        type: DataTypes.STRING,
+        allowNull: true,
     }
 }, {
     tableName: 'User', // Name the table in PostgreSQL 'User'

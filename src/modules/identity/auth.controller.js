@@ -180,6 +180,14 @@ exports.login = async (req, res) => {
 
         // SCENARIO B: MULTIPLE WORKSPACES (They need to choose!)
         if (workspaces.length > 1) {
+            // First, try to skip the picker by resuming the last-used workspace.
+            if (!selectedCompanyId) {
+                const resume = await buildResumeLogin(user, workspaces, isSystemAdmin);
+                if (resume) {
+                    return res.status(200).json({ message: "Login successful", ...resume });
+                }
+            }
+
             const availableClubs = [];
             for (let ws of workspaces) {
                 if (ws.companyId === null) {
@@ -236,14 +244,17 @@ exports.login = async (req, res) => {
         // Generate token and respond
         const loginToken = generateToken(user.id, user.email, companyId, companyName, isSystemAdmin);
 
-        res.status(200).json({ 
-            message: "Login successful", 
+        // Remember this workspace so the next login can skip the picker.
+        await rememberLastWorkspace(user.id, companyId);
+
+        res.status(200).json({
+            message: "Login successful",
             token: loginToken,
             email: user.email,
             fullName: user.full_name || 'User',
             profilePicture: user.profilePicture || null,
             menus: allowedMenus,
-            roleName: assignedRoleName 
+            roleName: assignedRoleName
         });
 
     } catch (error) {
@@ -302,6 +313,49 @@ async function resolveWorkspaceContext(userId, companyId) {
     }
 
     return { companyId: resolvedCompanyId, companyName, roleName, menus };
+}
+
+// Persist the workspace a user just entered, so the NEXT login can skip the
+// selection page (see the Scenario B auto-resume below). Stores the companyId,
+// or the 'SYSTEM' sentinel for the System Administration workspace. Remembering
+// is a convenience only — never block or fail a login on it.
+async function rememberLastWorkspace(userId, companyId) {
+    try {
+        await User.update(
+            { lastWorkspaceId: companyId === null ? 'SYSTEM' : companyId },
+            { where: { id: userId } },
+        );
+    } catch (e) {
+        console.warn('Could not persist last workspace:', e.message);
+    }
+}
+
+// For a multi-workspace user, try to auto-resume the workspace they last used so
+// they skip the picker. Returns the shared login payload (token + menus + role)
+// when the remembered workspace is STILL a valid membership, or null when there's
+// nothing valid to resume (caller then returns the 206 picker). The membership
+// re-check is what makes a revoked workspace fall back to the picker for free.
+async function buildResumeLogin(user, workspaces, isSystemAdmin) {
+    const remembered = user.lastWorkspaceId; // 'SYSTEM', a companyId, or null
+    if (!remembered) return null;
+
+    const rememberedCompanyId = remembered === 'SYSTEM' ? null : remembered;
+    const stillMember = workspaces.some(ws => ws.companyId === rememberedCompanyId);
+    if (!stillMember) return null;
+
+    const context = await resolveWorkspaceContext(user.id, rememberedCompanyId);
+    if (!context) return null;
+
+    const token = generateToken(user.id, user.email, context.companyId, context.companyName, isSystemAdmin);
+    return {
+        token,
+        email: user.email,
+        fullName: user.full_name || 'User',
+        profilePicture: user.profilePicture || null,
+        menus: context.menus,
+        roleName: context.roleName,
+        companyName: context.companyName,
+    };
 }
 
 // GET /api/auth/workspaces  -> every company the logged-in user can access,
@@ -381,6 +435,9 @@ exports.switchWorkspace = async (req, res) => {
 
         const isSystemAdmin = await isUserSystemAdmin(user.id, user.email);
         const token = generateToken(user.id, user.email, context.companyId, context.companyName, isSystemAdmin);
+
+        // Remember it so the next login resumes straight into this workspace.
+        await rememberLastWorkspace(user.id, context.companyId);
 
         res.status(200).json({
             message: "Workspace switched successfully",
@@ -543,6 +600,14 @@ exports.googleLogin = async (req, res) => {
         // SCENARIO B: MULTIPLE WORKSPACES (They need to choose!)
         // ==========================================
         if (workspaces.length > 1) {
+            // First, try to skip the picker by resuming the last-used workspace.
+            if (!selectedCompanyId) {
+                const resume = await buildResumeLogin(user, workspaces, isSystemAdmin);
+                if (resume) {
+                    return res.status(200).json({ message: 'Google login successful', ...resume });
+                }
+            }
+
             const availableClubs = [];
             for (let ws of workspaces) {
                 if (ws.companyId === null) {
@@ -600,6 +665,9 @@ exports.googleLogin = async (req, res) => {
         }
 
         const loginToken = generateToken(user.id, user.email, companyId, companyName, isSystemAdmin);
+
+        // Remember this workspace so the next login can skip the picker.
+        await rememberLastWorkspace(user.id, companyId);
 
         // 5. Send the token and user info back to Angular
         res.json({
