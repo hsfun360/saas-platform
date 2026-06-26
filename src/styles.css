@@ -1,6 +1,16 @@
 /* You can add global styles to this file, and also import other style files */
 
 /* ============================================================== */
+/* Base reset — remove the browser's default body margin so the   */
+/* app (and the full-width header) sit edge-to-edge with no gap.   */
+/* ============================================================== */
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================================== */
 /* Design tokens — typography + 8pt spacing scale                 */
 /* (see docs/project-overview.md → UI/UX Requirements)            */
 /* Prefer these tokens over hard-coded px values.                 */
