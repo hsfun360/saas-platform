@@ -3,6 +3,10 @@
   display: block;
   height: 100vh;
   width: 100%;
+  /* Single source of truth for the header height. Anything that must sit BELOW
+     the header (the mobile drawer, its backdrop, header dropdowns) offsets by
+     this — change it here only, so they can never drift apart again. */
+  --header-height: 80px;
 }
 
 /* --- GOOGLE STYLE TOP BAR --- */
@@ -13,10 +17,15 @@
   padding: 0 var(--space-lg);
   background-color: #202124;
   color: white;
-  height: 80px;
+  height: var(--header-height);
   /* Never let the fixed-height column flex compress the header when a tall
-     route fills the content area — it must stay a constant 80px. */
+     route fills the content area — it must stay a constant height. */
   flex-shrink: 0;
+  /* The header is the app bar: it must stack ABOVE the mobile drawer (z-index
+     1000) and its backdrop (999) so the apps switcher / avatar are never covered.
+     position:relative establishes the stacking context for this z-index. */
+  position: relative;
+  z-index: 1100;
 }
 
 /* Module title + workspace switcher stacked on two lines (left of the bar). */
@@ -142,7 +151,7 @@
   visibility: hidden;
   opacity: 0;
   position: absolute;
-  top: 55px; /* Sits right under the header */
+  top: var(--header-height); /* sit right under the header */
   right: 0;
   background-color: #3c4043; /* Google's dark tooltip color */
   color: white;
@@ -186,9 +195,9 @@
 
 /* 👇 EXACT GOOGLE DARK THEME DROPDOWN */
 .dark-google-menu {
-  display: block; 
+  display: block;
   position: absolute;
-  top: 55px; /* Slightly lower to clear the header */
+  top: var(--header-height); /* clear the header */
   right: 0px;
   background-color: #2b2d31; /* Google's modern dark gray menu color */
   border-radius: 28px; /* Very rounded corners */
@@ -694,7 +703,7 @@
   /* Side nav becomes an off-canvas drawer toggled by the hamburger / "More". */
   .sidebar {
     position: fixed;
-    top: 80px;
+    top: var(--header-height); /* drawer slides in BELOW the header */
     bottom: 0;
     left: 0;
     width: 256px;
@@ -729,7 +738,7 @@
   .sidebar-backdrop {
     display: block;
     position: fixed;
-    top: 80px;
+    top: var(--header-height); /* dim only below the header, not over it */
     left: 0;
     right: 0;
     bottom: 0;

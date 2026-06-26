@@ -264,3 +264,29 @@ Reference implementation: `system-setup.html` / `system-setup.css` (`.data-list`
 `.data-card*`, with the Subscribers card combining `.data-row` actions + an expanding
 `.admin-panel`).
 
+#### App bar + mobile drawer layering (z-index & a single header height)
+
+The dashboard shell is a fixed-height **app bar (header)** on top, with a **side nav**
+that becomes an off-canvas **drawer** on mobile (toggled by the hamburger), over a
+dimmed **backdrop**. Two rules keep them from colliding — both were the cause of a
+real bug (the drawer covered the apps switcher / avatar, and dropdowns overlapped the
+header):
+
+- **The header must stack ABOVE the drawer and backdrop.** Give the app bar
+  `position: relative; z-index: <above the drawer>` (drawer is `z-index: 1000`,
+  backdrop `999`, so header is `1100`). Without a `z-index` the header is in normal
+  flow and any positioned `z-index` element (the drawer) paints over it — covering the
+  apps switcher and avatar. The drawer should slide in **under** the app bar (Material
+  "app bar over navigation drawer"), never over it.
+- **One source of truth for the header height.** Everything that must sit *below* the
+  header — the mobile drawer's `top`, the backdrop's `top`, and header dropdowns'
+  `top` (apps/workspace/avatar menus) — must offset by the **same** value. Use a CSS
+  var (`--header-height` on the shell host) and reference it everywhere; never
+  hard-code the pixel number in more than one place. The original bug was exactly this
+  drift: the header grew to 80px but dropdowns were still pinned at `top: 55px`, so
+  they overlapped the header.
+
+Reference implementation: `dashboard.css` — `:host { --header-height }`,
+`.google-topbar { height: var(--header-height); z-index: 1100 }`, and the mobile
+`.sidebar` / `.sidebar-backdrop` / header dropdowns all offset by `var(--header-height)`.
+
