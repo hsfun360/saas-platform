@@ -290,3 +290,38 @@ Reference implementation: `dashboard.css` — `:host { --header-height }`,
 `.google-topbar { height: var(--header-height); z-index: 1100 }`, and the mobile
 `.sidebar` / `.sidebar-backdrop` / header dropdowns all offset by `var(--header-height)`.
 
+#### Frontend access model (route guards)
+
+Access is enforced in **three layers** — and the backend is the only authoritative one:
+
+1. **UI (discovery):** the sidebar + apps switcher are **menu-driven** — built only from
+   the user's granted menus — so users don't *see* systems they can't access.
+2. **Route guard (UX/route safety):** stops a user **URL-hopping** into a system/area
+   they lack (the UI hiding it isn't enough on its own).
+3. **Backend (authoritative):** every data endpoint enforces it server-side —
+   `requireModule('<Module>')` (entitlement) + RBAC (role→menu). Frontend guards are
+   **never** the real protection; they're for UX. A new data endpoint MUST enforce here.
+
+**Auth gate.** The shell is behind `authGuard`, which requires a token that is present
+**and not expired** (it decodes `exp`). HTTP `401`s are also caught by the auth
+interceptor, which clears storage and redirects to `/login`.
+
+**Guarding a new system route.** Opt a route into per-system access with route `data`
++ the shared guard — never re-implement the check inline:
+
+```ts
+{ path: 'golf', component: GolfComponent,
+  canActivate: [systemAccessGuard],
+  data: { systemModule: 'Golf Management' } }   // must match the Module name
+```
+
+`AccessService.canAccessModule(name)` decides: a user can access a module if it's in
+their granted menus, plus `System Setup` for a Tenant/System Admin and
+`SaaS Administration` for a System Admin. On denial the guard redirects to
+`/access-denied` (`AccessDeniedComponent`, rendered inside the shell, "Back to
+dashboard" returns to the user's own system). Routes that everyone may see
+(`/home`, `/profile`, `/settings`) carry no `systemModule` and no guard.
+
+Reference: `access.service.ts`, `access.guard.ts`, `access-denied/`, `auth.guard.ts`,
+and the `data.systemModule` + `canActivate: [systemAccessGuard]` entries in `main.ts`.
+
