@@ -72,6 +72,31 @@ gcloud run services logs read login-web --region asia-southeast1 --limit 30
 Then open the URL and do a real login (the SPA calls the baked-in API URL). After a
 release that changed menu routes, **log out/in** so the cached `userMenus` refresh.
 
+## Google SSO — register the live origin (one-time per URL)
+"Sign in with Google" uses the GIS **token model** (`initTokenClient` in
+`src/app/login/login.ts`, client_id `148523901156-uc6a3f7q2le2fsqbm5idc0ai27vebe69`),
+which validates the page's **JavaScript origin** against the OAuth client. A freshly
+deployed Cloud Run URL is not on that list → login fails with **`Error 400:
+origin_mismatch`** ("register the JavaScript origin").
+
+Fix (Google Cloud Console, can't be done via gcloud): **APIs & Services → Credentials
+→** the OAuth 2.0 Client ID ending `…uc6a3f7q2le2fsqbm5idc0ai27vebe69` → **Authorized
+JavaScript origins → Add URI**:
+```
+https://login-web-148523901156.asia-southeast1.run.app
+```
+- Edit the **existing** client — do NOT create a new OAuth client (a new client ID
+  won't match the one baked into the code).
+- Put it under **Authorized JavaScript origins**, not "Authorized redirect URIs"
+  (the token model has no redirect).
+- Use the **exact URL in the browser's address bar**, no trailing slash / no path.
+  Cloud Run serves the service under more than one host (the project-number form
+  above **and** a hash form like `https://login-web-iqbkpf5usq-as.a.run.app` —
+  `gcloud run services describe login-web --region asia-southeast1 --format="value(status.url)"`
+  prints the hash one). Register whichever origin you actually browse to; add both to
+  be safe. Keep `http://localhost:4200` for dev.
+- Changes take ~5 min to a few hours to propagate; retry in an Incognito window.
+
 ## Gotchas
 - **Production budgets are stricter than dev.** `ng build --configuration production`
   fails if a component style exceeds the `anyComponentStyle` error budget (the shell
