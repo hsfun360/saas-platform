@@ -52,6 +52,13 @@
             </div>
           }
         </div>
+        } @else if (activeCompanyName) {
+        <!-- Single workspace: no switcher, but still show which company you're in. -->
+        <div class="workspace-label"
+             style="display: flex; align-items: center; gap: var(--space-sm); color: white; padding: var(--space-xs) var(--space-sm); font-size: var(--font-body-2);">
+          <span class="material-icons" aria-hidden="true" style="font-size: 18px;">corporate_fare</span>
+          <span class="switcher-company">{{ activeCompanyName }}</span>
+        </div>
         }
       </div>
     </div>

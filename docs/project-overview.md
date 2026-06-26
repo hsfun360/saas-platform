@@ -325,3 +325,40 @@ dashboard" returns to the user's own system). Routes that everyone may see
 Reference: `access.service.ts`, `access.guard.ts`, `access-denied/`, `auth.guard.ts`,
 and the `data.systemModule` + `canActivate: [systemAccessGuard]` entries in `main.ts`.
 
+#### Workspace selection & last-accessed memory
+
+A user can belong to **multiple companies** (`CompanyUser` rows; the System
+Administration workspace is the `companyId = null` membership, surfaced to the UI as the
+`'SYSTEM'` sentinel). Login resolves which workspace to enter:
+
+- **0 memberships →** `403` (no workspace).
+- **exactly 1 →** logged straight in (no picker).
+- **multiple →** historically a `206` with the club list, shown as the selection page on
+  **every** login. That friction is removed by remembering the **last-accessed
+  workspace** (the single authoritative source of "where do I land"):
+  - The backend stores it on the user — **`User.lastWorkspaceId`** (a `companyId`, or the
+    `'SYSTEM'` sentinel; `null` = never chosen). It's written whenever the user enters a
+    workspace: email login, Google login, and **switch-workspace**.
+  - On a multi-company login with no explicit choice, if `lastWorkspaceId` is **still a
+    valid membership**, the backend resolves it and returns `200` (skips the picker). If
+    it's unset or was **revoked**, it's no longer in the membership set, so login falls
+    through to the `206` picker once and re-remembers whatever they pick. The membership
+    re-check is what makes the revoke case "just work" — no separate default to maintain.
+- **Why backend, not localStorage:** it survives the `localStorage.clear()` the auth
+  interceptor does on `401`, works across devices/browsers, and is validated server-side.
+
+**Frontend.** The login flow already branches on `200` vs `206`, so the happy path needs
+no change — resumed users sail through. The dashboard header shows the **active company**:
+a **switcher dropdown** when `workspaces().length > 1`, and a **static company label**
+(icon + name, no dropdown) for single-company users so they always see which company
+they're in. The persistent workspace switcher (`/auth/workspaces` + `/auth/switch-workspace`)
+lets multi-company users change company any time; doing so updates the remembered "home".
+
+> Existing multi-company users have `lastWorkspaceId = null` until their **first login
+> after this shipped**, so they see the picker once more, then it sticks.
+
+Reference: `auth.controller.js` (`rememberLastWorkspace`, `buildResumeLogin`, login /
+google login Scenario B & C, `switchWorkspace`), `user.model.js` (`lastWorkspaceId`),
+and `dashboard.html` / `dashboard.ts` (`.workspace-switcher`, `.workspace-label`,
+`activeCompanyName`).
+
