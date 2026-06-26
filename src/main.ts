@@ -30,6 +30,7 @@ import { TenantUsersComponent } from './app/tenant-users/tenant-users';
 import { CompaniesComponent } from './app/companies/companies';
 import { ModulesMenusComponent } from './app/modules-menus/modules-menus';
 import { SystemDashboardComponent } from './app/systems/system-dashboard';
+import { UnderConstructionComponent } from './app/under-construction/under-construction';
 
 // 1. Define Routes
 //
@@ -74,10 +75,13 @@ const routes: Routes = [
       { path: 'facility', component: SystemDashboardComponent, data: { title: 'Facility Management', icon: 'meeting_room', blurb: 'Facilities, availability and reservations.' } },
 
       { path: '', redirectTo: 'home', pathMatch: 'full' },
+
+      // Any other route under the shell (a menu whose page isn't built yet, or a
+      // legacy /dashboard/* bookmark) renders the Under Construction placeholder
+      // INSIDE the shell, so the header + sidebar stay and the user keeps context.
+      { path: '**', component: UnderConstructionComponent },
     ],
   },
-  // Safety net: unknown URLs (incl. legacy /dashboard/* bookmarks) go home.
-  { path: '**', redirectTo: 'home' },
 ];
 
 export const appConfig: ApplicationConfig = {
