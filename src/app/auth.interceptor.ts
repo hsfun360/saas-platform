@@ -17,7 +17,6 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   // 1. If we have a token, clone the request AND overwrite authReq
   if (token) {
-    console.log('🛡️ Interceptor attaching token to:', req.url);
     authReq = req.clone({
       setHeaders: { Authorization: `Bearer ${token}` }
     });

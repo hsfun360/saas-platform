@@ -31,6 +31,8 @@ import { CompaniesComponent } from './app/companies/companies';
 import { ModulesMenusComponent } from './app/modules-menus/modules-menus';
 import { SystemDashboardComponent } from './app/systems/system-dashboard';
 import { UnderConstructionComponent } from './app/under-construction/under-construction';
+import { AccessDeniedComponent } from './app/access-denied/access-denied';
+import { systemAccessGuard } from './app/access.guard';
 
 // 1. Define Routes
 //
@@ -59,20 +61,24 @@ const routes: Routes = [
       { path: 'profile', component: ProfileComponent },
       { path: 'settings', component: SettingsComponent },
 
-      // Platform Administration (Control Plane) — landing + admin screens
-      { path: 'platform', component: SystemDashboardComponent, data: { title: 'Platform Administration', icon: 'admin_panel_settings', blurb: 'Subscribers, modules and platform health.' } },
-      { path: 'admin/roles', component: RoleManagementComponent },
-      { path: 'admin/users', component: TenantUsersComponent },
-      { path: 'admin/companies', component: CompaniesComponent },
-      { path: 'admin/system-setup', component: SystemSetupComponent },
-      { path: 'admin/system-setup/:tab', component: SystemSetupComponent },
-      { path: 'admin/modules-menus', component: ModulesMenusComponent },
-      { path: 'admin/modules-menus/:moduleId', component: ModulesMenusComponent },
+      // Platform Administration (Control Plane) — landing + admin screens.
+      // `data.systemModule` + systemAccessGuard block users without that access.
+      { path: 'platform', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', title: 'Platform Administration', icon: 'admin_panel_settings', blurb: 'Subscribers, modules and platform health.' } },
+      { path: 'admin/roles', component: RoleManagementComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/users', component: TenantUsersComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/companies', component: CompaniesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/system-setup', component: SystemSetupComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/system-setup/:tab', component: SystemSetupComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/modules-menus', component: ModulesMenusComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/modules-menus/:moduleId', component: ModulesMenusComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
 
-      // Core product systems — landing dashboards (own components as built)
-      { path: 'membership', component: SystemDashboardComponent, data: { title: 'Membership Management', icon: 'card_membership', blurb: 'Members, tiers, dues and standing.' } },
-      { path: 'golf', component: SystemDashboardComponent, data: { title: 'Golf Management', icon: 'sports_golf', blurb: 'Tee sheet, bookings and competitions.' } },
-      { path: 'facility', component: SystemDashboardComponent, data: { title: 'Facility Management', icon: 'meeting_room', blurb: 'Facilities, availability and reservations.' } },
+      // Core product systems — landing dashboards (own components as built).
+      { path: 'membership', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management', title: 'Membership Management', icon: 'card_membership', blurb: 'Members, tiers, dues and standing.' } },
+      { path: 'golf', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management', title: 'Golf Management', icon: 'sports_golf', blurb: 'Tee sheet, bookings and competitions.' } },
+      { path: 'facility', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Facility Management', title: 'Facility Management', icon: 'meeting_room', blurb: 'Facilities, availability and reservations.' } },
+
+      // Shown when systemAccessGuard denies a route (no guard on this one).
+      { path: 'access-denied', component: AccessDeniedComponent },
 
       { path: '', redirectTo: 'home', pathMatch: 'full' },
 
