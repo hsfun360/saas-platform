@@ -2,6 +2,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
+import { ActiveSystemService } from '../services/active-system.service';
 import { MenuItem, WorkspaceOption, MyInvitation } from '../models/auth.models';
 
 @Component({
@@ -46,6 +47,7 @@ export class Dashboard implements OnInit {
   constructor(
     private router: Router,
     private authService: AuthService,
+    private activeSystem: ActiveSystemService,
   ) {}
 
   ngOnInit(): void {
@@ -193,6 +195,9 @@ export class Dashboard implements OnInit {
     this.activeModule = moduleName;
     this.displayedMenus = this.allowedMenus.filter(m => m.moduleName === moduleName);
     this.isAppsDropdownOpen = false;
+    // Publish this system's dashboard so other screens (e.g. Under Construction)
+    // can return to it rather than the generic /home.
+    this.activeSystem.dashboardRoute.set(this.systemDashboardRoute);
     if (navigate) {
       const landing = this.moduleLanding[moduleName] || this.displayedMenus[0]?.route;
       if (landing) this.router.navigate([landing]);

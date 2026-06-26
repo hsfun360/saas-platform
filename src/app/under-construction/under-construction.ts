@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { ActiveSystemService } from '../services/active-system.service';
 
 // Placeholder shown (inside the dashboard shell) for any menu whose route has no
 // component built yet — instead of silently bouncing to Home. Wired as the shell's
@@ -25,15 +26,16 @@ import { Router } from '@angular/router';
         {{ path }}
       </p>
 
-      <button type="button" class="btn btn--primary" (click)="goHome()">
-        <span class="material-icons" aria-hidden="true">home</span>
-        Back to Home
+      <button type="button" class="btn btn--primary" (click)="goToDashboard()">
+        <span class="material-icons" aria-hidden="true">dashboard</span>
+        Back to dashboard
       </button>
     </div>
   `,
 })
 export class UnderConstructionComponent {
   private readonly router = inject(Router);
+  private readonly activeSystem = inject(ActiveSystemService);
 
   // The route the user tried to open (shown for context).
   get path(): string {
@@ -48,7 +50,9 @@ export class UnderConstructionComponent {
     return seg.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
-  goHome(): void {
-    this.router.navigate(['/home']);
+  // Return to the CURRENT system's dashboard (kept in sync by the shell), not the
+  // generic /home — consistent with the per-system dashboard model.
+  goToDashboard(): void {
+    this.router.navigateByUrl(this.activeSystem.dashboardRoute());
   }
 }
