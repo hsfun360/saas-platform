@@ -223,11 +223,22 @@ and `system-setup.css` (`.tab-bar`, `.tab-btn`), routed as `system-setup` and
 
 #### Data listings — card-per-record, never a raw `<table>`
 
+**Canonical reference: the Companies screen** (`companies.html` / `companies.css`). Every
+listing/CRUD screen should match its shape — copy it rather than inventing a variant.
+
 For listing records (users, roles, subscribers, etc.) **do not use a plain `<table>`** —
 fixed table columns overflow horizontally and don't fit on mobile. Use a **card-per-record
 list**: each record is a card with its primary value as a **title** and the remaining
 fields as **wrapping label/value pairs** that sit inline on desktop and wrap/stack on
 mobile. No horizontal scroll, reads well at every width.
+
+- **No outer card wrapping the whole list.** The screen is, top to bottom: page header →
+  search → the list of **per-record cards** → FAB — all sitting **directly on the page
+  background**, exactly like Companies. Do **not** wrap the search + list in one big
+  surrounding `.card` (it adds a redundant frame, an extra gutter, and a stray section
+  heading). Each *record* is a bordered card; the *page* is not. (The legacy System Setup
+  tabs still use a list-in-a-card layout — they're being migrated to this standard as each
+  tab is split into its own screen; don't copy that pattern for new screens.)
 
 - If a row has an **action** (e.g. Manage / Edit), wrap the content + action in the
   action-row grid above (`minmax(0, 1fr) auto`, actions right on desktop / full-width
@@ -263,6 +274,115 @@ mobile. No horizontal scroll, reads well at every width.
 Reference implementation: `system-setup.html` / `system-setup.css` (`.data-list`,
 `.data-card*`, with the Subscribers card combining `.data-row` actions + an expanding
 `.admin-panel`).
+
+#### Listing chrome — search on top, "New" as a bottom FAB
+
+For any non-trivial listing (more than a handful of rows), the **add** action and the
+**find** action go in fixed places, not a single top toolbar:
+
+- **Search on top (find).** Put a single search/filter field directly above the list —
+  the primary way users locate a record once scanning fails. Filter the **already-loaded
+  list client-side** (a `computed()` over the data signal) for instant results; don't
+  round-trip the server per keystroke. Match across the visible fields (title + the
+  meta values). The field is a native `<input type="search">` with an `aria-label`, a
+  leading search icon, and a clear (✕) button shown only when there's text. Keep it
+  ≥ 44px tall and ≥ 16px font (so iOS doesn't zoom on focus).
+- **"New" as a bottom FAB (add).** Do **not** put the create CTA in the top toolbar — on
+  a long, scrolled list a top button drifts off-screen. Use a **floating action button**
+  pinned `position: fixed` bottom-right that stays reachable at any scroll position. This
+  is the one place the bottom is for an **action** (the bottom *nav bar* stays
+  destinations-only). Compose the shared `.btn .btn--primary` so it keeps the ≥ 44px
+  target, colour and focus ring; round it to a pill and add a soft shadow. Give it an
+  `aria-label` and leave it **in DOM order after the list** so keyboard/screen-reader
+  users still reach it.
+  - **z-index:** the FAB sits above content but **below** the shell drawer (`1000`),
+    backdrop (`999`) and header (`1100`) — use `z-index: 900`.
+  - **Clear the mobile bottom nav.** The shell shows a fixed bottom nav (height
+    `--bottom-nav-height`, defined on the shell `:host`) on mobile (≤ 767px). A FAB at a
+    plain `bottom: var(--space-lg)` hides **behind** that bar. Offset it on mobile:
+    `bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md))`. Don't hard-code the
+    bar's pixel height — reference the var so the two never drift.
+  - **Master–detail screens:** place the FAB **inside the master pane**. On mobile the
+    detail pane sets the master to `display:none`, which hides the FAB's fixed descendant
+    automatically — so no "New" button floats over an edit form. No extra logic needed.
+- **Create/edit open as their own surface, never an inline form on the list.** Tapping the
+  FAB (or a row's Edit) must take the user to a surface they can't miss — **not** an inline
+  form that expands at the top of the list (on a scrolled mobile list it appears off-screen
+  and the user thinks nothing happened). Use one of:
+  - the shared **`<app-dialog>`** (`src/app/shared/dialog`) — a popup that's full-screen on
+    mobile (edge-to-edge, over header + bottom nav) and a centred card on desktop; overlay
+    at `z-index: 1200` (above the header). It owns the chrome (title bar, **scrollable
+    body**, **fixed one-line footer**) and the a11y (see below), so screens just project
+    content. **Don't hand-roll a modal** — reuse this. Reference: `companies.ts` (create +
+    edit-modules + edit-details dialogs) and `modules-menus.ts` (module + menu dialogs).
+  - or a **routed screen** (`/section/new`) that the mobile sliding-pane covers the list
+    with — for master–detail screens this falls out of the existing URL-state pattern.
+    Reference: `items.ts` (`/items/new`); for a tabbed screen, jump to the create tab
+    (`system-setup.ts`, FAB → `switchTab('create')`).
+  - **Footer buttons stay on one line.** Title already names the action ("New company"), so
+    the primary button is a plain **"Save"** (not "Create company") next to **"Cancel"**,
+    right-aligned. The global mobile rule forces `button[type="submit"]` to full width —
+    `<app-dialog>` opts out via `.dlg__footer .btn { width: auto }` (in `styles.css`) so
+    they never wrap. The Save button sits in the footer but targets the body `<form>` via
+    `form="…"`, so Enter-to-submit still works.
+  - **A11y (handled by `<app-dialog>`):** focus moves to the first field on open, is
+    **trapped** while open, **Esc** closes, and focus **returns to the trigger** on close.
+- **Two distinct empty states.** Separate "the data is empty" from "the search matched
+  nothing":
+  - No records at all → invite creation ("No items yet. Use 'New item'…").
+  - Records exist but the filter excludes them → `search_off` icon + **No items match
+    "{{ query }}"** + a **Clear search** button (a native `<button>`, not just clearing
+    the field), so the user has an obvious way back to the full list.
+
+```css
+.fab {                              /* compose: class="btn btn--primary fab" */
+  position: fixed; right: var(--space-lg); bottom: var(--space-lg);
+  z-index: 900;                     /* under drawer(1000)/backdrop(999)/header(1100) */
+  border-radius: 28px; box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+}
+@media (max-width: 767px) {         /* lift clear of the fixed mobile bottom nav */
+  .fab { bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md)); }
+}
+```
+
+```ts
+readonly search = signal('');
+readonly filtered = computed(() => {
+  const q = this.search().trim().toLowerCase();
+  const list = this.items();
+  return q ? list.filter(i => i.name.toLowerCase().includes(q)) : list;   // + other fields
+});
+clearSearch() { this.search.set(''); }
+```
+
+Reference implementation: `items.ts` / `items.html` / `items.css` (`.it-search*`,
+`.it-fab`, `filteredItems` computed, the `search_off` empty state), routed as `items`
+and `items/:id`.
+
+#### Screen wrapper padding — no double gutter on mobile
+
+The shell's `.content-area` already adds a ~16px gutter on mobile (`var(--space-md)`),
+so a screen's own top-level wrapper must **not** add a second horizontal gutter on top —
+that's the wasted empty space down both sides. On mobile, drop the wrapper's horizontal
+padding to **0** and let content (cards, lists) run edge-to-edge inside the shell gutter
+(mobile-Gmail style); keep vertical padding for breathing room. Desktop keeps the
+comfortable `var(--space-lg)` padding and the centred `max-width` column.
+
+Use the shared **`.screen-pad`** utility (in `styles.css`) on the wrapper, and keep
+`max-width` / `margin: 0 auto` inline for the desktop column:
+
+```html
+<section class="screen-pad" style="max-width: 900px; margin: 0 auto;"> … </section>
+```
+```css
+.screen-pad { padding: var(--space-lg); }
+@media (max-width: 767px) { .screen-pad { padding: var(--space-md) 0; } }
+```
+
+Screens with a bespoke container class (`.saas-container`, `.tenant-container`) bake the
+same `@media (max-width: 767px) { padding: var(--space-md) 0 }` into that class instead.
+Don't re-add horizontal padding on the wrapper for mobile — card/list internal padding
+already keeps text off the edge.
 
 #### App bar + mobile drawer layering (z-index & a single header height)
 

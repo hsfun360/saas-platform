@@ -5,108 +5,43 @@
   </div>
 
   @if (successMessage()) {
-    <div class="flash flash-success">{{ successMessage() }}</div>
+    <div class="flash flash-success" role="status" aria-live="polite">{{ successMessage() }}</div>
   }
   @if (errorMessage()) {
-    <div class="flash flash-error">{{ errorMessage() }}</div>
+    <div class="flash flash-error" role="alert" aria-live="assertive">{{ errorMessage() }}</div>
   }
 
-  <!-- Create a brand-new user -->
-  <div class="card">
-    <h2>Create User</h2>
-    <p class="subtle">Create a brand-new user and place them in a company with a role.</p>
-    <form (ngSubmit)="onCreateUser()">
-      <div class="row">
-        <div class="field">
-          <label for="nuEmail">Email <span class="req">*</span></label>
-          <input id="nuEmail" type="email" name="nuEmail" [(ngModel)]="newUser.email" placeholder="user@example.com" autocomplete="off" required />
-        </div>
-        <div class="field">
-          <label for="nuName">Full Name <span class="req">*</span></label>
-          <input id="nuName" type="text" name="nuName" [(ngModel)]="newUser.fullName" placeholder="Jane Doe" required />
-        </div>
-      </div>
-      <div class="row">
-        <div class="field">
-          <label for="nuPass">Password <span class="req">*</span></label>
-          <input id="nuPass" type="password" name="nuPass" [(ngModel)]="newUser.password" placeholder="Min 6 characters" required minlength="6" />
-        </div>
-        <div class="field">
-          <label for="nuPhone">Phone</label>
-          <input id="nuPhone" type="tel" name="nuPhone" [(ngModel)]="newUser.phone" placeholder="Optional" />
-        </div>
-      </div>
-      <div class="row">
-        <div class="field">
-          <label for="nuCompany">Company <span class="req">*</span></label>
-          <select id="nuCompany" name="nuCompany" [(ngModel)]="newUser.companyId">
-            <option value="">— Select company —</option>
-            @for (c of companies(); track c.id) {
-              <option [value]="c.id">{{ c.name }}</option>
-            }
-          </select>
-        </div>
-        <div class="field">
-          <label for="nuRole">Role</label>
-          <select id="nuRole" name="nuRole" [(ngModel)]="newUser.roleId">
-            <option value="">— No role —</option>
-            @for (r of rolesFor(newUser.companyId); track r.id) {
-              <option [value]="r.id">{{ r.name }}</option>
-            }
-          </select>
-        </div>
-      </div>
-      <button type="submit" class="btn btn--primary" [disabled]="creating()">
-        @if (creating()) { Creating… } @else { ➕ Create User }
-      </button>
-    </form>
-  </div>
+  <!-- People (person-centric). No outer card — the search + list sit directly on
+       the page (the Companies standard). -->
+  <h2 style="margin: 0 0 var(--space-md); font-size: var(--font-h2); font-weight: var(--weight-semibold); color: #1e293b;">People ({{ people().length }})</h2>
 
-  <!-- Invite an external collaborator -->
-  <div class="card">
-    <h2>Invite Collaborator</h2>
-    <p class="subtle">Invite someone by email — e.g. an external consultant. They keep their own identity and must accept before joining.</p>
-    <form (ngSubmit)="onInvite()">
-      <div class="row">
-        <div class="field">
-          <label for="ivEmail">Email <span class="req">*</span></label>
-          <input id="ivEmail" type="email" name="ivEmail" [(ngModel)]="invite.email" placeholder="consultant@example.com" autocomplete="off" required />
-        </div>
-        <div class="field">
-          <label for="ivCompany">Company <span class="req">*</span></label>
-          <select id="ivCompany" name="ivCompany" [(ngModel)]="invite.companyId">
-            <option value="">— Select company —</option>
-            @for (c of companies(); track c.id) {
-              <option [value]="c.id">{{ c.name }}</option>
-            }
-          </select>
-        </div>
-        <div class="field">
-          <label for="ivRole">Role</label>
-          <select id="ivRole" name="ivRole" [(ngModel)]="invite.roleId">
-            <option value="">— No role —</option>
-            @for (r of rolesFor(invite.companyId); track r.id) {
-              <option [value]="r.id">{{ r.name }}</option>
-            }
-          </select>
-        </div>
+    <!-- Live filter over the loaded people (email / name / company / role). -->
+    @if (!loading() && people().length > 0) {
+      <div class="user-search">
+        <span class="material-icons user-search__icon" aria-hidden="true">search</span>
+        <input #userSearchBox type="search" [value]="search()" (input)="search.set(userSearchBox.value)"
+               placeholder="Search people…" aria-label="Search people" class="user-search__input">
+        @if (search()) {
+          <button type="button" class="user-search__clear" (click)="clearSearch()" aria-label="Clear search">
+            <span class="material-icons" aria-hidden="true">close</span>
+          </button>
+        }
       </div>
-      <button type="submit" class="btn btn--primary" [disabled]="inviting()">
-        @if (inviting()) { Sending… } @else { ✉️ Send invitation }
-      </button>
-    </form>
-  </div>
+    }
 
-  <!-- People (person-centric) -->
-  <div class="card">
-    <h2>People ({{ people().length }})</h2>
     @if (loading()) {
       <p class="subtle">Loading…</p>
     } @else if (people().length === 0) {
-      <p class="subtle">No people yet. Create a user or send an invitation above.</p>
+      <p class="subtle">No people yet. Use “Create user” or “Invite collaborator” to add someone.</p>
+    } @else if (filteredPeople().length === 0) {
+      <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: #64748b;">
+        <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: #cbd5e1;">search_off</span>
+        <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">No people match “{{ search() }}”.</p>
+        <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+      </div>
     } @else {
       <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-sm);">
-        @for (person of people(); track person.id) {
+        @for (person of filteredPeople(); track person.id) {
           <li style="border: 1px solid #e2e8f0; border-radius: 8px;">
 
             <!-- Summary / expander -->
@@ -187,11 +122,10 @@
         }
       </ul>
     }
-  </div>
 
   <!-- Pending invitations -->
   @if (invitations().length > 0) {
-    <div class="card">
+    <div class="card" style="margin-top: var(--space-lg);">
       <h2>Pending Invitations ({{ invitations().length }})</h2>
       <table class="user-table">
         <thead>
@@ -212,5 +146,115 @@
         </tbody>
       </table>
     </div>
+  }
+
+  <!-- Floating actions — Invite (secondary) + Create user (primary). The labels
+       hide on mobile so both fit in-line as round icon FABs (aria-label keeps the
+       accessible name). -->
+  <div class="user-fab-group">
+    <button type="button" class="btn btn--secondary user-fab" (click)="openInvite()" aria-label="Invite collaborator">
+      <span class="material-icons" aria-hidden="true">mail</span>
+      <span class="user-fab__label">Invite collaborator</span>
+    </button>
+    <button type="button" class="btn btn--primary user-fab" (click)="openCreate()" aria-label="Create user">
+      <span class="material-icons" aria-hidden="true">person_add</span>
+      <span class="user-fab__label">Create user</span>
+    </button>
+  </div>
+
+  <!-- ============ Create user dialog ============ -->
+  @if (createDialogOpen()) {
+    <app-dialog title="Create user" [busy]="creating()" (close)="cancelCreate()">
+      <p class="subtle" style="margin-top: 0;">Create a brand-new user and place them in a company with a role.</p>
+      <form id="createUserForm" (ngSubmit)="onCreateUser()">
+        <div class="row">
+          <div class="field">
+            <label for="nuEmail">Email <span class="req">*</span></label>
+            <input id="nuEmail" type="email" name="nuEmail" [(ngModel)]="newUser.email" placeholder="user@example.com" autocomplete="off" required />
+          </div>
+          <div class="field">
+            <label for="nuName">Full Name <span class="req">*</span></label>
+            <input id="nuName" type="text" name="nuName" [(ngModel)]="newUser.fullName" placeholder="Jane Doe" required />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="nuPass">Password <span class="req">*</span></label>
+            <input id="nuPass" type="password" name="nuPass" [(ngModel)]="newUser.password" placeholder="Min 6 characters" required minlength="6" />
+          </div>
+          <div class="field">
+            <label for="nuPhone">Phone</label>
+            <input id="nuPhone" type="tel" name="nuPhone" [(ngModel)]="newUser.phone" placeholder="Optional" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="nuCompany">Company <span class="req">*</span></label>
+            <select id="nuCompany" name="nuCompany" [(ngModel)]="newUser.companyId">
+              <option value="">— Select company —</option>
+              @for (c of companies(); track c.id) {
+                <option [value]="c.id">{{ c.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="nuRole">Role</label>
+            <select id="nuRole" name="nuRole" [(ngModel)]="newUser.roleId">
+              <option value="">— No role —</option>
+              @for (r of rolesFor(newUser.companyId); track r.id) {
+                <option [value]="r.id">{{ r.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cancelCreate()" [disabled]="creating()">Cancel</button>
+        <button type="submit" form="createUserForm" class="btn btn--primary" [disabled]="creating()">
+          {{ creating() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Invite collaborator dialog ============ -->
+  @if (inviteDialogOpen()) {
+    <app-dialog title="Invite collaborator" [busy]="inviting()" (close)="cancelInvite()">
+      <p class="subtle" style="margin-top: 0;">Invite someone by email — e.g. an external consultant. They keep their own identity and must accept before joining.</p>
+      <form id="inviteForm" (ngSubmit)="onInvite()">
+        <div class="row">
+          <div class="field">
+            <label for="ivEmail">Email <span class="req">*</span></label>
+            <input id="ivEmail" type="email" name="ivEmail" [(ngModel)]="invite.email" placeholder="consultant@example.com" autocomplete="off" required />
+          </div>
+          <div class="field">
+            <label for="ivCompany">Company <span class="req">*</span></label>
+            <select id="ivCompany" name="ivCompany" [(ngModel)]="invite.companyId">
+              <option value="">— Select company —</option>
+              @for (c of companies(); track c.id) {
+                <option [value]="c.id">{{ c.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="ivRole">Role</label>
+            <select id="ivRole" name="ivRole" [(ngModel)]="invite.roleId">
+              <option value="">— No role —</option>
+              @for (r of rolesFor(invite.companyId); track r.id) {
+                <option [value]="r.id">{{ r.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cancelInvite()" [disabled]="inviting()">Cancel</button>
+        <button type="submit" form="inviteForm" class="btn btn--primary" [disabled]="inviting()">
+          {{ inviting() ? 'Sending…' : 'Send' }}
+        </button>
+      </ng-container>
+    </app-dialog>
   }
 </div>

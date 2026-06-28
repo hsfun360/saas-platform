@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../auth.service';
 import { CompanyEntity, ModuleOption } from '../models/auth.models';
+import { DialogComponent } from '../shared/dialog/dialog';
 
 // Tenant Admin view: create and list companies (business entities) under the
 // subscriber's account, choosing which modules each company needs.
@@ -9,7 +10,7 @@ import { CompanyEntity, ModuleOption } from '../models/auth.models';
   selector: 'app-companies',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, DialogComponent],
   templateUrl: './companies.html',
   styleUrls: ['./companies.css'],
 })
@@ -25,18 +26,40 @@ export class CompaniesComponent implements OnInit {
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
 
+  // Listing chrome: live search over the loaded list + a FAB-toggled create form.
+  readonly search = signal('');
+  readonly showCreate = signal(false);
+  readonly filteredCompanies = computed(() => {
+    const query = this.search().trim().toLowerCase();
+    const list = this.companies();
+    if (!query) return list;
+    return list.filter(
+      (c) =>
+        c.name.toLowerCase().includes(query) ||
+        (c.registrationNumber || '').toLowerCase().includes(query) ||
+        (c.timezone || '').toLowerCase().includes(query) ||
+        (c.SubscribedModules || []).some((m) => m.name.toLowerCase().includes(query)),
+    );
+  });
+
   // Modules picked for the company being created (set of module ids).
   private readonly selectedModuleIds = signal<ReadonlySet<string>>(new Set());
   readonly selectedCount = computed(() => this.selectedModuleIds().size);
 
   // Editing modules on an EXISTING company.
   readonly editingCompanyId = signal<string | null>(null);
+  readonly editingCompany = computed(() =>
+    this.companies().find((c) => c.id === this.editingCompanyId()) ?? null,
+  );
   readonly savingModules = signal(false);
   private readonly editModuleIds = signal<ReadonlySet<string>>(new Set());
   readonly editCount = computed(() => this.editModuleIds().size);
 
   // Editing the profile / billing details of an EXISTING company.
   readonly editingProfileCompanyId = signal<string | null>(null);
+  readonly editingProfileCompany = computed(() =>
+    this.companies().find((c) => c.id === this.editingProfileCompanyId()) ?? null,
+  );
   readonly savingProfile = signal(false);
   readonly profileForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(150)]],
@@ -63,6 +86,26 @@ export class CompaniesComponent implements OnInit {
   ngOnInit(): void {
     this.loadCompanies();
     this.loadModules();
+  }
+
+  // Open the create dialog (FAB). Close any open edit dialog so only one editor
+  // is active at a time. The dialog component handles focus in/trap/restore.
+  openCreate(): void {
+    this.successMessage.set('');
+    this.errorMessage.set('');
+    this.editingCompanyId.set(null);
+    this.editingProfileCompanyId.set(null);
+    this.showCreate.set(true);
+  }
+
+  cancelCreate(): void {
+    this.showCreate.set(false);
+    this.form.reset({ name: '', registrationNumber: '', timezone: 'Asia/Kuala_Lumpur' });
+    this.selectedModuleIds.set(new Set());
+  }
+
+  clearSearch(): void {
+    this.search.set('');
   }
 
   loadCompanies(): void {
@@ -127,6 +170,7 @@ export class CompaniesComponent implements OnInit {
           this.form.reset({ name: '', registrationNumber: '', timezone: 'Asia/Kuala_Lumpur' });
           this.selectedModuleIds.set(new Set());
           this.creating.set(false);
+          this.showCreate.set(false);
           this.loadCompanies();
         },
         error: (err) => {

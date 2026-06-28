@@ -13,6 +13,7 @@ import {
   MenuInput,
   AssignRoleData,
   CreateSubscriptionData,
+  UpdateSubscriptionData,
   SubscriptionInfo,
   TenantUser,
 } from '../models/auth.models';
@@ -91,6 +92,12 @@ export class AdminService {
 
   listSubscriptions(): Observable<SubscriptionInfo[]> {
     return this.http.get<SubscriptionInfo[]>(`${this.apiBaseUrl}/subscriptions`);
+  }
+
+  // Amend a subscriber (account-level fields + the primary company's details).
+  // NOTE: requires the backend PATCH /admin/subscriptions/:id endpoint.
+  updateSubscription(id: string, data: UpdateSubscriptionData): Observable<{ message: string; data: SubscriptionInfo }> {
+    return this.http.patch<{ message: string; data: SubscriptionInfo }>(`${this.apiBaseUrl}/subscriptions/${id}`, data);
   }
 
   // --- Tenant Admin management (platform override for a specific company) ---

@@ -254,6 +254,17 @@ export interface SubscriptionInfo {
   Companies?: CompanyInfo[];
 }
 
+// Platform-admin amendment of a subscriber. The backend applies the
+// account-level fields (subscriberName / subscriptionPlan / status) to the
+// Account and the company-level fields to the subscriber's primary Company.
+export interface UpdateSubscriptionData {
+  subscriberName?: string;
+  subscriptionPlan?: string;
+  status?: string;
+  registrationNumber?: string;
+  timezone?: string;
+}
+
 export interface CompanyInfo {
   id: string;
   name: string;

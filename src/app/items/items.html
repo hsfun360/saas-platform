@@ -1,0 +1,174 @@
+<div class="screen-pad" style="max-width: 1100px;">
+  <h1 style="color: #1e293b; margin: 0 0 var(--space-xs); font-size: var(--font-h1); font-weight: var(--weight-bold);">Items</h1>
+  <p style="color: #64748b; font-size: var(--font-body-2); margin: 0 0 var(--space-lg);">
+    Sample CRUD list. Pick an item to view and edit it, or add a new one. Rename the
+    <code>Item</code> model and swap <code>ItemsService</code> for real HTTP to go live.
+  </p>
+
+  @if (successMessage()) {
+    <div role="status" aria-live="polite" style="margin: var(--space-md) 0; padding: var(--space-sm) var(--space-md); background: #dcfce7; color: #166534; border-radius: 6px; border: 1px solid #bbf7d0; font-size: var(--font-body-2);">
+      ✅ {{ successMessage() }}
+    </div>
+  }
+  @if (errorMessage()) {
+    <div role="alert" aria-live="assertive" style="margin: var(--space-md) 0; padding: var(--space-sm) var(--space-md); background: #fee2e2; color: #991b1b; border-radius: 6px; border: 1px solid #fecaca; font-size: var(--font-body-2);">
+      ⚠️ {{ errorMessage() }}
+    </div>
+  }
+
+  <!-- On mobile this behaves like a SlidingPaneLayout: when an item is open or
+       being created (it-layout--detail) the detail pane covers the master. On
+       desktop both panes show side-by-side. -->
+  <div class="it-layout" [class.it-layout--detail]="detailOpen()">
+
+    <!-- ============ MASTER: list ============ -->
+    <section class="it-card it-pane it-pane--master" aria-label="Items">
+      <h2 style="margin: 0 0 var(--space-md); font-size: var(--font-h2); color: #1e293b;">All items</h2>
+
+      <!-- Live filter over the loaded list (name / description / status). -->
+      <div class="it-search">
+        <span class="material-icons it-search__icon" aria-hidden="true">search</span>
+        <input #searchBox type="search" [value]="search()" (input)="search.set(searchBox.value)"
+               placeholder="Search items…" aria-label="Search items"
+               class="it-search__input">
+        @if (search()) {
+          <button type="button" class="it-search__clear" (click)="clearSearch()" aria-label="Clear search">
+            <span class="material-icons" aria-hidden="true">close</span>
+          </button>
+        }
+      </div>
+
+      @if (loading()) {
+        <p style="color: #64748b;">Loading items…</p>
+      } @else if (items().length === 0) {
+        <p style="color: #64748b;">No items yet. Use “New item” to create your first one.</p>
+      } @else if (filteredItems().length === 0) {
+        <!-- Empty state for a search that matches nothing. -->
+        <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: #64748b;">
+          <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: #cbd5e1;">search_off</span>
+          <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">
+            No items match “{{ search() }}”.
+          </p>
+          <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">
+            Clear search
+          </button>
+        </div>
+      } @else {
+        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs);">
+          @for (item of filteredItems(); track item.id) {
+            <li class="it-row" [class.it-row--active]="selectedId() === item.id">
+              <button type="button" class="it-row__select" (click)="selectItem(item.id)"
+                      [attr.aria-pressed]="selectedId() === item.id" [attr.aria-label]="'Open ' + item.name">
+                <span class="it-row__text">
+                  <span style="font-weight: var(--weight-semibold); color: #1e293b;">{{ item.name }}</span>
+                  @if (item.description) {
+                    <span style="color: #64748b; font-size: var(--font-body-2);">{{ item.description }}</span>
+                  }
+                  <span class="it-status"
+                        [class.it-status--active]="item.status === 'active'"
+                        [class.it-status--inactive]="item.status === 'inactive'"
+                        style="margin-top: var(--space-xs); align-self: flex-start;">
+                    {{ item.status }}
+                  </span>
+                </span>
+              </button>
+              <span class="it-row__actions">
+                <button type="button" class="btn btn--secondary btn--sm" (click)="selectItem(item.id)"
+                        [disabled]="!!deletingId()" [attr.aria-label]="'Edit ' + item.name">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+                <button type="button" class="btn btn--danger btn--sm" (click)="deleteItem(item)"
+                        [disabled]="deletingId() === item.id" [attr.aria-label]="'Delete ' + item.name">
+                  <span class="material-icons" aria-hidden="true">delete</span>
+                  {{ deletingId() === item.id ? 'Deleting…' : 'Delete' }}
+                </button>
+              </span>
+            </li>
+          }
+        </ul>
+      }
+
+      <!-- Floating "New item" action. Lives in the master pane, so on mobile it
+           disappears when the detail pane covers the master (the pane is
+           display:none, which hides its fixed descendants). -->
+      <button type="button" class="btn btn--primary it-fab" (click)="startCreate()" aria-label="New item">
+        <span class="material-icons" aria-hidden="true">add</span>
+        New item
+      </button>
+    </section>
+
+    <!-- ============ DETAIL: view / create / edit ============ -->
+    <section class="it-card it-pane it-pane--detail" aria-label="Item detail">
+      @if (selectedId() === null) {
+        <h2 style="margin-top: 0; font-size: var(--font-h2); color: #1e293b;">Details</h2>
+        <p style="color: #64748b;">Select an item on the left, or add a new one.</p>
+      } @else {
+        <!-- Mobile-only: return to the list (master). -->
+        <button type="button" class="btn btn--secondary btn--sm it-back" (click)="backToList()">
+          <span class="material-icons" aria-hidden="true">arrow_back</span>
+          All items
+        </button>
+
+        @if (!isCreating() && !selectedItem() && !loading()) {
+          <h2 style="margin-top: 0; font-size: var(--font-h2); color: #1e293b;">Item not found</h2>
+          <p style="color: #64748b;">It may have been deleted. Go back to the list to pick another.</p>
+        } @else {
+          <h2 style="margin-top: 0; font-size: var(--font-h2); color: #1e293b;">
+            {{ isCreating() ? 'New item' : selectedItem()?.name }}
+          </h2>
+          @if (!isCreating() && selectedItem()) {
+            <p style="color: #64748b; font-size: var(--font-caption); margin-top: 0;">
+              Last updated {{ selectedItem()?.updatedAt | date: 'medium' }}
+            </p>
+          }
+
+          <form [formGroup]="form" (ngSubmit)="save()">
+            <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+              <label for="item-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Name *</label>
+              <input id="item-name" type="text" formControlName="name" placeholder="e.g. Acme Corporation"
+                     style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+              @if (form.controls.name.touched && form.controls.name.invalid) {
+                <span role="alert" style="color: #b91c1c; font-size: var(--font-caption);">A name is required.</span>
+              }
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+              <label for="item-desc" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">
+                Description <span style="font-weight: var(--weight-regular); color: #64748b;">(optional)</span>
+              </label>
+              <textarea id="item-desc" formControlName="description" rows="3" placeholder="Short description"
+                        style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); resize: vertical;"></textarea>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-lg);">
+              <label for="item-status" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Status</label>
+              <select id="item-status" formControlName="status"
+                      style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); background: white;">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+
+            <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
+              <button type="submit" class="btn btn--primary btn--sm" [disabled]="saving()">
+                {{ saving() ? 'Saving…' : (isCreating() ? 'Create item' : 'Save changes') }}
+              </button>
+              <button type="button" class="btn btn--secondary btn--sm" (click)="backToList()" [disabled]="saving()">
+                Cancel
+              </button>
+              @if (!isCreating() && selectedItem(); as current) {
+                <button type="button" class="btn btn--danger btn--sm" (click)="deleteItem(current)"
+                        [disabled]="deletingId() === current.id"
+                        style="margin-left: auto;">
+                  <span class="material-icons" aria-hidden="true">delete</span>
+                  {{ deletingId() === current.id ? 'Deleting…' : 'Delete' }}
+                </button>
+              }
+            </div>
+          </form>
+        }
+      }
+    </section>
+  </div>
+</div>

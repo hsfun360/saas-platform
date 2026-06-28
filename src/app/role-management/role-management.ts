@@ -1,8 +1,9 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms'; // 👈 Needed for ngModel
 import { AuthService } from '../auth.service';
 import { CompanyEntity, Role } from '../models/auth.models';
+import { DialogComponent } from '../shared/dialog/dialog';
 
 // Roles are per-company. The admin first picks a company, then creates roles for
 // it (from that company's module menus) and sees its existing roles — making the
@@ -10,7 +11,7 @@ import { CompanyEntity, Role } from '../models/auth.models';
 @Component({
   selector: 'app-role-management',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DialogComponent],
   templateUrl: './role-management.html',
   styleUrls: ['./role-management.css']
 })
@@ -33,11 +34,26 @@ export class RoleManagementComponent implements OnInit {
   roles = signal<Role[]>([]);
   rolesLoading = signal(false);
 
+  // Live filter over the loaded roles (name / description).
+  roleSearch = signal('');
+  filteredRoles = computed(() => {
+    const query = this.roleSearch().trim().toLowerCase();
+    const list = this.roles();
+    if (!query) return list;
+    return list.filter(
+      (r) =>
+        (r.name || '').toLowerCase().includes(query) ||
+        (r.description || '').toLowerCase().includes(query),
+    );
+  });
+
   // Edit mode: null = creating a new role; otherwise the id of the role being
-  // edited (its name/description/permissions are loaded into the form above).
+  // edited (its name/description/permissions are loaded into the dialog form).
   editingRoleId = signal<string | null>(null);
   editLoading = signal(false);
   deletingRoleId = signal<string | null>(null);
+  // The create / edit role dialog.
+  roleDialogOpen = signal(false);
 
   isLoading = signal(false);
   successMessage = signal('');
@@ -124,12 +140,28 @@ export class RoleManagementComponent implements OnInit {
     }
   }
 
-  // Load a role into the form for editing (prefilling name, description and the
+  // Open the create-role dialog with an empty form.
+  openCreate() {
+    this.successMessage.set('');
+    this.errorMessage.set('');
+    this.editingRoleId.set(null);
+    this.roleName = '';
+    this.roleDescription = '';
+    this.selectedMenuIds = new Set();
+    this.roleDialogOpen.set(true);
+  }
+
+  clearSearch() {
+    this.roleSearch.set('');
+  }
+
+  // Load a role into the dialog for editing (prefilling name, description and the
   // checked permissions from the server).
   startEdit(role: Role) {
     this.successMessage.set('');
     this.errorMessage.set('');
     this.editingRoleId.set(role.id);
+    this.roleDialogOpen.set(true);
     this.editLoading.set(true);
     this.roleName = role.name;
     this.roleDescription = role.description || '';
@@ -150,8 +182,9 @@ export class RoleManagementComponent implements OnInit {
     });
   }
 
-  // Leave edit mode and reset the form back to "create" state.
+  // Close the dialog and reset the form back to "create" state.
   cancelEdit() {
+    this.roleDialogOpen.set(false);
     this.editingRoleId.set(null);
     this.roleName = '';
     this.roleDescription = '';

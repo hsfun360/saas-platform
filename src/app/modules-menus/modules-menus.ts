@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AdminService } from '../services/admin.service';
 import { AdminMenu, AdminModule } from '../models/auth.models';
+import { DialogComponent } from '../shared/dialog/dialog';
 
 // System/Master Admin master–detail maintenance for the platform catalogue:
 // Modules (master) on the left, and the selected module's Menus (detail) on the
@@ -18,7 +19,7 @@ import { AdminMenu, AdminModule } from '../models/auth.models';
   selector: 'app-modules-menus',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, DialogComponent],
   templateUrl: './modules-menus.html',
   styleUrls: ['./modules-menus.css'],
 })
@@ -32,8 +33,22 @@ export class ModulesMenusComponent implements OnInit {
   // --- Master: modules ---
   readonly modules = signal<AdminModule[]>([]);
   readonly modulesLoading = signal(false);
+
+  // Live filter over the loaded modules (name / description).
+  readonly moduleSearch = signal('');
+  readonly filteredModules = computed(() => {
+    const query = this.moduleSearch().trim().toLowerCase();
+    const list = this.modules();
+    if (!query) return list;
+    return list.filter(
+      (m) =>
+        (m.name || '').toLowerCase().includes(query) ||
+        (m.description || '').toLowerCase().includes(query),
+    );
+  });
   readonly selectedModuleId = signal<string | null>(null);
   readonly editingModuleId = signal<string | null>(null);
+  readonly moduleDialogOpen = signal(false);
   readonly savingModule = signal(false);
   readonly deletingModuleId = signal<string | null>(null);
 
@@ -47,7 +62,21 @@ export class ModulesMenusComponent implements OnInit {
   // --- Detail: menus of the selected module ---
   readonly menus = signal<AdminMenu[]>([]);
   readonly menusLoading = signal(false);
+
+  // Live filter over the loaded menus (name / route).
+  readonly menuSearch = signal('');
+  readonly filteredMenus = computed(() => {
+    const query = this.menuSearch().trim().toLowerCase();
+    const list = this.menus();
+    if (!query) return list;
+    return list.filter(
+      (m) =>
+        (m.name || '').toLowerCase().includes(query) ||
+        (m.route || '').toLowerCase().includes(query),
+    );
+  });
   readonly editingMenuId = signal<string | null>(null);
+  readonly menuDialogOpen = signal(false);
   readonly savingMenu = signal(false);
   readonly deletingMenuId = signal<string | null>(null);
 
@@ -78,6 +107,7 @@ export class ModulesMenusComponent implements OnInit {
 
   private applySelection(moduleId: string | null): void {
     this.selectedModuleId.set(moduleId);
+    this.menuSearch.set(''); // don't carry a filter across modules
     this.cancelMenuEdit();
     if (moduleId) {
       this.loadMenus(moduleId);
@@ -114,6 +144,7 @@ export class ModulesMenusComponent implements OnInit {
     this.clearMessages();
     this.editingModuleId.set(null);
     this.moduleForm.reset({ name: '', icon: '', description: '', landingRoute: '' });
+    this.moduleDialogOpen.set(true);
   }
 
   startEditModule(m: AdminModule): void {
@@ -125,9 +156,11 @@ export class ModulesMenusComponent implements OnInit {
       description: m.description || '',
       landingRoute: m.landingRoute || '',
     });
+    this.moduleDialogOpen.set(true);
   }
 
   cancelModuleEdit(): void {
+    this.moduleDialogOpen.set(false);
     this.editingModuleId.set(null);
     this.moduleForm.reset({ name: '', icon: '', description: '', landingRoute: '' });
   }
@@ -205,15 +238,18 @@ export class ModulesMenusComponent implements OnInit {
     this.clearMessages();
     this.editingMenuId.set(null);
     this.menuForm.reset({ name: '', route: '', icon: '' });
+    this.menuDialogOpen.set(true);
   }
 
   startEditMenu(menu: AdminMenu): void {
     this.clearMessages();
     this.editingMenuId.set(menu.id);
     this.menuForm.setValue({ name: menu.name, route: menu.route || '', icon: menu.icon || '' });
+    this.menuDialogOpen.set(true);
   }
 
   cancelMenuEdit(): void {
+    this.menuDialogOpen.set(false);
     this.editingMenuId.set(null);
     this.menuForm.reset({ name: '', route: '', icon: '' });
   }
@@ -271,6 +307,14 @@ export class ModulesMenusComponent implements OnInit {
         this.deletingMenuId.set(null);
       },
     });
+  }
+
+  clearModuleSearch(): void {
+    this.moduleSearch.set('');
+  }
+
+  clearMenuSearch(): void {
+    this.menuSearch.set('');
   }
 
   private clearMessages(): void {

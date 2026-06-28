@@ -1,0 +1,94 @@
+/* Overlay covers the whole viewport, above the shell header (1100), drawer
+   (1000) and backdrop (999). Centres the panel on desktop. */
+.dlg-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+/* Panel: a flex column — sticky header, scrollable body, fixed footer. */
+.dlg {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.dlg__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.dlg__title {
+  margin: 0;
+  font-size: var(--font-h2);
+  font-weight: var(--weight-semibold);
+  color: #1e293b;
+}
+
+.dlg__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: #475569;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.dlg__close:hover {
+  background: #f1f5f9;
+}
+
+.dlg__body {
+  padding: var(--space-lg);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Actions stay on ONE line, right-aligned. `flex-wrap: nowrap` + the global
+   `.dlg__footer .btn { width: auto }` override keep submit buttons from going
+   full-width (and thus wrapping) on mobile. */
+.dlg__footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border-top: 1px solid #e2e8f0;
+  background: white;
+}
+
+/* Full-screen on mobile: the dialog IS the screen, edge to edge. */
+@media (max-width: 767px) {
+  .dlg-overlay {
+    padding: 0;
+  }
+  .dlg {
+    max-width: none;
+    max-height: none;
+    height: 100%;
+    border-radius: 0;
+  }
+}

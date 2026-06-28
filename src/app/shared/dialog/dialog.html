@@ -1,0 +1,18 @@
+<div class="dlg-overlay" (keydown)="onKeydown($event)">
+  <div class="dlg" role="dialog" aria-modal="true" [attr.aria-label]="title()" tabindex="-1" #panel>
+    <header class="dlg__header">
+      <h2 class="dlg__title">{{ title() }}</h2>
+      <button type="button" class="dlg__close" (click)="requestClose()" [disabled]="busy()" aria-label="Close">
+        <span class="material-icons" aria-hidden="true">close</span>
+      </button>
+    </header>
+
+    <div class="dlg__body">
+      <ng-content></ng-content>
+    </div>
+
+    <div class="dlg__footer">
+      <ng-content select="[dialogFooter]"></ng-content>
+    </div>
+  </div>
+</div>

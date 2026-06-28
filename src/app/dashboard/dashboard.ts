@@ -104,7 +104,10 @@ export class Dashboard implements OnInit {
     // System Admin gets the SaaS Administration (control plane) system + its menus.
     if (this.isSystemAdmin) {
       this.allowedMenus.push(
-        { name: 'Internal Staff & Roles', route: '/admin/system-setup', icon: 'manage_accounts', moduleName: 'SaaS Administration', moduleIcon: 'admin_panel_settings', Module: undefined },
+        { name: 'Subscriber Management', route: '/admin/subscribers', icon: 'groups', moduleName: 'SaaS Administration', moduleIcon: 'admin_panel_settings', Module: undefined },
+        { name: 'Roles', route: '/admin/system-roles', icon: 'badge', moduleName: 'SaaS Administration', moduleIcon: 'admin_panel_settings', Module: undefined },
+        { name: 'Users', route: '/admin/platform-users', icon: 'person', moduleName: 'SaaS Administration', moduleIcon: 'admin_panel_settings', Module: undefined },
+        { name: 'Assign Role', route: '/admin/system-setup', icon: 'link', moduleName: 'SaaS Administration', moduleIcon: 'admin_panel_settings', Module: undefined },
         { name: 'Modules & Menus', route: '/admin/modules-menus', icon: 'category', moduleName: 'SaaS Administration', moduleIcon: 'admin_panel_settings', Module: undefined },
       );
     }

@@ -10,6 +10,10 @@
      items (~60px two-line brand stack, 48px icon buttons) stay clear of the
      top/bottom edges at this height. */
   --header-height: 72px;
+  /* Height of the mobile bottom nav. One source of truth: the .bottom-nav uses
+     it, and any fixed bottom-anchored UI (FABs on listing screens) offsets by it
+     so it never hides behind the bar. */
+  --bottom-nav-height: 60px;
 }
 
 /* --- GOOGLE STYLE TOP BAR --- */
@@ -660,7 +664,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  height: 60px;
+  height: var(--bottom-nav-height);
   background: #ffffff;
   border-top: 1px solid #dadce0;
   z-index: 1000;

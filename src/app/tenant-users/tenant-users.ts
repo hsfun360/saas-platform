@@ -1,8 +1,9 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../auth.service';
 import { AccountCompany, AccountCompanyRole, AccountPerson, AccountPendingInvite } from '../models/auth.models';
+import { DialogComponent } from '../shared/dialog/dialog';
 
 // Person-centric User Management: each person is shown with the companies they
 // belong to and their role in each, with inline add-to-company / change-role /
@@ -10,7 +11,7 @@ import { AccountCompany, AccountCompanyRole, AccountPerson, AccountPendingInvite
 @Component({
   selector: 'app-tenant-users',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DialogComponent],
   templateUrl: './tenant-users.html',
   styleUrl: './tenant-users.css',
 })
@@ -19,6 +20,28 @@ export class TenantUsersComponent implements OnInit {
   readonly people = signal<AccountPerson[]>([]);
   readonly invitations = signal<AccountPendingInvite[]>([]);
   readonly loading = signal(false);
+
+  // Live filter over the loaded people (email / name / their companies + roles).
+  readonly search = signal('');
+  readonly filteredPeople = computed(() => {
+    const query = this.search().trim().toLowerCase();
+    const list = this.people();
+    if (!query) return list;
+    return list.filter(
+      (p) =>
+        (p.email || '').toLowerCase().includes(query) ||
+        (p.full_name || '').toLowerCase().includes(query) ||
+        p.memberships.some(
+          (m) =>
+            (m.companyName || '').toLowerCase().includes(query) ||
+            (m.roleName || '').toLowerCase().includes(query),
+        ),
+    );
+  });
+
+  // Create-user and invite-collaborator dialogs.
+  readonly createDialogOpen = signal(false);
+  readonly inviteDialogOpen = signal(false);
 
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
@@ -86,6 +109,30 @@ export class TenantUsersComponent implements OnInit {
   private clearMessages(): void {
     this.successMessage.set('');
     this.errorMessage.set('');
+  }
+
+  clearSearch(): void {
+    this.search.set('');
+  }
+
+  openCreate(): void {
+    this.clearMessages();
+    this.newUser = { email: '', password: '', fullName: '', phone: '', companyId: '', roleId: '' };
+    this.createDialogOpen.set(true);
+  }
+
+  cancelCreate(): void {
+    this.createDialogOpen.set(false);
+  }
+
+  openInvite(): void {
+    this.clearMessages();
+    this.invite = { email: '', companyId: '', roleId: '' };
+    this.inviteDialogOpen.set(true);
+  }
+
+  cancelInvite(): void {
+    this.inviteDialogOpen.set(false);
   }
 
   onChangeRole(userId: string, companyId: string): void {
@@ -186,6 +233,7 @@ export class TenantUsersComponent implements OnInit {
           this.successMessage.set(res.message || '✅ User created.');
           this.newUser = { email: '', password: '', fullName: '', phone: '', companyId: '', roleId: '' };
           this.creating.set(false);
+          this.createDialogOpen.set(false);
           this.load();
         },
         error: (err) => {
@@ -211,6 +259,7 @@ export class TenantUsersComponent implements OnInit {
         this.successMessage.set(res.message || '✅ Invitation sent.');
         this.invite = { email: '', companyId: '', roleId: '' };
         this.inviting.set(false);
+        this.inviteDialogOpen.set(false);
         this.load();
       },
       error: (err) => {

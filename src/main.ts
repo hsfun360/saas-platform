@@ -26,10 +26,14 @@ import { SetupPasswordComponent } from './app/setup-password/setup-password';
 import { RoleManagementComponent } from './app/role-management/role-management';
 
 import { SystemSetupComponent } from './app/system-setup/system-setup';
+import { SubscribersComponent } from './app/subscribers/subscribers';
+import { PlatformRolesComponent } from './app/platform-roles/platform-roles';
+import { PlatformUsersComponent } from './app/platform-users/platform-users';
 import { TenantUsersComponent } from './app/tenant-users/tenant-users';
 import { CompaniesComponent } from './app/companies/companies';
 import { ModulesMenusComponent } from './app/modules-menus/modules-menus';
 import { SystemDashboardComponent } from './app/systems/system-dashboard';
+import { ItemsComponent } from './app/items/items';
 import { UnderConstructionComponent } from './app/under-construction/under-construction';
 import { AccessDeniedComponent } from './app/access-denied/access-denied';
 import { systemAccessGuard } from './app/access.guard';
@@ -61,14 +65,23 @@ const routes: Routes = [
       { path: 'profile', component: ProfileComponent },
       { path: 'settings', component: SettingsComponent },
 
+      // Sample CRUD master–detail screen. Both paths point at the same component;
+      // the :id segment ('new' = create) is the single source of truth for the
+      // open item — deep-linkable, with working back/forward. No systemModule
+      // guard: it's a demo screen everyone may see (like home/profile).
+      { path: 'items', component: ItemsComponent },
+      { path: 'items/:id', component: ItemsComponent },
+
       // Platform Administration (Control Plane) — landing + admin screens.
       // `data.systemModule` + systemAccessGuard block users without that access.
       { path: 'platform', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', title: 'Platform Administration', icon: 'admin_panel_settings', blurb: 'Subscribers, modules and platform health.' } },
       { path: 'admin/roles', component: RoleManagementComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/users', component: TenantUsersComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/companies', component: CompaniesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/subscribers', component: SubscribersComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/system-roles', component: PlatformRolesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/platform-users', component: PlatformUsersComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/system-setup', component: SystemSetupComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/system-setup/:tab', component: SystemSetupComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/modules-menus', component: ModulesMenusComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/modules-menus/:moduleId', component: ModulesMenusComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
 

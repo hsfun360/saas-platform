@@ -159,6 +159,29 @@ body {
   width: 100%;
 }
 
+/* Dialog footer actions (app-dialog) stay inline on ONE line — opt out of the
+   mobile full-width submit rule below. Higher specificity (.dlg__footer .btn)
+   wins over `button[type="submit"]`, so Cancel + Save sit side by side at every
+   width. Global (not scoped) so it reaches the projected footer buttons. */
+.dlg__footer .btn {
+  width: auto;
+}
+
+/* Page wrapper padding. Desktop: comfortable padding. Mobile: drop the
+   HORIZONTAL padding so content (cards, lists) uses the full width — the shell's
+   content-area already supplies a ~16px gutter on mobile, so a second screen-level
+   gutter just wastes space (mirrors mobile Gmail's edge-to-edge lists). Vertical
+   breathing room is kept. Apply to a screen's top-level wrapper; pair with an
+   inline `max-width`/`margin: 0 auto` for the desktop centred column. */
+.screen-pad {
+  padding: var(--space-lg);
+}
+@media (max-width: 767px) {
+  .screen-pad {
+    padding: var(--space-md) 0;
+  }
+}
+
 /* ============================================================== */
 /* Global mobile-first responsive patterns                        */
 /* (see docs/project-overview.md → UI/UX Requirements)            */

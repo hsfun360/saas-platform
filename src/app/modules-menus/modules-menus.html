@@ -1,4 +1,4 @@
-<div style="padding: var(--space-lg); max-width: 1100px;">
+<div class="screen-pad" style="max-width: 1100px;">
   <h2 style="color: #1e293b; margin-top: 0; font-size: var(--font-h1);">Modules &amp; Menus Maintenance</h2>
   <p style="color: #64748b; font-size: var(--font-body-2); margin-top: 0;">
     Manage the platform catalogue. <strong>Modules</strong> are product areas subscribers can subscribe to;
@@ -23,66 +23,34 @@
 
     <!-- ============ MASTER: Modules ============ -->
     <section class="mm-card mm-pane mm-pane--master" aria-label="Modules">
-      <h3 style="margin-top: 0; font-size: var(--font-h2); color: #1e293b;">Modules</h3>
-
-      <!-- Create / edit module -->
-      <form [formGroup]="moduleForm" (ngSubmit)="saveModule()" style="margin-bottom: var(--space-lg);">
-        <div style="font-weight: var(--weight-semibold); color: #334155; font-size: var(--font-h3); margin-bottom: var(--space-sm);">
-          {{ editingModuleId() ? 'Edit module' : 'Add module' }}
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-sm);">
-          <label for="mod-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Name *</label>
-          <input id="mod-name" type="text" formControlName="name" placeholder="e.g. Golf Management"
-                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
-          @if (moduleForm.controls.name.touched && moduleForm.controls.name.invalid) {
-            <span role="alert" style="color: #b91c1c; font-size: var(--font-caption);">A module name is required.</span>
+      <!-- Live filter over the loaded modules (name / description). -->
+      @if (!modulesLoading() && modules().length > 0) {
+        <div class="mm-search">
+          <span class="material-icons mm-search__icon" aria-hidden="true">search</span>
+          <input #moduleSearchBox type="search" [value]="moduleSearch()" (input)="moduleSearch.set(moduleSearchBox.value)"
+                 placeholder="Search modules…" aria-label="Search modules" class="mm-search__input">
+          @if (moduleSearch()) {
+            <button type="button" class="mm-search__clear" (click)="clearModuleSearch()" aria-label="Clear search">
+              <span class="material-icons" aria-hidden="true">close</span>
+            </button>
           }
         </div>
-
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-sm);">
-          <label for="mod-icon" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">
-            Material icon <span style="font-weight: var(--weight-regular); color: #64748b;">(optional)</span>
-          </label>
-          <input id="mod-icon" type="text" formControlName="icon" placeholder="e.g. sports_golf"
-                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
-          <label for="mod-desc" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">
-            Description <span style="font-weight: var(--weight-regular); color: #64748b;">(optional)</span>
-          </label>
-          <input id="mod-desc" type="text" formControlName="description" placeholder="Short description"
-                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
-          <label for="mod-landing" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">
-            Landing route <span style="font-weight: var(--weight-regular); color: #64748b;">(optional — the system's dashboard, e.g. /golf)</span>
-          </label>
-          <input id="mod-landing" type="text" formControlName="landingRoute" placeholder="e.g. /golf"
-                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
-          <span style="font-size: var(--font-caption); color: #64748b;">Where the apps switcher lands when entering this system. Leave blank to land on the first menu the role can access.</span>
-        </div>
-
-        <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
-          <button type="submit" class="btn btn--primary btn--sm" [disabled]="savingModule()">
-            {{ savingModule() ? 'Saving…' : (editingModuleId() ? 'Save changes' : 'Add module') }}
-          </button>
-          @if (editingModuleId()) {
-            <button type="button" class="btn btn--secondary btn--sm" (click)="cancelModuleEdit()" [disabled]="savingModule()">Cancel</button>
-          }
-        </div>
-      </form>
+      }
 
       <!-- Module list -->
       @if (modulesLoading()) {
         <p style="color: #64748b;">Loading modules…</p>
       } @else if (modules().length === 0) {
-        <p style="color: #64748b;">No modules yet. Add your first one above.</p>
+        <p style="color: #64748b;">No modules yet. Use “Add module” to create your first one.</p>
+      } @else if (filteredModules().length === 0) {
+        <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: #64748b;">
+          <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: #cbd5e1;">search_off</span>
+          <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">No modules match “{{ moduleSearch() }}”.</p>
+          <button type="button" class="btn btn--secondary btn--sm" (click)="clearModuleSearch()">Clear search</button>
+        </div>
       } @else {
         <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs);">
-          @for (m of modules(); track m.id) {
+          @for (m of filteredModules(); track m.id) {
             <li class="mm-row" [class.mm-row--active]="selectedModuleId() === m.id">
               <button type="button" class="mm-row__select" (click)="selectModule(m.id)"
                       [attr.aria-pressed]="selectedModuleId() === m.id" [attr.aria-label]="'Manage menus for ' + m.name">
@@ -110,6 +78,7 @@
           }
         </ul>
       }
+
     </section>
 
     <!-- ============ DETAIL: Menus ============ -->
@@ -124,60 +93,38 @@
           Modules
         </button>
 
-        <h3 style="margin-top: 0; font-size: var(--font-h2); color: #1e293b;">
+        <h3 style="margin: 0 0 var(--space-md); font-size: var(--font-h2); color: #1e293b;">
           Menus in “{{ selectedModule()?.name }}”
         </h3>
 
-        <!-- Create / edit menu -->
-        <form [formGroup]="menuForm" (ngSubmit)="saveMenu()" style="margin-bottom: var(--space-lg);">
-          <div style="font-weight: var(--weight-semibold); color: #334155; font-size: var(--font-h3); margin-bottom: var(--space-sm);">
-            {{ editingMenuId() ? 'Edit menu' : 'Add menu' }}
-          </div>
-
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-sm);">
-            <label for="menu-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Name *</label>
-            <input id="menu-name" type="text" formControlName="name" placeholder="e.g. Tee Time Setup"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
-            @if (menuForm.controls.name.touched && menuForm.controls.name.invalid) {
-              <span role="alert" style="color: #b91c1c; font-size: var(--font-caption);">A menu name is required.</span>
+        <!-- Live filter over the loaded menus (name / route). -->
+        @if (!menusLoading() && menus().length > 0) {
+          <div class="mm-search">
+            <span class="material-icons mm-search__icon" aria-hidden="true">search</span>
+            <input #menuSearchBox type="search" [value]="menuSearch()" (input)="menuSearch.set(menuSearchBox.value)"
+                   placeholder="Search menus…" aria-label="Search menus" class="mm-search__input">
+            @if (menuSearch()) {
+              <button type="button" class="mm-search__clear" (click)="clearMenuSearch()" aria-label="Clear search">
+                <span class="material-icons" aria-hidden="true">close</span>
+              </button>
             }
           </div>
-
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-sm);">
-            <label for="menu-route" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Route *</label>
-            <input id="menu-route" type="text" formControlName="route" placeholder="e.g. /golf/tee-times"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
-            @if (menuForm.controls.route.touched && menuForm.controls.route.invalid) {
-              <span role="alert" style="color: #b91c1c; font-size: var(--font-caption);">A route is required.</span>
-            }
-          </div>
-
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
-            <label for="menu-icon" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">
-              Material icon <span style="font-weight: var(--weight-regular); color: #64748b;">(optional)</span>
-            </label>
-            <input id="menu-icon" type="text" formControlName="icon" placeholder="e.g. event"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
-          </div>
-
-          <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
-            <button type="submit" class="btn btn--primary btn--sm" [disabled]="savingMenu()">
-              {{ savingMenu() ? 'Saving…' : (editingMenuId() ? 'Save changes' : 'Add menu') }}
-            </button>
-            @if (editingMenuId()) {
-              <button type="button" class="btn btn--secondary btn--sm" (click)="cancelMenuEdit()" [disabled]="savingMenu()">Cancel</button>
-            }
-          </div>
-        </form>
+        }
 
         <!-- Menu list -->
         @if (menusLoading()) {
           <p style="color: #64748b;">Loading menus…</p>
         } @else if (menus().length === 0) {
-          <p style="color: #64748b;">This module has no menus yet. Add one above.</p>
+          <p style="color: #64748b;">This module has no menus yet. Use “Add menu” to create one.</p>
+        } @else if (filteredMenus().length === 0) {
+          <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: #64748b;">
+            <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: #cbd5e1;">search_off</span>
+            <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">No menus match “{{ menuSearch() }}”.</p>
+            <button type="button" class="btn btn--secondary btn--sm" (click)="clearMenuSearch()">Clear search</button>
+          </div>
         } @else {
           <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs);">
-            @for (menu of menus(); track menu.id) {
+            @for (menu of filteredMenus(); track menu.id) {
               <li class="mm-row" [class.mm-row--active]="editingMenuId() === menu.id">
                 <span class="mm-row__text" style="flex-direction: row; align-items: center; gap: var(--space-sm); flex-wrap: wrap;">
                   <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: #0284c7;">{{ menu.icon || 'folder' }}</span>
@@ -202,5 +149,109 @@
         }
       }
     </section>
+
+    <!-- Floating add actions. Side by side on desktop (both panes visible); on
+         mobile only the visible pane's FAB shows (driven by .mm-layout--detail).
+         "Add menu" only exists once a module is selected. -->
+    <div class="mm-fab-group">
+      <button type="button" class="btn btn--primary mm-fab mm-fab--module" (click)="startCreateModule()" aria-label="Add module">
+        <span class="material-icons" aria-hidden="true">add</span>
+        Add module
+      </button>
+      @if (selectedModuleId()) {
+        <button type="button" class="btn btn--primary mm-fab mm-fab--menu" (click)="startCreateMenu()" aria-label="Add menu">
+          <span class="material-icons" aria-hidden="true">add</span>
+          Add menu
+        </button>
+      }
+    </div>
   </div>
+
+  <!-- ============ Add / edit module dialog ============ -->
+  @if (moduleDialogOpen()) {
+    <app-dialog [title]="editingModuleId() ? 'Edit module' : 'Add module'" [busy]="savingModule()" (close)="cancelModuleEdit()">
+      <form id="moduleForm" [formGroup]="moduleForm" (ngSubmit)="saveModule()">
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+          <label for="mod-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Name *</label>
+          <input id="mod-name" type="text" formControlName="name" placeholder="e.g. Golf Management"
+                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          @if (moduleForm.controls.name.touched && moduleForm.controls.name.invalid) {
+            <span role="alert" style="color: #b91c1c; font-size: var(--font-caption);">A module name is required.</span>
+          }
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+          <label for="mod-icon" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">
+            Material icon <span style="font-weight: var(--weight-regular); color: #64748b;">(optional)</span>
+          </label>
+          <input id="mod-icon" type="text" formControlName="icon" placeholder="e.g. sports_golf"
+                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+          <label for="mod-desc" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">
+            Description <span style="font-weight: var(--weight-regular); color: #64748b;">(optional)</span>
+          </label>
+          <input id="mod-desc" type="text" formControlName="description" placeholder="Short description"
+                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+          <label for="mod-landing" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">
+            Landing route <span style="font-weight: var(--weight-regular); color: #64748b;">(optional — the system's dashboard, e.g. /golf)</span>
+          </label>
+          <input id="mod-landing" type="text" formControlName="landingRoute" placeholder="e.g. /golf"
+                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          <span style="font-size: var(--font-caption); color: #64748b;">Where the apps switcher lands when entering this system. Leave blank to land on the first menu the role can access.</span>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cancelModuleEdit()" [disabled]="savingModule()">Cancel</button>
+        <button type="submit" form="moduleForm" class="btn btn--primary" [disabled]="savingModule()">
+          {{ savingModule() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Add / edit menu dialog ============ -->
+  @if (menuDialogOpen()) {
+    <app-dialog [title]="editingMenuId() ? 'Edit menu' : 'Add menu'" [busy]="savingMenu()" (close)="cancelMenuEdit()">
+      <form id="menuForm" [formGroup]="menuForm" (ngSubmit)="saveMenu()">
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+          <label for="menu-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Name *</label>
+          <input id="menu-name" type="text" formControlName="name" placeholder="e.g. Tee Time Setup"
+                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          @if (menuForm.controls.name.touched && menuForm.controls.name.invalid) {
+            <span role="alert" style="color: #b91c1c; font-size: var(--font-caption);">A menu name is required.</span>
+          }
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+          <label for="menu-route" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Route *</label>
+          <input id="menu-route" type="text" formControlName="route" placeholder="e.g. /golf/tee-times"
+                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          @if (menuForm.controls.route.touched && menuForm.controls.route.invalid) {
+            <span role="alert" style="color: #b91c1c; font-size: var(--font-caption);">A route is required.</span>
+          }
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+          <label for="menu-icon" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">
+            Material icon <span style="font-weight: var(--weight-regular); color: #64748b;">(optional)</span>
+          </label>
+          <input id="menu-icon" type="text" formControlName="icon" placeholder="e.g. event"
+                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cancelMenuEdit()" [disabled]="savingMenu()">Cancel</button>
+        <button type="submit" form="menuForm" class="btn btn--primary" [disabled]="savingMenu()">
+          {{ savingMenu() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
 </div>

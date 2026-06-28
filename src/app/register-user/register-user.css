@@ -131,11 +131,11 @@ label {
   text-decoration: underline;
 }
 
-/* Phone: let the card breathe edge-to-edge but keep gutters */
+/* Phone: keep the card vertically centred (like the login screen); just tighten
+   the gutters and card padding. */
 @media (max-width: 480px) {
   .register-page-container {
     padding: var(--space-md);
-    align-items: flex-start;
   }
 
   .register-card {

@@ -10,6 +10,14 @@
   color: #1e293b;
 }
 
+/* Mobile: drop horizontal padding so cards use the full width — the shell's
+   content-area already supplies a ~16px gutter (mirrors mobile Gmail). */
+@media (max-width: 767px) {
+  .saas-container {
+    padding: var(--space-md) 0;
+  }
+}
+
 /* ── HEADER ──────────────────────────────────── */
 .saas-header {
   display: flex;
@@ -42,6 +50,69 @@
   margin: 2px 0 0;
   font-size: var(--font-body-2);
   color: #64748b;
+}
+
+/* ── LISTING SEARCH ──────────────────────────── */
+/* Search field above a data list — icon left, optional clear (✕) right. */
+.saas-search {
+  position: relative;
+  margin-bottom: var(--space-md);
+}
+
+.saas-search__icon {
+  position: absolute;
+  left: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.saas-search__input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px; /* ≥16px font below avoids iOS zoom on focus */
+  padding: var(--space-sm) 40px var(--space-sm) 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: var(--font-body);
+}
+
+.saas-search__clear {
+  position: absolute;
+  right: var(--space-xs);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 14px;
+}
+.saas-search__clear:hover {
+  background: #f1f5f9;
+}
+
+/* ── FLOATING ACTION BUTTON ──────────────────── */
+/* Pinned bottom-right, above content but below the shell drawer (1000) /
+   backdrop (999) / header (1100). Composes the shared .btn .btn--primary. */
+.saas-fab {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: var(--space-lg);
+  z-index: 900;
+  border-radius: 28px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+/* Lift the FAB clear of the fixed mobile bottom nav so it isn't hidden. */
+@media (max-width: 767px) {
+  .saas-fab {
+    bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md));
+  }
 }
 
 /* ── TAB BAR ─────────────────────────────────── */
