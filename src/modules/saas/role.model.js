@@ -7,9 +7,17 @@ const Role = sequelize.define('Role', {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true
     },
+    // Roles are account-level (a named set of menu permissions, not tied to a
+    // company). `accountId` is the owning subscriber account. `companyId` is
+    // legacy (kept during the transition; dropped by migrate-account-roles.js
+    // once data is backfilled + merged).
+    accountId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
     companyId: {
         type: DataTypes.UUID,
-        allowNull: true // Some roles might be global (e.g., System Admin), so this can be nullable
+        allowNull: true // legacy — superseded by accountId
     },
     name: {
         type: DataTypes.STRING,

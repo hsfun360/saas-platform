@@ -203,6 +203,234 @@ exports.deleteTenantRole = async (req, res) => {
     }
 };
 
+// ============================================================================
+// ACCOUNT-LEVEL ROLES (RBAC) — a Role is an account-wide named set of menu
+// permissions, NOT tied to a company. Company enters only at entitlement
+// (module subscription) and assignment (CompanyUser.roleId). All scoped to the
+// caller's account (derived from req.user.companyId).
+// ============================================================================
+
+// GET /api/auth/account/menus  -> the account's entitled menu catalogue: menus
+// from every module any of the account's companies is subscribed to (union).
+exports.listAccountMenus = async (req, res) => {
+    try {
+        const accountId = await resolveAccountId(req.user.companyId);
+        if (!accountId) return res.status(404).json({ message: "Your account could not be resolved." });
+
+        const companies = await Company.findAll({ where: { accountId }, attributes: ['id'] });
+        const companyIds = companies.map(c => c.id);
+        const subs = companyIds.length
+            ? await CompanyModule.findAll({ where: { companyId: companyIds }, attributes: ['moduleId'] })
+            : [];
+        const moduleIds = [...new Set(subs.map(s => s.moduleId))];
+
+        const menus = moduleIds.length
+            ? await Menu.findAll({
+                where: { moduleId: moduleIds },
+                include: [{ model: Module, as: 'Module', attributes: ['name', 'icon', 'landingRoute'] }],
+                order: [['name', 'ASC']],
+            })
+            : [];
+        res.status(200).json(menus);
+    } catch (error) {
+        console.error("Error listing account menus:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// GET /api/auth/account/roles  -> all roles for the caller's account
+exports.listAccountRoles = async (req, res) => {
+    try {
+        const accountId = await resolveAccountId(req.user.companyId);
+        if (!accountId) return res.status(404).json({ message: "Your account could not be resolved." });
+
+        const roles = await Role.findAll({
+            where: { accountId },
+            attributes: ['id', 'name', 'description'],
+            include: [{ model: Menu, as: 'PermittedMenus', attributes: ['id', 'name'], through: { attributes: [] } }],
+            order: [['name', 'ASC']],
+        });
+        res.status(200).json(roles);
+    } catch (error) {
+        console.error("Error listing account roles:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// GET /api/auth/account/roles/:roleId  -> one role + the exact menu ids it grants
+exports.getAccountRole = async (req, res) => {
+    try {
+        const accountId = await resolveAccountId(req.user.companyId);
+        if (!accountId) return res.status(404).json({ message: "Your account could not be resolved." });
+
+        const role = await Role.findOne({
+            where: { id: req.params.roleId, accountId },
+            attributes: ['id', 'name', 'description'],
+        });
+        if (!role) return res.status(404).json({ message: "Role not found." });
+
+        const grants = await RoleMenu.findAll({ where: { roleId: role.id }, attributes: ['menuId'] });
+        res.status(200).json({
+            id: role.id,
+            name: role.name,
+            description: role.description,
+            menuIds: grants.map(g => g.menuId),
+        });
+    } catch (error) {
+        console.error("Error fetching account role:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// POST /api/auth/account/roles  Body: { roleName, description?, menuIds: string[] }
+exports.createAccountRole = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const accountId = await resolveAccountId(req.user.companyId, transaction);
+        if (!accountId) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "Your account could not be resolved." });
+        }
+
+        const name = typeof req.body.roleName === 'string' ? req.body.roleName.trim() : '';
+        if (!name) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "Role name is required." });
+        }
+        const desired = Array.isArray(req.body.menuIds) ? [...new Set(req.body.menuIds)] : [];
+        if (desired.length === 0) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "Select at least one menu permission." });
+        }
+        const found = await Menu.count({ where: { id: desired }, transaction });
+        if (found !== desired.length) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "One or more selected menus do not exist." });
+        }
+
+        // Unique role name per account.
+        const clash = await Role.findOne({ where: { accountId, name }, transaction });
+        if (clash) {
+            await transaction.rollback();
+            return res.status(409).json({ message: "A role with that name already exists." });
+        }
+
+        const role = await Role.create(
+            { accountId, name, description: (req.body.description || '').trim() || null },
+            { transaction },
+        );
+        await RoleMenu.bulkCreate(desired.map(menuId => ({ roleId: role.id, menuId })), { transaction });
+
+        await transaction.commit();
+        res.status(201).json({ message: "Role created.", role: { id: role.id, name: role.name, description: role.description } });
+    } catch (error) {
+        if (transaction && !transaction.finished) await transaction.rollback();
+        console.error("Error creating account role:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// PUT /api/auth/account/roles/:roleId  Body: { roleName?, description?, menuIds: string[] }
+exports.updateAccountRole = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const accountId = await resolveAccountId(req.user.companyId, transaction);
+        if (!accountId) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "Your account could not be resolved." });
+        }
+
+        const role = await Role.findOne({ where: { id: req.params.roleId, accountId }, transaction });
+        if (!role) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "Role not found." });
+        }
+        if (role.name === 'Tenant Admin') {
+            await transaction.rollback();
+            return res.status(400).json({ message: "The Tenant Admin role is managed by the system and can't be edited." });
+        }
+
+        const desired = Array.isArray(req.body.menuIds) ? [...new Set(req.body.menuIds)] : [];
+        if (desired.length === 0) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "A role must keep at least one menu permission." });
+        }
+        const found = await Menu.count({ where: { id: desired }, transaction });
+        if (found !== desired.length) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "One or more selected menus do not exist." });
+        }
+
+        const updates = {};
+        if (typeof req.body.roleName === 'string' && req.body.roleName.trim()) updates.name = req.body.roleName.trim();
+        if (typeof req.body.description === 'string') updates.description = req.body.description.trim() || null;
+        if (updates.name && updates.name !== role.name) {
+            const clash = await Role.findOne({ where: { accountId, name: updates.name }, transaction });
+            if (clash) {
+                await transaction.rollback();
+                return res.status(409).json({ message: "A role with that name already exists." });
+            }
+        }
+        if (Object.keys(updates).length > 0) await role.update(updates, { transaction });
+
+        // Diff the granted menus.
+        const current = await RoleMenu.findAll({ where: { roleId: role.id }, attributes: ['menuId'], transaction });
+        const currentIds = current.map(c => c.menuId);
+        const toAdd = desired.filter(id => !currentIds.includes(id));
+        const toRemove = currentIds.filter(id => !desired.includes(id));
+        if (toAdd.length > 0) await RoleMenu.bulkCreate(toAdd.map(menuId => ({ roleId: role.id, menuId })), { transaction });
+        if (toRemove.length > 0) await RoleMenu.destroy({ where: { roleId: role.id, menuId: toRemove }, transaction });
+
+        await transaction.commit();
+        const updated = await Role.findByPk(role.id, { attributes: ['id', 'name', 'description'] });
+        res.status(200).json({ message: "Role updated.", role: updated });
+    } catch (error) {
+        if (transaction && !transaction.finished) await transaction.rollback();
+        console.error("Error updating account role:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// DELETE /api/auth/account/roles/:roleId
+exports.deleteAccountRole = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const accountId = await resolveAccountId(req.user.companyId, transaction);
+        if (!accountId) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "Your account could not be resolved." });
+        }
+
+        const role = await Role.findOne({ where: { id: req.params.roleId, accountId }, transaction });
+        if (!role) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "Role not found." });
+        }
+        if (role.name === 'Tenant Admin') {
+            await transaction.rollback();
+            return res.status(400).json({ message: "The Tenant Admin role is managed by the system and can't be deleted." });
+        }
+
+        const inUse = await CompanyUser.count({ where: { roleId: role.id }, transaction });
+        if (inUse > 0) {
+            await transaction.rollback();
+            return res.status(409).json({
+                message: `${inUse} user(s) still have this role. Change their role on the User Management screen first, then delete it.`,
+            });
+        }
+
+        await RoleMenu.destroy({ where: { roleId: role.id }, transaction });
+        await role.destroy({ transaction });
+
+        await transaction.commit();
+        res.status(200).json({ message: "Role deleted." });
+    } catch (error) {
+        if (transaction && !transaction.finished) await transaction.rollback();
+        console.error("Error deleting account role:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // GET /api/auth/company/users[?companyId=]  -> users in a company, with their role
 exports.listTenantUsers = async (req, res) => {
     try {

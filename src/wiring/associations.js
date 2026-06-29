@@ -42,9 +42,13 @@ Menu.belongsTo(Module, { foreignKey: 'moduleId', as: 'Module' });
 Company.belongsToMany(Module, { through: CompanyModule, foreignKey: 'companyId', as: 'SubscribedModules' });
 Module.belongsToMany(Company, { through: CompanyModule, foreignKey: 'moduleId', as: 'SubscribedCompanies' });
 
-// 5. Tenant Roles (Workspace Level)
-Company.hasMany(Role, { foreignKey: 'companyId', as: 'Roles' });
-Role.belongsTo(Company, { foreignKey: 'companyId', as: 'Company' });
+// 5. Roles (Account Level) — a Role is an account-wide named set of menu
+// permissions. The legacy Company<->Role link is kept during the transition
+// (dropped once migrate-account-roles.js backfills + merges).
+Account.hasMany(Role, { foreignKey: 'accountId', as: 'Roles' });
+Role.belongsTo(Account, { foreignKey: 'accountId', as: 'Account' });
+Company.hasMany(Role, { foreignKey: 'companyId', as: 'CompanyRoles' });   // legacy
+Role.belongsTo(Company, { foreignKey: 'companyId', as: 'Company' });       // legacy
 
 // 6. Role Permissions (Menu Access)
 Role.belongsToMany(Menu, { through: RoleMenu, foreignKey: 'roleId', as: 'PermittedMenus' });

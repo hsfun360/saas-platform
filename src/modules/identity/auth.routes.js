@@ -228,6 +228,15 @@ router.post('/company/users/revoke', authenticateToken, requireTenant, requireTe
 // Account-wide, person-centric view for the redesigned User Management screen.
 router.get('/account/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listAccountUsers);
 
+// --- ACCOUNT-LEVEL ROLES & MENU CATALOGUE (RBAC; a Role is a named set of menu
+// permissions, not tied to a company). ---
+router.get('/account/menus', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listAccountMenus);
+router.get('/account/roles', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listAccountRoles);
+router.get('/account/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.getAccountRole);
+router.post('/account/roles', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createAccountRole);
+router.put('/account/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateAccountRole);
+router.delete('/account/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.deleteAccountRole);
+
 // Add an EXISTING same-account user as a collaborator on the caller's company.
 router.post('/company/collaborators', authenticateToken, requireTenant, requireTenantAdmin, tenantController.addCollaborator);
 

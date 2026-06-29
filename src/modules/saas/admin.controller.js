@@ -540,6 +540,76 @@ exports.listSubscriptions = async (req, res) => {
     }
 };
 
+// PATCH /api/admin/subscriptions/:id
+// Amend a subscriber: account-level fields (subscriberName / subscriptionPlan /
+// status) plus the subscriber's PRIMARY (oldest) company's details
+// (registrationNumber / timezone). Only provided fields are changed.
+exports.updateSubscription = async (req, res) => {
+    const { id } = req.params;
+    const { subscriberName, subscriptionPlan, status, registrationNumber, timezone } = req.body;
+
+    const transaction = await sequelize.transaction();
+    try {
+        const account = await Account.findByPk(id, { transaction });
+        if (!account) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "Subscriber not found." });
+        }
+
+        // --- Account-level fields ---
+        if (typeof subscriberName === 'string') {
+            if (!subscriberName.trim()) {
+                await transaction.rollback();
+                return res.status(400).json({ message: "Subscriber / Company name is required." });
+            }
+            account.subscriberName = subscriberName.trim();
+        }
+        if (typeof subscriptionPlan === 'string' && subscriptionPlan.trim()) {
+            account.subscriptionPlan = subscriptionPlan.trim();
+        }
+        if (typeof status === 'string' && status.trim()) {
+            account.status = status.trim();
+        }
+        await account.save({ transaction });
+
+        // --- Primary company fields (the subscriber's first/oldest company) ---
+        if (registrationNumber !== undefined || timezone !== undefined) {
+            const company = await Company.findOne({
+                where: { accountId: account.id },
+                order: [['createdAt', 'ASC']],
+                transaction,
+            });
+            if (company) {
+                if (registrationNumber !== undefined) {
+                    const v = typeof registrationNumber === 'string' ? registrationNumber.trim() : registrationNumber;
+                    company.registrationNumber = v === '' ? null : v;
+                }
+                if (timezone !== undefined) {
+                    const v = typeof timezone === 'string' ? timezone.trim() : timezone;
+                    // timezone is NOT NULL — keep the existing value if cleared.
+                    company.timezone = v ? v : (company.timezone || 'Asia/Kuala_Lumpur');
+                }
+                await company.save({ transaction });
+            }
+        }
+
+        await transaction.commit();
+
+        // Return the updated subscriber in the same shape as listSubscriptions.
+        const updated = await Account.findByPk(account.id, {
+            include: [{ model: Company, as: 'Companies' }],
+        });
+        res.status(200).json({
+            message: "Subscriber updated.",
+            data: { ...updated.toJSON(), companyName: updated.subscriberName },
+        });
+    } catch (error) {
+        if (transaction && !transaction.finished) await transaction.rollback();
+        console.error("Update Subscription Error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // --- 5. TENANT ADMIN MANAGEMENT (platform override) ---
 
 // GET /api/admin/companies/:companyId/users

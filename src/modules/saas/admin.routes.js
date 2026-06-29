@@ -31,6 +31,7 @@ router.post('/users/assign-role', adminController.assignUserToRole);
 // Subscription / Subscriber Management (System Admin Portal)
 router.post('/subscriptions', adminController.createSubscription);
 router.get('/subscriptions', adminController.listSubscriptions);
+router.patch('/subscriptions/:id', adminController.updateSubscription);
 
 // Tenant Admin management (platform override for a specific company)
 router.get('/companies/:companyId/users', adminController.listCompanyUsers);
