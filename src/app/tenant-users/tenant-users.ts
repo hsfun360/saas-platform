@@ -2,7 +2,7 @@ import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../auth.service';
-import { AccountCompany, AccountCompanyRole, AccountPerson, AccountPendingInvite } from '../models/auth.models';
+import { AccountCompany, AccountPerson, AccountPendingInvite, Role } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 
 // Person-centric User Management: each person is shown with the companies they
@@ -19,6 +19,9 @@ export class TenantUsersComponent implements OnInit {
   readonly companies = signal<AccountCompany[]>([]);
   readonly people = signal<AccountPerson[]>([]);
   readonly invitations = signal<AccountPendingInvite[]>([]);
+  // Account-level roles — any role can be assigned in any company (roles are no
+  // longer company-scoped), so every assignment dropdown uses this one list.
+  readonly accountRoles = signal<Role[]>([]);
   readonly loading = signal(false);
 
   // Live filter over the loaded people (email / name / their companies + roles).
@@ -68,6 +71,11 @@ export class TenantUsersComponent implements OnInit {
 
   load(): void {
     this.loading.set(true);
+    // Account-level roles for every assignment dropdown.
+    this.authService.getAccountRoles().subscribe({
+      next: (roles) => this.accountRoles.set(roles),
+      error: () => {},
+    });
     this.authService.getAccountUsers().subscribe({
       next: (res) => {
         this.companies.set(res.companies);
@@ -88,9 +96,10 @@ export class TenantUsersComponent implements OnInit {
     });
   }
 
-  rolesFor(companyId: string | null | undefined): AccountCompanyRole[] {
-    if (!companyId) return [];
-    return this.companies().find((c) => c.id === companyId)?.roles || [];
+  // Roles are account-level now, so the same list applies in every company. The
+  // companyId param is kept for call-site clarity but no longer filters.
+  rolesFor(_companyId?: string | null): Role[] {
+    return this.accountRoles();
   }
 
   companiesNotJoined(person: AccountPerson): AccountCompany[] {

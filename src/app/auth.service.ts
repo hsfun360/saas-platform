@@ -116,36 +116,34 @@ export class AuthService {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/change-password`, passwordData);
   }
 
-  getAvailableMenus(companyId?: string): Observable<MenuItem[]> {
-    const q = companyId ? `?companyId=${companyId}` : '';
-    return this.http.get<MenuItem[]>(`${this.apiBaseUrl}/auth/company/menus${q}`);
+  // --- Account-level Roles (RBAC) — a Role is an account-wide named set of menu
+  // permissions, NOT tied to a company. Company enters only at entitlement
+  // (module subscription) and assignment (user↔role within a company). ---
+
+  // Menu catalogue for the role builder: menus from the modules the subscriber
+  // account is entitled to. Backend: GET /auth/account/menus.
+  getAccountMenus(): Observable<MenuItem[]> {
+    return this.http.get<MenuItem[]>(`${this.apiBaseUrl}/auth/account/menus`);
   }
 
-  createRole(roleName: string, menuIds: string[], companyId?: string): Observable<{ message: string; role: Role }> {
-    return this.http.post<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/company/roles`, { roleName, menuIds, companyId });
+  createRole(roleName: string, description: string, menuIds: string[]): Observable<{ message: string; role: Role }> {
+    return this.http.post<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles`, { roleName, description, menuIds });
   }
 
-  // A single role with the exact set of menu IDs it grants — used to prefill the
-  // Role Management edit form.
-  getRoleDetail(roleId: string, companyId?: string): Observable<RoleDetail> {
-    const q = companyId ? `?companyId=${companyId}` : '';
-    return this.http.get<RoleDetail>(`${this.apiBaseUrl}/auth/company/roles/${roleId}${q}`);
+  // A single role with the exact set of menu IDs it grants — prefills the edit form.
+  getRoleDetail(roleId: string): Observable<RoleDetail> {
+    return this.http.get<RoleDetail>(`${this.apiBaseUrl}/auth/account/roles/${roleId}`);
   }
 
   updateRole(
     roleId: string,
     data: { roleName?: string; description?: string; menuIds: string[] },
-    companyId?: string,
   ): Observable<{ message: string; role: Role }> {
-    return this.http.put<{ message: string; role: Role }>(
-      `${this.apiBaseUrl}/auth/company/roles/${roleId}`,
-      { ...data, companyId },
-    );
+    return this.http.put<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles/${roleId}`, data);
   }
 
-  deleteRole(roleId: string, companyId?: string): Observable<{ message: string }> {
-    const q = companyId ? `?companyId=${companyId}` : '';
-    return this.http.delete<{ message: string }>(`${this.apiBaseUrl}/auth/company/roles/${roleId}${q}`);
+  deleteRole(roleId: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiBaseUrl}/auth/account/roles/${roleId}`);
   }
 
   // Account-wide, person-centric view (people + their per-company roles +
@@ -154,11 +152,9 @@ export class AuthService {
     return this.http.get<AccountUsersResponse>(`${this.apiBaseUrl}/auth/account/users`);
   }
 
-  // --- Tenant-scoped user management. companyId targets a specific company in
-  // the subscriber (account SuperUser); omit it to use the active company. ---
-  getCompanyRoles(companyId?: string): Observable<Role[]> {
-    const q = companyId ? `?companyId=${companyId}` : '';
-    return this.http.get<Role[]>(`${this.apiBaseUrl}/auth/company/roles${q}`);
+  // All account-level roles. Backend: GET /auth/account/roles.
+  getAccountRoles(): Observable<Role[]> {
+    return this.http.get<Role[]>(`${this.apiBaseUrl}/auth/account/roles`);
   }
 
   getCompanyUsers(companyId?: string): Observable<TenantUser[]> {

@@ -130,11 +130,12 @@ export interface ChangePasswordData {
   newPassword: string;
 }
 
+// A Role is an account-level named set of menu permissions (RBAC), not tied to a
+// company. Company enters only at entitlement + assignment.
 export interface Role {
   id: string;
   name: string;
   description?: string;
-  companyId?: string;
   PermittedMenus?: PermittedMenu[];
 }
 

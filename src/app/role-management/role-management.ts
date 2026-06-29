@@ -2,34 +2,24 @@ import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms'; // 👈 Needed for ngModel
 import { AuthService } from '../auth.service';
-import { CompanyEntity, Role } from '../models/auth.models';
+import { Role } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 
-// Roles are per-company. The admin first picks a company, then creates roles for
-// it (from that company's module menus) and sees its existing roles — making the
-// company ↔ role link explicit.
+// Account-level Role Management. A Role is just a named set of menu permissions
+// (RBAC) — NOT tied to a company. Company enters only at entitlement (module
+// subscription) and assignment (user↔role within a company). The permission
+// catalogue is the subscriber account's entitled menus.
 @Component({
   selector: 'app-role-management',
   standalone: true,
   imports: [CommonModule, FormsModule, DialogComponent],
   templateUrl: './role-management.html',
-  styleUrls: ['./role-management.css']
+  styleUrls: ['./role-management.css'],
 })
 export class RoleManagementComponent implements OnInit {
-  roleName: string = '';
-  roleDescription: string = '';
-
-  // The subscriber's companies + the one currently selected. Every role action
-  // targets the selected company.
-  companies = signal<CompanyEntity[]>([]);
-  companiesLoading = signal(false);
-  selectedCompanyId = signal<string>('');
-
-  // Menus available to the selected company (grouped by module), and its roles.
-  menusByModule = signal<{ [key: string]: any[] }>({});
-  moduleNames = signal<string[]>([]);
-  menusLoading = signal(false);
-  selectedMenuIds: Set<string> = new Set();
+  // Dialog form fields
+  roleName = '';
+  roleDescription = '';
 
   roles = signal<Role[]>([]);
   rolesLoading = signal(false);
@@ -47,12 +37,16 @@ export class RoleManagementComponent implements OnInit {
     );
   });
 
-  // Edit mode: null = creating a new role; otherwise the id of the role being
-  // edited (its name/description/permissions are loaded into the dialog form).
+  // The account's entitled menu catalogue (grouped by module), loaded once.
+  menusByModule = signal<{ [key: string]: any[] }>({});
+  moduleNames = signal<string[]>([]);
+  menusLoading = signal(false);
+  selectedMenuIds: Set<string> = new Set();
+
+  // Edit mode: null = creating; otherwise the id of the role being edited.
   editingRoleId = signal<string | null>(null);
   editLoading = signal(false);
   deletingRoleId = signal<string | null>(null);
-  // The create / edit role dialog.
   roleDialogOpen = signal(false);
 
   isLoading = signal(false);
@@ -66,45 +60,29 @@ export class RoleManagementComponent implements OnInit {
   constructor(private authService: AuthService) {}
 
   ngOnInit() {
-    this.loadCompanies();
+    this.loadRoles();
+    this.loadMenus();
   }
 
-  loadCompanies() {
-    this.companiesLoading.set(true);
-    this.authService.getCompanies().subscribe({
-      next: (list) => {
-        this.companies.set(list);
-        this.companiesLoading.set(false);
-        const first = list[0]?.id || '';
-        if (first) {
-          this.selectedCompanyId.set(first);
-          this.loadForCompany(first);
-        }
+  loadRoles() {
+    this.rolesLoading.set(true);
+    this.authService.getAccountRoles().subscribe({
+      next: (r) => {
+        this.roles.set(r);
+        this.rolesLoading.set(false);
       },
-      error: () => this.companiesLoading.set(false),
+      error: () => this.rolesLoading.set(false),
     });
   }
 
-  onCompanyChange(companyId: string) {
-    this.successMessage.set('');
-    this.errorMessage.set('');
-    this.selectedCompanyId.set(companyId);
-    this.cancelEdit();
-    this.loadForCompany(companyId);
-  }
-
-  private loadForCompany(companyId: string) {
-    this.loadMenus(companyId);
-    this.loadRoles(companyId);
-  }
-
-  loadMenus(companyId: string) {
+  // The account-wide entitled menu catalogue for the role builder.
+  loadMenus() {
     this.menusLoading.set(true);
-    this.authService.getAvailableMenus(companyId).subscribe({
+    this.authService.getAccountMenus().subscribe({
       next: (menus) => {
         const byModule: { [key: string]: any[] } = {};
         const names: string[] = [];
-        menus.forEach(menu => {
+        menus.forEach((menu) => {
           const modName = menu.Module ? menu.Module.name : 'Uncategorized';
           if (!byModule[modName]) {
             byModule[modName] = [];
@@ -120,18 +98,10 @@ export class RoleManagementComponent implements OnInit {
     });
   }
 
-  loadRoles(companyId: string) {
-    this.rolesLoading.set(true);
-    this.authService.getCompanyRoles(companyId).subscribe({
-      next: (r) => {
-        this.roles.set(r);
-        this.rolesLoading.set(false);
-      },
-      error: () => this.rolesLoading.set(false),
-    });
+  clearSearch() {
+    this.roleSearch.set('');
   }
 
-  // Toggles the ID inside our Set when a checkbox is clicked
   toggleMenu(menuId: string) {
     if (this.selectedMenuIds.has(menuId)) {
       this.selectedMenuIds.delete(menuId);
@@ -140,10 +110,8 @@ export class RoleManagementComponent implements OnInit {
     }
   }
 
-  // Open the create-role dialog with an empty form.
   openCreate() {
-    this.successMessage.set('');
-    this.errorMessage.set('');
+    this.clearMessages();
     this.editingRoleId.set(null);
     this.roleName = '';
     this.roleDescription = '';
@@ -151,23 +119,18 @@ export class RoleManagementComponent implements OnInit {
     this.roleDialogOpen.set(true);
   }
 
-  clearSearch() {
-    this.roleSearch.set('');
-  }
-
-  // Load a role into the dialog for editing (prefilling name, description and the
+  // Load a role into the dialog for editing (prefill name, description and the
   // checked permissions from the server).
   startEdit(role: Role) {
-    this.successMessage.set('');
-    this.errorMessage.set('');
+    this.clearMessages();
     this.editingRoleId.set(role.id);
     this.roleDialogOpen.set(true);
-    this.editLoading.set(true);
     this.roleName = role.name;
     this.roleDescription = role.description || '';
     this.selectedMenuIds = new Set();
 
-    this.authService.getRoleDetail(role.id, this.selectedCompanyId()).subscribe({
+    this.editLoading.set(true);
+    this.authService.getRoleDetail(role.id).subscribe({
       next: (detail) => {
         this.roleName = detail.name;
         this.roleDescription = detail.description || '';
@@ -182,7 +145,6 @@ export class RoleManagementComponent implements OnInit {
     });
   }
 
-  // Close the dialog and reset the form back to "create" state.
   cancelEdit() {
     this.roleDialogOpen.set(false);
     this.editingRoleId.set(null);
@@ -192,13 +154,8 @@ export class RoleManagementComponent implements OnInit {
   }
 
   onSubmit() {
-    this.successMessage.set('');
-    this.errorMessage.set('');
+    this.clearMessages();
 
-    if (!this.selectedCompanyId()) {
-      this.errorMessage.set('Please select a company.');
-      return;
-    }
     if (!this.roleName) {
       this.errorMessage.set('Please enter a Role Name.');
       return;
@@ -209,30 +166,19 @@ export class RoleManagementComponent implements OnInit {
     }
 
     const menuIdsArray = Array.from(this.selectedMenuIds);
-    const companyId = this.selectedCompanyId();
     const editingId = this.editingRoleId();
 
     this.isLoading.set(true);
 
     if (editingId) {
-      // --- Update an existing role ---
       this.authService
-        .updateRole(
-          editingId,
-          { roleName: this.roleName, description: this.roleDescription, menuIds: menuIdsArray },
-          companyId,
-        )
+        .updateRole(editingId, { roleName: this.roleName, description: this.roleDescription, menuIds: menuIdsArray })
         .subscribe({
           next: (res) => {
             this.successMessage.set(`Role '${res.role.name}' updated successfully!`);
             this.isLoading.set(false);
-            // Replace the edited role in the list, keeping it alphabetical.
-            this.roles.update((list) =>
-              list
-                .map((r) => (r.id === res.role.id ? res.role : r))
-                .sort((a, b) => (a.name || '').localeCompare(b.name || '')),
-            );
             this.cancelEdit();
+            this.loadRoles();
           },
           error: (err) => {
             this.errorMessage.set(err.error?.message || 'Failed to update role. Please try again.');
@@ -242,29 +188,22 @@ export class RoleManagementComponent implements OnInit {
       return;
     }
 
-    // --- Create a new role ---
-    this.authService.createRole(this.roleName, menuIdsArray, companyId).subscribe({
+    this.authService.createRole(this.roleName, this.roleDescription, menuIdsArray).subscribe({
       next: (res) => {
         this.successMessage.set(`Role '${res.role.name}' created successfully!`);
         this.isLoading.set(false);
-        // Add the just-created role to the list immediately, kept alphabetical to
-        // match the server order (the create response is authoritative — no
-        // re-fetch needed, which also avoids a stale-list race).
-        this.roles.update((list) =>
-          [...list, res.role].sort((a, b) => (a.name || '').localeCompare(b.name || '')),
-        );
         this.cancelEdit();
+        this.loadRoles();
       },
       error: (err) => {
         this.errorMessage.set(err.error?.message || 'Failed to create role. Please try again.');
         this.isLoading.set(false);
-      }
+      },
     });
   }
 
   onDelete(role: Role) {
-    this.successMessage.set('');
-    this.errorMessage.set('');
+    this.clearMessages();
 
     const confirmed = confirm(
       `Delete the role "${role.name}"? This removes the role and its permissions. Users must be reassigned first.`,
@@ -272,18 +211,22 @@ export class RoleManagementComponent implements OnInit {
     if (!confirmed) return;
 
     this.deletingRoleId.set(role.id);
-    this.authService.deleteRole(role.id, this.selectedCompanyId()).subscribe({
+    this.authService.deleteRole(role.id).subscribe({
       next: () => {
         this.successMessage.set(`Role '${role.name}' deleted.`);
         this.deletingRoleId.set(null);
-        this.roles.update((list) => list.filter((r) => r.id !== role.id));
-        // If we were editing the role we just deleted, drop out of edit mode.
         if (this.editingRoleId() === role.id) this.cancelEdit();
+        this.loadRoles();
       },
       error: (err) => {
         this.errorMessage.set(err.error?.message || 'Failed to delete role. Please try again.');
         this.deletingRoleId.set(null);
       },
     });
+  }
+
+  private clearMessages() {
+    this.successMessage.set('');
+    this.errorMessage.set('');
   }
 }
