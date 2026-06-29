@@ -681,6 +681,39 @@ exports.googleLogin = async (req, res) => {
     }
 };
 
+// POST /api/auth/google/exchange   Body: { code, redirectUri }
+// Exchanges a Google authorization code (from the in-app redirect flow —
+// google.accounts.oauth2.initCodeClient with ux_mode:'redirect') for an access
+// token, which the frontend then uses with /api/auth/google exactly like the old
+// popup token flow. This keeps the Google sign-in logic (incl. the 206
+// multi-workspace resume) unchanged; only the UX becomes a same-tab redirect.
+exports.googleExchangeCode = async (req, res) => {
+    const { code, redirectUri } = req.body;
+    if (!code || !redirectUri) {
+        return res.status(400).json({ message: "Authorization code and redirect URI are required." });
+    }
+    try {
+        const params = new URLSearchParams({
+            code,
+            client_id: process.env.GOOGLE_CLIENT_ID || '148523901156-uc6a3f7q2le2fsqbm5idc0ai27vebe69.apps.googleusercontent.com',
+            client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+            redirect_uri: redirectUri,
+            grant_type: 'authorization_code',
+        });
+        const tokenRes = await axios.post('https://oauth2.googleapis.com/token', params.toString(), {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
+        const accessToken = tokenRes.data && tokenRes.data.access_token;
+        if (!accessToken) {
+            return res.status(401).json({ message: "Failed to obtain a Google access token." });
+        }
+        res.status(200).json({ accessToken });
+    } catch (error) {
+        console.error('Google code exchange error:', error.response?.data || error.message);
+        res.status(401).json({ message: "Google sign-in failed during code exchange." });
+    }
+};
+
 exports.microsoftLogin = async (req, res) => {
     const { accessToken } = req.body;
 

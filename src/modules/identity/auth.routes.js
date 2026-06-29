@@ -82,6 +82,9 @@ router.post('/activate', authController.activateAccount);
 // Route to handle Google SSO
 router.post('/google', authController.googleLogin);
 
+// Exchange a Google authorization code (in-app redirect flow) for an access token.
+router.post('/google/exchange', authController.googleExchangeCode);
+
 // Route to handle Microsoft SSO
 router.post('/microsoft-login', authController.microsoftLogin);
 
