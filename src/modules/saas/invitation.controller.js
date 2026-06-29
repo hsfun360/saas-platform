@@ -59,10 +59,10 @@ exports.createInvitation = async (req, res) => {
         // If a role was chosen, it must belong to THIS company.
         let roleName = null;
         if (roleId) {
-            const role = await Role.findOne({ where: { id: roleId, companyId }, transaction });
+            const role = await Role.findOne({ where: { id: roleId, accountId }, transaction });
             if (!role) {
                 await transaction.rollback();
-                return res.status(400).json({ message: "Selected role does not belong to your workspace." });
+                return res.status(400).json({ message: "Selected role does not belong to your account." });
             }
             roleName = role.name;
         }

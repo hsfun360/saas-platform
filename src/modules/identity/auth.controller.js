@@ -214,32 +214,9 @@ exports.login = async (req, res) => {
             companyName = company.name;
         }
 
-        let allowedMenus = [];
-        let assignedRoleName = 'User'; 
-
-        if (workspace.roleId) {
-            const userRole = await Role.findByPk(workspace.roleId, {
-                include: [{ 
-                    model: Menu, 
-                    as: 'PermittedMenus',
-                    include: [{ model: Module, as: 'Module' }] 
-                }]
-            });
-
-            if (userRole) {
-                assignedRoleName = userRole.name; 
-                if (userRole.PermittedMenus) {
-                    allowedMenus = userRole.PermittedMenus.map(m => ({
-                        name: m.name,
-                        route: m.route,
-                        icon: m.icon,
-                        moduleName: m.Module ? m.Module.name : 'Core Club Management',
-                        moduleIcon: m.Module ? m.Module.icon : 'business',
-                        moduleLanding: m.Module ? m.Module.landingRoute : null
-                    }));
-                }
-            }
-        }
+        // Effective menus = role menus ∩ company entitlement (Tenant Admin = full).
+        const { roleName: assignedRoleName, menus: allowedMenus } =
+            await buildWorkspaceMenus(workspace.roleId, companyId);
 
         // Generate token and respond
         const loginToken = generateToken(user.id, user.email, companyId, companyName, isSystemAdmin);
@@ -263,18 +240,70 @@ exports.login = async (req, res) => {
     }
 };
 
-// Resolve the role name + permitted menus for a user within one workspace.
-// companyId is null for the System Administration workspace. Mirrors the
-// resolution done inline by login (Scenario C).
+// Map a Menu (with its Module eager-loaded) to the frontend MenuItem shape.
+function mapMenuItem(m) {
+    return {
+        name: m.name,
+        route: m.route,
+        icon: m.icon,
+        moduleName: m.Module ? m.Module.name : 'Core Club Management',
+        moduleIcon: m.Module ? m.Module.icon : 'business',
+        moduleLanding: m.Module ? m.Module.landingRoute : null,
+    };
+}
+
+// Effective menus for a user in one workspace, under the account-level RBAC model:
+//   - Roles are account-wide menu-permission sets (not company-scoped).
+//   - A user's effective menus = their role's menus ∩ the active company's
+//     entitled menus (the company's subscribed-module menus).
+//   - The "Tenant Admin" role gets IMPLICIT full access (all entitled menus), so
+//     it never needs stored menu grants and auto-includes new modules.
+//   - The System workspace (companyId null) has no entitlement gate.
+// Returns { roleName, menus }.
+async function buildWorkspaceMenus(roleId, companyId) {
+    let roleName = 'User';
+    let permitted = [];
+    if (roleId) {
+        const role = await Role.findByPk(roleId, {
+            include: [{ model: Menu, as: 'PermittedMenus', include: [{ model: Module, as: 'Module' }] }],
+        });
+        if (role) {
+            roleName = role.name;
+            permitted = role.PermittedMenus || [];
+        }
+    }
+
+    if (!companyId) {
+        return { roleName, menus: permitted.map(mapMenuItem) };
+    }
+
+    const subs = await CompanyModule.findAll({ where: { companyId }, attributes: ['moduleId'] });
+    const moduleIds = subs.map(s => s.moduleId);
+    const entitled = moduleIds.length
+        ? await Menu.findAll({ where: { moduleId: moduleIds }, include: [{ model: Module, as: 'Module' }] })
+        : [];
+
+    if (roleName === 'Tenant Admin') {
+        return { roleName, menus: entitled.map(mapMenuItem) };
+    }
+
+    const entitledIds = new Set(entitled.map(m => m.id));
+    return { roleName, menus: permitted.filter(m => entitledIds.has(m.id)).map(mapMenuItem) };
+}
+
+// Resolve the role name + effective menus for a user within one workspace.
+// companyId is null for the System Administration workspace.
 async function resolveWorkspaceContext(userId, companyId) {
     let companyName = 'SYSTEM ADMINISTRATION';
     let resolvedCompanyId = null;
+    let accountId = null;
 
     if (companyId !== null) {
-        const company = await Company.findByPk(companyId);
+        const company = await Company.findByPk(companyId, { attributes: ['id', 'name', 'accountId'] });
         if (!company) return null;
         resolvedCompanyId = company.id;
         companyName = company.name;
+        accountId = company.accountId;
     }
 
     const membership = await CompanyUser.findOne({ where: { userId, companyId } });
@@ -284,34 +313,18 @@ async function resolveWorkspaceContext(userId, companyId) {
         // The System workspace always requires an explicit membership.
         if (companyId === null) return null;
         // Subscriber SuperUser: the account owner may enter any company in their
-        // account without a membership row, taking that company's Tenant Admin role.
+        // account without a membership row, taking the account's Tenant Admin role.
         const isOwner = await isAccountAdminForCompany(userId, companyId);
         if (!isOwner) return null;
-        const adminRole = await Role.findOne({ where: { companyId, name: 'Tenant Admin' } });
+        // Account-level Tenant Admin role (with a legacy per-company fallback for
+        // rows not yet backfilled to accountId).
+        const adminRole =
+            (accountId && await Role.findOne({ where: { accountId, name: 'Tenant Admin' } })) ||
+            await Role.findOne({ where: { companyId, name: 'Tenant Admin' } });
         roleId = adminRole ? adminRole.id : null;
     }
 
-    let roleName = 'User';
-    let menus = [];
-    if (roleId) {
-        const userRole = await Role.findByPk(roleId, {
-            include: [{ model: Menu, as: 'PermittedMenus', include: [{ model: Module, as: 'Module' }] }],
-        });
-        if (userRole) {
-            roleName = userRole.name;
-            if (userRole.PermittedMenus) {
-                menus = userRole.PermittedMenus.map(m => ({
-                    name: m.name,
-                    route: m.route,
-                    icon: m.icon,
-                    moduleName: m.Module ? m.Module.name : 'Core Club Management',
-                    moduleIcon: m.Module ? m.Module.icon : 'business',
-                    moduleLanding: m.Module ? m.Module.landingRoute : null,
-                }));
-            }
-        }
-    }
-
+    const { roleName, menus } = await buildWorkspaceMenus(roleId, resolvedCompanyId);
     return { companyId: resolvedCompanyId, companyName, roleName, menus };
 }
 
@@ -637,32 +650,9 @@ exports.googleLogin = async (req, res) => {
             companyName = company.name;
         }
 
-        let allowedMenus = [];
-        let assignedRoleName = 'User'; 
-
-        if (workspace.roleId) {
-            const userRole = await Role.findByPk(workspace.roleId, {
-                include: [{ 
-                    model: Menu, 
-                    as: 'PermittedMenus',
-                    include: [{ model: Module, as: 'Module' }] 
-                }]
-            });
-
-            if (userRole) {
-                assignedRoleName = userRole.name; 
-                if (userRole.PermittedMenus) {
-                    allowedMenus = userRole.PermittedMenus.map(m => ({
-                        name: m.name,
-                        route: m.route,
-                        icon: m.icon,
-                        moduleName: m.Module ? m.Module.name : 'Core Club Management',
-                        moduleIcon: m.Module ? m.Module.icon : 'business',
-                        moduleLanding: m.Module ? m.Module.landingRoute : null
-                    }));
-                }
-            }
-        }
+        // Effective menus = role menus ∩ company entitlement (Tenant Admin = full).
+        const { roleName: assignedRoleName, menus: allowedMenus } =
+            await buildWorkspaceMenus(workspace.roleId, companyId);
 
         const loginToken = generateToken(user.id, user.email, companyId, companyName, isSystemAdmin);
 

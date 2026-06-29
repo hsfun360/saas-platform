@@ -454,36 +454,23 @@ exports.createSubscription = async (req, res) => {
         account.ownerUserId = user.id;
         await account.save({ transaction });
 
-        // The subscriber's first user is the workspace owner: default them to a
-        // per-company "Tenant Admin" role (scoped to this new company).
+        // The subscriber's first user is the workspace owner: default them to the
+        // account-level "Tenant Admin" role (implicit full access; menus are
+        // computed at login as role menus ∩ company entitlement, so no grants).
         const tenantAdminRole = await Role.create({
-            companyId: company.id,
+            accountId: account.id,
             name: 'Tenant Admin',
             description: 'Full administrative access to the company workspace.'
         }, { transaction });
 
-        // Subscribe the company to the SELECTED modules and grant the Tenant Admin
-        // all of those modules' menus. The set of modules is chosen per-subscriber
-        // (independent of plan); include "System Setup" to let the Tenant Admin
-        // manage tenant users and roles.
+        // Subscribe the company to the SELECTED modules (entitlement only). The
+        // set of modules is chosen per-subscriber (independent of plan).
         const selectedModuleIds = Array.isArray(moduleIds) ? moduleIds : [];
         if (selectedModuleIds.length > 0) {
             await CompanyModule.bulkCreate(
                 selectedModuleIds.map(moduleId => ({ companyId: company.id, moduleId, isActive: true })),
                 { transaction }
             );
-
-            const subscribedMenus = await Menu.findAll({
-                where: { moduleId: selectedModuleIds },
-                attributes: ['id'],
-                transaction,
-            });
-            if (subscribedMenus.length > 0) {
-                await RoleMenu.bulkCreate(
-                    subscribedMenus.map(menu => ({ roleId: tenantAdminRole.id, menuId: menu.id })),
-                    { transaction }
-                );
-            }
         }
 
         await CompanyUser.create({

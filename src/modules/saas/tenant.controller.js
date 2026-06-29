@@ -488,12 +488,14 @@ exports.createTenantUser = async (req, res) => {
             return res.status(400).json({ message: "Email, password, and full name are required." });
         }
 
-        // If a role was chosen, it must belong to THIS company.
+        // If a role was chosen, it must belong to the caller's ACCOUNT (roles are
+        // account-level now, usable in any of the account's companies).
         if (roleId) {
-            const role = await Role.findOne({ where: { id: roleId, companyId }, transaction });
+            const accountId = await resolveAccountId(companyId, transaction);
+            const role = await Role.findOne({ where: { id: roleId, accountId }, transaction });
             if (!role) {
                 await transaction.rollback();
-                return res.status(400).json({ message: "Selected role does not belong to your workspace." });
+                return res.status(400).json({ message: "Selected role does not belong to your account." });
             }
         }
 
@@ -551,10 +553,11 @@ exports.assignTenantUserRole = async (req, res) => {
         if (target.status) return res.status(target.status).json({ message: target.message });
         const companyId = target.companyId;
 
-        // The role must belong to this company.
-        const role = await Role.findOne({ where: { id: roleId, companyId } });
+        // The role must belong to the caller's account (account-level roles).
+        const accountId = await resolveAccountId(companyId);
+        const role = await Role.findOne({ where: { id: roleId, accountId } });
         if (!role) {
-            return res.status(400).json({ message: "Selected role does not belong to your workspace." });
+            return res.status(400).json({ message: "Selected role does not belong to your account." });
         }
 
         // The user must already be a member of this company.
@@ -565,7 +568,7 @@ exports.assignTenantUserRole = async (req, res) => {
 
         // Last-admin lockout protection: don't allow demoting the company's only
         // Tenant Admin (that would leave the workspace with no one who can manage it).
-        const tenantAdminRole = await Role.findOne({ where: { companyId, name: 'Tenant Admin' } });
+        const tenantAdminRole = await Role.findOne({ where: { accountId, name: 'Tenant Admin' } });
         if (tenantAdminRole && membership.roleId === tenantAdminRole.id && roleId !== tenantAdminRole.id) {
             const adminCount = await CompanyUser.count({ where: { companyId, roleId: tenantAdminRole.id } });
             if (adminCount <= 1) {
@@ -606,7 +609,8 @@ exports.revokeTenantUser = async (req, res) => {
 
         // Last-admin lockout protection: don't remove the company's only Tenant
         // Admin, or the workspace would be left with no one who can manage it.
-        const tenantAdminRole = await Role.findOne({ where: { companyId, name: 'Tenant Admin' } });
+        const accountId = await resolveAccountId(companyId);
+        const tenantAdminRole = await Role.findOne({ where: { accountId, name: 'Tenant Admin' } });
         if (tenantAdminRole && membership.roleId === tenantAdminRole.id) {
             const adminCount = await CompanyUser.count({ where: { companyId, roleId: tenantAdminRole.id } });
             if (adminCount <= 1) {
@@ -792,33 +796,25 @@ exports.createCompany = async (req, res) => {
             isActive: true,
         }, { transaction });
 
-        // Seed a per-company Tenant Admin role (mirrors how the first company is
-        // provisioned in admin.createSubscription).
-        const tenantAdminRole = await Role.create({
-            companyId: company.id,
-            name: 'Tenant Admin',
-            description: 'Full administrative access to the company workspace.',
-        }, { transaction });
+        // Reuse the ONE account-level Tenant Admin role (created with the account;
+        // implicit full access, so no per-module menu grants are needed).
+        let tenantAdminRole = await Role.findOne({ where: { accountId, name: 'Tenant Admin' }, transaction });
+        if (!tenantAdminRole) {
+            tenantAdminRole = await Role.create({
+                accountId,
+                name: 'Tenant Admin',
+                description: 'Full administrative access to the company workspace.',
+            }, { transaction });
+        }
 
-        // Subscribe the company to the selected modules and grant the Tenant Admin
-        // role access to those modules' menus.
+        // Subscribe the company to the selected modules (entitlement). Role->menu
+        // access is computed at login as role menus ∩ entitlement, so there's no
+        // menu-grant bookkeeping here anymore.
         if (selectedModuleIds.length > 0) {
             await CompanyModule.bulkCreate(
                 selectedModuleIds.map(moduleId => ({ companyId: company.id, moduleId, isActive: true })),
                 { transaction }
             );
-
-            const subscribedMenus = await Menu.findAll({
-                where: { moduleId: selectedModuleIds },
-                attributes: ['id'],
-                transaction,
-            });
-            if (subscribedMenus.length > 0) {
-                await RoleMenu.bulkCreate(
-                    subscribedMenus.map(menu => ({ roleId: tenantAdminRole.id, menuId: menu.id })),
-                    { transaction }
-                );
-            }
         }
 
         // Make the creating admin a Tenant Admin of the new company so they can
@@ -882,42 +878,18 @@ exports.updateCompanyModules = async (req, res) => {
         const toAdd = desired.filter(id => !currentIds.includes(id));
         const toRemove = currentIds.filter(id => !desired.includes(id));
 
-        // --- ADD: subscribe + grant the new modules' menus to the Tenant Admin role ---
+        // Entitlement only. A role's effective access is computed at login as
+        // (role menus ∩ the company's entitled menus), so adding/removing a
+        // module here needs no role->menu bookkeeping: revoking a module instantly
+        // removes its menus from every role's effective set, account-wide-safe.
         if (toAdd.length > 0) {
             await CompanyModule.bulkCreate(
                 toAdd.map(moduleId => ({ companyId, moduleId, isActive: true })),
                 { transaction }
             );
-
-            const tenantAdminRole = await Role.findOne({ where: { companyId, name: 'Tenant Admin' }, transaction });
-            if (tenantAdminRole) {
-                const menus = await Menu.findAll({ where: { moduleId: toAdd }, attributes: ['id'], transaction });
-                if (menus.length > 0) {
-                    const already = await RoleMenu.findAll({
-                        where: { roleId: tenantAdminRole.id, menuId: menus.map(m => m.id) },
-                        attributes: ['menuId'],
-                        transaction,
-                    });
-                    const have = new Set(already.map(r => r.menuId));
-                    const grants = menus.filter(m => !have.has(m.id)).map(m => ({ roleId: tenantAdminRole.id, menuId: m.id }));
-                    if (grants.length > 0) await RoleMenu.bulkCreate(grants, { transaction });
-                }
-            }
         }
-
-        // --- REVOKE (hard): delete the link + strip menus from ALL roles in the company ---
         if (toRemove.length > 0) {
             await CompanyModule.destroy({ where: { companyId, moduleId: toRemove }, transaction });
-
-            const roles = await Role.findAll({ where: { companyId }, attributes: ['id'], transaction });
-            const roleIds = roles.map(r => r.id);
-            if (roleIds.length > 0) {
-                const menus = await Menu.findAll({ where: { moduleId: toRemove }, attributes: ['id'], transaction });
-                const menuIds = menus.map(m => m.id);
-                if (menuIds.length > 0) {
-                    await RoleMenu.destroy({ where: { roleId: roleIds, menuId: menuIds }, transaction });
-                }
-            }
         }
 
         await transaction.commit();
@@ -1006,12 +978,12 @@ exports.addCollaborator = async (req, res) => {
             return res.status(400).json({ message: "Email is required." });
         }
 
-        // If a role was chosen, it must belong to THIS company.
+        // If a role was chosen, it must belong to the caller's ACCOUNT.
         if (roleId) {
-            const role = await Role.findOne({ where: { id: roleId, companyId }, transaction });
+            const role = await Role.findOne({ where: { id: roleId, accountId }, transaction });
             if (!role) {
                 await transaction.rollback();
-                return res.status(400).json({ message: "Selected role does not belong to your workspace." });
+                return res.status(400).json({ message: "Selected role does not belong to your account." });
             }
         }
 
