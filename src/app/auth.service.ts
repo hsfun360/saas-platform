@@ -69,6 +69,11 @@ export class AuthService {
     return this.http.post<AuthResponse>(`${this.apiBaseUrl}/auth/google`, { accessToken, selectedCompanyId });
   }
 
+  // Exchange a Google authorization code (in-app redirect flow) for an access token.
+  exchangeGoogleCode(code: string, redirectUri: string): Observable<{ accessToken: string }> {
+    return this.http.post<{ accessToken: string }>(`${this.apiBaseUrl}/auth/google/exchange`, { code, redirectUri });
+  }
+
   microsoftLogin(accessToken: string): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.apiBaseUrl}/auth/microsoft-login`, { accessToken });
   }

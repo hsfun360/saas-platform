@@ -6,7 +6,15 @@ import { AuthService } from '../auth.service';
 import { AuthResponse, Workspace } from '../models/auth.models';
 import { finalize } from 'rxjs';
 
-declare var google: { accounts: { oauth2: { initTokenClient(config: { client_id: string; scope: string; callback: (res: { access_token?: string }) => void }): { requestAccessToken(): void } } } };
+declare var google: {
+  accounts: {
+    oauth2: {
+      initTokenClient(config: { client_id: string; scope: string; callback: (res: { access_token?: string }) => void }): { requestAccessToken(): void };
+      // Authorization-code flow with a same-tab redirect (like MSAL loginRedirect).
+      initCodeClient(config: { client_id: string; scope: string; ux_mode: 'redirect' | 'popup'; redirect_uri: string; state?: string }): { requestCode(): void };
+    };
+  };
+};
 
 @Component({
     selector: 'app-login',
@@ -48,6 +56,9 @@ export class LoginComponent implements OnInit {
     this.pendingLoginMethod = null;
     this.pendingGoogleToken = null;
     this.availableWorkspaces = [];
+
+    // Catch the user when they return from the Google authorization-code redirect.
+    this.handleGoogleRedirect();
 
     // 👇 ADD THIS: Catch the user when they return from the Microsoft Redirect
     this.msalService.handleRedirectObservable().subscribe({
@@ -109,25 +120,62 @@ export class LoginComponent implements OnInit {
       });
   }
 
+  // Same-tab redirect (like Microsoft), using Google's authorization-code flow.
+  // Google redirects back to /login?code=…&state=…, handled in ngOnInit.
   loginWithGoogle(): void {
-    const client = google.accounts.oauth2.initTokenClient({
+    const state = Math.random().toString(36).slice(2);
+    sessionStorage.setItem('googleOauthState', state);
+    const client = google.accounts.oauth2.initCodeClient({
       client_id: '148523901156-uc6a3f7q2le2fsqbm5idc0ai27vebe69.apps.googleusercontent.com',
       scope: 'email profile openid',
-      callback: (tokenResponse: { access_token?: string }) => {
-        if (tokenResponse?.access_token) {
-          this.authService.googleLogin(tokenResponse.access_token).subscribe({
-            next: (response) => {
-              this.handleLoginResponse(response, 'google', tokenResponse.access_token);
-            },
-            error: () => {
-              this.errorMessage = 'Google sign-in failed. Please try again.';
-              this.cdr.detectChanges();
-            }
-          });
-        }
+      ux_mode: 'redirect',
+      redirect_uri: window.location.origin + '/login',
+      state,
+    });
+    client.requestCode();
+  }
+
+  // Handle the Google redirect return: exchange the code for an access token,
+  // then continue exactly like the previous popup flow.
+  private handleGoogleRedirect(): void {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (!code) return;
+
+    const returnedState = params.get('state');
+    const expectedState = sessionStorage.getItem('googleOauthState');
+    sessionStorage.removeItem('googleOauthState');
+
+    const redirectUri = window.location.origin + '/login';
+    // Strip the OAuth params from the address bar.
+    history.replaceState({}, '', '/login');
+
+    if (!expectedState || returnedState !== expectedState) {
+      this.errorMessage = 'Google sign-in failed (state mismatch). Please try again.';
+      return;
+    }
+
+    this.loading = true;
+    this.authService.exchangeGoogleCode(code, redirectUri).subscribe({
+      next: ({ accessToken }) => {
+        this.authService.googleLogin(accessToken).subscribe({
+          next: (response) => {
+            this.loading = false;
+            this.handleLoginResponse(response, 'google', accessToken);
+          },
+          error: () => {
+            this.loading = false;
+            this.errorMessage = 'Google sign-in failed. Please try again.';
+            this.cdr.detectChanges();
+          }
+        });
+      },
+      error: () => {
+        this.loading = false;
+        this.errorMessage = 'Google sign-in failed. Please try again.';
+        this.cdr.detectChanges();
       }
     });
-    client.requestAccessToken();
   }
 
   loginWithMicrosoft(): void {
