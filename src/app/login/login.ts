@@ -61,23 +61,35 @@ export class LoginComponent implements OnInit {
     this.pendingGoogleToken = null;
     this.availableWorkspaces = [];
 
-    // Returning from the Google redirect (?code=…): show the "Signing you in…"
-    // state immediately so the login form never flashes back up.
+    // Returning from the Google redirect (?code=… in the query): show the
+    // "Signing you in…" overlay immediately so the login form never flashes back
+    // up. handleGoogleRedirect manages its own reset.
     if (new URLSearchParams(window.location.search).has('code')) {
       this.ssoInProgress = true;
     }
     // Catch the user when they return from the Google authorization-code redirect.
     this.handleGoogleRedirect();
 
-    // 👇 ADD THIS: Catch the user when they return from the Microsoft Redirect
+    // Returning from the Microsoft redirect — MSAL puts its response in the URL
+    // FRAGMENT (#code=…/#error=…), so detect that separately from Google's query.
+    const msReturn = window.location.hash.includes('code=') || window.location.hash.includes('error=');
+    if (msReturn) {
+      this.ssoInProgress = true;
+    }
     this.msalService.handleRedirectObservable().subscribe({
       next: (response: { accessToken?: string } | null) => {
-        if (response !== null && response?.accessToken) {
+        if (response?.accessToken) {
           this.processMicrosoftToken(response.accessToken);
+        } else if (msReturn) {
+          // A Microsoft return without a usable token — drop the overlay.
+          this.ssoInProgress = false;
+          this.cdr.detectChanges();
         }
       },
       error: () => {
+        if (msReturn) this.ssoInProgress = false;
         this.errorMessage = 'Microsoft sign-in failed. Please try again.';
+        this.cdr.detectChanges();
       }
     });
   }
@@ -85,9 +97,11 @@ export class LoginComponent implements OnInit {
   processMicrosoftToken(token: string): void {
     this.authService.microsoftLogin(token).subscribe({
       next: (res) => {
-        this.handleLoginResponse(res, 'local');
+        // Returning from SSO: go straight into the app, no "Redirecting…" delay.
+        this.handleLoginResponse(res, 'local', undefined, true);
       },
       error: () => {
+        this.ssoInProgress = false;
         this.errorMessage = 'Microsoft sign-in failed. Please try again.';
         this.cdr.detectChanges();
       }

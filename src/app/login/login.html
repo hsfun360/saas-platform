@@ -15,16 +15,6 @@
       }
     </div>
   </div>
-} @else if (ssoInProgress) {
-  <div class="login-page-container">
-    <div class="login-card" style="text-align: center;">
-      <h2 class="login-title">Signing you in…</h2>
-      <p style="color: #64748b;">Please wait while we complete your sign‑in.</p>
-      @if (errorMessage) {
-        <p style="color: #b91c1c; margin-top: var(--space-md);">{{ errorMessage }}</p>
-      }
-    </div>
-  </div>
 } @else {
 <div class="login-page-container">
   <div class="login-card">
@@ -100,4 +90,17 @@
     </form>
   </div>
 </div>
+
+@if (ssoInProgress) {
+  <div class="sso-overlay">
+    <div class="sso-panel">
+      <div class="sso-spinner" aria-hidden="true"></div>
+      <div class="sso-panel__title">Signing you in…</div>
+      <p class="sso-panel__sub">Please wait while we complete your sign‑in.</p>
+      @if (errorMessage) {
+        <p class="sso-panel__error" role="alert">{{ errorMessage }}</p>
+      }
+    </div>
+  </div>
+}
 }
