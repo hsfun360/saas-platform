@@ -13,12 +13,12 @@ region `asia-southeast1`, account `hsfun360@gmail.com`. The live service runs wi
 plain env vars `DATABASE_URL`, `ADMIN_EMAILS` (and a no-op `JWT_SECRET`).
 
 ## What gets deployed
-- **API service** (`login-api`) — `Dockerfile` → `CMD node server.js`. This runbook.
+- **API service** (`login-api`) - `Dockerfile` → `CMD node server.js`. This runbook.
 - **Outbox worker** (email sender) is a **separate** service (`outboxworker.js`,
   needs `EMAIL_USER`/`EMAIL_PASS`). Not covered here.
 
 ## Prerequisites (check before every deploy)
-- **Docker Desktop must be RUNNING** (`docker info` must succeed) — the build needs the
+- **Docker Desktop must be RUNNING** (`docker info` must succeed) - the build needs the
   Linux engine daemon. If `docker info` errors with "failed to connect... dockerDesktopLinuxEngine",
   start Docker Desktop and wait for it to be ready.
 - gcloud authenticated (`gcloud auth list`) on project `membership-project-199610`.
@@ -33,12 +33,12 @@ plain env vars `DATABASE_URL`, `ADMIN_EMAILS` (and a no-op `JWT_SECRET`).
 | `DATABASE_URL` | ✅ required | Postgres connection (URL-encode the password: `@`→`%40`). |
 | `ADMIN_EMAILS` | ✅ required | Break-glass System Admin allowlist + seed owner (comma-separated). |
 | `FRONTEND_BASE_URL` | ⚠️ recommended | Base URL used in invitation / reset emails. |
-| `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` | ⚙️ not needed today | RS256 keys. **Currently baked into the image** as `keys/private.pem` / `keys/public.pem` — `.dockerignore`'s `*.pem` only matches root-level files, so the `keys/` subdir IS copied in. So they are NOT env vars and you do NOT pass them at deploy. See **Hardening** to move them to Secret Manager. |
+| `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` | ⚙️ not needed today | RS256 keys. **Currently baked into the image** as `keys/private.pem` / `keys/public.pem` - `.dockerignore`'s `*.pem` only matches root-level files, so the `keys/` subdir IS copied in. So they are NOT env vars and you do NOT pass them at deploy. See **Hardening** to move them to Secret Manager. |
 | `PORT` | auto | Cloud Run sets it; `server.js` reads `process.env.PORT`. |
 | `RUN_SEED` | 🚫 never in prod | Gates the destructive wipe+reseed. Fresh/dev DB only, ad-hoc. |
 | ~~`JWT_SECRET`~~ | ❌ unused | Not referenced anywhere (app is RS256, not HMAC). Harmless but drop it. |
 
-> ⚠️ **`--set-env-vars` REPLACES the whole plain env-var set** — anything not listed is
+> ⚠️ **`--set-env-vars` REPLACES the whole plain env-var set** - anything not listed is
 > removed. Always pass the FULL set you want. (The JWT keys are image files today, not
 > env vars, so they're unaffected and login keeps working across deploys.)
 
@@ -71,7 +71,7 @@ gcloud run deploy $env:IMAGE_NAME `
 > Use `--update-env-vars` to change ONE var without re-specifying the rest (it merges).
 
 ## Schema & data migrations
-- **Schema columns auto-apply on boot** — `app.js` runs `sequelize.sync({ alter: true })`
+- **Schema columns auto-apply on boot** - `app.js` runs `sequelize.sync({ alter: true })`
   under an advisory lock, so new nullable columns (e.g. `Module.landingRoute`,
   `Role.description`) are added when the revision starts. No manual step.
 - **Data migrations are manual**, run from a machine that can reach the DB
@@ -95,17 +95,17 @@ JWT signing + DB). After a release that changed menu routes, **log out/in** so t
 browser's cached `userMenus` refresh.
 
 ## Gotchas
-- `JWT_SECRET` is dead — RS256 keys are what matter, and they come from the baked-in
+- `JWT_SECRET` is dead - RS256 keys are what matter, and they come from the baked-in
   `keys/*.pem`. If login ever fails with `ENOENT .../keys/private.pem` or
   `secretOrPrivateKey`, the keys didn't make it into the image (check `.dockerignore`
   didn't start excluding `keys/`).
 - The keys being in the image means anyone who can pull the image gets the signing
-  key — acceptable for now, but see Hardening.
+  key - acceptable for now, but see Hardening.
 - DB SSL is commented out in `db.js` → plaintext to the external Postgres. Re-enable
   the `ssl` block if you move to Cloud SQL / require TLS.
-- CORS `origin` is `'*'` in `app.js` — lock to the frontend URL before real prod.
+- CORS `origin` is `'*'` in `app.js` - lock to the frontend URL before real prod.
 
-## Hardening (optional — move JWT keys out of the image)
+## Hardening (optional - move JWT keys out of the image)
 Better practice is to keep the signing key out of the registry:
 ```powershell
 # 1. Create the secrets from the local keys (once)

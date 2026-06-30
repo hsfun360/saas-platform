@@ -1,4 +1,4 @@
-# golf (core product service — stub)
+# golf (core product service - stub)
 
 Golf Management. Owns courses, tee sheets, bookings, competitions. References
 `companyId`/`memberId` by UUID. Gateway seam: `/api/golf`.

@@ -1,13 +1,13 @@
 # Systems Catalog
 
 This folder is the **service map** for the platform. Each file is the living spec
-("skill doc") for one service — start of a strangler-fig split of the LoginAPI
+("skill doc") for one service - start of a strangler-fig split of the LoginAPI
 modular monolith into independently deployable microservices. Fill in details as
 each service is built.
 
 ## The two tiers
 
-**Platform tier** — cross-cutting; every product depends on it. Owns identity,
+**Platform tier** - cross-cutting; every product depends on it. Owns identity,
 tenancy, RBAC, subscriptions, provisioning, notifications.
 
 | Service | Module folder | Owns | Doc |
@@ -16,7 +16,7 @@ tenancy, RBAC, subscriptions, provisioning, notifications.
 | System Administration (Control Plane) | `src/modules/saas` | `Account, Company, CompanyUser, Module, Menu, CompanyModule, Role, RoleMenu, Invitation, RegistrationLead` | [system-administration.md](system-administration.md) |
 | Notification | `src/modules/notification` | Outbox → email / Pub/Sub | [notification.md](notification.md) |
 
-**Product tier** — the core systems a club actually uses. Each becomes its own
+**Product tier** - the core systems a club actually uses. Each becomes its own
 service + its own database.
 
 | Service | Module folder | Gateway base | Doc |
@@ -31,7 +31,7 @@ Overall architecture, conventions and the migration plan: **[saas-platform.md](s
 
 1. **One owner per table.** A service is the single source of truth for its data.
    Nobody else writes it, and nobody else defines a DB-level foreign key into it.
-2. **Reference other services' data by UUID only** — no cross-service Sequelize
+2. **Reference other services' data by UUID only** - no cross-service Sequelize
    association/FK. (e.g. Golf stores `memberId` as a plain UUID, it does not
    `belongsTo` the Membership `Member` model.)
 3. **Identity comes from the JWT, entitlements from the Control Plane.** A service

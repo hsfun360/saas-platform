@@ -1,4 +1,4 @@
-# SaaS Platform — Architecture & Conventions
+# SaaS Platform - Architecture & Conventions
 
 > Status: LIVING. This is the umbrella doc for how the whole platform fits
 > together. Per-service detail lives in the sibling files; see [README.md](README.md).
@@ -30,14 +30,14 @@ product systems**: Membership, Golf, Facility.
 
 - **Platform tier**: Identity/Auth, System Administration (Control Plane),
   Notification. Cross-cutting; the product systems depend on them.
-- **Product tier**: Membership, Golf, Facility — the core systems. Each owns its
+- **Product tier**: Membership, Golf, Facility - the core systems. Each owns its
   own data and (eventually) its own database and deployment.
 
 ## How services talk to each other
 
 Implemented through one seam: **`src/platform/serviceContext.js`**. Today it runs
 in-process (monolith); when a service is split out, only this file's internals
-change to HTTP / signed claims — callers are untouched.
+change to HTTP / signed claims - callers are untouched.
 
 - **Who is calling** → `getUserContext(req)` returns `{ userId, email, companyId,
   isSystemAdmin }` from the **verified JWT**. Identity is the source of truth; every
@@ -59,7 +59,7 @@ The only association that crosses a service boundary today is **User ↔ Company
 CompanyUser** (`wiring/associations.js`). It is intentionally kept intact in the
 monolith. When Identity is extracted, those become **soft UUID references** (no DB
 FK) and eager-loads become a token claim or a service call. New product services
-**must not** add any new cross-boundary FK — store peer ids as plain UUIDs.
+**must not** add any new cross-boundary FK - store peer ids as plain UUIDs.
 
 ## Auth model
 
@@ -71,7 +71,7 @@ FK) and eager-loads become a token claim or a service call. New product services
 
 ## Frontend strategy
 
-The Angular app stays a **single SPA behind the gateway** — one `environment.apiUrl`.
+The Angular app stays a **single SPA behind the gateway** - one `environment.apiUrl`.
 Its feature areas map to the services (admin/control-plane UI vs. each product), and
 it can be split into **micro-frontends** later if needed, independently of the
 backend split.

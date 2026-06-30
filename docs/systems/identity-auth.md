@@ -16,7 +16,7 @@ Authenticates users and mints the platform JWT. Source of truth for *who a user 
 - Profile read/update, avatar upload.
 - Workspace listing + switch (re-mints a JWT scoped to the chosen company).
 - (Today also hosts some tenant/invitation routes that delegate into the Control
-  Plane — these move with the Control Plane when split.)
+  Plane - these move with the Control Plane when split.)
 
 ## JWT (minted here only)
 - RS256, private key from `platform/jwt.keys.js`. Claims: `id, email, companyId,
@@ -26,10 +26,10 @@ Authenticates users and mints the platform JWT. Source of truth for *who a user 
 ## Depends on
 - Notification (async, via outbox): UserRegistered, PasswordResetRequested, etc.
 - Control Plane (today via in-process require for workspace/role resolution at
-  login) — becomes a service call / token claim when split.
+  login) - becomes a service call / token claim when split.
 
 ## Consumed by
-- Every service (indirectly) — they verify the JWT it mints.
+- Every service (indirectly) - they verify the JWT it mints.
 
 ## Migration status
 - [x] Module folder · [ ] Cut User↔Company FK to soft UUID · [ ] Own DB · [ ] Own deploy

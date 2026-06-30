@@ -1,4 +1,4 @@
-# membership (core product service — stub)
+# membership (core product service - stub)
 
 Membership Management. Owns member records; the identity anchor other product
 services reference by `memberId` (UUID). Gateway seam: `/api/membership`.

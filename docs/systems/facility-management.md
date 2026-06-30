@@ -7,11 +7,11 @@
 Manage bookable club facilities and resources: venues/rooms/courts, availability
 calendars, reservations, booking rules, utilisation, maintenance windows.
 
-## Owns (data) — fill in
+## Owns (data) - fill in
 - e.g. `Facility`, `Resource`, `Availability`, `Reservation`, `BookingRule`…
 - References `companyId` and `memberId` by **UUID only**.
 
-## Public API (gateway seam: `/api/facility`) — fill in
+## Public API (gateway seam: `/api/facility`) - fill in
 - e.g. `GET /facilities`, `/facilities/:id/availability`, `POST /reservations`,
   `/booking-rules`…
 - (Seed already reserves "Facilities Setup" `/facilities` and "Booking Rule Setup"
@@ -19,12 +19,12 @@ calendars, reservations, booking rules, utilisation, maintenance windows.
 
 ## Depends on
 - Identity (JWT verify) · Control Plane (`requireModule('Facility Management')`, roles).
-- **Membership** — validate a member / entitlement to book, via
+- **Membership** - validate a member / entitlement to book, via
   `internalServiceUrl('membership')` (HTTP), never shared tables.
 - Notification (outbox): `ReservationCreated`, `ReservationCancelled`.
 
 ## Consumed by
-- Reporting/analytics; possibly Golf (shared resource calendars) — via API/events.
+- Reporting/analytics; possibly Golf (shared resource calendars) - via API/events.
 
 ## Auth & entitlements
 - Valid JWT + active company subscribed to the **Facility Management** module.

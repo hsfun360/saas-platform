@@ -16,25 +16,25 @@ Known-good config: project `membership-project-199610`, region `asia-southeast1`
   table every ~5s and sends queued emails (Nodemailer/Gmail).
 - **Reuses the SAME image as the API** (`login-api`), just with a different command
   (`node outboxworker.js` instead of `node server.js`). There is **no separate
-  build** — to ship worker code changes, push a new API image first (the
+  build** - to ship worker code changes, push a new API image first (the
   `deploy-api` skill), then redeploy this service to pick it up.
 - It does NOT verify JWTs, so it needs no JWT keys. `JWT_SECRET` (if present) is
-  dead weight — drop it.
+  dead weight - drop it.
 
 ## Env vars
 | Var | Required | Purpose |
 | --- | --- | --- |
 | `DATABASE_URL` | ✅ | Read/update the outbox table (same value as the API). URL-encode the password (`@`→`%40`). |
 | `EMAIL_USER` | ✅ | Sender Gmail address. |
-| `EMAIL_PASS` | ✅ | Gmail **App Password** (not the account password — Gmail SMTP requires an app password). |
+| `EMAIL_PASS` | ✅ | Gmail **App Password** (not the account password - Gmail SMTP requires an app password). |
 | ~~`JWT_SECRET`~~ | ❌ | Unused; drop it. |
 
 ## ⚠️ The thing that makes or breaks a Cloud Run worker
 A poller has **no incoming HTTP traffic**, so by default Cloud Run **scales it to
-zero** and **throttles CPU** outside requests — the background loop stops and emails
+zero** and **throttles CPU** outside requests - the background loop stops and emails
 quietly stop sending. You MUST deploy it with:
-- **`--min-instances=1`** — keep one instance always running (never scale to zero).
-- **`--no-cpu-throttling`** — CPU always allocated, so the `setInterval` poll keeps
+- **`--min-instances=1`** - keep one instance always running (never scale to zero).
+- **`--no-cpu-throttling`** - CPU always allocated, so the `setInterval` poll keeps
   running between (non-existent) requests.
 
 The worker doesn't serve real traffic, so it can also be locked down:
@@ -44,7 +44,7 @@ The worker doesn't serve real traffic, so it can also be locked down:
 ```powershell
 $env:PROJECT_ID = "membership-project-199610"
 $env:REGION     = "asia-southeast1"
-# Reuses the API image — push it first via the deploy-api skill.
+# Reuses the API image - push it first via the deploy-api skill.
 $IMAGE = "$($env:REGION)-docker.pkg.dev/$($env:PROJECT_ID)/login-api/login-api:latest"
 
 gcloud run deploy login-api-outboxworker `
@@ -79,9 +79,9 @@ OutboxMessage flip to COMPLETED.
 
 ## Gotchas
 - **Emails not sending?** Almost always (a) the worker scaled to zero / was throttled
-  — fix with `--min-instances=1 --no-cpu-throttling`; or (b) bad `EMAIL_PASS` (must be
+  - fix with `--min-instances=1 --no-cpu-throttling`; or (b) bad `EMAIL_PASS` (must be
   a Gmail App Password); or (c) `FRONTEND_BASE_URL` not set on `login-api`, so links
   are wrong (set on the API, not here).
-- **Worker code changes don't appear?** The image is shared with the API — build+push
+- **Worker code changes don't appear?** The image is shared with the API - build+push
   via `deploy-api` first, then redeploy this service (or it stays on the old image).
 - Keep `DATABASE_URL` identical to the API's (same database/outbox).

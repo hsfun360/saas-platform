@@ -1,4 +1,4 @@
-# facility (core product service — stub)
+# facility (core product service - stub)
 
 Facility Management. Owns facilities/resources, availability, reservations,
 booking rules. References `companyId`/`memberId` by UUID. Gateway seam: `/api/facility`.

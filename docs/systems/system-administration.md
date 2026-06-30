@@ -1,7 +1,7 @@
 # System Administration / Control Plane
 
 > Status: LIVE (in monolith as `src/modules/saas`). Tier: **Platform**.
-> This is the "System Setup / Administration" you see in the UI — and yes, it is a
+> This is the "System Setup / Administration" you see in the UI - and yes, it is a
 > service in its own right, distinct from the core product systems.
 
 ## Purpose
@@ -21,10 +21,10 @@ for every other service.
   company profile + module subscriptions.
 
 ## Provides to other services (the entitlement contract)
-- **Module subscription check** — "is company X subscribed to module Y?" Backs
+- **Module subscription check** - "is company X subscribed to module Y?" Backs
   `requireModule()` in `platform/serviceContext.js`. When split, expose this as e.g.
   `GET /api/admin/entitlements?companyId=&module=` (or a signed claim).
-- **Context** — a company's roles, a user's permitted menus, account ownership.
+- **Context** - a company's roles, a user's permitted menus, account ownership.
 
 ## Depends on
 - Identity: `userId` references (soft UUID once split); verifies its JWT.

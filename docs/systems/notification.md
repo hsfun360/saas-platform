@@ -9,7 +9,7 @@ handling, using the transactional **outbox** pattern.
 
 ## How it works
 - Producers write a row to `OutboxMessage` (`platform/outboxMessage.model.js`)
-  **inside the same DB transaction** as their business write — atomic, no lost events.
+  **inside the same DB transaction** as their business write - atomic, no lost events.
 - The worker polls PENDING messages every ~5s, sends the email (Nodemailer/Gmail),
   marks COMPLETED/FAILED with retry/backoff (gives up after 5 tries).
 
