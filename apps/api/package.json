@@ -1,0 +1,36 @@
+{
+  "name": "loginapi",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "worker:outbox": "node outboxworker.js",
+    "seed": "node scripts/seed.js",
+    "migrate:menu-routes": "node scripts/migrate-menu-routes.js",
+    "dev": "nodemon server.js",
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@azure/msal-angular": "^5.1.1",
+    "@azure/msal-browser": "^5.4.0",
+    "@google-cloud/storage": "^5.18.3",
+    "axios": "^1.13.6",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "geoip-lite": "^2.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.1",
+    "pg": "^8.16.3",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.7",
+    "uuid": "^13.0.0"
+  }
+}
