@@ -32,6 +32,10 @@ export class LoginComponent implements OnInit {
   showPassword = false;
   isLoggingIn = false;
 
+  // True while completing an SSO redirect (Google), so the template shows a
+  // "Signing you in…" state instead of the login form.
+  ssoInProgress = false;
+
   isWorkspaceSelection = false;
   availableWorkspaces: Workspace[] = [];
   pendingLoginMethod: 'local' | 'google' | null = null;
@@ -57,6 +61,11 @@ export class LoginComponent implements OnInit {
     this.pendingGoogleToken = null;
     this.availableWorkspaces = [];
 
+    // Returning from the Google redirect (?code=…): show the "Signing you in…"
+    // state immediately so the login form never flashes back up.
+    if (new URLSearchParams(window.location.search).has('code')) {
+      this.ssoInProgress = true;
+    }
     // Catch the user when they return from the Google authorization-code redirect.
     this.handleGoogleRedirect();
 
@@ -151,30 +160,30 @@ export class LoginComponent implements OnInit {
     history.replaceState({}, '', '/login');
 
     if (!expectedState || returnedState !== expectedState) {
+      this.ssoInProgress = false;
       this.errorMessage = 'Google sign-in failed (state mismatch). Please try again.';
       return;
     }
 
     this.loading = true;
+    const fail = () => {
+      this.ssoInProgress = false;
+      this.loading = false;
+      this.errorMessage = 'Google sign-in failed. Please try again.';
+      this.cdr.detectChanges();
+    };
     this.authService.exchangeGoogleCode(code, redirectUri).subscribe({
       next: ({ accessToken }) => {
         this.authService.googleLogin(accessToken).subscribe({
           next: (response) => {
             this.loading = false;
-            this.handleLoginResponse(response, 'google', accessToken);
+            // Returning from SSO: go straight into the app, no "Redirecting…" delay.
+            this.handleLoginResponse(response, 'google', accessToken, true);
           },
-          error: () => {
-            this.loading = false;
-            this.errorMessage = 'Google sign-in failed. Please try again.';
-            this.cdr.detectChanges();
-          }
+          error: fail,
         });
       },
-      error: () => {
-        this.loading = false;
-        this.errorMessage = 'Google sign-in failed. Please try again.';
-        this.cdr.detectChanges();
-      }
+      error: fail,
     });
   }
 
@@ -189,9 +198,11 @@ export class LoginComponent implements OnInit {
   }
 
   // A helper function to handle both Local and Google API responses
-  private handleLoginResponse(res: AuthResponse, method: 'local' | 'google', googleToken?: string): void {
+  private handleLoginResponse(res: AuthResponse, method: 'local' | 'google', googleToken?: string, immediate = false): void {
     if (res.clubs) {
-      // SCENARIO B: The 206 Multi-Workspace Pause!
+      // SCENARIO B: The 206 Multi-Workspace Pause! Show the picker (not the
+      // "signing in" state).
+      this.ssoInProgress = false;
       this.isWorkspaceSelection = true;
       this.availableWorkspaces = res.clubs;
       this.pendingLoginMethod = method;
@@ -215,9 +226,15 @@ export class LoginComponent implements OnInit {
         this.authService.updateFullNameState(res.fullName); // Broadcast to the app
       }
 
-      this.successMessage = 'Login successful! Redirecting...';
-      this.cdr.detectChanges();
-      setTimeout(() => this.router.navigate(['/home']), 1000);
+      if (immediate) {
+        // SSO return: go straight into the app (the "Signing you in…" state
+        // stays until navigation, so the login form never reappears).
+        this.router.navigate(['/home']);
+      } else {
+        this.successMessage = 'Login successful! Redirecting...';
+        this.cdr.detectChanges();
+        setTimeout(() => this.router.navigate(['/home']), 1000);
+      }
     }
   }
 

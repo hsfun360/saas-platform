@@ -15,6 +15,16 @@
       }
     </div>
   </div>
+} @else if (ssoInProgress) {
+  <div class="login-page-container">
+    <div class="login-card" style="text-align: center;">
+      <h2 class="login-title">Signing you in…</h2>
+      <p style="color: #64748b;">Please wait while we complete your sign‑in.</p>
+      @if (errorMessage) {
+        <p style="color: #b91c1c; margin-top: var(--space-md);">{{ errorMessage }}</p>
+      }
+    </div>
+  </div>
 } @else {
 <div class="login-page-container">
   <div class="login-card">
