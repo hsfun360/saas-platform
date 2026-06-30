@@ -38,8 +38,8 @@ $env:PROJECT_ID = "membership-project-199610"
 $env:REGION     = "asia-southeast1"
 $FULL_TAG = "$($env:REGION)-docker.pkg.dev/$($env:PROJECT_ID)/login-web/login-web:latest"
 
-# From the Login/ project root (where the Dockerfile is):
-docker build --platform linux/amd64 -t login-web-local:latest .
+# From the saas-platform repo root (the web Dockerfile lives in apps/web):
+docker build --platform linux/amd64 -t login-web-local:latest apps/web
 docker tag login-web-local:latest $FULL_TAG
 docker push $FULL_TAG
 

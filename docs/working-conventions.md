@@ -1,8 +1,8 @@
 # Working Conventions
 
-These are general working agreements for this project.
-They apply across writing, git, technical decisions, bug fixing, and testing.
-They sit alongside the Angular/TypeScript rules in [`coding-standards.md`](coding-standards.md).
+These are general working agreements for the whole monorepo.
+They apply to every app and service here, across writing, git, technical decisions, bug fixing, and testing.
+App-specific rules live in each app's own `CLAUDE.md` (for example `apps/web`, `apps/api`).
 
 ## Writing & Markdown
 

@@ -8,8 +8,8 @@ here with an `@`-import line.
 
 - Project overview, workflows & constraints - [`docs/project-overview.md`](docs/project-overview.md)
 - TypeScript / Angular coding standards - [`docs/coding-standards.md`](docs/coding-standards.md)
-- General working conventions (writing, git, decisions, testing) - [`docs/working-conventions.md`](docs/working-conventions.md)
+
+(General working conventions are shared at the monorepo root: [`../../docs/working-conventions.md`](../../docs/working-conventions.md).)
 
 @docs/project-overview.md
 @docs/coding-standards.md
-@docs/working-conventions.md

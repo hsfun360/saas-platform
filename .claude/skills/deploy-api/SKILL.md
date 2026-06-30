@@ -51,7 +51,8 @@ $env:IMAGE_NAME = "login-api"
 $FULL_TAG = "$($env:REGION)-docker.pkg.dev/$($env:PROJECT_ID)/$($env:IMAGE_NAME)/$($env:IMAGE_NAME):latest"
 
 # 1. Build for Cloud Run (linux/amd64). Drop --no-cache for faster rebuilds.
-docker build --platform linux/amd64 -t login-api-local:latest . --no-cache
+#    Run from the saas-platform repo root (the api Dockerfile lives in apps/api).
+docker build --platform linux/amd64 -t login-api-local:latest apps/api --no-cache
 
 # 2. Tag + push to Artifact Registry
 docker tag login-api-local:latest $FULL_TAG
@@ -75,8 +76,11 @@ gcloud run deploy $env:IMAGE_NAME `
   under an advisory lock, so new nullable columns (e.g. `Module.landingRoute`,
   `Role.description`) are added when the revision starts. No manual step.
 - **Data migrations are manual**, run from a machine that can reach the DB
-  (`DATABASE_URL` in `.env`), NOT part of the deploy. Run the one(s) a release needs, e.g.:
+  (`DATABASE_URL` in `apps/api/.env`), NOT part of the deploy. Run them from the
+  `apps/api` folder (that is where `package.json` and the scripts live). Run the
+  one(s) a release needs, e.g.:
   ```powershell
+  cd apps/api
   npm run migrate:menu-routes -- --dry-run   # preview
   npm run migrate:menu-routes                # apply (idempotent)
   ```
