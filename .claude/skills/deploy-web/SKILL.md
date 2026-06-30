@@ -29,7 +29,7 @@ Multi-stage `Dockerfile`: **Node build → nginx serve**.
 - **Docker Desktop RUNNING** (`docker info` succeeds).
 - gcloud authenticated on `membership-project-199610`.
 - One-time per machine: `gcloud auth configure-docker asia-southeast1-docker.pkg.dev`.
-- One-time: Artifact Registry repo exists —
+- One-time: Artifact Registry repo exists -
   `gcloud artifacts repositories create login-web --repository-format=docker --location=asia-southeast1`.
 
 ## Deploy (every release)
@@ -43,7 +43,7 @@ docker build --platform linux/amd64 -t login-web-local:latest .
 docker tag login-web-local:latest $FULL_TAG
 docker push $FULL_TAG
 
-# No env vars — static SPA; Cloud Run provides PORT.
+# No env vars - static SPA; Cloud Run provides PORT.
 gcloud run deploy login-web `
   --image $FULL_TAG `
   --platform managed `
@@ -55,7 +55,7 @@ gcloud run deploy login-web `
 The backend (`login-api`) uses `FRONTEND_BASE_URL` for invitation / password-reset
 email links. The `login-web` URL is **stable** for a given service+region+project,
 so this is normally a **one-time** step (already done). Only re-run if the URL
-changes — and use `--update-env-vars` so the backend's other vars (DATABASE_URL,
+changes - and use `--update-env-vars` so the backend's other vars (DATABASE_URL,
 ADMIN_EMAILS) are preserved:
 ```powershell
 gcloud run services update login-api --region asia-southeast1 `
@@ -72,7 +72,7 @@ gcloud run services logs read login-web --region asia-southeast1 --limit 30
 Then open the URL and do a real login (the SPA calls the baked-in API URL). After a
 release that changed menu routes, **log out/in** so the cached `userMenus` refresh.
 
-## Google SSO — register the live origin (one-time per URL)
+## Google SSO - register the live origin (one-time per URL)
 "Sign in with Google" uses the GIS **token model** (`initTokenClient` in
 `src/app/login/login.ts`, client_id `148523901156-uc6a3f7q2le2fsqbm5idc0ai27vebe69`),
 which validates the page's **JavaScript origin** against the OAuth client. A freshly
@@ -85,13 +85,13 @@ JavaScript origins → Add URI**:
 ```
 https://login-web-148523901156.asia-southeast1.run.app
 ```
-- Edit the **existing** client — do NOT create a new OAuth client (a new client ID
+- Edit the **existing** client - do NOT create a new OAuth client (a new client ID
   won't match the one baked into the code).
 - Put it under **Authorized JavaScript origins**, not "Authorized redirect URIs"
   (the token model has no redirect).
 - Use the **exact URL in the browser's address bar**, no trailing slash / no path.
   Cloud Run serves the service under more than one host (the project-number form
-  above **and** a hash form like `https://login-web-iqbkpf5usq-as.a.run.app` —
+  above **and** a hash form like `https://login-web-iqbkpf5usq-as.a.run.app` -
   `gcloud run services describe login-web --region asia-southeast1 --format="value(status.url)"`
   prints the hash one). Register whichever origin you actually browse to; add both to
   be safe. Keep `http://localhost:4200` for dev.
@@ -101,12 +101,12 @@ https://login-web-148523901156.asia-southeast1.run.app
 - **Production budgets are stricter than dev.** `ng build --configuration production`
   fails if a component style exceeds the `anyComponentStyle` error budget (the shell
   `dashboard.css` hit this). The dev builds run all session don't enforce it. Fix:
-  raise the budgets in `angular.json` (`configurations.production.budgets`) — currently
-  `anyComponentStyle` 12/24 kB and `initial` 1/2 MB — or trim the CSS. A failing
+  raise the budgets in `angular.json` (`configurations.production.budgets`) - currently
+  `anyComponentStyle` 12/24 kB and `initial` 1/2 MB - or trim the CSS. A failing
   `RUN npm run build` in the Docker build is almost always this.
-- **API URL is compile-time**, not a runtime env var — change `environment.ts` + rebuild.
+- **API URL is compile-time**, not a runtime env var - change `environment.ts` + rebuild.
 - nginx must listen on `${PORT}` (don't hardcode 80) and must SPA-fallback to
   `index.html`, or Cloud Run health checks / deep links break.
 - `index.html` is served `no-cache` (hashed JS/CSS are cached 1y) so a new deploy is
   visible immediately without a hard refresh.
-- `.dockerignore` keeps `node_modules`/`dist`/`.git` out of the build context — keep it.
+- `.dockerignore` keeps `node_modules`/`dist`/`.git` out of the build context - keep it.

@@ -23,10 +23,10 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 
 ### Per-component checklist (apply to every component)
 
-- **Keyboard:** every interactive control is a native `<button>` or `<a routerLink>` — never a clickable `<div>`/`<li>`/`<span>`. It must be reachable with Tab and operable with Enter/Space, with no keyboard trap.
+- **Keyboard:** every interactive control is a native `<button>` or `<a routerLink>` - never a clickable `<div>`/`<li>`/`<span>`. It must be reachable with Tab and operable with Enter/Space, with no keyboard trap.
 - **Accessible name:** icon-only controls have an `aria-label` (not just `title`). Images use a meaningful `alt`, or `alt=""` when decorative.
 - **Colour contrast:** text ≥ 4.5:1 against its background (≥ 3:1 for text ≥ 24px, or bold ≥ ~18.7px). Do not use grey lighter than `#767676` for text on white (e.g. `#94a3b8`/`#9aa0a6` fail).
-- **Focus management:** dialogs, menus, dropdowns and the mobile drawer move focus in on open, keep focus within while open, return focus to the trigger on close, and close on `Esc`. Keep a visible focus indicator — never `outline: none` without a replacement.
+- **Focus management:** dialogs, menus, dropdowns and the mobile drawer move focus in on open, keep focus within while open, return focus to the trigger on close, and close on `Esc`. Keep a visible focus indicator - never `outline: none` without a replacement.
 - **Forms:** every input has an associated `<label for>`; validation errors are announced via `role="alert"` / `aria-live` and linked with `aria-describedby`.
 - **Semantics:** use landmarks (`<header> <nav> <main> <aside>`) and a logical heading order (one `<h1>` per page, no skipped levels).
 - **Targets:** interactive targets are ≥ 44×44px.
