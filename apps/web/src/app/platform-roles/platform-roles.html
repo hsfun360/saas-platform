@@ -1,0 +1,122 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🛡️</span>
+      <div>
+        <h1>System Roles</h1>
+        <p class="saas-subtitle">Platform-level roles, not tied to any tenant company</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Live filter over the loaded roles (name / description). No outer card —
+       search + per-record cards sit directly on the page (the Companies standard). -->
+  @if (!rolesLoading() && roles().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #roleSearchBox type="search" [value]="roleSearch()" (input)="roleSearch.set(roleSearchBox.value)"
+             placeholder="Search roles…" aria-label="Search roles" class="saas-search__input">
+      @if (roleSearch()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (rolesLoading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading roles…</p></div>
+  } @else if (roles().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No system roles yet. Use the “Create role” button to add one.</p></div>
+  } @else if (filteredRoles().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No roles match “{{ roleSearch() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (role of filteredRoles(); track role.id) {
+        <div class="data-card">
+          <div class="data-card__title">{{ role.name }}</div>
+          <dl class="data-card__meta">
+            <div class="meta"><dt>Description</dt><dd>{{ role.description || '—' }}</dd></div>
+            <div class="meta"><dt>Menus</dt><dd>{{ role.PermittedMenus?.length || 0 }}</dd></div>
+            <div class="meta"><dt>ID</dt><dd class="cell-mono">{{ role.id | slice:0:8 }}…</dd></div>
+          </dl>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Floating "Create role" action — opens the dialog. -->
+  <button type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="Create role">
+    <span aria-hidden="true">➕</span>
+    Create role
+  </button>
+
+  <!-- ============ Create role dialog ============ -->
+  @if (roleDialogOpen()) {
+    <app-dialog title="Create role" [busy]="roleSubmitting()" (close)="cancelCreate()">
+      <form id="createRoleForm" (ngSubmit)="onCreate()" class="saas-form" style="padding: 0;">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="roleName">Role Name <span class="required">*</span></label>
+            <input id="roleName" type="text" name="roleName" [(ngModel)]="roleForm.name" placeholder="e.g. Account Dept" required />
+          </div>
+          <div class="form-group">
+            <label for="roleDesc">Description</label>
+            <input id="roleDesc" type="text" name="roleDesc" [(ngModel)]="roleForm.description" placeholder="Optional" />
+          </div>
+        </div>
+
+        <!-- Menu permissions (grouped by module) -->
+        <div class="form-group">
+          <label>Menu Permissions</label>
+          @if (menusLoading()) {
+            <p class="cell-subtle">Loading menus…</p>
+          } @else if (moduleNames.length === 0) {
+            <p class="cell-subtle">No menus available.</p>
+          } @else {
+            @for (modName of moduleNames; track modName) {
+              <div class="perm-module">
+                <div class="perm-module-title">{{ modName }}</div>
+                <div class="perm-menu-list">
+                  @for (menu of menusByModule[modName]; track menu.id) {
+                    <label class="perm-item">
+                      <input type="checkbox" [checked]="selectedMenuIds.has(menu.id)" (change)="toggleMenu(menu.id)" />
+                      <span>{{ menu.name }}</span>
+                    </label>
+                  }
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cancelCreate()" [disabled]="roleSubmitting()">Cancel</button>
+        <button type="submit" form="createRoleForm" class="btn btn--primary" [disabled]="roleSubmitting()">
+          {{ roleSubmitting() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

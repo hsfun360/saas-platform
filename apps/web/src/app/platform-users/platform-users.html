@@ -1,0 +1,108 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">👤</span>
+      <div>
+        <h1>Platform Users</h1>
+        <p class="saas-subtitle">Local user accounts. Grant roles under Assign Role.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Live filter over the loaded users (email / name / auth method). No outer
+       card — search + per-record cards sit directly on the page (Companies standard). -->
+  @if (!usersLoading() && users().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #userSearchBox type="search" [value]="userSearch()" (input)="userSearch.set(userSearchBox.value)"
+             placeholder="Search users…" aria-label="Search users" class="saas-search__input">
+      @if (userSearch()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (usersLoading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading users…</p></div>
+  } @else if (users().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No users yet. Use the “Create user” button to add one.</p></div>
+  } @else if (filteredUsers().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No users match “{{ userSearch() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (u of filteredUsers(); track u.id) {
+        <div class="data-card">
+          <div class="data-card__title">{{ u.email }}</div>
+          <dl class="data-card__meta">
+            <div class="meta"><dt>Name</dt><dd>{{ u.full_name || '—' }}</dd></div>
+            <div class="meta"><dt>Method</dt><dd>{{ u.authMethod || 'local' }}</dd></div>
+            <div class="meta"><dt>ID</dt><dd class="cell-mono">{{ u.id | slice:0:8 }}…</dd></div>
+          </dl>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Floating "Create user" action — opens the dialog. -->
+  <button type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="Create user">
+    <span aria-hidden="true">➕</span>
+    Create user
+  </button>
+
+  <!-- ============ Create user dialog ============ -->
+  @if (userDialogOpen()) {
+    <app-dialog title="Create user" [busy]="userSubmitting()" (close)="cancelCreate()">
+      <form id="createPlatformUserForm" (ngSubmit)="onCreate()" class="saas-form" style="padding: 0;">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="uEmail">Email <span class="required">*</span></label>
+            <input id="uEmail" type="email" name="uEmail" [(ngModel)]="userForm.email" placeholder="user@example.com" required autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="uFullName">Full Name <span class="required">*</span></label>
+            <input id="uFullName" type="text" name="uFullName" [(ngModel)]="userForm.fullName" placeholder="Jane Doe" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="uPassword">Password <span class="required">*</span></label>
+            <input id="uPassword" type="password" name="uPassword" [(ngModel)]="userForm.password" placeholder="Min 6 characters" required minlength="6" />
+          </div>
+          <div class="form-group">
+            <label for="uPhone">Phone</label>
+            <input id="uPhone" type="tel" name="uPhone" [(ngModel)]="userForm.phone" placeholder="Optional" />
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cancelCreate()" [disabled]="userSubmitting()">Cancel</button>
+        <button type="submit" form="createPlatformUserForm" class="btn btn--primary" [disabled]="userSubmitting()">
+          {{ userSubmitting() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

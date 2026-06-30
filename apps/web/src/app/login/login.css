@@ -1,0 +1,266 @@
+/* Container and Card */
+.login-page-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f8f9fa; /* Light grey background */
+  font-family: Arial, sans-serif;
+}
+
+.login-card {
+  background: white;
+  padding: var(--space-xl);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-title {
+  text-align: center;
+  font-size: var(--font-h1);
+  font-weight: var(--weight-bold);
+  margin-bottom: var(--space-lg);
+  color: #000;
+}
+
+/* Form Elements */
+.form-group {
+  margin-bottom: var(--space-md);
+}
+
+label {
+  display: block;
+  font-weight: var(--weight-bold);
+  margin-bottom: var(--space-sm);
+  color: #000;
+}
+
+.form-control {
+  width: 100%;
+  padding: var(--space-sm);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: var(--font-body);
+  box-sizing: border-box;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #0d6efd;
+}
+
+/* Password Input & Toggle */
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.btn-toggle-password {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #0d6efd;
+  font-weight: var(--weight-bold);
+  font-size: var(--font-caption);
+  cursor: pointer;
+  padding: 0 var(--space-xs);
+}
+
+/* Forgot Password */
+.forgot-password-row {
+  text-align: right;
+  margin-bottom: var(--space-lg);
+}
+
+.forgot-password-link {
+  color: #0d6efd;
+  text-decoration: none;
+  font-size: var(--font-body-2);
+}
+
+.forgot-password-link:hover {
+  text-decoration: underline;
+}
+
+/* Primary Button */
+.btn-primary {
+  width: 100%;
+  padding: var(--space-sm);
+  background-color: #0d6efd;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: var(--font-body);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+  margin-bottom: var(--space-lg);
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #0b5ed7;
+}
+
+.btn-primary:disabled {
+  background-color: #a5c8fd;
+  cursor: not-allowed;
+}
+
+/* The 'OR' Divider */
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: #6b7280;
+  font-size: var(--font-caption);
+  margin-bottom: var(--space-lg);
+}
+
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.divider span {
+  padding: 0 var(--space-md);
+}
+
+/* SSO Buttons */
+.sso-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.btn-sso {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--space-sm);
+  border-radius: 4px;
+  font-size: var(--font-body);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  background-color: #f8f9fa;
+  transition: background-color 0.2s;
+}
+
+.sso-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: var(--space-sm);
+}
+
+.btn-google {
+  border: 1px solid #e0e0e0;
+  color: #3c4043;
+}
+
+.btn-google:hover {
+  background-color: #f1f3f4;
+}
+
+.btn-microsoft {
+  border: 1px solid #000; /* Darker border matching your image */
+  color: #000;
+}
+
+.btn-microsoft:hover {
+  background-color: #e2e2e2;
+}
+
+/* SSO "Signing you in…" overlay — sits ON TOP of the login page with a
+   translucent, blurred backdrop and a compact animated panel. */
+.sso-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: sso-fade 0.2s ease-out;
+}
+
+.sso-panel {
+  width: 100%;
+  max-width: 300px; /* compact — not full width on mobile */
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+  padding: var(--space-xl) var(--space-lg);
+  text-align: center;
+  animation: sso-pop 0.25s ease-out;
+}
+
+@media (max-width: 480px) {
+  .sso-panel { max-width: 260px; }
+}
+
+.sso-spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto var(--space-md);
+  border: 4px solid #e2e8f0;
+  border-top-color: #0d6efd;
+  border-radius: 50%;
+  animation: sso-spin 0.8s linear infinite;
+}
+
+.sso-panel__title {
+  font-size: var(--font-h2);
+  font-weight: var(--weight-bold);
+  color: #0f172a;
+  margin: 0 0 var(--space-xs);
+}
+
+.sso-panel__sub {
+  margin: 0;
+  color: #64748b;
+  font-size: var(--font-body-2);
+}
+
+.sso-panel__error {
+  margin: var(--space-md) 0 0;
+  color: #b91c1c;
+  font-size: var(--font-body-2);
+}
+
+@keyframes sso-spin { to { transform: rotate(360deg); } }
+@keyframes sso-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sso-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Respect reduced-motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+  .sso-overlay, .sso-panel { animation: none; }
+  .sso-spinner { animation-duration: 1.5s; }
+}
+
+/* Register Row */
+.register-row {
+  text-align: center;
+  font-size: var(--font-body-2);
+}
+
+.register-row a {
+  color: #0d6efd;
+  text-decoration: none;
+  font-weight: var(--weight-bold);
+}
+
+.register-row a:hover {
+  text-decoration: underline;
+}

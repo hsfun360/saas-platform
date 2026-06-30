@@ -1,0 +1,78 @@
+<div class="register-page-container">
+  <div class="register-card">
+    <h1 class="register-title">Create an Account</h1>
+
+    @if (successMessage) {
+      <div class="alert alert-success" role="alert">
+        <strong>Success!</strong> {{ successMessage }}
+      </div>
+    }
+
+    @if (errorMessage) {
+      <div class="alert alert-danger" role="alert">
+        <strong>Oops!</strong> {{ errorMessage }}
+      </div>
+    }
+
+    @if (!successMessage) {
+      <form [formGroup]="registrationForm" (ngSubmit)="onSubmit()">
+
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input
+            type="email"
+            id="email"
+            formControlName="email"
+            placeholder="Enter your email"
+            class="form-control"
+            autocomplete="email"
+            [attr.aria-invalid]="f['email'].touched && f['email'].errors ? 'true' : null"
+            [attr.aria-describedby]="f['email'].touched && f['email'].errors ? 'email-error' : null"
+          >
+          @if (f['email'].touched && f['email'].errors) {
+            <div id="email-error" class="field-error" role="alert">
+              @if (f['email'].errors['required']) {
+                <span>Email is required.</span>
+              }
+              @if (f['email'].errors['email']) {
+                <span>Please enter a valid email address.</span>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            formControlName="password"
+            placeholder="Create a password (min 6 characters)"
+            class="form-control"
+            autocomplete="new-password"
+            [attr.aria-invalid]="f['password'].touched && f['password'].errors ? 'true' : null"
+            [attr.aria-describedby]="f['password'].touched && f['password'].errors ? 'password-error' : null"
+          >
+          @if (f['password'].touched && f['password'].errors) {
+            <div id="password-error" class="field-error" role="alert">
+              @if (f['password'].errors['required']) {
+                <span>Password is required.</span>
+              }
+              @if (f['password'].errors['minlength']) {
+                <span>Password must be at least 6 characters.</span>
+              }
+            </div>
+          }
+        </div>
+
+        <button type="submit" class="btn-primary" [disabled]="registrationForm.invalid || isRegistering">
+          {{ isRegistering ? 'Registering...' : 'Register' }}
+        </button>
+      </form>
+
+      <div class="login-row">
+        Already have an account? <a routerLink="/login">Login here</a>
+      </div>
+    }
+  </div>
+</div>

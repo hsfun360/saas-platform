@@ -1,0 +1,146 @@
+<div class="screen-pad" style="max-width: 800px;">
+  <h2 style="color: #1e293b; margin-top: 0; font-size: var(--font-h1);">Role Management</h2>
+  <p style="color: #64748b; font-size: var(--font-body-2); margin-top: 0;">
+    A role is a named set of menu permissions. Assign roles to users per company under User Management.
+  </p>
+
+  @if (successMessage()) {
+    <div role="status" aria-live="polite" style="margin-bottom: var(--space-md); padding: var(--space-sm); background: #dcfce7; color: #166534; border-radius: 6px; border: 1px solid #bbf7d0;">
+      ✅ {{ successMessage() }}
+    </div>
+  }
+  @if (errorMessage()) {
+    <div role="alert" aria-live="assertive" style="margin-bottom: var(--space-md); padding: var(--space-sm); background: #fee2e2; color: #991b1b; border-radius: 6px; border: 1px solid #fecaca;">
+      ❌ {{ errorMessage() }}
+    </div>
+  }
+
+  <!-- Live filter over the loaded roles (name / description). -->
+  @if (!rolesLoading() && roles().length > 0) {
+    <div class="role-search">
+      <span class="material-icons role-search__icon" aria-hidden="true">search</span>
+      <input #roleSearchBox type="search" [value]="roleSearch()" (input)="roleSearch.set(roleSearchBox.value)"
+             placeholder="Search roles…" aria-label="Search roles" class="role-search__input">
+      @if (roleSearch()) {
+        <button type="button" class="role-search__clear" (click)="clearSearch()" aria-label="Clear search">
+          <span class="material-icons" aria-hidden="true">close</span>
+        </button>
+      }
+    </div>
+  }
+
+  @if (rolesLoading()) {
+    <p style="color: #64748b;">Loading roles…</p>
+  } @else if (roles().length === 0) {
+    <p style="color: #64748b;">No roles yet. Use “New role” to create one.</p>
+  } @else if (filteredRoles().length === 0) {
+    <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: #64748b;">
+      <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: #cbd5e1;">search_off</span>
+      <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">No roles match “{{ roleSearch() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs);">
+      @for (role of filteredRoles(); track role.id) {
+        <li class="role-row" [style.background]="editingRoleId() === role.id ? '#f0f9ff' : 'transparent'">
+          <span class="role-main">
+            <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: #0284c7;">badge</span>
+            <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+              <span>
+                <span style="font-weight: var(--weight-semibold); color: #1e293b;">{{ role.name }}</span>
+                @if (role.description) {
+                  <span style="color: #64748b; font-size: var(--font-body-2);"> — {{ role.description }}</span>
+                }
+              </span>
+              <span style="font-size: var(--font-caption); color: #64748b;">{{ role.PermittedMenus?.length || 0 }} menus</span>
+            </span>
+          </span>
+
+          <!-- Actions: right of the info on desktop, full-width bottom-left on
+               mobile. The system-managed Tenant Admin role is read-only. -->
+          @if (role.name !== protectedRoleName) {
+            <span class="role-actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="startEdit(role)"
+                      [disabled]="!!deletingRoleId()" [attr.aria-label]="'Edit role ' + role.name">
+                <span class="material-icons" aria-hidden="true">edit</span>
+                Edit
+              </button>
+              <button type="button" class="btn btn--danger btn--sm" (click)="onDelete(role)"
+                      [disabled]="deletingRoleId() === role.id" [attr.aria-label]="'Delete role ' + role.name">
+                <span class="material-icons" aria-hidden="true">delete</span>
+                {{ deletingRoleId() === role.id ? 'Deleting…' : 'Delete' }}
+              </button>
+            </span>
+          } @else {
+            <span class="role-actions" style="color: #64748b; font-size: var(--font-caption); align-items: center;">System role</span>
+          }
+        </li>
+      }
+    </ul>
+  }
+
+  <!-- Floating "New role" action -->
+  <button type="button" class="btn btn--primary role-fab" (click)="openCreate()" aria-label="New role">
+    <span class="material-icons" aria-hidden="true">add</span>
+    New role
+  </button>
+
+  <!-- ============ Create / edit role dialog ============ -->
+  @if (roleDialogOpen()) {
+    <app-dialog [title]="editingRoleId() ? 'Edit role' : 'New role'" [busy]="isLoading()" (close)="cancelEdit()">
+      @if (editLoading()) {
+        <p style="color: #64748b;">Loading role…</p>
+      }
+
+      <div style="margin-bottom: var(--space-lg);">
+        <label for="rmRoleName" style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-sm); color: #334155; font-size: var(--font-h3);">Role Name *</label>
+        <input id="rmRoleName" type="text" [(ngModel)]="roleName" placeholder="e.g. Golf Pro, Front Desk Cashier"
+               style="width: 100%; padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 6px; font-size: var(--font-body);">
+      </div>
+
+      <div style="margin-bottom: var(--space-lg);">
+        <label for="rmRoleDesc" style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-sm); color: #334155; font-size: var(--font-h3);">Description <span style="font-weight: var(--weight-regular); color: #64748b; font-size: var(--font-body-2);">(optional)</span></label>
+        <input id="rmRoleDesc" type="text" [(ngModel)]="roleDescription" placeholder="e.g. Handles front-desk check-in and payments"
+               style="width: 100%; padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 6px; font-size: var(--font-body);">
+      </div>
+
+      <div>
+        <label style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-xs); color: #334155; font-size: var(--font-h3);">Assign Permissions</label>
+        <p style="color: #64748b; font-size: var(--font-body-2); margin-bottom: var(--space-md); margin-top: 0;">Select which menus this role is allowed to access.</p>
+
+        @if (menusLoading()) {
+          <p style="color: #64748b;">Loading menus…</p>
+        } @else if (moduleNames().length === 0) {
+          <p style="color: #64748b;">No menus available for your account yet.</p>
+        } @else {
+          @for (modName of moduleNames(); track modName) {
+            <div style="margin-bottom: var(--space-md); border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              <div style="background: #f8fafc; padding: var(--space-sm) var(--space-md); font-weight: var(--weight-bold); border-bottom: 1px solid #e2e8f0; color: #0f172a; font-size: var(--font-h3);">
+                {{ modName }}
+              </div>
+              <div style="padding: var(--space-md); display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-md);">
+                @for (menu of menusByModule()[modName]; track menu.id) {
+                  <label style="display: flex; align-items: center; gap: var(--space-sm); cursor: pointer; color: #334155;">
+                    <input type="checkbox"
+                           [checked]="selectedMenuIds.has(menu.id)"
+                           (change)="toggleMenu(menu.id)"
+                           style="width: 18px; height: 18px; cursor: pointer;">
+                    <span class="material-icons" style="font-size: 18px; color: #64748b;">{{ menu.icon }}</span>
+                    {{ menu.name }}
+                  </label>
+                }
+              </div>
+            </div>
+          }
+        }
+      </div>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cancelEdit()" [disabled]="isLoading()">Cancel</button>
+        <button type="button" class="btn btn--primary" (click)="onSubmit()" [disabled]="isLoading() || editLoading()">
+          {{ isLoading() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

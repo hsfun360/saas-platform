@@ -1,0 +1,594 @@
+﻿/* ───────────────────────────────────────────────
+   SaaS Administration – Platform Admin Portal
+   ─────────────────────────────────────────────── */
+
+.saas-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-lg);
+  font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+  color: #1e293b;
+}
+
+/* Mobile: drop horizontal padding so cards use the full width — the shell's
+   content-area already supplies a ~16px gutter (mirrors mobile Gmail). */
+@media (max-width: 767px) {
+  .saas-container {
+    padding: var(--space-md) 0;
+  }
+}
+
+/* ── HEADER ──────────────────────────────────── */
+.saas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.saas-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.saas-icon {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.saas-header h1 {
+  margin: 0;
+  font-size: var(--font-h1);
+  font-weight: var(--weight-bold);
+  color: #0f172a;
+}
+
+.saas-subtitle {
+  margin: 2px 0 0;
+  font-size: var(--font-body-2);
+  color: #64748b;
+}
+
+/* ── LISTING SEARCH ──────────────────────────── */
+/* Search field above a data list — icon left, optional clear (✕) right. */
+.saas-search {
+  position: relative;
+  margin-bottom: var(--space-md);
+}
+
+.saas-search__icon {
+  position: absolute;
+  left: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.saas-search__input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px; /* ≥16px font below avoids iOS zoom on focus */
+  padding: var(--space-sm) 40px var(--space-sm) 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: var(--font-body);
+}
+
+.saas-search__clear {
+  position: absolute;
+  right: var(--space-xs);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 14px;
+}
+.saas-search__clear:hover {
+  background: #f1f5f9;
+}
+
+/* ── FLOATING ACTION BUTTON ──────────────────── */
+/* Pinned bottom-right, above content but below the shell drawer (1000) /
+   backdrop (999) / header (1100). Composes the shared .btn .btn--primary. */
+.saas-fab {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: var(--space-lg);
+  z-index: 900;
+  border-radius: 28px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+/* Lift the FAB clear of the fixed mobile bottom nav so it isn't hidden. */
+@media (max-width: 767px) {
+  .saas-fab {
+    bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md));
+  }
+}
+
+/* ── TAB BAR ─────────────────────────────────── */
+/* Underline tab strip: one row, scrolls horizontally on narrow screens. */
+.tab-bar {
+  display: flex;
+  gap: var(--space-sm);
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: var(--space-lg);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch; /* momentum scroll on iOS */
+  scrollbar-width: none;             /* hide scrollbar (Firefox) */
+}
+.tab-bar::-webkit-scrollbar {
+  display: none;                     /* hide scrollbar (Chrome/Safari/Edge) */
+}
+
+.tab-btn {
+  flex: 0 0 auto;                    /* never shrink — enables the scroll */
+  scroll-snap-align: start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;                  /* a11y touch target */
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent; /* reserve room for the active underline */
+  margin-bottom: -1px;               /* sit the underline over the strip's border */
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: #64748b;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.tab-btn:hover {
+  color: #1e293b;
+}
+
+.tab-btn.active {
+  color: #0f172a;
+  border-bottom-color: #2563eb;      /* the active-tab underline indicator */
+}
+
+/* ── CARDS ───────────────────────────────────── */
+.card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  overflow: hidden;
+}
+
+.card-header {
+  padding: var(--space-lg) var(--space-lg) 0;
+}
+
+.card-header h2 {
+  margin: 0 0 var(--space-xs);
+  font-size: var(--font-h2);
+  font-weight: var(--weight-semibold);
+}
+
+.card-desc {
+  margin: 0 0 var(--space-lg);
+  font-size: var(--font-body-2);
+  color: #64748b;
+  line-height: 1.5;
+}
+
+/* ── FLASH MESSAGES ──────────────────────────── */
+.flash {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-md);
+  border-radius: 10px;
+  margin-bottom: var(--space-lg);
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-medium);
+  animation: slideIn 0.25s ease-out;
+}
+
+.flash-success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.flash-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.flash-icon {
+  font-size: 18px;
+}
+
+.flash-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.6;
+}
+
+.flash-close:hover {
+  opacity: 1;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── FORM ────────────────────────────────────── */
+.saas-form {
+  padding: 0 var(--space-lg) var(--space-lg);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
+}
+
+@media (max-width: 600px) {
+  .form-row { grid-template-columns: 1fr; }
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: #334155;
+  margin-bottom: var(--space-xs);
+}
+
+.required {
+  color: #ef4444;
+}
+
+.form-group input,
+.form-group select {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: var(--font-body);
+  font-family: inherit;
+  color: #1e293b;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #fafafa;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+  background: #ffffff;
+}
+
+.form-group input::placeholder {
+  color: #64748b;
+}
+
+/* ── BUTTONS ─────────────────────────────────── */
+.form-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid #e2e8f0;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-lg);
+  background: #1d4ed8;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #1e40af;
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+  background: #93c5fd;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  padding: var(--space-sm) var(--space-lg);
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #e2e8f0;
+}
+
+/* ── SPINNER ─────────────────────────────────── */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.spinner.large {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+  border-color: rgba(59,130,246,0.2);
+  border-top-color: #3b82f6;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── LOADING / EMPTY STATE ───────────────────── */
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-3xl) var(--space-lg);
+  color: #64748b;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: var(--space-sm);
+}
+
+/* ── DATA LIST (card-per-row, replaces the old table) ───────────
+   Mobile-friendly: each record is a card with the primary value as a
+   title and the rest as wrapping label/value pairs. Where a row has an
+   action it uses the shared action-row grid (right on desktop, full-width
+   below on mobile — see docs/project-overview.md). */
+.data-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: 0 var(--space-lg) var(--space-lg);
+}
+
+.data-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: var(--space-md);
+}
+
+.data-card__title {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.data-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-lg);
+  margin: var(--space-sm) 0 0;
+}
+
+.data-card__meta .meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.data-card__meta dt {
+  margin: 0;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #64748b;
+}
+
+.data-card__meta dd {
+  margin: 0;
+  font-size: var(--font-body-2);
+  color: #1e293b;
+  word-break: break-word;
+}
+
+/* Content + action row: action right on desktop, full-width below on mobile. */
+.data-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "main actions";
+  align-items: start;
+  gap: var(--space-sm);
+}
+.data-row__main { grid-area: main; min-width: 0; }
+.data-row__actions { grid-area: actions; justify-self: end; display: flex; gap: var(--space-xs); flex-shrink: 0; }
+
+@media (max-width: 767px) {
+  .data-row {
+    grid-template-columns: 1fr;
+    grid-template-areas: "main" "actions";
+  }
+  .data-row__actions { justify-self: start; }
+}
+
+.cell-mono {
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: var(--font-body-2);
+  color: #475569;
+}
+
+.cell-subtle {
+  font-size: var(--font-caption);
+  color: #64748b;
+}
+
+/* ── BADGES ──────────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 20px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.badge.badge-pro {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.badge.badge-enterprise {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* ── STATUS DOT ──────────────────────────────── */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  margin-right: var(--space-xs);
+  vertical-align: middle;
+}
+
+.status-dot.active {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.2);
+}
+
+/* ── MENU PERMISSIONS ────────────────────────── */
+.perm-module {
+  margin-top: var(--space-sm);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.perm-module-title {
+  background: #f8fafc;
+  padding: var(--space-sm) var(--space-sm);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.perm-menu-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-md);
+  padding: var(--space-sm);
+}
+
+.perm-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-body-2);
+  color: #334155;
+  cursor: pointer;
+}
+
+.perm-item input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* ── MANAGE TENANT ADMIN (expands inside the subscriber card) ─── */
+.admin-panel {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid #e2e8f0;
+}
+
+.admin-panel-title {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-bold);
+  color: #475569;
+  margin-bottom: var(--space-sm);
+}
+
+.admin-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  padding: var(--space-sm) var(--space-sm);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  margin-bottom: var(--space-sm);
+}
+
+.admin-user-info {
+  font-size: var(--font-body-2);
+  color: #334155;
+}
+
+.role-pill {
+  display: inline-block;
+  margin-left: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-semibold);
+}
+
+.admin-current {
+  color: #16a34a;
+  font-weight: var(--weight-bold);
+  font-size: var(--font-body-2);
+}

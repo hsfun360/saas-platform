@@ -1,0 +1,265 @@
+.tenant-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+/* Mobile: drop horizontal padding so cards use the full width — the shell's
+   content-area already supplies a ~16px gutter (mirrors mobile Gmail). */
+@media (max-width: 767px) {
+  .tenant-container {
+    padding: var(--space-md) 0;
+  }
+}
+
+.tenant-header h1 {
+  margin: 0 0 var(--space-xs);
+  font-size: var(--font-h1);
+  color: #1e293b;
+}
+
+.tenant-header p {
+  margin: 0 0 var(--space-lg);
+  color: #64748b;
+  font-size: var(--font-body-2);
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: var(--space-lg) var(--space-lg);
+  margin-bottom: var(--space-lg);
+}
+
+.card h2 {
+  margin: 0 0 var(--space-md);
+  font-size: var(--font-h3);
+  color: #1e293b;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.field {
+  flex: 1 1 220px;
+  display: flex;
+  flex-direction: column;
+}
+
+.field label {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: #475569;
+  margin-bottom: var(--space-xs);
+}
+
+.req {
+  color: #dc2626;
+}
+
+.field input,
+.field select,
+.user-table select {
+  padding: var(--space-sm) var(--space-sm);
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: var(--font-body);
+  background: #fff;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* Buttons now come from the shared .btn system in styles.css. */
+
+/* Listing search — icon left, optional clear (✕) right. */
+.user-search {
+  position: relative;
+  margin-bottom: var(--space-md);
+}
+.user-search__icon {
+  position: absolute;
+  left: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: #64748b;
+  pointer-events: none;
+}
+.user-search__input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px; /* ≥16px font below avoids iOS zoom on focus */
+  padding: var(--space-sm) 40px var(--space-sm) 38px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: var(--font-body);
+}
+.user-search__clear {
+  position: absolute;
+  right: var(--space-xs);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: #64748b;
+  cursor: pointer;
+}
+.user-search__clear:hover {
+  background: #f1f5f9;
+}
+
+/* Floating actions group — pinned bottom-right, below the shell drawer (1000) /
+   backdrop (999) / header (1100). Invite (secondary) sits left of Create user
+   (primary), in-line at every width. */
+.user-fab-group {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: var(--space-lg);
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.user-fab {
+  border-radius: 28px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+@media (max-width: 767px) {
+  .user-fab-group {
+    /* Lift clear of the fixed mobile bottom nav so it isn't hidden. */
+    bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md));
+  }
+
+  /* Icon-only round FABs on mobile so both fit in-line (labels would overflow).
+     aria-label on the button keeps the accessible name. */
+  .user-fab__label {
+    display: none;
+  }
+  .user-fab {
+    width: 56px;
+    height: 56px;
+    padding: 0;
+    border-radius: 50%;
+    justify-content: center;
+  }
+}
+
+.actions-cell {
+  display: flex;
+  gap: var(--space-sm);
+  white-space: nowrap;
+}
+
+/* Membership / add-to-company rows: info (company + role select) on the left,
+   action buttons on the right at the same level on desktop; on mobile the
+   actions drop to a full-width row below, left-justified. Defined as classes
+   (not inline) so the global mobile rule collapsing inline grids doesn't apply. */
+.assign-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "info actions";
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.assign-row__info {
+  grid-area: info;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.assign-row__actions {
+  grid-area: actions;
+  display: flex;
+  gap: var(--space-xs);
+  justify-self: end; /* right-justified on desktop */
+}
+
+@media (max-width: 767px) {
+  .assign-row {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "info"
+      "actions";
+  }
+
+  .assign-row__actions {
+    justify-self: start; /* bottom-left on mobile */
+  }
+}
+
+.admin-badge {
+  display: inline-block;
+  margin-left: var(--space-sm);
+  padding: 2px var(--space-sm);
+  border-radius: 12px;
+  background: #ecfdf5;
+  color: #065f46;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+}
+
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.user-table th,
+.user-table td {
+  text-align: left;
+  padding: var(--space-sm) var(--space-sm);
+  border-bottom: 1px solid #eef2f7;
+  font-size: var(--font-body);
+}
+
+.user-table th {
+  font-size: var(--font-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+}
+
+.subtle {
+  color: #64748b;
+  font-size: var(--font-body-2);
+}
+
+.flash {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  margin-bottom: var(--space-md);
+  font-size: var(--font-body-2);
+}
+
+.flash-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.flash-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}

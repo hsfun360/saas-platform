@@ -1,0 +1,221 @@
+/* You can add global styles to this file, and also import other style files */
+
+/* ============================================================== */
+/* Base reset — remove the browser's default body margin so the   */
+/* app (and the full-width header) sit edge-to-edge with no gap.   */
+/* ============================================================== */
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================================== */
+/* Design tokens — typography + 8pt spacing scale                 */
+/* (see docs/project-overview.md → UI/UX Requirements)            */
+/* Prefer these tokens over hard-coded px values.                 */
+/* ============================================================== */
+:root {
+  /* Typography scale (mobile-first). Ranges in the doc; tokens use a default. */
+  --font-display: 2.5rem;    /* 40px — hero, login, empty states */
+  --font-h1: 1.75rem;        /* 28px — page titles */
+  --font-h2: 1.375rem;       /* 22px — section / card headers */
+  --font-h3: 1.125rem;       /* 18px — subsections, form labels */
+  --font-body: 1rem;         /* 16px — body, buttons (a11y minimum) */
+  --font-body-2: 0.875rem;   /* 14px — secondary text, helper, captions */
+  --font-caption: 0.75rem;   /* 12px — metadata, badges */
+  --font-overline: 0.625rem; /* 10px — overline / status markers */
+
+  /* Font weights */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Spacing scale (8pt grid) */
+  --space-xs: 0.25rem;  /* 4px  */
+  --space-sm: 0.5rem;   /* 8px  */
+  --space-md: 1rem;     /* 16px — default */
+  --space-lg: 1.5rem;   /* 24px */
+  --space-xl: 2rem;     /* 32px */
+  --space-2xl: 3rem;    /* 48px */
+  --space-3xl: 4rem;    /* 64px */
+}
+
+/* ============================================================== */
+/* Accessibility: visible keyboard focus (WCAG 2.4.7)             */
+/* Shown only for keyboard navigation, not mouse clicks.          */
+/* ============================================================== */
+:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ============================================================== */
+/* Shared button system — use across all screens.                 */
+/* One source of truth so Edit / Delete / Save / etc. look the    */
+/* same everywhere. Every button keeps a >= 44px touch target     */
+/* (CLAUDE.md / WCAG) regardless of viewport.                     */
+/*                                                                */
+/*   <button class="btn btn--primary">Save</button>               */
+/*   <button class="btn btn--secondary btn--sm">Edit</button>     */
+/*   <button class="btn btn--danger btn--sm">Delete</button>      */
+/*   <a class="btn btn--link">Edit details</a>  (text-link look)  */
+/* ============================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+  cursor: pointer;
+  text-decoration: none; /* for <a> elements styled as buttons */
+  box-sizing: border-box;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Material icons sit comfortably inside any button. */
+.btn .material-icons {
+  font-size: 18px;
+  /* Pin the icon to a fixed square and clip the literal ligature name that
+     shows before the Material Icons font loads (FOUT). Without this the button
+     reflows when the font swaps in — on first load that horizontal shift can
+     move an adjacent button under the cursor and cause a mis-click. */
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Primary — the main call to action. */
+.btn--primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+.btn--primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+/* Secondary — bordered, lower emphasis (e.g. Edit, Cancel). */
+.btn--secondary {
+  background: #fff;
+  color: #1d4ed8; /* 6.5:1 on white — passes AA */
+  border-color: #cbd5e1;
+}
+.btn--secondary:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+/* Danger — destructive actions (Delete, Revoke, Remove). */
+.btn--danger {
+  background: #fff;
+  color: #b91c1c; /* 6.4:1 on white — passes AA */
+  border-color: #fecaca;
+}
+.btn--danger:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+/* Link — looks like inline text but keeps the 44px target + a11y. */
+.btn--link {
+  background: transparent;
+  color: #1d4ed8;
+  border-color: transparent;
+  border-radius: 6px;
+  padding: var(--space-xs) var(--space-sm);
+}
+.btn--link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+/* Small — denser padding/text, but still a 44px-tall touch target. */
+.btn--sm {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-body-2);
+}
+
+/* Full-width (used for primary CTAs, esp. on mobile). */
+.btn--block {
+  width: 100%;
+}
+
+/* Dialog footer actions (app-dialog) stay inline on ONE line — opt out of the
+   mobile full-width submit rule below. Higher specificity (.dlg__footer .btn)
+   wins over `button[type="submit"]`, so Cancel + Save sit side by side at every
+   width. Global (not scoped) so it reaches the projected footer buttons. */
+.dlg__footer .btn {
+  width: auto;
+}
+
+/* Page wrapper padding. Desktop: comfortable padding. Mobile: drop the
+   HORIZONTAL padding so content (cards, lists) uses the full width — the shell's
+   content-area already supplies a ~16px gutter on mobile, so a second screen-level
+   gutter just wastes space (mirrors mobile Gmail's edge-to-edge lists). Vertical
+   breathing room is kept. Apply to a screen's top-level wrapper; pair with an
+   inline `max-width`/`margin: 0 auto` for the desktop centred column. */
+.screen-pad {
+  padding: var(--space-lg);
+}
+@media (max-width: 767px) {
+  .screen-pad {
+    padding: var(--space-md) 0;
+  }
+}
+
+/* ============================================================== */
+/* Global mobile-first responsive patterns                        */
+/* (see docs/project-overview.md → UI/UX Requirements)            */
+/* ============================================================== */
+
+/* Mobile: < 768px. Desktop keeps each component's default layout. */
+@media (max-width: 767px) {
+  /* Single column on mobile: collapse any inline multi-column grid. */
+  [style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Full-width primary buttons and form submits on mobile. */
+  .btn-primary,
+  .btn-secondary,
+  .btn--block,
+  button[type="submit"] {
+    width: 100%;
+  }
+
+  /* Comfortable touch targets (>= 44px). The shared .btn already
+     guarantees this at every width; legacy component buttons get it here. */
+  .btn-primary,
+  .btn-secondary,
+  .btn-small,
+  .btn-ghost,
+  button[type="submit"] {
+    min-height: 44px;
+  }
+
+  /* Readable form text; 16px also prevents iOS zoom-on-focus. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

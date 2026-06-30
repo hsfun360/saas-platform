@@ -1,0 +1,257 @@
+<div class="screen-pad" style="max-width: 1100px;">
+  <h2 style="color: #1e293b; margin-top: 0; font-size: var(--font-h1);">Modules &amp; Menus Maintenance</h2>
+  <p style="color: #64748b; font-size: var(--font-body-2); margin-top: 0;">
+    Manage the platform catalogue. <strong>Modules</strong> are product areas subscribers can subscribe to;
+    each <strong>Menu</strong> is a navigation entry belonging to a module. Pick a module to manage its menus.
+  </p>
+
+  @if (successMessage()) {
+    <div role="status" style="margin: var(--space-md) 0; padding: var(--space-sm); background: #dcfce7; color: #166534; border-radius: 6px; border: 1px solid #bbf7d0;">
+      ✅ {{ successMessage() }}
+    </div>
+  }
+  @if (errorMessage()) {
+    <div role="alert" style="margin: var(--space-md) 0; padding: var(--space-sm); background: #fee2e2; color: #991b1b; border-radius: 6px; border: 1px solid #fecaca;">
+      ❌ {{ errorMessage() }}
+    </div>
+  }
+
+  <!-- On mobile this behaves like a SlidingPaneLayout: when a module is open
+       (mm-layout--detail) the detail pane covers the master. On desktop both
+       panes show side-by-side. -->
+  <div class="mm-layout" [class.mm-layout--detail]="selectedModuleId()">
+
+    <!-- ============ MASTER: Modules ============ -->
+    <section class="mm-card mm-pane mm-pane--master" aria-label="Modules">
+      <!-- Live filter over the loaded modules (name / description). -->
+      @if (!modulesLoading() && modules().length > 0) {
+        <div class="mm-search">
+          <span class="material-icons mm-search__icon" aria-hidden="true">search</span>
+          <input #moduleSearchBox type="search" [value]="moduleSearch()" (input)="moduleSearch.set(moduleSearchBox.value)"
+                 placeholder="Search modules…" aria-label="Search modules" class="mm-search__input">
+          @if (moduleSearch()) {
+            <button type="button" class="mm-search__clear" (click)="clearModuleSearch()" aria-label="Clear search">
+              <span class="material-icons" aria-hidden="true">close</span>
+            </button>
+          }
+        </div>
+      }
+
+      <!-- Module list -->
+      @if (modulesLoading()) {
+        <p style="color: #64748b;">Loading modules…</p>
+      } @else if (modules().length === 0) {
+        <p style="color: #64748b;">No modules yet. Use “Add module” to create your first one.</p>
+      } @else if (filteredModules().length === 0) {
+        <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: #64748b;">
+          <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: #cbd5e1;">search_off</span>
+          <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">No modules match “{{ moduleSearch() }}”.</p>
+          <button type="button" class="btn btn--secondary btn--sm" (click)="clearModuleSearch()">Clear search</button>
+        </div>
+      } @else {
+        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs);">
+          @for (m of filteredModules(); track m.id) {
+            <li class="mm-row" [class.mm-row--active]="selectedModuleId() === m.id">
+              <button type="button" class="mm-row__select" (click)="selectModule(m.id)"
+                      [attr.aria-pressed]="selectedModuleId() === m.id" [attr.aria-label]="'Manage menus for ' + m.name">
+                <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: #0284c7;">{{ m.icon || 'widgets' }}</span>
+                <span class="mm-row__text">
+                  <span style="font-weight: var(--weight-semibold); color: #1e293b;">{{ m.name }}</span>
+                  @if (m.description) {
+                    <span style="color: #64748b; font-size: var(--font-body-2);">{{ m.description }}</span>
+                  }
+                </span>
+              </button>
+              <span class="mm-row__actions">
+                <button type="button" class="btn btn--secondary btn--sm" (click)="startEditModule(m)"
+                        [disabled]="!!deletingModuleId()" [attr.aria-label]="'Edit module ' + m.name">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+                <button type="button" class="btn btn--danger btn--sm" (click)="deleteModule(m)"
+                        [disabled]="deletingModuleId() === m.id" [attr.aria-label]="'Delete module ' + m.name">
+                  <span class="material-icons" aria-hidden="true">delete</span>
+                  {{ deletingModuleId() === m.id ? 'Deleting…' : 'Delete' }}
+                </button>
+              </span>
+            </li>
+          }
+        </ul>
+      }
+
+    </section>
+
+    <!-- ============ DETAIL: Menus ============ -->
+    <section class="mm-card mm-pane mm-pane--detail" aria-label="Menus">
+      @if (!selectedModuleId()) {
+        <h3 style="margin-top: 0; font-size: var(--font-h2); color: #1e293b;">Menus</h3>
+        <p style="color: #64748b;">Select a module on the left to manage its menus.</p>
+      } @else {
+        <!-- Mobile-only: return to the modules (master) list. -->
+        <button type="button" class="btn btn--secondary btn--sm mm-back" (click)="backToModules()">
+          <span class="material-icons" aria-hidden="true">arrow_back</span>
+          Modules
+        </button>
+
+        <h3 style="margin: 0 0 var(--space-md); font-size: var(--font-h2); color: #1e293b;">
+          Menus in “{{ selectedModule()?.name }}”
+        </h3>
+
+        <!-- Live filter over the loaded menus (name / route). -->
+        @if (!menusLoading() && menus().length > 0) {
+          <div class="mm-search">
+            <span class="material-icons mm-search__icon" aria-hidden="true">search</span>
+            <input #menuSearchBox type="search" [value]="menuSearch()" (input)="menuSearch.set(menuSearchBox.value)"
+                   placeholder="Search menus…" aria-label="Search menus" class="mm-search__input">
+            @if (menuSearch()) {
+              <button type="button" class="mm-search__clear" (click)="clearMenuSearch()" aria-label="Clear search">
+                <span class="material-icons" aria-hidden="true">close</span>
+              </button>
+            }
+          </div>
+        }
+
+        <!-- Menu list -->
+        @if (menusLoading()) {
+          <p style="color: #64748b;">Loading menus…</p>
+        } @else if (menus().length === 0) {
+          <p style="color: #64748b;">This module has no menus yet. Use “Add menu” to create one.</p>
+        } @else if (filteredMenus().length === 0) {
+          <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: #64748b;">
+            <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: #cbd5e1;">search_off</span>
+            <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">No menus match “{{ menuSearch() }}”.</p>
+            <button type="button" class="btn btn--secondary btn--sm" (click)="clearMenuSearch()">Clear search</button>
+          </div>
+        } @else {
+          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs);">
+            @for (menu of filteredMenus(); track menu.id) {
+              <li class="mm-row" [class.mm-row--active]="editingMenuId() === menu.id">
+                <span class="mm-row__text" style="flex-direction: row; align-items: center; gap: var(--space-sm); flex-wrap: wrap;">
+                  <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: #0284c7;">{{ menu.icon || 'folder' }}</span>
+                  <span style="font-weight: var(--weight-semibold); color: #1e293b;">{{ menu.name }}</span>
+                  <span style="color: #64748b; font-size: var(--font-body-2);">{{ menu.route }}</span>
+                </span>
+                <span class="mm-row__actions">
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="startEditMenu(menu)"
+                          [disabled]="!!deletingMenuId()" [attr.aria-label]="'Edit menu ' + menu.name">
+                    <span class="material-icons" aria-hidden="true">edit</span>
+                    Edit
+                  </button>
+                  <button type="button" class="btn btn--danger btn--sm" (click)="deleteMenu(menu)"
+                          [disabled]="deletingMenuId() === menu.id" [attr.aria-label]="'Delete menu ' + menu.name">
+                    <span class="material-icons" aria-hidden="true">delete</span>
+                    {{ deletingMenuId() === menu.id ? 'Deleting…' : 'Delete' }}
+                  </button>
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      }
+    </section>
+
+    <!-- Floating add actions. Side by side on desktop (both panes visible); on
+         mobile only the visible pane's FAB shows (driven by .mm-layout--detail).
+         "Add menu" only exists once a module is selected. -->
+    <div class="mm-fab-group">
+      <button type="button" class="btn btn--primary mm-fab mm-fab--module" (click)="startCreateModule()" aria-label="Add module">
+        <span class="material-icons" aria-hidden="true">add</span>
+        Add module
+      </button>
+      @if (selectedModuleId()) {
+        <button type="button" class="btn btn--primary mm-fab mm-fab--menu" (click)="startCreateMenu()" aria-label="Add menu">
+          <span class="material-icons" aria-hidden="true">add</span>
+          Add menu
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- ============ Add / edit module dialog ============ -->
+  @if (moduleDialogOpen()) {
+    <app-dialog [title]="editingModuleId() ? 'Edit module' : 'Add module'" [busy]="savingModule()" (close)="cancelModuleEdit()">
+      <form id="moduleForm" [formGroup]="moduleForm" (ngSubmit)="saveModule()">
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+          <label for="mod-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Name *</label>
+          <input id="mod-name" type="text" formControlName="name" placeholder="e.g. Golf Management"
+                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          @if (moduleForm.controls.name.touched && moduleForm.controls.name.invalid) {
+            <span role="alert" style="color: #b91c1c; font-size: var(--font-caption);">A module name is required.</span>
+          }
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+          <label for="mod-icon" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">
+            Material icon <span style="font-weight: var(--weight-regular); color: #64748b;">(optional)</span>
+          </label>
+          <input id="mod-icon" type="text" formControlName="icon" placeholder="e.g. sports_golf"
+                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+          <label for="mod-desc" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">
+            Description <span style="font-weight: var(--weight-regular); color: #64748b;">(optional)</span>
+          </label>
+          <input id="mod-desc" type="text" formControlName="description" placeholder="Short description"
+                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+          <label for="mod-landing" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">
+            Landing route <span style="font-weight: var(--weight-regular); color: #64748b;">(optional — the system's dashboard, e.g. /golf)</span>
+          </label>
+          <input id="mod-landing" type="text" formControlName="landingRoute" placeholder="e.g. /golf"
+                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          <span style="font-size: var(--font-caption); color: #64748b;">Where the apps switcher lands when entering this system. Leave blank to land on the first menu the role can access.</span>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cancelModuleEdit()" [disabled]="savingModule()">Cancel</button>
+        <button type="submit" form="moduleForm" class="btn btn--primary" [disabled]="savingModule()">
+          {{ savingModule() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Add / edit menu dialog ============ -->
+  @if (menuDialogOpen()) {
+    <app-dialog [title]="editingMenuId() ? 'Edit menu' : 'Add menu'" [busy]="savingMenu()" (close)="cancelMenuEdit()">
+      <form id="menuForm" [formGroup]="menuForm" (ngSubmit)="saveMenu()">
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+          <label for="menu-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Name *</label>
+          <input id="menu-name" type="text" formControlName="name" placeholder="e.g. Tee Time Setup"
+                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          @if (menuForm.controls.name.touched && menuForm.controls.name.invalid) {
+            <span role="alert" style="color: #b91c1c; font-size: var(--font-caption);">A menu name is required.</span>
+          }
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+          <label for="menu-route" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Route *</label>
+          <input id="menu-route" type="text" formControlName="route" placeholder="e.g. /golf/tee-times"
+                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          @if (menuForm.controls.route.touched && menuForm.controls.route.invalid) {
+            <span role="alert" style="color: #b91c1c; font-size: var(--font-caption);">A route is required.</span>
+          }
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+          <label for="menu-icon" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">
+            Material icon <span style="font-weight: var(--weight-regular); color: #64748b;">(optional)</span>
+          </label>
+          <input id="menu-icon" type="text" formControlName="icon" placeholder="e.g. event"
+                 style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cancelMenuEdit()" [disabled]="savingMenu()">Cancel</button>
+        <button type="submit" form="menuForm" class="btn btn--primary" [disabled]="savingMenu()">
+          {{ savingMenu() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

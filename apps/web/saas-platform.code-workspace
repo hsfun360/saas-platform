@@ -1,0 +1,28 @@
+{
+  // Multi-root workspace for the IFCA SaaS platform: opens the Angular frontend
+  // (Login) and the Node/Express backend (LoginAPI) together in one window.
+  // The two remain SEPARATE git repos (github.com/hsfun360/Login and /LoginAPI).
+  //
+  // Paths are relative to this file's location (inside the Login repo):
+  //   "."             -> Login    (Angular/UserLogin/Login)
+  //   "../../LoginAPI" -> LoginAPI (Angular/LoginAPI)
+  // So this assumes both repos sit at their usual sibling locations on disk.
+  "folders": [
+    { "path": ".", "name": "Login (frontend)" },
+    { "path": "../../LoginAPI", "name": "LoginAPI (backend)" }
+  ],
+  "settings": {
+    // Keep search/explorer fast and focused — skip build output & deps.
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/.angular": true,
+      "**/package-lock.json": true
+    },
+    "files.watcherExclude": {
+      "**/node_modules/**": true,
+      "**/dist/**": true,
+      "**/.angular/**": true
+    }
+  }
+}

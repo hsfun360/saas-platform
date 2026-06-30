@@ -1,0 +1,120 @@
+.profile-container {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-lg);
+}
+
+.profile-card {
+  background: white;
+  width: 100%;
+  max-width: 600px;
+  padding: var(--space-xl);
+  border-radius: 8px;
+  border: 1px solid #dadce0;
+}
+
+.profile-header {
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid #f1f3f4;
+  padding-bottom: var(--space-md);
+}
+
+.profile-header h2 {
+  margin: 0;
+  color: #202124;
+  font-size: var(--font-h2);
+}
+
+.profile-header p {
+  color: #5f6368;
+  font-size: var(--font-body-2);
+  margin-top: var(--space-xs);
+}
+
+.form-group {
+  margin-bottom: var(--space-lg);
+}
+
+.phone-input-group {
+  display: flex;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.country-select {
+  flex: 0 0 150px; /* Keeps the dropdown at a fixed width */
+  padding: var(--space-sm);
+  font-size: var(--font-body);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.phone-input {
+  flex: 1; /* Makes the phone number input take up the remaining space */
+  padding: var(--space-sm);
+  font-size: var(--font-body);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.form-group label {
+  display: block;
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-medium);
+  color: #3c4043;
+  margin-bottom: var(--space-sm);
+}
+
+.form-group input, 
+.form-group textarea {
+  width: 100%;
+  padding: var(--space-sm) var(--space-sm);
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  font-size: var(--font-body);
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  outline: none;
+  border: 2px solid #1a73e8;
+  padding: var(--space-sm) var(--space-sm); /* Adjust for border thickness */
+}
+
+.form-group input:disabled {
+  background-color: #f8f9fa;
+  color: #70757a;
+  cursor: not-allowed;
+}
+
+.success-alert {
+  background-color: #e6f4ea;
+  color: #137333;
+  padding: var(--space-sm);
+  border-radius: 4px;
+  margin-bottom: var(--space-md);
+  font-size: var(--font-body-2);
+  text-align: center;
+}
+
+.btn-save {
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-medium);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-save:hover {
+  background-color: #1765cc;
+  box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+}
+
+.btn-save:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}

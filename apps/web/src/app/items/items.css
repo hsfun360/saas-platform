@@ -1,0 +1,216 @@
+/* Master–detail layout: list pane + detail pane side-by-side on desktop,
+   one-at-a-time on mobile. Defined as classes (not inline) so the global
+   mobile rule that collapses inline grids doesn't interfere. */
+.it-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) 1fr;
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.it-card {
+  background: white;
+  padding: var(--space-lg);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  min-width: 0;
+}
+
+/* List/card action-row pattern (see docs/project-overview.md): content on the
+   left, actions right on desktop; actions drop to a full-width row below,
+   left-justified, on mobile. */
+.it-row {
+  display: grid;
+  /* minmax(0, 1fr) (not 1fr) so the main track can shrink below its content's
+     min-content width — the main cell is a <button>, whose intrinsic min size
+     would otherwise keep the track from shrinking and spill text into the
+     actions column. With this, long names/descriptions wrap instead. */
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "main actions";
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.it-row--active {
+  border-color: #38bdf8;
+  background: #f0f9ff;
+}
+
+/* The item name is a button that opens its detail. It fills its grid cell by
+   default (justify-self: stretch) — no width:100%, which would feed the
+   button's preferred width back into track sizing. */
+.it-row__select {
+  grid-area: main;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-xs) 0;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.it-row__text {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere; /* never let a long token overflow the cell */
+}
+
+.it-row__actions {
+  grid-area: actions;
+  display: flex;
+  gap: var(--space-xs);
+  justify-self: end; /* right-justified on desktop */
+  flex-shrink: 0; /* keep Edit/Delete intact; the main cell yields space */
+}
+
+/* Search field — icon on the left, optional clear (✕) on the right. */
+.it-search {
+  position: relative;
+  margin-bottom: var(--space-md);
+}
+
+.it-search__icon {
+  position: absolute;
+  left: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.it-search__input {
+  width: 100%;
+  box-sizing: border-box;
+  /* ≥16px so iOS doesn't zoom on focus; left/right padding clears icon + clear. */
+  min-height: 44px;
+  padding: var(--space-sm) 40px var(--space-sm) 38px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: var(--font-body);
+}
+
+.it-search__clear {
+  position: absolute;
+  right: var(--space-xs);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: #64748b;
+  cursor: pointer;
+}
+.it-search__clear:hover {
+  background: #f1f5f9;
+}
+
+/* Floating action button — pinned bottom-right, pill-shaped, above content but
+   below the shell drawer (1000) / backdrop (999) / header (1100). Composes the
+   shared .btn .btn--primary, so it keeps the ≥44px target, colour and focus. */
+.it-fab {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: var(--space-lg);
+  z-index: 900;
+  border-radius: 28px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+/* Lift the FAB clear of the fixed mobile bottom nav so it isn't hidden. */
+@media (max-width: 767px) {
+  .it-fab {
+    bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md));
+  }
+}
+
+/* Status chip on the list rows. */
+.it-status {
+  display: inline-block;
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px var(--space-sm);
+  border-radius: 12px;
+}
+.it-status--active {
+  background: #dcfce7;
+  color: #166534;
+}
+.it-status--inactive {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* Mobile "back to list" button — hidden on desktop where both panes show. */
+.it-back {
+  display: none;
+  margin-bottom: var(--space-md);
+}
+
+/* ---- SlidingPaneLayout behaviour ----
+   Desktop (default above): master + detail side-by-side.
+   Mobile (≤ 768px): one pane at a time. By default the list (master) shows;
+   once an item is open or being created (.it-layout--detail, driven by the URL
+   param) the detail pane covers the master. */
+@media (max-width: 768px) {
+  .it-layout {
+    grid-template-columns: 1fr;
+  }
+
+  /* Default: show master, hide detail. */
+  .it-pane--detail {
+    display: none;
+  }
+
+  /* An item is open → detail covers master. */
+  .it-layout--detail .it-pane--master {
+    display: none;
+  }
+  .it-layout--detail .it-pane--detail {
+    display: block;
+    animation: it-slide-in 0.2s ease;
+  }
+
+  .it-back {
+    display: inline-flex;
+  }
+
+  /* Action rows stack: actions drop to a full-width row below, left-justified. */
+  .it-row {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "main"
+      "actions";
+  }
+  .it-row__actions {
+    justify-self: start;
+  }
+}
+
+@keyframes it-slide-in {
+  from {
+    transform: translateX(8%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

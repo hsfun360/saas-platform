@@ -1,0 +1,260 @@
+<div class="tenant-container">
+  <div class="tenant-header">
+    <h1>👥 User Management</h1>
+    <p>Manage who belongs to each company in your subscriber, and what role they play in each.</p>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">{{ successMessage() }}</div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">{{ errorMessage() }}</div>
+  }
+
+  <!-- People (person-centric). No outer card — the search + list sit directly on
+       the page (the Companies standard). -->
+  <h2 style="margin: 0 0 var(--space-md); font-size: var(--font-h2); font-weight: var(--weight-semibold); color: #1e293b;">People ({{ people().length }})</h2>
+
+    <!-- Live filter over the loaded people (email / name / company / role). -->
+    @if (!loading() && people().length > 0) {
+      <div class="user-search">
+        <span class="material-icons user-search__icon" aria-hidden="true">search</span>
+        <input #userSearchBox type="search" [value]="search()" (input)="search.set(userSearchBox.value)"
+               placeholder="Search people…" aria-label="Search people" class="user-search__input">
+        @if (search()) {
+          <button type="button" class="user-search__clear" (click)="clearSearch()" aria-label="Clear search">
+            <span class="material-icons" aria-hidden="true">close</span>
+          </button>
+        }
+      </div>
+    }
+
+    @if (loading()) {
+      <p class="subtle">Loading…</p>
+    } @else if (people().length === 0) {
+      <p class="subtle">No people yet. Use “Create user” or “Invite collaborator” to add someone.</p>
+    } @else if (filteredPeople().length === 0) {
+      <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: #64748b;">
+        <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: #cbd5e1;">search_off</span>
+        <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">No people match “{{ search() }}”.</p>
+        <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+      </div>
+    } @else {
+      <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-sm);">
+        @for (person of filteredPeople(); track person.id) {
+          <li style="border: 1px solid #e2e8f0; border-radius: 8px;">
+
+            <!-- Summary / expander -->
+            <button type="button" (click)="toggleExpand(person.id)" [attr.aria-expanded]="expandedUserId() === person.id"
+                    style="width: 100%; text-align: left; background: transparent; border: none; cursor: pointer; padding: var(--space-md); display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm);">
+              <span style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                <span>
+                  <span style="font-weight: var(--weight-semibold); color: #1e293b;">{{ person.email }}</span>
+                  @if (person.full_name) { <span class="subtle"> · {{ person.full_name }}</span> }
+                </span>
+                <span style="display: flex; flex-wrap: wrap; gap: var(--space-xs);">
+                  @for (m of person.memberships; track m.companyId) {
+                    <span style="background: #f1f5f9; color: #334155; font-size: var(--font-caption); padding: var(--space-xs) var(--space-sm); border-radius: 12px;">
+                      {{ m.companyName }} — {{ m.roleName || 'No role' }}
+                    </span>
+                  } @empty {
+                    <span class="subtle" style="font-size: var(--font-caption);">No company access</span>
+                  }
+                </span>
+              </span>
+              <span class="material-icons" aria-hidden="true" style="color: #64748b;">{{ expandedUserId() === person.id ? 'expand_less' : 'expand_more' }}</span>
+            </button>
+
+            <!-- Expanded management -->
+            @if (expandedUserId() === person.id) {
+              <div style="border-top: 1px solid #e2e8f0; padding: var(--space-md); display: flex; flex-direction: column; gap: var(--space-sm);">
+
+                @for (m of person.memberships; track m.companyId) {
+                  @let key = person.id + ':' + m.companyId;
+                  <!-- Info (company + role select) left; actions right on desktop,
+                       full-width bottom-left on mobile. -->
+                  <div class="assign-row">
+                    <span class="assign-row__info">
+                      <span style="min-width: 160px; font-weight: var(--weight-semibold); color: #1e293b;">{{ m.companyName }}</span>
+                      <select [(ngModel)]="roleSel[key]" [attr.aria-label]="'Role for ' + person.email + ' in ' + m.companyName"
+                              style="padding: var(--space-xs) var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                        <option value="">— No role —</option>
+                        @for (r of rolesFor(m.companyId); track r.id) {
+                          <option [value]="r.id">{{ r.name }}</option>
+                        }
+                      </select>
+                    </span>
+                    <span class="assign-row__actions">
+                      <button type="button" class="btn btn--primary btn--sm" [disabled]="isPending('role:' + key)" (click)="onChangeRole(person.id, m.companyId)">Update</button>
+                      <button type="button" class="btn btn--danger btn--sm" [disabled]="isPending('rm:' + key)" (click)="onRemove(person, m.companyId, m.companyName)">Remove</button>
+                    </span>
+                  </div>
+                }
+
+                <!-- Add to another company -->
+                @if (companiesNotJoined(person).length > 0) {
+                  <div class="assign-row" style="border-top: 1px dashed #e2e8f0; padding-top: var(--space-sm);">
+                    <span class="assign-row__info">
+                      <span class="subtle">Add to:</span>
+                      <select [(ngModel)]="addCompany[person.id]" [attr.aria-label]="'Company to add ' + person.email + ' to'"
+                              style="padding: var(--space-xs) var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                        <option value="">— Company —</option>
+                        @for (c of companiesNotJoined(person); track c.id) {
+                          <option [value]="c.id">{{ c.name }}</option>
+                        }
+                      </select>
+                      <select [(ngModel)]="addRole[person.id]" aria-label="Role for the new company"
+                              style="padding: var(--space-xs) var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                        <option value="">— No role —</option>
+                        @for (r of rolesFor(addCompany[person.id]); track r.id) {
+                          <option [value]="r.id">{{ r.name }}</option>
+                        }
+                      </select>
+                    </span>
+                    <span class="assign-row__actions">
+                      <button type="button" class="btn btn--primary btn--sm" [disabled]="isPending('add:' + person.id)" (click)="onAddToCompany(person)">Add</button>
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+
+  <!-- Pending invitations -->
+  @if (invitations().length > 0) {
+    <div class="card" style="margin-top: var(--space-lg);">
+      <h2>Pending Invitations ({{ invitations().length }})</h2>
+      <table class="user-table">
+        <thead>
+          <tr><th>Email</th><th>Company</th><th>Role</th><th>Expires</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          @for (inv of invitations(); track inv.id) {
+            <tr>
+              <td>{{ inv.email }}</td>
+              <td>{{ inv.companyName }}</td>
+              <td>{{ inv.roleName || '—' }}</td>
+              <td>{{ inv.expiresAt ? (inv.expiresAt | date:'mediumDate') : '—' }}</td>
+              <td class="actions-cell">
+                <button type="button" class="btn btn--danger btn--sm" [disabled]="isPending('inv:' + inv.id)" (click)="onRevokeInvite(inv.id)">Revoke</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- Floating actions — Invite (secondary) + Create user (primary). The labels
+       hide on mobile so both fit in-line as round icon FABs (aria-label keeps the
+       accessible name). -->
+  <div class="user-fab-group">
+    <button type="button" class="btn btn--secondary user-fab" (click)="openInvite()" aria-label="Invite collaborator">
+      <span class="material-icons" aria-hidden="true">mail</span>
+      <span class="user-fab__label">Invite collaborator</span>
+    </button>
+    <button type="button" class="btn btn--primary user-fab" (click)="openCreate()" aria-label="Create user">
+      <span class="material-icons" aria-hidden="true">person_add</span>
+      <span class="user-fab__label">Create user</span>
+    </button>
+  </div>
+
+  <!-- ============ Create user dialog ============ -->
+  @if (createDialogOpen()) {
+    <app-dialog title="Create user" [busy]="creating()" (close)="cancelCreate()">
+      <p class="subtle" style="margin-top: 0;">Create a brand-new user and place them in a company with a role.</p>
+      <form id="createUserForm" (ngSubmit)="onCreateUser()">
+        <div class="row">
+          <div class="field">
+            <label for="nuEmail">Email <span class="req">*</span></label>
+            <input id="nuEmail" type="email" name="nuEmail" [(ngModel)]="newUser.email" placeholder="user@example.com" autocomplete="off" required />
+          </div>
+          <div class="field">
+            <label for="nuName">Full Name <span class="req">*</span></label>
+            <input id="nuName" type="text" name="nuName" [(ngModel)]="newUser.fullName" placeholder="Jane Doe" required />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="nuPass">Password <span class="req">*</span></label>
+            <input id="nuPass" type="password" name="nuPass" [(ngModel)]="newUser.password" placeholder="Min 6 characters" required minlength="6" />
+          </div>
+          <div class="field">
+            <label for="nuPhone">Phone</label>
+            <input id="nuPhone" type="tel" name="nuPhone" [(ngModel)]="newUser.phone" placeholder="Optional" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="nuCompany">Company <span class="req">*</span></label>
+            <select id="nuCompany" name="nuCompany" [(ngModel)]="newUser.companyId">
+              <option value="">— Select company —</option>
+              @for (c of companies(); track c.id) {
+                <option [value]="c.id">{{ c.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="nuRole">Role</label>
+            <select id="nuRole" name="nuRole" [(ngModel)]="newUser.roleId">
+              <option value="">— No role —</option>
+              @for (r of rolesFor(newUser.companyId); track r.id) {
+                <option [value]="r.id">{{ r.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cancelCreate()" [disabled]="creating()">Cancel</button>
+        <button type="submit" form="createUserForm" class="btn btn--primary" [disabled]="creating()">
+          {{ creating() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Invite collaborator dialog ============ -->
+  @if (inviteDialogOpen()) {
+    <app-dialog title="Invite collaborator" [busy]="inviting()" (close)="cancelInvite()">
+      <p class="subtle" style="margin-top: 0;">Invite someone by email — e.g. an external consultant. They keep their own identity and must accept before joining.</p>
+      <form id="inviteForm" (ngSubmit)="onInvite()">
+        <div class="row">
+          <div class="field">
+            <label for="ivEmail">Email <span class="req">*</span></label>
+            <input id="ivEmail" type="email" name="ivEmail" [(ngModel)]="invite.email" placeholder="consultant@example.com" autocomplete="off" required />
+          </div>
+          <div class="field">
+            <label for="ivCompany">Company <span class="req">*</span></label>
+            <select id="ivCompany" name="ivCompany" [(ngModel)]="invite.companyId">
+              <option value="">— Select company —</option>
+              @for (c of companies(); track c.id) {
+                <option [value]="c.id">{{ c.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="ivRole">Role</label>
+            <select id="ivRole" name="ivRole" [(ngModel)]="invite.roleId">
+              <option value="">— No role —</option>
+              @for (r of rolesFor(invite.companyId); track r.id) {
+                <option [value]="r.id">{{ r.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cancelInvite()" [disabled]="inviting()">Cancel</button>
+        <button type="submit" form="inviteForm" class="btn btn--primary" [disabled]="inviting()">
+          {{ inviting() ? 'Sending…' : 'Send' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

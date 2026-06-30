@@ -1,0 +1,105 @@
+/* Listing search — icon left, optional clear (✕) right. */
+.role-search {
+  position: relative;
+  margin-bottom: var(--space-md);
+}
+.role-search__icon {
+  position: absolute;
+  left: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: #64748b;
+  pointer-events: none;
+}
+.role-search__input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px; /* ≥16px font below avoids iOS zoom on focus */
+  padding: var(--space-sm) 40px var(--space-sm) 38px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: var(--font-body);
+}
+.role-search__clear {
+  position: absolute;
+  right: var(--space-xs);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: #64748b;
+  cursor: pointer;
+}
+.role-search__clear:hover {
+  background: #f1f5f9;
+}
+
+/* Floating "New role" action — pinned bottom-right, below the shell drawer
+   (1000) / backdrop (999) / header (1100). Composes .btn .btn--primary. */
+.role-fab {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: var(--space-lg);
+  z-index: 900;
+  border-radius: 28px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+@media (max-width: 767px) {
+  /* Lift clear of the fixed mobile bottom nav so it isn't hidden. */
+  .role-fab {
+    bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md));
+  }
+}
+
+/* Role list row layout (defined as a class so the global mobile rule that
+   collapses inline `grid-template-columns` to one column doesn't interfere).
+
+   Desktop: role name/description on the left, Edit / Delete actions on the
+   right at the same level.
+   Mobile:  actions drop to a full-width row below, left-justified. */
+.role-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "main actions";
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.role-main {
+  grid-area: main;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.role-actions {
+  grid-area: actions;
+  display: flex;
+  gap: var(--space-xs);
+  justify-self: end; /* right-justified on desktop */
+}
+
+@media (max-width: 767px) {
+  .role-row {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "main"
+      "actions";
+  }
+
+  .role-actions {
+    justify-self: start; /* bottom-left on mobile */
+  }
+}
