@@ -10,6 +10,18 @@
 - Run unit tests: `ng test`
 - Lint code: `ng lint`
 
+## 📦 Dependencies & npm audit
+
+- After `npm ci`/`npm install`, npm prints a vulnerability count (currently ~17).
+  Every advisory is inside the Angular framework or its build tooling (`@angular/*`, `@babel/core`, `ajv`, `picomatch`, `undici`, `vite`), not in code or packages we chose directly.
+- Do NOT run `npm audit fix` before starting work.
+  With everything pinned to `^21.0.0` and no patched 21.2.x published yet, plain `npm audit fix` is a no-op, and the audit report has no effect on `ng serve`/`ng build`.
+- NEVER run `npm audit fix --force`.
+  There is no clean patch to land on, so `--force` cross-pins the framework/devkit to a different major or a `-next` release and breaks the build.
+- The correct fix is a deliberate framework update through Angular's own tooling, run periodically:
+  `npx ng update @angular/core @angular/cli`.
+  It only moves to real, compatible releases, so once the Angular team ships a patched 21.2.x the count drops on its own.
+
 ## 📐 Coding Guidelines & Architecture
 - **State Management:** Use Angular Signals for component state. Use a dedicated `AuthService` (Signals-based) to track login states.
 - **Forms:** Use Angular 21 Signal Forms for login and registration inputs.
@@ -26,22 +38,58 @@
 ## UI/UX Requirements
 - ALL user interfaces MUST be mobile-responsive
 - Use mobile-first design approach
-- Test layouts at 320px, 768px, and 1024px+ breakpoints
+- **Three responsive tiers** (see "Responsive strategy" below): mobile (< 768px),
+  tablet (768-1023px), desktop (≥ 1024px). Test every screen at all three - e.g.
+  360px, 800px, 1280px.
 - Touch targets minimum 44x44px
 - Use relative units (rem, %, vh/vw) instead of fixed pixels
 - Stack layouts vertically on mobile, horizontal on desktop
 - Body/primary text is min 16px on mobile (`--font-body`). Secondary text follows
   the type scale - Body-2 14px, Caption 12px, Overline 10px - and must never carry
   primary reading content. Form inputs are always ≥ 16px (also prevents iOS zoom).
+- Form controls (`input`, `select`, `textarea`) are globally `box-sizing: border-box`
+  + `max-width: 100%` (in `styles.css`), so their padding sits inside the width and
+  they never overflow their column - this holds even for inline-styled inputs (e.g.
+  the Companies dialogs), not only the shared `.form-group` classes.
 - Add appropriate viewport meta tags
 - Test all interactive elements for touch accessibility (interactive targets ≥ 44×44px)
 
+### Responsive strategy (three tiers)
+
+The app targets **three** width tiers. The pixel boundaries (`767 / 768 / 1023 /
+1024`) are the ONE source of truth - reuse exactly these in every `@media`; never
+invent a new breakpoint. Because CSS media queries can't read custom properties,
+the numbers are repeated literally, but always these numbers.
+
+| Tier | Width | Layout | Navigation (shell) | Spacing |
+| --- | --- | --- | --- | --- |
+| **Mobile** | `< 768px` | single column; full-width controls | off-canvas **drawer** (hamburger / "More") + fixed **bottom nav** | tight (`--space-md`), edge-to-edge |
+| **Tablet** | `768-1023px` | 2 columns | **collapsible rail** side nav (72px icons; hover / pin expands to 256px overlay); no bottom nav | comfortable (`--space-lg`) |
+| **Desktop** | `≥ 1024px` | multi-column | **persistent** full side nav (256px, labels always shown); pushes content | generous (`--space-xl`) |
+
+- **Shell** (`dashboard.css`): the three tiers live here - `@media (max-width: 767px)`
+  (drawer + bottom nav), the base rules (tablet rail), and `@media (min-width: 1024px)`
+  (persistent full sidebar + `.content-area` `--space-xl`). Every screen inherits
+  this by rendering inside `.content-area`, so screens rarely need their own shell
+  media queries.
+- **Grids:** 1 col mobile → 2 col tablet → (optionally) 3 col desktop. Use the
+  **`.grid-3`** utility (in `styles.css`) for dense listing/card grids that want a
+  3rd column on desktop. **Forms stay 2-column** (an inline `minmax(0,1fr)
+  minmax(0,1fr)` grid, which the global `@media (max-width:767px)` rule collapses to
+  1 column on mobile) - do NOT force a 3rd column on a form.
+- **Spacing scales up per tier** - the shell's `.content-area` gutter is `--space-md`
+  (mobile) → `--space-lg` (tablet) → `--space-xl` (desktop), so content breathes more
+  as the viewport grows without any per-screen work.
+
 ### Responsive component patterns
 All UI components you generate MUST follow these patterns:
-- **Layout:** Single column on mobile, multi-column on desktop
+- **Layout:** Single column on mobile, 2 columns on tablet, multi-column on desktop
+  (see "Responsive strategy" above for the exact tiers).
 - **Navigation (adaptive - one source of destinations, container changes by width):**
-  - Primary destinations: a **bottom navigation bar** on mobile, a **persistent side nav** on desktop.
-  - Secondary destinations: a **hamburger-toggled drawer** on mobile that becomes part of the **side nav** on desktop.
+  - Primary destinations: a **bottom navigation bar** on mobile, a **collapsible rail**
+    side nav on tablet, and a **persistent** side nav on desktop.
+  - Secondary destinations: a **hamburger-toggled drawer** on mobile that becomes the
+    rail/persistent **side nav** on tablet/desktop.
   - Bottom nav is for navigation **destinations only** - use in-page buttons / a FAB for actions, never put actions in the bottom bar.
 - **Buttons:** Use the shared `.btn` system (see "Button system" below). Full-width
   primary CTAs on mobile (auto/content width on desktop); every button keeps a ≥ 44px
@@ -104,6 +152,31 @@ Rules:
 - The auth screens (login / reset / forgot / system-setup) keep their own scoped
   `.btn-primary` (single-dash) for their centred-card layout - don't confuse the two.
 
+#### Phone / mobile / fax fields (shared component)
+
+Every phone-type field uses the shared **`<app-phone-input>`** (`src/app/shared/phone-input`) -
+a country dialling-code select (flag + code, e.g. `🇲🇾 +60`) beside the number input.
+Do **not** hand-roll a `<input type="tel">` for phone/mobile/fax.
+
+- It's a `ControlValueAccessor`, so it binds with either `[(ngModel)]` (template forms)
+  or `formControlName` (reactive forms), exactly like a native input.
+- It reads/writes a **single combined string** - dialling code + national number, e.g.
+  `+60123456789` - and splits it back on load by longest-prefix match (default `+60`).
+  So the backend/model keeps one `phone` string; no separate country-code column.
+- Pass `inputId="…"` matching the field's `<label for>` (keeps the label associated), and
+  an optional `placeholder`.
+- Country list lives in `src/app/shared/country-codes.ts` (Malaysia first) - add entries
+  there, not per-screen.
+
+```html
+<label for="uPhone">Phone</label>
+<app-phone-input name="uPhone" [(ngModel)]="form.phone" inputId="uPhone" placeholder="Optional"></app-phone-input>
+<!-- reactive: <app-phone-input formControlName="phone" inputId="cd-phone"></app-phone-input> -->
+```
+
+Reference implementations: `platform-users`, `subscribers`, `tenant-users`, `companies`
+(edit details), and `profile` - all bind a single `phone` string.
+
 #### List/card action-row layout (adaptive)
 
 The standard for any list/card where a row has **content + actions** (e.g. Companies,
@@ -148,6 +221,25 @@ Notes:
 - Reference implementations: `companies.css` (`.company-*`, with a status badge),
   `role-management.css` (`.role-*`), `tenant-users.css` (`.assign-row*`),
   `modules-menus.css` (`.mm-row*`, with a `<button>` main cell).
+
+**Status chip (active/inactive etc.) is always TOP-RIGHT.** When a record card carries a
+status badge, it is **right-justified** in its own grid area, not inline after the title -
+this is the app-wide standard so every list reads the same way.
+Add a third area to the grid and pin the badge to the end; on mobile the badge **stays
+top-right** while the actions drop to a full-width row below:
+
+```css
+grid-template-areas:
+  "main  badge"
+  "main  actions";        /* desktop */
+/* mobile: "main badge" / "actions actions" */
+.row__badge { grid-area: badge; justify-self: end; align-self: start; white-space: nowrap; }
+```
+
+The shared implementation is **`.data-row--with-badge`** (compose as
+`class="data-row data-row--with-badge"`, with a `.data-row__badge` cell) in
+`system-setup.css`. Reference implementations: `platform-users.html` (Active/Inactive
+chip + SSO brand icon next to the email) and `companies.css` (`.company-summary`).
 
 #### Master–detail screens (sliding pane + URL state)
 
@@ -274,6 +366,25 @@ mobile. No horizontal scroll, reads well at every width.
 Reference implementation: `system-setup.html` / `system-setup.css` (`.data-list`,
 `.data-card*`, with the Subscribers card combining `.data-row` actions + an expanding
 `.admin-panel`).
+
+**Keep cards compact - roughly three lines of info.** A record card reads best as a
+short stack, not a wall of label/value pairs. The standard shape:
+
+1. **Title line** - the primary identifier (`.data-card__title`), with the status chip
+   pinned top-right via `.data-row--with-badge` (see the status-chip note above).
+2. **Subline** - secondary identity info with **no captions**: short text and/or chips on
+   one wrapping row (`.data-card__subline`, with muted `.data-card__reg`-style text for
+   the parenthetical bits). E.g. `(REG-12345) ENTERPRISE`. For a single free-text line
+   (e.g. a role description) use `.data-card__desc` instead.
+3. **Meta line** - the rollup fields that genuinely need a caption (`.data-card__meta`
+   with `dt`/`dd`), e.g. counts and dates.
+
+Drop low-value fields rather than captioning them: internal ids, and anything already
+implied by the title. Move the one or two identity fields a user scans for (a
+registration number, a plan) into the caption-less **subline**, and keep only true
+metadata in the captioned meta line. Reference implementation: `subscribers.html`
+(`.data-card__title` → `.data-card__subline` `(reg)` + plan chip → `.data-card__meta`
+Companies/Created), with the `ACTIVE`/`SUSPENDED` status as the top-right badge.
 
 #### Listing chrome - search on top, "New" as a bottom FAB
 

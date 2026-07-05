@@ -1,13 +1,25 @@
 ﻿export interface MenuItem {
   Module: any;
+  // Menu id (DB UUID, or a synthetic string for code-defined section headers),
+  // used to build the sidebar tree from parentId.
+  id?: string;
   name: string;
+  // Localized menu names keyed by language code (DB Menu.names); the display label
+  // resolves names[lang] ?? name at render time.
+  names?: Record<string, string>;
   route: string;
   icon?: string;
   moduleName?: string;
+  // Localized names of the owning module (DB Module.names), for the apps switcher.
+  moduleNames?: Record<string, string>;
   moduleIcon?: string;
   // The owning system's default landing route (Module.landingRoute), carried on
   // each menu so the shell can navigate to a system's dashboard when switching.
   moduleLanding?: string | null;
+  // Adjacency-list nesting: parentId null/absent = top level. A menu with
+  // children renders as a collapsible sidebar section. `sequence` orders siblings.
+  parentId?: string | null;
+  sequence?: number;
 }
 
 export interface Workspace {
@@ -57,6 +69,9 @@ export interface AccountPerson {
   id: string;
   email: string;
   full_name?: string;
+  phone?: string;
+  bio?: string;
+  profileEditable?: boolean;
   memberships: PersonMembership[];
 }
 
@@ -156,16 +171,20 @@ export interface PermittedMenu {
 export interface AdminMenu {
   id: string;
   name: string;
+  names?: Record<string, string>;
   route?: string;
   icon?: string;
   moduleId?: string;
+  // Adjacency-list nesting: parent menu id (null = top level) + order among siblings.
   parentId?: string | null;
+  sequence?: number;
   Module?: { name: string; icon?: string };
 }
 
 export interface AdminModule {
   id: string;
   name: string;
+  names?: Record<string, string>;
   icon?: string;
   description?: string | null;
   landingRoute?: string | null;
@@ -177,6 +196,7 @@ export interface ModuleInput {
   icon?: string;
   description?: string;
   landingRoute?: string;
+  names?: Record<string, string>;
 }
 
 export interface MenuInput {
@@ -185,6 +205,59 @@ export interface MenuInput {
   icon?: string;
   moduleId: string;
   parentId?: string | null;
+  names?: Record<string, string>;
+}
+
+export interface Country {
+  alpha2: string;
+  alpha3?: string;
+  numericCode?: number;
+  name: string;
+  names?: Record<string, string>;
+  flagEmoji?: string;
+  dialCode?: string | null;
+  isActive?: boolean;
+  syncedAt?: string;
+}
+
+export interface Language {
+  languageCode: string;
+  name: string;
+  isActive?: boolean;
+}
+
+// ISO 4217 currency reference row.
+export interface Currency {
+  code: string;          // ISO 4217 alpha-3, e.g. 'MYR'
+  numericCode?: number | null;
+  name: string;
+  symbol?: string | null;
+  minorUnit?: number;    // decimal places (2 for most, 0 for JPY, 3 for KWD…)
+  isActive?: boolean;
+}
+
+// A subscriber's (Account's) currency selection: which currencies are available to
+// choose from, which are selected, and the default among them.
+export interface AccountCurrencyState {
+  available: Currency[];   // all active platform currencies (the pick list)
+  selected: Currency[];    // the ones this account opted into
+  defaultCurrencyCode: string | null;
+}
+
+// A subscriber's (Account's) language selection: which languages are available to
+// choose from, which are selected, and the default among them.
+export interface AccountLanguageState {
+  available: Language[];   // all active platform languages (the pick list)
+  selected: Language[];    // the ones this account opted into
+  defaultLanguageCode: string | null;
+}
+
+// The languages a user may pick from + their current/effective choice.
+export interface UserLanguageState {
+  options: Language[];
+  preferred: string | null;
+  accountDefault: string | null;
+  effective: string;
 }
 
 export interface CreateRoleRequest {
@@ -194,19 +267,38 @@ export interface CreateRoleRequest {
   menuIds?: string[];
 }
 
+export interface UpdateRoleRequest {
+  name?: string;
+  description?: string;
+  menuIds: string[];
+}
+
 export interface CreateUserData {
   email: string;
   password: string;
   fullName: string;
   phone?: string;
+  bio?: string;
 }
 
 export interface UserSummary {
   id: string;
   email: string;
   full_name?: string;
+  phone?: string;
+  bio?: string;
   authMethod?: string;
   createdAt?: string;
+  isActive?: boolean;
+  roleId?: string | null;
+  roleName?: string | null;
+}
+
+export interface UpdateUserData {
+  email?: string;
+  fullName?: string;
+  phone?: string;
+  bio?: string;
 }
 
 export interface AssignRoleData {
@@ -298,6 +390,8 @@ export interface CompanyEntity {
   postalCode?: string;
   country?: string;
   timezone?: string;
+  logo?: string | null;
+  defaultCurrencyCode?: string | null;
   isActive: boolean;
   createdAt?: string;
   SubscribedModules?: ModuleOption[];
@@ -318,13 +412,27 @@ export interface UpdateCompanyData {
   postalCode?: string;
   country?: string;
   timezone?: string;
+  logo?: string | null;
+  defaultCurrencyCode?: string | null;
 }
 
 // Payload to create a new company under the caller's account.
 export interface CreateCompanyData {
   name: string;
   registrationNumber?: string;
+  taxRegistrationNumber?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
   timezone?: string;
   moduleIds?: string[];
+  logo?: string | null;
+  defaultCurrencyCode?: string | null;
 }
 

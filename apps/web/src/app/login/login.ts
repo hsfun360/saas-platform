@@ -3,7 +3,11 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../auth.service';
-import { AuthResponse, Workspace } from '../models/auth.models';
+import { LanguageService } from '../services/language.service';
+import { I18nService } from '../i18n/i18n.service';
+import { TranslatePipe } from '../i18n/translate.pipe';
+import { SHIPPED_UI_LANGUAGES } from '../i18n/ui-languages';
+import { AuthResponse, Workspace, Language } from '../models/auth.models';
 import { finalize } from 'rxjs';
 
 declare var google: {
@@ -20,9 +24,13 @@ declare var google: {
     selector: 'app-login',
     templateUrl: './login.html',
     styleUrls: ['./login.css'],
-    imports: [ReactiveFormsModule, RouterLink]
+    imports: [ReactiveFormsModule, RouterLink, TranslatePipe]
 })
 export class LoginComponent implements OnInit {
+
+  // Languages offered by the pre-login switcher. Seeded with the shipped set so it
+  // always works, then replaced by the platform's active languages if reachable.
+  loginLanguages: Language[] = SHIPPED_UI_LANGUAGES;
 
   loginForm!: FormGroup;
   loading = false;
@@ -46,8 +54,16 @@ export class LoginComponent implements OnInit {
     private authService: AuthService,
     private router: Router,
     private cdr: ChangeDetectorRef, // 2. Inject it here
-    private msalService: MsalService // 👈 Add this here!
+    private msalService: MsalService, // 👈 Add this here!
+    private languageService: LanguageService,
+    public i18n: I18nService,
   ) {}
+
+  // Switch the login UI language. Persists via I18nService (localStorage), so the
+  // choice carries into the app after sign-in.
+  switchLoginLanguage(code: string): void {
+    this.i18n.use(code);
+  }
 
   ngOnInit(): void {
     this.loginForm = this.fb.group({
@@ -60,6 +76,13 @@ export class LoginComponent implements OnInit {
     this.pendingLoginMethod = null;
     this.pendingGoogleToken = null;
     this.availableWorkspaces = [];
+
+    // Offer the platform's active languages in the pre-login switcher (falls back
+    // to the shipped set already seeded if the public endpoint returns nothing).
+    this.languageService.listActivePublic().subscribe({
+      next: (list) => { if (list?.length) this.loginLanguages = list; },
+      error: () => {}, // keep the shipped fallback
+    });
 
     // Returning from the Google redirect (?code=… in the query): show the
     // "Signing you in…" overlay immediately so the login form never flashes back
@@ -139,6 +162,12 @@ export class LoginComponent implements OnInit {
       .subscribe({
         next: (response) => {
           this.handleLoginResponse(response, 'local');
+        },
+        error: (err) => {
+          // Surface the backend reason (invalid email/password, deactivated
+          // account, etc.); fall back to a generic message otherwise.
+          this.errorMessage = err?.error?.message || 'Login failed. Please try again.';
+          this.cdr.detectChanges();
         },
       });
   }
@@ -230,15 +259,22 @@ export class LoginComponent implements OnInit {
       localStorage.setItem('userProfilePicture', res.profilePicture || '');
       this.authService.storeUserMenus(res.menus);
       
-      // if (res.profilePicture) this.authService.updateAvatarState(res.profilePicture);
-      // if (res.fullName) this.authService.updateFullNameState(res.fullName);
-      if (res.profilePicture) {
-        localStorage.setItem('profilePicture', res.profilePicture);
-        this.authService.updateAvatarState(res.profilePicture); // Broadcast to the app
-      }
+      // Always reflect THIS user's avatar (empty/null -> default), so a previous
+      // user's picture (e.g. a Google SSO avatar) never carries into the next login.
+      this.authService.updateAvatarState(res.profilePicture || '');
       if (res.fullName) {
         this.authService.updateFullNameState(res.fullName); // Broadcast to the app
       }
+
+      // Apply the user's effective language for this workspace (personal preference
+      // -> account default -> platform default), resolved server-side.
+      this.languageService.getMyLanguage().subscribe({
+        next: (state) => {
+          this.i18n.setFallback(state.accountDefault); // subscriber's fallback for missing translations
+          this.i18n.use(state.effective);
+        },
+        error: () => {}, // keep the current/stored language
+      });
 
       if (immediate) {
         // SSO return: go straight into the app (the "Signing you in…" state
@@ -263,14 +299,14 @@ export class LoginComponent implements OnInit {
         finalize(() => { this.loading = false; this.cdr.detectChanges(); })
       ).subscribe({
         next: (res) => this.handleLoginResponse(res, 'local'),
-        error: (_err) => this.errorMessage = 'Login failed.'
+        error: (err) => this.errorMessage = err?.error?.message || 'Login failed.'
       });
     } else if (this.pendingLoginMethod === 'google' && this.pendingGoogleToken) {
       this.authService.googleLogin(this.pendingGoogleToken, companyId).pipe(
         finalize(() => { this.loading = false; this.cdr.detectChanges(); })
       ).subscribe({
         next: (res) => this.handleLoginResponse(res, 'google'),
-        error: (_err) => this.errorMessage = 'Google login failed.'
+        error: (err) => this.errorMessage = err?.error?.message || 'Google login failed.'
       });
     }
   }

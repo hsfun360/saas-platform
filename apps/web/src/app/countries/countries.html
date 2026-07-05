@@ -1,0 +1,146 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🌐</span>
+      <div>
+        <h1>Countries</h1>
+        <p class="saas-subtitle">ISO country reference used by the app's country pickers.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Sync bar: status on the left, sync action on the right. -->
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (lastSynced()) {
+        Last synced {{ lastSynced() | date:'medium' }} · {{ countries().length }} countries, {{ activeCount() }} active
+      } @else {
+        Not synced yet — click "Sync now" to load countries from world_countries.
+      }
+    </span>
+    <button type="button" class="btn btn--primary btn--sm" (click)="onSync()" [disabled]="syncing()">
+      {{ syncing() ? 'Syncing…' : 'Sync now' }}
+    </button>
+  </div>
+
+  <!-- Live filter (name / alpha-2 / alpha-3). -->
+  @if (!loading() && countries().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #countrySearchBox type="search" [value]="search()" (input)="search.set(countrySearchBox.value)"
+             placeholder="Search countries…" aria-label="Search countries" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading countries…</p></div>
+  } @else if (countries().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No countries yet. Use "Sync now" to load them from world_countries.</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No countries match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (c of filtered(); track c.alpha2) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title" style="display: flex; align-items: center; gap: var(--space-xs);">
+                <img [src]="'https://flagcdn.com/24x18/' + c.alpha2 + '.png'"
+                     [attr.srcset]="'https://flagcdn.com/48x36/' + c.alpha2 + '.png 2x'"
+                     width="24" height="18" alt="" loading="lazy"
+                     style="border-radius: 2px; flex: 0 0 auto;">
+                <span>{{ c.name }}</span>
+              </div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">{{ c.alpha2 | uppercase }} · {{ c.alpha3 | uppercase }}@if (c.dialCode) { · {{ c.dialCode }} }</span>
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (c.isActive === false) {
+                <span class="badge badge-inactive">Disabled</span>
+              } @else {
+                <span class="badge badge-active">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">Edit</button>
+              @if (c.isActive === false) {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="toggleActive(c)"
+                        [disabled]="togglingCode() === c.alpha2">
+                  {{ togglingCode() === c.alpha2 ? 'Saving…' : 'Enable' }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(c)"
+                        [disabled]="togglingCode() === c.alpha2">
+                  {{ togglingCode() === c.alpha2 ? 'Saving…' : 'Disable' }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ============ Edit dial code dialog ============ -->
+  @if (editOpen()) {
+    <app-dialog [title]="'Edit — ' + editForm.name" [busy]="editSaving()" (close)="closeEdit()">
+      <form id="editCountryForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cDial">Dial code</label>
+            <input id="cDial" type="text" name="cDial" [(ngModel)]="editForm.dialCode" placeholder="e.g. +60" />
+          </div>
+        </div>
+
+        <h3 style="margin: var(--space-md) 0 var(--space-xs); font-size: var(--font-h3); color: #0f172a;">Translations</h3>
+        <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Localized country name per language. Leave blank to clear a translation.</p>
+        @if (editTranslations.length === 0) {
+          <p class="cell-subtle" style="margin: 0;">No languages configured. Load defaults on the Languages screen to add translations.</p>
+        } @else {
+          @for (t of editTranslations; track t.code) {
+            <div class="form-row">
+              <div class="form-group">
+                <label [attr.for]="'tr-' + t.code">{{ t.label }} <span class="cell-subtle">({{ t.code | uppercase }})</span></label>
+                <input [id]="'tr-' + t.code" type="text" [name]="'tr-' + t.code" [(ngModel)]="t.name"
+                       [placeholder]="'Name in ' + t.label" />
+              </div>
+            </div>
+          }
+        }
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeEdit()" [disabled]="editSaving()">Cancel</button>
+        <button type="submit" form="editCountryForm" class="btn btn--primary" [disabled]="editSaving()">
+          {{ editSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

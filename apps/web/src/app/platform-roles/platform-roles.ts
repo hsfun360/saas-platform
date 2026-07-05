@@ -18,9 +18,11 @@ import { Role, AdminMenu } from '../models/auth.models';
 export class PlatformRolesComponent implements OnInit {
   roles = signal<Role[]>([]);
   rolesLoading = signal(false);
-  roleForm = { name: '', description: '' };
+  roleForm = { id: '', name: '', description: '' };
   roleSubmitting = signal(false);
   roleDialogOpen = signal(false);
+  dialogMode = signal<'create' | 'edit'>('create');
+  deletingId = signal<string | null>(null);
 
   // Live filter over the loaded roles (name / description).
   roleSearch = signal('');
@@ -94,37 +96,68 @@ export class PlatformRolesComponent implements OnInit {
     this.roleSearch.set('');
   }
 
+  // The seeded "System Admin" role is system-managed: it can't be edited or
+  // deleted (backend enforces this too), so the UI hides those actions.
+  isSystemManaged(role: Role): boolean {
+    return role.name === 'System Admin';
+  }
+
   openCreate(): void {
     this.clearMessages();
-    this.roleForm = { name: '', description: '' };
+    this.dialogMode.set('create');
+    this.roleForm = { id: '', name: '', description: '' };
     this.selectedMenuIds.clear();
     this.loadMenus();
     this.roleDialogOpen.set(true);
   }
 
-  cancelCreate(): void {
+  openEdit(role: Role): void {
+    this.clearMessages();
+    this.dialogMode.set('edit');
+    this.roleForm = { id: role.id, name: role.name, description: role.description || '' };
+    this.selectedMenuIds = new Set((role.PermittedMenus || []).map((m) => m.id));
+    this.loadMenus();
+    this.roleDialogOpen.set(true);
+  }
+
+  closeDialog(): void {
     this.roleDialogOpen.set(false);
   }
 
-  onCreate(): void {
+  onSubmit(): void {
     this.clearMessages();
-    if (!this.roleForm.name.trim()) {
+    const name = this.roleForm.name.trim();
+    if (!name) {
       this.errorMessage.set('Role name is required.');
       return;
     }
 
+    const menuIds = Array.from(this.selectedMenuIds);
     this.roleSubmitting.set(true);
+
+    if (this.dialogMode() === 'edit') {
+      this.adminService
+        .updateRole(this.roleForm.id, { name, description: this.roleForm.description.trim(), menuIds })
+        .subscribe({
+          next: () => {
+            this.successMessage.set(`Role "${name}" updated.`);
+            this.roleSubmitting.set(false);
+            this.roleDialogOpen.set(false);
+            this.loadRoles();
+          },
+          error: (err) => {
+            this.errorMessage.set(err.error?.message || 'Failed to update role.');
+            this.roleSubmitting.set(false);
+          },
+        });
+      return;
+    }
+
     this.adminService
-      .createRole({
-        name: this.roleForm.name.trim(),
-        description: this.roleForm.description.trim(),
-        menuIds: Array.from(this.selectedMenuIds),
-      })
+      .createRole({ name, description: this.roleForm.description.trim(), menuIds })
       .subscribe({
         next: () => {
-          this.successMessage.set(`✅ Role "${this.roleForm.name.trim()}" created with ${this.selectedMenuIds.size} menu permission(s).`);
-          this.roleForm = { name: '', description: '' };
-          this.selectedMenuIds.clear();
+          this.successMessage.set(`Role "${name}" created with ${menuIds.length} menu permission(s).`);
           this.roleSubmitting.set(false);
           this.roleDialogOpen.set(false);
           this.loadRoles();
@@ -134,6 +167,26 @@ export class PlatformRolesComponent implements OnInit {
           this.roleSubmitting.set(false);
         },
       });
+  }
+
+  onDelete(role: Role): void {
+    this.clearMessages();
+    if (!confirm(`Delete the role "${role.name}"? This removes the role and its menu permissions. This can't be undone.`)) {
+      return;
+    }
+
+    this.deletingId.set(role.id);
+    this.adminService.deleteRole(role.id).subscribe({
+      next: () => {
+        this.successMessage.set(`Role "${role.name}" deleted.`);
+        this.deletingId.set(null);
+        this.loadRoles();
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to delete role.');
+        this.deletingId.set(null);
+      },
+    });
   }
 
   private clearMessages(): void {

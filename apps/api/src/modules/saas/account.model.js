@@ -28,6 +28,20 @@ const Account = sequelize.define('Account', {
         type: DataTypes.STRING,
         allowNull: false,
         defaultValue: 'ACTIVE', // e.g., ACTIVE, SUSPENDED, CANCELLED
+    },
+    // The subscriber's default language (an ISO 639 code from its opted-in set,
+    // AccountLanguage). null = fall back to the platform default ('en'). Applied to
+    // a user who hasn't set a personal preferred language.
+    defaultLanguageCode: {
+        type: DataTypes.STRING(10),
+        allowNull: true,
+    },
+    // The subscriber's default currency (an ISO 4217 code from its opted-in set,
+    // AccountCurrency). null = none chosen. Used as the initial default for a new
+    // company under this account.
+    defaultCurrencyCode: {
+        type: DataTypes.STRING(3),
+        allowNull: true,
     }
 }, {
     tableName: 'Account',

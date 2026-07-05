@@ -1,15 +1,55 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
 import { ActiveSystemService } from '../services/active-system.service';
-import { MenuItem, WorkspaceOption, MyInvitation } from '../models/auth.models';
+import { LanguageService } from '../services/language.service';
+import { I18nService } from '../i18n/i18n.service';
+import { TranslatePipe } from '../i18n/translate.pipe';
+import { MenuItem, WorkspaceOption, MyInvitation, Language } from '../models/auth.models';
+
+// Translation keys for CODE-DEFINED nav labels (the hardcoded admin menus below +
+// the module grouping names). DB-driven menus/modules carry their own `names`
+// JSONB and don't need an entry here. Anything not listed falls back to its
+// English name. Keys live in public/i18n/*.json under the `nav.` namespace.
+const NAV_KEYS: Record<string, string> = {
+  // Modules (apps switcher / grouping)
+  'SaaS Administration': 'nav.mod.saasAdmin',
+  'System Setup': 'nav.mod.systemSetup',
+  'Core Club Management': 'nav.mod.coreClub',
+  'Membership Management': 'nav.mod.membership',
+  'Golf Management': 'nav.mod.golf',
+  'Facility Management': 'nav.mod.facility',
+  // Menu labels
+  'Role Management': 'nav.roleManagement',
+  'User Management': 'nav.userManagement',
+  'Companies': 'nav.companies',
+  'Languages': 'nav.languages',
+  'Currencies': 'nav.currencies',
+  'Subscriber Management': 'nav.subscriberManagement',
+  'Roles': 'nav.roles',
+  'Users': 'nav.users',
+  'Assign Role': 'nav.assignRole',
+  'Modules & Menus': 'nav.modulesMenus',
+  'Countries': 'nav.countries',
+  // Sidebar section headings for the code-defined SaaS Administration tree.
+  // (DB-driven parent menus carry their own `names`.)
+  'Access': 'nav.group.access',
+  'Reference data': 'nav.group.referenceData',
+};
+
+// A node in the sidebar menu tree (adjacency list). A node with children renders
+// as a collapsible section heading; a leaf renders as a navigation link.
+interface NavNode {
+  menu: MenuItem;
+  children: NavNode[];
+}
 
 @Component({
     selector: 'app-dashboard',
     templateUrl: './dashboard.html',
     styleUrl: './dashboard.css',
-    imports: [CommonModule, RouterModule],
+    imports: [CommonModule, RouterModule, TranslatePipe],
     host: {
       '(document:click)': 'closeDropdown()',
       '(document:keydown.escape)': 'onEscape()'
@@ -28,7 +68,17 @@ export class Dashboard implements OnInit {
   activeCompanyName = 'Loading...';
   allowedMenus: MenuItem[] = [];
   displayedMenus: MenuItem[] = [];
-  availableModules: { name: string; icon: string }[] = [];
+  // The active module's menus as a tree (parent sections + nested children).
+  displayedTree: NavNode[] = [];
+  // Ids of the sections the user has collapsed (a signal so toggling re-renders).
+  collapsedGroups = signal<Set<string>>(new Set());
+
+  // Bottom-nav (mobile) shows only real destinations — leaf menus with a route,
+  // never the code-defined section headers (which have no route).
+  get primaryDestinations(): MenuItem[] {
+    return this.displayedMenus.filter((m) => !!m.route);
+  }
+  availableModules: { name: string; icon: string; names?: Record<string, string> }[] = [];
   activeModule = '';
   isDropdownOpen = false;
   isSidebarPinned = false;
@@ -36,6 +86,13 @@ export class Dashboard implements OnInit {
   // Workspace (company) switching. Async-loaded state is held in signals so the
   // switcher/banner refresh on the HTTP callback (zone-based CD isn't reliable here).
   workspaces = signal<WorkspaceOption[]>([]);
+  // The switcher usually lists only companies, so "Switch Company" reads clearer.
+  // But the list can also include the non-company "System Administration" workspace
+  // (companyId === 'SYSTEM'); when it does, fall back to the umbrella "Switch
+  // Workspace" so that entry isn't mislabelled.
+  readonly workspaceSwitchLabel = computed(() =>
+    this.workspaces().some((w) => w.companyId === 'SYSTEM') ? 'Switch Workspace' : 'Switch Company',
+  );
   currentCompanyId = 'SYSTEM';
   isWorkspaceDropdownOpen = false;
   switchingWorkspace = signal(false);
@@ -44,10 +101,17 @@ export class Dashboard implements OnInit {
   myInvitations = signal<MyInvitation[]>([]);
   respondingInvitationId = signal<string | null>(null);
 
+  // Header language quick-switch: the languages this user may pick from + a
+  // dropdown to switch instantly. Shown only when more than one is available.
+  languageOptions: Language[] = [];
+  isLanguageDropdownOpen = false;
+
   constructor(
     private router: Router,
     private authService: AuthService,
     private activeSystem: ActiveSystemService,
+    private languageService: LanguageService,
+    public i18n: I18nService,
   ) {}
 
   ngOnInit(): void {
@@ -61,6 +125,7 @@ export class Dashboard implements OnInit {
 
     this.loadWorkspaces();
     this.loadMyInvitations();
+    this.loadLanguageOptions();
 
     const savedAvatar = localStorage.getItem('profilePicture');
     if (savedAvatar) this.profilePictureUrl.set(savedAvatar);
@@ -85,39 +150,42 @@ export class Dashboard implements OnInit {
       }));
     }
 
-    if (this.userRoleName === 'Tenant Admin') {
-      // These admin menus may already be granted to the Tenant Admin role by the
-      // backend (seeded "System Setup" menus). Only add the ones that aren't
-      // already present — otherwise they show up twice in the sidebar.
-      const tenantAdminMenus: MenuItem[] = [
-        { name: 'Role Management', route: '/admin/roles', icon: 'badge', moduleName: 'System Setup', moduleIcon: 'admin_panel_settings', Module: undefined },
-        { name: 'User Management', route: '/admin/users', icon: 'manage_accounts', moduleName: 'System Setup', moduleIcon: 'admin_panel_settings', Module: undefined },
-        { name: 'Companies', route: '/admin/companies', icon: 'corporate_fare', moduleName: 'System Setup', moduleIcon: 'admin_panel_settings', Module: undefined },
-      ];
-      for (const menu of tenantAdminMenus) {
-        if (!this.allowedMenus.some(m => m.route === menu.route)) {
-          this.allowedMenus.push(menu);
-        }
-      }
-    }
+    // The Tenant-Admin "System Setup" nav is now a real DB Module + Menus (added
+    // manually), delivered through the login response's `menus` (RBAC-filtered) like
+    // any product module — so it is no longer hardcoded here. See the
+    // system-setup-module-menus memory for the expected Module/Menu shape (routes,
+    // icons) if it ever needs re-seeding.
 
     // System Admin gets the SaaS Administration (control plane) system + its menus.
+    // (Still hardcoded — not yet a DB Module.)
     if (this.isSystemAdmin) {
+      // Modelled as an adjacency-list tree so this (the longest) sidebar stays
+      // tidy: two collapsible sections (Access, Reference data) plus two
+      // top-level items. Section headers carry no route (render as toggles).
+      const saas = { moduleName: 'SaaS Administration', moduleIcon: 'admin_panel_settings', Module: undefined };
       this.allowedMenus.push(
-        { name: 'Subscriber Management', route: '/admin/subscribers', icon: 'groups', moduleName: 'SaaS Administration', moduleIcon: 'admin_panel_settings', Module: undefined },
-        { name: 'Roles', route: '/admin/system-roles', icon: 'badge', moduleName: 'SaaS Administration', moduleIcon: 'admin_panel_settings', Module: undefined },
-        { name: 'Users', route: '/admin/platform-users', icon: 'person', moduleName: 'SaaS Administration', moduleIcon: 'admin_panel_settings', Module: undefined },
-        { name: 'Assign Role', route: '/admin/system-setup', icon: 'link', moduleName: 'SaaS Administration', moduleIcon: 'admin_panel_settings', Module: undefined },
-        { name: 'Modules & Menus', route: '/admin/modules-menus', icon: 'category', moduleName: 'SaaS Administration', moduleIcon: 'admin_panel_settings', Module: undefined },
+        { id: 'saas-subscribers', name: 'Subscriber Management', route: '/admin/subscribers', icon: 'groups', ...saas, parentId: null, sequence: 0 },
+        { id: 'saas-access', name: 'Access', route: '', icon: 'lock', ...saas, parentId: null, sequence: 1 },
+        { id: 'saas-roles', name: 'Roles', route: '/admin/system-roles', icon: 'badge', ...saas, parentId: 'saas-access', sequence: 0 },
+        { id: 'saas-users', name: 'Users', route: '/admin/platform-users', icon: 'person', ...saas, parentId: 'saas-access', sequence: 1 },
+        { id: 'saas-assign', name: 'Assign Role', route: '/admin/system-setup', icon: 'link', ...saas, parentId: 'saas-access', sequence: 2 },
+        { id: 'saas-refdata', name: 'Reference data', route: '', icon: 'storage', ...saas, parentId: null, sequence: 2 },
+        { id: 'saas-countries', name: 'Countries', route: '/admin/countries', icon: 'public', ...saas, parentId: 'saas-refdata', sequence: 0 },
+        { id: 'saas-languages', name: 'Languages', route: '/admin/languages', icon: 'translate', ...saas, parentId: 'saas-refdata', sequence: 1 },
+        { id: 'saas-currencies', name: 'Currencies', route: '/admin/currencies', icon: 'payments', ...saas, parentId: 'saas-refdata', sequence: 2 },
+        { id: 'saas-modules', name: 'Modules & Menus', route: '/admin/modules-menus', icon: 'category', ...saas, parentId: null, sequence: 3 },
       );
     }
 
-    // Build the apps (systems) list from the granted menus.
-    const moduleMap = new Map<string, string>();
+    // Build the apps (systems) list from the granted menus, carrying each module's
+    // localized names so the apps switcher can translate them.
+    const moduleMap = new Map<string, { icon: string; names?: Record<string, string> }>();
     this.allowedMenus.forEach(m => {
-      if (m.moduleName) moduleMap.set(m.moduleName, m.moduleIcon || 'widgets');
+      if (m.moduleName && !moduleMap.has(m.moduleName)) {
+        moduleMap.set(m.moduleName, { icon: m.moduleIcon || 'widgets', names: m.moduleNames });
+      }
     });
-    this.availableModules = Array.from(moduleMap.entries()).map(([name, icon]) => ({ name, icon }));
+    this.availableModules = Array.from(moduleMap.entries()).map(([name, v]) => ({ name, icon: v.icon, names: v.names }));
 
     // Apply Control-Plane landing config (Module.landingRoute) over the defaults.
     this.allowedMenus.forEach(m => {
@@ -134,9 +202,9 @@ export class Dashboard implements OnInit {
 
     this.authService.getProfile().subscribe({
       next: (response) => {
-        if (response.user.profilePicture) {
-          this.authService.updateAvatarState(response.user.profilePicture);
-        }
+        // Sync the header avatar to the server's truth for THIS user (empty ->
+        // default), so a stale avatar from a prior session never shows.
+        this.authService.updateAvatarState(response.user.profilePicture || '');
         const fetchedName = response.user.full_name || response.user.fullName;
         const finalName = (fetchedName && fetchedName.trim() !== '') ? fetchedName : 'New User';
         this.authService.updateFullNameState(finalName);
@@ -147,9 +215,72 @@ export class Dashboard implements OnInit {
     });
   }
 
+  // Resolve a nav label to the active language. Order: the row's own localized
+  // name (DB Menu/Module.names) -> a static dictionary key for code-defined labels
+  // (NAV_KEYS) -> the base English name. Reads the i18n `lang` signal, so the whole
+  // sidebar/apps switcher re-labels live when the language changes.
+  resolveLabel(name: string, names?: Record<string, string>): string {
+    const lang = this.i18n.lang();
+    if (names && names[lang]) return names[lang];
+    const key = NAV_KEYS[name];
+    if (key) return this.i18n.translate(key);
+    return name;
+  }
+
+  // Build the sidebar tree from the flat menu list (adjacency list): group menus
+  // by parentId, ordered by sequence. A menu whose parent isn't in the visible
+  // set is treated as a root (defensive — the login already ships ancestors).
+  private buildNavTree(menus: MenuItem[]): NavNode[] {
+    const bySeq = (a: NavNode, b: NavNode) => (a.menu.sequence ?? 0) - (b.menu.sequence ?? 0);
+    const nodes = new Map<string, NavNode>();
+    for (const m of menus) if (m.id) nodes.set(m.id, { menu: m, children: [] });
+
+    const roots: NavNode[] = [];
+    for (const m of menus) {
+      const node = m.id ? nodes.get(m.id)! : { menu: m, children: [] };
+      const parent = m.parentId ? nodes.get(m.parentId) : null;
+      if (parent) parent.children.push(node);
+      else roots.push(node);
+    }
+    for (const node of nodes.values()) node.children.sort(bySeq);
+    roots.sort(bySeq);
+    return roots;
+  }
+
+  // Every section (a node with children) at any depth, so all start collapsed.
+  private collectSectionIds(nodes: NavNode[]): Set<string> {
+    const ids = new Set<string>();
+    const walk = (list: NavNode[]) => {
+      for (const n of list) {
+        if (n.children.length && n.menu.id) {
+          ids.add(n.menu.id);
+          walk(n.children);
+        }
+      }
+    };
+    walk(nodes);
+    return ids;
+  }
+
+  toggleGroup(id: string): void {
+    const next = new Set(this.collapsedGroups());
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    this.collapsedGroups.set(next);
+  }
+
+  isGroupCollapsed(id: string): boolean {
+    return this.collapsedGroups().has(id);
+  }
+
+  // All header dropdowns (avatar, apps, workspace, language) are mutually
+  // exclusive: each toggle closes every other one first, so only one is ever open
+  // at a time. closeDropdown() is the single place that lists them all.
   toggleDropdown(event: Event): void {
     event.stopPropagation();
-    this.isDropdownOpen = !this.isDropdownOpen;
+    const next = !this.isDropdownOpen;
+    this.closeDropdown();
+    this.isDropdownOpen = next;
   }
 
   onAvatarError(): void {
@@ -172,8 +303,9 @@ export class Dashboard implements OnInit {
 
   toggleAppsDropdown(event: Event): void {
     event.stopPropagation();
-    this.isAppsDropdownOpen = !this.isAppsDropdownOpen;
-    this.isDropdownOpen = false;
+    const next = !this.isAppsDropdownOpen;
+    this.closeDropdown();
+    this.isAppsDropdownOpen = next;
   }
 
   // Per-system landing routes. Seeded with sensible defaults for the known
@@ -197,6 +329,9 @@ export class Dashboard implements OnInit {
   selectModule(moduleName: string, navigate = true): void {
     this.activeModule = moduleName;
     this.displayedMenus = this.allowedMenus.filter(m => m.moduleName === moduleName);
+    this.displayedTree = this.buildNavTree(this.displayedMenus);
+    // Start with every section collapsed on each (re)load of a module.
+    this.collapsedGroups.set(this.collectSectionIds(this.displayedTree));
     this.isAppsDropdownOpen = false;
     // Publish this system's dashboard so other screens (e.g. Under Construction)
     // can return to it rather than the generic /home.
@@ -221,6 +356,36 @@ export class Dashboard implements OnInit {
     this.isDropdownOpen = false;
     this.isAppsDropdownOpen = false;
     this.isWorkspaceDropdownOpen = false;
+    this.isLanguageDropdownOpen = false;
+  }
+
+  // --- Header language quick-switch ---
+  loadLanguageOptions(): void {
+    this.languageService.getMyLanguage().subscribe({
+      next: (state) => {
+        this.languageOptions = state.options;
+        this.i18n.setFallback(state.accountDefault); // subscriber's fallback for missing translations
+        this.i18n.use(state.effective); // keep the shell in sync with the server's resolution
+      },
+      error: () => { this.languageOptions = []; },
+    });
+  }
+
+  toggleLanguageDropdown(event: Event): void {
+    event.stopPropagation();
+    const next = !this.isLanguageDropdownOpen;
+    this.closeDropdown();
+    this.isLanguageDropdownOpen = next;
+  }
+
+  chooseLanguage(code: string): void {
+    this.isLanguageDropdownOpen = false;
+    if (code === this.i18n.lang()) return;
+    this.i18n.use(code); // apply immediately
+    this.languageService.setMyLanguage(code).subscribe({
+      next: (state) => this.i18n.use(state.effective),
+      error: () => {}, // stay on the chosen language even if the save fails
+    });
   }
 
   // Esc closes any open menu/dropdown and the mobile navigation drawer.
@@ -231,9 +396,9 @@ export class Dashboard implements OnInit {
 
   toggleWorkspaceDropdown(event: Event): void {
     event.stopPropagation();
-    this.isWorkspaceDropdownOpen = !this.isWorkspaceDropdownOpen;
-    this.isDropdownOpen = false;
-    this.isAppsDropdownOpen = false;
+    const next = !this.isWorkspaceDropdownOpen;
+    this.closeDropdown();
+    this.isWorkspaceDropdownOpen = next;
   }
 
   loadWorkspaces(): void {

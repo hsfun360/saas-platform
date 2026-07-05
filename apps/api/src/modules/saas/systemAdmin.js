@@ -16,7 +16,7 @@ const Role = require('./role.model');
 async function hasSystemAdminRole(userId) {
     if (!userId) return false;
     const assignment = await CompanyUser.findOne({
-        where: { userId, companyId: null },
+        where: { userId, companyId: null, isActive: true },
         include: [{ model: Role, as: 'Role', where: { name: 'System Admin' } }],
     });
     return !!assignment;

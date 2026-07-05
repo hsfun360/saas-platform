@@ -50,10 +50,32 @@
         </div>
       </div>
       <div class="form-actions">
-        <button type="submit" class="btn-primary" [disabled]="assignSubmitting()">
-          @if (assignSubmitting()) { <span class="spinner"></span> Assigning… } @else { 🔗 Assign Role }
+        <button type="submit" class="btn btn--primary" [disabled]="assignSubmitting()">
+          @if (assignSubmitting()) { <span class="spinner"></span> Assigning… } @else { Assign Role }
         </button>
       </div>
     </form>
   </div>
+
+  <!-- Current assignments — platform users who already hold a system role. -->
+  @if (assignedUsers().length > 0) {
+    <h2 class="section-heading">Current assignments</h2>
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (u of assignedUsers(); track u.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ u.full_name || u.email }}</div>
+              @if (u.full_name) {
+                <p class="data-card__desc">{{ u.email }}</p>
+              }
+            </div>
+            <div class="data-row__badge">
+              <span class="badge badge-pro">{{ u.roleName }}</span>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
 </div>

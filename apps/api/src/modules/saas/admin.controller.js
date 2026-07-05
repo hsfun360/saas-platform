@@ -11,6 +11,42 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { sequelize } = require('../../platform/db');
 
+// Merge a partial localized-names patch (keyed by language code) into an existing
+// map: a non-empty value sets/updates that language, an empty value clears it.
+// Returns a NEW object (so Sequelize detects the JSONB change).
+function mergeNames(existing, patch) {
+    const merged = { ...(existing || {}) };
+    if (patch && typeof patch === 'object' && !Array.isArray(patch)) {
+        for (const [lang, value] of Object.entries(patch)) {
+            const code = String(lang).trim().toLowerCase();
+            if (!code) continue;
+            const name = String(value ?? '').trim();
+            if (name) merged[code] = name;
+            else delete merged[code];
+        }
+    }
+    return merged;
+}
+
+// True if nesting `menuId` under `newParentId` would create a cycle, i.e. the
+// proposed parent is the menu itself or one of its own descendants. Walks the
+// ancestor chain of the proposed parent (in memory, one query per module).
+async function wouldCreateCycle(menuId, newParentId, moduleId) {
+    if (!newParentId) return false;
+    if (newParentId === menuId) return true;
+    const all = await Menu.findAll({ where: { moduleId }, attributes: ['id', 'parentId'] });
+    const parentOf = new Map(all.map(m => [m.id, m.parentId]));
+    const seen = new Set();
+    let cur = newParentId;
+    while (cur) {
+        if (cur === menuId) return true;
+        if (seen.has(cur)) break; // guard against a pre-existing corrupt chain
+        seen.add(cur);
+        cur = parentOf.get(cur) || null;
+    }
+    return false;
+}
+
 // --- 1. ROLE MANAGEMENT ---
 
 // POST /api/admin/roles
@@ -85,12 +121,108 @@ exports.getRoles = async (req, res) => {
     }
 };
 
+// PUT /api/admin/roles/:id
+// Update a system role's name/description and its menu permissions (diff-based
+// add/revoke). The seeded "System Admin" role is system-managed and rejected -
+// renaming it would break the DB-backed admin check, and narrowing its menus
+// could lock every admin out.
+exports.updateRole = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const { name, description, menuIds } = req.body;
+
+        const role = await Role.findOne({ where: { id: req.params.id, companyId: null }, transaction });
+        if (!role) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "Role not found." });
+        }
+        if (role.name === 'System Admin') {
+            await transaction.rollback();
+            return res.status(400).json({ message: "The System Admin role is managed by the system and can't be edited." });
+        }
+
+        // Name (when provided) must stay unique among system roles.
+        if (typeof name === 'string' && name.trim() && name.trim() !== role.name) {
+            const clash = await Role.findOne({ where: { name: name.trim(), companyId: null }, transaction });
+            if (clash) {
+                await transaction.rollback();
+                return res.status(409).json({ message: "Another system role already uses this name." });
+            }
+            role.name = name.trim();
+        }
+        if (typeof description === 'string') {
+            role.description = description.trim() || null;
+        }
+        await role.save({ transaction });
+
+        // Menu permissions -> exact set (validated), applied as a minimal diff.
+        if (Array.isArray(menuIds)) {
+            const desired = [...new Set(menuIds)];
+            if (desired.length > 0) {
+                const found = await Menu.count({ where: { id: desired }, transaction });
+                if (found !== desired.length) {
+                    await transaction.rollback();
+                    return res.status(400).json({ message: "One or more selected menus do not exist." });
+                }
+            }
+            const current = await RoleMenu.findAll({ where: { roleId: role.id }, attributes: ['menuId'], transaction });
+            const currentIds = current.map(c => c.menuId);
+            const toAdd = desired.filter(id => !currentIds.includes(id));
+            const toRemove = currentIds.filter(id => !desired.includes(id));
+            if (toAdd.length > 0) await RoleMenu.bulkCreate(toAdd.map(menuId => ({ roleId: role.id, menuId })), { transaction });
+            if (toRemove.length > 0) await RoleMenu.destroy({ where: { roleId: role.id, menuId: toRemove }, transaction });
+        }
+
+        await transaction.commit();
+        res.status(200).json({ message: "Role updated.", role: { id: role.id, name: role.name, description: role.description } });
+    } catch (error) {
+        if (transaction && !transaction.finished) await transaction.rollback();
+        console.error("Error updating role:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// DELETE /api/admin/roles/:id
+// Hard-delete a system role and its menu grants. Blocked for the system-managed
+// "System Admin" role and while any user still holds the role.
+exports.deleteRole = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const role = await Role.findOne({ where: { id: req.params.id, companyId: null }, transaction });
+        if (!role) {
+            await transaction.rollback();
+            return res.status(404).json({ message: "Role not found." });
+        }
+        if (role.name === 'System Admin') {
+            await transaction.rollback();
+            return res.status(400).json({ message: "The System Admin role is managed by the system and can't be deleted." });
+        }
+
+        const inUse = await CompanyUser.count({ where: { companyId: null, roleId: role.id }, transaction });
+        if (inUse > 0) {
+            await transaction.rollback();
+            return res.status(409).json({
+                message: `${inUse} user(s) still have this role. Change their role under Assign Role first, then delete it.`,
+            });
+        }
+
+        await RoleMenu.destroy({ where: { roleId: role.id }, transaction });
+        await role.destroy({ transaction });
+        await transaction.commit();
+        res.status(200).json({ message: "Role deleted." });
+    } catch (error) {
+        if (transaction && !transaction.finished) await transaction.rollback();
+        console.error("Error deleting role:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // GET /api/admin/modules
 // Returns every module so the admin can flag which ones a new subscriber gets.
 exports.listModules = async (req, res) => {
     try {
         const modules = await Module.findAll({
-            attributes: ['id', 'name', 'icon', 'description', 'landingRoute'],
+            attributes: ['id', 'name', 'names', 'icon', 'description', 'landingRoute'],
             order: [['name', 'ASC']],
         });
         res.status(200).json(modules);
@@ -134,6 +266,7 @@ exports.createModule = async (req, res) => {
         const icon = (req.body.icon || '').trim();
         const module = await Module.create({
             name,
+            names: mergeNames({}, req.body.names),
             icon: icon || undefined, // fall back to the model default ('widgets')
             description: (req.body.description || '').trim() || null,
             landingRoute: (req.body.landingRoute || '').trim() || null,
@@ -163,6 +296,7 @@ exports.updateModule = async (req, res) => {
         if (typeof req.body.icon === 'string') updates.icon = req.body.icon.trim() || 'widgets';
         if (typeof req.body.description === 'string') updates.description = req.body.description.trim() || null;
         if (typeof req.body.landingRoute === 'string') updates.landingRoute = req.body.landingRoute.trim() || null;
+        if (req.body.names && typeof req.body.names === 'object') updates.names = mergeNames(module.names, req.body.names);
 
         await module.update(updates);
         res.status(200).json({ message: "Module updated.", module });
@@ -218,8 +352,8 @@ exports.listModuleMenus = async (req, res) => {
 
         const menus = await Menu.findAll({
             where: { moduleId: req.params.moduleId },
-            attributes: ['id', 'name', 'route', 'icon', 'parentId', 'moduleId'],
-            order: [['name', 'ASC']],
+            attributes: ['id', 'name', 'names', 'route', 'icon', 'parentId', 'moduleId', 'sequence'],
+            order: [['sequence', 'ASC'], ['name', 'ASC']],
         });
         res.status(200).json(menus);
     } catch (error) {
@@ -241,13 +375,26 @@ exports.createMenu = async (req, res) => {
         const module = await Module.findByPk(moduleId);
         if (!module) return res.status(400).json({ message: "The selected module does not exist." });
 
+        // Optional parent (nesting): must be another menu in the same module.
+        const parentId = req.body.parentId || null;
+        if (parentId) {
+            const parent = await Menu.findOne({ where: { id: parentId, moduleId } });
+            if (!parent) return res.status(400).json({ message: "The selected parent menu does not belong to this module." });
+        }
+
+        // Append to the end of its sibling set (menus sharing the same parent).
+        const maxSeq = await Menu.max('sequence', { where: { moduleId, parentId } });
+        const sequence = (Number.isFinite(maxSeq) ? maxSeq : -1) + 1;
+
         const icon = (req.body.icon || '').trim();
         const menu = await Menu.create({
             name,
+            names: mergeNames({}, req.body.names),
             route,
             icon: icon || undefined, // fall back to the model default ('folder')
             moduleId,
-            parentId: req.body.parentId || null,
+            parentId,
+            sequence,
         });
         res.status(201).json({ message: "Menu created.", menu });
     } catch (error) {
@@ -271,7 +418,24 @@ exports.updateMenu = async (req, res) => {
             if (!module) return res.status(400).json({ message: "The selected module does not exist." });
             updates.moduleId = req.body.moduleId;
         }
-        if ('parentId' in req.body) updates.parentId = req.body.parentId || null;
+        // Re-parent (nesting): validate the new parent is in the same module and
+        // does not create a cycle, then append to the end of the new sibling set.
+        if ('parentId' in req.body) {
+            const parentId = req.body.parentId || null;
+            if (parentId !== menu.parentId) {
+                if (parentId) {
+                    const parent = await Menu.findOne({ where: { id: parentId, moduleId: menu.moduleId } });
+                    if (!parent) return res.status(400).json({ message: "The selected parent menu does not belong to this module." });
+                    if (await wouldCreateCycle(menu.id, parentId, menu.moduleId)) {
+                        return res.status(400).json({ message: "A menu cannot be nested under itself or one of its own descendants." });
+                    }
+                }
+                updates.parentId = parentId;
+                const maxSeq = await Menu.max('sequence', { where: { moduleId: menu.moduleId, parentId } });
+                updates.sequence = (Number.isFinite(maxSeq) ? maxSeq : -1) + 1;
+            }
+        }
+        if (req.body.names && typeof req.body.names === 'object') updates.names = mergeNames(menu.names, req.body.names);
 
         await menu.update(updates);
         res.status(200).json({ message: "Menu updated.", menu });
@@ -305,34 +469,115 @@ exports.deleteMenu = async (req, res) => {
     }
 };
 
+// PUT /api/admin/modules/:moduleId/menus/order
+// Body: { items: [{ id, sequence }] }
+// Persists the order of one sibling set after a drag (re-parenting is done via
+// updateMenu, so this only rewrites `sequence`). Idempotent, one transaction.
+exports.reorderMenus = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const items = Array.isArray(req.body.items) ? req.body.items : [];
+        const menus = await Menu.findAll({
+            where: { moduleId: req.params.moduleId },
+            attributes: ['id'],
+            transaction,
+        });
+        const validMenus = new Set(menus.map(m => m.id));
+
+        for (const item of items) {
+            if (!item || !validMenus.has(item.id)) {
+                await transaction.rollback();
+                return res.status(400).json({ message: "One or more menus do not belong to this module." });
+            }
+        }
+
+        await Promise.all(items.map(item =>
+            Menu.update(
+                { sequence: Number(item.sequence) || 0 },
+                { where: { id: item.id }, transaction },
+            ),
+        ));
+
+        await transaction.commit();
+        res.status(200).json({ message: "Menu order saved." });
+    } catch (error) {
+        if (transaction && !transaction.finished) await transaction.rollback();
+        console.error("Error reordering menus:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // --- 2. USER MANAGEMENT ---
 
 // GET /api/admin/users
-// Lightweight user list to populate the "assign user to role" picker.
+// Lists PLATFORM users only: those with a system-level membership (a CompanyUser
+// row with companyId = NULL), the mirror of tenant users (companyId = a real
+// company). Tenant users are intentionally excluded. Each row carries the
+// membership's isActive so the UI can show + toggle active/inactive.
 exports.listUsers = async (req, res) => {
     try {
+        const memberships = await CompanyUser.findAll({
+            where: { companyId: null },
+            attributes: ['userId', 'isActive', 'roleId'],
+        });
+        const membershipByUser = new Map(memberships.map(m => [m.userId, m]));
+        const userIds = [...membershipByUser.keys()];
+        if (userIds.length === 0) return res.status(200).json([]);
+
+        // Resolve the assigned system-role names in one query (for the Assign Role list).
+        const roleIds = [...new Set(memberships.map(m => m.roleId).filter(Boolean))];
+        const roles = roleIds.length
+            ? await Role.findAll({ where: { id: roleIds }, attributes: ['id', 'name'] })
+            : [];
+        const roleNameById = new Map(roles.map(r => [r.id, r.name]));
+
         const users = await User.findAll({
-            attributes: ['id', 'email', 'full_name', 'authMethod', 'createdAt'],
+            where: { id: userIds },
+            attributes: ['id', 'email', 'full_name', 'phone', 'bio', 'authMethod', 'createdAt'],
             order: [['createdAt', 'DESC']],
         });
-        res.status(200).json(users);
+
+        res.status(200).json(users.map(u => {
+            const m = membershipByUser.get(u.id);
+            return {
+                id: u.id,
+                email: u.email,
+                full_name: u.full_name,
+                phone: u.phone,
+                bio: u.bio,
+                authMethod: u.authMethod,
+                createdAt: u.createdAt,
+                isActive: m.isActive !== false,
+                roleId: m.roleId || null,
+                roleName: m.roleId ? (roleNameById.get(m.roleId) || null) : null,
+            };
+        }));
     } catch (error) {
         console.error("Error listing users:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
 
-// POST /api/users
+// POST /api/admin/users
+// Creates a PLATFORM user: the User row PLUS a system-level membership
+// (CompanyUser with companyId = NULL), both in one transaction. The membership is
+// what makes them a real platform user - it gives them the System workspace (so
+// they can log in instead of hitting the "0 workspaces -> 403" path), makes them
+// appear in listUsers, and carries their active/inactive flag. The role stays
+// null until granted under Assign Role.
 exports.createUser = async (req, res) => {
+    const transaction = await sequelize.transaction();
     try {
-        const { email, password, fullName, phone } = req.body;
+        const { email, password, fullName, phone, bio } = req.body;
 
         if (!email || !password || !fullName) {
+            await transaction.rollback();
             return res.status(400).json({ message: "Email, password, and full name are required." });
         }
 
         const existingUser = await User.findOne({ where: { email: email.toLowerCase() } });
         if (existingUser) {
+            await transaction.rollback();
             return res.status(409).json({ message: "User with this email already exists." });
         }
 
@@ -343,14 +588,107 @@ exports.createUser = async (req, res) => {
             email: email.toLowerCase(),
             password: hashedPassword,
             full_name: fullName,
-            phone: phone || null
-        });
+            phone: phone || null,
+            bio: bio || null
+        }, { transaction });
+
+        await CompanyUser.create({
+            userId: newUser.id,
+            companyId: null,
+            roleId: null,
+            isActive: true,
+        }, { transaction });
+
+        await transaction.commit();
 
         newUser.password = undefined;
-
         res.status(201).json({ message: "User created successfully", user: newUser });
     } catch (error) {
+        if (transaction && !transaction.finished) await transaction.rollback();
         console.error("Error creating user:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// PATCH /api/admin/users/:id
+// Edit a platform user's profile fields. Email stays unique (login identity), so
+// a change is checked against other users first.
+exports.updateUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { email, fullName, phone, bio } = req.body;
+
+        const user = await User.findByPk(id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        if (email !== undefined) {
+            const normalized = String(email).trim().toLowerCase();
+            if (!normalized) return res.status(400).json({ message: "Email cannot be empty." });
+            if (normalized !== user.email) {
+                const clash = await User.findOne({ where: { email: normalized } });
+                if (clash) return res.status(409).json({ message: "Another user already uses this email." });
+                user.email = normalized;
+            }
+        }
+        if (fullName !== undefined) {
+            if (!String(fullName).trim()) return res.status(400).json({ message: "Full name cannot be empty." });
+            user.full_name = String(fullName).trim();
+        }
+        if (phone !== undefined) {
+            user.phone = String(phone).trim() || null;
+        }
+        if (bio !== undefined) {
+            user.bio = String(bio).trim() || null;
+        }
+
+        await user.save();
+        res.status(200).json({
+            message: "User updated.",
+            user: {
+                id: user.id,
+                email: user.email,
+                full_name: user.full_name,
+                phone: user.phone,
+                bio: user.bio,
+                authMethod: user.authMethod,
+            },
+        });
+    } catch (error) {
+        console.error("Error updating user:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// PATCH /api/admin/users/:id/status   Body: { isActive: boolean }
+// Activate/deactivate a platform user by flipping isActive on their system-level
+// (companyId = NULL) membership. A deactivated user is skipped by the login and
+// workspace-resolution queries, so they can no longer enter the System workspace.
+exports.setUserStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { isActive } = req.body;
+
+        if (typeof isActive !== 'boolean') {
+            return res.status(400).json({ message: "isActive (boolean) is required." });
+        }
+
+        // Guard against locking yourself out mid-session.
+        if (!isActive && req.user && req.user.id === id) {
+            return res.status(409).json({ message: "You cannot deactivate your own account." });
+        }
+
+        const membership = await CompanyUser.findOne({ where: { userId: id, companyId: null } });
+        if (!membership) {
+            return res.status(404).json({ message: "Platform user not found." });
+        }
+
+        membership.isActive = isActive;
+        await membership.save();
+        res.status(200).json({ message: isActive ? "User activated." : "User deactivated.", isActive });
+    } catch (error) {
+        console.error("Error updating user status:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };

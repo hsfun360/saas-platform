@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../auth.service';
 import { AccountCompany, AccountPerson, AccountPendingInvite, Role } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
+import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 
 // Person-centric User Management: each person is shown with the companies they
 // belong to and their role in each, with inline add-to-company / change-role /
@@ -11,7 +12,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 @Component({
   selector: 'app-tenant-users',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogComponent],
+  imports: [CommonModule, FormsModule, DialogComponent, PhoneInputComponent],
   templateUrl: './tenant-users.html',
   styleUrl: './tenant-users.css',
 })
@@ -49,7 +50,13 @@ export class TenantUsersComponent implements OnInit {
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
 
-  readonly expandedUserId = signal<string | null>(null);
+  // The person whose management dialog is open. Derived from the id so it stays
+  // fresh after each reload (and auto-closes if they lose all access).
+  readonly editPersonId = signal<string | null>(null);
+  readonly editPerson = computed(() => this.people().find((p) => p.id === this.editPersonId()) ?? null);
+  // Editable copy of the open person's global profile fields.
+  editProfile = { fullName: '', email: '', phone: '', bio: '' };
+  readonly savingProfile = signal(false);
   // Key of the action in flight (e.g. `role:<userId>:<companyId>`) — disables that button.
   readonly pendingKey = signal<string | null>(null);
 
@@ -107,8 +114,52 @@ export class TenantUsersComponent implements OnInit {
     return this.companies().filter((c) => !joined.has(c.id));
   }
 
-  toggleExpand(userId: string): void {
-    this.expandedUserId.set(this.expandedUserId() === userId ? null : userId);
+  openEdit(person: AccountPerson): void {
+    this.clearMessages();
+    this.editProfile = {
+      fullName: person.full_name || '',
+      email: person.email || '',
+      phone: person.phone || '',
+      bio: person.bio || '',
+    };
+    this.editPersonId.set(person.id);
+  }
+
+  closeEdit(): void {
+    this.editPersonId.set(null);
+  }
+
+  onSaveProfile(): void {
+    const person = this.editPerson();
+    if (!person) return;
+    this.clearMessages();
+    if (!this.editProfile.fullName.trim()) {
+      this.errorMessage.set('Full name is required.');
+      return;
+    }
+    if (!this.editProfile.email.trim()) {
+      this.errorMessage.set('Email is required.');
+      return;
+    }
+    this.savingProfile.set(true);
+    this.authService
+      .updateTenantUserProfile(person.id, {
+        fullName: this.editProfile.fullName.trim(),
+        email: this.editProfile.email.trim(),
+        phone: this.editProfile.phone.trim(),
+        bio: this.editProfile.bio.trim(),
+      })
+      .subscribe({
+        next: (res) => {
+          this.successMessage.set(res.message || 'Profile updated.');
+          this.savingProfile.set(false);
+          this.load();
+        },
+        error: (err) => {
+          this.errorMessage.set(err.error?.message || 'Failed to update profile.');
+          this.savingProfile.set(false);
+        },
+      });
   }
 
   isPending(key: string): boolean {

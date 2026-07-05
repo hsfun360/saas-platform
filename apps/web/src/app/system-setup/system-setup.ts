@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../services/admin.service';
@@ -17,6 +17,9 @@ import { Role, UserSummary } from '../models/auth.models';
 export class SystemSetupComponent implements OnInit {
   roles = signal<Role[]>([]);
   users = signal<UserSummary[]>([]);
+
+  // Current assignments = platform users who already hold a system role.
+  assignedUsers = computed(() => this.users().filter((u) => !!u.roleName));
 
   assignForm = { userId: '', roleId: '' };
   assignSubmitting = signal(false);
@@ -64,9 +67,10 @@ export class SystemSetupComponent implements OnInit {
       })
       .subscribe({
         next: (res) => {
-          this.successMessage.set(res.message || '✅ Role assigned.');
+          this.successMessage.set(res.message || 'Role assigned.');
           this.assignForm = { userId: '', roleId: '' };
           this.assignSubmitting.set(false);
+          this.loadUsers(); // refresh the assignments list below
         },
         error: (err) => {
           this.errorMessage.set(err.error?.message || 'Failed to assign role.');

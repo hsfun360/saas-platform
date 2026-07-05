@@ -21,7 +21,7 @@
         <div class="workspace-switcher" style="position: relative;">
           <button type="button" (click)="toggleWorkspaceDropdown($event)"
                   [disabled]="switchingWorkspace()"
-                  aria-label="Switch workspace" aria-haspopup="true" [attr.aria-expanded]="isWorkspaceDropdownOpen"
+                  [attr.aria-label]="workspaceSwitchLabel()" aria-haspopup="true" [attr.aria-expanded]="isWorkspaceDropdownOpen"
                   style="display: flex; align-items: center; gap: var(--space-sm); background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); padding: var(--space-xs) var(--space-sm); border-radius: 8px; cursor: pointer; font-size: var(--font-body-2);">
             <span class="material-icons" style="font-size: 18px;">corporate_fare</span>
             <span class="switcher-company">{{ activeCompanyName }}</span>
@@ -32,7 +32,7 @@
             <div (click)="$event.stopPropagation()"
                  style="position: absolute; left: 0; top: 100%; margin-top: var(--space-sm); background: #334155; border-radius: 8px; min-width: 260px; padding: var(--space-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000;">
               <div style="padding: var(--space-sm) var(--space-sm); font-size: var(--font-caption); font-weight: var(--weight-bold); color: #cbd5e1; border-bottom: 1px solid #475569; margin-bottom: var(--space-xs); text-transform: uppercase;">
-                Switch workspace
+                {{ workspaceSwitchLabel() }}
               </div>
               @for (ws of workspaces(); track ws.companyId) {
                 <button type="button" (click)="switchWorkspace(ws.companyId)"
@@ -78,6 +78,36 @@
         <button class="icon-btn hide-mobile" title="Help" aria-label="Help" style="color: white">?</button>
         <button class="icon-btn hide-mobile" title="Settings" aria-label="Settings" routerLink="/settings" style="color: white">⚙</button>
 
+        <!-- Language quick-switch (only when the user has more than one to pick from) -->
+        @if (languageOptions.length > 1) {
+          <div style="position: relative; display: inline-block;">
+            <button class="icon-btn" [title]="'language.switch' | t" [attr.aria-label]="'language.switch' | t"
+                    aria-haspopup="true" [attr.aria-expanded]="isLanguageDropdownOpen"
+                    (click)="toggleLanguageDropdown($event)" style="color: white; display: inline-flex; align-items: center; gap: 4px;">
+              <span class="material-icons" style="font-size: 22px; vertical-align: middle;">language</span>
+              <span class="hide-mobile" style="font-size: var(--font-caption); font-weight: var(--weight-bold); text-transform: uppercase;">{{ i18n.lang() }}</span>
+            </button>
+
+            @if (isLanguageDropdownOpen) {
+              <div class="dropdown-menu dark-google-menu" style="position: absolute; right: 0; top: calc(100% + 12px); background: #334155; border-radius: 8px; min-width: 200px; padding: var(--space-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000;" (click)="$event.stopPropagation()">
+                <div style="padding: var(--space-sm); font-size: var(--font-caption); font-weight: var(--weight-bold); color: #cbd5e1; border-bottom: 1px solid #475569; margin-bottom: var(--space-xs); text-transform: uppercase;">
+                  {{ 'language.switch' | t }}
+                </div>
+                @for (l of languageOptions; track l.languageCode) {
+                  <button type="button" (click)="chooseLanguage(l.languageCode)"
+                          style="width: 100%; text-align: left; background: transparent; border: none; padding: var(--space-sm); color: white; cursor: pointer; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;"
+                          onmouseover="this.style.background='#475569'" onmouseout="this.style.background='transparent'">
+                    <span style="font-size: var(--font-body);">{{ l.name }}</span>
+                    @if (l.languageCode === i18n.lang()) {
+                      <span class="material-icons" style="font-size: 18px; color: #38bdf8;">check</span>
+                    }
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+
         <div style="position: relative; display: inline-block;">
           <button class="icon-btn" title="Apps" aria-label="Apps" aria-haspopup="true" [attr.aria-expanded]="isAppsDropdownOpen" (click)="toggleAppsDropdown($event)" style="color: white">
             <span class="material-icons" style="font-size: 24px; vertical-align: middle;">apps</span>
@@ -86,13 +116,13 @@
           @if (isAppsDropdownOpen) {
             <div class="dropdown-menu dark-google-menu" style="position: absolute; right: 0; top: calc(100% + 12px); background: #334155; border-radius: 8px; min-width: 220px; padding: var(--space-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000;" (click)="$event.stopPropagation()">
               <div style="padding: var(--space-sm); font-size: var(--font-caption); font-weight: var(--weight-bold); color: #cbd5e1; border-bottom: 1px solid #475569; margin-bottom: var(--space-xs); text-transform: uppercase;">
-                Your Apps
+                {{ 'nav.yourApps' | t }}
               </div>
 
               @for (mod of availableModules; track mod.name) {
                 <button type="button" (click)="selectModule(mod.name)" style="width: 100%; text-align: left; background: transparent; border: none; padding: var(--space-sm); color: white; cursor: pointer; border-radius: 6px; transition: background 0.2s; display: flex; align-items: center;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='transparent'">
                   <span class="material-icons" style="margin-right: var(--space-sm); font-size: 20px; color: #38bdf8;">{{ mod.icon }}</span>
-                  <span style="font-size: var(--font-body);">{{ mod.name }}</span>
+                  <span style="font-size: var(--font-body);">{{ resolveLabel(mod.name, mod.names) }}</span>
                 </button>
               }
             </div>
@@ -169,24 +199,45 @@
           <li style="margin-bottom: var(--space-xs);">
             <a [routerLink]="systemDashboardRoute" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
               <span class="icon material-icons">dashboard</span>
-              <span class="label">Dashboard</span>
+              <span class="label">{{ 'nav.dashboard' | t }}</span>
             </a>
           </li>
 
-          @for (menu of displayedMenus; track menu.route) {
-            <li style="margin-bottom: var(--space-xs);">
-              <a [routerLink]="menu.route" routerLinkActive="active">
-                <span class="icon material-icons">{{ menu.icon || 'folder' }}</span>
-                <span class="label">{{ menu.name }}</span>
-              </a>
-            </li>
-          }
+          <!-- Recursive menu tree: a node with children is a collapsible section
+               heading; a leaf is a navigation link. Nests to arbitrary depth. -->
+          <ng-template #navNodes let-nodes>
+            @for (node of nodes; track node.menu.id || node.menu.route) {
+              @if (node.children.length) {
+                <li class="nav-group">
+                  <button type="button" class="nav-group__header" (click)="toggleGroup(node.menu.id!)"
+                          [attr.aria-expanded]="!isGroupCollapsed(node.menu.id!)">
+                    <span class="icon material-icons">{{ node.menu.icon || 'folder' }}</span>
+                    <span class="label nav-group__label">{{ resolveLabel(node.menu.name, node.menu.names) }}</span>
+                    <span class="material-icons nav-group__chevron" aria-hidden="true">{{ isGroupCollapsed(node.menu.id!) ? 'expand_more' : 'expand_less' }}</span>
+                  </button>
+                  @if (!isGroupCollapsed(node.menu.id!)) {
+                    <ul class="nav-group__menus">
+                      <ng-container *ngTemplateOutlet="navNodes; context: { $implicit: node.children }"></ng-container>
+                    </ul>
+                  }
+                </li>
+              } @else {
+                <li style="margin-bottom: var(--space-xs);">
+                  <a [routerLink]="node.menu.route" routerLinkActive="active">
+                    <span class="icon material-icons">{{ node.menu.icon || 'folder' }}</span>
+                    <span class="label">{{ resolveLabel(node.menu.name, node.menu.names) }}</span>
+                  </a>
+                </li>
+              }
+            }
+            @empty {
+              <li style="padding: var(--space-md); color: #64748b; font-size: var(--font-body);">
+                <span class="label">No extra menus assigned.</span>
+              </li>
+            }
+          </ng-template>
 
-          @empty {
-            <li style="padding: var(--space-md); color: #64748b; font-size: var(--font-body);">
-              <span class="label">No extra menus assigned.</span>
-            </li>
-          }
+          <ng-container *ngTemplateOutlet="navNodes; context: { $implicit: displayedTree }"></ng-container>
 
         </ul>
       </nav>
@@ -241,17 +292,17 @@
   <nav class="bottom-nav">
     <a class="bottom-nav-item" [routerLink]="systemDashboardRoute" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
       <span class="material-icons">dashboard</span>
-      <span class="bottom-nav-label">Dashboard</span>
+      <span class="bottom-nav-label">{{ 'nav.dashboard' | t }}</span>
     </a>
-    @for (menu of displayedMenus.slice(0, 3); track menu.route) {
+    @for (menu of primaryDestinations.slice(0, 3); track menu.route) {
       <a class="bottom-nav-item" [routerLink]="menu.route" routerLinkActive="active">
         <span class="material-icons">{{ menu.icon || 'folder' }}</span>
-        <span class="bottom-nav-label">{{ menu.name }}</span>
+        <span class="bottom-nav-label">{{ resolveLabel(menu.name, menu.names) }}</span>
       </a>
     }
     <button type="button" class="bottom-nav-item" (click)="toggleSidebar()">
       <span class="material-icons">menu</span>
-      <span class="bottom-nav-label">More</span>
+      <span class="bottom-nav-label">{{ 'nav.more' | t }}</span>
     </button>
   </nav>
 </div>

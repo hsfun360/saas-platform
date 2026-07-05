@@ -1,123 +1,118 @@
-<div class="settings-container" style="max-width: 650px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-lg); padding: var(--space-lg);">
-  
-  <div class="settings-card" 
-       style="display: flex; flex-direction: column; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow: hidden;">
-    
-    <div class="settings-header" 
-         (click)="toggleGeneralSettings()" 
-         [style.border-bottom]="isGeneralSettingsExpanded ? '1px solid #eaeaea' : 'none'"
-         style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; background-color: #f8f9fa; padding: var(--space-sm) var(--space-lg); transition: background-color 0.2s; margin-bottom: 0;">
-      <div>
-        <h2 style="margin: 0; font-size: var(--font-h2); color: #333;">General Settings</h2>
-        <p style="color: #666; margin: var(--space-xs) 0 0 0; font-size: var(--font-body-2);">Customize your dashboard experience</p>
-      </div>
-      
-      <div style="transition: transform 0.3s ease;" 
-           [style.transform]="isGeneralSettingsExpanded ? 'rotate(90deg)' : 'rotate(0deg)'">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
-      </div>
-    </div>
+<section class="screen-pad settings-wrap">
+
+  <!-- General Settings (collapsible) -->
+  <div class="settings-card">
+    <button type="button" class="settings-header settings-header--button"
+            (click)="toggleGeneralSettings()" [attr.aria-expanded]="isGeneralSettingsExpanded">
+      <span class="settings-header__text">
+        <span class="settings-header__title">General Settings</span>
+        <span class="settings-header__sub">Customize your dashboard experience</span>
+      </span>
+      <span class="material-icons settings-header__chevron"
+            [class.settings-header__chevron--open]="isGeneralSettingsExpanded" aria-hidden="true">chevron_right</span>
+    </button>
 
     @if (isGeneralSettingsExpanded) {
-      <div class="settings-list" style="display: flex; flex-direction: column; gap: var(--space-sm); padding: var(--space-sm) var(--space-lg) var(--space-lg) var(--space-lg);">
-        
-        <div class="setting-item" style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-sm) 0; border-bottom: 1px solid #f5f5f5;">
+      <div class="settings-body">
+        <div class="setting-item">
           <div class="setting-info">
-            <span class="setting-title" style="font-weight: var(--weight-medium); display: block; color: #333;">Dark Mode</span>
-            <span class="setting-description" style="font-size: var(--font-body-2); color: #777;">Reduce eye strain in low-light environments</span>
+            <span class="setting-title">Dark Mode</span>
+            <span class="setting-description">Reduce eye strain in low-light environments</span>
           </div>
           <label class="switch">
-            <input type="checkbox" [checked]="settings.darkMode" (change)="toggleSetting('darkMode')">
+            <input type="checkbox" [checked]="settings.darkMode" (change)="toggleSetting('darkMode')" aria-label="Dark Mode">
             <span class="slider round"></span>
           </label>
         </div>
 
-        <div class="setting-item" style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-sm) 0; border-bottom: 1px solid #f5f5f5;">
+        <div class="setting-item">
           <div class="setting-info">
-            <span class="setting-title" style="font-weight: var(--weight-medium); display: block; color: #333;">Email Notifications</span>
-            <span class="setting-description" style="font-size: var(--font-body-2); color: #777;">Receive updates about your account via email</span>
+            <span class="setting-title">Email Notifications</span>
+            <span class="setting-description">Receive updates about your account via email</span>
           </div>
           <label class="switch">
-            <input type="checkbox" [checked]="settings.emailNotifications" (change)="toggleSetting('emailNotifications')">
+            <input type="checkbox" [checked]="settings.emailNotifications" (change)="toggleSetting('emailNotifications')" aria-label="Email Notifications">
             <span class="slider round"></span>
           </label>
         </div>
 
-        <div class="setting-item" style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-sm) 0; border-bottom: none;">
+        <div class="setting-item setting-item--last">
           <div class="setting-info">
-            <span class="setting-title" style="font-weight: var(--weight-medium); display: block; color: #333;">Compact View</span>
-            <span class="setting-description" style="font-size: var(--font-body-2); color: #777;">Show more content with less spacing</span>
+            <span class="setting-title">Compact View</span>
+            <span class="setting-description">Show more content with less spacing</span>
           </div>
           <label class="switch">
-            <input type="checkbox" [checked]="settings.compactView" (change)="toggleSetting('compactView')">
+            <input type="checkbox" [checked]="settings.compactView" (change)="toggleSetting('compactView')" aria-label="Compact View">
             <span class="slider round"></span>
           </label>
         </div>
-
       </div>
     }
   </div>
 
-  <div class="settings-card" style="display: flex; flex-direction: column; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow: hidden;">
-    
-    <div class="settings-header" style="background-color: #f8f9fa; padding: var(--space-sm) var(--space-lg); border-bottom: 1px solid #eaeaea; margin-bottom: 0;">
-      <div> 
-        <h2 style="margin: 0; font-size: var(--font-h2); color: #333;">Security</h2>
-        <p style="color: #666; margin: var(--space-xs) 0 0 0; font-size: var(--font-body-2);">Manage your account security and passwords</p>
-      </div>
+  <!-- Language -->
+  <div class="settings-card">
+    <div class="settings-header">
+      <span class="settings-header__text">
+        <span class="settings-header__title">{{ 'settings.language' | t }}</span>
+        <span class="settings-header__sub">{{ 'settings.languageHelp' | t }}</span>
+      </span>
     </div>
-
-    <div class="settings-list" style="padding: var(--space-lg);">
-      @if (authMethod === 'local') {
-        <div class="setting-item" style="display: block; border-bottom: none; padding: 0;">
-          
-          <form [formGroup]="passwordForm" (ngSubmit)="onChangePassword()">
-            
-            <div style="margin-bottom: var(--space-lg);">
-              <label style="display: block; margin-bottom: var(--space-sm); font-weight: var(--weight-medium); color: #333; font-size: var(--font-body-2);">Current Password</label>
-              <input type="password" formControlName="currentPassword" placeholder="Enter current password" 
-                style="width: 100%; padding: var(--space-sm); border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: var(--font-body);">
-            </div>
-
-            <div style="margin-bottom: var(--space-lg);">
-              <label style="display: block; margin-bottom: var(--space-sm); font-weight: var(--weight-medium); color: #333; font-size: var(--font-body-2);">New Password</label>
-              <input type="password" formControlName="newPassword" placeholder="Minimum 6 characters" 
-                style="width: 100%; padding: var(--space-sm); border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: var(--font-body);">
-            </div>
-
-            <div style="margin-bottom: var(--space-lg);">
-              <label style="display: block; margin-bottom: var(--space-sm); font-weight: var(--weight-medium); color: #333; font-size: var(--font-body-2);">Confirm New Password</label>
-              <input type="password" formControlName="confirmPassword" placeholder="Re-enter new password" 
-                style="width: 100%; padding: var(--space-sm); border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: var(--font-body);"
-                [style.border-color]="passwordForm.errors?.['passwordsMismatch'] && passwordForm.get('confirmPassword')?.touched ? '#dc3545' : '#ccc'">
-              
-              @if (passwordForm.errors?.['passwordsMismatch'] && passwordForm.get('confirmPassword')?.touched) {
-                <div style="color: #dc3545; font-size: var(--font-body-2); margin-top: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs);">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                  Passwords do not match
-                </div>
-              }
-            </div>
-
-            <button type="submit" [disabled]="passwordForm.invalid" 
-              style="background: #0062cc; color: white; border: none; padding: var(--space-sm) var(--space-lg); border-radius: 6px; cursor: pointer; font-weight: var(--weight-medium); font-size: var(--font-body); transition: all 0.3s;"
-              [style.opacity]="passwordForm.invalid ? '0.5' : '1'"
-              [style.cursor]="passwordForm.invalid ? 'not-allowed' : 'pointer'">
-              Update Password
-            </button>
-
-          </form>
-        </div>
-      } @else {
-        <div class="setting-item" style="display: block; background-color: #f8f9fa; border-left: 4px solid #0062cc; padding: var(--space-md); border-radius: 6px; border-bottom: none;">
-          <p style="margin: 0; color: #444; font-size: var(--font-body-2); line-height: 1.5;">
-            You logged in using <strong>{{ authMethod | titlecase }}</strong>. To change your password or update security settings, please visit your {{ authMethod | titlecase }} account provider directly.
-          </p>
-        </div>
+    <div class="settings-body">
+      <label for="pref-lang" class="field-label">{{ 'language.preferred' | t }}</label>
+      <select id="pref-lang" class="field-control" [value]="currentLanguage"
+              (change)="onLanguageChange($any($event.target).value)" [disabled]="languageOptions.length <= 1">
+        @for (l of languageOptions; track l.languageCode) {
+          <option [value]="l.languageCode">{{ l.name }}</option>
+        }
+      </select>
+      @if (languageOptions.length <= 1) {
+        <p class="field-hint">{{ 'language.onlyOne' | t }}</p>
+      }
+      @if (languageMessage) {
+        <p class="field-success" role="status" aria-live="polite">{{ languageMessage }}</p>
       }
     </div>
   </div>
 
-</div>
+  <!-- Security -->
+  <div class="settings-card">
+    <div class="settings-header">
+      <span class="settings-header__text">
+        <span class="settings-header__title">{{ 'settings.security' | t }}</span>
+        <span class="settings-header__sub">Manage your account security and passwords</span>
+      </span>
+    </div>
+    <div class="settings-body">
+      @if (authMethod === 'local') {
+        <form [formGroup]="passwordForm" (ngSubmit)="onChangePassword()">
+          <div class="form-group">
+            <label for="cur-pw">Current Password</label>
+            <input id="cur-pw" type="password" formControlName="currentPassword" placeholder="Enter current password">
+          </div>
+
+          <div class="form-group">
+            <label for="new-pw">New Password</label>
+            <input id="new-pw" type="password" formControlName="newPassword" placeholder="Minimum 6 characters">
+          </div>
+
+          <div class="form-group">
+            <label for="conf-pw">Confirm New Password</label>
+            <input id="conf-pw" type="password" formControlName="confirmPassword" placeholder="Re-enter new password"
+                   [class.field-control--error]="passwordForm.errors?.['passwordsMismatch'] && passwordForm.get('confirmPassword')?.touched">
+            @if (passwordForm.errors?.['passwordsMismatch'] && passwordForm.get('confirmPassword')?.touched) {
+              <p class="field-error" role="alert">Passwords do not match</p>
+            }
+          </div>
+
+          <button type="submit" class="btn btn--primary" [disabled]="passwordForm.invalid">Update Password</button>
+        </form>
+      } @else {
+        <div class="sso-note">
+          You logged in using <strong>{{ authMethod | titlecase }}</strong>. To change your password or update
+          security settings, please visit your {{ authMethod | titlecase }} account provider directly.
+        </div>
+      }
+    </div>
+  </div>
+</section>

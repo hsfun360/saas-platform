@@ -54,12 +54,28 @@
     <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
       @for (role of filteredRoles(); track role.id) {
         <div class="data-card">
-          <div class="data-card__title">{{ role.name }}</div>
-          <dl class="data-card__meta">
-            <div class="meta"><dt>Description</dt><dd>{{ role.description || '—' }}</dd></div>
-            <div class="meta"><dt>Menus</dt><dd>{{ role.PermittedMenus?.length || 0 }}</dd></div>
-            <div class="meta"><dt>ID</dt><dd class="cell-mono">{{ role.id | slice:0:8 }}…</dd></div>
-          </dl>
+          <div class="data-row">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ role.name }}</div>
+              @if (role.description) {
+                <p class="data-card__desc">{{ role.description }}</p>
+              }
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Menus</dt><dd>{{ role.PermittedMenus?.length || 0 }}</dd></div>
+              </dl>
+            </div>
+            <div class="data-row__actions">
+              @if (isSystemManaged(role)) {
+                <span class="badge">System-managed</span>
+              } @else {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(role)">Edit</button>
+                <button type="button" class="btn btn--danger btn--sm" (click)="onDelete(role)"
+                        [disabled]="deletingId() === role.id">
+                  {{ deletingId() === role.id ? 'Deleting…' : 'Delete' }}
+                </button>
+              }
+            </div>
+          </div>
         </div>
       }
     </div>
@@ -71,10 +87,10 @@
     Create role
   </button>
 
-  <!-- ============ Create role dialog ============ -->
+  <!-- ============ Create / Edit role dialog ============ -->
   @if (roleDialogOpen()) {
-    <app-dialog title="Create role" [busy]="roleSubmitting()" (close)="cancelCreate()">
-      <form id="createRoleForm" (ngSubmit)="onCreate()" class="saas-form" style="padding: 0;">
+    <app-dialog [title]="dialogMode() === 'edit' ? 'Edit role' : 'Create role'" [busy]="roleSubmitting()" (close)="closeDialog()">
+      <form id="roleDialogForm" (ngSubmit)="onSubmit()" class="saas-form" style="padding: 0;">
         <div class="form-row">
           <div class="form-group">
             <label for="roleName">Role Name <span class="required">*</span></label>
@@ -112,8 +128,8 @@
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelCreate()" [disabled]="roleSubmitting()">Cancel</button>
-        <button type="submit" form="createRoleForm" class="btn btn--primary" [disabled]="roleSubmitting()">
+        <button type="button" class="btn btn--secondary" (click)="closeDialog()" [disabled]="roleSubmitting()">Cancel</button>
+        <button type="submit" form="roleDialogForm" class="btn btn--primary" [disabled]="roleSubmitting()">
           {{ roleSubmitting() ? 'Saving…' : 'Save' }}
         </button>
       </ng-container>

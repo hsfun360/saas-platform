@@ -1,0 +1,69 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🈳</span>
+      <div>
+        <h1>{{ 'accountLanguages.title' | t }}</h1>
+        <p class="saas-subtitle">{{ 'accountLanguages.subtitle' | t }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>{{ 'common.loading' | t }}</p></div>
+  } @else if (available().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>{{ 'accountLanguages.none' | t }}</p></div>
+  } @else {
+    <!-- Available languages: tick the ones this subscriber offers. -->
+    <div class="data-card" style="margin-bottom: var(--space-md);">
+      <h2 style="margin: 0 0 var(--space-xs); font-size: var(--font-h3);">{{ 'accountLanguages.available' | t }}</h2>
+      <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">{{ 'accountLanguages.selectHelp' | t }}</p>
+      <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+        @for (l of available(); track l.languageCode) {
+          <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-xs) 0; cursor: pointer;">
+            <input type="checkbox" [checked]="isSelected(l.languageCode)" (change)="toggle(l.languageCode)" />
+            <span>{{ l.name }} <span class="cell-subtle">({{ l.languageCode | uppercase }})</span></span>
+          </label>
+        }
+      </div>
+    </div>
+
+    <!-- Default language among the selected. -->
+    <div class="data-card" style="margin-bottom: var(--space-md);">
+      <h2 style="margin: 0 0 var(--space-xs); font-size: var(--font-h3);">{{ 'accountLanguages.default' | t }}</h2>
+      <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">{{ 'accountLanguages.defaultHelp' | t }}</p>
+      @if (selectedLanguages().length === 0) {
+        <p class="cell-subtle" style="margin: 0;">{{ 'accountLanguages.mustPickOne' | t }}</p>
+      } @else {
+        <select [value]="defaultCode()" (change)="defaultCode.set($any($event.target).value)"
+                style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 320px;">
+          @for (l of selectedLanguages(); track l.languageCode) {
+            <option [value]="l.languageCode">{{ l.name }}</option>
+          }
+        </select>
+      }
+    </div>
+
+    <button type="button" class="btn btn--primary" (click)="save()" [disabled]="saving() || selectedLanguages().length === 0">
+      {{ saving() ? ('common.saving' | t) : ('accountLanguages.save' | t) }}
+    </button>
+  }
+</div>

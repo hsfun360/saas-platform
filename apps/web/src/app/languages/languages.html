@@ -1,0 +1,164 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🈯</span>
+      <div>
+        <h1>Languages</h1>
+        <p class="saas-subtitle">Languages the platform can be presented in (used by future multilanguage support).</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Status on the left, "Load defaults" action on the right. -->
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (languages().length > 0) {
+        {{ languages().length }} languages, {{ activeCount() }} active
+      } @else {
+        No languages yet — click "Load defaults" to add the common set, or use "New language".
+      }
+    </span>
+    <button type="button" class="btn btn--secondary btn--sm" (click)="onSeed()" [disabled]="seeding()">
+      {{ seeding() ? 'Loading…' : 'Load defaults' }}
+    </button>
+  </div>
+
+  <!-- Live filter (name / code). -->
+  @if (!loading() && languages().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #langSearchBox type="search" [value]="search()" (input)="search.set(langSearchBox.value)"
+             placeholder="Search languages…" aria-label="Search languages" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading languages…</p></div>
+  } @else if (languages().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No languages yet. Use "Load defaults" to add the common set, or "New language" to add one.</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No languages match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (l of filtered(); track l.languageCode) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ l.name }}</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">{{ l.languageCode | uppercase }}</span>
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (l.isActive === false) {
+                <span class="badge badge-inactive">Disabled</span>
+              } @else {
+                <span class="badge badge-active">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(l)">Edit</button>
+              @if (l.isActive === false) {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="toggleActive(l)"
+                        [disabled]="togglingCode() === l.languageCode">
+                  {{ togglingCode() === l.languageCode ? 'Saving…' : 'Enable' }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="toggleActive(l)"
+                        [disabled]="togglingCode() === l.languageCode">
+                  {{ togglingCode() === l.languageCode ? 'Saving…' : 'Disable' }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New language FAB -->
+  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New language">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New language</span>
+  </button>
+
+  <!-- ============ Add language dialog ============ -->
+  @if (addOpen()) {
+    <app-dialog [title]="'New language'" [busy]="addSaving()" (close)="closeAdd()">
+      <form id="addLanguageForm" (ngSubmit)="onSaveAdd()" class="saas-form" style="padding: 0;">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="lCode">Language code</label>
+            <input id="lCode" type="text" name="lCode" [(ngModel)]="addForm.languageCode"
+                   placeholder="e.g. en, ms, zh-tw" autocapitalize="off" autocomplete="off" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="lName">Name</label>
+            <input id="lName" type="text" name="lName" [(ngModel)]="addForm.name" placeholder="e.g. English" required />
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeAdd()" [disabled]="addSaving()">Cancel</button>
+        <button type="submit" form="addLanguageForm" class="btn btn--primary" [disabled]="addSaving()">
+          {{ addSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Edit language dialog ============ -->
+  @if (editOpen()) {
+    <app-dialog [title]="'Edit — ' + editForm.name" [busy]="editSaving()" (close)="closeEdit()">
+      <form id="editLanguageForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eCode">Language code</label>
+            <input id="eCode" type="text" name="eCode" [value]="editForm.languageCode | uppercase" disabled />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eName">Name</label>
+            <input id="eName" type="text" name="eName" [(ngModel)]="editForm.name" placeholder="e.g. English" required />
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeEdit()" [disabled]="editSaving()">Cancel</button>
+        <button type="submit" form="editLanguageForm" class="btn btn--primary" [disabled]="editSaving()">
+          {{ editSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

@@ -1,15 +1,14 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { AuthService } from '../../auth.service';
-//import { NgFor, NgIf } from '@angular/common'; // 👈 1. Make sure this import path is correct
+import { PhoneInputComponent } from '../../shared/phone-input/phone-input';
 
 @Component({
     selector: 'app-profile',
     standalone: true,
     templateUrl: './profile.html',
     styleUrl: './profile.css',
-//    imports: [ReactiveFormsModule, NgFor, NgIf]
-    imports: [ReactiveFormsModule]
+    imports: [ReactiveFormsModule, PhoneInputComponent]
 })
 export class ProfileComponent implements OnInit {
   profileForm!: FormGroup;
@@ -17,17 +16,6 @@ export class ProfileComponent implements OnInit {
   errorMessage: string = '';
   isLoading: boolean = true;
   authMethod: string = 'local';
-
-  // List of common country codes. You can add more as needed!
-  countryCodes = [
-    { code: '+60', country: 'Malaysia (+60)' },
-    { code: '+65', country: 'Singapore (+65)' },
-    { code: '+62', country: 'Indonesia (+62)' },
-    { code: '+66', country: 'Thailand (+66)' },
-    { code: '+1', country: 'US/Canada (+1)' },
-    { code: '+44', country: 'UK (+44)' },
-    { code: '+61', country: 'Australia (+61)' }
-  ];
 
   constructor(
     private fb: FormBuilder, 
@@ -46,8 +34,7 @@ export class ProfileComponent implements OnInit {
   this.profileForm = this.fb.group({
     fullName: ['Loading...', [Validators.required]],
     email: [{ value: savedEmail, disabled: true }],
-    countryCode: ['+60'], // Defaulting to +60
-    phoneNumber: [''],
+    phone: [''], // combined "+60123..." — the phone-input component splits/joins it
     bio: [''],
     profilePicture: [''] // 👈 Add this new control
   });
@@ -59,25 +46,11 @@ export class ProfileComponent implements OnInit {
         const userData = response.user;
         this.authMethod = userData.authMethod || 'local';
 
-        let parsedCode = '+60';
-        let parsedNumber = '';
-
-        if (userData.phone) {
-          const matchedCountry = this.countryCodes.find(c => userData.phone!.startsWith(c.code));
-          if (matchedCountry) {
-            parsedCode = matchedCountry.code;
-            parsedNumber = userData.phone.substring(matchedCountry.code.length);
-          } else {
-            parsedNumber = userData.phone;
-          }
-        }
-
         this.selectedImagePreview = userData.profilePicture || null;
 
         this.profileForm.patchValue({
           fullName: userData.full_name || '',
-          countryCode: parsedCode,
-          phoneNumber: parsedNumber,
+          phone: userData.phone || '',
           bio: userData.bio || '',
           profilePicture: userData.profilePicture || ''
         });
@@ -148,15 +121,10 @@ export class ProfileComponent implements OnInit {
   onUpdateProfile() {
     if (this.profileForm.valid) {
       const formValues = this.profileForm.getRawValue();
-      
-      // Combine the country code and phone number before saving
-      const combinedPhone = formValues.phoneNumber 
-        ? `${formValues.countryCode}${formValues.phoneNumber}` 
-        : ''; // Save as empty string if no number was typed
 
       const dataToSave = {
         full_name: formValues.fullName,
-        phone: combinedPhone,
+        phone: formValues.phone, // already combined ("+60123…") by the phone-input component
         bio: formValues.bio
 //        profilePicture: formValues.profilePicture // This will be the Base64 string of the image
       };

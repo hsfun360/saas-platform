@@ -1,8 +1,9 @@
-import { ApplicationConfig } from '@angular/core';
+import { ApplicationConfig, provideAppInitializer, inject } from '@angular/core';
 import { provideRouter, Routes } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './app/auth.interceptor';
 import { bootstrapApplication } from '@angular/platform-browser';
+import { I18nService } from './app/i18n/i18n.service';
 
 // Microsoft MSAL Imports
 //import { MSAL_INSTANCE, MSAL_GUARD_CONFIG, MsalGuardConfiguration, MsalService } from '@azure/msal-angular';
@@ -29,6 +30,11 @@ import { SystemSetupComponent } from './app/system-setup/system-setup';
 import { SubscribersComponent } from './app/subscribers/subscribers';
 import { PlatformRolesComponent } from './app/platform-roles/platform-roles';
 import { PlatformUsersComponent } from './app/platform-users/platform-users';
+import { CountriesComponent } from './app/countries/countries';
+import { LanguagesComponent } from './app/languages/languages';
+import { CurrenciesComponent } from './app/currencies/currencies';
+import { AccountLanguagesComponent } from './app/account-languages/account-languages';
+import { AccountCurrenciesComponent } from './app/account-currencies/account-currencies';
 import { TenantUsersComponent } from './app/tenant-users/tenant-users';
 import { CompaniesComponent } from './app/companies/companies';
 import { ModulesMenusComponent } from './app/modules-menus/modules-menus';
@@ -78,9 +84,14 @@ const routes: Routes = [
       { path: 'admin/roles', component: RoleManagementComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/users', component: TenantUsersComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/companies', component: CompaniesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/account-languages', component: AccountLanguagesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/account-currencies', component: AccountCurrenciesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/subscribers', component: SubscribersComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/system-roles', component: PlatformRolesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/platform-users', component: PlatformUsersComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/countries', component: CountriesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/languages', component: LanguagesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/currencies', component: CurrenciesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/system-setup', component: SystemSetupComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/modules-menus', component: ModulesMenusComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/modules-menus/:moduleId', component: ModulesMenusComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
@@ -148,6 +159,9 @@ bootstrapApplication(App, {
 
     provideRouter(routes),
     provideHttpClient(withInterceptors([authInterceptor])),
+    // Load the active language dictionary before first paint (English base +
+    // stored choice), so the UI renders already translated.
+    provideAppInitializer(() => inject(I18nService).init()),
     {
       provide: MSAL_INSTANCE,
       useFactory: MSALInstanceFactory

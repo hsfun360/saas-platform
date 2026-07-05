@@ -38,10 +38,16 @@ export class AuthService {
 
   constructor(private http: HttpClient) { }
 
+  // Broadcast the avatar for the CURRENT user. An empty/falsy value resets to the
+  // default avatar and clears the stored one - critical so a previous user's
+  // picture (e.g. a Google SSO avatar) never lingers after logout / a local login.
   updateAvatarState(newUrl: string): void {
     if (newUrl) {
       localStorage.setItem('profilePicture', newUrl);
       this.avatarSubject.next(newUrl);
+    } else {
+      localStorage.removeItem('profilePicture');
+      this.avatarSubject.next('assets/default-avatar.svg');
     }
   }
 
@@ -171,6 +177,11 @@ export class AuthService {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/company/users`, { ...data, companyId });
   }
 
+  // Edit a managed user's global profile (account-scoped on the backend).
+  updateTenantUserProfile(userId: string, data: { email?: string; fullName?: string; phone?: string; bio?: string }): Observable<{ message: string }> {
+    return this.http.patch<{ message: string }>(`${this.apiBaseUrl}/auth/company/users/${userId}`, data);
+  }
+
   assignCompanyUserRole(userId: string, roleId: string, companyId?: string): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/company/users/assign-role`, { userId, roleId, companyId });
   }
@@ -190,6 +201,11 @@ export class AuthService {
 
   createCompany(data: CreateCompanyData): Observable<{ message: string; company: CompanyEntity }> {
     return this.http.post<{ message: string; company: CompanyEntity }>(`${this.apiBaseUrl}/auth/companies`, data);
+  }
+
+  // Upload a company logo image; returns its public URL to store on the company.
+  uploadCompanyLogo(formData: FormData): Observable<{ message: string; url: string }> {
+    return this.http.post<{ message: string; url: string }>(`${this.apiBaseUrl}/auth/company/logo`, formData);
   }
 
   // Set a company's modules to an exact set (diff-based add/revoke on the backend).

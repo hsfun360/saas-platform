@@ -33,14 +33,16 @@ plain env vars `DATABASE_URL`, `ADMIN_EMAILS` (and a no-op `JWT_SECRET`).
 | `DATABASE_URL` | ✅ required | Postgres connection (URL-encode the password: `@`→`%40`). |
 | `ADMIN_EMAILS` | ✅ required | Break-glass System Admin allowlist + seed owner (comma-separated). |
 | `FRONTEND_BASE_URL` | ⚠️ recommended | Base URL used in invitation / reset emails. |
-| `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` | ⚙️ not needed today | RS256 keys. **Currently baked into the image** as `keys/private.pem` / `keys/public.pem` - `.dockerignore`'s `*.pem` only matches root-level files, so the `keys/` subdir IS copied in. So they are NOT env vars and you do NOT pass them at deploy. See **Hardening** to move them to Secret Manager. |
+| `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` | ✅ required (secret) | RS256 keys, now in **Secret Manager** (secrets `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY`), injected as env vars via `--update-secrets` (see below). NO longer baked into the image (`keys/` is `.dockerignore`d). `src/platform/jwt.keys.js` reads them from `process.env` first, falling back to a local `keys/` file for dev only. |
 | `PORT` | auto | Cloud Run sets it; `server.js` reads `process.env.PORT`. |
 | `RUN_SEED` | 🚫 never in prod | Gates the destructive wipe+reseed. Fresh/dev DB only, ad-hoc. |
 | ~~`JWT_SECRET`~~ | ❌ unused | Not referenced anywhere (app is RS256, not HMAC). Harmless but drop it. |
 
 > ⚠️ **`--set-env-vars` REPLACES the whole plain env-var set** - anything not listed is
-> removed. Always pass the FULL set you want. (The JWT keys are image files today, not
-> env vars, so they're unaffected and login keeps working across deploys.)
+> removed. Always pass the FULL set you want. **Secret-backed vars (`--update-secrets`)
+> are a SEPARATE set and persist across deploys**, so a plain `gcloud run deploy --image`
+> keeps the JWT secrets attached - you only pass `--update-secrets` when (re)wiring them.
+> Since login now depends on these secrets, NEVER ship an image without them attached.
 
 ## Deploy (every release)
 
@@ -58,18 +60,20 @@ docker build --platform linux/amd64 -t login-api-local:latest apps/api --no-cach
 docker tag login-api-local:latest $FULL_TAG
 docker push $FULL_TAG
 
-# 3. Deploy (pass the full env-var set; JWT keys come from the image).
+# 3. Deploy. Plain env vars + secret-backed JWT keys both persist across deploys,
+#    so a routine release is just the image - no env/secret flags needed:
 gcloud run deploy $env:IMAGE_NAME `
   --image $FULL_TAG `
   --platform managed `
   --region $env:REGION `
-  --allow-unauthenticated `
-  --set-env-vars DATABASE_URL="postgres://postgres:<DB_PASSWORD_URLENCODED>@<DB_HOST>:<PORT>/<DB_NAME>" `
-  --set-env-vars ADMIN_EMAILS="<admin1@example.com>" `
-  --set-env-vars FRONTEND_BASE_URL="<https://your-frontend-url>"
+  --allow-unauthenticated
 ```
 
-> Use `--update-env-vars` to change ONE var without re-specifying the rest (it merges).
+> Use `--update-env-vars` to change ONE plain var without re-specifying the rest (it merges),
+> and `--update-secrets JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest --update-secrets JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest`
+> to (re)attach the JWT secrets. One-time setup of those secrets is in **JWT keys (Secret Manager)** below.
+> If you ever change plain vars with `--set-env-vars` (which REPLACES the plain set), it does NOT
+> touch the secret set - the JWT keys stay attached.
 
 ## Schema & data migrations
 - **Schema columns auto-apply on boot** - `app.js` runs `sequelize.sync({ alter: true })`
@@ -94,29 +98,39 @@ gcloud run services describe login-api --region asia-southeast1 `
 gcloud run services logs read login-api --region asia-southeast1 --limit 50
 ```
 Confirm in logs: `Database schema synced successfully`, `[JWT KEYS] Loaded private key
-from file: ...keys/private.pem`, and a DB connect. Then do a real **login** (exercises
-JWT signing + DB). After a release that changed menu routes, **log out/in** so the
-browser's cached `userMenus` refresh.
+from environment variable.`, and a DB connect. Then do a real **login** (exercises
+JWT signing + DB - the "from environment variable" line only prints on the first token
+op, so it appears after that login, not at boot). After a release that changed menu
+routes, **log out/in** so the browser's cached `userMenus` refresh.
 
 ## Gotchas
-- `JWT_SECRET` is dead - RS256 keys are what matter, and they come from the baked-in
-  `keys/*.pem`. If login ever fails with `ENOENT .../keys/private.pem` or
-  `secretOrPrivateKey`, the keys didn't make it into the image (check `.dockerignore`
-  didn't start excluding `keys/`).
-- The keys being in the image means anyone who can pull the image gets the signing
-  key - acceptable for now, but see Hardening.
+- `JWT_SECRET` is dead - RS256 keys are what matter. They now come from **Secret Manager**
+  (env vars `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY`), NOT the image. If login fails with
+  `ENOENT .../keys/private.pem` or `secretOrPrivateKey`, the secrets aren't attached to the
+  revision - re-attach with `--update-secrets` (see below) and confirm the runtime SA has
+  `roles/secretmanager.secretAccessor`. (`keys/` is `.dockerignore`d, so there is no file
+  fallback in the image - the secrets MUST be attached.)
 - DB SSL is commented out in `db.js` → plaintext to the external Postgres. Re-enable
   the `ssl` block if you move to Cloud SQL / require TLS.
 - CORS `origin` is `'*'` in `app.js` - lock to the frontend URL before real prod.
 
-## Hardening (optional - move JWT keys out of the image)
-Better practice is to keep the signing key out of the registry:
+## JWT keys (Secret Manager) - one-time setup
+Done for `membership-project-199610` (2026-07-01); repeat only for a new project/env.
+Keys are kept out of the registry and injected as env vars, so the app stays
+platform-agnostic (`src/platform/jwt.keys.js` reads `process.env.JWT_PRIVATE_KEY` first).
 ```powershell
+gcloud services enable secretmanager.googleapis.com
 # 1. Create the secrets from the local keys (once)
-gcloud secrets create JWT_PRIVATE_KEY --data-file=keys/private.pem
-gcloud secrets create JWT_PUBLIC_KEY  --data-file=keys/public.pem
-#    Grant the Cloud Run runtime service account roles/secretmanager.secretAccessor on both.
-# 2. Stop baking keys in: add `keys/` to .dockerignore.
-# 3. Add to every deploy: --set-secrets JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest
+gcloud secrets create JWT_PRIVATE_KEY --data-file="apps/api/keys/private.pem" --replication-policy="automatic"
+gcloud secrets create JWT_PUBLIC_KEY  --data-file="apps/api/keys/public.pem"  --replication-policy="automatic"
+# 2. Grant the Cloud Run runtime service account read access
+$SA = "148523901156-compute@developer.gserviceaccount.com"   # PROJECT_NUMBER-compute@developer.gserviceaccount.com
+gcloud secrets add-iam-policy-binding JWT_PRIVATE_KEY --member="serviceAccount:$SA" --role="roles/secretmanager.secretAccessor"
+gcloud secrets add-iam-policy-binding JWT_PUBLIC_KEY  --member="serviceAccount:$SA" --role="roles/secretmanager.secretAccessor"
+# 3. Attach to the service (persists across future deploys)
+gcloud run services update login-api --region asia-southeast1 `
+  --update-secrets "JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest" --update-secrets "JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest"
 ```
-Do all three together (the `.dockerignore` change without the secrets would break login).
+To rotate a key: `gcloud secrets versions add JWT_PRIVATE_KEY --data-file=...` then redeploy
+(new tokens use the new key; keep the old version until all old tokens expire). The local
+`apps/api/keys/*.pem` are for dev only and must stay git-ignored - never commit them.

@@ -241,18 +241,21 @@
 
 .form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, 1fr), not 1fr: a bare 1fr track floors at min-content, so a
+     <select>'s longest option can blow the track out and overflow the card. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-lg);
   margin-bottom: var(--space-lg);
 }
 
 @media (max-width: 600px) {
-  .form-row { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: minmax(0, 1fr); }
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
+  min-width: 0; /* let the field shrink instead of overflowing its column */
 }
 
 .form-group label {
@@ -268,6 +271,9 @@
 
 .form-group input,
 .form-group select {
+  width: 100%;
+  box-sizing: border-box; /* keep padding/border inside the 100%, not added to it */
+  min-width: 0;           /* a long <option> can't force the field wider than its column */
   padding: var(--space-sm) var(--space-md);
   border: 1px solid #cbd5e1;
   border-radius: 8px;
@@ -406,6 +412,36 @@
   word-break: break-word;
 }
 
+/* Free-text subtitle under a card title (e.g. a role description) - no caption. */
+.data-card__desc {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-body-2);
+  color: #475569;
+  word-break: break-word;
+}
+
+/* Secondary identity line under a card title that carries short text + chips
+   (e.g. "(REG-123) ENTERPRISE"). Wraps on narrow widths; no captions. */
+.data-card__subline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+.data-card__reg {
+  font-size: var(--font-body-2);
+  color: #475569;
+}
+
+/* Section title on a page (e.g. "Current assignments" above a card list). */
+.section-heading {
+  margin: var(--space-lg) 0 var(--space-sm);
+  font-size: var(--font-h2);
+  font-weight: var(--weight-semibold);
+  color: #0f172a;
+}
+
 .data-card__meta {
   display: flex;
   flex-wrap: wrap;
@@ -455,6 +491,40 @@
   .data-row__actions { justify-self: start; }
 }
 
+/* Status-chip variant of the action row: the badge is pinned TOP-RIGHT, actions
+   sit bottom-right on desktop and drop to a full-width row below on mobile (the
+   badge stays top-right). This is the standard record-card layout for a
+   "content + status + actions" row across the app - mirrors the Companies screen
+   (.company-summary). Compose as class="data-row data-row--with-badge". */
+.data-row--with-badge {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "main  badge"
+    "main  actions";
+  column-gap: var(--space-md);
+  row-gap: var(--space-sm);
+}
+.data-row__badge { grid-area: badge; justify-self: end; align-self: start; white-space: nowrap; }
+.data-row--with-badge .data-row__actions { align-self: end; }
+
+@media (max-width: 767px) {
+  .data-row--with-badge {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "main     badge"
+      "actions  actions";
+  }
+  .data-row--with-badge .data-row__actions { justify-self: start; }
+}
+
+/* Brand mark shown next to an SSO user's email (Google / Microsoft login). */
+.sso-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+  vertical-align: -0.18em;
+  margin-right: var(--space-xs);
+}
+
 .cell-mono {
   font-family: 'Cascadia Code', 'Fira Code', monospace;
   font-size: var(--font-body-2);
@@ -485,6 +555,16 @@
 .badge.badge-enterprise {
   background: #fef3c7;
   color: #92400e;
+}
+
+.badge.badge-active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge.badge-inactive {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 /* ── STATUS DOT ──────────────────────────────── */

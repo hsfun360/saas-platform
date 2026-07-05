@@ -144,18 +144,28 @@ exports.login = async (req, res) => {
         // 2. Find the user
         const user = await User.findOne({ where: { email: cleanEmail } });
         if (!user) {
-            return res.status(401).json({ message: "Invalid credentials" });
+            return res.status(401).json({ message: "Invalid email or password." });
         }
 
-        // 🛡️ SAFETY CHECK: If they registered with Google, they don't have a password!
-        if (!user.password) {
+        // 🛡️ SAFETY CHECK: SSO accounts can't password-login. Google/Microsoft users
+        // are given a random dummy password at signup (so `user.password` is set, not
+        // null) and the app forbids them from ever setting a local one - so gate on
+        // authMethod, not on password presence.
+        if (user.authMethod === 'google') {
             return res.status(400).json({ message: "Please use 'Log in with Google' for this account." });
+        }
+        if (user.authMethod === 'microsoft') {
+            return res.status(400).json({ message: "Please use 'Log in with Microsoft' for this account." });
+        }
+        // Fallback: any other passwordless account.
+        if (!user.password) {
+            return res.status(400).json({ message: "Please use social login for this account." });
         }
 
         // 3. Verify Password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(401).json({ message: "Invalid credentials" });
+            return res.status(401).json({ message: "Invalid email or password." });
         }
 
         // --- MASTER RBAC LOGIN LOGIC ---
@@ -164,8 +174,17 @@ exports.login = async (req, res) => {
         // DB-backed system-admin check (System Admin role), with ADMIN_EMAILS break-glass.
         const isSystemAdmin = await isUserSystemAdmin(user.id, user.email);
 
-        // Find all workspaces this user belongs to
-        let workspaces = await CompanyUser.findAll({ where: { userId: user.id } });
+        // Load ALL memberships (active + inactive) so a DEACTIVATED account (has
+        // memberships, but every one is inactive) is told apart from one that
+        // simply has no workspace. This branch is only reachable after the password
+        // check, so the "deactivated" hint never leaks to an anonymous caller.
+        const allMemberships = await CompanyUser.findAll({ where: { userId: user.id } });
+        if (allMemberships.length > 0 && !allMemberships.some(m => m.isActive)) {
+            return res.status(403).json({ message: "Your account has been deactivated. Please contact your administrator." });
+        }
+
+        // Active memberships only (a deactivated one can no longer be entered).
+        let workspaces = allMemberships.filter(m => m.isActive);
 
         // If they clicked a workspace on the UI, filter the array
         if (selectedCompanyId) {
@@ -243,13 +262,39 @@ exports.login = async (req, res) => {
 // Map a Menu (with its Module eager-loaded) to the frontend MenuItem shape.
 function mapMenuItem(m) {
     return {
+        id: m.id,
         name: m.name,
+        names: m.names || {},                                   // localized menu names
         route: m.route,
         icon: m.icon,
         moduleName: m.Module ? m.Module.name : 'Core Club Management',
+        moduleNames: m.Module ? (m.Module.names || {}) : {},    // localized module names
         moduleIcon: m.Module ? m.Module.icon : 'business',
         moduleLanding: m.Module ? m.Module.landingRoute : null,
+        // Adjacency-list nesting: parentId null = top level; a menu with children
+        // renders as a collapsible sidebar section. `sequence` orders siblings.
+        parentId: m.parentId || null,
+        sequence: m.sequence || 0,
     };
+}
+
+// Add the ancestor chain of each visible menu, using a lookup of every menu in
+// the relevant modules, so a parent/section stays present even when the role was
+// only granted its children (otherwise the sidebar tree would have orphans).
+function withAncestors(visible, allById) {
+    const result = new Map();
+    for (const m of visible) {
+        result.set(m.id, m);
+        const seen = new Set();
+        let pid = m.parentId;
+        while (pid && allById.has(pid) && !result.has(pid) && !seen.has(pid)) {
+            seen.add(pid);
+            const parent = allById.get(pid);
+            result.set(parent.id, parent);
+            pid = parent.parentId;
+        }
+    }
+    return [...result.values()];
 }
 
 // Effective menus for a user in one workspace, under the account-level RBAC model:
@@ -274,7 +319,14 @@ async function buildWorkspaceMenus(roleId, companyId) {
     }
 
     if (!companyId) {
-        return { roleName, menus: permitted.map(mapMenuItem) };
+        // System workspace: no entitlement gate. Pull the full menu set of the
+        // permitted menus' modules so ancestor sections can be resolved.
+        const moduleIds = [...new Set(permitted.map(m => m.moduleId))];
+        const all = moduleIds.length
+            ? await Menu.findAll({ where: { moduleId: moduleIds }, include: [{ model: Module, as: 'Module' }] })
+            : [];
+        const allById = new Map(all.map(m => [m.id, m]));
+        return { roleName, menus: withAncestors(permitted, allById).map(mapMenuItem) };
     }
 
     const subs = await CompanyModule.findAll({ where: { companyId }, attributes: ['moduleId'] });
@@ -284,11 +336,15 @@ async function buildWorkspaceMenus(roleId, companyId) {
         : [];
 
     if (roleName === 'Tenant Admin') {
+        // All entitled menus — parent sections are already part of the set.
         return { roleName, menus: entitled.map(mapMenuItem) };
     }
 
-    const entitledIds = new Set(entitled.map(m => m.id));
-    return { roleName, menus: permitted.filter(m => entitledIds.has(m.id)).map(mapMenuItem) };
+    // A normal role: its granted menus ∩ the company's entitled menus, plus the
+    // ancestor sections of those grants (resolved from the entitled set).
+    const entitledById = new Map(entitled.map(m => [m.id, m]));
+    const granted = permitted.filter(m => entitledById.has(m.id));
+    return { roleName, menus: withAncestors(granted, entitledById).map(mapMenuItem) };
 }
 
 // Resolve the role name + effective menus for a user within one workspace.
@@ -306,7 +362,7 @@ async function resolveWorkspaceContext(userId, companyId) {
         accountId = company.accountId;
     }
 
-    const membership = await CompanyUser.findOne({ where: { userId, companyId } });
+    const membership = await CompanyUser.findOne({ where: { userId, companyId, isActive: true } });
 
     let roleId = membership ? membership.roleId : null;
     if (!membership) {
@@ -375,7 +431,7 @@ async function buildResumeLogin(user, workspaces, isSystemAdmin) {
 // with the role they hold in each. Used to populate the workspace switcher.
 exports.listWorkspaces = async (req, res) => {
     try {
-        const memberships = await CompanyUser.findAll({ where: { userId: req.user.id } });
+        const memberships = await CompanyUser.findAll({ where: { userId: req.user.id, isActive: true } });
 
         // Keyed by companyId (or 'SYSTEM') so owned-account companies don't duplicate
         // a membership the user already holds.
@@ -593,8 +649,16 @@ exports.googleLogin = async (req, res) => {
         // DB-backed system-admin check (System Admin role), with ADMIN_EMAILS break-glass.
         const isSystemAdmin = await isUserSystemAdmin(user.id, user.email);
 
-        // 2. Find all workspaces this user belongs to
-        let workspaces = await CompanyUser.findAll({ where: { userId: user.id } });
+        // 2. Load ALL memberships so a DEACTIVATED account is told apart from one
+        // with no workspace (mirrors the standard-login path above). Reachable only
+        // after SSO has verified identity, so the hint doesn't leak anonymously.
+        const allMemberships = await CompanyUser.findAll({ where: { userId: user.id } });
+        if (allMemberships.length > 0 && !allMemberships.some(m => m.isActive)) {
+            return res.status(403).json({ message: "Your account has been deactivated. Please contact your administrator." });
+        }
+
+        // Active memberships only (a deactivated one can no longer be entered).
+        let workspaces = allMemberships.filter(m => m.isActive);
 
         // 3. If they clicked a workspace on the UI, filter the array down to JUST that one!
         if (selectedCompanyId) {
@@ -809,6 +873,15 @@ exports.microsoftLogin = async (req, res) => {
             await user.save({ transaction });
         }
 
+        // Block a deactivated account (has memberships, but all inactive) - mirrors
+        // the email + Google paths. A brand-new SSO user has no memberships yet, so
+        // this check passes and they proceed.
+        const allMemberships = await CompanyUser.findAll({ where: { userId: user.id }, transaction });
+        if (allMemberships.length > 0 && !allMemberships.some(m => m.isActive)) {
+            await transaction.rollback();
+            return res.status(403).json({ message: "Your account has been deactivated. Please contact your administrator." });
+        }
+
         // 3. Generate Token & Commit
         const isSystemAdmin = await isUserSystemAdmin(user.id, user.email);
         const token = generateToken(user.id, user.email, null, null, isSystemAdmin);
@@ -1006,6 +1079,26 @@ exports.uploadAvatar = async (req, res) => {
     } catch (error) {
         console.error('Avatar Upload Exception:', error);
         return res.status(500).json({ message: error.message || 'An error occurred during upload.' });
+    }
+};
+
+// Upload a company logo to GCS and return its public URL. Not tied to a company
+// row (the "New company" flow has no company yet) - the caller stores the returned
+// URL on the company via create/update. Guarded to Tenant Admins in the routes.
+exports.uploadCompanyLogo = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No image file uploaded.' });
+        }
+        const fileExtension = req.file.originalname.split('.').pop();
+        const gcsFileName = `company-logo-${req.user.id}-${Date.now()}.${fileExtension}`;
+        const blob = bucket.file(gcsFileName);
+        await blob.save(req.file.buffer, { resumable: false, contentType: req.file.mimetype });
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+        return res.status(200).json({ message: 'Logo uploaded.', url: publicUrl });
+    } catch (error) {
+        console.error('Company logo upload error:', error);
+        return res.status(500).json({ message: error.message || 'Failed to upload logo.' });
     }
 };
 

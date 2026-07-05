@@ -34,11 +34,19 @@ const Company = sequelize.define('Company', {
     state: { type: DataTypes.STRING, allowNull: true },
     postalCode: { type: DataTypes.STRING, allowNull: true },
     country: { type: DataTypes.STRING, allowNull: true },
+    // Public URL of the company logo (Google Cloud Storage), for reports/documents.
+    logo: { type: DataTypes.STRING, allowNull: true },
 
     timezone: {
         type: DataTypes.STRING,
         allowNull: false,
-        defaultValue: 'Asia/Kuala_Lumpur', 
+        defaultValue: 'Asia/Kuala_Lumpur',
+    },
+    // The company's default currency (ISO 4217 alpha-3, e.g. 'MYR'), chosen from
+    // its subscriber account's opted-in currency set. null = not set.
+    defaultCurrencyCode: {
+        type: DataTypes.STRING(3),
+        allowNull: true,
     },
     isActive: {
         type: DataTypes.BOOLEAN,

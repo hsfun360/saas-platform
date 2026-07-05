@@ -10,6 +10,18 @@ body {
   padding: 0;
 }
 
+/* Form controls are ALWAYS border-box so their padding/border sit INSIDE the
+   width and can't push them past a container's edge. This is a global baseline
+   (not just the shared .form-group classes) so even inline-styled inputs - e.g.
+   the Companies dialogs - stay within their column on mobile. */
+input,
+select,
+textarea {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0; /* allow shrinking inside grid/flex cells instead of overflowing */
+}
+
 /* ============================================================== */
 /* Design tokens — typography + 8pt spacing scale                 */
 /* (see docs/project-overview.md → UI/UX Requirements)            */
@@ -183,15 +195,52 @@ body {
 }
 
 /* ============================================================== */
+/* RESPONSIVE STRATEGY — THREE TIERS (see docs/project-overview.md)*/
+/*   Mobile   < 768px   — single column, drawer + bottom nav       */
+/*   Tablet   768–1023px — 2 columns, collapsible (rail) sidebar   */
+/*   Desktop  >= 1024px  — multi-column, persistent sidebar, more  */
+/*                         spacing                                 */
+/* Media queries can't read CSS vars, so these pixel boundaries    */
+/* (767 / 768 / 1023 / 1024) are the ONE source of truth — reuse   */
+/* exactly these values everywhere; never invent new breakpoints.  */
+/* ============================================================== */
+
+/* Multi-column grid utility that follows the three tiers: 1 col on mobile,
+   2 on tablet, 3 on desktop. Use for dense listing/card grids that benefit from
+   a 3rd column on wide screens. (Forms stay 2-column via an inline
+   `minmax(0,1fr) minmax(0,1fr)` grid — do NOT force 3 columns on a form.) */
+.grid-3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-md);
+}
+@media (min-width: 768px) {
+  .grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-lg);
+  }
+}
+
+/* ============================================================== */
 /* Global mobile-first responsive patterns                        */
 /* (see docs/project-overview.md → UI/UX Requirements)            */
 /* ============================================================== */
 
 /* Mobile: < 768px. Desktop keeps each component's default layout. */
 @media (max-width: 767px) {
-  /* Single column on mobile: collapse any inline multi-column grid. */
+  /* Single column on mobile: collapse any inline multi-column grid. Use
+     minmax(0, 1fr) - NOT bare 1fr - so the single track's minimum is 0, not
+     min-content. A bare 1fr (= minmax(auto, 1fr)) lets a wide-intrinsic child
+     (e.g. a <select> whose longest <option> is long, like a country name) expand
+     the column past the viewport and overflow the dialog. minmax(0, 1fr) clamps
+     it to the available width and the long content scrolls/ellipsizes inside. */
   [style*="grid-template-columns"] {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 
   /* Full-width primary buttons and form submits on mobile. */

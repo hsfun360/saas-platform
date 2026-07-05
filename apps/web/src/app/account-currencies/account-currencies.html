@@ -1,0 +1,80 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">💱</span>
+      <div>
+        <h1>Currencies</h1>
+        <p class="saas-subtitle">Choose which currencies your organization uses and set a default.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+  } @else if (available().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No currencies available. Ask your platform administrator to add currencies.</p></div>
+  } @else {
+    <!-- Available currencies: tick the ones this subscriber uses. -->
+    <div class="data-card" style="margin-bottom: var(--space-md);">
+      <h2 style="margin: 0 0 var(--space-xs); font-size: var(--font-h3);">Available currencies</h2>
+      <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Companies in your organization can pick their default currency from the ones you enable here.</p>
+
+      <!-- Live filter (name / code). -->
+      <div class="saas-search" style="margin-bottom: var(--space-sm);">
+        <span class="saas-search__icon" aria-hidden="true">🔍</span>
+        <input #curBox type="search" [value]="search()" (input)="search.set(curBox.value)"
+               placeholder="Search currencies…" aria-label="Search currencies" class="saas-search__input">
+        @if (search()) {
+          <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+        }
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-xs); max-height: 360px; overflow-y: auto;">
+        @for (c of filteredAvailable(); track c.code) {
+          <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-xs) 0; cursor: pointer;">
+            <input type="checkbox" [checked]="isSelected(c.code)" (change)="toggle(c.code)" />
+            <span>{{ c.code }} — {{ c.name }} <span class="cell-subtle">@if (c.symbol) { ({{ c.symbol }}) }</span></span>
+          </label>
+        }
+      </div>
+    </div>
+
+    <!-- Default currency among the selected. -->
+    <div class="data-card" style="margin-bottom: var(--space-md);">
+      <h2 style="margin: 0 0 var(--space-xs); font-size: var(--font-h3);">Default currency</h2>
+      <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">The initial default currency for a new company under this account.</p>
+      @if (selectedCurrencies().length === 0) {
+        <p class="cell-subtle" style="margin: 0;">Select at least one currency.</p>
+      } @else {
+        <select [value]="defaultCode()" (change)="defaultCode.set($any($event.target).value)"
+                style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 320px;">
+          @for (c of selectedCurrencies(); track c.code) {
+            <option [value]="c.code">{{ c.code }} — {{ c.name }}</option>
+          }
+        </select>
+      }
+    </div>
+
+    <button type="button" class="btn btn--primary" (click)="save()" [disabled]="saving()">
+      {{ saving() ? 'Saving…' : 'Save currencies' }}
+    </button>
+  }
+</div>

@@ -67,6 +67,29 @@
 /* The create / edit dialogs use the shared <app-dialog> component
    (src/app/shared/dialog) — no screen-specific modal CSS needed here. */
 
+/* Logo upload: a compact button (label) wrapping a visually-hidden file input.
+   Avoids the native file input's wide, non-shrinking "Choose file / No file
+   chosen" box that overflows narrow dialogs. The hidden input stays focusable
+   (sr-only, not display:none) and :focus-within shows the ring for keyboard use. */
+.logo-upload {
+  cursor: pointer;
+}
+.logo-upload input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.logo-upload:focus-within {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
 /* Company card summary layout.
    Defined as a class (not inline) so the global mobile rule that collapses
    inline `grid-template-columns` to one column doesn't interfere.

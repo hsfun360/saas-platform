@@ -11,6 +11,10 @@ build
 src/config/gcs-key.json
 *.pem
 *.key
+# JWT signing keys now come from Secret Manager (env vars JWT_PRIVATE_KEY /
+# JWT_PUBLIC_KEY); keep the local dev keys/ dir OUT of the image. `*.pem` above
+# only matches root-level files, so the nested keys/*.pem needs this explicit rule.
+keys/
 
 # Dev notes / docs / scratch files (not needed at runtime, may contain secrets)
 *.md

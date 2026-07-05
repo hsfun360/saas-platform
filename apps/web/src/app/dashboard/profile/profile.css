@@ -1,32 +1,58 @@
-.profile-container {
-  display: flex;
-  justify-content: center;
-  padding-top: var(--space-lg);
+/* Centred single column; `.screen-pad` (styles.css) handles the mobile gutter
+   (md 0) so there is no double gutter inside the shell's content area. */
+.profile-wrap {
+  max-width: 600px;
+  margin: 0 auto;
 }
 
+.profile-pic-container {
+  text-align: center;
+  margin-bottom: var(--space-lg);
+}
+
+.profile-pic {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e2e8f0;
+}
+
+/* Text link styled as a ≥ 44px touch target (label wraps the hidden file input). */
+.change-photo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: var(--space-xs);
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-medium);
+  color: #1a56db;
+  cursor: pointer;
+}
+
+/* Bordered card — matches the app-wide record/card standard. */
 .profile-card {
-  background: white;
-  width: 100%;
-  max-width: 600px;
-  padding: var(--space-xl);
-  border-radius: 8px;
-  border: 1px solid #dadce0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: var(--space-lg);
 }
 
 .profile-header {
   margin-bottom: var(--space-lg);
-  border-bottom: 1px solid #f1f3f4;
   padding-bottom: var(--space-md);
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .profile-header h2 {
   margin: 0;
-  color: #202124;
+  color: #0f172a;
   font-size: var(--font-h2);
 }
 
 .profile-header p {
-  color: #5f6368;
+  color: #64748b;
   font-size: var(--font-body-2);
   margin-top: var(--space-xs);
 }
@@ -35,86 +61,60 @@
   margin-bottom: var(--space-lg);
 }
 
-.phone-input-group {
-  display: flex;
-  gap: var(--space-sm);
-  width: 100%;
-}
-
-.country-select {
-  flex: 0 0 150px; /* Keeps the dropdown at a fixed width */
-  padding: var(--space-sm);
-  font-size: var(--font-body);
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-.phone-input {
-  flex: 1; /* Makes the phone number input take up the remaining space */
-  padding: var(--space-sm);
-  font-size: var(--font-body);
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
 .form-group label {
   display: block;
   font-size: var(--font-body-2);
-  font-weight: var(--weight-medium);
-  color: #3c4043;
+  font-weight: var(--weight-semibold);
+  color: #334155;
   margin-bottom: var(--space-sm);
 }
 
-.form-group input, 
+.form-group input,
 .form-group textarea {
   width: 100%;
-  padding: var(--space-sm) var(--space-sm);
-  border: 1px solid #dadce0;
-  border-radius: 4px;
+  padding: var(--space-sm);
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
   font-size: var(--font-body);
   box-sizing: border-box;
 }
 
-.form-group input:focus {
+.form-group textarea {
+  resize: vertical;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
   outline: none;
-  border: 2px solid #1a73e8;
-  padding: var(--space-sm) var(--space-sm); /* Adjust for border thickness */
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 .form-group input:disabled {
-  background-color: #f8f9fa;
-  color: #70757a;
+  background-color: #f1f5f9;
+  color: #64748b;
   cursor: not-allowed;
 }
 
-.success-alert {
-  background-color: #e6f4ea;
-  color: #137333;
-  padding: var(--space-sm);
-  border-radius: 4px;
+.form-alert {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
   margin-bottom: var(--space-md);
   font-size: var(--font-body-2);
-  text-align: center;
 }
 
-.btn-save {
-  background-color: #1a73e8;
-  color: white;
-  border: none;
-  padding: var(--space-sm) var(--space-lg);
-  font-size: var(--font-body-2);
-  font-weight: var(--weight-medium);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
+.form-alert--success {
+  background-color: #e6f4ea;
+  color: #137333;
 }
 
-.btn-save:hover {
-  background-color: #1765cc;
-  box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+.form-alert--error {
+  background-color: #fce8e6;
+  color: #b91c1c;
 }
 
-.btn-save:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
+/* Primary CTA uses the shared .btn system: full-width on mobile (global submit
+   rule), auto width on desktop. */
+.form-actions {
+  margin-top: var(--space-lg);
 }

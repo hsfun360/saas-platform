@@ -78,6 +78,13 @@ const User = sequelize.define('User', {
     lastWorkspaceId: {
         type: DataTypes.STRING,
         allowNull: true,
+    },
+    // The user's personal preferred UI language (an ISO 639 code). Applied only
+    // when it's within the active account's opted-in set; otherwise the account
+    // default / platform default wins. null = never chosen.
+    preferredLanguage: {
+        type: DataTypes.STRING(10),
+        allowNull: true,
     }
 }, {
     tableName: 'User', // Name the table in PostgreSQL 'User'

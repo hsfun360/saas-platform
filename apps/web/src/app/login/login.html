@@ -18,47 +18,64 @@
 } @else {
 <div class="login-page-container">
   <div class="login-card">
-    <h2 class="login-title">Login</h2>
+
+    <!-- Pre-login language switcher -->
+    <div style="display: flex; justify-content: flex-end; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-xs); color: #64748b;">
+      <span class="material-icons" aria-hidden="true" style="font-size: 20px;">language</span>
+      <select id="login-lang" [value]="i18n.lang()" (change)="switchLoginLanguage($any($event.target).value)"
+              [attr.aria-label]="'language.switch' | t"
+              style="padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: var(--font-body-2); background: white; color: #1e293b;">
+        @for (l of loginLanguages; track l.languageCode) {
+          <option [value]="l.languageCode">{{ l.name }}</option>
+        }
+      </select>
+    </div>
+
+    <h2 class="login-title">{{ 'login.title' | t }}</h2>
+
+    @if (errorMessage) {
+      <div class="login-error" role="alert" aria-live="assertive">{{ errorMessage }}</div>
+    }
 
     <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
       
       <div class="form-group">
-        <label for="email">Email:</label>
-        <input 
-          type="email" 
-          id="email" 
-          formControlName="email" 
-          placeholder="Enter your email" 
+        <label for="email">{{ 'login.email' | t }}</label>
+        <input
+          type="email"
+          id="email"
+          formControlName="email"
+          [placeholder]="'login.emailPlaceholder' | t"
           class="form-control"
         >
       </div>
 
       <div class="form-group">
-        <label for="password">Password:</label>
+        <label for="password">{{ 'login.password' | t }}</label>
         <div class="password-wrapper">
-          <input 
-            [type]="showPassword ? 'text' : 'password'" 
-            id="password" 
-            formControlName="password" 
-            placeholder="Enter your password" 
+          <input
+            [type]="showPassword ? 'text' : 'password'"
+            id="password"
+            formControlName="password"
+            [placeholder]="'login.passwordPlaceholder' | t"
             class="form-control"
           >
           <button type="button" class="btn-toggle-password" (click)="togglePasswordVisibility()">
-            {{ showPassword ? 'HIDE' : 'SHOW' }}
+            {{ showPassword ? ('login.hide' | t) : ('login.show' | t) }}
           </button>
         </div>
       </div>
 
       <div class="forgot-password-row">
-        <a routerLink="/forgot-password" class="forgot-password-link">Forgot password?</a>
+        <a routerLink="/forgot-password" class="forgot-password-link">{{ 'login.forgot' | t }}</a>
       </div>
 
-      <button type="submit" class="btn-primary" [disabled]="loginForm.invalid || isLoggingIn">
-        {{ isLoggingIn ? 'Logging in...' : 'Login' }}
+      <button type="submit" class="btn-primary" [disabled]="loginForm.invalid || loading">
+        {{ loading ? ('login.submitting' | t) : ('login.submit' | t) }}
       </button>
 
       <div class="divider">
-        <span>OR</span>
+        <span>{{ 'login.or' | t }}</span>
       </div>
 
       <div class="sso-container">
@@ -69,7 +86,7 @@
             <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
             <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
           </svg>
-          Continue with Google
+          {{ 'login.continueGoogle' | t }}
         </button>
         
         <button type="button" class="btn-sso btn-microsoft" (click)="loginWithMicrosoft()">
@@ -79,12 +96,12 @@
             <path fill="#05a6f0" d="M1 11h9v9H1z"/>
             <path fill="#ffba08" d="M11 11h9v9h-9z"/>
           </svg>
-          Login With Microsoft
+          {{ 'login.continueMicrosoft' | t }}
         </button>
       </div>
 
       <div class="register-row">
-        Don't have an account? <a routerLink="/register-user">Register Here</a>
+        {{ 'login.noAccount' | t }} <a routerLink="/register-user">{{ 'login.registerHere' | t }}</a>
       </div>
 
     </form>

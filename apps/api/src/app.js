@@ -32,6 +32,10 @@ const {
 // Platform tier:
 const authRoutes = require('./modules/identity/auth.routes');
 const adminRoutes = require('./modules/saas/admin.routes');
+const countryRoutes = require('./modules/saas/country.routes');
+const languageRoutes = require('./modules/saas/language.routes');
+const languageController = require('./modules/saas/language.controller');
+const currencyRoutes = require('./modules/saas/currency.routes');
 // Product tier (core systems) — stubs reserving the gateway seam. See
 // docs/systems/ for each service's spec and the cross-service rules.
 const membershipRoutes = require('./modules/membership/membership.routes');
@@ -60,6 +64,12 @@ function createApp() {
     // Platform tier:
     app.use('/api/auth', authRoutes);
     app.use('/api/admin', adminRoutes);
+    app.use('/api/countries', countryRoutes);
+    app.use('/api/languages', languageRoutes);
+    app.use('/api/currencies', currencyRoutes);
+    // Public (unauthenticated) active-languages list, for the login screen's
+    // language switcher (no user/subscriber context exists yet before login).
+    app.get('/api/public/languages', languageController.listActiveLanguages);
     // Product tier (core systems):
     app.use('/api/membership', membershipRoutes);
     app.use('/api/golf', golfRoutes);

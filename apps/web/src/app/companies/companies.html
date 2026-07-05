@@ -59,23 +59,18 @@
           <div class="company-summary">
             <div class="company-main">
               <div style="font-size: var(--font-body); font-weight: var(--weight-semibold); color: #1e293b;">{{ company.name }}</div>
-              <div style="font-size: var(--font-caption); color: #64748b; margin-top: var(--space-xs);">
-                @if (company.registrationNumber) { <span>Reg: {{ company.registrationNumber }} · </span> }
-                <span>{{ company.timezone }}</span>
+              <!-- Line 2: registration no. in ( ) followed by the timezone, no captions. -->
+              <div style="font-size: var(--font-body-2); color: #475569; margin-top: var(--space-xs);">
+                @if (company.registrationNumber) { <span>({{ company.registrationNumber }}) </span> }
+                <span>{{ company.timezone | tzLabel }}</span>
+                @if (company.defaultCurrencyCode) { <span> · {{ company.defaultCurrencyCode }}</span> }
               </div>
 
-              @if (company.SubscribedModules && company.SubscribedModules.length > 0) {
-                <div style="display: flex; flex-wrap: wrap; gap: var(--space-xs); margin-top: var(--space-sm);">
-                  @for (mod of company.SubscribedModules; track mod.id) {
-                    <span style="display: inline-flex; align-items: center; gap: var(--space-xs); background: #f1f5f9; color: #334155; font-size: var(--font-caption); padding: var(--space-xs) var(--space-sm); border-radius: 14px;">
-                      <span class="material-icons" aria-hidden="true" style="font-size: 14px; color: #38bdf8;">{{ mod.icon || 'widgets' }}</span>
-                      {{ mod.name }}
-                    </span>
-                  }
-                </div>
-              } @else {
-                <div style="margin-top: var(--space-sm); font-size: var(--font-caption); color: #64748b;">No modules assigned.</div>
-              }
+              <!-- Line 3: module count (caption + value), not the full chip list. -->
+              <div style="margin-top: var(--space-sm); display: flex; align-items: baseline; gap: var(--space-xs);">
+                <span style="font-size: var(--font-caption); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.3px; color: #64748b;">Modules</span>
+                <span style="font-size: var(--font-body-2); color: #1e293b;">{{ company.SubscribedModules?.length || 0 }}</span>
+              </div>
             </div>
 
             <span class="company-badge" [style.background]="company.isActive ? '#dcfce7' : '#f1f5f9'"
@@ -112,26 +107,123 @@
   @if (showCreate()) {
     <app-dialog title="New company" [busy]="creating()" (close)="cancelCreate()">
       <form id="companyCreateForm" [formGroup]="form" (ngSubmit)="onSubmit()">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
+        <!-- Company logo (used on printed documents/reports). -->
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+          <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Company logo</label>
+          <div style="display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap;">
+            @if (form.controls.logo.value) {
+              <img [src]="form.controls.logo.value" alt="Company logo preview" style="width: 64px; height: 64px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;">
+            } @else {
+              <div style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; border: 1px dashed #cbd5e1; border-radius: 8px; color: #64748b; font-size: var(--font-caption); flex: 0 0 auto;">No logo</div>
+            }
+            <label class="btn btn--secondary btn--sm logo-upload">
+              {{ uploadingLogo() ? 'Uploading…' : 'Choose logo' }}
+              <input type="file" accept="image/*" (change)="onLogoSelected($event, 'create')" [disabled]="uploadingLogo()">
+            </label>
+            @if (form.controls.logo.value) {
+              <button type="button" class="btn btn--secondary btn--sm" (click)="removeLogo('create')">Remove</button>
+            }
+          </div>
+          <span style="font-size: var(--font-caption); color: #64748b;">PNG or JPG, under 1MB.</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="company-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Company name *</label>
-            <input id="company-name" type="text" formControlName="name" autocomplete="organization"
+            <label for="cc-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Company name *</label>
+            <input id="cc-name" type="text" formControlName="name" autocomplete="organization"
                    style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
             @if (form.controls.name.touched && form.controls.name.invalid) {
               <span style="color: #b91c1c; font-size: var(--font-caption);">A company name is required.</span>
             }
           </div>
-
           <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="company-reg" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Registration number</label>
-            <input id="company-reg" type="text" formControlName="registrationNumber"
+            <label for="cc-email" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Email</label>
+            <input id="cc-email" type="email" formControlName="email" autocomplete="email"
+                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+            @if (form.controls.email.touched && form.controls.email.invalid) {
+              <span style="color: #b91c1c; font-size: var(--font-caption);">Enter a valid email.</span>
+            }
+          </div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <label for="cc-phone" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Phone</label>
+            <app-phone-input formControlName="phone" inputId="cc-phone" placeholder="Phone"></app-phone-input>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <label for="cc-web" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Website</label>
+            <input id="cc-web" type="url" formControlName="website" placeholder="https://…"
                    style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
           </div>
-
           <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="company-tz" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Timezone</label>
-            <input id="company-tz" type="text" formControlName="timezone"
+            <label for="cc-reg" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Registration no.</label>
+            <input id="cc-reg" type="text" formControlName="registrationNumber"
                    style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <label for="cc-tax" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Tax registration no.</label>
+            <input id="cc-tax" type="text" formControlName="taxRegistrationNumber"
+                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <label for="cc-addr1" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Address line 1</label>
+            <input id="cc-addr1" type="text" formControlName="addressLine1" autocomplete="address-line1"
+                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <label for="cc-addr2" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Address line 2</label>
+            <input id="cc-addr2" type="text" formControlName="addressLine2" autocomplete="address-line2"
+                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <label for="cc-city" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">City</label>
+            <input id="cc-city" type="text" formControlName="city" autocomplete="address-level2"
+                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <label for="cc-state" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">State</label>
+            <input id="cc-state" type="text" formControlName="state" autocomplete="address-level1"
+                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <label for="cc-zip" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Postal code</label>
+            <input id="cc-zip" type="text" formControlName="postalCode" autocomplete="postal-code"
+                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <label for="cc-country" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Country</label>
+            <select id="cc-country" formControlName="country" (change)="onCountryChange($any($event.target).value, 'create')"
+                    style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+              <option value="">Not specified</option>
+              @for (c of countryChoices(); track c.alpha2) {
+                <option [value]="c.alpha2">{{ c.name }}</option>
+              }
+            </select>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <label for="cc-tz" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Timezone</label>
+            @if (timezoneOptions().length > 0) {
+              <select id="cc-tz" formControlName="timezone"
+                      style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+                @for (tz of timezoneOptions(); track tz) {
+                  <option [value]="tz">{{ tz | tzLabel }}</option>
+                }
+              </select>
+            } @else {
+              <input id="cc-tz" type="text" formControlName="timezone" placeholder="e.g. Asia/Kuala_Lumpur"
+                     style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+            }
+          </div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <label for="cc-cur" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Default currency</label>
+            <select id="cc-cur" formControlName="defaultCurrencyCode"
+                    style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+              <option value="">Not specified</option>
+              @for (cur of accountCurrencies(); track cur.code) {
+                <option [value]="cur.code">{{ cur.code }} — {{ cur.name }}</option>
+              }
+            </select>
+            @if (accountCurrencies().length === 0) {
+              <span style="font-size: var(--font-caption); color: #64748b;">No currencies set for your organization yet — add them under System Setup → Currencies.</span>
+            }
           </div>
         </div>
 
@@ -206,7 +298,27 @@
   @if (editingProfileCompanyId(); as pid) {
     <app-dialog [title]="'Edit details — ' + (editingProfileCompany()?.name || '')" [busy]="savingProfile()" (close)="cancelEditProfile()">
       <form id="companyDetailsForm" [formGroup]="profileForm" (ngSubmit)="onSaveProfile(pid)">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm);">
+        <!-- Company logo (used on printed documents/reports). -->
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+          <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Company logo</label>
+          <div style="display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap;">
+            @if (profileForm.controls.logo.value) {
+              <img [src]="profileForm.controls.logo.value" alt="Company logo preview" style="width: 64px; height: 64px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;">
+            } @else {
+              <div style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; border: 1px dashed #cbd5e1; border-radius: 8px; color: #64748b; font-size: var(--font-caption); flex: 0 0 auto;">No logo</div>
+            }
+            <label class="btn btn--secondary btn--sm logo-upload">
+              {{ uploadingEditLogo() ? 'Uploading…' : 'Choose logo' }}
+              <input type="file" accept="image/*" (change)="onLogoSelected($event, 'edit')" [disabled]="uploadingEditLogo()">
+            </label>
+            @if (profileForm.controls.logo.value) {
+              <button type="button" class="btn btn--secondary btn--sm" (click)="removeLogo('edit')">Remove</button>
+            }
+          </div>
+          <span style="font-size: var(--font-caption); color: #64748b;">PNG or JPG, under 1MB.</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
             <label for="cd-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Company name *</label>
             <input id="cd-name" type="text" formControlName="name" autocomplete="organization"
@@ -225,8 +337,7 @@
           </div>
           <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
             <label for="cd-phone" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Phone</label>
-            <input id="cd-phone" type="tel" formControlName="phone"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+            <app-phone-input formControlName="phone" inputId="cd-phone" placeholder="Phone"></app-phone-input>
           </div>
           <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
             <label for="cd-web" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Website</label>
@@ -270,13 +381,42 @@
           </div>
           <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
             <label for="cd-country" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Country</label>
-            <input id="cd-country" type="text" formControlName="country" autocomplete="country-name"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+            <select id="cd-country" formControlName="country" (change)="onCountryChange($any($event.target).value, 'edit')"
+                    style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+              <option value="">Not specified</option>
+              @for (c of countryChoices(); track c.alpha2) {
+                <option [value]="c.alpha2">{{ c.name }}</option>
+              }
+            </select>
           </div>
           <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
             <label for="cd-tz" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Timezone</label>
-            <input id="cd-tz" type="text" formControlName="timezone"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+            @if (timezoneOptions().length > 0) {
+              <!-- Known country: pick from its timezones (shows all zones + UTC offset). -->
+              <select id="cd-tz" formControlName="timezone"
+                      style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+                @for (tz of timezoneOptions(); track tz) {
+                  <option [value]="tz">{{ tz | tzLabel }}</option>
+                }
+              </select>
+            } @else {
+              <!-- Unknown / free-typed country: keep the timezone free-text. -->
+              <input id="cd-tz" type="text" formControlName="timezone" placeholder="e.g. Asia/Kuala_Lumpur"
+                     style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+            }
+          </div>
+          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <label for="cd-cur" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Default currency</label>
+            <select id="cd-cur" formControlName="defaultCurrencyCode"
+                    style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+              <option value="">Not specified</option>
+              @for (cur of accountCurrencies(); track cur.code) {
+                <option [value]="cur.code">{{ cur.code }} — {{ cur.name }}</option>
+              }
+            </select>
+            @if (accountCurrencies().length === 0) {
+              <span style="font-size: var(--font-caption); color: #64748b;">No currencies set for your organization yet — add them under System Setup → Currencies.</span>
+            }
           </div>
         </div>
       </form>

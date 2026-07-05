@@ -600,6 +600,58 @@
   font-weight: var(--weight-bold);
 }
 
+/* --- Collapsible sidebar sections (menu tree) ---
+   A section heading looks like a nav link: the icon shows in the icon-only rail;
+   its label + chevron fade in/out exactly like menu-item labels (.label), so the
+   rail stays a clean icon column and text appears when the sidebar expands. */
+.nav-group {
+  list-style: none;
+}
+.nav-group__header {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #3c4043;
+  text-align: left;
+  border-radius: 0 24px 24px 0;
+  overflow: hidden;
+}
+.nav-group__header:hover {
+  background-color: #f1f3f4;
+}
+.nav-group__label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-group__chevron {
+  font-size: 18px;
+  color: #5f6368;
+  flex-shrink: 0;
+  margin-right: var(--space-md);
+  opacity: 0; /* fades in with the labels (rail hides it) */
+  transition: opacity 0.15s;
+}
+.nav-group__menus {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Chevron follows the label's visibility (tablet hover / pin expand). */
+.sidebar.pinned .nav-group__chevron,
+.sidebar:hover .nav-group__chevron {
+  opacity: 1;
+}
+
 /* 2. THE ICON: This must be exactly 72px to match the collapsed sidebar */
 .icon {
   font-size: 20px;
@@ -725,6 +777,9 @@
   .sidebar .label {
     opacity: 1;
   }
+  .sidebar .nav-group__chevron {
+    opacity: 1;
+  }
   .sidebar:not(.pinned):hover {
     position: fixed;
     width: 256px;
@@ -751,6 +806,37 @@
     bottom: 0;
     background: rgba(0, 0, 0, 0.4);
     z-index: 999;
+  }
+}
+
+/* ============================================================== */
+/* THREE-TIER RESPONSIVE SIDEBAR                                  */
+/*  - Mobile   (<768px):    off-canvas drawer + bottom nav (above)*/
+/*  - Tablet   (768-1023px): icon RAIL (72px), hover/pin expands  */
+/*    to 256px — the collapsible middle tier (base rules above).  */
+/*  - Desktop  (>=1024px):  PERSISTENT full sidebar (256px, labels*/
+/*    always shown) + larger content spacing.                     */
+/* ============================================================== */
+@media (min-width: 1024px) {
+  .sidebar {
+    width: 256px;            /* persistent, always expanded */
+  }
+  .sidebar .label {
+    opacity: 1;              /* labels always visible on desktop */
+  }
+  .sidebar .nav-group__chevron {
+    opacity: 1;              /* section chevrons always visible on desktop */
+  }
+  /* Already full width — neutralise the rail's hover-overlay + shadow so it
+     stays in flow and pushes content (no overlay on desktop). */
+  .sidebar:not(.pinned):hover {
+    position: static;
+    width: 256px;
+    box-shadow: none;
+  }
+  /* Larger content gutter on desktop (the "larger spacing" tier). */
+  .content-area {
+    padding: var(--space-xl);
   }
 }
 

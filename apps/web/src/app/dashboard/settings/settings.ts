@@ -1,7 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
 import { AuthService } from '../../auth.service'; // Double check this path!
 import { TitleCasePipe } from '@angular/common'; // Needed for the {{ authMethod | titlecase }}
+import { LanguageService } from '../../services/language.service';
+import { I18nService } from '../../i18n/i18n.service';
+import { TranslatePipe } from '../../i18n/translate.pipe';
+import { Language } from '../../models/auth.models';
 
 // 👇 1. Create a custom validator to check if passwords match
 export function passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
@@ -20,13 +24,21 @@ export function passwordMatchValidator(control: AbstractControl): ValidationErro
     standalone: true,
     templateUrl: './settings.html', // Note: Ensure this points to settings.html
     styleUrl: './settings.css', // Note: Ensure this points to settings.css
-    imports: [ReactiveFormsModule, TitleCasePipe] // 👈 Make sure these are here!
+    imports: [ReactiveFormsModule, TitleCasePipe, TranslatePipe] // 👈 Make sure these are here!
 })
 export class SettingsComponent implements OnInit {
+  private readonly languageService = inject(LanguageService);
+  private readonly i18n = inject(I18nService);
 
   // 1. The variables we need for the new UI
   authMethod: string = 'local';
   passwordForm!: FormGroup;
+
+  // Language preference: the languages this user may pick from (their account's
+  // set) + their current effective language.
+  languageOptions: Language[] = [];
+  currentLanguage: string = '';
+  languageMessage: string = '';
 
   // 👇 1. Add this variable to track if General Settings is open (default to true)
   isGeneralSettingsExpanded: boolean = true;
@@ -56,6 +68,30 @@ export class SettingsComponent implements OnInit {
         this.authMethod = res.user.authMethod || 'local';
       },
       error: (err) => console.error('Failed to load settings profile', err)
+    });
+
+    // 4. Load the user's language options + current effective language.
+    this.languageService.getMyLanguage().subscribe({
+      next: (state) => {
+        this.languageOptions = state.options;
+        this.currentLanguage = state.effective;
+        this.i18n.setFallback(state.accountDefault); // subscriber's fallback for missing translations
+      },
+      error: (err) => console.error('Failed to load language options', err),
+    });
+  }
+
+  onLanguageChange(code: string): void {
+    this.currentLanguage = code;
+    this.languageMessage = '';
+    this.languageService.setMyLanguage(code).subscribe({
+      next: (state) => {
+        this.currentLanguage = state.effective;
+        this.i18n.use(state.effective); // apply immediately across the app
+        this.languageMessage = this.i18n.translate('language.saved');
+        setTimeout(() => (this.languageMessage = ''), 3000);
+      },
+      error: (err) => console.error('Failed to update language', err),
     });
   }
   

@@ -23,6 +23,11 @@ const Role = require('../modules/saas/role.model');
 const RoleMenu = require('../modules/saas/roleMenu.model');
 const RegistrationLead = require('../modules/saas/registrationLead.model');
 const Invitation = require('../modules/saas/invitation.model');
+const Country = require('../modules/saas/country.model'); // standalone reference table (no associations)
+const Language = require('../modules/saas/language.model'); // reference table
+const Currency = require('../modules/saas/currency.model'); // reference table
+const AccountCurrency = require('../modules/saas/accountCurrency.model'); // Account <-> Currency join
+const AccountLanguage = require('../modules/saas/accountLanguage.model'); // Account <-> Language join
 
 // --- DEFINE SAAS RELATIONSHIPS ---
 
@@ -37,6 +42,12 @@ Company.belongsToMany(User, { through: CompanyUser, foreignKey: 'companyId', as:
 // 3. Modules & Menus (System Level)
 Module.hasMany(Menu, { foreignKey: 'moduleId', as: 'Menus' });
 Menu.belongsTo(Module, { foreignKey: 'moduleId', as: 'Module' });
+
+// 3b. Menu tree (adjacency list) — a menu may nest under another menu in the
+// same module, to arbitrary depth. Deleting a parent lifts its children up a
+// level (SET NULL), it never cascade-deletes them.
+Menu.hasMany(Menu, { foreignKey: 'parentId', as: 'Children', onDelete: 'SET NULL' });
+Menu.belongsTo(Menu, { foreignKey: 'parentId', as: 'Parent' });
 
 // 4. Company Subscriptions (Paywall)
 Company.belongsToMany(Module, { through: CompanyModule, foreignKey: 'companyId', as: 'SubscribedModules' });
@@ -58,6 +69,14 @@ Menu.belongsToMany(Role, { through: RoleMenu, foreignKey: 'menuId', as: 'Roles' 
 Role.hasMany(CompanyUser, { foreignKey: 'roleId', as: 'AssignedUsers' });
 CompanyUser.belongsTo(Role, { foreignKey: 'roleId', as: 'Role' });
 
+// 8b. Subscriber language selection (Account opts into a subset of Languages)
+Account.belongsToMany(Language, { through: AccountLanguage, foreignKey: 'accountId', otherKey: 'languageCode', as: 'Languages' });
+Language.belongsToMany(Account, { through: AccountLanguage, foreignKey: 'languageCode', otherKey: 'accountId', as: 'Accounts' });
+
+// 8c. Subscriber currency selection (Account opts into a subset of Currencies)
+Account.belongsToMany(Currency, { through: AccountCurrency, foreignKey: 'accountId', otherKey: 'currencyCode', as: 'Currencies' });
+Currency.belongsToMany(Account, { through: AccountCurrency, foreignKey: 'currencyCode', otherKey: 'accountId', as: 'CurrencyAccounts' });
+
 // 8. Collaborator Invitations (consent-based cross-tenant bridge)
 Invitation.belongsTo(Company, { foreignKey: 'companyId', as: 'Company' });
 Invitation.belongsTo(Account, { foreignKey: 'accountId', as: 'Account' });
@@ -76,4 +95,9 @@ module.exports = {
     RoleMenu,
     RegistrationLead,
     Invitation,
+    Country,
+    Language,
+    AccountLanguage,
+    Currency,
+    AccountCurrency,
 };

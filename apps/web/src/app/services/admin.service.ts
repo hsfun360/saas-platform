@@ -5,7 +5,9 @@ import { environment } from '../../environments/environment';
 import {
   Role,
   CreateRoleRequest,
+  UpdateRoleRequest,
   CreateUserData,
+  UpdateUserData,
   UserSummary,
   AdminMenu,
   AdminModule,
@@ -35,6 +37,14 @@ export class AdminService {
 
   createRole(roleData: CreateRoleRequest): Observable<{ message: string; role: Role }> {
     return this.http.post<{ message: string; role: Role }>(`${this.apiBaseUrl}/roles`, roleData);
+  }
+
+  updateRole(id: string, roleData: UpdateRoleRequest): Observable<{ message: string; role: Role }> {
+    return this.http.put<{ message: string; role: Role }>(`${this.apiBaseUrl}/roles/${id}`, roleData);
+  }
+
+  deleteRole(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiBaseUrl}/roles/${id}`);
   }
 
   listMenus(): Observable<AdminMenu[]> {
@@ -74,12 +84,29 @@ export class AdminService {
     return this.http.delete<{ message: string }>(`${this.apiBaseUrl}/menus/${menuId}`);
   }
 
+  // Persist the order of one sibling set after a drag (sequence only; re-parenting
+  // is done through updateMenu's parentId).
+  reorderMenus(
+    moduleId: string,
+    items: { id: string; sequence: number }[],
+  ): Observable<{ message: string }> {
+    return this.http.put<{ message: string }>(`${this.apiBaseUrl}/modules/${moduleId}/menus/order`, { items });
+  }
+
   createSaaSUser(userData: CreateUserData): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/users`, userData);
   }
 
   listUsers(): Observable<UserSummary[]> {
     return this.http.get<UserSummary[]>(`${this.apiBaseUrl}/users`);
+  }
+
+  updateUser(id: string, data: UpdateUserData): Observable<{ message: string }> {
+    return this.http.patch<{ message: string }>(`${this.apiBaseUrl}/users/${id}`, data);
+  }
+
+  setUserStatus(id: string, isActive: boolean): Observable<{ message: string; isActive: boolean }> {
+    return this.http.patch<{ message: string; isActive: boolean }>(`${this.apiBaseUrl}/users/${id}/status`, { isActive });
   }
 
   assignUserToRole(assignmentData: AssignRoleData): Observable<{ message: string }> {

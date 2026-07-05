@@ -1,8 +1,13 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../auth.service';
-import { CompanyEntity, ModuleOption } from '../models/auth.models';
+import { CountryService } from '../services/country.service';
+import { CurrencyService } from '../services/currency.service';
+import { CompanyEntity, ModuleOption, Country, Currency } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
+import { PhoneInputComponent } from '../shared/phone-input/phone-input';
+import { TimezoneLabelPipe } from '../shared/timezone-label.pipe';
+import { COUNTRY_TIMEZONES, FALLBACK_COUNTRIES } from '../shared/countries';
 
 // Tenant Admin view: create and list companies (business entities) under the
 // subscriber's account, choosing which modules each company needs.
@@ -10,16 +15,44 @@ import { DialogComponent } from '../shared/dialog/dialog';
   selector: 'app-companies',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, DialogComponent],
+  imports: [ReactiveFormsModule, DialogComponent, PhoneInputComponent, TimezoneLabelPipe],
   templateUrl: './companies.html',
   styleUrls: ['./companies.css'],
 })
 export class CompaniesComponent implements OnInit {
   private readonly auth = inject(AuthService);
+  private readonly countryService = inject(CountryService);
+  private readonly currencyService = inject(CurrencyService);
   private readonly fb = inject(FormBuilder);
+
+  // Currencies the subscriber (account) opted into — the choices for a company's
+  // default currency. Empty until loaded / if the account selected none.
+  readonly accountCurrencies = signal<Currency[]>([]);
 
   readonly companies = signal<CompanyEntity[]>([]);
   readonly modules = signal<ModuleOption[]>([]);
+  // Active countries from the DB (Country table) for the editable country combobox.
+  // Seeded with a bundled fallback so the combobox + timezone linkage work even
+  // before the DB Country table is synced; replaced by the DB list once available.
+  readonly countryOptions = signal<Country[]>(FALLBACK_COUNTRIES);
+  // Country options for the picker: alphabetical, but with "Others" (zz) pinned
+  // last so the special catch-all sits at the bottom of the list.
+  readonly countryChoices = computed(() =>
+    [...this.countryOptions()].sort((a, b) => {
+      if (a.alpha2 === 'zz') return 1;
+      if (b.alpha2 === 'zz') return -1;
+      return a.name.localeCompare(b.name);
+    }),
+  );
+  // Timezones for the currently-selected country (drives the Timezone shortlist).
+  // Rendered with the shared `tzLabel` pipe (standard "(UTC +08:00)" offset).
+  readonly timezoneOptions = signal<string[]>([]);
+
+  // Curated timezone list for a country, keyed by ISO alpha-2 code (the value the
+  // picker now stores). "Others"/blank/unknown codes have no linkage -> free text.
+  private timezonesForCountryCode(code: string): string[] {
+    return COUNTRY_TIMEZONES[(code || '').trim().toLowerCase()] || [];
+  }
   readonly companiesLoading = signal(false);
   readonly modulesLoading = signal(false);
   readonly creating = signal(false);
@@ -75,33 +108,106 @@ export class CompaniesComponent implements OnInit {
     postalCode: [''],
     country: [''],
     timezone: ['Asia/Kuala_Lumpur'],
+    logo: [''],
+    defaultCurrencyCode: [''],
   });
 
   readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(150)]],
     registrationNumber: [''],
+    taxRegistrationNumber: [''],
+    email: ['', [Validators.email]],
+    phone: [''],
+    website: [''],
+    addressLine1: [''],
+    addressLine2: [''],
+    city: [''],
+    state: [''],
+    postalCode: [''],
+    country: [''],
     timezone: ['Asia/Kuala_Lumpur'],
+    logo: [''],
+    defaultCurrencyCode: [''],
   });
+
+  // Logo upload in-flight flags (create + edit dialogs).
+  readonly uploadingLogo = signal(false);
+  readonly uploadingEditLogo = signal(false);
 
   ngOnInit(): void {
     this.loadCompanies();
     this.loadModules();
+    this.countryService.listActive().subscribe({
+      next: (list) => { if (list.length) this.countryOptions.set(list); }, // else keep fallback
+      error: () => {}, // keep fallback
+    });
+    // The account's opted-in currencies (via Subscriber → Currencies). The default
+    // currency picker offers exactly these; empty if the subscriber selected none.
+    this.currencyService.getAccountCurrencies().subscribe({
+      next: (state) => this.accountCurrencies.set(state.selected),
+      error: () => {}, // no picker options if it can't be resolved
+    });
   }
 
   // Open the create dialog (FAB). Close any open edit dialog so only one editor
   // is active at a time. The dialog component handles focus in/trap/restore.
+  private readonly emptyCompany = {
+    name: '', registrationNumber: '', taxRegistrationNumber: '', email: '', phone: '',
+    website: '', addressLine1: '', addressLine2: '', city: '', state: '', postalCode: '',
+    country: '', timezone: 'Asia/Kuala_Lumpur', logo: '', defaultCurrencyCode: '',
+  };
+
   openCreate(): void {
     this.successMessage.set('');
     this.errorMessage.set('');
     this.editingCompanyId.set(null);
     this.editingProfileCompanyId.set(null);
+    this.form.reset(this.emptyCompany);
+    this.selectedModuleIds.set(new Set());
+    this.timezoneOptions.set([]); // no country picked yet -> timezone free-text
     this.showCreate.set(true);
   }
 
   cancelCreate(): void {
     this.showCreate.set(false);
-    this.form.reset({ name: '', registrationNumber: '', timezone: 'Asia/Kuala_Lumpur' });
+    this.form.reset(this.emptyCompany);
     this.selectedModuleIds.set(new Set());
+  }
+
+  // Upload a chosen logo file to GCS; store the returned URL on the given form.
+  // `which` selects the create form vs the edit-details form.
+  onLogoSelected(event: Event, which: 'create' | 'edit'): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      this.errorMessage.set('Please choose an image file for the logo.');
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      this.errorMessage.set('Logo is too large. Please choose an image under 1MB.');
+      return;
+    }
+    const busy = which === 'create' ? this.uploadingLogo : this.uploadingEditLogo;
+    const targetForm = which === 'create' ? this.form : this.profileForm;
+    busy.set(true);
+    const data = new FormData();
+    data.append('logo', file);
+    this.auth.uploadCompanyLogo(data).subscribe({
+      next: (res) => {
+        targetForm.patchValue({ logo: res.url });
+        busy.set(false);
+        input.value = ''; // allow re-selecting the same file later
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to upload logo.');
+        busy.set(false);
+      },
+    });
+  }
+
+  removeLogo(which: 'create' | 'edit'): void {
+    (which === 'create' ? this.form : this.profileForm).patchValue({ logo: '' });
   }
 
   clearSearch(): void {
@@ -154,20 +260,32 @@ export class CompaniesComponent implements OnInit {
       return;
     }
 
-    const { name, registrationNumber, timezone } = this.form.getRawValue();
+    const v = this.form.getRawValue();
 
     this.creating.set(true);
     this.auth
       .createCompany({
-        name: name.trim(),
-        registrationNumber: registrationNumber.trim() || undefined,
-        timezone: timezone.trim() || undefined,
+        name: v.name.trim(),
+        registrationNumber: v.registrationNumber.trim() || undefined,
+        taxRegistrationNumber: v.taxRegistrationNumber.trim() || undefined,
+        email: v.email.trim() || undefined,
+        phone: v.phone.trim() || undefined,
+        website: v.website.trim() || undefined,
+        addressLine1: v.addressLine1.trim() || undefined,
+        addressLine2: v.addressLine2.trim() || undefined,
+        city: v.city.trim() || undefined,
+        state: v.state.trim() || undefined,
+        postalCode: v.postalCode.trim() || undefined,
+        country: v.country.trim() || undefined,
+        timezone: v.timezone.trim() || undefined,
+        logo: v.logo || undefined,
+        defaultCurrencyCode: v.defaultCurrencyCode || undefined,
         moduleIds: Array.from(this.selectedModuleIds()),
       })
       .subscribe({
         next: (res) => {
-          this.successMessage.set(res.message || `Company "${name.trim()}" created.`);
-          this.form.reset({ name: '', registrationNumber: '', timezone: 'Asia/Kuala_Lumpur' });
+          this.successMessage.set(res.message || `Company "${v.name.trim()}" created.`);
+          this.form.reset(this.emptyCompany);
           this.selectedModuleIds.set(new Set());
           this.creating.set(false);
           this.showCreate.set(false);
@@ -244,8 +362,35 @@ export class CompaniesComponent implements OnInit {
       postalCode: company.postalCode || '',
       country: company.country || '',
       timezone: company.timezone || 'Asia/Kuala_Lumpur',
+      logo: company.logo || '',
+      defaultCurrencyCode: company.defaultCurrencyCode || '',
     });
+    // Seed the timezone shortlist from the stored country (don't override the
+    // stored timezone here - only a user country change re-derives it). If the
+    // stored zone isn't in that country's list (legacy mismatch), keep it in the
+    // list so the select can still show it.
+    const tz = company.timezone || 'Asia/Kuala_Lumpur';
+    const zones = this.timezonesForCountryCode(company.country || '');
+    this.timezoneOptions.set(zones.length && !zones.includes(tz) ? [tz, ...zones] : zones);
     this.editingProfileCompanyId.set(company.id);
+  }
+
+  // Country -> Timezone: when the country changes, offer that country's timezones
+  // and align the Timezone field. Single-timezone countries auto-fill; multi-zone
+  // countries keep the current value if it's already valid, else default to the
+  // first. "Others"/blank leave the timezone as the user typed it. `code` is the
+  // selected ISO alpha-2 (or '' for the blank option).
+  onCountryChange(code: string, which: 'create' | 'edit'): void {
+    const zones = this.timezonesForCountryCode(code);
+    this.timezoneOptions.set(zones); // empty -> the field falls back to free text
+    if (zones.length === 0) return; // no linkage - keep whatever timezone was set
+    if (which === 'create') {
+      const cur = this.form.getRawValue().timezone;
+      if (!cur || !zones.includes(cur)) this.form.patchValue({ timezone: zones[0] });
+    } else {
+      const cur = this.profileForm.getRawValue().timezone;
+      if (!cur || !zones.includes(cur)) this.profileForm.patchValue({ timezone: zones[0] });
+    }
   }
 
   cancelEditProfile(): void {

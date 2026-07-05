@@ -7,6 +7,19 @@
 - **Error Handling:** Centralized async middleware to catch errors. Return unified JSON payloads: `{ error: string, details?: any }`.
 - **Naming Conventions:** CamelCase for routes and parameters, PascalCase for controllers/classes.
 
+## 🔑 Secrets & Configuration (STANDARD - platform-agnostic)
+- **The app reads every secret from a plain environment variable** (`process.env.X`), never from a provider-specific SDK or a file path hard-coded to one host.
+  This is the 12-factor rule and it keeps the code portable across Cloud Run, plain Docker, Kubernetes, a VM, or local dev - the *host* decides how to populate the env var, the *code* stays the same.
+- **Never bake secrets into the Docker image** (no keys, `.env`, or credential files in the build context).
+  `.dockerignore` must exclude them. The image is public-by-pull; anything in it leaks.
+- **How each host populates the env var:**
+  - Google Cloud Run -> Secret Manager, mounted as an env var at deploy: `gcloud run deploy ... --update-secrets JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest`.
+  - Docker / Compose -> `-e X="..."` or an `--env-file`.
+  - Kubernetes -> a `Secret` surfaced via `env.valueFrom.secretKeyRef`.
+  - Local dev -> `apps/api/.env` (git-ignored); code MAY keep a dev-only file fallback, but production must not depend on it.
+- **PEM / multi-line secrets:** accept the value whether newlines are real or escaped as literal `\n` (some hosts flatten multi-line env vars), so one value works everywhere.
+- **Reference implementation:** [`src/platform/jwt.keys.js`](../src/platform/jwt.keys.js) - env-var PEM -> env-var path -> local `keys/` file, in that order. Copy this shape for any new secret.
+
 ## 🛑 Project Constraints & Anti-Patterns
 - **Do NOT:** Save plain-text passwords or log JWT tokens to the console.
 - **Do NOT:** Write inline raw PostgreSQL queries directly into Express routes.

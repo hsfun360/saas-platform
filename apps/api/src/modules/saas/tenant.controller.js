@@ -628,6 +628,75 @@ exports.revokeTenantUser = async (req, res) => {
     }
 };
 
+// PATCH /api/auth/company/users/:userId  -> edit a user's GLOBAL profile
+// (full_name / email / phone / bio). Account-scoped: allowed only when the target
+// is managed by this admin AND belongs ONLY to companies in this admin's account -
+// never an external collaborator or system user (editing their global profile
+// would leak across tenants).
+exports.updateTenantUserProfile = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { email, fullName, phone, bio } = req.body;
+
+        const accountId = await resolveAccountId(req.user.companyId);
+        if (!accountId) return res.status(404).json({ message: "Your account could not be resolved." });
+
+        const accountCompanies = await Company.findAll({ where: { accountId }, attributes: ['id'] });
+        const accountCompanyIds = new Set(accountCompanies.map(c => c.id));
+
+        // Companies this admin may administer (owner => all in account; else their Tenant Admin companies).
+        let adminCompanyIds;
+        if (await isAccountOwner(req.user.id, accountId)) {
+            adminCompanyIds = new Set(accountCompanyIds);
+        } else {
+            const adminLinks = await CompanyUser.findAll({
+                where: { userId: req.user.id },
+                include: [{ model: Role, as: 'Role', where: { name: 'Tenant Admin' }, required: true, attributes: [] }],
+                attributes: ['companyId'],
+            });
+            adminCompanyIds = new Set(adminLinks.map(l => l.companyId).filter(id => accountCompanyIds.has(id)));
+        }
+
+        const target = await User.findByPk(userId);
+        if (!target) return res.status(404).json({ message: "User not found." });
+
+        const memberships = await CompanyUser.findAll({ where: { userId }, attributes: ['companyId'] });
+        if (!memberships.some(m => adminCompanyIds.has(m.companyId))) {
+            return res.status(403).json({ message: "You don't manage this user." });
+        }
+        // Account-scoping: refuse if the user belongs anywhere outside this account
+        // (another account's company, or a system-level membership).
+        if (memberships.some(m => m.companyId === null || !accountCompanyIds.has(m.companyId))) {
+            return res.status(403).json({ message: "This user also belongs to other accounts, so their profile can't be edited here." });
+        }
+
+        if (typeof email === 'string') {
+            const normalized = email.trim().toLowerCase();
+            if (!normalized) return res.status(400).json({ message: "Email cannot be empty." });
+            if (normalized !== target.email) {
+                const clash = await User.findOne({ where: { email: normalized } });
+                if (clash) return res.status(409).json({ message: "Another user already uses this email." });
+                target.email = normalized;
+            }
+        }
+        if (typeof fullName === 'string') {
+            if (!fullName.trim()) return res.status(400).json({ message: "Full name cannot be empty." });
+            target.full_name = fullName.trim();
+        }
+        if (typeof phone === 'string') target.phone = phone.trim() || null;
+        if (typeof bio === 'string') target.bio = bio.trim() || null;
+
+        await target.save();
+        res.status(200).json({
+            message: "User profile updated.",
+            user: { id: target.id, email: target.email, full_name: target.full_name, phone: target.phone, bio: target.bio },
+        });
+    } catch (error) {
+        console.error("Error updating tenant user profile:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // GET /api/auth/account/users  -> account-wide, person-centric view for the
 // redesigned User Management screen. Returns the companies the caller may
 // administer (each with its roles), every person who is a member of any of those
@@ -675,15 +744,30 @@ exports.listAccountUsers = async (req, res) => {
             ? await CompanyUser.findAll({ where: { companyId: companyIds }, include: [{ model: Role, as: 'Role', attributes: ['id', 'name'] }] })
             : [];
         const userIds = [...new Set(memberships.map(m => m.userId))];
-        const users = userIds.length ? await User.findAll({ where: { id: userIds }, attributes: ['id', 'email', 'full_name'] }) : [];
+        const users = userIds.length ? await User.findAll({ where: { id: userIds }, attributes: ['id', 'email', 'full_name', 'phone', 'bio'] }) : [];
         const userById = new Map(users.map(u => [u.id, u]));
+
+        // A person's GLOBAL profile is editable here only if ALL their memberships
+        // are within this account (no external company, no system membership).
+        const allAccountCompanies = await Company.findAll({ where: { accountId }, attributes: ['id'] });
+        const accountCompanyIdSet = new Set(allAccountCompanies.map(c => c.id));
+        const allMemberships = userIds.length
+            ? await CompanyUser.findAll({ where: { userId: userIds }, attributes: ['userId', 'companyId'] })
+            : [];
+        const externalUserIds = new Set(
+            allMemberships.filter(m => m.companyId === null || !accountCompanyIdSet.has(m.companyId)).map(m => m.userId),
+        );
 
         const peopleMap = new Map();
         for (const m of memberships) {
             const u = userById.get(m.userId);
             if (!u) continue;
             if (!peopleMap.has(m.userId)) {
-                peopleMap.set(m.userId, { id: u.id, email: u.email, full_name: u.full_name, memberships: [] });
+                peopleMap.set(m.userId, {
+                    id: u.id, email: u.email, full_name: u.full_name, phone: u.phone, bio: u.bio,
+                    profileEditable: !externalUserIds.has(u.id),
+                    memberships: [],
+                });
             }
             peopleMap.get(m.userId).memberships.push({
                 companyId: m.companyId,
@@ -772,11 +856,16 @@ exports.createCompany = async (req, res) => {
             return res.status(404).json({ message: "Your account could not be resolved." });
         }
 
-        const { name, registrationNumber, timezone, moduleIds } = req.body;
+        const {
+            name, registrationNumber, taxRegistrationNumber, email, phone, website,
+            addressLine1, addressLine2, city, state, postalCode, country,
+            timezone, moduleIds, logo, defaultCurrencyCode,
+        } = req.body;
         if (!name || !name.trim()) {
             await transaction.rollback();
             return res.status(400).json({ message: "Company name is required." });
         }
+        const trimOrNull = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 
         // Validate the selected modules actually exist (any system module is allowed).
         const selectedModuleIds = Array.isArray(moduleIds) ? [...new Set(moduleIds)] : [];
@@ -791,8 +880,20 @@ exports.createCompany = async (req, res) => {
         const company = await Company.create({
             accountId,
             name: name.trim(),
-            registrationNumber: registrationNumber || null,
-            timezone: timezone || 'Asia/Kuala_Lumpur',
+            registrationNumber: trimOrNull(registrationNumber),
+            taxRegistrationNumber: trimOrNull(taxRegistrationNumber),
+            email: trimOrNull(email),
+            phone: trimOrNull(phone),
+            website: trimOrNull(website),
+            addressLine1: trimOrNull(addressLine1),
+            addressLine2: trimOrNull(addressLine2),
+            city: trimOrNull(city),
+            state: trimOrNull(state),
+            postalCode: trimOrNull(postalCode),
+            country: trimOrNull(country),
+            logo: trimOrNull(logo),
+            timezone: trimOrNull(timezone) || 'Asia/Kuala_Lumpur',
+            defaultCurrencyCode: defaultCurrencyCode ? String(defaultCurrencyCode).trim().toUpperCase() || null : null,
             isActive: true,
         }, { transaction });
 
@@ -930,7 +1031,7 @@ exports.updateCompany = async (req, res) => {
         // Optional profile fields: set when provided; empty string clears to null.
         const fields = [
             'registrationNumber', 'taxRegistrationNumber', 'email', 'phone', 'website',
-            'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'country', 'timezone',
+            'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'country', 'timezone', 'logo',
         ];
         for (const f of fields) {
             if (b[f] !== undefined) {
@@ -940,6 +1041,12 @@ exports.updateCompany = async (req, res) => {
         }
         // timezone is NOT NULL — never let it be cleared.
         if (!company.timezone) company.timezone = 'Asia/Kuala_Lumpur';
+
+        // Default currency (ISO 4217, uppercase); empty clears it.
+        if (b.defaultCurrencyCode !== undefined) {
+            const c = typeof b.defaultCurrencyCode === 'string' ? b.defaultCurrencyCode.trim().toUpperCase() : '';
+            company.defaultCurrencyCode = c || null;
+        }
 
         await company.save();
 

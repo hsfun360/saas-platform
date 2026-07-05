@@ -16,6 +16,8 @@ const { updateProfileWithOutbox } = require('./user.service');
 // Tenant-scoped user management (Tenant Admin manages users within their company)
 const tenantController = require('../saas/tenant.controller');
 const invitationController = require('../saas/invitation.controller');
+const accountLanguageController = require('../saas/accountLanguage.controller');
+const accountCurrencyController = require('../saas/accountCurrency.controller');
 const { hasTenantAdminRole } = require('../saas/tenant');
 
 // Test Route to verify that the auth routes are working
@@ -226,6 +228,7 @@ router.put('/company/roles/:roleId', authenticateToken, requireTenant, requireTe
 router.delete('/company/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.deleteTenantRole);
 router.get('/company/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listTenantUsers);
 router.post('/company/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createTenantUser);
+router.patch('/company/users/:userId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateTenantUserProfile);
 router.post('/company/users/assign-role', authenticateToken, requireTenant, requireTenantAdmin, tenantController.assignTenantUserRole);
 router.post('/company/users/revoke', authenticateToken, requireTenant, requireTenantAdmin, tenantController.revokeTenantUser);
 // Account-wide, person-centric view for the redesigned User Management screen.
@@ -239,6 +242,22 @@ router.get('/account/roles/:roleId', authenticateToken, requireTenant, requireTe
 router.post('/account/roles', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createAccountRole);
 router.put('/account/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateAccountRole);
 router.delete('/account/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.deleteAccountRole);
+
+// --- SUBSCRIBER LANGUAGE SELECTION (Tenant Admin self-service) ---
+// The subscriber's chosen language subset + default, from their own account.
+router.get('/account/languages', authenticateToken, requireTenant, requireTenantAdmin, accountLanguageController.getAccountLanguages);
+router.put('/account/languages', authenticateToken, requireTenant, requireTenantAdmin, accountLanguageController.updateAccountLanguages);
+
+// --- PER-USER PREFERRED LANGUAGE (any authenticated user) ---
+// The languages the user may pick from (their active account's set) + their pick.
+router.get('/me/language', authenticateToken, accountLanguageController.getMyLanguage);
+router.patch('/me/language', authenticateToken, accountLanguageController.setMyLanguage);
+
+// --- SUBSCRIBER CURRENCY SELECTION (Tenant Admin self-service) ---
+// The subscriber's chosen currency subset + default, from their own account. Also
+// read by the Companies screen to populate a company's default-currency picker.
+router.get('/account/currencies', authenticateToken, requireTenant, requireTenantAdmin, accountCurrencyController.getAccountCurrencies);
+router.put('/account/currencies', authenticateToken, requireTenant, requireTenantAdmin, accountCurrencyController.updateAccountCurrencies);
 
 // Add an EXISTING same-account user as a collaborator on the caller's company.
 router.post('/company/collaborators', authenticateToken, requireTenant, requireTenantAdmin, tenantController.addCollaborator);
@@ -265,6 +284,7 @@ router.post('/switch-workspace', authenticateToken, authController.switchWorkspa
 router.get('/company/available-modules', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listAvailableModules);
 router.get('/companies', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listCompanies);
 router.post('/companies', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createCompany);
+router.post('/company/logo', authenticateToken, requireTenant, requireTenantAdmin, upload.single('logo'), authController.uploadCompanyLogo);
 router.put('/companies/:companyId/modules', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateCompanyModules);
 router.put('/companies/:companyId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateCompany);
 

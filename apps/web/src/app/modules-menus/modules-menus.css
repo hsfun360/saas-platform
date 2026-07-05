@@ -207,3 +207,130 @@
     opacity: 1;
   }
 }
+
+/* ---- Groups + drag-and-drop layout ---- */
+.mm-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-xs);
+}
+
+.mm-hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  color: #64748b;
+  font-size: var(--font-body-2);
+  margin: 0 0 var(--space-md);
+}
+.mm-hint__grip {
+  font-size: 18px;
+  vertical-align: middle;
+  color: #94a3b8;
+}
+.mm-hint__saving {
+  color: #0284c7;
+  font-weight: var(--weight-semibold);
+}
+
+/* Menu tree (adjacency list). Each level is a drop list; children nest with a
+   left border + indent so depth reads clearly. */
+.mm-tree-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-height: 40px; /* keep an empty level a visible drop area */
+}
+.mm-tree-node {
+  min-width: 0;
+}
+.mm-tree-children {
+  margin-left: 18px;
+  padding-left: var(--space-sm);
+  border-left: 2px solid #e2e8f0;
+  margin-top: var(--space-xs);
+}
+
+/* Drag handle — a small grab affordance; keeps the 44px target via padding. */
+.mm-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: grab;
+  flex-shrink: 0;
+  touch-action: none; /* let CDK own touch dragging */
+}
+.mm-grip:active {
+  cursor: grabbing;
+}
+
+.mm-menu-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  min-width: 0;
+}
+.mm-menu-row__icon {
+  font-size: 18px;
+  color: #0284c7;
+  flex-shrink: 0;
+}
+.mm-menu-row__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.mm-menu-row__name {
+  font-weight: var(--weight-semibold);
+  color: #1e293b;
+}
+.mm-menu-row__route {
+  color: #64748b;
+  font-size: var(--font-body-2);
+}
+.mm-menu-row__actions {
+  display: flex;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.mm-drop-empty {
+  margin: 0;
+  padding: var(--space-sm);
+  text-align: center;
+  color: #94a3b8;
+  font-size: var(--font-body-2);
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+}
+
+/* CDK drag states */
+.cdk-drag-preview {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  border-radius: 8px;
+  background: #fff;
+}
+.cdk-drag-placeholder {
+  opacity: 0.4;
+}
+.cdk-drag-animating {
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+.mm-tree-list.cdk-drop-list-dragging .mm-tree-node:not(.cdk-drag-placeholder) {
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}

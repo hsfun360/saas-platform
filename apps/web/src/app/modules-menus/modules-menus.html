@@ -93,9 +93,17 @@
           Modules
         </button>
 
-        <h3 style="margin: 0 0 var(--space-md); font-size: var(--font-h2); color: #1e293b;">
-          Menus in “{{ selectedModule()?.name }}”
-        </h3>
+        <div class="mm-detail-head">
+          <h3 style="margin: 0; font-size: var(--font-h2); color: #1e293b;">
+            Menus in “{{ selectedModule()?.name }}”
+          </h3>
+        </div>
+        <p class="mm-hint">
+          Drag <span class="material-icons mm-hint__grip" aria-hidden="true">drag_indicator</span> to reorder within a level.
+          A menu with sub-menus becomes a collapsible section; set nesting with a menu's
+          <span class="material-icons mm-hint__grip" aria-hidden="true">account_tree</span> Parent, or “Add sub-menu”.
+          @if (savingLayout()) { <span class="mm-hint__saving">Saving…</span> }
+        </p>
 
         <!-- Live filter over the loaded menus (name / route). -->
         @if (!menusLoading() && menus().length > 0) {
@@ -111,41 +119,88 @@
           </div>
         }
 
-        <!-- Menu list -->
         @if (menusLoading()) {
           <p style="color: #64748b;">Loading menus…</p>
         } @else if (menus().length === 0) {
           <p style="color: #64748b;">This module has no menus yet. Use “Add menu” to create one.</p>
-        } @else if (filteredMenus().length === 0) {
-          <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: #64748b;">
-            <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: #cbd5e1;">search_off</span>
-            <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">No menus match “{{ menuSearch() }}”.</p>
-            <button type="button" class="btn btn--secondary btn--sm" (click)="clearMenuSearch()">Clear search</button>
-          </div>
+        } @else if (menuSearch()) {
+          <!-- SEARCHING: flat, read-only results (drag/grouping paused). -->
+          @if (filteredMenus().length === 0) {
+            <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: #64748b;">
+              <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: #cbd5e1;">search_off</span>
+              <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">No menus match “{{ menuSearch() }}”.</p>
+              <button type="button" class="btn btn--secondary btn--sm" (click)="clearMenuSearch()">Clear search</button>
+            </div>
+          } @else {
+            <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs);">
+              @for (menu of filteredMenus(); track menu.id) {
+                <li class="mm-row" [class.mm-row--active]="editingMenuId() === menu.id">
+                  <span class="mm-row__text" style="flex-direction: row; align-items: center; gap: var(--space-sm); flex-wrap: wrap;">
+                    <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: #0284c7;">{{ menu.icon || 'folder' }}</span>
+                    <span style="font-weight: var(--weight-semibold); color: #1e293b;">{{ menu.name }}</span>
+                    <span style="color: #64748b; font-size: var(--font-body-2);">{{ menu.route }}</span>
+                  </span>
+                  <span class="mm-row__actions">
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="startEditMenu(menu)"
+                            [disabled]="!!deletingMenuId()" [attr.aria-label]="'Edit menu ' + menu.name">
+                      <span class="material-icons" aria-hidden="true">edit</span>
+                      Edit
+                    </button>
+                    <button type="button" class="btn btn--danger btn--sm" (click)="deleteMenu(menu)"
+                            [disabled]="deletingMenuId() === menu.id" [attr.aria-label]="'Delete menu ' + menu.name">
+                      <span class="material-icons" aria-hidden="true">delete</span>
+                      {{ deletingMenuId() === menu.id ? 'Deleting…' : 'Delete' }}
+                    </button>
+                  </span>
+                </li>
+              }
+            </ul>
+          }
         } @else {
-          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs);">
-            @for (menu of filteredMenus(); track menu.id) {
-              <li class="mm-row" [class.mm-row--active]="editingMenuId() === menu.id">
-                <span class="mm-row__text" style="flex-direction: row; align-items: center; gap: var(--space-sm); flex-wrap: wrap;">
-                  <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: #0284c7;">{{ menu.icon || 'folder' }}</span>
-                  <span style="font-weight: var(--weight-semibold); color: #1e293b;">{{ menu.name }}</span>
-                  <span style="color: #64748b; font-size: var(--font-body-2);">{{ menu.route }}</span>
-                </span>
-                <span class="mm-row__actions">
-                  <button type="button" class="btn btn--secondary btn--sm" (click)="startEditMenu(menu)"
-                          [disabled]="!!deletingMenuId()" [attr.aria-label]="'Edit menu ' + menu.name">
-                    <span class="material-icons" aria-hidden="true">edit</span>
-                    Edit
-                  </button>
-                  <button type="button" class="btn btn--danger btn--sm" (click)="deleteMenu(menu)"
-                          [disabled]="deletingMenuId() === menu.id" [attr.aria-label]="'Delete menu ' + menu.name">
-                    <span class="material-icons" aria-hidden="true">delete</span>
-                    {{ deletingMenuId() === menu.id ? 'Deleting…' : 'Delete' }}
-                  </button>
-                </span>
-              </li>
-            }
-          </ul>
+          <!-- TREE view (adjacency list). Drag reorders within a level; a node's
+               children render nested. Re-parent via the menu dialog's Parent field. -->
+          <ng-template #menuNodes let-nodes>
+            <div cdkDropList [cdkDropListData]="nodes" (cdkDropListDropped)="dropMenu($event)" class="mm-tree-list">
+              @for (node of nodes; track node.menu.id) {
+                <div cdkDrag class="mm-tree-node">
+                  <div class="mm-menu-row" [class.mm-row--active]="editingMenuId() === node.menu.id">
+                    <button type="button" cdkDragHandle class="mm-grip" aria-label="Reorder menu">
+                      <span class="material-icons" aria-hidden="true">drag_indicator</span>
+                    </button>
+                    <span class="material-icons mm-menu-row__icon" aria-hidden="true">{{ node.menu.icon || 'folder' }}</span>
+                    <span class="mm-menu-row__text">
+                      <span class="mm-menu-row__name">{{ node.menu.name }}</span>
+                      <span class="mm-menu-row__route">{{ node.menu.route }}</span>
+                    </span>
+                    <span class="mm-menu-row__actions">
+                      <button type="button" class="btn btn--secondary btn--sm" (click)="startCreateMenu(node.menu.id)"
+                              [disabled]="!!deletingMenuId()" [attr.aria-label]="'Add sub-menu under ' + node.menu.name">
+                        <span class="material-icons" aria-hidden="true">add</span>
+                      </button>
+                      <button type="button" class="btn btn--secondary btn--sm" (click)="startEditMenu(node.menu)"
+                              [disabled]="!!deletingMenuId()" [attr.aria-label]="'Edit menu ' + node.menu.name">
+                        <span class="material-icons" aria-hidden="true">edit</span>
+                      </button>
+                      <button type="button" class="btn btn--danger btn--sm" (click)="deleteMenu(node.menu)"
+                              [disabled]="deletingMenuId() === node.menu.id" [attr.aria-label]="'Delete menu ' + node.menu.name">
+                        <span class="material-icons" aria-hidden="true">delete</span>
+                      </button>
+                    </span>
+                  </div>
+                  @if (node.children.length) {
+                    <div class="mm-tree-children">
+                      <ng-container *ngTemplateOutlet="menuNodes; context: { $implicit: node.children }"></ng-container>
+                    </div>
+                  }
+                </div>
+              }
+              @empty {
+                <p class="mm-drop-empty">No menus at this level.</p>
+              }
+            </div>
+          </ng-template>
+
+          <ng-container *ngTemplateOutlet="menuNodes; context: { $implicit: tree() }"></ng-container>
         }
       }
     </section>
@@ -204,6 +259,23 @@
                  style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
           <span style="font-size: var(--font-caption); color: #64748b;">Where the apps switcher lands when entering this system. Leave blank to land on the first menu the role can access.</span>
         </div>
+
+        <div style="margin-top: var(--space-md); border-top: 1px solid #e2e8f0; padding-top: var(--space-md);">
+          <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Translations</label>
+          <p style="font-size: var(--font-caption); color: #64748b; margin: var(--space-xs) 0 var(--space-sm);">Localized name per language, shown in the sidebar / apps switcher. Leave blank to fall back to the name above.</p>
+          @if (moduleTranslations.length === 0) {
+            <p style="font-size: var(--font-caption); color: #64748b; margin: 0;">No languages configured. Load defaults on the Languages screen to add translations.</p>
+          } @else {
+            @for (t of moduleTranslations; track t.code) {
+              <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-sm);">
+                <label [attr.for]="'mod-tr-' + t.code" style="font-size: var(--font-caption); color: #475569;">{{ t.label }} ({{ t.code }})</label>
+                <input [id]="'mod-tr-' + t.code" type="text" [(ngModel)]="t.name" [ngModelOptions]="{standalone: true}"
+                       [placeholder]="'Name in ' + t.label"
+                       style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+              </div>
+            }
+          }
+        </div>
       </form>
 
       <ng-container dialogFooter>
@@ -243,6 +315,37 @@
           </label>
           <input id="menu-icon" type="text" formControlName="icon" placeholder="e.g. event"
                  style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-top: var(--space-md);">
+          <label for="menu-parent" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">
+            Parent <span style="font-weight: var(--weight-regular); color: #64748b;">(optional — nest this under another menu)</span>
+          </label>
+          <select id="menu-parent" formControlName="parentId"
+                  style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); background: white;">
+            <option value="">Top level (no parent)</option>
+            @for (p of parentOptions(); track p.id) {
+              <option [value]="p.id">{{ p.label }}</option>
+            }
+          </select>
+          <span style="font-size: var(--font-caption); color: #64748b;">A menu with children shows as a collapsible section in the sidebar.</span>
+        </div>
+
+        <div style="margin-top: var(--space-md); border-top: 1px solid #e2e8f0; padding-top: var(--space-md);">
+          <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Translations</label>
+          <p style="font-size: var(--font-caption); color: #64748b; margin: var(--space-xs) 0 var(--space-sm);">Localized name per language, shown in the sidebar. Leave blank to fall back to the name above.</p>
+          @if (menuTranslations.length === 0) {
+            <p style="font-size: var(--font-caption); color: #64748b; margin: 0;">No languages configured. Load defaults on the Languages screen to add translations.</p>
+          } @else {
+            @for (t of menuTranslations; track t.code) {
+              <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-sm);">
+                <label [attr.for]="'menu-tr-' + t.code" style="font-size: var(--font-caption); color: #475569;">{{ t.label }} ({{ t.code }})</label>
+                <input [id]="'menu-tr-' + t.code" type="text" [(ngModel)]="t.name" [ngModelOptions]="{standalone: true}"
+                       [placeholder]="'Name in ' + t.label"
+                       style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+              </div>
+            }
+          }
         </div>
       </form>
 

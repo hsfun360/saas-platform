@@ -1,63 +1,194 @@
-.settings-container {
+/* Centred single column; `.screen-pad` (styles.css) handles the mobile gutter
+   (md 0) so there is no double gutter inside the shell's content area. */
+.settings-wrap {
+  max-width: 650px;
+  margin: 0 auto;
   display: flex;
-  justify-content: center;
-  padding-top: var(--space-lg);
+  flex-direction: column;
+  gap: var(--space-lg);
 }
 
+/* Bordered card — matches the app-wide card standard. */
 .settings-card {
-  background: white;
-  width: 100%;
-  max-width: 700px;
-  /* padding: 32px; <-- REMOVED THIS SO IT CAN SHRINK! */
-  border-radius: 8px;
-  border: 1px solid #dadce0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .settings-header {
-  /* REMOVED margin-bottom, padding-bottom, and border-bottom FROM HERE! */
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.settings-list {
+/* Collapsible header rendered as a real <button> (keyboard + aria-expanded). */
+.settings-header--button {
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  min-height: 44px;
+  font: inherit;
+}
+
+.settings-header__text {
   display: flex;
   flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
 }
 
+.settings-header__title {
+  font-size: var(--font-h2);
+  font-weight: var(--weight-semibold);
+  color: #0f172a;
+}
+
+.settings-header__sub {
+  font-size: var(--font-body-2);
+  color: #64748b;
+}
+
+.settings-header__chevron {
+  color: #64748b;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.settings-header__chevron--open {
+  transform: rotate(90deg);
+}
+
+.settings-body {
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+}
+
+/* --- General settings toggle rows --- */
 .setting-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-lg) 0;
-  border-bottom: 1px solid #f8f9fa;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.setting-item--last {
+  border-bottom: none;
 }
 
 .setting-info {
   display: flex;
   flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
 }
 
 .setting-title {
   font-size: var(--font-body);
   font-weight: var(--weight-medium);
-  color: #202124;
+  color: #0f172a;
 }
 
 .setting-description {
   font-size: var(--font-body-2);
-  color: #5f6368;
-  margin-top: var(--space-xs);
+  color: #64748b;
 }
 
-/* --- THE TOGGLE SWITCH (SLIDER) --- */
+/* --- Fields (language select, password inputs) --- */
+.field-label {
+  display: block;
+  margin-bottom: var(--space-sm);
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: #334155;
+}
+
+.field-control {
+  width: 100%;
+  max-width: 320px;
+  padding: var(--space-sm);
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: var(--font-body);
+  box-sizing: border-box;
+}
+
+.field-hint {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--font-body-2);
+  color: #64748b;
+}
+
+.field-success {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--font-body-2);
+  color: #16a34a;
+}
+
+.form-group {
+  margin-bottom: var(--space-lg);
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: var(--space-sm);
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: #334155;
+}
+
+.form-group input {
+  width: 100%;
+  padding: var(--space-sm);
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: var(--font-body);
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.field-control:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.field-control--error {
+  border-color: #dc2626;
+}
+
+.field-error {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-caption);
+  color: #b91c1c;
+}
+
+.sso-note {
+  background-color: #f8fafc;
+  border-left: 4px solid #2563eb;
+  padding: var(--space-md);
+  border-radius: 8px;
+  font-size: var(--font-body-2);
+  color: #334155;
+  line-height: 1.5;
+}
+
+/* --- Toggle switch (slider) --- */
 .switch {
   position: relative;
   display: inline-block;
   width: 44px;
   height: 24px;
+  flex-shrink: 0;
 }
 
-.switch input { 
+.switch input {
   opacity: 0;
   width: 0;
   height: 0;
@@ -70,8 +201,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #ccc;
-  transition: .4s;
+  background-color: #cbd5e1;
+  transition: 0.3s;
 }
 
 .slider:before {
@@ -82,15 +213,15 @@
   left: 3px;
   bottom: 3px;
   background-color: white;
-  transition: .4s;
+  transition: 0.3s;
 }
 
 input:checked + .slider {
-  background-color: #0062cc;
+  background-color: #2563eb;
 }
 
-input:focus + .slider {
-  box-shadow: 0 0 1px #0062cc;
+input:focus-visible + .slider {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
 }
 
 input:checked + .slider:before {

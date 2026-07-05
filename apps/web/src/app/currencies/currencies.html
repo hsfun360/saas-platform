@@ -1,0 +1,190 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">💱</span>
+      <div>
+        <h1>Currencies</h1>
+        <p class="saas-subtitle">ISO 4217 currency reference used by the app's currency pickers.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Status on the left, "Load defaults" action on the right. -->
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (currencies().length > 0) {
+        {{ currencies().length }} currencies, {{ activeCount() }} active
+      } @else {
+        No currencies yet — click "Load defaults" to add the ISO 4217 set, or use "New currency".
+      }
+    </span>
+    <button type="button" class="btn btn--secondary btn--sm" (click)="onSeed()" [disabled]="seeding()">
+      {{ seeding() ? 'Loading…' : 'Load defaults' }}
+    </button>
+  </div>
+
+  <!-- Live filter (name / code). -->
+  @if (!loading() && currencies().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #curSearchBox type="search" [value]="search()" (input)="search.set(curSearchBox.value)"
+             placeholder="Search currencies…" aria-label="Search currencies" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading currencies…</p></div>
+  } @else if (currencies().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No currencies yet. Use "Load defaults" to add the ISO 4217 set, or "New currency" to add one.</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No currencies match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (c of filtered(); track c.code) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ c.code }} — {{ c.name }}</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">
+                  @if (c.symbol) { {{ c.symbol }} · } {{ c.minorUnit ?? 2 }} decimal{{ (c.minorUnit ?? 2) === 1 ? '' : 's' }}@if (c.numericCode) { · No. {{ c.numericCode }} }
+                </span>
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (c.isActive === false) {
+                <span class="badge badge-inactive">Disabled</span>
+              } @else {
+                <span class="badge badge-active">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">Edit</button>
+              @if (c.isActive === false) {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="toggleActive(c)"
+                        [disabled]="togglingCode() === c.code">
+                  {{ togglingCode() === c.code ? 'Saving…' : 'Enable' }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="toggleActive(c)"
+                        [disabled]="togglingCode() === c.code">
+                  {{ togglingCode() === c.code ? 'Saving…' : 'Disable' }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New currency FAB -->
+  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New currency">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New currency</span>
+  </button>
+
+  <!-- ============ Add currency dialog ============ -->
+  @if (addOpen()) {
+    <app-dialog [title]="'New currency'" [busy]="addSaving()" (close)="closeAdd()">
+      <form id="addCurrencyForm" (ngSubmit)="onSaveAdd()" class="saas-form" style="padding: 0;">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="aCode">Code (ISO 4217)</label>
+            <input id="aCode" type="text" name="aCode" [(ngModel)]="addForm.code" placeholder="e.g. USD"
+                   maxlength="3" autocapitalize="characters" autocomplete="off" required />
+          </div>
+          <div class="form-group">
+            <label for="aNumeric">Numeric code</label>
+            <input id="aNumeric" type="number" name="aNumeric" [(ngModel)]="addForm.numericCode" placeholder="e.g. 840" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aName">Name</label>
+            <input id="aName" type="text" name="aName" [(ngModel)]="addForm.name" placeholder="e.g. US Dollar" required />
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="aSymbol">Symbol</label>
+            <input id="aSymbol" type="text" name="aSymbol" [(ngModel)]="addForm.symbol" placeholder="e.g. $" />
+          </div>
+          <div class="form-group">
+            <label for="aMinor">Decimal places</label>
+            <input id="aMinor" type="number" name="aMinor" [(ngModel)]="addForm.minorUnit" min="0" max="4" />
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeAdd()" [disabled]="addSaving()">Cancel</button>
+        <button type="submit" form="addCurrencyForm" class="btn btn--primary" [disabled]="addSaving()">
+          {{ addSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Edit currency dialog ============ -->
+  @if (editOpen()) {
+    <app-dialog [title]="'Edit — ' + editForm.code" [busy]="editSaving()" (close)="closeEdit()">
+      <form id="editCurrencyForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eCode">Code (ISO 4217)</label>
+            <input id="eCode" type="text" name="eCode" [value]="editForm.code" disabled />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eName">Name</label>
+            <input id="eName" type="text" name="eName" [(ngModel)]="editForm.name" placeholder="e.g. US Dollar" required />
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="eSymbol">Symbol</label>
+            <input id="eSymbol" type="text" name="eSymbol" [(ngModel)]="editForm.symbol" placeholder="e.g. $" />
+          </div>
+          <div class="form-group">
+            <label for="eMinor">Decimal places</label>
+            <input id="eMinor" type="number" name="eMinor" [(ngModel)]="editForm.minorUnit" min="0" max="4" />
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeEdit()" [disabled]="editSaving()">Cancel</button>
+        <button type="submit" form="editCurrencyForm" class="btn btn--primary" [disabled]="editSaving()">
+          {{ editSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

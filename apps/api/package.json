@@ -8,6 +8,8 @@
     "worker:outbox": "node outboxworker.js",
     "seed": "node scripts/seed.js",
     "migrate:menu-routes": "node scripts/migrate-menu-routes.js",
+    "migrate:platform-users": "node scripts/backfill-platform-users.js",
+    "migrate:company-country": "node scripts/backfill-company-country.js",
     "dev": "nodemon server.js",
     "test": "node --test"
   },
