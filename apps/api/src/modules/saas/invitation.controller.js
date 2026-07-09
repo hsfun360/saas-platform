@@ -22,6 +22,7 @@ const Account = require('./account.model');
 const Role = require('./role.model');
 const User = require('../identity/user.model');
 const OutboxMessage = require('../../platform/outboxMessage.model');
+const { enqueueEmail } = require('../notification/emailOutbox');
 const { sequelize } = require('../../platform/db');
 const { hasTenantAdminRole } = require('./tenant');
 
@@ -100,12 +101,16 @@ exports.createInvitation = async (req, res) => {
         const company = await Company.findByPk(companyId, { attributes: ['name'], transaction });
         const account = await Account.findByPk(accountId, { attributes: ['subscriberName'], transaction });
 
-        // Email via the transactional outbox (delivered by the notification worker).
+        // Email via the transactional outbox (rendered from the subscriber's
+        // effective template — their override if set, else the platform default).
         // The deep link nudges brand-new users to sign up; existing users simply
         // accept in-app from their invitations list.
-        await OutboxMessage.create({
-            type: 'CollaboratorInvited',
-            payload: {
+        await enqueueEmail({
+            templateKey: 'collaborator.invite',
+            accountId, // a subscriber may override this template
+            companyId, // …and the company may send it via its own SMTP server
+            to: rawEmail,
+            data: {
                 email: rawEmail,
                 companyName: company ? company.name : null,
                 subscriberName: account ? account.subscriberName : null,
@@ -114,7 +119,7 @@ exports.createInvitation = async (req, res) => {
                 // routed through login/sign-up first, then see the same banner.
                 acceptLink: `${FRONTEND_BASE_URL}/dashboard?invite=${token}`,
             },
-        }, { transaction });
+        }, transaction);
 
         await transaction.commit();
 

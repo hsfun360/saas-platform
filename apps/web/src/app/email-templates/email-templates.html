@@ -1,0 +1,60 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">✉️</span>
+      <div>
+        <h1>Email Templates</h1>
+        <p class="saas-subtitle">The emails the platform sends. Edit the wording, preview, and send a test. Templates marked “Tenant-overridable” can be customised by each subscriber.</p>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading templates…</p></div>
+  } @else {
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (t of templates(); track t.key) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ t.name }}</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">{{ t.key }}</span>
+                @if (t.tenantOverridable) {
+                  <span class="badge" style="background:#eef2ff; color:#3730a3;">Tenant-overridable</span>
+                }
+              </div>
+              @if (t.description) {
+                <div class="data-card__desc">{{ t.description }}</div>
+              }
+            </div>
+            <div class="data-row__badge">
+              @if (t.isActive === false) {
+                <span class="badge badge-inactive">Disabled</span>
+              } @else {
+                <span class="badge badge-active">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <a class="btn btn--secondary btn--sm" [routerLink]="['/admin/email-templates', t.key]"
+                 [attr.aria-label]="'Edit ' + t.name">
+                <span class="material-icons" aria-hidden="true">edit</span>
+                Edit
+              </a>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

@@ -70,6 +70,56 @@ function requireModule(moduleName) {
     };
 }
 
+// --- WHICH companies share the caller's subscription ----------------------
+// Resolve the sibling companies under the same Account (subscription) as the
+// caller's active workspace. A Control-Plane concern, exposed here as a seam so
+// product services never query Account/Company directly.
+//
+// IN-PROCESS IMPLEMENTATION (monolith): looks up the active company's accountId,
+// then every company under that account. The Company require is lazy (inside the
+// call) to keep this file free of a load-time dependency on the saas module.
+//
+// WHEN SPLIT: replace the body with a Control-Plane call, e.g.
+//   GET {control-plane}/api/admin/accounts/<accountId>/companies
+// Callers (e.g. the membership "copy from sibling" feature) never change.
+// Returns [{ id, name }] including the caller's own company; callers filter it
+// out when they want only the siblings.
+async function listSubscriptionCompanies(req) {
+    const { companyId } = getUserContext(req);
+    if (!companyId) return [];
+
+    const Company = require('../modules/saas/company.model');
+    const current = await Company.findByPk(companyId, { attributes: ['id', 'accountId'] });
+    if (!current || !current.accountId) return [];
+
+    const companies = await Company.findAll({
+        where: { accountId: current.accountId },
+        attributes: ['id', 'name'],
+        order: [['name', 'ASC']],
+    });
+    return companies.map((c) => ({ id: c.id, name: c.name }));
+}
+
+// --- WHICH subscriber (Account) owns the caller's workspace ---------------
+// Resolve the accountId behind the caller's active company. Subscriber-level
+// master files (tax schemes, currency/language selection, …) are keyed by
+// accountId, but a product service must not query Company directly - it asks here.
+//
+// IN-PROCESS IMPLEMENTATION (monolith): looks the company up. Lazy require keeps
+// this file free of a load-time dependency on the saas module.
+//
+// WHEN SPLIT: replace with a Control-Plane call, e.g.
+//   GET {control-plane}/api/admin/companies/<companyId> -> { accountId }
+// Returns null when there is no active workspace (e.g. the System Admin console).
+async function getActiveAccountId(req) {
+    const { companyId } = getUserContext(req);
+    if (!companyId) return null;
+
+    const Company = require('../modules/saas/company.model');
+    const current = await Company.findByPk(companyId, { attributes: ['accountId'] });
+    return current ? current.accountId : null;
+}
+
 // --- CALLING another service ---------------------------------------------
 // Resolve the base URL of a peer service. In the monolith this is null (same
 // process / same gateway). When a service is split out, set its env var
@@ -83,6 +133,8 @@ function internalServiceUrl(serviceName) {
 module.exports = {
     verifyToken,        // re-exported so services import auth from one seam
     getUserContext,
+    getActiveAccountId,
     requireModule,
+    listSubscriptionCompanies,
     internalServiceUrl,
 };

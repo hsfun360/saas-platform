@@ -1,0 +1,60 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">✉️</span>
+      <div>
+        <h1>Email Templates</h1>
+        <p class="saas-subtitle">Customise the wording of the emails your organisation sends. Where you don't set your own version, the platform default is used.</p>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading templates…</p></div>
+  } @else if (templates().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>There are no customisable email templates for your organisation yet.</p></div>
+  } @else {
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (t of templates(); track t.key) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ t.name }}</div>
+              @if (t.description) {
+                <div class="data-card__desc">{{ t.description }}</div>
+              }
+            </div>
+            <div class="data-row__badge">
+              @if (t.hasOverride) {
+                @if (t.isActive === false) {
+                  <span class="badge badge-inactive">Custom · Disabled</span>
+                } @else {
+                  <span class="badge" style="background:#dcfce7; color:#166534;">Custom</span>
+                }
+              } @else {
+                <span class="badge" style="background:#f1f5f9; color:#475569;">Platform default</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <a class="btn btn--secondary btn--sm" [routerLink]="['/admin/account-email-templates', t.key]"
+                 [attr.aria-label]="'Customise ' + t.name">
+                <span class="material-icons" aria-hidden="true">edit</span>
+                {{ t.hasOverride ? 'Edit' : 'Customise' }}
+              </a>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

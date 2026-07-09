@@ -60,6 +60,20 @@ export class AccountCurrenciesComponent implements OnInit {
     return this.selected().has(code);
   }
 
+  isDefault(code: string): boolean {
+    return this.defaultCode() === code;
+  }
+
+  // Clicking a selected chip makes it the default.
+  setDefault(code: string): void {
+    if (this.selected().has(code)) this.defaultCode.set(code);
+  }
+
+  // Remove a currency from the selection (via its chip ✕).
+  remove(code: string): void {
+    if (this.selected().has(code)) this.toggle(code);
+  }
+
   toggle(code: string): void {
     const next = new Set(this.selected());
     if (next.has(code)) {

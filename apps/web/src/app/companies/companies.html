@@ -90,6 +90,10 @@
                 <span class="material-icons" aria-hidden="true">edit</span>
                 Edit details
               </button>
+              <button type="button" class="btn btn--secondary btn--sm" (click)="smtpCompany.set(company)">
+                <span class="material-icons" aria-hidden="true">mail</span>
+                Email (SMTP)
+              </button>
             </div>
           </div>
         </li>
@@ -430,6 +434,11 @@
         </button>
       </ng-container>
     </app-dialog>
+  }
+
+  <!-- ============ Per-company SMTP dialog ============ -->
+  @if (smtpCompany()) {
+    <app-company-smtp-dialog [company]="smtpCompany()!" (close)="smtpCompany.set(null)"></app-company-smtp-dialog>
   }
 
 </section>

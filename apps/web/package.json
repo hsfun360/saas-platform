@@ -36,6 +36,7 @@
     "@azure/msal-angular": "^5.1.1",
     "@azure/msal-browser": "^5.4.0",
     "rxjs": "~7.8.0",
+    "tinymce": "^7.9.3",
     "tslib": "^2.3.0",
     "zone.js": "^0.16.0"
   },

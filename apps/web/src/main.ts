@@ -38,7 +38,14 @@ import { AccountCurrenciesComponent } from './app/account-currencies/account-cur
 import { TenantUsersComponent } from './app/tenant-users/tenant-users';
 import { CompaniesComponent } from './app/companies/companies';
 import { ModulesMenusComponent } from './app/modules-menus/modules-menus';
+import { EmailTemplatesComponent } from './app/email-templates/email-templates';
+import { EmailTemplateEditComponent } from './app/email-templates/email-template-edit';
+import { AccountEmailTemplatesComponent } from './app/account-email-templates/account-email-templates';
+import { AccountEmailTemplateEditComponent } from './app/account-email-templates/account-email-template-edit';
 import { SystemDashboardComponent } from './app/systems/system-dashboard';
+import { MembershipStatusesComponent } from './app/membership-statuses/membership-statuses';
+import { TaxSchemesComponent } from './app/tax-schemes/tax-schemes';
+import { CompanyTaxComponent } from './app/company-tax/company-tax';
 import { ItemsComponent } from './app/items/items';
 import { UnderConstructionComponent } from './app/under-construction/under-construction';
 import { AccessDeniedComponent } from './app/access-denied/access-denied';
@@ -86,6 +93,13 @@ const routes: Routes = [
       { path: 'admin/companies', component: CompaniesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/account-languages', component: AccountLanguagesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/account-currencies', component: AccountCurrenciesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/account-email-templates', component: AccountEmailTemplatesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/account-email-templates/:key', component: AccountEmailTemplateEditComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      // Tax Setup — subscriber-owned tax-scheme catalog (master–detail; :id opens a scheme).
+      { path: 'admin/tax-schemes', component: TaxSchemesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/tax-schemes/:id', component: TaxSchemesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      // Company Tax — per active company: which schemes it uses + GL overrides.
+      { path: 'admin/company-tax', component: CompanyTaxComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/subscribers', component: SubscribersComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/system-roles', component: PlatformRolesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/platform-users', component: PlatformUsersComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
@@ -95,9 +109,13 @@ const routes: Routes = [
       { path: 'admin/system-setup', component: SystemSetupComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/modules-menus', component: ModulesMenusComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/modules-menus/:moduleId', component: ModulesMenusComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/email-templates', component: EmailTemplatesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/email-templates/:key', component: EmailTemplateEditComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
 
       // Core product systems — landing dashboards (own components as built).
       { path: 'membership', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management', title: 'Membership Management', icon: 'card_membership', blurb: 'Members, tiers, dues and standing.' } },
+      // Master File Setup → Membership Status (per-company master file).
+      { path: 'membership/statuses', component: MembershipStatusesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'golf', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management', title: 'Golf Management', icon: 'sports_golf', blurb: 'Tee sheet, bookings and competitions.' } },
       { path: 'facility', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Facility Management', title: 'Facility Management', icon: 'meeting_room', blurb: 'Facilities, availability and reservations.' } },
 

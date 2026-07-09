@@ -13,6 +13,9 @@
 
 const User = require('../modules/identity/user.model');
 const OutboxMessage = require('../platform/outboxMessage.model');
+// Notification service tables. EmailTemplate references Account by plain UUID
+// (no FK) to respect the notification-service seam, so it has no associations.
+const EmailTemplate = require('../modules/notification/emailTemplate.model');
 const Account = require('../modules/saas/account.model');
 const Company = require('../modules/saas/company.model');
 const CompanyUser = require('../modules/saas/companyUser.model');
@@ -28,6 +31,18 @@ const Language = require('../modules/saas/language.model'); // reference table
 const Currency = require('../modules/saas/currency.model'); // reference table
 const AccountCurrency = require('../modules/saas/accountCurrency.model'); // Account <-> Currency join
 const AccountLanguage = require('../modules/saas/accountLanguage.model'); // Account <-> Language join
+const CompanySmtpConfig = require('../modules/saas/companySmtpConfig.model'); // per-company outgoing SMTP (references companyId by UUID; no FK)
+// Product tier (Membership Management). Master files reference companyId by plain
+// UUID (no cross-service FK), per the golden rules - so they have no associations.
+const MembershipStatus = require('../modules/membership/membershipStatus.model');
+// Shared financial reference (Tax). Header/detail pairs are intra-service, so they
+// DO associate; accountId/countryCode/companyId stay plain UUID/value references.
+const TaxSchemeTemplate = require('../modules/tax/taxSchemeTemplate.model');
+const TaxRateTemplate = require('../modules/tax/taxRateTemplate.model');
+const TaxScheme = require('../modules/tax/taxScheme.model');
+const TaxRate = require('../modules/tax/taxRate.model');
+const CompanyTaxScheme = require('../modules/tax/companyTaxScheme.model');
+const CompanyTaxAccount = require('../modules/tax/companyTaxAccount.model');
 
 // --- DEFINE SAAS RELATIONSHIPS ---
 
@@ -82,9 +97,24 @@ Invitation.belongsTo(Company, { foreignKey: 'companyId', as: 'Company' });
 Invitation.belongsTo(Account, { foreignKey: 'accountId', as: 'Account' });
 Invitation.belongsTo(Role, { foreignKey: 'roleId', as: 'Role' });
 
+// 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
+// Tax service, so these are real intra-service FKs (cascade lines with the header).
+// 9a. Platform seed catalog.
+TaxSchemeTemplate.hasMany(TaxRateTemplate, { foreignKey: 'taxSchemeTemplateId', as: 'Rates', onDelete: 'CASCADE' });
+TaxRateTemplate.belongsTo(TaxSchemeTemplate, { foreignKey: 'taxSchemeTemplateId', as: 'Scheme' });
+// 9b. Subscriber-owned authoritative catalog (effective-dated rates).
+TaxScheme.hasMany(TaxRate, { foreignKey: 'taxSchemeId', as: 'Rates', onDelete: 'CASCADE' });
+TaxRate.belongsTo(TaxScheme, { foreignKey: 'taxSchemeId', as: 'Scheme' });
+// 9c. Per-company adoption/override of a scheme, with per-component GL overrides.
+TaxScheme.hasMany(CompanyTaxScheme, { foreignKey: 'taxSchemeId', as: 'CompanyAdoptions', onDelete: 'CASCADE' });
+CompanyTaxScheme.belongsTo(TaxScheme, { foreignKey: 'taxSchemeId', as: 'Scheme' });
+CompanyTaxScheme.hasMany(CompanyTaxAccount, { foreignKey: 'companyTaxSchemeId', as: 'GlOverrides', onDelete: 'CASCADE' });
+CompanyTaxAccount.belongsTo(CompanyTaxScheme, { foreignKey: 'companyTaxSchemeId', as: 'CompanyScheme' });
+
 module.exports = {
     User,
     OutboxMessage,
+    EmailTemplate,
     Account,
     Company,
     CompanyUser,
@@ -100,4 +130,12 @@ module.exports = {
     AccountLanguage,
     Currency,
     AccountCurrency,
+    CompanySmtpConfig,
+    MembershipStatus,
+    TaxSchemeTemplate,
+    TaxRateTemplate,
+    TaxScheme,
+    TaxRate,
+    CompanyTaxScheme,
+    CompanyTaxAccount,
 };

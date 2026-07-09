@@ -32,34 +32,42 @@
   } @else if (available().length === 0) {
     <div class="empty-state"><span class="empty-icon">📭</span><p>{{ 'accountLanguages.none' | t }}</p></div>
   } @else {
-    <!-- Available languages: tick the ones this subscriber offers. -->
+    <!-- YOUR LANGUAGES: the current selection at a glance, with the default (★). -->
+    <div class="data-card" style="margin-bottom: var(--space-md);">
+      <h2 style="margin: 0 0 var(--space-xs); font-size: var(--font-h3);">{{ 'accountLanguages.yourList' | t }} ({{ selectedLanguages().length }})</h2>
+      <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">{{ 'accountLanguages.yourListHelp' | t }}</p>
+      @if (selectedLanguages().length === 0) {
+        <p class="cell-subtle" style="margin: 0;">{{ 'accountLanguages.noneSelected' | t }}</p>
+      } @else {
+        <div class="pick-chips">
+          @for (l of selectedLanguages(); track l.languageCode) {
+            <span class="pick-chip" [class.pick-chip--default]="isDefault(l.languageCode)">
+              <button type="button" class="pick-chip__set" (click)="setDefault(l.languageCode)"
+                      [attr.aria-label]="isDefault(l.languageCode) ? l.name + ' is the default' : 'Make ' + l.name + ' the default'">
+                @if (isDefault(l.languageCode)) { <span class="pick-chip__star" aria-hidden="true">★</span> }
+                {{ l.name }}
+                @if (isDefault(l.languageCode)) { <span class="pick-chip__tag">{{ 'accountLanguages.defaultTag' | t }}</span> }
+              </button>
+              <button type="button" class="pick-chip__x" (click)="remove(l.languageCode)" [attr.aria-label]="'Remove ' + l.name">✕</button>
+            </span>
+          }
+        </div>
+        <p class="cell-subtle" style="margin: var(--space-sm) 0 0;">{{ 'accountLanguages.defaultHelp' | t }}</p>
+      }
+    </div>
+
+    <!-- ADD LANGUAGES: the full list to tick from. -->
     <div class="data-card" style="margin-bottom: var(--space-md);">
       <h2 style="margin: 0 0 var(--space-xs); font-size: var(--font-h3);">{{ 'accountLanguages.available' | t }}</h2>
       <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">{{ 'accountLanguages.selectHelp' | t }}</p>
       <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
         @for (l of available(); track l.languageCode) {
-          <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-xs) 0; cursor: pointer;">
+          <label class="pick-row" [class.pick-row--on]="isSelected(l.languageCode)">
             <input type="checkbox" [checked]="isSelected(l.languageCode)" (change)="toggle(l.languageCode)" />
             <span>{{ l.name }} <span class="cell-subtle">({{ l.languageCode | uppercase }})</span></span>
           </label>
         }
       </div>
-    </div>
-
-    <!-- Default language among the selected. -->
-    <div class="data-card" style="margin-bottom: var(--space-md);">
-      <h2 style="margin: 0 0 var(--space-xs); font-size: var(--font-h3);">{{ 'accountLanguages.default' | t }}</h2>
-      <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">{{ 'accountLanguages.defaultHelp' | t }}</p>
-      @if (selectedLanguages().length === 0) {
-        <p class="cell-subtle" style="margin: 0;">{{ 'accountLanguages.mustPickOne' | t }}</p>
-      } @else {
-        <select [value]="defaultCode()" (change)="defaultCode.set($any($event.target).value)"
-                style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 320px;">
-          @for (l of selectedLanguages(); track l.languageCode) {
-            <option [value]="l.languageCode">{{ l.name }}</option>
-          }
-        </select>
-      }
     </div>
 
     <button type="button" class="btn btn--primary" (click)="save()" [disabled]="saving() || selectedLanguages().length === 0">

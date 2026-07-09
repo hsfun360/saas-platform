@@ -17,6 +17,9 @@ const bcrypt = require('bcryptjs');
 const { sequelize } = require('../../platform/db');
 const { hasTenantAdminRole } = require('./tenant');
 const { isAccountOwner } = require('./account');
+const CompanySmtpConfig = require('./companySmtpConfig.model');
+const secretbox = require('../../platform/secretbox');
+const companyMailer = require('../notification/companyMailer');
 
 // Resolve the Account a Tenant Admin belongs to. The JWT only carries the
 // caller's active companyId, so we derive the accountId from that company.
@@ -858,7 +861,7 @@ exports.createCompany = async (req, res) => {
 
         const {
             name, registrationNumber, taxRegistrationNumber, email, phone, website,
-            addressLine1, addressLine2, city, state, postalCode, country,
+            addressLine1, addressLine2, city, state, postalCode, country, countryCode,
             timezone, moduleIds, logo, defaultCurrencyCode,
         } = req.body;
         if (!name || !name.trim()) {
@@ -891,6 +894,8 @@ exports.createCompany = async (req, res) => {
             state: trimOrNull(state),
             postalCode: trimOrNull(postalCode),
             country: trimOrNull(country),
+            // Canonical alpha-2 (lowercase) matching Country.alpha2; drives tax lookup.
+            countryCode: countryCode ? String(countryCode).trim().toLowerCase() || null : null,
             logo: trimOrNull(logo),
             timezone: trimOrNull(timezone) || 'Asia/Kuala_Lumpur',
             defaultCurrencyCode: defaultCurrencyCode ? String(defaultCurrencyCode).trim().toUpperCase() || null : null,
@@ -1048,6 +1053,12 @@ exports.updateCompany = async (req, res) => {
             company.defaultCurrencyCode = c || null;
         }
 
+        // Canonical country (ISO 3166-1 alpha-2, lowercase); empty clears it.
+        if (b.countryCode !== undefined) {
+            const cc = typeof b.countryCode === 'string' ? b.countryCode.trim().toLowerCase() : '';
+            company.countryCode = cc || null;
+        }
+
         await company.save();
 
         res.status(200).json({ message: "Company profile updated.", company });
@@ -1148,5 +1159,162 @@ exports.addCollaborator = async (req, res) => {
         }
         console.error("Error adding collaborator:", error);
         res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// ==========================================
+// COMPANY SMTP (outgoing email server) — Tenant Admin, per company
+// ==========================================
+
+// Shape a config for the client — never includes the password.
+function presentSmtp(cfg) {
+    if (!cfg) return { configured: false };
+    return {
+        configured: true,
+        host: cfg.host,
+        port: cfg.port,
+        secure: cfg.secure,
+        username: cfg.username || '',
+        hasPassword: !!cfg.passwordEnc,
+        fromEmail: cfg.fromEmail,
+        fromName: cfg.fromName || '',
+        isActive: cfg.isActive,
+        lastVerifiedAt: cfg.lastVerifiedAt,
+        lastError: cfg.lastError,
+    };
+}
+
+// GET /api/auth/companies/:companyId/smtp
+exports.getCompanySmtp = async (req, res) => {
+    const target = await resolveTargetCompany(req, req.params.companyId);
+    if (target.status) return res.status(target.status).json({ message: target.message });
+    try {
+        const cfg = await CompanySmtpConfig.findOne({ where: { companyId: target.companyId } });
+        res.status(200).json(presentSmtp(cfg));
+    } catch (error) {
+        console.error('Error getting company SMTP:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// PUT /api/auth/companies/:companyId/smtp
+// Body: { host, port, secure, username, password?, fromEmail, fromName, isActive }
+// A blank/omitted password keeps the stored one, so other fields can be edited
+// without re-entering it.
+exports.upsertCompanySmtp = async (req, res) => {
+    const target = await resolveTargetCompany(req, req.params.companyId);
+    if (target.status) return res.status(target.status).json({ message: target.message });
+    if (!secretbox.isConfigured()) {
+        return res.status(503).json({ message: 'Email encryption is not configured on the server. Contact the platform administrator.' });
+    }
+    try {
+        const host = (req.body.host || '').trim();
+        const fromEmail = (req.body.fromEmail || '').trim();
+        const port = parseInt(req.body.port, 10);
+        if (!host) return res.status(400).json({ message: 'SMTP host is required.' });
+        if (!fromEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(fromEmail)) {
+            return res.status(400).json({ message: 'A valid From email address is required.' });
+        }
+        if (!Number.isInteger(port) || port < 1 || port > 65535) {
+            return res.status(400).json({ message: 'A valid SMTP port is required.' });
+        }
+
+        const existing = await CompanySmtpConfig.findOne({ where: { companyId: target.companyId } });
+        const updates = {
+            companyId: target.companyId,
+            host,
+            port,
+            secure: !!req.body.secure,
+            username: (req.body.username || '').trim() || null,
+            fromEmail,
+            fromName: (req.body.fromName || '').trim() || null,
+            isActive: req.body.isActive === undefined ? true : !!req.body.isActive,
+        };
+        // Set the password only when a new one is supplied; blank keeps the old.
+        if (typeof req.body.password === 'string' && req.body.password.length) {
+            updates.passwordEnc = secretbox.encrypt(req.body.password);
+            updates.lastError = null;
+        } else if (!existing) {
+            updates.passwordEnc = null;
+        }
+
+        if (existing) await existing.update(updates);
+        else await CompanySmtpConfig.create(updates);
+
+        const cfg = await CompanySmtpConfig.findOne({ where: { companyId: target.companyId } });
+        res.status(200).json({ message: 'SMTP settings saved.', smtp: presentSmtp(cfg) });
+    } catch (error) {
+        console.error('Error saving company SMTP:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// DELETE /api/auth/companies/:companyId/smtp -> revert to the platform mailer.
+exports.deleteCompanySmtp = async (req, res) => {
+    const target = await resolveTargetCompany(req, req.params.companyId);
+    if (target.status) return res.status(target.status).json({ message: target.message });
+    try {
+        await CompanySmtpConfig.destroy({ where: { companyId: target.companyId } });
+        res.status(200).json({ message: 'SMTP settings removed. Emails will use the platform default.' });
+    } catch (error) {
+        console.error('Error deleting company SMTP:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/auth/companies/:companyId/smtp/test
+// Body: { host, port, secure, username, password?, fromEmail, fromName, to }
+// Verifies the connection and sends a test email using the POSTED values (so the
+// admin can test before saving); a blank password falls back to the stored one.
+exports.testCompanySmtp = async (req, res) => {
+    const target = await resolveTargetCompany(req, req.params.companyId);
+    if (target.status) return res.status(target.status).json({ message: target.message });
+    if (!secretbox.isConfigured()) {
+        return res.status(503).json({ message: 'Email encryption is not configured on the server.' });
+    }
+    try {
+        const to = (req.body.to || '').trim();
+        if (!to || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
+            return res.status(400).json({ message: 'A valid recipient email is required for the test.' });
+        }
+        const host = (req.body.host || '').trim();
+        const fromEmail = (req.body.fromEmail || '').trim();
+        const port = parseInt(req.body.port, 10);
+        if (!host || !fromEmail || !Number.isInteger(port)) {
+            return res.status(400).json({ message: 'Host, port and From email are required to test.' });
+        }
+
+        // Password: use the posted one, else the stored (encrypted) one.
+        let password = typeof req.body.password === 'string' && req.body.password.length ? req.body.password : null;
+        if (!password) {
+            const existing = await CompanySmtpConfig.findOne({ where: { companyId: target.companyId } });
+            if (existing && existing.passwordEnc) password = secretbox.decrypt(existing.passwordEnc);
+        }
+
+        const { transporter, from } = companyMailer.buildTransport(
+            { host, port, secure: !!req.body.secure, username: (req.body.username || '').trim() || null, fromEmail, fromName: (req.body.fromName || '').trim() || null },
+            password,
+        );
+
+        await transporter.verify();
+        await transporter.sendMail({
+            from,
+            to,
+            subject: '[TEST] Your SMTP settings work',
+            html: `<div style="font-family: Arial, sans-serif; padding: 20px;">
+                <h2>SMTP test successful ✅</h2>
+                <p>This confirms outgoing email for your company is configured correctly.</p>
+                <p style="color:#64748b; font-size:12px;">Sent from ${host}:${port} as ${fromEmail}.</p>
+            </div>`,
+        });
+
+        await CompanySmtpConfig.update({ lastError: null, lastVerifiedAt: new Date() }, { where: { companyId: target.companyId } });
+        res.status(200).json({ message: `Test email sent to ${to}. Check the inbox to confirm delivery.` });
+    } catch (error) {
+        console.error('Error testing company SMTP:', error);
+        try {
+            await CompanySmtpConfig.update({ lastError: String(error.message).slice(0, 500) }, { where: { companyId: target.companyId } });
+        } catch (_) { /* ignore */ }
+        res.status(400).json({ message: `SMTP test failed: ${error.message}` });
     }
 };

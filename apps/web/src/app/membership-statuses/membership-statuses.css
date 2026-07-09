@@ -1,0 +1,63 @@
+/* Membership Status screen — small extras on top of the shared System Setup look. */
+
+/* Colour swatch shown beside the status code in the list. */
+.ms-swatch {
+  display: inline-block;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  vertical-align: middle;
+  margin-right: var(--space-xs);
+}
+
+/* Colour picker + hex text input side by side in the dialog. */
+.ms-color-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.ms-color-row input[type='color'] {
+  width: 3rem;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+}
+
+.ms-color-hex {
+  max-width: 8rem;
+}
+
+/* Copy-from-another-company: selectable status list. */
+.ms-copy-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.ms-copy-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.ms-copy-item input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.ms-copy-item__text {
+  font-size: var(--font-body-2);
+  color: #1e293b;
+}

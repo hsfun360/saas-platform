@@ -12,12 +12,14 @@ const { getPublicKey } = require('../../platform/jwt.keys');
 
 // Add the import at the top (adjust path based on where you saved the function)
 const { updateProfileWithOutbox } = require('./user.service');
+const { enqueueEmail } = require('../notification/emailOutbox');
 
 // Tenant-scoped user management (Tenant Admin manages users within their company)
 const tenantController = require('../saas/tenant.controller');
 const invitationController = require('../saas/invitation.controller');
 const accountLanguageController = require('../saas/accountLanguage.controller');
 const accountCurrencyController = require('../saas/accountCurrency.controller');
+const accountEmailTemplateController = require('../saas/accountEmailTemplate.controller');
 const { hasTenantAdminRole } = require('../saas/tenant');
 
 // Test Route to verify that the auth routes are working
@@ -129,16 +131,8 @@ router.put('/profile', authenticateToken, async (req, res) => {
         // Save the changes to the User table
         await user.save({ transaction });
 
-        // 4. Create the Outbox Message in the same transaction
-        await OutboxMessage.create({
-            id: uuidv4(),
-            type: 'UserProfileUpdated',
-            payload: {
-                email: userEmail,
-                updatedFields: { fullName, phone, bio },
-                timestamp: new Date().toISOString()
-            }
-        }, { transaction });
+        // 4. Queue the security-alert email (rendered from template) atomically.
+        await enqueueEmail({ templateKey: 'profile.updated', to: userEmail, data: { email: userEmail } }, transaction);
 
         // 5. Commit (Applies both changes permanently)
         await transaction.commit();
@@ -259,6 +253,15 @@ router.patch('/me/language', authenticateToken, accountLanguageController.setMyL
 router.get('/account/currencies', authenticateToken, requireTenant, requireTenantAdmin, accountCurrencyController.getAccountCurrencies);
 router.put('/account/currencies', authenticateToken, requireTenant, requireTenantAdmin, accountCurrencyController.updateAccountCurrencies);
 
+// --- SUBSCRIBER EMAIL TEMPLATES (Tenant Admin self-service) ---
+// A subscriber's own versions of the platform templates flagged tenant-overridable.
+router.get('/account/email-templates', authenticateToken, requireTenant, requireTenantAdmin, accountEmailTemplateController.listOverridable);
+router.get('/account/email-templates/:key', authenticateToken, requireTenant, requireTenantAdmin, accountEmailTemplateController.getForAccount);
+router.put('/account/email-templates/:key', authenticateToken, requireTenant, requireTenantAdmin, accountEmailTemplateController.upsertOverride);
+router.delete('/account/email-templates/:key', authenticateToken, requireTenant, requireTenantAdmin, accountEmailTemplateController.removeOverride);
+router.post('/account/email-templates/:key/preview', authenticateToken, requireTenant, requireTenantAdmin, accountEmailTemplateController.previewOverride);
+router.post('/account/email-templates/:key/test', authenticateToken, requireTenant, requireTenantAdmin, accountEmailTemplateController.sendTest);
+
 // Add an EXISTING same-account user as a collaborator on the caller's company.
 router.post('/company/collaborators', authenticateToken, requireTenant, requireTenantAdmin, tenantController.addCollaborator);
 
@@ -286,6 +289,11 @@ router.get('/companies', authenticateToken, requireTenant, requireTenantAdmin, t
 router.post('/companies', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createCompany);
 router.post('/company/logo', authenticateToken, requireTenant, requireTenantAdmin, upload.single('logo'), authController.uploadCompanyLogo);
 router.put('/companies/:companyId/modules', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateCompanyModules);
+// Per-company outgoing SMTP (the specific /smtp/test route is before /:companyId catch-alls).
+router.get('/companies/:companyId/smtp', authenticateToken, requireTenant, requireTenantAdmin, tenantController.getCompanySmtp);
+router.put('/companies/:companyId/smtp', authenticateToken, requireTenant, requireTenantAdmin, tenantController.upsertCompanySmtp);
+router.delete('/companies/:companyId/smtp', authenticateToken, requireTenant, requireTenantAdmin, tenantController.deleteCompanySmtp);
+router.post('/companies/:companyId/smtp/test', authenticateToken, requireTenant, requireTenantAdmin, tenantController.testCompanySmtp);
 router.put('/companies/:companyId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateCompany);
 
 module.exports = router;

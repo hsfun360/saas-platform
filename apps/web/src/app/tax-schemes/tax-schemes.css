@@ -1,0 +1,347 @@
+/* Tax Setup screen — master–detail (scheme list + selected scheme), on top of the
+   shared System Setup look. Mirrors the modules-menus sliding-pane behaviour:
+   side-by-side on desktop, one pane at a time on mobile (detail covers master when
+   a scheme is open, driven by the URL param). */
+
+.tx-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) 1fr;
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.tx-pane {
+  min-width: 0;
+}
+
+.tx-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-sm);
+}
+
+.tx-filter {
+  margin-bottom: var(--space-sm);
+}
+
+/* ---- Master: scheme list ---- */
+.tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.tx-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "main badge";
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.tx-row--active {
+  border-color: #38bdf8;
+  background: #f0f9ff;
+}
+
+.tx-row__select {
+  grid-area: main;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-xs) 0;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tx-row__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tx-row__title {
+  font-weight: var(--weight-semibold);
+  color: #0f172a;
+}
+
+.tx-row__sub {
+  font-size: var(--font-body-2);
+  color: #64748b;
+}
+
+.tx-row__badge {
+  grid-area: badge;
+  justify-self: end;
+  align-self: center;
+  white-space: nowrap;
+}
+
+/* New-scheme FAB — pinned bottom-right, below shell drawer(1000)/backdrop(999)/header(1100). */
+.tx-fab {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: var(--space-lg);
+  z-index: 900;
+  border-radius: 28px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+@media (max-width: 767px) {
+  .tx-fab {
+    bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md));
+  }
+}
+
+/* ---- Detail: selected scheme ---- */
+.tx-card {
+  background: #fff;
+  padding: var(--space-lg);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  min-width: 0;
+}
+
+.tx-back {
+  display: none; /* mobile-only */
+  margin-bottom: var(--space-md);
+}
+
+.tx-detail-empty {
+  margin-top: var(--space-md);
+}
+
+.tx-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.tx-detail-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.tx-detail-title h2 {
+  margin: 0;
+  font-size: var(--font-h2);
+  overflow-wrap: anywhere;
+}
+
+.tx-detail-actions {
+  display: flex;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.tx-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-lg);
+  margin: var(--space-md) 0 0;
+}
+.tx-meta .meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+.tx-meta dt {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: #64748b;
+}
+.tx-meta dd {
+  font-size: var(--font-body-2);
+  color: #1e293b;
+  margin: 0;
+}
+
+.tx-desc {
+  margin: var(--space-sm) 0 0;
+  color: #475569;
+  font-size: var(--font-body-2);
+}
+
+.tx-rates-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-top: var(--space-lg);
+}
+.tx-rates-head h3 {
+  margin: 0;
+  font-size: var(--font-h3);
+}
+
+.tx-hint {
+  color: #64748b;
+  font-size: var(--font-body-2);
+  margin: var(--space-xs) 0 var(--space-md);
+}
+
+.tx-rates-empty {
+  margin-top: 0;
+}
+
+/* Rate lines */
+.tx-rate-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.tx-rate-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "main actions";
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+.tx-rate-row--off {
+  background: #f8fafc;
+  opacity: 0.75;
+}
+
+.tx-rate-main {
+  grid-area: main;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
+  min-width: 0;
+}
+.tx-rate-code {
+  font-weight: var(--weight-bold);
+  color: #0f172a;
+}
+.tx-rate-pct {
+  font-weight: var(--weight-semibold);
+  color: #0284c7;
+}
+.tx-rate-eff {
+  font-size: var(--font-caption);
+  color: #64748b;
+}
+
+.tx-rate-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+.tx-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: var(--font-caption);
+  white-space: nowrap;
+}
+.tx-tag--claim {
+  background: #dcfce7;
+  color: #166534;
+}
+.tx-tag--off {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.tx-rate-actions {
+  grid-area: actions;
+  display: flex;
+  gap: var(--space-xs);
+  justify-self: end;
+  flex-shrink: 0;
+}
+
+/* Dialog form: two columns that collapse on mobile (matches the global rule). */
+.tx-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-sm);
+}
+
+.tx-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  font-size: var(--font-body-2);
+  color: #1e293b;
+}
+.tx-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.tx-check--inline {
+  min-height: 44px;
+}
+
+/* ---- SlidingPaneLayout: one pane at a time on mobile ---- */
+@media (max-width: 768px) {
+  .tx-layout {
+    grid-template-columns: 1fr;
+  }
+  /* Default: master visible, detail hidden. */
+  .tx-pane--detail {
+    display: none;
+  }
+  /* A scheme is open → detail covers master. */
+  .tx-layout--detail .tx-pane--master {
+    display: none;
+  }
+  .tx-layout--detail .tx-pane--detail {
+    display: block;
+    animation: tx-slide-in 0.2s ease;
+  }
+  .tx-back {
+    display: inline-flex;
+  }
+  /* Action rows: actions drop below, left-justified. */
+  .tx-rate-row {
+    grid-template-columns: 1fr;
+    grid-template-areas: "main" "actions";
+  }
+  .tx-rate-actions {
+    justify-self: start;
+  }
+  .tx-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@keyframes tx-slide-in {
+  from {
+    transform: translateX(8%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

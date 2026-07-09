@@ -6,6 +6,7 @@ const languageController = require('./language.controller');
 const currencyController = require('./currency.controller');
 const accountLanguageController = require('./accountLanguage.controller');
 const accountCurrencyController = require('./accountCurrency.controller');
+const emailTemplateController = require('../notification/emailTemplate.controller');
 
 const { verifyToken } = require('../../platform/auth.middleware');
 const { isSystemAdmin } = require('./rbac.middleware');
@@ -48,6 +49,14 @@ router.put('/subscriptions/:id/languages', accountLanguageController.updateSubsc
 // A subscriber's currency selection (subset of active currencies + default).
 router.get('/subscriptions/:id/currencies', accountCurrencyController.getSubscriptionCurrencies);
 router.put('/subscriptions/:id/currencies', accountCurrencyController.updateSubscriptionCurrencies);
+
+// Platform email templates (edit defaults, preview, reset, send test)
+router.get('/email-templates', emailTemplateController.listPlatformTemplates);
+router.get('/email-templates/:key', emailTemplateController.getPlatformTemplate);
+router.put('/email-templates/:key', emailTemplateController.updatePlatformTemplate);
+router.post('/email-templates/:key/reset', emailTemplateController.resetPlatformTemplate);
+router.post('/email-templates/:key/preview', emailTemplateController.previewTemplate);
+router.post('/email-templates/:key/test', emailTemplateController.sendTestEmail);
 
 // Tenant Admin management (platform override for a specific company)
 router.get('/companies/:companyId/users', adminController.listCompanyUsers);

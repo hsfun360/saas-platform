@@ -60,6 +60,7 @@
   "nav.users": "Users",
   "nav.assignRole": "Assign Role",
   "nav.modulesMenus": "Modules & Menus",
+  "nav.emailTemplates": "Email Templates",
   "nav.countries": "Countries",
   "nav.group.subscribers": "Subscribers",
   "nav.group.access": "Access",
@@ -80,5 +81,9 @@
   "accountLanguages.save": "Save languages",
   "accountLanguages.saved": "Languages updated.",
   "accountLanguages.none": "No languages available. Ask your platform administrator to add languages.",
-  "accountLanguages.mustPickOne": "Select at least one language."
+  "accountLanguages.mustPickOne": "Select at least one language.",
+  "accountLanguages.yourList": "Your languages",
+  "accountLanguages.yourListHelp": "The languages your organization offers. Click one to make it the ★ default; ✕ removes it.",
+  "accountLanguages.noneSelected": "None selected yet — tick languages from the list below.",
+  "accountLanguages.defaultTag": "Default"
 }

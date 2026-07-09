@@ -60,6 +60,7 @@
   "nav.users": "用户",
   "nav.assignRole": "分配角色",
   "nav.modulesMenus": "模块和菜单",
+  "nav.emailTemplates": "邮件模板",
   "nav.countries": "国家",
   "nav.group.subscribers": "订户",
   "nav.group.access": "访问权限",
@@ -80,5 +81,9 @@
   "accountLanguages.save": "保存语言",
   "accountLanguages.saved": "语言已更新。",
   "accountLanguages.none": "没有可用语言。请让您的平台管理员添加语言。",
-  "accountLanguages.mustPickOne": "请至少选择一种语言。"
+  "accountLanguages.mustPickOne": "请至少选择一种语言。",
+  "accountLanguages.yourList": "您的语言",
+  "accountLanguages.yourListHelp": "您的组织提供的语言。点击某项设为 ★ 默认；✕ 可移除。",
+  "accountLanguages.noneSelected": "尚未选择 — 请从下方列表勾选语言。",
+  "accountLanguages.defaultTag": "默认"
 }

@@ -6,6 +6,7 @@ import { CurrencyService } from '../services/currency.service';
 import { CompanyEntity, ModuleOption, Country, Currency } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
+import { CompanySmtpDialogComponent } from '../company-smtp/company-smtp-dialog';
 import { TimezoneLabelPipe } from '../shared/timezone-label.pipe';
 import { COUNTRY_TIMEZONES, FALLBACK_COUNTRIES } from '../shared/countries';
 
@@ -15,7 +16,7 @@ import { COUNTRY_TIMEZONES, FALLBACK_COUNTRIES } from '../shared/countries';
   selector: 'app-companies',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, DialogComponent, PhoneInputComponent, TimezoneLabelPipe],
+  imports: [ReactiveFormsModule, DialogComponent, PhoneInputComponent, CompanySmtpDialogComponent, TimezoneLabelPipe],
   templateUrl: './companies.html',
   styleUrls: ['./companies.css'],
 })
@@ -31,6 +32,8 @@ export class CompaniesComponent implements OnInit {
 
   readonly companies = signal<CompanyEntity[]>([]);
   readonly modules = signal<ModuleOption[]>([]);
+  // The company whose SMTP dialog is open (null = closed).
+  readonly smtpCompany = signal<CompanyEntity | null>(null);
   // Active countries from the DB (Country table) for the editable country combobox.
   // Seeded with a bundled fallback so the combobox + timezone linkage work even
   // before the DB Country table is synced; replaced by the DB list once available.
@@ -277,6 +280,8 @@ export class CompaniesComponent implements OnInit {
         state: v.state.trim() || undefined,
         postalCode: v.postalCode.trim() || undefined,
         country: v.country.trim() || undefined,
+        // The picker's value is the alpha-2 code; mirror it to the canonical field.
+        countryCode: v.country.trim().toLowerCase() || undefined,
         timezone: v.timezone.trim() || undefined,
         logo: v.logo || undefined,
         defaultCurrencyCode: v.defaultCurrencyCode || undefined,
@@ -406,7 +411,9 @@ export class CompaniesComponent implements OnInit {
       return;
     }
     this.savingProfile.set(true);
-    this.auth.updateCompany(companyId, this.profileForm.getRawValue()).subscribe({
+    const pv = this.profileForm.getRawValue();
+    // The country picker stores the alpha-2 code; mirror it to the canonical field.
+    this.auth.updateCompany(companyId, { ...pv, countryCode: pv.country.trim().toLowerCase() || '' }).subscribe({
       next: (res) => {
         this.successMessage.set(res.message || 'Company profile updated.');
         this.savingProfile.set(false);

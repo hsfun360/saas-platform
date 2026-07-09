@@ -8,16 +8,33 @@
 
 const { sequelize } = require('../../platform/db');
 const OutboxMessage = require('../../platform/outboxMessage.model');
-const nodemailer = require('nodemailer');
+// Shared transport + sender. Templated emails ('EmailQueued') arrive already
+// rendered (subject/html), so the worker just dispatches them; the legacy
+// hardcoded senders below remain for any older message types still in flight.
+const { transporter, sendMail } = require('./mailer');
+const companyMailer = require('./companyMailer');
 
-// 1. Setup Email Transporter
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS  // MUST be a Google "App Password", not your normal password
+// Dispatch a rendered ('EmailQueued') email. If it was sent on behalf of a
+// company that has its OWN active SMTP config, it MUST go through that server
+// (and from that address) — on failure we record the error and rethrow so it
+// retries / fails, never falling back to the platform mailer. Emails with no
+// company context (or whose company has no SMTP config) use the platform mailer.
+async function dispatchEmail(payload) {
+    if (payload.companyId) {
+        const ct = await companyMailer.resolveTransport(payload.companyId);
+        if (ct) {
+            try {
+                await ct.transporter.sendMail({ from: ct.from, to: payload.to, subject: payload.subject, html: payload.html });
+                await companyMailer.markSuccess(payload.companyId);
+                return;
+            } catch (err) {
+                await companyMailer.markError(payload.companyId, err.message);
+                throw err; // no platform fallback for a configured company
+            }
+        }
     }
-});
+    await sendMail({ to: payload.to, from: payload.from, subject: payload.subject, html: payload.html });
+}
 
 // 2. The Email Sending for User Registration (Activation Link)
 async function sendActivationEmail(toEmail, activationLink) {
@@ -194,7 +211,13 @@ async function processOutboxSafely() {
         // 3. Process the messages (e.g., send emails)
         for (const msg of pendingMessages) {
             try {
-                if (msg.type === 'UserProfileUpdated') {
+                if (msg.type === 'EmailQueued') {
+                    // Already rendered at enqueue time ("compile + store"). Dispatch
+                    // via the company's SMTP if it has one, else the platform mailer.
+                    await dispatchEmail(msg.payload);
+                    console.log(`[OUTBOX WORKER] Sent templated email (${msg.payload.templateKey}) to ${msg.payload.to}`);
+                }
+                else if (msg.type === 'UserProfileUpdated') {
 
                     // 👇 ACTUALLY SEND THE EMAIL NOW!
                     await sendProfileUpdateEmail(msg.payload.email, msg.payload);

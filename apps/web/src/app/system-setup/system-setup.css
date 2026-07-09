@@ -672,3 +672,80 @@
   font-weight: var(--weight-bold);
   font-size: var(--font-body-2);
 }
+
+/* --- Multi-select "your picks" chips (Account Currencies / Languages) ---
+   A summary of what's currently selected, pinned above the long pick list, with
+   the default marked (★, set by clicking) and an ✕ to remove each. */
+.pick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+.pick-chip {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #fff;
+}
+.pick-chip--default {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+.pick-chip__set {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  padding: 0 var(--space-xs) 0 var(--space-md);
+  min-height: 44px;
+  font-size: var(--font-body-2);
+  color: #1e293b;
+  cursor: pointer;
+}
+.pick-chip--default .pick-chip__set {
+  color: #1e40af;
+  font-weight: var(--weight-semibold);
+}
+.pick-chip__star {
+  color: #2563eb;
+}
+.pick-chip__tag {
+  font-size: var(--font-caption);
+  color: #1e40af;
+  background: #dbeafe;
+  border-radius: 6px;
+  padding: 1px 6px;
+  margin-left: 2px;
+}
+.pick-chip__x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  min-width: 40px;
+  min-height: 44px;
+  font-size: var(--font-body-2);
+}
+.pick-chip__x:hover {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+/* Highlight a picked row within the long list. */
+.pick-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pick-row--on {
+  background: #f0f9ff;
+}

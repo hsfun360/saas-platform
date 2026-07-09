@@ -1,0 +1,92 @@
+/* Company Tax screen — small extras on top of the shared System Setup look. */
+
+/* Dim a disabled scheme's card so the enabled ones read first. */
+.ct-card--off {
+  background: #f8fafc;
+}
+
+/* Component chips shown on each scheme card. */
+.ct-components {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
+  margin-top: var(--space-sm);
+}
+.ct-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 2px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #fff;
+  font-size: var(--font-caption);
+}
+.ct-chip__code {
+  font-weight: var(--weight-bold);
+  color: #0f172a;
+}
+.ct-chip__rate {
+  font-weight: var(--weight-semibold);
+  color: #0284c7;
+}
+.ct-chip__gl {
+  color: #475569;
+}
+.ct-chip__gl--override {
+  color: #166534;
+  font-weight: var(--weight-semibold);
+}
+.ct-chip__gl--none {
+  color: #94a3b8;
+}
+
+/* Enable checkbox in the editor. */
+.ct-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  font-size: var(--font-body-2);
+  color: #1e293b;
+  min-height: 44px;
+}
+.ct-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* Per-component GL override rows in the editor. */
+.ct-gl-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.ct-gl-row {
+  display: grid;
+  grid-template-columns: minmax(0, 140px) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-sm);
+}
+.ct-gl-row__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.ct-gl-row__input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: var(--space-sm);
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: var(--font-body);
+}
+
+@media (max-width: 767px) {
+  .ct-gl-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-xs);
+  }
+}

@@ -1,0 +1,143 @@
+<div class="screen-pad" style="max-width: 1200px; margin: 0 auto;">
+
+  <a class="btn btn--secondary btn--sm" routerLink="/admin/email-templates" style="margin-bottom: var(--space-md);">
+    <span class="material-icons" aria-hidden="true">arrow_back</span>
+    Email templates
+  </a>
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading template…</p></div>
+  } @else {
+    <div class="et-head">
+      <h1 style="margin: 0; font-size: var(--font-h1); color: #1e293b;">{{ name() }}</h1>
+      <code class="et-key">{{ key() }}</code>
+    </div>
+    @if (description()) {
+      <p style="color: #64748b; font-size: var(--font-body-2); margin: var(--space-xs) 0 var(--space-md);">{{ description() }}</p>
+    }
+
+    @if (successMessage()) {
+      <div class="flash flash-success" role="status" aria-live="polite">
+        <span class="flash-icon">✅</span><span>{{ successMessage() }}</span>
+        <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+      </div>
+    }
+    @if (errorMessage()) {
+      <div class="flash flash-error" role="alert" aria-live="assertive">
+        <span class="flash-icon">❌</span><span>{{ errorMessage() }}</span>
+        <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      </div>
+    }
+
+    <div class="et-grid">
+      <!-- ============ EDITOR ============ -->
+      <form class="et-editor" [formGroup]="form" (ngSubmit)="save()">
+        <!-- ============ BRAND SETTINGS ============ -->
+        <div class="et-brand">
+          <div class="et-brand__head">
+            <span class="material-icons" aria-hidden="true">settings</span> Brand settings
+          </div>
+          <div class="et-brand__grid">
+            <div class="et-field">
+              <label for="et-brandcolor">Brand colour</label>
+              <div class="et-brand__color">
+                <input id="et-brandcolor" type="color" [value]="form.controls.brandColor.value"
+                       (input)="form.controls.brandColor.setValue($any($event.target).value)" aria-label="Brand colour picker">
+                <input type="text" formControlName="brandColor" class="et-brand__hex" spellcheck="false"
+                       autocomplete="off" aria-label="Brand colour hex" placeholder="#2563eb">
+              </div>
+            </div>
+            <div class="et-field">
+              <label id="et-logo-label">Company logo</label>
+              <div class="et-brand__logo">
+                <div class="et-brand__logobox">
+                  @if (companyLogoUrl()) {
+                    <img [src]="companyLogoUrl()!" alt="Company logo">
+                  } @else {
+                    <span class="et-hint">No logo</span>
+                  }
+                </div>
+                <label class="et-brand__check">
+                  <input type="checkbox" formControlName="includeLogo" aria-labelledby="et-logo-label">
+                  <span>Include in email header</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <p class="et-hint" style="margin: var(--space-xs) 0 0;">
+            The logo is the sending company's uploaded logo (Companies → Edit details). Tick to centre it in the brand-colour header band.
+          </p>
+        </div>
+
+        <div class="et-field">
+          <div class="et-field__labelrow">
+            <label for="et-subject">Subject</label>
+            <app-variable-menu [variables]="variables()" (pick)="insertIntoSubject($event)"></app-variable-menu>
+          </div>
+          <input id="et-subject" #subjectBox type="text" formControlName="subject" placeholder="e.g. Activate your account">
+        </div>
+
+        <div class="et-field">
+          <label for="et-from">From name <span class="et-hint">(optional; the sender display name)</span></label>
+          <input id="et-from" type="text" formControlName="fromName" placeholder="Your App Name">
+        </div>
+
+        <div class="et-field">
+          <label id="et-body-label">Body</label>
+          <app-email-html-editor formControlName="bodyHtml" [variables]="variables()" aria-labelledby="et-body-label"></app-email-html-editor>
+          <p class="et-hint" style="margin: var(--space-xs) 0 0;">
+            Add merge fields with <strong>Insert&nbsp;variable</strong>. Use <code>{{ '{{#if x}}' }}…{{ '{{/if}}' }}</code>
+            for optional blocks, and <strong>&lt;/&gt;</strong> to edit the raw HTML.
+          </p>
+        </div>
+
+        <div class="et-toggles">
+          <label class="et-check">
+            <input type="checkbox" formControlName="isActive">
+            <span>Active <span class="et-hint">(unchecked suppresses this email)</span></span>
+          </label>
+          <label class="et-check">
+            <input type="checkbox" formControlName="tenantOverridable">
+            <span>Tenant-overridable <span class="et-hint">(subscribers may customise it)</span></span>
+          </label>
+        </div>
+
+        <div class="et-actions">
+          <button type="submit" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save' }}
+          </button>
+          <button type="button" class="btn btn--secondary" (click)="resetToDefault()" [disabled]="resetting()">
+            {{ resetting() ? 'Resetting…' : 'Reset to default' }}
+          </button>
+        </div>
+
+        <div class="et-test">
+          <label for="et-test-to">Send a test</label>
+          <div class="et-test__row">
+            <input id="et-test-to" type="email" [formControl]="testEmail" placeholder="you@example.com" autocomplete="off">
+            <button type="button" class="btn btn--secondary" (click)="sendTest()" [disabled]="testing()">
+              <span class="material-icons" aria-hidden="true">send</span>
+              {{ testing() ? 'Queuing…' : 'Send test' }}
+            </button>
+          </div>
+          <p class="et-hint" style="margin: var(--space-xs) 0 0;">Uses the current (unsaved) content and sample data. Delivered via the outbox worker.</p>
+        </div>
+      </form>
+
+      <!-- ============ LIVE PREVIEW ============ -->
+      <div class="et-preview">
+        <div class="et-preview__head">
+          <span class="material-icons" aria-hidden="true" style="font-size: 18px;">visibility</span>
+          Live preview <span class="et-hint">(sample data)</span>
+        </div>
+        @if (previewError()) {
+          <div class="flash flash-error" role="alert">
+            <span class="flash-icon">❌</span><span>{{ previewError() }}</span>
+          </div>
+        }
+        <div class="et-preview__subject"><span class="et-hint">Subject:</span> {{ previewSubject() }}</div>
+        <iframe class="et-preview__frame" [srcdoc]="previewHtml()" title="Email preview" sandbox=""></iframe>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,155 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🧾</span>
+      <div>
+        <h1>Company Tax</h1>
+        <p class="saas-subtitle">Choose which tax schemes this company uses, and override GL accounts per component.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading company tax schemes…</p></div>
+  } @else if (noCountry()) {
+    <div class="empty-state">
+      <span class="empty-icon">🌏</span>
+      <p>This company has no country set yet. Set the company country (System Setup → Companies) to manage its tax schemes.</p>
+    </div>
+  } @else if (adoptions().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">📭</span>
+      <p>No tax schemes exist for this company's country yet. Add them in Tax Setup (or Load defaults) first.</p>
+    </div>
+  } @else {
+
+    <!-- Count line -->
+    <div style="margin-bottom: var(--space-md);">
+      <span class="cell-subtle">{{ adoptions().length }} schemes, {{ enabledCount() }} enabled for this company</span>
+    </div>
+
+    <!-- Live filter -->
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #ctSearch type="search" [value]="search()" (input)="search.set(ctSearch.value)"
+             placeholder="Search schemes…" aria-label="Search tax schemes" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+
+    @if (filtered().length === 0) {
+      <div class="empty-state">
+        <span class="empty-icon">🔍</span>
+        <p>No schemes match “{{ search() }}”.</p>
+        <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+      </div>
+    } @else {
+      <div class="data-list">
+        @for (a of filtered(); track a.id) {
+          <div class="data-card" [class.ct-card--off]="!a.isEnabled">
+            <div class="data-row data-row--with-badge">
+              <div class="data-row__main">
+                <div class="data-card__title">{{ a.taxSchemeCode }} — {{ a.name }}</div>
+                <div class="data-card__subline">
+                  <span class="data-card__reg">{{ a.ieFlag }} · {{ a.taxClass }}</span>
+                </div>
+              </div>
+              <div class="data-row__badge">
+                @if (a.isEnabled) {
+                  <span class="badge badge-active">Enabled</span>
+                } @else {
+                  <span class="badge badge-inactive">Disabled</span>
+                }
+              </div>
+              <div class="data-row__actions">
+                <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(a)">Edit</button>
+                <button type="button" class="btn btn--secondary btn--sm" (click)="toggleEnabled(a)" [disabled]="togglingId() === a.id">
+                  {{ togglingId() === a.id ? 'Saving…' : (a.isEnabled ? 'Disable' : 'Enable') }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Components: rate + effective GL account (company override or default) -->
+            @if (a.components.length) {
+              <div class="ct-components">
+                @for (c of a.components; track c.taxCode) {
+                  <span class="ct-chip">
+                    <span class="ct-chip__code">{{ c.taxCode }}</span>
+                    <span class="ct-chip__rate">{{ c.taxRate }}%</span>
+                    @if (c.companyGlAccountCode) {
+                      <span class="ct-chip__gl ct-chip__gl--override">GL {{ c.companyGlAccountCode }}</span>
+                    } @else if (c.defaultGlAccountCode) {
+                      <span class="ct-chip__gl">GL {{ c.defaultGlAccountCode }}</span>
+                    } @else {
+                      <span class="ct-chip__gl ct-chip__gl--none">No GL</span>
+                    }
+                  </span>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  }
+
+  <!-- ============ Edit adoption dialog ============ -->
+  @if (editOpen() && editScheme(); as a) {
+    <app-dialog [title]="'Company tax — ' + a.taxSchemeCode" [busy]="editSaving()" (close)="closeEdit()">
+      <form id="ctEditForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
+        <div class="form-row">
+          <label class="ct-check">
+            <input type="checkbox" name="ctEnabled" [(ngModel)]="editEnabled" />
+            <span>This company uses <strong>{{ a.taxSchemeCode }}</strong> ({{ a.name }})</span>
+          </label>
+        </div>
+
+        @if (a.components.length) {
+          <p class="cell-subtle" style="margin: var(--space-sm) 0 var(--space-xs);">
+            GL account per component — leave blank to use the subscriber default (shown as the placeholder).
+          </p>
+          <div class="ct-gl-list">
+            @for (c of a.components; track c.taxCode) {
+              <div class="ct-gl-row">
+                <div class="ct-gl-row__label">
+                  <span class="ct-chip__code">{{ c.taxCode }}</span>
+                  <span class="ct-chip__rate">{{ c.taxRate }}%</span>
+                </div>
+                <input type="text" class="ct-gl-row__input" [name]="'gl_' + c.taxCode"
+                       [(ngModel)]="editGl[c.taxCode]"
+                       [placeholder]="c.defaultGlAccountCode || 'No default GL'"
+                       autocomplete="off" aria-label="Company GL account for {{ c.taxCode }}" />
+              </div>
+            }
+          </div>
+        }
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeEdit()" [disabled]="editSaving()">Cancel</button>
+        <button type="submit" form="ctEditForm" class="btn btn--primary" [disabled]="editSaving()">
+          {{ editSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

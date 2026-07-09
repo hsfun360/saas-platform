@@ -60,6 +60,7 @@
   "nav.users": "Pengguna",
   "nav.assignRole": "Tetapkan Peranan",
   "nav.modulesMenus": "Modul & Menu",
+  "nav.emailTemplates": "Templat E-mel",
   "nav.countries": "Negara",
   "nav.group.subscribers": "Pelanggan",
   "nav.group.access": "Akses",
@@ -80,5 +81,9 @@
   "accountLanguages.save": "Simpan bahasa",
   "accountLanguages.saved": "Bahasa dikemas kini.",
   "accountLanguages.none": "Tiada bahasa tersedia. Minta pentadbir platform anda menambah bahasa.",
-  "accountLanguages.mustPickOne": "Pilih sekurang-kurangnya satu bahasa."
+  "accountLanguages.mustPickOne": "Pilih sekurang-kurangnya satu bahasa.",
+  "accountLanguages.yourList": "Bahasa Anda",
+  "accountLanguages.yourListHelp": "Bahasa yang ditawarkan organisasi anda. Klik satu untuk menjadikannya ★ lalai; ✕ untuk membuang.",
+  "accountLanguages.noneSelected": "Belum ada pilihan — tandakan bahasa daripada senarai di bawah.",
+  "accountLanguages.defaultTag": "Lalai"
 }

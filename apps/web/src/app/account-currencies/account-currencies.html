@@ -32,10 +32,33 @@
   } @else if (available().length === 0) {
     <div class="empty-state"><span class="empty-icon">📭</span><p>No currencies available. Ask your platform administrator to add currencies.</p></div>
   } @else {
-    <!-- Available currencies: tick the ones this subscriber uses. -->
+    <!-- YOUR CURRENCIES: the current selection at a glance, with the default (★). -->
     <div class="data-card" style="margin-bottom: var(--space-md);">
-      <h2 style="margin: 0 0 var(--space-xs); font-size: var(--font-h3);">Available currencies</h2>
-      <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Companies in your organization can pick their default currency from the ones you enable here.</p>
+      <h2 style="margin: 0 0 var(--space-xs); font-size: var(--font-h3);">Your currencies ({{ selectedCurrencies().length }})</h2>
+      <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">The currencies your organization uses. Click one to make it the <strong>★ default</strong> for new companies; ✕ removes it.</p>
+      @if (selectedCurrencies().length === 0) {
+        <p class="cell-subtle" style="margin: 0;">None selected yet — tick currencies from the list below.</p>
+      } @else {
+        <div class="pick-chips">
+          @for (c of selectedCurrencies(); track c.code) {
+            <span class="pick-chip" [class.pick-chip--default]="isDefault(c.code)">
+              <button type="button" class="pick-chip__set" (click)="setDefault(c.code)"
+                      [attr.aria-label]="isDefault(c.code) ? c.code + ' is the default currency' : 'Make ' + c.code + ' the default currency'">
+                @if (isDefault(c.code)) { <span class="pick-chip__star" aria-hidden="true">★</span> }
+                {{ c.code }}
+                @if (isDefault(c.code)) { <span class="pick-chip__tag">Default</span> }
+              </button>
+              <button type="button" class="pick-chip__x" (click)="remove(c.code)" [attr.aria-label]="'Remove ' + c.code">✕</button>
+            </span>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- ADD CURRENCIES: the searchable master list. -->
+    <div class="data-card" style="margin-bottom: var(--space-md);">
+      <h2 style="margin: 0 0 var(--space-xs); font-size: var(--font-h3);">Add currencies</h2>
+      <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Tick the currencies your organization uses. Ticked ones appear above.</p>
 
       <!-- Live filter (name / code). -->
       <div class="saas-search" style="margin-bottom: var(--space-sm);">
@@ -49,28 +72,12 @@
 
       <div style="display: flex; flex-direction: column; gap: var(--space-xs); max-height: 360px; overflow-y: auto;">
         @for (c of filteredAvailable(); track c.code) {
-          <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-xs) 0; cursor: pointer;">
+          <label class="pick-row" [class.pick-row--on]="isSelected(c.code)">
             <input type="checkbox" [checked]="isSelected(c.code)" (change)="toggle(c.code)" />
             <span>{{ c.code }} — {{ c.name }} <span class="cell-subtle">@if (c.symbol) { ({{ c.symbol }}) }</span></span>
           </label>
         }
       </div>
-    </div>
-
-    <!-- Default currency among the selected. -->
-    <div class="data-card" style="margin-bottom: var(--space-md);">
-      <h2 style="margin: 0 0 var(--space-xs); font-size: var(--font-h3);">Default currency</h2>
-      <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">The initial default currency for a new company under this account.</p>
-      @if (selectedCurrencies().length === 0) {
-        <p class="cell-subtle" style="margin: 0;">Select at least one currency.</p>
-      } @else {
-        <select [value]="defaultCode()" (change)="defaultCode.set($any($event.target).value)"
-                style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 320px;">
-          @for (c of selectedCurrencies(); track c.code) {
-            <option [value]="c.code">{{ c.code }} — {{ c.name }}</option>
-          }
-        </select>
-      }
     </div>
 
     <button type="button" class="btn btn--primary" (click)="save()" [disabled]="saving()">

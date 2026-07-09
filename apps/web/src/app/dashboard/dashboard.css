@@ -562,8 +562,19 @@
 
 /* --- NAVIGATION ITEMS (The Final Gmail Fix) --- */
 .sidebar-nav {
-  flex-grow: 1;
+  flex: 1 1 auto;
+  min-height: 0;        /* let this flex child shrink below content height… */
+  overflow-y: auto;     /* …so a menu taller than the sidebar scrolls instead of clipping */
+  overflow-x: hidden;   /* never a horizontal bar (rail/label width animation) */
   padding-top: var(--space-sm);
+  scrollbar-width: thin; /* slim bar in the narrow rail */
+}
+.sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 3px;
 }
 
 /* 1. Reset the UL (Crucial: This removes the hidden 40px padding) */

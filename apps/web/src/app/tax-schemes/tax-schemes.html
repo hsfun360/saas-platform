@@ -1,0 +1,371 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🧾</span>
+      <div>
+        <h1>Tax Setup</h1>
+        <p class="saas-subtitle">Tax schemes for your subscription — defined per country, consumed by each company in that country.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <div class="tx-layout" [class.tx-layout--detail]="selectedId()">
+
+    <!-- ================= MASTER: scheme list ================= -->
+    <section class="tx-pane tx-pane--master">
+
+      <!-- Count line + load-defaults -->
+      <div class="tx-toolbar">
+        <span class="cell-subtle">
+          @if (schemes().length > 0) {
+            {{ schemes().length }} schemes, {{ activeCount() }} active
+          } @else {
+            No tax schemes yet — load platform defaults or add your own.
+          }
+        </span>
+        <button type="button" class="btn btn--secondary btn--sm" (click)="openLoadDefaults()">
+          <span class="material-icons" aria-hidden="true">cloud_download</span>
+          <span>Load defaults</span>
+        </button>
+      </div>
+
+      <!-- Country filter + live search -->
+      @if (!loading() && schemes().length > 0) {
+        @if (usedCountries().length > 1) {
+          <div class="form-group tx-filter">
+            <label for="txCountryFilter">Country</label>
+            <select id="txCountryFilter" #cf (change)="setCountryFilter(cf.value)">
+              <option value="" [selected]="countryFilter() === ''">All countries</option>
+              @for (code of usedCountries(); track code) {
+                <option [value]="code" [selected]="countryFilter() === code">{{ countryName(code) }}</option>
+              }
+            </select>
+          </div>
+        }
+        <div class="saas-search">
+          <span class="saas-search__icon" aria-hidden="true">🔍</span>
+          <input #txSearchBox type="search" [value]="search()" (input)="search.set(txSearchBox.value)"
+                 placeholder="Search schemes…" aria-label="Search tax schemes" class="saas-search__input">
+          @if (search()) {
+            <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+          }
+        </div>
+      }
+
+      @if (loading()) {
+        <div class="loading-state"><div class="spinner large"></div><p>Loading tax schemes…</p></div>
+      } @else if (schemes().length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">📭</span>
+          <p>No tax schemes yet. Load the platform's starter schemes for a country, or use "New scheme" to add your own.</p>
+          <button type="button" class="btn btn--secondary" (click)="openLoadDefaults()">Load platform defaults</button>
+        </div>
+      } @else if (filtered().length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">🔍</span>
+          <p>No schemes match “{{ search() }}”.</p>
+          <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+        </div>
+      } @else {
+        <div class="tx-list">
+          @for (s of filtered(); track s.id) {
+            <div class="tx-row" [class.tx-row--active]="s.id === selectedId()">
+              <button type="button" class="tx-row__select" (click)="select(s.id)"
+                      [attr.aria-pressed]="s.id === selectedId()">
+                <span class="tx-row__text">
+                  <span class="tx-row__title">{{ s.taxSchemeCode }} — {{ s.name }}</span>
+                  <span class="tx-row__sub">
+                    {{ countryName(s.countryCode) }} · {{ ieFlagLabel(s.ieFlag) }} · {{ taxClassLabel(s.taxClass) }}
+                  </span>
+                </span>
+              </button>
+              @if (s.isActive === false) {
+                <span class="badge badge-inactive tx-row__badge">Disabled</span>
+              } @else {
+                <span class="badge badge-active tx-row__badge">Active</span>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- New scheme FAB — inside the master pane, so it hides with the master on mobile detail view -->
+      <button type="button" class="btn btn--primary tx-fab" (click)="openAddScheme()" aria-label="New scheme">
+        <span class="material-icons" aria-hidden="true">add</span>
+        <span>New scheme</span>
+      </button>
+    </section>
+
+    <!-- ================= DETAIL: selected scheme ================= -->
+    <section class="tx-pane tx-pane--detail">
+      <button type="button" class="btn btn--secondary btn--sm tx-back" (click)="back()">← Back to schemes</button>
+
+      @if (!selectedScheme()) {
+        <div class="empty-state tx-detail-empty">
+          <span class="empty-icon">👈</span>
+          <p>Select a scheme to view its rate lines, or create a new one.</p>
+        </div>
+      } @else {
+        <div class="tx-card">
+          <!-- Scheme header -->
+          <div class="tx-detail-head">
+            <div class="tx-detail-title">
+              <h2>{{ selectedScheme()!.taxSchemeCode }} — {{ selectedScheme()!.name }}</h2>
+              @if (selectedScheme()!.isActive === false) {
+                <span class="badge badge-inactive">Disabled</span>
+              } @else {
+                <span class="badge badge-active">Active</span>
+              }
+            </div>
+            <div class="tx-detail-actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEditScheme(selectedScheme()!)">Edit</button>
+              <button type="button" class="btn btn--secondary btn--sm" (click)="toggleSchemeActive(selectedScheme()!)"
+                      [disabled]="togglingSchemeId() === selectedScheme()!.id">
+                @if (selectedScheme()!.isActive === false) {
+                  {{ togglingSchemeId() === selectedScheme()!.id ? 'Saving…' : 'Enable' }}
+                } @else {
+                  {{ togglingSchemeId() === selectedScheme()!.id ? 'Saving…' : 'Disable' }}
+                }
+              </button>
+            </div>
+          </div>
+
+          <dl class="tx-meta">
+            <div class="meta"><dt>Country</dt><dd>{{ countryName(selectedScheme()!.countryCode) }}</dd></div>
+            <div class="meta"><dt>Price</dt><dd>{{ ieFlagLabel(selectedScheme()!.ieFlag) }}</dd></div>
+            <div class="meta"><dt>Class</dt><dd>{{ taxClassLabel(selectedScheme()!.taxClass) }}</dd></div>
+          </dl>
+          @if (selectedScheme()!.description) {
+            <p class="tx-desc">{{ selectedScheme()!.description }}</p>
+          }
+
+          <!-- Rate lines -->
+          <div class="tx-rates-head">
+            <h3>Rate lines</h3>
+            <button type="button" class="btn btn--primary btn--sm" (click)="openAddRate()">
+              <span class="material-icons" aria-hidden="true">add</span>
+              <span>Add rate</span>
+            </button>
+          </div>
+          <p class="tx-hint">
+            A rate change is a new line with a later effective date. Several codes can be effective at once (stacked by priority).
+          </p>
+
+          @if (selectedRates().length === 0) {
+            <div class="empty-state tx-rates-empty">
+              <span class="empty-icon">📄</span>
+              <p>No rate lines yet. Use "Add rate" to define this scheme's rate.</p>
+            </div>
+          } @else {
+            <div class="tx-rate-list">
+              @for (r of selectedRates(); track r.id) {
+                <div class="tx-rate-row" [class.tx-rate-row--off]="r.isActive === false">
+                  <div class="tx-rate-main">
+                    <span class="tx-rate-code">{{ r.taxCode }}</span>
+                    <span class="tx-rate-pct">{{ r.taxRate }}%</span>
+                    <span class="tx-rate-tags">
+                      <span class="tx-tag">Priority {{ r.taxPriority }}</span>
+                      @if (r.isClaimable) {
+                        <span class="tx-tag tx-tag--claim">Claimable {{ r.claimPercentage }}%</span>
+                      } @else {
+                        <span class="tx-tag">Not claimable</span>
+                      }
+                      @if (r.glAccountCode) { <span class="tx-tag">GL {{ r.glAccountCode }}</span> }
+                      @if (r.isActive === false) { <span class="tx-tag tx-tag--off">Inactive</span> }
+                    </span>
+                    <span class="tx-rate-eff">Effective {{ r.effectiveFrom }}</span>
+                  </div>
+                  <div class="tx-rate-actions">
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="openEditRate(r)">Edit</button>
+                    <button type="button" class="btn btn--danger btn--sm" (click)="deleteRate(r)"
+                            [disabled]="deletingRateId() === r.id">
+                      {{ deletingRateId() === r.id ? 'Removing…' : 'Delete' }}
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </section>
+  </div>
+
+  <!-- ============ Scheme add/edit dialog ============ -->
+  @if (schemeDialogOpen()) {
+    <app-dialog [title]="schemeEditId ? ('Edit — ' + schemeForm.taxSchemeCode) : 'New tax scheme'"
+                [busy]="schemeSaving()" (close)="closeSchemeDialog()">
+      <form id="schemeForm" (ngSubmit)="onSaveScheme()" class="saas-form" style="padding: 0;">
+        <div class="tx-form-grid">
+          <div class="form-group">
+            <label for="sCountry">Country</label>
+            <select id="sCountry" name="sCountry" [(ngModel)]="schemeForm.countryCode" [disabled]="!!schemeEditId" required>
+              <option value="" disabled>Select a country…</option>
+              @for (c of countries(); track c.alpha2) {
+                <option [value]="c.alpha2">{{ c.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="sCode">Scheme code</label>
+            <input id="sCode" type="text" name="sCode" [(ngModel)]="schemeForm.taxSchemeCode" placeholder="e.g. SST-OUT" autocomplete="off" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="sName">Name</label>
+            <input id="sName" type="text" name="sName" [(ngModel)]="schemeForm.name" placeholder="e.g. Sales & Service Tax (Output)" required />
+          </div>
+        </div>
+        <div class="tx-form-grid">
+          <div class="form-group">
+            <label for="sIe">Price treatment</label>
+            <select id="sIe" name="sIe" [(ngModel)]="schemeForm.ieFlag" required>
+              @for (o of ieFlags(); track o.key) {
+                <option [value]="o.key">{{ o.label }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="sClass">Tax class</label>
+            <select id="sClass" name="sClass" [(ngModel)]="schemeForm.taxClass" required>
+              @for (o of taxClasses(); track o.key) {
+                <option [value]="o.key">{{ o.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="sDesc">Description</label>
+            <input id="sDesc" type="text" name="sDesc" [(ngModel)]="schemeForm.description" placeholder="Optional summary" />
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeSchemeDialog()" [disabled]="schemeSaving()">Cancel</button>
+        <button type="submit" form="schemeForm" class="btn btn--primary" [disabled]="schemeSaving()">
+          {{ schemeSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Rate add/edit dialog ============ -->
+  @if (rateDialogOpen()) {
+    <app-dialog [title]="rateEditId ? ('Edit rate — ' + rateForm.taxCode) : 'Add rate line'"
+                [busy]="rateSaving()" (close)="closeRateDialog()">
+      <form id="rateForm" (ngSubmit)="onSaveRate()" class="saas-form" style="padding: 0;">
+        <div class="tx-form-grid">
+          <div class="form-group">
+            <label for="rCode">Tax code</label>
+            <input id="rCode" type="text" name="rCode" [(ngModel)]="rateForm.taxCode" placeholder="e.g. SR" autocomplete="off" required />
+          </div>
+          <div class="form-group">
+            <label for="rRate">Rate (%)</label>
+            <input id="rRate" type="number" name="rRate" [(ngModel)]="rateForm.taxRate" min="0" step="0.0001" required />
+          </div>
+        </div>
+        <div class="tx-form-grid">
+          <div class="form-group">
+            <label for="rEff">Effective from</label>
+            <input id="rEff" type="date" name="rEff" [(ngModel)]="rateForm.effectiveFrom" required />
+          </div>
+          <div class="form-group">
+            <label for="rPriority">Priority</label>
+            <select id="rPriority" name="rPriority" [(ngModel)]="rateForm.taxPriority">
+              @for (p of [1,2,3,4,5]; track p) {
+                <option [value]="p">{{ p }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="tx-check">
+            <input type="checkbox" name="rClaimable" [(ngModel)]="rateForm.isClaimable" />
+            <span>Claimable (recoverable input tax)</span>
+          </label>
+        </div>
+        @if (rateForm.isClaimable) {
+          <div class="form-row">
+            <div class="form-group">
+              <label for="rClaimPct">Claim percentage (%)</label>
+              <input id="rClaimPct" type="number" name="rClaimPct" [(ngModel)]="rateForm.claimPercentage" min="0" max="100" step="0.01" />
+            </div>
+          </div>
+        }
+        <div class="tx-form-grid">
+          <div class="form-group">
+            <label for="rGl">GL account</label>
+            <input id="rGl" type="text" name="rGl" [(ngModel)]="rateForm.glAccountCode" placeholder="Optional" autocomplete="off" />
+          </div>
+          @if (rateEditId) {
+            <div class="form-group">
+              <label for="rActive">Status</label>
+              <label class="tx-check tx-check--inline">
+                <input id="rActive" type="checkbox" name="rActive" [(ngModel)]="rateForm.isActive" />
+                <span>Active</span>
+              </label>
+            </div>
+          }
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeRateDialog()" [disabled]="rateSaving()">Cancel</button>
+        <button type="submit" form="rateForm" class="btn btn--primary" [disabled]="rateSaving()">
+          {{ rateSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Load platform defaults dialog ============ -->
+  @if (loadDialogOpen()) {
+    <app-dialog [title]="'Load platform defaults'" [busy]="loadSaving()" (close)="closeLoadDefaults()">
+      <form id="loadDefaultsForm" (ngSubmit)="onLoadDefaults()" class="saas-form" style="padding: 0;">
+        <p class="cell-subtle" style="margin: 0 0 var(--space-md);">
+          Copies the platform's starter tax schemes for the chosen country into your catalog.
+          You own and can edit them afterwards. Schemes you already have are skipped.
+        </p>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="loadCountry">Country</label>
+            <select id="loadCountry" #lc name="loadCountry" [value]="loadCountry()" (change)="loadCountry.set(lc.value)" required>
+              <option value="" disabled>Select a country…</option>
+              @for (c of countries(); track c.alpha2) {
+                <option [value]="c.alpha2">{{ c.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeLoadDefaults()" [disabled]="loadSaving()">Cancel</button>
+        <button type="submit" form="loadDefaultsForm" class="btn btn--primary" [disabled]="loadSaving()">
+          {{ loadSaving() ? 'Loading…' : 'Load defaults' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

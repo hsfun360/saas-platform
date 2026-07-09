@@ -1,6 +1,7 @@
 // src/controllers/auth.controller.js
 const User = require('./user.model'); // <--- ADD THIS LINE
 const OutboxMessage = require('../../platform/outboxMessage.model');
+const { enqueueEmail } = require('../notification/emailOutbox');
 const RegistrationLead = require('../saas/registrationLead.model');
 const Account = require('../saas/account.model');
 const Company = require('../saas/company.model');
@@ -96,11 +97,8 @@ exports.registerUser = async (req, res) => {
         console.log(`[AUTH CONTROLLER] Activation link for ${email}: ${activationLink}`);
 
         // 7. Queue the Outbox Message
-        await OutboxMessage.create({
-            id: uuidv4(),
-            type: 'UserRegistered',
-            payload: { email, activationLink }
-        }, { transaction });
+        // Render the activation email from its template and queue it atomically.
+        await enqueueEmail({ templateKey: 'user.activation', to: email, data: { email, activationLink } }, transaction);
 
         // 8. Commit the transaction safely!
         await transaction.commit();
@@ -956,14 +954,7 @@ exports.forgotPassword = async (req, res) => {
         const resetLink = `http://localhost:4200/reset-password?token=${resetToken}`;
 
         // 7. Create the Outbox Message to trigger your email worker
-        await OutboxMessage.create({
-            id: uuidv4(),
-            type: 'PasswordResetRequested',
-            payload: { 
-                email: user.email, 
-                resetLink: resetLink 
-            }
-        }, { transaction });
+        await enqueueEmail({ templateKey: 'password.reset', to: user.email, data: { email: user.email, resetLink } }, transaction);
 
         // 8. Commit the transaction
         await transaction.commit();
@@ -1013,12 +1004,8 @@ exports.resetPassword = async (req, res) => {
         user.resetPasswordExpires = null;
         await user.save({ transaction });
 
-        // 👇 4. ADDED: Create the Success Email Event
-        await OutboxMessage.create({
-            id: uuidv4(),
-            type: 'PasswordResetSuccess',
-            payload: { email: user.email } // We only need the email for this one
-        }, { transaction });
+        // 👇 4. ADDED: Queue the success-confirmation email (rendered from template)
+        await enqueueEmail({ templateKey: 'password.reset.success', to: user.email, data: { email: user.email } }, transaction);
 
         // 5. Commit both the password change and the email trigger
         await transaction.commit();
@@ -1209,15 +1196,11 @@ exports.registerLead = async (req, res) => {
         console.log(`🔗 ACTIVATION LINK: ${activationLink}`);
         console.log('=============================================\n');
 
-        // 7. DELEGATE EMAIL TO THE OUTBOX WORKER
-        await OutboxMessage.create({
-            type: 'AccountRegistered', // 👈 Distinct event type for SaaS Leads!
-            payload: { 
-                email: email, 
-                companyName: companyName, // 👈 Pass the company name for a personalized email
-                activationLink: activationLink 
-            },
-            status: 'PENDING'
+        // 7. DELEGATE EMAIL TO THE OUTBOX WORKER (rendered from the template now)
+        await enqueueEmail({
+            templateKey: 'account.activation',
+            to: email,
+            data: { email, companyName, activationLink },
         });
 
         // 8. Respond to Angular so it can show the "Check your email!" success screen

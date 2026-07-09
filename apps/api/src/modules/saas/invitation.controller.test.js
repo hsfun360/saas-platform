@@ -19,6 +19,7 @@ const Company = require('./company.model');
 const Account = require('./account.model');
 const User = require('../identity/user.model');
 const OutboxMessage = require('../../platform/outboxMessage.model');
+const EmailTemplate = require('../notification/emailTemplate.model');
 const { sequelize } = require('../../platform/db');
 const controller = require('./invitation.controller');
 
@@ -149,6 +150,21 @@ function setupInviteHappyPath() {
     Invitation.findOne = fn(async () => null);    // no pending invite
     Invitation.create = fn(async () => ({}));
     OutboxMessage.create = fn(async () => ({}));
+    // enqueueEmail() renders the effective template before queuing. Stub the
+    // lookup: the platform default (accountId null) exists; no tenant override.
+    EmailTemplate.findOne = fn(async (opts) => {
+        if (opts && opts.where && opts.where.accountId == null) {
+            return {
+                templateKey: 'collaborator.invite',
+                subject: 'Invite to {{companyName}}',
+                bodyHtml: '<p>{{acceptLink}}</p>',
+                tenantOverridable: true,
+                isActive: true,
+                fromName: null,
+            };
+        }
+        return null; // no subscriber override
+    });
     return tx;
 }
 

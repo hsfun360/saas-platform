@@ -36,6 +36,8 @@ const NAV_KEYS: Record<string, string> = {
   // (DB-driven parent menus carry their own `names`.)
   'Access': 'nav.group.access',
   'Reference data': 'nav.group.referenceData',
+  'Configuration': 'nav.group.configuration',
+  'Email Templates': 'nav.emailTemplates',
 };
 
 // A node in the sidebar menu tree (adjacency list). A node with children renders
@@ -173,7 +175,9 @@ export class Dashboard implements OnInit {
         { id: 'saas-countries', name: 'Countries', route: '/admin/countries', icon: 'public', ...saas, parentId: 'saas-refdata', sequence: 0 },
         { id: 'saas-languages', name: 'Languages', route: '/admin/languages', icon: 'translate', ...saas, parentId: 'saas-refdata', sequence: 1 },
         { id: 'saas-currencies', name: 'Currencies', route: '/admin/currencies', icon: 'payments', ...saas, parentId: 'saas-refdata', sequence: 2 },
-        { id: 'saas-modules', name: 'Modules & Menus', route: '/admin/modules-menus', icon: 'category', ...saas, parentId: null, sequence: 3 },
+        { id: 'saas-config', name: 'Configuration', route: '', icon: 'settings', ...saas, parentId: null, sequence: 3 },
+        { id: 'saas-modules', name: 'Modules & Menus', route: '/admin/modules-menus', icon: 'category', ...saas, parentId: 'saas-config', sequence: 0 },
+        { id: 'saas-email-templates', name: 'Email Templates', route: '/admin/email-templates', icon: 'mail', ...saas, parentId: 'saas-config', sequence: 1 },
       );
     }
 

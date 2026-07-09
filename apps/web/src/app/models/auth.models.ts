@@ -208,6 +208,86 @@ export interface MenuInput {
   names?: Record<string, string>;
 }
 
+// --- Email templates (platform defaults + tenant overrides) ---
+export interface EmailTemplateVariable {
+  name: string;
+  description: string;
+}
+
+// Row in the templates list.
+export interface EmailTemplateSummary {
+  key: string;
+  name: string;
+  description?: string | null;
+  tenantOverridable: boolean;
+  isActive: boolean;
+}
+
+// Full template for the editor, plus its catalogue metadata.
+export interface EmailTemplateDetail {
+  key: string;
+  name: string;
+  description?: string | null;
+  subject: string;
+  bodyHtml: string;
+  fromName?: string | null;
+  tenantOverridable: boolean;
+  isActive: boolean;
+  // Brand settings (per template) + the sending company's logo for the preview.
+  brandColor?: string | null;
+  includeLogo?: boolean;
+  companyLogoUrl?: string | null;
+  variables: EmailTemplateVariable[];
+  sample: Record<string, unknown>;
+}
+
+// Rendered preview (compiled subject + HTML) returned by the preview endpoint.
+export interface EmailPreview {
+  subject: string;
+  html: string;
+}
+
+// --- Tenant (subscriber) overrides of overridable platform templates ---
+export interface AccountEmailTemplateSummary {
+  key: string;
+  name: string;
+  description?: string | null;
+  hasOverride: boolean;
+  isActive: boolean | null; // the override's active flag, or null when none exists
+}
+
+export interface AccountEmailTemplateDetail {
+  key: string;
+  name: string;
+  description?: string | null;
+  variables: EmailTemplateVariable[];
+  sample: Record<string, unknown>;
+  hasOverride: boolean;
+  subject: string;
+  bodyHtml: string;
+  fromName?: string | null;
+  isActive: boolean;
+  brandColor?: string | null;
+  includeLogo?: boolean;
+  companyLogoUrl?: string | null;
+  platformDefault: { subject: string; bodyHtml: string; fromName?: string | null };
+}
+
+// A company's outgoing SMTP config as returned to the client (never the password).
+export interface CompanySmtp {
+  configured: boolean;
+  host?: string;
+  port?: number;
+  secure?: boolean;
+  username?: string;
+  hasPassword?: boolean;
+  fromEmail?: string;
+  fromName?: string;
+  isActive?: boolean;
+  lastVerifiedAt?: string | null;
+  lastError?: string | null;
+}
+
 export interface Country {
   alpha2: string;
   alpha3?: string;
@@ -224,6 +304,40 @@ export interface Language {
   languageCode: string;
   name: string;
   isActive?: boolean;
+}
+
+// Membership Status master record (per company) - a product-tier master file.
+export interface MembershipStatus {
+  id: string;
+  companyId?: string;
+  membershipStatus: string;     // the status value, unique per company (e.g. 'Active', 'OA')
+  statusClass: string;          // one of MembershipStatusMeta.classes[].key
+  description?: string | null;
+  systemControl: string;        // one of MembershipStatusMeta.controls[].key
+  statusColor?: string | null;  // hex, e.g. '#22c55e'
+  isActive?: boolean;
+}
+
+// A fixed option (key + display label) served by the API.
+export interface MembershipStatusOption {
+  key: string;
+  label: string;
+}
+
+// The fixed vocabularies for Membership Status dropdowns, served by the API so
+// the screen never drifts from server-side validation.
+export interface MembershipStatusMeta {
+  classes: MembershipStatusOption[];
+  controls: MembershipStatusOption[];
+}
+
+// A sibling company (same subscription) whose statuses can be copied during
+// first-time setup, with the statuses themselves for a selectable list.
+export interface MembershipStatusCopySource {
+  companyId: string;
+  companyName: string;
+  count: number;
+  statuses: MembershipStatus[];
 }
 
 // ISO 4217 currency reference row.
@@ -389,6 +503,8 @@ export interface CompanyEntity {
   state?: string;
   postalCode?: string;
   country?: string;
+  // Canonical ISO 3166-1 alpha-2 (lowercase) the company operates in; drives tax.
+  countryCode?: string | null;
   timezone?: string;
   logo?: string | null;
   defaultCurrencyCode?: string | null;
@@ -411,6 +527,8 @@ export interface UpdateCompanyData {
   state?: string;
   postalCode?: string;
   country?: string;
+  // Canonical ISO 3166-1 alpha-2 (lowercase) the company operates in; drives tax.
+  countryCode?: string | null;
   timezone?: string;
   logo?: string | null;
   defaultCurrencyCode?: string | null;
@@ -430,9 +548,76 @@ export interface CreateCompanyData {
   state?: string;
   postalCode?: string;
   country?: string;
+  // Canonical ISO 3166-1 alpha-2 (lowercase) the company operates in; drives tax.
+  countryCode?: string | null;
   timezone?: string;
   moduleIds?: string[];
   logo?: string | null;
   defaultCurrencyCode?: string | null;
+}
+
+// --- Tax scheme setup (subscriber-owned catalog, consumed per company by country) ---
+export type TaxIeFlag = 'INCLUSIVE' | 'EXCLUSIVE';
+export type TaxClass = 'INPUT' | 'OUTPUT' | 'CONTRA';
+
+// A single option in a dropdown (key stored, label shown). Matches GET /tax/meta.
+export interface TaxOption {
+  key: string;
+  label: string;
+}
+
+export interface TaxMeta {
+  ieFlags: TaxOption[];
+  taxClasses: TaxOption[];
+}
+
+// One effective-dated rate line (a component of a scheme). A rate change is a new
+// line with a later effectiveFrom; several taxCodes can be effective at once.
+export interface TaxRate {
+  id: string;
+  taxCode: string;
+  taxRate: number;
+  taxPriority: number;
+  isClaimable: boolean;
+  claimPercentage: number;
+  glAccountCode?: string | null;
+  effectiveFrom: string; // YYYY-MM-DD
+  isActive?: boolean;
+}
+
+// One component of a scheme as seen from a company's adoption view: the current
+// rate plus the subscriber-default GL account and this company's override (if any).
+export interface CompanyTaxLine {
+  taxCode: string;
+  taxRate: number;
+  defaultGlAccountCode: string | null;
+  companyGlAccountCode: string | null;
+}
+
+// A scheme available to the active company, with its per-company adoption state.
+// `id` is the taxSchemeId (the PUT target). isEnabled reflects the opt-out row
+// (true when there is no override row).
+export interface CompanyTaxAdoption {
+  id: string;
+  taxSchemeCode: string;
+  name: string;
+  ieFlag: TaxIeFlag;
+  taxClass: TaxClass;
+  isEnabled: boolean;
+  components: CompanyTaxLine[];
+}
+
+// A tax scheme header plus its rate lines (the API returns rates inline on list).
+export interface TaxScheme {
+  id: string;
+  countryCode: string;
+  taxSchemeCode: string;
+  name: string;
+  description?: string | null;
+  ieFlag: TaxIeFlag;
+  taxClass: TaxClass;
+  sourceTemplateId?: string | null;
+  isActive?: boolean;
+  rates?: TaxRate[];
 }
 

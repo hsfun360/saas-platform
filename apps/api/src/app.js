@@ -41,6 +41,9 @@ const currencyRoutes = require('./modules/saas/currency.routes');
 const membershipRoutes = require('./modules/membership/membership.routes');
 const golfRoutes = require('./modules/golf/golf.routes');
 const facilityRoutes = require('./modules/facility/facility.routes');
+// Shared financial reference (Tax) - subscriber-owned scheme catalog consumed by
+// the product systems. Its own gateway seam so it can be split out later.
+const taxRoutes = require('./modules/tax/tax.routes');
 
 // --- Build the Express application ---
 function createApp() {
@@ -74,6 +77,8 @@ function createApp() {
     app.use('/api/membership', membershipRoutes);
     app.use('/api/golf', golfRoutes);
     app.use('/api/facility', facilityRoutes);
+    // Shared financial reference (Tax) - its own seam, consumed by the above.
+    app.use('/api/tax', taxRoutes);
 
     // Simple Health Check Route
     app.get('/', (req, res) => {
@@ -113,8 +118,32 @@ async function initializeDB() {
         lockAcquired = true;
         console.log('Lock acquired. Syncing database schema...');
 
+        // Product-tier services own their own Postgres schema (membership, …) so
+        // they can be pg_dump --schema extracted later. Create them before sync,
+        // inside the lock, so the schema-scoped models have a schema to land in.
+        await require('./platform/schemas').ensureProductSchemas(sequelize);
+
         await sequelize.sync({ alter: true });
         console.log('Database schema synced successfully.');
+
+        // Backfill Company.countryCode from the alpha-2 the Companies picker already
+        // stored in the free-text `country`, for rows created before countryCode
+        // existed. Idempotent (only fills NULLs matching a 2-letter code), so it is
+        // safe to run on every boot. Lets tax lookup work without a manual re-save.
+        await sequelize.query(
+            `UPDATE "Company" SET "countryCode" = lower("country")
+             WHERE "countryCode" IS NULL AND "country" ~ '^[A-Za-z]{2}$'`,
+        );
+
+        // Ensure the platform email-template defaults exist (idempotent, always
+        // runs — unlike the RUN_SEED-gated demo seeder — so emails never break).
+        await require('./modules/notification/emailTemplate.service').seedPlatformDefaults();
+        console.log('Email template defaults ensured.');
+
+        // Ensure the bundled platform tax-scheme templates exist (idempotent, always
+        // runs) so subscribers can "Load defaults for country" from day one.
+        await require('./modules/tax/taxTemplate.service').seedPlatformTaxTemplates();
+        console.log('Tax template defaults ensured.');
 
         await seedDatabase();
 

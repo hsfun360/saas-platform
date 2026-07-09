@@ -25,6 +25,16 @@ service + its own database.
 | Golf Management | `src/modules/golf` | `/api/golf` | [golf-management.md](golf-management.md) |
 | Facility Management | `src/modules/facility` | `/api/facility` | [facility-management.md](facility-management.md) |
 
+**Shared capability tier** - owned by no single product, consumed by several. Its own
+schema + gateway, so it splits out like any service.
+
+| Service | Module folder | Gateway base | Doc |
+| --- | --- | --- | --- |
+| Tax | `src/modules/tax` | `/api/tax` | [tax.md](tax.md) |
+
+Tax is consumed by Membership / Facility / Golf through the `platform/taxGateway.js`
+seam (never a direct `require()`), and owns the `tax` Postgres schema.
+
 Overall architecture, conventions and the migration plan: **[saas-platform.md](saas-platform.md)**.
 
 ## Golden rules (so we don't have to revisit when services split)

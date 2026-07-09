@@ -1,0 +1,36 @@
+import { Component, OnInit, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+import { AccountEmailTemplateService } from '../services/account-email-template.service';
+import { AccountEmailTemplateSummary } from '../models/auth.models';
+
+// Tenant Admin: the platform emails this subscriber may customise. Each row shows
+// whether they currently use their own version or the platform default.
+@Component({
+  selector: 'app-account-email-templates',
+  standalone: true,
+  imports: [CommonModule, RouterModule],
+  templateUrl: './account-email-templates.html',
+  styleUrls: ['../system-setup/system-setup.css'],
+})
+export class AccountEmailTemplatesComponent implements OnInit {
+  private readonly service = inject(AccountEmailTemplateService);
+
+  readonly templates = signal<AccountEmailTemplateSummary[]>([]);
+  readonly loading = signal(false);
+  readonly errorMessage = signal('');
+
+  ngOnInit(): void {
+    this.loading.set(true);
+    this.service.list().subscribe({
+      next: (list) => {
+        this.templates.set(list);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to load email templates.');
+        this.loading.set(false);
+      },
+    });
+  }
+}

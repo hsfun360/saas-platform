@@ -1,0 +1,102 @@
+<app-dialog [title]="'Email delivery (SMTP) — ' + company().name" [busy]="saving() || removing()" (close)="onClose()">
+  @if (loading()) {
+    <p style="color: #64748b;">Loading…</p>
+  } @else {
+    <p class="smtp-hint" style="margin: 0 0 var(--space-md);">
+      Send this company's emails (e.g. collaborator invitations) through its own mail server, from your own address.
+      Leave this unset to use the platform's default sender. Security emails (sign-in, password reset) always use the platform.
+    </p>
+
+    @if (successMessage()) {
+      <div class="smtp-status" style="background:#dcfce7; color:#166534;" role="status">✅ {{ successMessage() }}</div>
+    }
+    @if (errorMessage()) {
+      <div class="smtp-status" style="background:#fee2e2; color:#991b1b;" role="alert">❌ {{ errorMessage() }}</div>
+    }
+    @if (configured() && lastError() && !errorMessage()) {
+      <div class="smtp-status" style="background:#fef3c7; color:#92400e;" role="alert">
+        ⚠️ Last delivery error: {{ lastError() }}
+      </div>
+    }
+    @if (configured() && lastVerifiedAt() && !lastError()) {
+      <div class="smtp-status" style="background:#eff6ff; color:#1e40af;">
+        ✅ Last verified {{ lastVerifiedAt() | date:'medium' }}
+      </div>
+    }
+
+    <form id="smtpForm" [formGroup]="form" (ngSubmit)="save()">
+      <div class="smtp-grid">
+        <div class="smtp-field">
+          <label for="smtp-host">SMTP host *</label>
+          <input id="smtp-host" type="text" formControlName="host" placeholder="e.g. smtp.sendgrid.net" autocomplete="off">
+        </div>
+        <div class="smtp-field">
+          <label for="smtp-port">Port *</label>
+          <input id="smtp-port" type="number" formControlName="port" placeholder="587" min="1" max="65535">
+        </div>
+      </div>
+
+      <label class="smtp-check">
+        <input type="checkbox" formControlName="secure">
+        <span>Use implicit TLS <span class="smtp-hint">(tick for port 465; leave off for 587/STARTTLS)</span></span>
+      </label>
+
+      <div class="smtp-grid">
+        <div class="smtp-field">
+          <label for="smtp-user">Username</label>
+          <input id="smtp-user" type="text" formControlName="username" placeholder="SMTP username" autocomplete="off">
+        </div>
+        <div class="smtp-field">
+          <label for="smtp-pass">Password</label>
+          <input id="smtp-pass" type="password" formControlName="password" autocomplete="new-password"
+                 [placeholder]="hasPassword() ? '•••••• (leave blank to keep)' : 'SMTP password'">
+        </div>
+      </div>
+
+      <div class="smtp-grid">
+        <div class="smtp-field">
+          <label for="smtp-from">From email *</label>
+          <input id="smtp-from" type="email" formControlName="fromEmail" placeholder="noreply@yourcompany.com" autocomplete="off">
+          @if (form.controls.fromEmail.touched && form.controls.fromEmail.invalid) {
+            <span class="smtp-hint" style="color:#b91c1c;">Enter a valid email your server can send from.</span>
+          }
+        </div>
+        <div class="smtp-field">
+          <label for="smtp-fromname">From name</label>
+          <input id="smtp-fromname" type="text" formControlName="fromName" placeholder="Your company">
+        </div>
+      </div>
+
+      <label class="smtp-check">
+        <input type="checkbox" formControlName="isActive">
+        <span>Active <span class="smtp-hint">(uncheck to pause and fall back to the platform sender)</span></span>
+      </label>
+
+      <div class="smtp-test">
+        <div class="smtp-field" style="margin-bottom: var(--space-xs);">
+          <label for="smtp-test-to">Send a test</label>
+        </div>
+        <div class="smtp-test__row">
+          <input id="smtp-test-to" type="email" [formControl]="testEmail" placeholder="you@example.com" autocomplete="off">
+          <button type="button" class="btn btn--secondary" (click)="sendTest()" [disabled]="testing()">
+            <span class="material-icons" aria-hidden="true">send</span>
+            {{ testing() ? 'Testing…' : 'Verify & send test' }}
+          </button>
+        </div>
+        <p class="smtp-hint" style="margin: var(--space-xs) 0 0;">Verifies the connection and sends a test using the values above (saved or not).</p>
+      </div>
+    </form>
+  }
+
+  <ng-container dialogFooter>
+    <button type="button" class="btn btn--secondary" (click)="onClose()" [disabled]="saving()">Cancel</button>
+    @if (configured()) {
+      <button type="button" class="btn btn--danger" (click)="remove()" [disabled]="removing()">
+        {{ removing() ? 'Removing…' : 'Remove' }}
+      </button>
+    }
+    <button type="submit" form="smtpForm" class="btn btn--primary" [disabled]="saving() || loading()">
+      {{ saving() ? 'Saving…' : 'Save' }}
+    </button>
+  </ng-container>
+</app-dialog>

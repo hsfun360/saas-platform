@@ -1,0 +1,273 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🏷️</span>
+      <div>
+        <h1>Membership Status</h1>
+        <p class="saas-subtitle">Member status codes for this club — lifecycle class, system control and colour.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (statuses().length > 0) {
+        {{ statuses().length }} statuses, {{ activeCount() }} active
+      } @else {
+        No statuses yet — use "New status" to add one.
+      }
+    </span>
+  </div>
+
+  <!-- Live filter (code / class / description). -->
+  @if (!loading() && statuses().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #msSearchBox type="search" [value]="search()" (input)="search.set(msSearchBox.value)"
+             placeholder="Search statuses…" aria-label="Search statuses" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading membership statuses…</p></div>
+  } @else if (statuses().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">📭</span>
+      <p>No membership statuses yet. Use "New status" to add one, or copy from another company in your subscription.</p>
+      <button type="button" class="btn btn--secondary" (click)="openCopy()">Copy from another company</button>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No statuses match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (s of filtered(); track s.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">
+                <span class="ms-swatch" [style.background]="s.statusColor || '#94a3b8'" aria-hidden="true"></span>
+                {{ s.membershipStatus }}
+              </div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">
+                  {{ classLabel(s.statusClass) }} · {{ controlLabel(s.systemControl) }}@if (s.description) { · {{ s.description }} }
+                </span>
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (s.isActive === false) {
+                <span class="badge badge-inactive">Disabled</span>
+              } @else {
+                <span class="badge badge-active">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(s)">Edit</button>
+              @if (s.isActive === false) {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="toggleActive(s)"
+                        [disabled]="togglingId() === s.id">
+                  {{ togglingId() === s.id ? 'Saving…' : 'Enable' }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="toggleActive(s)"
+                        [disabled]="togglingId() === s.id">
+                  {{ togglingId() === s.id ? 'Saving…' : 'Disable' }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New status FAB -->
+  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New status">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New status</span>
+  </button>
+
+  <!-- ============ Add status dialog ============ -->
+  @if (addOpen()) {
+    <app-dialog [title]="'New membership status'" [busy]="addSaving()" (close)="closeAdd()">
+      <form id="addStatusForm" (ngSubmit)="onSaveAdd()" class="saas-form" style="padding: 0;">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="aCode">Membership status</label>
+            <input id="aCode" type="text" name="aCode" [(ngModel)]="addForm.membershipStatus" placeholder="e.g. Active" autocomplete="off" required />
+          </div>
+          <div class="form-group">
+            <label for="aClass">Status class</label>
+            <select id="aClass" name="aClass" [(ngModel)]="addForm.statusClass" required>
+              <option value="" disabled>Select a class…</option>
+              @for (c of classes(); track c.key) {
+                <option [value]="c.key">{{ c.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aControl">System control</label>
+            <select id="aControl" name="aControl" [(ngModel)]="addForm.systemControl" required>
+              <option value="" disabled>Select a control…</option>
+              @for (ctrl of controls(); track ctrl.key) {
+                <option [value]="ctrl.key">{{ ctrl.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aDesc">Description</label>
+            <input id="aDesc" type="text" name="aDesc" [(ngModel)]="addForm.description" placeholder="Optional summary" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aColor">Status colour</label>
+            <div class="ms-color-row">
+              <input id="aColor" type="color" name="aColor" [(ngModel)]="addForm.statusColor" aria-label="Pick status colour" />
+              <input type="text" name="aColorHex" [(ngModel)]="addForm.statusColor" placeholder="#2563eb" maxlength="7" class="ms-color-hex" />
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeAdd()" [disabled]="addSaving()">Cancel</button>
+        <button type="submit" form="addStatusForm" class="btn btn--primary" [disabled]="addSaving()">
+          {{ addSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Edit status dialog ============ -->
+  @if (editOpen()) {
+    <app-dialog [title]="'Edit — ' + editForm.membershipStatus" [busy]="editSaving()" (close)="closeEdit()">
+      <form id="editStatusForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="eCode">Membership status</label>
+            <input id="eCode" type="text" name="eCode" [(ngModel)]="editForm.membershipStatus" autocomplete="off" required />
+          </div>
+          <div class="form-group">
+            <label for="eClass">Status class</label>
+            <select id="eClass" name="eClass" [(ngModel)]="editForm.statusClass" required>
+              @for (c of classes(); track c.key) {
+                <option [value]="c.key">{{ c.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eControl">System control</label>
+            <select id="eControl" name="eControl" [(ngModel)]="editForm.systemControl" required>
+              @for (ctrl of controls(); track ctrl.key) {
+                <option [value]="ctrl.key">{{ ctrl.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eDesc">Description</label>
+            <input id="eDesc" type="text" name="eDesc" [(ngModel)]="editForm.description" placeholder="Optional summary" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eColor">Status colour</label>
+            <div class="ms-color-row">
+              <input id="eColor" type="color" name="eColor" [(ngModel)]="editForm.statusColor" aria-label="Pick status colour" />
+              <input type="text" name="eColorHex" [(ngModel)]="editForm.statusColor" placeholder="#2563eb" maxlength="7" class="ms-color-hex" />
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeEdit()" [disabled]="editSaving()">Cancel</button>
+        <button type="submit" form="editStatusForm" class="btn btn--primary" [disabled]="editSaving()">
+          {{ editSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Copy from another company dialog ============ -->
+  @if (copyOpen()) {
+    <app-dialog [title]="'Copy membership statuses'" [busy]="copySaving()" (close)="closeCopy()">
+      <div class="saas-form" style="padding: 0;">
+        @if (copyLoading()) {
+          <div class="loading-state"><div class="spinner"></div><p>Loading companies…</p></div>
+        } @else if (copySources().length === 0) {
+          <div class="empty-state">
+            <span class="empty-icon">📭</span>
+            <p>No other company in your subscription has statuses to copy.</p>
+          </div>
+        } @else {
+          <div class="form-row">
+            <div class="form-group">
+              <label for="copyFrom">Copy from</label>
+              <select id="copyFrom" #copySel (change)="selectCopySource(copySel.value)">
+                @for (s of copySources(); track s.companyId) {
+                  <option [value]="s.companyId" [selected]="s.companyId === copyFromCompanyId()">
+                    {{ s.companyName }} ({{ s.count }})
+                  </option>
+                }
+              </select>
+            </div>
+          </div>
+          <p class="cell-subtle" style="margin: 0 0 var(--space-xs);">Select the statuses to copy:</p>
+          <div class="ms-copy-list">
+            @for (st of (copySelectedSource()?.statuses ?? []); track st.id) {
+              <label class="ms-copy-item">
+                <input type="checkbox" [checked]="isCopySelected(st.id)" (change)="toggleCopyStatus(st.id)" />
+                <span class="ms-swatch" [style.background]="st.statusColor || '#94a3b8'" aria-hidden="true"></span>
+                <span class="ms-copy-item__text">{{ st.membershipStatus }} — {{ classLabel(st.statusClass) }} · {{ controlLabel(st.systemControl) }}</span>
+              </label>
+            }
+          </div>
+        }
+      </div>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeCopy()" [disabled]="copySaving()">Cancel</button>
+        @if (copySources().length > 0) {
+          <button type="button" class="btn btn--primary" (click)="onCopy()" [disabled]="copySaving()">
+            {{ copySaving() ? 'Copying…' : 'Copy selected' }}
+          </button>
+        }
+      </ng-container>
+    </app-dialog>
+  }
+</div>

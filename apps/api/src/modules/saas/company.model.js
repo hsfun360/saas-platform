@@ -33,8 +33,15 @@ const Company = sequelize.define('Company', {
     city: { type: DataTypes.STRING, allowNull: true },
     state: { type: DataTypes.STRING, allowNull: true },
     postalCode: { type: DataTypes.STRING, allowNull: true },
+    // Free-text address country (display only, kept for existing invoices/profile).
     country: { type: DataTypes.STRING, allowNull: true },
-    // Public URL of the company logo (Google Cloud Storage), for reports/documents.
+    // Canonical ISO 3166-1 alpha-2 (lowercase, e.g. 'my'), referencing Country.alpha2
+    // by value (no cross-service FK). This is the authoritative country the company
+    // operates in - it drives which subscriber tax schemes the company consumes.
+    // Nullable: legacy rows have only free-text `country` until a Tenant Admin sets it.
+    countryCode: { type: DataTypes.STRING(2), allowNull: true },
+    // Public URL of the company logo (Google Cloud Storage), for reports/documents
+    // and (optionally) the branded email header.
     logo: { type: DataTypes.STRING, allowNull: true },
 
     timezone: {

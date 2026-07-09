@@ -1,6 +1,7 @@
 const { sequelize } = require('../../platform/db');
 const User = require('./user.model');
 const OutboxMessage = require('../../platform/outboxMessage.model');
+const { enqueueEmail } = require('../notification/emailOutbox');
 const { v4: uuidv4 } = require('uuid'); // Ensure you have 'uuid' installed (npm install uuid)
 
 /**
@@ -29,24 +30,11 @@ async function updateProfileWithOutbox(userEmail, profileData) {
             throw new Error("USER_NOT_FOUND");
         }
 
-        // 3. Prepare the Event Payload
-        // This is the data your background worker will eventually send (e.g., to Kafka/RabbitMQ or an Email Service)
-        const eventPayload = {
-            email: userEmail,
-            updatedFields: ['full_name', 'phone', 'bio'],
-            timestamp: new Date().toISOString()
-        };
-
-        // 4. Insert into the OutboxMessages table
-        await OutboxMessage.create(
-            {
-                id: uuidv4(), // We generate the ID here for Idempotency
-                type: 'UserProfileUpdated',
-                payload: eventPayload
-            },
-            { 
-                transaction // 👈 CRITICAL: Bind to the SAME transaction
-            }
+        // 3. Queue the security-alert email, rendered from its template, in the
+        // SAME transaction (atomic with the profile update).
+        await enqueueEmail(
+            { templateKey: 'profile.updated', to: userEmail, data: { email: userEmail } },
+            transaction,
         );
 
         // 5. Commit the Transaction (Saves BOTH to the database permanently)
