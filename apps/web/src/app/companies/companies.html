@@ -1,27 +1,27 @@
 <section class="screen-pad" style="max-width: 900px; margin: 0 auto;">
 
   <header style="margin-bottom: var(--space-lg);">
-    <h1 style="margin: 0 0 var(--space-xs); font-size: var(--font-h1); font-weight: var(--weight-bold); color: #1e293b;">Companies</h1>
-    <p style="margin: 0; color: #64748b; font-size: var(--font-body-2);">
+    <h1 style="margin: 0 0 var(--space-xs); font-size: var(--font-h1); font-weight: var(--weight-bold); color: var(--text-primary);">Companies</h1>
+    <p style="margin: 0; color: var(--text-muted); font-size: var(--font-body-2);">
       Create the business entities under your subscription and choose the modules each one needs.
     </p>
   </header>
 
   @if (successMessage()) {
     <p role="status" aria-live="polite"
-       style="background: #ecfdf5; color: #065f46; border: 1px solid #6ee7b7; padding: var(--space-sm) var(--space-md); border-radius: 8px; font-size: var(--font-body-2);">
+       style="background: var(--success-surface); color: var(--success-text); border: 1px solid var(--success-border); padding: var(--space-sm) var(--space-md); border-radius: 8px; font-size: var(--font-body-2);">
       ✅ {{ successMessage() }}
     </p>
   }
   @if (errorMessage()) {
     <p role="alert" aria-live="assertive"
-       style="background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; padding: var(--space-sm) var(--space-md); border-radius: 8px; font-size: var(--font-body-2);">
+       style="background: var(--danger-surface); color: var(--danger-text); border: 1px solid var(--danger-border); padding: var(--space-sm) var(--space-md); border-radius: 8px; font-size: var(--font-body-2);">
       ⚠️ {{ errorMessage() }}
     </p>
   }
 
   <!-- Existing companies -->
-  <h2 style="margin: 0 0 var(--space-sm); font-size: var(--font-h2); font-weight: var(--weight-semibold); color: #1e293b;">Your companies</h2>
+  <h2 class="section-heading">Your companies</h2>
 
   <!-- Live filter over the loaded list (name / reg no. / timezone / module). -->
   @if (!companiesLoading() && companies().length > 0) {
@@ -39,12 +39,12 @@
   }
 
   @if (companiesLoading()) {
-    <p style="color: #64748b; font-size: var(--font-body-2);">Loading companies…</p>
+    <p style="color: var(--text-muted); font-size: var(--font-body-2);">Loading companies…</p>
   } @else if (companies().length === 0) {
-    <p style="color: #64748b; font-size: var(--font-body-2);">No companies yet. Use the “New company” button to create your first one.</p>
+    <p style="color: var(--text-muted); font-size: var(--font-body-2);">No companies yet. Use the “New company” button to create your first one.</p>
   } @else if (filteredCompanies().length === 0) {
-    <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: #64748b;">
-      <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: #cbd5e1;">search_off</span>
+    <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: var(--text-muted);">
+      <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: var(--border-strong);">search_off</span>
       <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">
         No companies match “{{ search() }}”.
       </p>
@@ -53,35 +53,33 @@
       </button>
     </div>
   } @else {
-    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-sm);">
+    <ul class="data-list">
       @for (company of filteredCompanies(); track company.id) {
-        <li style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: var(--space-md) var(--space-lg); box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-          <div class="company-summary">
-            <div class="company-main">
-              <div style="font-size: var(--font-body); font-weight: var(--weight-semibold); color: #1e293b;">{{ company.name }}</div>
-              <!-- Line 2: registration no. in ( ) followed by the timezone, no captions. -->
-              <div style="font-size: var(--font-body-2); color: #475569; margin-top: var(--space-xs);">
-                @if (company.registrationNumber) { <span>({{ company.registrationNumber }}) </span> }
+        <li class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ company.name }}</div>
+              <!-- Registration no. in ( ) then timezone + currency, no captions. -->
+              <div class="data-card__subline data-card__reg">
+                @if (company.registrationNumber) { <span>({{ company.registrationNumber }})</span> }
                 <span>{{ company.timezone | tzLabel }}</span>
-                @if (company.defaultCurrencyCode) { <span> · {{ company.defaultCurrencyCode }}</span> }
+                @if (company.defaultCurrencyCode) { <span>· {{ company.defaultCurrencyCode }}</span> }
               </div>
 
-              <!-- Line 3: module count (caption + value), not the full chip list. -->
-              <div style="margin-top: var(--space-sm); display: flex; align-items: baseline; gap: var(--space-xs);">
-                <span style="font-size: var(--font-caption); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.3px; color: #64748b;">Modules</span>
-                <span style="font-size: var(--font-body-2); color: #1e293b;">{{ company.SubscribedModules?.length || 0 }}</span>
-              </div>
+              <!-- Module count (caption + value), not the full chip list. -->
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Modules</dt><dd>{{ company.SubscribedModules?.length || 0 }}</dd></div>
+              </dl>
             </div>
 
-            <span class="company-badge" [style.background]="company.isActive ? '#dcfce7' : '#f1f5f9'"
-                  [style.color]="company.isActive ? '#166534' : '#64748b'"
-                  style="font-size: var(--font-overline); font-weight: var(--weight-bold); padding: var(--space-xs) var(--space-sm); border-radius: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
+            <span class="data-row__badge status-chip"
+                  [class.status-chip--on]="company.isActive" [class.status-chip--off]="!company.isActive">
               {{ company.isActive ? 'Active' : 'Inactive' }}
             </span>
 
-            <!-- Actions: right of the info on desktop, full-width bottom-left on
-                 mobile. Edit opens a dialog (below), so they stay visible. -->
-            <div class="company-actions">
+            <!-- Actions: right of the info on desktop, full-width below on mobile.
+                 Edit opens a dialog (below), so they stay visible. -->
+            <div class="data-row__actions">
               <button type="button" class="btn btn--secondary btn--sm" (click)="startEditModules(company)">
                 <span class="material-icons" aria-hidden="true">tune</span>
                 Edit modules
@@ -114,15 +112,15 @@
                 discardTitle="Discard this new company?"
                 discardMessage="You have started entering a new company. Leaving now will discard it."
                 (close)="cancelCreate()">
-      <form id="companyCreateForm" [formGroup]="form" (ngSubmit)="onSubmit()">
+      <form id="companyCreateForm" [formGroup]="form" (ngSubmit)="onSubmit()" class="saas-form" style="padding: 0;">
         <!-- Company logo (used on printed documents/reports). -->
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
-          <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Company logo</label>
+          <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Company logo</label>
           <div style="display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap;">
             @if (form.controls.logo.value) {
-              <img [src]="form.controls.logo.value" alt="Company logo preview" style="width: 64px; height: 64px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;">
+              <img [src]="form.controls.logo.value" alt="Company logo preview" style="width: 64px; height: 64px; object-fit: contain; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-card);">
             } @else {
-              <div style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; border: 1px dashed #cbd5e1; border-radius: 8px; color: #64748b; font-size: var(--font-caption); flex: 0 0 auto;">No logo</div>
+              <div style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--border-strong); border-radius: 8px; color: var(--text-muted); font-size: var(--font-caption); flex: 0 0 auto;">No logo</div>
             }
             <label class="btn btn--secondary btn--sm logo-upload">
               {{ uploadingLogo() ? 'Uploading…' : 'Choose logo' }}
@@ -132,126 +130,126 @@
               <button type="button" class="btn btn--secondary btn--sm" (click)="removeLogo('create')">Remove</button>
             }
           </div>
-          <span style="font-size: var(--font-caption); color: #64748b;">PNG or JPG, under 1MB.</span>
+          <span style="font-size: var(--font-caption); color: var(--text-muted);">PNG or JPG, under 1MB.</span>
         </div>
 
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cc-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Company name *</label>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cc-name">Company name <span class="required">*</span></label>
             <input id="cc-name" type="text" formControlName="name" autocomplete="organization"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                   [attr.aria-invalid]="form.controls.name.touched && form.controls.name.invalid" aria-describedby="cc-name-err" />
             @if (form.controls.name.touched && form.controls.name.invalid) {
-              <span style="color: #b91c1c; font-size: var(--font-caption);">A company name is required.</span>
+              <p id="cc-name-err" class="field-error" role="alert">A company name is required.</p>
             }
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cc-email" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Email</label>
+          <div class="form-group">
+            <label for="cc-email">Email</label>
             <input id="cc-email" type="email" formControlName="email" autocomplete="email"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                   [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid" aria-describedby="cc-email-err" />
             @if (form.controls.email.touched && form.controls.email.invalid) {
-              <span style="color: #b91c1c; font-size: var(--font-caption);">Enter a valid email.</span>
+              <p id="cc-email-err" class="field-error" role="alert">Enter a valid email.</p>
             }
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cc-phone" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Phone</label>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cc-phone">Phone</label>
             <app-phone-input formControlName="phone" inputId="cc-phone" placeholder="Phone"></app-phone-input>
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cc-web" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Website</label>
-            <input id="cc-web" type="url" formControlName="website" placeholder="https://…"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          <div class="form-group">
+            <label for="cc-web">Website</label>
+            <input id="cc-web" type="url" formControlName="website" placeholder="https://…" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cc-reg" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Registration no.</label>
-            <input id="cc-reg" type="text" formControlName="registrationNumber"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cc-reg">Registration no.</label>
+            <input id="cc-reg" type="text" formControlName="registrationNumber" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cc-tax" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Tax registration no.</label>
-            <input id="cc-tax" type="text" formControlName="taxRegistrationNumber"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          <div class="form-group">
+            <label for="cc-tax">Tax registration no.</label>
+            <input id="cc-tax" type="text" formControlName="taxRegistrationNumber" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cc-addr1" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Address line 1</label>
-            <input id="cc-addr1" type="text" formControlName="addressLine1" autocomplete="address-line1"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cc-addr1">Address line 1</label>
+            <input id="cc-addr1" type="text" formControlName="addressLine1" autocomplete="address-line1" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cc-addr2" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Address line 2</label>
-            <input id="cc-addr2" type="text" formControlName="addressLine2" autocomplete="address-line2"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          <div class="form-group">
+            <label for="cc-addr2">Address line 2</label>
+            <input id="cc-addr2" type="text" formControlName="addressLine2" autocomplete="address-line2" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cc-city" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">City</label>
-            <input id="cc-city" type="text" formControlName="city" autocomplete="address-level2"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cc-city">City</label>
+            <input id="cc-city" type="text" formControlName="city" autocomplete="address-level2" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cc-state" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">State</label>
-            <input id="cc-state" type="text" formControlName="state" autocomplete="address-level1"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          <div class="form-group">
+            <label for="cc-state">State</label>
+            <input id="cc-state" type="text" formControlName="state" autocomplete="address-level1" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cc-zip" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Postal code</label>
-            <input id="cc-zip" type="text" formControlName="postalCode" autocomplete="postal-code"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cc-zip">Postal code</label>
+            <input id="cc-zip" type="text" formControlName="postalCode" autocomplete="postal-code" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cc-country" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Country</label>
-            <select id="cc-country" formControlName="country" (change)="onCountryChange($any($event.target).value, 'create')"
-                    style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+          <div class="form-group">
+            <label for="cc-country">Country</label>
+            <select id="cc-country" formControlName="country" (change)="onCountryChange($any($event.target).value, 'create')">
               <option value="">Not specified</option>
               @for (c of countryChoices(); track c.alpha2) {
                 <option [value]="c.alpha2">{{ c.name }}</option>
               }
             </select>
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cc-tz" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Timezone</label>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cc-tz">Timezone</label>
             @if (timezoneOptions().length > 0) {
-              <select id="cc-tz" formControlName="timezone"
-                      style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+              <select id="cc-tz" formControlName="timezone">
                 @for (tz of timezoneOptions(); track tz) {
                   <option [value]="tz">{{ tz | tzLabel }}</option>
                 }
               </select>
             } @else {
-              <input id="cc-tz" type="text" formControlName="timezone" placeholder="e.g. Asia/Kuala_Lumpur"
-                     style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+              <input id="cc-tz" type="text" formControlName="timezone" placeholder="e.g. Asia/Kuala_Lumpur" />
             }
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cc-cur" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Default currency</label>
-            <select id="cc-cur" formControlName="defaultCurrencyCode"
-                    style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+          <div class="form-group">
+            <label for="cc-cur">Default currency</label>
+            <select id="cc-cur" formControlName="defaultCurrencyCode">
               <option value="">Not specified</option>
               @for (cur of accountCurrencies(); track cur.code) {
                 <option [value]="cur.code">{{ cur.code }} — {{ cur.name }}</option>
               }
             </select>
             @if (accountCurrencies().length === 0) {
-              <span style="font-size: var(--font-caption); color: #64748b;">No currencies set for your organization yet — add them under System Setup → Currencies.</span>
+              <span style="font-size: var(--font-caption); color: var(--text-muted);">No currencies set for your organization yet — add them under System Setup → Currencies.</span>
             }
           </div>
         </div>
 
-        <fieldset style="margin: var(--space-lg) 0 0; border: 1px solid #e2e8f0; border-radius: 8px; padding: var(--space-md);">
-          <legend style="font-size: var(--font-h3); font-weight: var(--weight-medium); color: #334155; padding: 0 var(--space-xs);">
+        <fieldset style="margin: var(--space-lg) 0 0; border: 1px solid var(--border); border-radius: 8px; padding: var(--space-md);">
+          <legend style="font-size: var(--font-h3); font-weight: var(--weight-medium); color: var(--text-secondary); padding: 0 var(--space-xs);">
             Modules ({{ selectedCount() }} selected)
           </legend>
 
           @if (modulesLoading()) {
-            <p style="color: #64748b; font-size: var(--font-body-2); margin: var(--space-sm) 0 0;">Loading modules…</p>
+            <p style="color: var(--text-muted); font-size: var(--font-body-2); margin: var(--space-sm) 0 0;">Loading modules…</p>
           } @else if (modules().length === 0) {
-            <p style="color: #64748b; font-size: var(--font-body-2); margin: var(--space-sm) 0 0;">No modules available.</p>
+            <p style="color: var(--text-muted); font-size: var(--font-body-2); margin: var(--space-sm) 0 0;">No modules available.</p>
           } @else {
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-sm); margin-top: var(--space-sm);">
               @for (mod of modules(); track mod.id) {
-                <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm); border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;">
+                <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
                   <input type="checkbox" [checked]="isModuleSelected(mod.id)" (change)="toggleModule(mod.id)"
                          [attr.aria-label]="'Enable module ' + mod.name">
-                  <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: #38bdf8;">{{ mod.icon || 'widgets' }}</span>
-                  <span style="font-size: var(--font-body-2); color: #1e293b;">{{ mod.name }}</span>
+                  <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: var(--brand);">{{ mod.icon || 'widgets' }}</span>
+                  <span style="font-size: var(--font-body-2); color: var(--text-primary);">{{ mod.name }}</span>
                 </label>
               }
             </div>
@@ -273,19 +271,19 @@
   <!-- ============ Edit modules dialog ============ -->
   @if (editingCompanyId(); as cid) {
     <app-dialog [title]="'Edit modules — ' + (editingCompany()?.name || '')" [busy]="savingModules()" (close)="cancelEditModules()">
-      <div style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155; margin-bottom: var(--space-sm);">
+      <div style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary); margin-bottom: var(--space-sm);">
         Modules ({{ editCount() }} selected)
       </div>
       @if (modules().length === 0) {
-        <p style="font-size: var(--font-body-2); color: #64748b; margin: 0;">No modules available.</p>
+        <p style="font-size: var(--font-body-2); color: var(--text-muted); margin: 0;">No modules available.</p>
       } @else {
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-sm);">
           @for (mod of modules(); track mod.id) {
-            <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm); border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer;">
+            <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
               <input type="checkbox" [checked]="isEditModuleSelected(mod.id)" (change)="toggleEditModule(mod.id)"
                      [attr.aria-label]="'Toggle module ' + mod.name + ' for ' + (editingCompany()?.name || 'company')">
-              <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: #38bdf8;">{{ mod.icon || 'widgets' }}</span>
-              <span style="font-size: var(--font-body-2); color: #1e293b;">{{ mod.name }}</span>
+              <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: var(--brand);">{{ mod.icon || 'widgets' }}</span>
+              <span style="font-size: var(--font-body-2); color: var(--text-primary);">{{ mod.name }}</span>
             </label>
           }
         </div>
@@ -309,15 +307,15 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this company. Leaving now will discard them."
                 (close)="cancelEditProfile()">
-      <form id="companyDetailsForm" [formGroup]="profileForm" (ngSubmit)="onSaveProfile(pid)">
+      <form id="companyDetailsForm" [formGroup]="profileForm" (ngSubmit)="onSaveProfile(pid)" class="saas-form" style="padding: 0;">
         <!-- Company logo (used on printed documents/reports). -->
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
-          <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Company logo</label>
+          <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Company logo</label>
           <div style="display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap;">
             @if (profileForm.controls.logo.value) {
-              <img [src]="profileForm.controls.logo.value" alt="Company logo preview" style="width: 64px; height: 64px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;">
+              <img [src]="profileForm.controls.logo.value" alt="Company logo preview" style="width: 64px; height: 64px; object-fit: contain; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-card);">
             } @else {
-              <div style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; border: 1px dashed #cbd5e1; border-radius: 8px; color: #64748b; font-size: var(--font-caption); flex: 0 0 auto;">No logo</div>
+              <div style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--border-strong); border-radius: 8px; color: var(--text-muted); font-size: var(--font-caption); flex: 0 0 auto;">No logo</div>
             }
             <label class="btn btn--secondary btn--sm logo-upload">
               {{ uploadingEditLogo() ? 'Uploading…' : 'Choose logo' }}
@@ -327,107 +325,107 @@
               <button type="button" class="btn btn--secondary btn--sm" (click)="removeLogo('edit')">Remove</button>
             }
           </div>
-          <span style="font-size: var(--font-caption); color: #64748b;">PNG or JPG, under 1MB.</span>
+          <span style="font-size: var(--font-caption); color: var(--text-muted);">PNG or JPG, under 1MB.</span>
         </div>
 
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cd-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Company name *</label>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cd-name">Company name <span class="required">*</span></label>
             <input id="cd-name" type="text" formControlName="name" autocomplete="organization"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                   [attr.aria-invalid]="profileForm.controls.name.touched && profileForm.controls.name.invalid" aria-describedby="cd-name-err" />
             @if (profileForm.controls.name.touched && profileForm.controls.name.invalid) {
-              <span style="color: #b91c1c; font-size: var(--font-caption);">A company name is required.</span>
+              <p id="cd-name-err" class="field-error" role="alert">A company name is required.</p>
             }
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cd-email" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Email</label>
+          <div class="form-group">
+            <label for="cd-email">Email</label>
             <input id="cd-email" type="email" formControlName="email" autocomplete="email"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                   [attr.aria-invalid]="profileForm.controls.email.touched && profileForm.controls.email.invalid" aria-describedby="cd-email-err" />
             @if (profileForm.controls.email.touched && profileForm.controls.email.invalid) {
-              <span style="color: #b91c1c; font-size: var(--font-caption);">Enter a valid email.</span>
+              <p id="cd-email-err" class="field-error" role="alert">Enter a valid email.</p>
             }
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cd-phone" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Phone</label>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cd-phone">Phone</label>
             <app-phone-input formControlName="phone" inputId="cd-phone" placeholder="Phone"></app-phone-input>
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cd-web" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Website</label>
-            <input id="cd-web" type="url" formControlName="website" placeholder="https://…"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          <div class="form-group">
+            <label for="cd-web">Website</label>
+            <input id="cd-web" type="url" formControlName="website" placeholder="https://…" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cd-reg" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Registration no.</label>
-            <input id="cd-reg" type="text" formControlName="registrationNumber"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cd-reg">Registration no.</label>
+            <input id="cd-reg" type="text" formControlName="registrationNumber" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cd-tax" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Tax registration no.</label>
-            <input id="cd-tax" type="text" formControlName="taxRegistrationNumber"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          <div class="form-group">
+            <label for="cd-tax">Tax registration no.</label>
+            <input id="cd-tax" type="text" formControlName="taxRegistrationNumber" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cd-addr1" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Address line 1</label>
-            <input id="cd-addr1" type="text" formControlName="addressLine1" autocomplete="address-line1"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cd-addr1">Address line 1</label>
+            <input id="cd-addr1" type="text" formControlName="addressLine1" autocomplete="address-line1" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cd-addr2" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Address line 2</label>
-            <input id="cd-addr2" type="text" formControlName="addressLine2" autocomplete="address-line2"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          <div class="form-group">
+            <label for="cd-addr2">Address line 2</label>
+            <input id="cd-addr2" type="text" formControlName="addressLine2" autocomplete="address-line2" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cd-city" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">City</label>
-            <input id="cd-city" type="text" formControlName="city" autocomplete="address-level2"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cd-city">City</label>
+            <input id="cd-city" type="text" formControlName="city" autocomplete="address-level2" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cd-state" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">State</label>
-            <input id="cd-state" type="text" formControlName="state" autocomplete="address-level1"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+          <div class="form-group">
+            <label for="cd-state">State</label>
+            <input id="cd-state" type="text" formControlName="state" autocomplete="address-level1" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cd-zip" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Postal code</label>
-            <input id="cd-zip" type="text" formControlName="postalCode" autocomplete="postal-code"
-                   style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cd-zip">Postal code</label>
+            <input id="cd-zip" type="text" formControlName="postalCode" autocomplete="postal-code" />
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cd-country" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Country</label>
-            <select id="cd-country" formControlName="country" (change)="onCountryChange($any($event.target).value, 'edit')"
-                    style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+          <div class="form-group">
+            <label for="cd-country">Country</label>
+            <select id="cd-country" formControlName="country" (change)="onCountryChange($any($event.target).value, 'edit')">
               <option value="">Not specified</option>
               @for (c of countryChoices(); track c.alpha2) {
                 <option [value]="c.alpha2">{{ c.name }}</option>
               }
             </select>
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cd-tz" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Timezone</label>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cd-tz">Timezone</label>
             @if (timezoneOptions().length > 0) {
               <!-- Known country: pick from its timezones (shows all zones + UTC offset). -->
-              <select id="cd-tz" formControlName="timezone"
-                      style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+              <select id="cd-tz" formControlName="timezone">
                 @for (tz of timezoneOptions(); track tz) {
                   <option [value]="tz">{{ tz | tzLabel }}</option>
                 }
               </select>
             } @else {
               <!-- Unknown / free-typed country: keep the timezone free-text. -->
-              <input id="cd-tz" type="text" formControlName="timezone" placeholder="e.g. Asia/Kuala_Lumpur"
-                     style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+              <input id="cd-tz" type="text" formControlName="timezone" placeholder="e.g. Asia/Kuala_Lumpur" />
             }
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-            <label for="cd-cur" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Default currency</label>
-            <select id="cd-cur" formControlName="defaultCurrencyCode"
-                    style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+          <div class="form-group">
+            <label for="cd-cur">Default currency</label>
+            <select id="cd-cur" formControlName="defaultCurrencyCode">
               <option value="">Not specified</option>
               @for (cur of accountCurrencies(); track cur.code) {
                 <option [value]="cur.code">{{ cur.code }} — {{ cur.name }}</option>
               }
             </select>
             @if (accountCurrencies().length === 0) {
-              <span style="font-size: var(--font-caption); color: #64748b;">No currencies set for your organization yet — add them under System Setup → Currencies.</span>
+              <span style="font-size: var(--font-caption); color: var(--text-muted);">No currencies set for your organization yet — add them under System Setup → Currencies.</span>
             }
           </div>
         </div>

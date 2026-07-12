@@ -28,14 +28,14 @@ textarea {
    the `[aria-invalid]` rule tints the field itself once it's been touched.
    #b91c1c on white is >= 4.5:1 (WCAG AA). */
 .field-error {
-  color: #b91c1c;
+  color: var(--danger-text);
   font-size: var(--font-body-2);
   margin-top: var(--space-xs);
 }
 input[aria-invalid='true'],
 select[aria-invalid='true'],
 textarea[aria-invalid='true'] {
-  border-color: #b91c1c;
+  border-color: var(--danger-text);
 }
 
 /* ============================================================== */
@@ -71,11 +71,340 @@ textarea[aria-invalid='true'] {
 }
 
 /* ============================================================== */
+/* Colour tokens — SEMANTIC, theme-aware (spike: dark mode).      */
+/* Reference these instead of hard-coding hex, so light + dark    */
+/* both flow from one source. Light values equal the current      */
+/* palette, so light mode is unchanged. The active theme is set   */
+/* by ThemeService via `data-theme` on <html> (System resolves to */
+/* the OS preference). See docs → Forms/Theming.                  */
+/* ============================================================== */
+:root {
+  color-scheme: light;
+  --surface-page: #f8f9fa;   /* app/content background */
+  --surface-card: #ffffff;   /* cards, dialogs, panels, inputs on white */
+  --surface-sunken: #f1f5f9; /* subtle fills, hover rows */
+  --surface-input: #fafafa;  /* form input background (admin screens) */
+  --surface-hover: #f1f3f4;  /* nav/list hover */
+
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;     /* AA on white; lightest grey allowed for text */
+  --text-on-brand: #ffffff;
+
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  --brand: #2563eb;          /* primary button fill */
+  --brand-hover: #1d4ed8;
+  --brand-text: #1d4ed8;     /* brand-coloured text/links (AA on light) */
+
+  --danger-text: #b91c1c;
+  --danger-border: #fecaca;
+  --danger-surface: #fef2f2;
+  --success-text: #166534;
+  --success-surface: #dcfce7;
+  --success-border: #bbf7d0;
+  --chip-off-surface: #f1f5f9;
+  --chip-off-text: #64748b;
+
+  --focus-ring: #1a73e8;
+  --overlay: rgba(15, 23, 42, 0.55);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark; /* darkens native scrollbars / date pickers / etc. */
+  --surface-page: #0f141c;
+  --surface-card: #1a212e;
+  --surface-sunken: #232c3b;
+  --surface-input: #202836;
+  --surface-hover: #232c3b;
+
+  --text-primary: #e6e9ee;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;     /* ~5:1 on the dark card — AA */
+  --text-on-brand: #ffffff;
+
+  --border: #2b3648;
+  --border-strong: #3a4658;
+
+  --brand: #3b82f6;
+  --brand-hover: #60a5fa;
+  --brand-text: #7fb0ff;     /* brand text/links on dark (AA) */
+
+  --danger-text: #f87171;
+  --danger-border: #7f1d1d;
+  --danger-surface: #2a1416;
+  --success-text: #4ade80;
+  --success-surface: #14321f;
+  --success-border: #14532d;
+  --chip-off-surface: #232c3b;
+  --chip-off-text: #94a3b8;
+
+  --focus-ring: #60a5fa;
+  --overlay: rgba(0, 0, 0, 0.6);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Base page colours from tokens (prevents white flashes; themes login/register
+   and any screen that hasn't set its own background). */
+body {
+  background: var(--surface-page);
+  color: var(--text-primary);
+}
+
+/* ============================================================== */
+/* Listing-card standard — the ONE card system for every record   */
+/* list (Companies, Users, Tax, Membership, …). Global + theme-    */
+/* aware so screens don't hand-roll their own card classes. See    */
+/* docs/project-overview.md → "Data listings". Compose:            */
+/*   <ul class="data-list"> <li class="data-card">                 */
+/*     <div class="data-row data-row--with-badge">                 */
+/*       <div class="data-row__main"> title / subline / meta </div>*/
+/*       <span class="data-row__badge status-chip status-chip--on">*/
+/*       <div class="data-row__actions"> …buttons… </div>          */
+/* (These primitives also still exist scoped inside system-setup.  */
+/* css for the admin screens that import it; that copy is pending   */
+/* removal now that the canonical definition lives here.)          */
+/* ============================================================== */
+.data-list {
+  /* Reset so it's safe on a semantic <ul> (no bullets/indent), not just a <div>. */
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--space-lg); /* bottom breathing room; no horizontal inset — flush to the gutter */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.data-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: var(--space-md);
+}
+
+.data-card__title {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+/* Free-text subtitle under a title (e.g. a role description) — no caption. */
+.data-card__desc {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+/* Secondary identity line: short text + chips (e.g. "(REG-123) MYR"); wraps. */
+.data-card__subline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+.data-card__reg {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+/* Section title above a card list (e.g. "Your companies"). */
+.section-heading {
+  margin: var(--space-lg) 0 var(--space-sm);
+  font-size: var(--font-h2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.data-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-lg);
+  margin: var(--space-sm) 0 0;
+}
+.data-card__meta .meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+.data-card__meta dt {
+  margin: 0;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+}
+.data-card__meta dd {
+  margin: 0;
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+/* Content + action row: actions right on desktop, full-width below on mobile. */
+.data-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "main actions";
+  align-items: start;
+  gap: var(--space-sm);
+}
+.data-row__main { grid-area: main; min-width: 0; }
+.data-row__actions {
+  grid-area: actions;
+  justify-self: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .data-row {
+    grid-template-columns: 1fr;
+    grid-template-areas: "main" "actions";
+  }
+  .data-row__actions { justify-self: start; }
+}
+
+/* Status-chip variant: badge pinned TOP-RIGHT, actions bottom-right (desktop) /
+   full-width below (mobile, badge stays top-right). Compose:
+   class="data-row data-row--with-badge". */
+.data-row--with-badge {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "main  badge"
+    "main  actions";
+  column-gap: var(--space-md);
+  row-gap: var(--space-sm);
+}
+.data-row__badge { grid-area: badge; justify-self: end; align-self: start; white-space: nowrap; }
+.data-row--with-badge .data-row__actions { align-self: end; }
+
+@media (max-width: 767px) {
+  .data-row--with-badge {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "main     badge"
+      "actions  actions";
+  }
+  .data-row--with-badge .data-row__actions { justify-self: start; }
+}
+
+/* Status chip — the compact overline pill (active / inactive / disabled), pinned
+   top-right in a .data-row--with-badge. App-wide standard, theme-aware.
+   Compose: class="status-chip status-chip--on|--off". */
+.status-chip {
+  display: inline-block;
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 12px;
+  white-space: nowrap;
+}
+.status-chip--on {
+  background: var(--success-surface);
+  color: var(--success-text);
+}
+.status-chip--off {
+  background: var(--chip-off-surface);
+  color: var(--chip-off-text);
+}
+
+/* ============================================================== */
+/* Form-field standard — the ONE styling for every New/Edit form   */
+/* field (dialogs + inline forms). Global + theme-aware so every    */
+/* form looks identical in light and dark; do NOT inline-style      */
+/* inputs per screen. Compose:                                      */
+/*   <form class="saas-form"> <div class="form-row">                */
+/*     <div class="form-group">                                     */
+/*       <label for="x">Name <span class="required">*</span></label>*/
+/*       <input id="x" formControlName="name"> …                    */
+/* (Still duplicated scoped in system-setup.css for the admin       */
+/* screens that import it; that copy is pending removal.)           */
+/* ============================================================== */
+.saas-form { padding: 0 var(--space-lg) var(--space-lg); }
+
+.form-row {
+  display: grid;
+  /* minmax(0, 1fr), not 1fr: a bare 1fr floors at min-content, so a long
+     <option> could blow the track out and overflow the card. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
+}
+@media (max-width: 600px) {
+  .form-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.form-group label {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xs);
+}
+.required {
+  color: var(--danger-text);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font-size: var(--font-body);
+  font-family: inherit;
+  color: var(--text-primary);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: var(--surface-input);
+}
+.form-group textarea {
+  resize: vertical;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  background: var(--surface-card);
+}
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--text-muted);
+}
+.form-group input[aria-invalid='true'],
+.form-group select[aria-invalid='true'],
+.form-group textarea[aria-invalid='true'] {
+  border-color: var(--danger-text);
+  background: var(--danger-surface);
+}
+
+/* ============================================================== */
 /* Accessibility: visible keyboard focus (WCAG 2.4.7)             */
 /* Shown only for keyboard navigation, not mouse clicks.          */
 /* ============================================================== */
 :focus-visible {
-  outline: 2px solid #1a73e8;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -133,41 +462,41 @@ textarea[aria-invalid='true'] {
 
 /* Primary — the main call to action. */
 .btn--primary {
-  background: #2563eb;
-  color: #fff;
-  border-color: #2563eb;
+  background: var(--brand);
+  color: var(--text-on-brand);
+  border-color: var(--brand);
 }
 .btn--primary:hover:not(:disabled) {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
 }
 
 /* Secondary — bordered, lower emphasis (e.g. Edit, Cancel). */
 .btn--secondary {
-  background: #fff;
-  color: #1d4ed8; /* 6.5:1 on white — passes AA */
-  border-color: #cbd5e1;
+  background: var(--surface-card);
+  color: var(--brand-text); /* AA on the card in both themes */
+  border-color: var(--border-strong);
 }
 .btn--secondary:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: #94a3b8;
+  background: var(--surface-sunken);
+  border-color: var(--text-muted);
 }
 
 /* Danger — destructive actions (Delete, Revoke, Remove). */
 .btn--danger {
-  background: #fff;
-  color: #b91c1c; /* 6.4:1 on white — passes AA */
-  border-color: #fecaca;
+  background: var(--surface-card);
+  color: var(--danger-text); /* AA on the card in both themes */
+  border-color: var(--danger-border);
 }
 .btn--danger:hover:not(:disabled) {
-  background: #fef2f2;
-  border-color: #fca5a5;
+  background: var(--danger-surface);
+  border-color: var(--danger-text);
 }
 
 /* Link — looks like inline text but keeps the 44px target + a11y. */
 .btn--link {
   background: transparent;
-  color: #1d4ed8;
+  color: var(--brand-text);
   border-color: transparent;
   border-radius: 6px;
   padding: var(--space-xs) var(--space-sm);

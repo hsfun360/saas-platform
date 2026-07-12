@@ -9,15 +9,15 @@
     <div class="loading-state"><div class="spinner large"></div><p>Loading template…</p></div>
   } @else {
     <div class="et-head">
-      <h1 style="margin: 0; font-size: var(--font-h1); color: #1e293b;">{{ name() }}</h1>
+      <h1 style="margin: 0; font-size: var(--font-h1); color: var(--text-primary);">{{ name() }}</h1>
       @if (hasOverride()) {
-        <span class="badge" style="background:#dcfce7; color:#166534;">Custom</span>
+        <span class="badge" style="background:var(--success-surface); color:var(--success-text);">Custom</span>
       } @else {
-        <span class="badge" style="background:#f1f5f9; color:#475569;">Platform default</span>
+        <span class="badge" style="background:var(--chip-off-surface); color:var(--text-secondary);">Platform default</span>
       }
     </div>
     @if (description()) {
-      <p style="color: #64748b; font-size: var(--font-body-2); margin: var(--space-xs) 0 var(--space-md);">{{ description() }}</p>
+      <p style="color: var(--text-muted); font-size: var(--font-body-2); margin: var(--space-xs) 0 var(--space-md);">{{ description() }}</p>
     }
 
     @if (!hasOverride()) {

@@ -14,11 +14,11 @@ import { ActiveSystemService } from '../services/active-system.service';
                 align-items: center; text-align: center;">
       <span class="material-icons" aria-hidden="true"
             style="font-size: 64px; width: 64px; height: 64px; display: inline-flex; align-items: center;
-                   justify-content: center; overflow: hidden; color: #b91c1c;">lock</span>
+                   justify-content: center; overflow: hidden; color: var(--danger-text);">lock</span>
 
-      <h1 style="margin: var(--space-md) 0 0; font-size: var(--font-h1); color: #0f172a;">Access denied</h1>
+      <h1 style="margin: var(--space-md) 0 0; font-size: var(--font-h1); color: var(--text-primary);">Access denied</h1>
 
-      <p style="margin: var(--space-sm) 0 var(--space-lg); font-size: var(--font-body); color: #475569; max-width: 460px;">
+      <p style="margin: var(--space-sm) 0 var(--space-lg); font-size: var(--font-body); color: var(--text-secondary); max-width: 460px;">
         You don't have access to this area. If you think this is a mistake, ask your administrator
         to grant you the relevant role or module.
       </p>

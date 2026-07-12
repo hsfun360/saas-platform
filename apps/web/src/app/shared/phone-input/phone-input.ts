@@ -35,37 +35,42 @@ import { COUNTRY_CODES } from '../country-codes';
   styles: [`
     :host { display: block; }
     .phone-field { display: flex; gap: var(--space-sm); width: 100%; min-width: 0; }
+    /* width is set explicitly so an ancestor .form-group select / .form-group
+       input (the global form standard) can't stretch the code select to full
+       width and collapse the number field. */
     .phone-field__code {
       flex: 0 0 auto;
+      width: auto;
       box-sizing: border-box;
       min-height: 44px;
       padding: var(--space-sm);
       font-size: var(--font-body);
-      color: #3730a3;
-      background: #eef2ff;
-      border: 1px solid #c7d2fe;
+      color: var(--text-primary);
+      background: var(--surface-sunken);
+      border: 1px solid var(--border-strong);
       border-radius: 8px;
       cursor: pointer;
     }
     .phone-field__number {
-      flex: 1;
+      flex: 1 1 auto;
+      width: auto;
       min-width: 0;
       box-sizing: border-box;
       min-height: 44px;
       padding: var(--space-sm) var(--space-md);
       font-size: var(--font-body);
-      color: #1e293b;
-      background: #fff;
-      border: 1px solid #cbd5e1;
+      color: var(--text-primary);
+      background: var(--surface-input);
+      border: 1px solid var(--border-strong);
       border-radius: 8px;
     }
     .phone-field__code:focus, .phone-field__number:focus {
       outline: none;
-      border-color: #3b82f6;
+      border-color: var(--brand);
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
     }
     .phone-field__code:disabled, .phone-field__number:disabled {
-      background: #f1f5f9;
+      background: var(--surface-sunken);
       cursor: not-allowed;
     }
   `],
@@ -131,3 +136,4 @@ export class PhoneInputComponent implements ControlValueAccessor {
     this.onChangeFn(n ? `${this.code()}${n}` : '');
   }
 }
+

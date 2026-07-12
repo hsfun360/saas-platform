@@ -4,7 +4,7 @@
   display: block;
   margin-top: var(--space-xs);
   font-size: var(--font-body-2);
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 /* Allow-installment checkbox aligned with the amount field. */
@@ -26,8 +26,9 @@
 .mf-schedule {
   margin-top: var(--space-md);
   padding: var(--space-md);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 10px;
+  background: var(--surface-card);
 }
 
 .mf-schedule__head {
@@ -41,7 +42,7 @@
 
 .mf-schedule__title {
   font-weight: var(--weight-semibold);
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .mf-stages {
@@ -59,7 +60,7 @@
 
 .mf-stage__no {
   font-size: var(--font-body-2);
-  color: #475569;
+  color: var(--text-secondary);
 }
 
 .mf-stage__amt {
@@ -73,20 +74,20 @@
   flex-wrap: wrap;
   margin-top: var(--space-sm);
   padding-top: var(--space-sm);
-  border-top: 1px dashed #e2e8f0;
+  border-top: 1px dashed var(--border);
   font-size: var(--font-body-2);
 }
 
 .mf-total__ok {
-  color: #16a34a;
+  color: var(--success-text);
   font-weight: var(--weight-semibold);
 }
 
 .mf-total__warn {
-  color: #b91c1c;
+  color: var(--danger-text);
   font-weight: var(--weight-semibold);
 }
 
 .mf-total--bad {
-  color: #b91c1c;
+  color: var(--danger-text);
 }

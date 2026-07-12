@@ -16,12 +16,13 @@
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 8px;
+  background: var(--surface-card);
   cursor: pointer;
 }
 .tx-load-item--off {
-  background: #f8fafc;
+  background: var(--surface-sunken);
   cursor: default;
 }
 .tx-load-item input[type='checkbox'] {
@@ -42,19 +43,19 @@
 }
 .tx-load-item__title {
   font-weight: var(--weight-semibold);
-  color: #1e293b;
+  color: var(--text-primary);
 }
 .tx-load-item__sub {
   font-size: var(--font-body-2);
-  color: #475569;
+  color: var(--text-secondary);
 }
 .tx-load-item__tag {
   font-size: var(--font-overline);
   font-weight: var(--weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #64748b;
-  background: #f1f5f9;
+  color: var(--text-muted);
+  background: var(--surface-sunken);
   padding: var(--space-xs) var(--space-sm);
   border-radius: 12px;
   white-space: nowrap;
@@ -106,9 +107,9 @@
   align-items: start;
   gap: var(--space-xs) var(--space-sm);
   padding: var(--space-xs) var(--space-sm);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface-card);
 }
 
 .tx-row--active {
@@ -158,12 +159,12 @@
 .tx-row__title {
   font-size: var(--font-body);
   font-weight: var(--weight-semibold);
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .tx-row__sub {
   font-size: var(--font-body-2);
-  color: #475569;
+  color: var(--text-secondary);
   margin-top: var(--space-xs);
 }
 
@@ -187,12 +188,12 @@
   white-space: nowrap;
 }
 .tx-status--on {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--success-surface);
+  color: var(--success-text);
 }
 .tx-status--off {
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--chip-off-surface);
+  color: var(--chip-off-text);
 }
 
 /* New-scheme FAB — pinned bottom-right, below shell drawer(1000)/backdrop(999)/header(1100). */
@@ -225,11 +226,11 @@
 
 /* ---- Detail: selected scheme ---- */
 .tx-card {
-  background: #fff;
+  background: var(--surface-card);
   padding: var(--space-lg);
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   min-width: 0;
 }
 
@@ -287,17 +288,17 @@
   font-size: var(--font-caption);
   font-weight: var(--weight-bold);
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--text-muted);
 }
 .tx-meta dd {
   font-size: var(--font-body-2);
-  color: #1e293b;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .tx-desc {
   margin: var(--space-sm) 0 0;
-  color: #475569;
+  color: var(--text-secondary);
   font-size: var(--font-body-2);
 }
 
@@ -315,7 +316,7 @@
 }
 
 .tx-hint {
-  color: #64748b;
+  color: var(--text-muted);
   font-size: var(--font-body-2);
   margin: var(--space-xs) 0 var(--space-md);
 }
@@ -338,11 +339,12 @@
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 8px;
+  background: var(--surface-card);
 }
 .tx-rate-row--off {
-  background: #f8fafc;
+  background: var(--surface-sunken);
   opacity: 0.75;
 }
 
@@ -356,7 +358,7 @@
 }
 .tx-rate-code {
   font-weight: var(--weight-bold);
-  color: #0f172a;
+  color: var(--text-primary);
 }
 .tx-rate-pct {
   font-weight: var(--weight-semibold);
@@ -364,7 +366,7 @@
 }
 .tx-rate-eff {
   font-size: var(--font-caption);
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .tx-rate-tags {
@@ -376,18 +378,18 @@
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
   font-size: var(--font-caption);
   white-space: nowrap;
 }
 .tx-tag--claim {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--success-surface);
+  color: var(--success-text);
 }
 .tx-tag--off {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--danger-surface);
+  color: var(--danger-text);
 }
 
 .tx-rate-actions {
@@ -415,7 +417,7 @@
   gap: var(--space-sm);
   cursor: pointer;
   font-size: var(--font-body-2);
-  color: #1e293b;
+  color: var(--text-primary);
 }
 .tx-check input[type='checkbox'] {
   width: 18px;

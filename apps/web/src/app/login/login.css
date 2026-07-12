@@ -4,12 +4,12 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: #f8f9fa; /* Light grey background */
+  background-color: var(--surface-page); /* app/content background */
   font-family: Arial, sans-serif;
 }
 
 .login-card {
-  background: white;
+  background: var(--surface-card);
   padding: var(--space-xl);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -22,7 +22,7 @@
   font-size: var(--font-h1);
   font-weight: var(--weight-bold);
   margin-bottom: var(--space-lg);
-  color: #000;
+  color: var(--text-primary);
 }
 
 /* Form Elements */
@@ -34,21 +34,23 @@ label {
   display: block;
   font-weight: var(--weight-bold);
   margin-bottom: var(--space-sm);
-  color: #000;
+  color: var(--text-primary);
 }
 
 .form-control {
   width: 100%;
   padding: var(--space-sm);
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-strong);
   border-radius: 4px;
   font-size: var(--font-body);
   box-sizing: border-box;
+  background: var(--surface-input);
+  color: var(--text-primary);
 }
 
 .form-control:focus {
   outline: none;
-  border-color: #0d6efd;
+  border-color: var(--brand);
 }
 
 /* Password Input & Toggle */
@@ -63,7 +65,7 @@ label {
   right: 10px;
   background: none;
   border: none;
-  color: #0d6efd;
+  color: var(--brand-text);
   font-weight: var(--weight-bold);
   font-size: var(--font-caption);
   cursor: pointer;
@@ -77,7 +79,7 @@ label {
 }
 
 .forgot-password-link {
-  color: #0d6efd;
+  color: var(--brand-text);
   text-decoration: none;
   font-size: var(--font-body-2);
 }
@@ -90,8 +92,8 @@ label {
 .btn-primary {
   width: 100%;
   padding: var(--space-sm);
-  background-color: #0d6efd;
-  color: white;
+  background-color: var(--brand);
+  color: var(--text-on-brand);
   border: none;
   border-radius: 4px;
   font-size: var(--font-body);
@@ -102,7 +104,7 @@ label {
 }
 
 .btn-primary:hover {
-  background-color: #0b5ed7;
+  background-color: var(--brand-hover);
 }
 
 .btn-primary:disabled {
@@ -115,7 +117,7 @@ label {
   display: flex;
   align-items: center;
   text-align: center;
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: var(--font-caption);
   margin-bottom: var(--space-lg);
 }
@@ -123,7 +125,7 @@ label {
 .divider::before, .divider::after {
   content: '';
   flex: 1;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border);
 }
 
 .divider span {
@@ -148,7 +150,7 @@ label {
   font-size: var(--font-body);
   font-weight: var(--weight-medium);
   cursor: pointer;
-  background-color: #f8f9fa;
+  background-color: var(--surface-sunken);
   transition: background-color 0.2s;
 }
 
@@ -159,21 +161,21 @@ label {
 }
 
 .btn-google {
-  border: 1px solid #e0e0e0;
-  color: #3c4043;
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
 }
 
 .btn-google:hover {
-  background-color: #f1f3f4;
+  background-color: var(--border);
 }
 
 .btn-microsoft {
-  border: 1px solid #000; /* Darker border matching your image */
-  color: #000;
+  border: 1px solid var(--border-strong); /* legible in both themes */
+  color: var(--text-primary);
 }
 
 .btn-microsoft:hover {
-  background-color: #e2e2e2;
+  background-color: var(--border);
 }
 
 /* SSO "Signing you in…" overlay — sits ON TOP of the login page with a
@@ -195,9 +197,9 @@ label {
 .sso-panel {
   width: 100%;
   max-width: 300px; /* compact — not full width on mobile */
-  background: #fff;
+  background: var(--surface-card);
   border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+  box-shadow: var(--shadow);
   padding: var(--space-xl) var(--space-lg);
   text-align: center;
   animation: sso-pop 0.25s ease-out;
@@ -211,8 +213,8 @@ label {
   width: 40px;
   height: 40px;
   margin: 0 auto var(--space-md);
-  border: 4px solid #e2e8f0;
-  border-top-color: #0d6efd;
+  border: 4px solid var(--border);
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: sso-spin 0.8s linear infinite;
 }
@@ -220,19 +222,19 @@ label {
 .sso-panel__title {
   font-size: var(--font-h2);
   font-weight: var(--weight-bold);
-  color: #0f172a;
+  color: var(--text-primary);
   margin: 0 0 var(--space-xs);
 }
 
 .sso-panel__sub {
   margin: 0;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: var(--font-body-2);
 }
 
 .sso-panel__error {
   margin: var(--space-md) 0 0;
-  color: #b91c1c;
+  color: var(--danger-text);
   font-size: var(--font-body-2);
 }
 
@@ -241,10 +243,10 @@ label {
 .login-error {
   margin-bottom: var(--space-md);
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid #fecaca;
+  border: 1px solid var(--danger-border);
   border-radius: 8px;
-  background: #fef2f2;
-  color: #991b1b;
+  background: var(--danger-surface);
+  color: var(--danger-text);
   font-size: var(--font-body-2);
 }
 
@@ -268,7 +270,7 @@ label {
 }
 
 .register-row a {
-  color: #0d6efd;
+  color: var(--brand-text);
   text-decoration: none;
   font-weight: var(--weight-bold);
 }

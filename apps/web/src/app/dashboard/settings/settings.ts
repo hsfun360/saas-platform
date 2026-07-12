@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractContro
 import { AuthService } from '../../auth.service'; // Double check this path!
 import { TitleCasePipe } from '@angular/common'; // Needed for the {{ authMethod | titlecase }}
 import { LanguageService } from '../../services/language.service';
+import { ThemeService } from '../../services/theme.service';
 import { I18nService } from '../../i18n/i18n.service';
 import { TranslatePipe } from '../../i18n/translate.pipe';
 import { Language } from '../../models/auth.models';
@@ -29,6 +30,8 @@ export function passwordMatchValidator(control: AbstractControl): ValidationErro
 export class SettingsComponent implements OnInit {
   private readonly languageService = inject(LanguageService);
   private readonly i18n = inject(I18nService);
+  // Public so the template can read the current mode and switch it.
+  readonly theme = inject(ThemeService);
 
   // 1. The variables we need for the new UI
   authMethod: string = 'local';
@@ -43,8 +46,8 @@ export class SettingsComponent implements OnInit {
   // 👇 1. Add this variable to track if General Settings is open (default to true)
   isGeneralSettingsExpanded: boolean = true;
 
+  // Theme now lives in ThemeService; these two remain here (placeholder prefs).
   settings = {
-    darkMode: false,
     emailNotifications: true,
     compactView: false
   };
@@ -103,11 +106,6 @@ export class SettingsComponent implements OnInit {
   toggleSetting(key: keyof typeof this.settings) {
     this.settings[key] = !this.settings[key];
     localStorage.setItem('appSettings', JSON.stringify(this.settings));
-    
-    // If it's Dark Mode, we can apply a class to the body
-    if (key === 'darkMode') {
-      document.body.classList.toggle('dark-theme', this.settings.darkMode);
-    }
   }
 
   onChangePassword() {

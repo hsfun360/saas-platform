@@ -365,19 +365,26 @@ mobile. No horizontal scroll, reads well at every width.
 </div>
 ```
 
-```css
-.data-list { display: flex; flex-direction: column; gap: var(--space-sm); }
-.data-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: var(--space-md); }
-.data-card__title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: #1e293b; word-break: break-word; }
-.data-card__meta { display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-lg); margin-top: var(--space-sm); }
-.data-card__meta .meta { display: flex; align-items: baseline; gap: var(--space-xs); min-width: 0; }
-.data-card__meta dt { font-size: var(--font-caption); font-weight: var(--weight-bold); text-transform: uppercase; color: #64748b; }
-.data-card__meta dd { font-size: var(--font-body-2); color: #1e293b; word-break: break-word; margin: 0; }
-```
+These primitives are defined **globally and theme-aware in `styles.css`** - their colours use
+the semantic tokens, so every listing card renders correctly in light **and** dark with no
+per-screen work.
+Compose the shared classes; do **not** hand-roll `.your-screen-card` CSS (that is exactly what
+left the Companies screen unthemed until it was migrated).
 
-Reference implementation: `system-setup.html` / `system-setup.css` (`.data-list`,
-`.data-card*`, with the Subscribers card combining `.data-row` actions + an expanding
-`.admin-panel`).
+- `.data-list` - the list wrapper.
+- `.data-card` - each record card (surface + border from tokens).
+- `.data-card__title` / `.data-card__subline` (+ `.data-card__reg` for the muted parenthetical) /
+  `.data-card__desc` / `.data-card__meta` (`dt`/`dd`) - the content.
+- `.data-row` + `.data-row--with-badge` (with `.data-row__main` / `__badge` / `__actions`) -
+  the content + status + actions grid.
+- `.status-chip` + `.status-chip--on` / `--off` - the compact top-right status pill (green =
+  on, grey = off), replacing per-screen badge classes and inline colours.
+
+Reference implementation: **`companies.html`** - the canonical listing, which composes these
+shared global classes directly (`.data-list` → `.data-card` → `.data-row--with-badge` →
+`.status-chip`). `system-setup.html` is a second example. Copy this for new listings.
+(The same primitives still exist scoped inside `system-setup.css` for the admin screens that
+import it; that duplicate copy is being removed now that the canonical definition is global.)
 
 **Keep cards compact - roughly three lines of info.** A record card reads best as a
 short stack, not a wall of label/value pairs. The standard shape:

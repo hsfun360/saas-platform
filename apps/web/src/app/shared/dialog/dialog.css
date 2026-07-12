@@ -1,10 +1,11 @@
 /* Overlay covers the whole viewport, above the shell header (1100), drawer
-   (1000) and backdrop (999). Centres the panel on desktop. */
+   (1000) and backdrop (999). Centres the panel on desktop. Colours reference the
+   semantic theme tokens (styles.css) so the dialog works in light and dark. */
 .dlg-overlay {
   position: fixed;
   inset: 0;
   z-index: 1200;
-  background: rgba(15, 23, 42, 0.55);
+  background: var(--overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -15,7 +16,7 @@
    position: relative anchors the discard-confirmation overlay to the panel. */
 .dlg {
   position: relative;
-  background: white;
+  background: var(--surface-card);
   border-radius: 12px;
   width: 100%;
   max-width: 640px;
@@ -23,7 +24,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow);
 }
 
 .dlg__header {
@@ -32,7 +33,7 @@
   justify-content: space-between;
   gap: var(--space-md);
   padding: var(--space-lg);
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -40,7 +41,7 @@
   margin: 0;
   font-size: var(--font-h2);
   font-weight: var(--weight-semibold);
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .dlg__close {
@@ -52,12 +53,12 @@
   border: none;
   background: transparent;
   border-radius: 50%;
-  color: #475569;
+  color: var(--text-secondary);
   cursor: pointer;
   flex-shrink: 0;
 }
 .dlg__close:hover {
-  background: #f1f5f9;
+  background: var(--surface-sunken);
 }
 
 .dlg__body {
@@ -78,8 +79,8 @@
   flex-wrap: nowrap;
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
-  border-top: 1px solid #e2e8f0;
-  background: white;
+  border-top: 1px solid var(--border);
+  background: var(--surface-card);
 }
 
 /* Discard-changes confirmation — a small card layered over the whole panel so
@@ -92,26 +93,26 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-lg);
-  background: rgba(15, 23, 42, 0.55);
+  background: var(--overlay);
 }
 .dlg__confirm-card {
   width: 100%;
   max-width: 400px;
-  background: white;
+  background: var(--surface-card);
   border-radius: 12px;
   padding: var(--space-lg);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow);
 }
 .dlg__confirm-title {
   margin: 0 0 var(--space-sm);
   font-size: var(--font-h3);
   font-weight: var(--weight-semibold);
-  color: #1e293b;
+  color: var(--text-primary);
 }
 .dlg__confirm-msg {
   margin: 0 0 var(--space-lg);
   font-size: var(--font-body-2);
-  color: #475569;
+  color: var(--text-secondary);
 }
 .dlg__confirm-actions {
   display: flex;

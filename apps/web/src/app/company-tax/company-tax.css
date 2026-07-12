@@ -2,7 +2,7 @@
 
 /* Dim a disabled scheme's card so the enabled ones read first. */
 .ct-card--off {
-  background: #f8fafc;
+  background: var(--surface-sunken);
 }
 
 /* Component chips shown on each scheme card. */
@@ -17,28 +17,28 @@
   align-items: center;
   gap: var(--space-xs);
   padding: 2px 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: #fff;
+  background: var(--surface-card);
   font-size: var(--font-caption);
 }
 .ct-chip__code {
   font-weight: var(--weight-bold);
-  color: #0f172a;
+  color: var(--text-primary);
 }
 .ct-chip__rate {
   font-weight: var(--weight-semibold);
-  color: #0284c7;
+  color: #0284c7; /* sky-blue rate accent — no matching semantic token, left as-is */
 }
 .ct-chip__gl {
-  color: #475569;
+  color: var(--text-secondary);
 }
 .ct-chip__gl--override {
-  color: #166534;
+  color: var(--success-text);
   font-weight: var(--weight-semibold);
 }
 .ct-chip__gl--none {
-  color: #94a3b8;
+  color: #94a3b8; /* muted "no GL" placeholder — not a token light value, left as-is */
 }
 
 /* Enable checkbox in the editor. */
@@ -48,7 +48,7 @@
   gap: var(--space-sm);
   cursor: pointer;
   font-size: var(--font-body-2);
-  color: #1e293b;
+  color: var(--text-primary);
   min-height: 44px;
 }
 .ct-check input[type='checkbox'] {
@@ -79,9 +79,11 @@
   box-sizing: border-box;
   min-height: 44px;
   padding: var(--space-sm);
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   font-size: var(--font-body);
+  background: var(--surface-card);
+  color: var(--text-primary);
 }
 
 @media (max-width: 767px) {

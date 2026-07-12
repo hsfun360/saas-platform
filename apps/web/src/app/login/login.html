@@ -1,13 +1,13 @@
 @if (isWorkspaceSelection) {
   <div style="text-align: center;">
     <h3 style="margin-bottom: var(--space-lg);">Select Workspace</h3>
-    <p style="color: #64748b; margin-bottom: var(--space-lg);">Which account are you logging into today?</p>
+    <p style="color: var(--text-muted); margin-bottom: var(--space-lg);">Which account are you logging into today?</p>
 
     <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
       @for (club of availableWorkspaces; track club.companyId) {
         <button (click)="selectWorkspace(club.companyId)" [disabled]="loading"
-                style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; background: white; cursor: pointer; font-weight: var(--weight-bold); color: #1e293b; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
-          <span class="material-icons" style="margin-right: var(--space-sm); color: #0284c7;">
+                style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface-card); cursor: pointer; font-weight: var(--weight-bold); color: var(--text-primary); display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+          <span class="material-icons" style="margin-right: var(--space-sm); color: var(--brand-text);">
             {{ club.companyId === 'SYSTEM' ? 'admin_panel_settings' : 'business' }}
           </span>
           {{ club.companyName }}
@@ -20,11 +20,11 @@
   <div class="login-card">
 
     <!-- Pre-login language switcher -->
-    <div style="display: flex; justify-content: flex-end; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-xs); color: #64748b;">
+    <div style="display: flex; justify-content: flex-end; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-xs); color: var(--text-muted);">
       <span class="material-icons" aria-hidden="true" style="font-size: 20px;">language</span>
       <select id="login-lang" [value]="i18n.lang()" (change)="switchLoginLanguage($any($event.target).value)"
               [attr.aria-label]="'language.switch' | t"
-              style="padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: var(--font-body-2); background: white; color: #1e293b;">
+              style="padding: 4px 8px; border: 1px solid var(--border-strong); border-radius: 6px; font-size: var(--font-body-2); background: var(--surface-input); color: var(--text-primary);">
         @for (l of loginLanguages; track l.languageCode) {
           <option [value]="l.languageCode">{{ l.name }}</option>
         }

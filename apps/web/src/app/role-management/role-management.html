@@ -1,16 +1,16 @@
 <div class="screen-pad" style="max-width: 800px;">
-  <h2 style="color: #1e293b; margin-top: 0; font-size: var(--font-h1);">Role Management</h2>
-  <p style="color: #64748b; font-size: var(--font-body-2); margin-top: 0;">
+  <h2 style="color: var(--text-primary); margin-top: 0; font-size: var(--font-h1);">Role Management</h2>
+  <p style="color: var(--text-muted); font-size: var(--font-body-2); margin-top: 0;">
     A role is a named set of menu permissions. Assign roles to users per company under User Management.
   </p>
 
   @if (successMessage()) {
-    <div role="status" aria-live="polite" style="margin-bottom: var(--space-md); padding: var(--space-sm); background: #dcfce7; color: #166534; border-radius: 6px; border: 1px solid #bbf7d0;">
+    <div role="status" aria-live="polite" style="margin-bottom: var(--space-md); padding: var(--space-sm); background: var(--success-surface); color: var(--success-text); border-radius: 6px; border: 1px solid var(--success-border);">
       ✅ {{ successMessage() }}
     </div>
   }
   @if (errorMessage()) {
-    <div role="alert" aria-live="assertive" style="margin-bottom: var(--space-md); padding: var(--space-sm); background: #fee2e2; color: #991b1b; border-radius: 6px; border: 1px solid #fecaca;">
+    <div role="alert" aria-live="assertive" style="margin-bottom: var(--space-md); padding: var(--space-sm); background: var(--danger-surface); color: var(--danger-text); border-radius: 6px; border: 1px solid var(--danger-border);">
       ❌ {{ errorMessage() }}
     </div>
   }
@@ -30,29 +30,29 @@
   }
 
   @if (rolesLoading()) {
-    <p style="color: #64748b;">Loading roles…</p>
+    <p style="color: var(--text-muted);">Loading roles…</p>
   } @else if (roles().length === 0) {
-    <p style="color: #64748b;">No roles yet. Use “New role” to create one.</p>
+    <p style="color: var(--text-muted);">No roles yet. Use “New role” to create one.</p>
   } @else if (filteredRoles().length === 0) {
-    <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: #64748b;">
-      <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: #cbd5e1;">search_off</span>
+    <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: var(--text-muted);">
+      <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: var(--border-strong);">search_off</span>
       <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">No roles match “{{ roleSearch() }}”.</p>
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>
   } @else {
     <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs);">
       @for (role of filteredRoles(); track role.id) {
-        <li class="role-row" [style.background]="editingRoleId() === role.id ? '#f0f9ff' : 'transparent'">
+        <li class="role-row" [style.background]="editingRoleId() === role.id ? 'var(--surface-sunken)' : 'transparent'">
           <span class="role-main">
             <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: #0284c7;">badge</span>
             <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
               <span>
-                <span style="font-weight: var(--weight-semibold); color: #1e293b;">{{ role.name }}</span>
+                <span style="font-weight: var(--weight-semibold); color: var(--text-primary);">{{ role.name }}</span>
                 @if (role.description) {
-                  <span style="color: #64748b; font-size: var(--font-body-2);"> — {{ role.description }}</span>
+                  <span style="color: var(--text-muted); font-size: var(--font-body-2);"> — {{ role.description }}</span>
                 }
               </span>
-              <span style="font-size: var(--font-caption); color: #64748b;">{{ role.PermittedMenus?.length || 0 }} menus</span>
+              <span style="font-size: var(--font-caption); color: var(--text-muted);">{{ role.PermittedMenus?.length || 0 }} menus</span>
             </span>
           </span>
 
@@ -72,7 +72,7 @@
               </button>
             </span>
           } @else {
-            <span class="role-actions" style="color: #64748b; font-size: var(--font-caption); align-items: center;">System role</span>
+            <span class="role-actions" style="color: var(--text-muted); font-size: var(--font-caption); align-items: center;">System role</span>
           }
         </li>
       }
@@ -93,16 +93,16 @@
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."
                 (close)="cancelEdit()">
       @if (editLoading()) {
-        <p style="color: #64748b;">Loading role…</p>
+        <p style="color: var(--text-muted);">Loading role…</p>
       }
 
       <form [formGroup]="roleForm">
       <div style="margin-bottom: var(--space-lg);">
-        <label for="rmRoleName" style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-sm); color: #334155; font-size: var(--font-h3);">Role Name *</label>
+        <label for="rmRoleName" style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-sm); color: var(--text-secondary); font-size: var(--font-h3);">Role Name *</label>
         <input id="rmRoleName" type="text" formControlName="roleName" maxlength="100" autocomplete="off"
                placeholder="e.g. Golf Pro, Front Desk Cashier"
                [attr.aria-invalid]="showError(roleForm.controls.roleName)" aria-describedby="rmRoleNameErr"
-               style="width: 100%; padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 6px; font-size: var(--font-body);">
+               style="width: 100%; padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 6px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
         @if (showError(roleForm.controls.roleName)) {
           <p id="rmRoleNameErr" class="field-error" role="alert">
             @if (roleForm.controls.roleName.errors?.['required']) { Role name is required. }
@@ -112,38 +112,38 @@
       </div>
 
       <div style="margin-bottom: var(--space-lg);">
-        <label for="rmRoleDesc" style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-sm); color: #334155; font-size: var(--font-h3);">Description <span style="font-weight: var(--weight-regular); color: #64748b; font-size: var(--font-body-2);">(optional)</span></label>
+        <label for="rmRoleDesc" style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-sm); color: var(--text-secondary); font-size: var(--font-h3);">Description <span style="font-weight: var(--weight-regular); color: var(--text-muted); font-size: var(--font-body-2);">(optional)</span></label>
         <input id="rmRoleDesc" type="text" formControlName="roleDescription" maxlength="255" autocomplete="off"
                placeholder="e.g. Handles front-desk check-in and payments"
                [attr.aria-invalid]="showError(roleForm.controls.roleDescription)" aria-describedby="rmRoleDescErr"
-               style="width: 100%; padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 6px; font-size: var(--font-body);">
+               style="width: 100%; padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 6px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
         @if (showError(roleForm.controls.roleDescription)) {
           <p id="rmRoleDescErr" class="field-error" role="alert">Description is too long (max 255 characters).</p>
         }
       </div>
 
       <div>
-        <label style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-xs); color: #334155; font-size: var(--font-h3);">Assign Permissions</label>
-        <p style="color: #64748b; font-size: var(--font-body-2); margin-bottom: var(--space-md); margin-top: 0;">Select which menus this role is allowed to access.</p>
+        <label style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-xs); color: var(--text-secondary); font-size: var(--font-h3);">Assign Permissions</label>
+        <p style="color: var(--text-muted); font-size: var(--font-body-2); margin-bottom: var(--space-md); margin-top: 0;">Select which menus this role is allowed to access.</p>
 
         @if (menusLoading()) {
-          <p style="color: #64748b;">Loading menus…</p>
+          <p style="color: var(--text-muted);">Loading menus…</p>
         } @else if (moduleNames().length === 0) {
-          <p style="color: #64748b;">No menus available for your account yet.</p>
+          <p style="color: var(--text-muted);">No menus available for your account yet.</p>
         } @else {
           @for (modName of moduleNames(); track modName) {
-            <div style="margin-bottom: var(--space-md); border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-              <div style="background: #f8fafc; padding: var(--space-sm) var(--space-md); font-weight: var(--weight-bold); border-bottom: 1px solid #e2e8f0; color: #0f172a; font-size: var(--font-h3);">
+            <div style="margin-bottom: var(--space-md); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+              <div style="background: var(--surface-sunken); padding: var(--space-sm) var(--space-md); font-weight: var(--weight-bold); border-bottom: 1px solid var(--border); color: var(--text-primary); font-size: var(--font-h3);">
                 {{ modName }}
               </div>
               <div style="padding: var(--space-md); display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-md);">
                 @for (menu of menusByModule()[modName]; track menu.id) {
-                  <label style="display: flex; align-items: center; gap: var(--space-sm); cursor: pointer; color: #334155;">
+                  <label style="display: flex; align-items: center; gap: var(--space-sm); cursor: pointer; color: var(--text-secondary);">
                     <input type="checkbox"
                            [checked]="selectedMenuIds.has(menu.id)"
                            (change)="toggleMenu(menu.id)"
                            style="width: 18px; height: 18px; cursor: pointer;">
-                    <span class="material-icons" style="font-size: 18px; color: #64748b;">{{ menu.icon }}</span>
+                    <span class="material-icons" style="font-size: 18px; color: var(--text-muted);">{{ menu.icon }}</span>
                     {{ menu.name }}
                   </label>
                 }

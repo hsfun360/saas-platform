@@ -10,7 +10,7 @@
   top: 50%;
   transform: translateY(-50%);
   font-size: 20px;
-  color: #64748b;
+  color: var(--text-muted);
   pointer-events: none;
 }
 
@@ -19,9 +19,11 @@
   box-sizing: border-box;
   min-height: 44px; /* ≥16px font below avoids iOS zoom on focus */
   padding: var(--space-sm) 40px var(--space-sm) 38px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   font-size: var(--font-body);
+  background: var(--surface-card);
+  color: var(--text-primary);
 }
 
 .company-search__clear {
@@ -37,11 +39,11 @@
   border: none;
   background: transparent;
   border-radius: 50%;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
 }
 .company-search__clear:hover {
-  background: #f1f5f9;
+  background: var(--surface-sunken);
 }
 
 /* Floating "New company" action — pinned bottom-right, above content but below
@@ -64,8 +66,9 @@
   }
 }
 
-/* The create / edit dialogs use the shared <app-dialog> component
-   (src/app/shared/dialog) — no screen-specific modal CSS needed here. */
+/* The listing cards use the shared, theme-aware .data-card / .data-row--with-badge
+   / .status-chip standard in styles.css — no screen-specific card CSS here.
+   The create / edit dialogs use the shared <app-dialog> component. */
 
 /* Logo upload: a compact button (label) wrapping a visually-hidden file input.
    Avoids the native file input's wide, non-shrinking "Choose file / No file
@@ -86,58 +89,6 @@
   border: 0;
 }
 .logo-upload:focus-within {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
-}
-
-/* Company card summary layout.
-   Defined as a class (not inline) so the global mobile rule that collapses
-   inline `grid-template-columns` to one column doesn't interfere.
-
-   Desktop: info on the left (spans both rows), status badge top-right, and the
-   Edit actions on the right at the level of the info.
-   Mobile:  badge stays top-right, actions drop to a full-width row at the
-   bottom, left-justified. */
-.company-summary {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas:
-    "main  badge"
-    "main  actions";
-  column-gap: var(--space-md);
-  row-gap: var(--space-sm);
-  align-items: start;
-}
-
-.company-main {
-  grid-area: main;
-  min-width: 0; /* allow long names/chips to wrap instead of overflowing */
-}
-
-.company-badge {
-  grid-area: badge;
-  justify-self: end;
-  white-space: nowrap;
-}
-
-.company-actions {
-  grid-area: actions;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  justify-self: end; /* right-justified on desktop */
-  align-self: end;   /* sit level with the bottom of the info block */
-}
-
-@media (max-width: 767px) {
-  .company-summary {
-    grid-template-areas:
-      "main     badge"
-      "actions  actions";
-  }
-
-  .company-actions {
-    justify-self: start; /* bottom-left on mobile */
-    margin-top: var(--space-xs);
-  }
 }

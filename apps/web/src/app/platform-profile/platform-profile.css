@@ -7,7 +7,9 @@
 }
 
 .pp-section {
-  border: 1px solid #e2e8f0;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: var(--space-md);
   margin-bottom: var(--space-lg);
@@ -16,23 +18,23 @@
 .pp-section__title {
   font-size: var(--font-h2);
   font-weight: var(--weight-semibold);
-  color: #1e293b;
+  color: var(--text-primary);
   margin: 0 0 var(--space-xs);
 }
 
 .pp-section__hint {
   font-size: var(--font-body-2);
-  color: #475569;
+  color: var(--text-secondary);
   margin: 0 0 var(--space-md);
 }
 
 .pp-field-hint {
   font-size: var(--font-caption);
-  color: #64748b;
+  color: var(--text-muted);
   margin: var(--space-xs) 0 0;
 }
 .pp-field-hint--error {
-  color: #b91c1c;
+  color: var(--danger-text);
 }
 
 /* Logo upload: preview (or placeholder) + a compact "Choose logo" button that wraps a
@@ -48,9 +50,9 @@
   width: 64px;
   height: 64px;
   object-fit: contain;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface-card);
   flex: 0 0 auto;
 }
 .pp-logo__placeholder {
@@ -59,9 +61,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed var(--border-strong);
   border-radius: 8px;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: var(--font-caption);
   flex: 0 0 auto;
 }
@@ -104,22 +106,22 @@
 
 .pp-quote-result {
   margin-top: var(--space-md);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: var(--space-md);
-  background: #f8fafc;
+  background: var(--surface-sunken);
 }
 .pp-quote-scheme {
   font-weight: var(--weight-semibold);
-  color: #1e293b;
+  color: var(--text-primary);
 }
 .pp-quote-ie {
   font-size: var(--font-overline);
   font-weight: var(--weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #64748b;
-  background: #f1f5f9;
+  color: var(--chip-off-text);
+  background: var(--chip-off-surface);
   padding: var(--space-xs) var(--space-sm);
   border-radius: 12px;
   margin-left: var(--space-xs);
@@ -138,16 +140,16 @@
   font-size: var(--font-caption);
   font-weight: var(--weight-bold);
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--text-muted);
 }
 .pp-quote-figures dd {
   font-size: var(--font-h3);
-  color: #1e293b;
+  color: var(--text-primary);
   margin: 0;
 }
 .pp-quote-lines {
   margin: var(--space-sm) 0 0;
   padding-left: var(--space-lg);
   font-size: var(--font-body-2);
-  color: #475569;
+  color: var(--text-secondary);
 }

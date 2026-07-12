@@ -15,7 +15,8 @@
   height: 100px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid #e2e8f0;
+  background: var(--surface-card);
+  border: 2px solid var(--border);
 }
 
 /* Text link styled as a ≥ 44px touch target (label wraps the hidden file input). */
@@ -27,14 +28,14 @@
   margin-top: var(--space-xs);
   font-size: var(--font-body-2);
   font-weight: var(--weight-medium);
-  color: #1a56db;
+  color: var(--brand-text);
   cursor: pointer;
 }
 
 /* Bordered card — matches the app-wide record/card standard. */
 .profile-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: var(--space-lg);
 }
@@ -42,17 +43,17 @@
 .profile-header {
   margin-bottom: var(--space-lg);
   padding-bottom: var(--space-md);
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border);
 }
 
 .profile-header h2 {
   margin: 0;
-  color: #0f172a;
+  color: var(--text-primary);
   font-size: var(--font-h2);
 }
 
 .profile-header p {
-  color: #64748b;
+  color: var(--text-muted);
   font-size: var(--font-body-2);
   margin-top: var(--space-xs);
 }
@@ -65,7 +66,7 @@
   display: block;
   font-size: var(--font-body-2);
   font-weight: var(--weight-semibold);
-  color: #334155;
+  color: var(--text-secondary);
   margin-bottom: var(--space-sm);
 }
 
@@ -73,7 +74,7 @@
 .form-group textarea {
   width: 100%;
   padding: var(--space-sm);
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   font-size: var(--font-body);
   box-sizing: border-box;
@@ -91,8 +92,8 @@
 }
 
 .form-group input:disabled {
-  background-color: #f1f5f9;
-  color: #64748b;
+  background-color: var(--surface-sunken);
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 
@@ -104,13 +105,13 @@
 }
 
 .form-alert--success {
-  background-color: #e6f4ea;
-  color: #137333;
+  background-color: var(--success-surface);
+  color: var(--success-text);
 }
 
 .form-alert--error {
-  background-color: #fce8e6;
-  color: #b91c1c;
+  background-color: var(--danger-surface);
+  color: var(--danger-text);
 }
 
 /* Primary CTA uses the shared .btn system: full-width on mobile (global submit

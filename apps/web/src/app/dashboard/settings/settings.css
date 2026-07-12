@@ -1,5 +1,7 @@
 /* Centred single column; `.screen-pad` (styles.css) handles the mobile gutter
-   (md 0) so there is no double gutter inside the shell's content area. */
+   (md 0) so there is no double gutter inside the shell's content area.
+   Colours reference the semantic theme tokens (styles.css) so this screen works
+   in light and dark. */
 .settings-wrap {
   max-width: 650px;
   margin: 0 auto;
@@ -10,8 +12,8 @@
 
 /* Bordered card — matches the app-wide card standard. */
 .settings-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
 }
@@ -22,8 +24,8 @@
   justify-content: space-between;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
 }
 
 /* Collapsible header rendered as a real <button> (keyboard + aria-expanded). */
@@ -46,16 +48,16 @@
 .settings-header__title {
   font-size: var(--font-h2);
   font-weight: var(--weight-semibold);
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .settings-header__sub {
   font-size: var(--font-body-2);
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .settings-header__chevron {
-  color: #64748b;
+  color: var(--text-muted);
   flex-shrink: 0;
   transition: transform 0.2s ease;
 }
@@ -75,7 +77,7 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--border);
 }
 
 .setting-item--last {
@@ -92,12 +94,68 @@
 .setting-title {
   font-size: var(--font-body);
   font-weight: var(--weight-medium);
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .setting-description {
   font-size: var(--font-body-2);
-  color: #64748b;
+  color: var(--text-muted);
+}
+
+/* --- Appearance segmented control (System / Light / Dark) --- */
+.theme-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-card);
+}
+
+.theme-toggle__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-md);
+  border: none;
+  border-right: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.theme-toggle__btn:last-child {
+  border-right: none;
+}
+
+.theme-toggle__btn .material-icons {
+  font-size: 18px;
+}
+
+.theme-toggle__btn.is-active {
+  background: var(--brand);
+  color: var(--text-on-brand);
+}
+
+.theme-toggle__btn:not(.is-active):hover {
+  background: var(--surface-sunken);
+}
+
+@media (max-width: 480px) {
+  .setting-item {
+    flex-wrap: wrap;
+  }
+  .theme-toggle {
+    width: 100%;
+  }
+  .theme-toggle__btn {
+    flex: 1;
+    justify-content: center;
+  }
 }
 
 /* --- Fields (language select, password inputs) --- */
@@ -106,29 +164,31 @@
   margin-bottom: var(--space-sm);
   font-size: var(--font-body-2);
   font-weight: var(--weight-semibold);
-  color: #334155;
+  color: var(--text-secondary);
 }
 
 .field-control {
   width: 100%;
   max-width: 320px;
   padding: var(--space-sm);
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   font-size: var(--font-body);
   box-sizing: border-box;
+  background: var(--surface-card);
+  color: var(--text-primary);
 }
 
 .field-hint {
   margin: var(--space-sm) 0 0;
   font-size: var(--font-body-2);
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .field-success {
   margin: var(--space-sm) 0 0;
   font-size: var(--font-body-2);
-  color: #16a34a;
+  color: var(--success-text);
 }
 
 .form-group {
@@ -140,42 +200,44 @@
   margin-bottom: var(--space-sm);
   font-size: var(--font-body-2);
   font-weight: var(--weight-semibold);
-  color: #334155;
+  color: var(--text-secondary);
 }
 
 .form-group input {
   width: 100%;
   padding: var(--space-sm);
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   font-size: var(--font-body);
   box-sizing: border-box;
+  background: var(--surface-card);
+  color: var(--text-primary);
 }
 
 .form-group input:focus,
 .field-control:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--brand);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 .field-control--error {
-  border-color: #dc2626;
+  border-color: var(--danger-text);
 }
 
 .field-error {
   margin: var(--space-xs) 0 0;
   font-size: var(--font-caption);
-  color: #b91c1c;
+  color: var(--danger-text);
 }
 
 .sso-note {
-  background-color: #f8fafc;
-  border-left: 4px solid #2563eb;
+  background-color: var(--surface-sunken);
+  border-left: 4px solid var(--brand);
   padding: var(--space-md);
   border-radius: 8px;
   font-size: var(--font-body-2);
-  color: #334155;
+  color: var(--text-secondary);
   line-height: 1.5;
 }
 
@@ -201,7 +263,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #cbd5e1;
+  background-color: var(--border-strong);
   transition: 0.3s;
 }
 
@@ -212,12 +274,12 @@
   width: 18px;
   left: 3px;
   bottom: 3px;
-  background-color: white;
+  background-color: #ffffff;
   transition: 0.3s;
 }
 
 input:checked + .slider {
-  background-color: #2563eb;
+  background-color: var(--brand);
 }
 
 input:focus-visible + .slider {

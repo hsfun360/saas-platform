@@ -9,11 +9,11 @@
     <div class="loading-state"><div class="spinner large"></div><p>Loading template…</p></div>
   } @else {
     <div class="et-head">
-      <h1 style="margin: 0; font-size: var(--font-h1); color: #1e293b;">{{ name() }}</h1>
+      <h1 style="margin: 0; font-size: var(--font-h1); color: var(--text-primary);">{{ name() }}</h1>
       <code class="et-key">{{ key() }}</code>
     </div>
     @if (description()) {
-      <p style="color: #64748b; font-size: var(--font-body-2); margin: var(--space-xs) 0 var(--space-md);">{{ description() }}</p>
+      <p style="color: var(--text-muted); font-size: var(--font-body-2); margin: var(--space-xs) 0 var(--space-md);">{{ description() }}</p>
     }
 
     @if (successMessage()) {

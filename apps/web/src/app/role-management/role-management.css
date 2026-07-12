@@ -9,7 +9,7 @@
   top: 50%;
   transform: translateY(-50%);
   font-size: 20px;
-  color: #64748b;
+  color: var(--text-muted);
   pointer-events: none;
 }
 .role-search__input {
@@ -17,9 +17,11 @@
   box-sizing: border-box;
   min-height: 44px; /* ≥16px font below avoids iOS zoom on focus */
   padding: var(--space-sm) 40px var(--space-sm) 38px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   font-size: var(--font-body);
+  background: var(--surface-card);
+  color: var(--text-primary);
 }
 .role-search__clear {
   position: absolute;
@@ -34,11 +36,11 @@
   border: none;
   background: transparent;
   border-radius: 50%;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
 }
 .role-search__clear:hover {
-  background: #f1f5f9;
+  background: var(--surface-sunken);
 }
 
 /* Floating "New role" action — pinned bottom-right, below the shell drawer
@@ -71,7 +73,7 @@
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 6px;
 }
 

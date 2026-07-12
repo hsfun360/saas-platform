@@ -13,7 +13,7 @@
 
   <!-- People (person-centric). No outer card — the search + list sit directly on
        the page (the Companies standard). -->
-  <h2 style="margin: 0 0 var(--space-md); font-size: var(--font-h2); font-weight: var(--weight-semibold); color: #1e293b;">People ({{ people().length }})</h2>
+  <h2 style="margin: 0 0 var(--space-md); font-size: var(--font-h2); font-weight: var(--weight-semibold); color: var(--text-primary);">People ({{ people().length }})</h2>
 
     <!-- Live filter over the loaded people (email / name / company / role). -->
     @if (!loading() && people().length > 0) {
@@ -34,27 +34,27 @@
     } @else if (people().length === 0) {
       <p class="subtle">No people yet. Use “Create user” or “Invite collaborator” to add someone.</p>
     } @else if (filteredPeople().length === 0) {
-      <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: #64748b;">
-        <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: #cbd5e1;">search_off</span>
+      <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: var(--text-muted);">
+        <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: var(--border-strong);">search_off</span>
         <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">No people match “{{ search() }}”.</p>
         <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
       </div>
     } @else {
       <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-sm);">
         @for (person of filteredPeople(); track person.id) {
-          <li style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: var(--space-md) var(--space-lg);">
+          <li style="background: var(--surface-card); border: 1px solid var(--border); border-radius: 10px; padding: var(--space-md) var(--space-lg);">
             <div class="assign-row">
               <span class="assign-row__info" style="flex-direction: column; align-items: flex-start; gap: var(--space-xs);">
                 <!-- Line 1: email. -->
-                <span style="font-size: var(--font-body); font-weight: var(--weight-semibold); color: #0f172a; word-break: break-word;">{{ person.email }}</span>
+                <span style="font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); word-break: break-word;">{{ person.email }}</span>
                 <!-- Line 2: full name, no caption. -->
                 @if (person.full_name) {
-                  <span style="font-size: var(--font-body-2); color: #475569;">{{ person.full_name }}</span>
+                  <span style="font-size: var(--font-body-2); color: var(--text-secondary);">{{ person.full_name }}</span>
                 }
                 <!-- Line 3: how many companies they can access. -->
                 <span style="display: flex; align-items: baseline; gap: var(--space-xs);">
-                  <span style="font-size: var(--font-caption); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.3px; color: #64748b;">Companies</span>
-                  <span style="font-size: var(--font-body-2); color: #1e293b;">{{ person.memberships.length }}</span>
+                  <span style="font-size: var(--font-caption); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-muted);">Companies</span>
+                  <span style="font-size: var(--font-body-2); color: var(--text-primary);">{{ person.memberships.length }}</span>
                 </span>
               </span>
               <span class="assign-row__actions">
@@ -305,7 +305,7 @@
         </p>
       }
 
-      <h3 style="margin: var(--space-sm) 0; font-size: var(--font-h3); color: #1e293b;">Companies &amp; roles</h3>
+      <h3 style="margin: var(--space-sm) 0; font-size: var(--font-h3); color: var(--text-primary);">Companies &amp; roles</h3>
 
       <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
         <!-- Per-company role + remove. -->
@@ -313,9 +313,9 @@
           @let key = person.id + ':' + m.companyId;
           <div class="assign-row">
             <span class="assign-row__info">
-              <span style="min-width: 160px; font-weight: var(--weight-semibold); color: #1e293b;">{{ m.companyName }}</span>
+              <span style="min-width: 160px; font-weight: var(--weight-semibold); color: var(--text-primary);">{{ m.companyName }}</span>
               <select [value]="roleSel[key]" (change)="roleSel[key] = $any($event.target).value" [attr.aria-label]="'Role for ' + person.email + ' in ' + m.companyName"
-                      style="padding: var(--space-xs) var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+                      style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); max-width: 100%; background: var(--surface-card); color: var(--text-primary);">
                 <option value="">— No role —</option>
                 @for (r of rolesFor(m.companyId); track r.id) {
                   <option [value]="r.id">{{ r.name }}</option>
@@ -333,18 +333,18 @@
 
         <!-- Add to another company. -->
         @if (companiesNotJoined(person).length > 0) {
-          <div class="assign-row" style="border-top: 1px dashed #e2e8f0; padding-top: var(--space-sm);">
+          <div class="assign-row" style="border-top: 1px dashed var(--border); padding-top: var(--space-sm);">
             <span class="assign-row__info">
               <span class="subtle">Add to:</span>
               <select [value]="addCompany[person.id]" (change)="addCompany[person.id] = $any($event.target).value" [attr.aria-label]="'Company to add ' + person.email + ' to'"
-                      style="padding: var(--space-xs) var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+                      style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); max-width: 100%; background: var(--surface-card); color: var(--text-primary);">
                 <option value="">— Company —</option>
                 @for (c of companiesNotJoined(person); track c.id) {
                   <option [value]="c.id">{{ c.name }}</option>
                 }
               </select>
               <select [value]="addRole[person.id]" (change)="addRole[person.id] = $any($event.target).value" aria-label="Role for the new company"
-                      style="padding: var(--space-xs) var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
+                      style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); max-width: 100%; background: var(--surface-card); color: var(--text-primary);">
                 <option value="">— No role —</option>
                 @for (r of rolesFor(addCompany[person.id]); track r.id) {
                   <option [value]="r.id">{{ r.name }}</option>

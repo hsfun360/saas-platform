@@ -7,7 +7,7 @@
   margin: 0 auto;
   padding: var(--space-xl) var(--space-lg);
   font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 /* Mobile: drop horizontal padding so cards use the full width — the shell's
@@ -43,13 +43,13 @@
   margin: 0;
   font-size: var(--font-h1);
   font-weight: var(--weight-bold);
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .saas-subtitle {
   margin: 2px 0 0;
   font-size: var(--font-body-2);
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 /* ── LISTING SEARCH ──────────────────────────── */
@@ -73,9 +73,11 @@
   box-sizing: border-box;
   min-height: 44px; /* ≥16px font below avoids iOS zoom on focus */
   padding: var(--space-sm) 40px var(--space-sm) 36px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   font-size: var(--font-body);
+  background: var(--surface-card);
+  color: var(--text-primary);
 }
 
 .saas-search__clear {
@@ -88,12 +90,12 @@
   border: none;
   background: transparent;
   border-radius: 50%;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   font-size: 14px;
 }
 .saas-search__clear:hover {
-  background: #f1f5f9;
+  background: var(--surface-sunken);
 }
 
 /* ── FLOATING ACTION BUTTON ──────────────────── */
@@ -120,7 +122,7 @@
 .tab-bar {
   display: flex;
   gap: var(--space-sm);
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border);
   margin-bottom: var(--space-lg);
   overflow-x: auto;
   scroll-snap-type: x proximity;
@@ -145,27 +147,27 @@
   margin-bottom: -1px;               /* sit the underline over the strip's border */
   font-size: var(--font-body-2);
   font-weight: var(--weight-semibold);
-  color: #64748b;
+  color: var(--text-muted);
   white-space: nowrap;
   cursor: pointer;
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .tab-btn:hover {
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .tab-btn.active {
-  color: #0f172a;
-  border-bottom-color: #2563eb;      /* the active-tab underline indicator */
+  color: var(--text-primary);
+  border-bottom-color: var(--brand);      /* the active-tab underline indicator */
 }
 
 /* ── CARDS ───────────────────────────────────── */
 .card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
   border-radius: 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
@@ -182,7 +184,7 @@
 .card-desc {
   margin: 0 0 var(--space-lg);
   font-size: var(--font-body-2);
-  color: #64748b;
+  color: var(--text-muted);
   line-height: 1.5;
 }
 
@@ -200,15 +202,15 @@
 }
 
 .flash-success {
-  background: #f0fdf4;
+  background: var(--success-surface);
   border: 1px solid #bbf7d0;
-  color: #166534;
+  color: var(--success-text);
 }
 
 .flash-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: var(--danger-surface);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-text);
 }
 
 .flash-icon {
@@ -234,89 +236,9 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── FORM ────────────────────────────────────── */
-.saas-form {
-  padding: 0 var(--space-lg) var(--space-lg);
-}
-
-.form-row {
-  display: grid;
-  /* minmax(0, 1fr), not 1fr: a bare 1fr track floors at min-content, so a
-     <select>'s longest option can blow the track out and overflow the card. */
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--space-lg);
-  margin-bottom: var(--space-lg);
-}
-
-@media (max-width: 600px) {
-  .form-row { grid-template-columns: minmax(0, 1fr); }
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  min-width: 0; /* let the field shrink instead of overflowing its column */
-}
-
-.form-group label {
-  font-size: var(--font-body-2);
-  font-weight: var(--weight-semibold);
-  color: #334155;
-  margin-bottom: var(--space-xs);
-}
-
-.required {
-  color: #ef4444;
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-  width: 100%;
-  box-sizing: border-box; /* keep padding/border inside the 100%, not added to it */
-  min-width: 0;           /* a long <option> can't force the field wider than its column */
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: var(--font-body);
-  font-family: inherit;
-  color: #1e293b;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  background: #fafafa;
-}
-
-.form-group textarea {
-  resize: vertical;
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
-  background: #ffffff;
-}
-
-.form-group input::placeholder,
-.form-group textarea::placeholder {
-  color: #64748b;
-}
-
-/* Invalid field (aria-invalid set once the control is touched) + its message.
-   #b91c1c on white is ≥ 4.5:1 (WCAG AA). */
-.form-group input[aria-invalid='true'],
-.form-group select[aria-invalid='true'],
-.form-group textarea[aria-invalid='true'] {
-  border-color: #b91c1c;
-  background: #fef2f2;
-}
-
-.field-error {
-  color: #b91c1c;
-  font-size: var(--font-body-2);
-  margin-top: var(--space-xs);
-}
+/* Form-field standard (.saas-form / .form-row / .form-group / inputs / .required /
+   .field-error) now lives as GLOBAL, theme-aware definitions in src/styles.css —
+   the single source of truth. The scoped duplicate was removed here. */
 
 /* ── BUTTONS ─────────────────────────────────── */
 .form-actions {
@@ -324,7 +246,7 @@
   gap: var(--space-sm);
   margin-top: var(--space-lg);
   padding-top: var(--space-lg);
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border);
 }
 
 .btn-primary {
@@ -332,8 +254,8 @@
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-lg);
-  background: #1d4ed8;
-  color: #ffffff;
+  background: var(--brand);
+  color: var(--text-on-brand);
   border: none;
   border-radius: 8px;
   font-size: var(--font-body);
@@ -343,7 +265,7 @@
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #1e40af;
+  background: var(--brand-hover);
 }
 
 .btn-primary:active:not(:disabled) {
@@ -357,9 +279,9 @@
 
 .btn-secondary {
   padding: var(--space-sm) var(--space-lg);
-  background: #f1f5f9;
-  color: #334155;
-  border: 1px solid #e2e8f0;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: var(--font-body-2);
   font-weight: var(--weight-semibold);
@@ -368,7 +290,7 @@
 }
 
 .btn-secondary:hover {
-  background: #e2e8f0;
+  background: var(--border);
 }
 
 /* ── SPINNER ─────────────────────────────────── */
@@ -401,7 +323,7 @@
   flex-direction: column;
   align-items: center;
   padding: var(--space-3xl) var(--space-lg);
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .empty-icon {
@@ -409,138 +331,9 @@
   margin-bottom: var(--space-sm);
 }
 
-/* ── DATA LIST (card-per-row, replaces the old table) ───────────
-   Mobile-friendly: each record is a card with the primary value as a
-   title and the rest as wrapping label/value pairs. Where a row has an
-   action it uses the shared action-row grid (right on desktop, full-width
-   below on mobile — see docs/project-overview.md). */
-.data-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  /* No horizontal inset - cards sit flush to the container gutter (the `.saas-container`
-     / screen wrapper already supplies the page gutter). Keeps listing cards edge-aligned,
-     matching the Companies + Tax Setup screens. */
-  padding-bottom: var(--space-lg);
-}
-
-.data-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: var(--space-md);
-}
-
-.data-card__title {
-  font-size: var(--font-body);
-  font-weight: var(--weight-semibold);
-  color: #1e293b; /* listing-card headline standard (matches the Companies card) */
-  word-break: break-word;
-}
-
-/* Free-text subtitle under a card title (e.g. a role description) - no caption. */
-.data-card__desc {
-  margin: var(--space-xs) 0 0;
-  font-size: var(--font-body-2);
-  color: #475569;
-  word-break: break-word;
-}
-
-/* Secondary identity line under a card title that carries short text + chips
-   (e.g. "(REG-123) ENTERPRISE"). Wraps on narrow widths; no captions. */
-.data-card__subline {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  margin-top: var(--space-xs);
-}
-.data-card__reg {
-  font-size: var(--font-body-2);
-  color: #475569;
-}
-
-/* Section title on a page (e.g. "Current assignments" above a card list). */
-.section-heading {
-  margin: var(--space-lg) 0 var(--space-sm);
-  font-size: var(--font-h2);
-  font-weight: var(--weight-semibold);
-  color: #0f172a;
-}
-
-.data-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs) var(--space-lg);
-  margin: var(--space-sm) 0 0;
-}
-
-.data-card__meta .meta {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-xs);
-  min-width: 0;
-}
-
-.data-card__meta dt {
-  margin: 0;
-  font-size: var(--font-caption);
-  font-weight: var(--weight-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  color: #64748b;
-}
-
-.data-card__meta dd {
-  margin: 0;
-  font-size: var(--font-body-2);
-  color: #1e293b;
-  word-break: break-word;
-}
-
-/* Content + action row: action right on desktop, full-width below on mobile. */
-.data-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: "main actions";
-  align-items: start;
-  gap: var(--space-sm);
-}
-.data-row__main { grid-area: main; min-width: 0; }
-.data-row__actions { grid-area: actions; justify-self: end; display: flex; gap: var(--space-xs); flex-shrink: 0; }
-
-@media (max-width: 767px) {
-  .data-row {
-    grid-template-columns: 1fr;
-    grid-template-areas: "main" "actions";
-  }
-  .data-row__actions { justify-self: start; }
-}
-
-/* Status-chip variant of the action row: the badge is pinned TOP-RIGHT, actions
-   sit bottom-right on desktop and drop to a full-width row below on mobile (the
-   badge stays top-right). This is the standard record-card layout for a
-   "content + status + actions" row across the app - mirrors the Companies screen
-   (.company-summary). Compose as class="data-row data-row--with-badge". */
-.data-row--with-badge {
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "main  badge"
-    "main  actions";
-  column-gap: var(--space-md);
-  row-gap: var(--space-sm);
-}
-.data-row__badge { grid-area: badge; justify-self: end; align-self: start; white-space: nowrap; }
-.data-row--with-badge .data-row__actions { align-self: end; }
-
-@media (max-width: 767px) {
-  .data-row--with-badge {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "main     badge"
-      "actions  actions";
-  }
-  .data-row--with-badge .data-row__actions { justify-self: start; }
-}
+/* Listing-card + status-chip primitives (.data-list / .data-card* / .data-row* /
+   .section-heading / .status-chip) now live as GLOBAL, theme-aware definitions in
+   src/styles.css — the single source of truth. The scoped duplicate was removed here. */
 
 /* Brand mark shown next to an SSO user's email (Google / Microsoft login). */
 .sso-icon {
@@ -553,12 +346,12 @@
 .cell-mono {
   font-family: 'Cascadia Code', 'Fira Code', monospace;
   font-size: var(--font-body-2);
-  color: #475569;
+  color: var(--text-secondary);
 }
 
 .cell-subtle {
   font-size: var(--font-caption);
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 /* ── BADGES ──────────────────────────────────── */
@@ -568,8 +361,8 @@
   border-radius: 20px;
   font-size: var(--font-caption);
   font-weight: var(--weight-bold);
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
 }
 
 .badge.badge-pro {
@@ -583,13 +376,13 @@
 }
 
 .badge.badge-active {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--success-surface);
+  color: var(--success-text);
 }
 
 .badge.badge-inactive {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--danger-surface);
+  color: var(--danger-text);
 }
 
 /* ── STATUS DOT ──────────────────────────────── */
@@ -598,7 +391,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #cbd5e1;
+  background: var(--border-strong);
   margin-right: var(--space-xs);
   vertical-align: middle;
 }
@@ -611,20 +404,20 @@
 /* ── MENU PERMISSIONS ────────────────────────── */
 .perm-module {
   margin-top: var(--space-sm);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .perm-module-title {
-  background: #f8fafc;
+  background: var(--surface-sunken);
   padding: var(--space-sm) var(--space-sm);
   font-size: var(--font-caption);
   font-weight: var(--weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #475569;
-  border-bottom: 1px solid #e2e8f0;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
 }
 
 .perm-menu-list {
@@ -639,7 +432,7 @@
   align-items: center;
   gap: var(--space-xs);
   font-size: var(--font-body-2);
-  color: #334155;
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
@@ -653,13 +446,13 @@
 .admin-panel {
   margin-top: var(--space-md);
   padding-top: var(--space-md);
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border);
 }
 
 .admin-panel-title {
   font-size: var(--font-body-2);
   font-weight: var(--weight-bold);
-  color: #475569;
+  color: var(--text-secondary);
   margin-bottom: var(--space-sm);
 }
 
@@ -670,15 +463,15 @@
   gap: var(--space-sm);
   flex-wrap: wrap;
   padding: var(--space-sm) var(--space-sm);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--surface-sunken);
   margin-bottom: var(--space-sm);
 }
 
 .admin-user-info {
   font-size: var(--font-body-2);
-  color: #334155;
+  color: var(--text-secondary);
 }
 
 .role-pill {
@@ -686,14 +479,14 @@
   margin-left: var(--space-sm);
   padding: var(--space-xs) var(--space-sm);
   border-radius: 12px;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
   font-size: var(--font-caption);
   font-weight: var(--weight-semibold);
 }
 
 .admin-current {
-  color: #16a34a;
+  color: var(--success-text);
   font-weight: var(--weight-bold);
   font-size: var(--font-body-2);
 }
@@ -709,13 +502,13 @@
 .pick-chip {
   display: inline-flex;
   align-items: stretch;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-strong);
   border-radius: 999px;
   overflow: hidden;
-  background: #fff;
+  background: var(--surface-card);
 }
 .pick-chip--default {
-  border-color: #2563eb;
+  border-color: var(--brand);
   background: #eff6ff;
 }
 .pick-chip__set {
@@ -727,7 +520,7 @@
   padding: 0 var(--space-xs) 0 var(--space-md);
   min-height: 44px;
   font-size: var(--font-body-2);
-  color: #1e293b;
+  color: var(--text-primary);
   cursor: pointer;
 }
 .pick-chip--default .pick-chip__set {
@@ -735,7 +528,7 @@
   font-weight: var(--weight-semibold);
 }
 .pick-chip__star {
-  color: #2563eb;
+  color: var(--brand);
 }
 .pick-chip__tag {
   font-size: var(--font-caption);
@@ -751,15 +544,15 @@
   justify-content: center;
   border: none;
   background: transparent;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   min-width: 40px;
   min-height: 44px;
   font-size: var(--font-body-2);
 }
 .pick-chip__x:hover {
-  color: #b91c1c;
-  background: #fef2f2;
+  color: var(--danger-text);
+  background: var(--danger-surface);
 }
 
 /* Highlight a picked row within the long list. */

@@ -4,6 +4,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './app/auth.interceptor';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { I18nService } from './app/i18n/i18n.service';
+import { ThemeService } from './app/services/theme.service';
 
 // Microsoft MSAL Imports
 //import { MSAL_INSTANCE, MSAL_GUARD_CONFIG, MsalGuardConfiguration, MsalService } from '@azure/msal-angular';
@@ -189,6 +190,8 @@ bootstrapApplication(App, {
     // Load the active language dictionary before first paint (English base +
     // stored choice), so the UI renders already translated.
     provideAppInitializer(() => inject(I18nService).init()),
+    // Apply the stored theme (light/dark/system) before first paint.
+    provideAppInitializer(() => inject(ThemeService).init()),
     {
       provide: MSAL_INSTANCE,
       useFactory: MSALInstanceFactory

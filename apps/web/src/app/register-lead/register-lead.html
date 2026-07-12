@@ -8,7 +8,7 @@
 
     @if (successMessage) {
       <div class="alert alert-success success-card">
-        <h3 style="color: green;">✉️ Check your inbox!</h3>
+        <h3 style="color: var(--success-text);">✉️ Check your inbox!</h3>
         <p>{{ successMessage }}</p>
         <p>Click the secure link in the email to set your password and activate your account.</p>
       </div>
@@ -16,7 +16,7 @@
       <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
         
         @if (errorMessage) {
-          <div class="alert alert-danger" style="color: red; margin-bottom: var(--space-md);">
+          <div class="alert alert-danger" style="color: var(--danger-text); margin-bottom: var(--space-md);">
             {{ errorMessage }}
           </div>
         }
@@ -31,7 +31,7 @@
             style="width: 100%; padding: var(--space-sm);"
           >
           @if (submitted && registerForm.get('name')?.errors?.['required']) {
-            <div style="color: red; font-size: var(--font-caption);">
+            <div style="color: var(--danger-text); font-size: var(--font-caption);">
               Name is required.
             </div>
           }
@@ -47,7 +47,7 @@
             style="width: 100%; padding: var(--space-sm);"
           >
           @if (submitted && registerForm.get('companyName')?.errors?.['required']) {
-            <div style="color: red; font-size: var(--font-caption);">
+            <div style="color: var(--danger-text); font-size: var(--font-caption);">
               Company Name is required.
             </div>
           }
@@ -63,7 +63,7 @@
             style="width: 100%; padding: var(--space-sm);"
           >
           @if (submitted && registerForm.get('email')?.errors) {
-            <div style="color: red; font-size: var(--font-caption);">
+            <div style="color: var(--danger-text); font-size: var(--font-caption);">
               Please enter a valid email.
             </div>
           }
@@ -72,7 +72,7 @@
         <button 
           type="submit" 
           [disabled]="loading" 
-          style="width: 100%; padding: var(--space-sm); background-color: #0062cc; color: white; border: none; cursor: pointer;"
+          style="width: 100%; padding: var(--space-sm); background-color: var(--brand); color: var(--text-on-brand); border: none; cursor: pointer;"
         >
           {{ loading ? 'Generating Link...' : 'Create Account' }}
         </button>

@@ -9,11 +9,11 @@
 }
 
 .mm-card {
-  background: white;
+  background: var(--surface-card);
   padding: var(--space-lg);
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   min-width: 0;
 }
 
@@ -31,7 +31,8 @@
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-xs) var(--space-sm);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
+  background: var(--surface-card);
   border-radius: 8px;
 }
 
@@ -84,7 +85,7 @@
   top: 50%;
   transform: translateY(-50%);
   font-size: 20px;
-  color: #64748b;
+  color: var(--text-muted);
   pointer-events: none;
 }
 .mm-search__input {
@@ -92,7 +93,9 @@
   box-sizing: border-box;
   min-height: 44px; /* ≥16px font below avoids iOS zoom on focus */
   padding: var(--space-sm) 40px var(--space-sm) 38px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-card);
+  color: var(--text-primary);
   border-radius: 8px;
   font-size: var(--font-body);
 }
@@ -109,11 +112,11 @@
   border: none;
   background: transparent;
   border-radius: 50%;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
 }
 .mm-search__clear:hover {
-  background: #f1f5f9;
+  background: var(--surface-sunken);
 }
 
 /* Mobile "back to master" button — hidden on desktop where both panes show. */
@@ -223,7 +226,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: var(--font-body-2);
   margin: 0 0 var(--space-md);
 }
@@ -251,7 +254,7 @@
 .mm-tree-children {
   margin-left: 18px;
   padding-left: var(--space-sm);
-  border-left: 2px solid #e2e8f0;
+  border-left: 2px solid var(--border);
   margin-top: var(--space-xs);
 }
 
@@ -278,9 +281,9 @@
   align-items: center;
   gap: var(--space-xs);
   padding: var(--space-xs) var(--space-sm);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface-card);
   min-width: 0;
 }
 .mm-menu-row__icon {
@@ -297,10 +300,10 @@
 }
 .mm-menu-row__name {
   font-weight: var(--weight-semibold);
-  color: #1e293b;
+  color: var(--text-primary);
 }
 .mm-menu-row__route {
-  color: #64748b;
+  color: var(--text-muted);
   font-size: var(--font-body-2);
 }
 .mm-menu-row__actions {
@@ -315,7 +318,8 @@
   text-align: center;
   color: #94a3b8;
   font-size: var(--font-body-2);
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed var(--border-strong);
+  background: var(--surface-card);
   border-radius: 8px;
 }
 
@@ -323,7 +327,7 @@
 .cdk-drag-preview {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface-card);
 }
 .cdk-drag-placeholder {
   opacity: 0.4;

@@ -16,13 +16,26 @@
       <div class="settings-body">
         <div class="setting-item">
           <div class="setting-info">
-            <span class="setting-title">Dark Mode</span>
-            <span class="setting-description">Reduce eye strain in low-light environments</span>
+            <span class="setting-title">Appearance</span>
+            <span class="setting-description">Choose light, dark, or follow your device.</span>
           </div>
-          <label class="switch">
-            <input type="checkbox" [checked]="settings.darkMode" (change)="toggleSetting('darkMode')" aria-label="Dark Mode">
-            <span class="slider round"></span>
-          </label>
+          <div class="theme-toggle" role="radiogroup" aria-label="Appearance">
+            <button type="button" class="theme-toggle__btn" role="radio"
+                    [attr.aria-checked]="theme.mode() === 'system'"
+                    [class.is-active]="theme.mode() === 'system'" (click)="theme.setMode('system')">
+              <span class="material-icons" aria-hidden="true">brightness_auto</span>System
+            </button>
+            <button type="button" class="theme-toggle__btn" role="radio"
+                    [attr.aria-checked]="theme.mode() === 'light'"
+                    [class.is-active]="theme.mode() === 'light'" (click)="theme.setMode('light')">
+              <span class="material-icons" aria-hidden="true">light_mode</span>Light
+            </button>
+            <button type="button" class="theme-toggle__btn" role="radio"
+                    [attr.aria-checked]="theme.mode() === 'dark'"
+                    [class.is-active]="theme.mode() === 'dark'" (click)="theme.setMode('dark')">
+              <span class="material-icons" aria-hidden="true">dark_mode</span>Dark
+            </button>
+          </div>
         </div>
 
         <div class="setting-item">
@@ -50,30 +63,31 @@
     }
   </div>
 
-  <!-- Language -->
-  <div class="settings-card">
-    <div class="settings-header">
-      <span class="settings-header__text">
-        <span class="settings-header__title">{{ 'settings.language' | t }}</span>
-        <span class="settings-header__sub">{{ 'settings.languageHelp' | t }}</span>
-      </span>
-    </div>
-    <div class="settings-body">
-      <label for="pref-lang" class="field-label">{{ 'language.preferred' | t }}</label>
-      <select id="pref-lang" class="field-control" [value]="currentLanguage"
-              (change)="onLanguageChange($any($event.target).value)" [disabled]="languageOptions.length <= 1">
-        @for (l of languageOptions; track l.languageCode) {
-          <option [value]="l.languageCode">{{ l.name }}</option>
+  <!-- Language — shown only when the user actually has a choice. Mirrors the
+       header language switcher, which is likewise hidden at <= 1 language, so a
+       single-language account never sees an empty/disabled picker. -->
+  @if (languageOptions.length > 1) {
+    <div class="settings-card">
+      <div class="settings-header">
+        <span class="settings-header__text">
+          <span class="settings-header__title">{{ 'settings.language' | t }}</span>
+          <span class="settings-header__sub">{{ 'settings.languageHelp' | t }}</span>
+        </span>
+      </div>
+      <div class="settings-body">
+        <label for="pref-lang" class="field-label">{{ 'language.preferred' | t }}</label>
+        <select id="pref-lang" class="field-control" [value]="currentLanguage"
+                (change)="onLanguageChange($any($event.target).value)">
+          @for (l of languageOptions; track l.languageCode) {
+            <option [value]="l.languageCode">{{ l.name }}</option>
+          }
+        </select>
+        @if (languageMessage) {
+          <p class="field-success" role="status" aria-live="polite">{{ languageMessage }}</p>
         }
-      </select>
-      @if (languageOptions.length <= 1) {
-        <p class="field-hint">{{ 'language.onlyOne' | t }}</p>
-      }
-      @if (languageMessage) {
-        <p class="field-success" role="status" aria-live="polite">{{ languageMessage }}</p>
-      }
+      </div>
     </div>
-  </div>
+  }
 
   <!-- Security -->
   <div class="settings-card">

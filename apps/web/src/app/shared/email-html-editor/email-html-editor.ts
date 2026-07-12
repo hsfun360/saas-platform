@@ -135,10 +135,11 @@ function chipsToRaw(html: string): string {
     `
       :host { display: block; }
       .ehe-loading { display: flex; align-items: center; gap: var(--space-sm, 8px); padding: var(--space-md, 16px);
-        color: #64748b; font-size: 14px; border: 1px solid #e2e8f0; border-radius: 8px; }
-      .ehe-loading .spinner { width: 18px; height: 18px; border: 2px solid #cbd5e1; border-top-color: #2563eb;
+        color: var(--text-muted); font-size: 14px; border: 1px solid var(--border); border-radius: 8px;
+        background: var(--surface-card); }
+      .ehe-loading .spinner { width: 18px; height: 18px; border: 2px solid var(--border-strong); border-top-color: var(--brand);
         border-radius: 50%; animation: ehe-spin 0.7s linear infinite; }
-      .ehe-error { padding: var(--space-md, 16px); color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca;
+      .ehe-error { padding: var(--space-md, 16px); color: var(--danger-text); background: var(--danger-surface); border: 1px solid var(--danger-border);
         border-radius: 8px; font-size: 14px; }
       @keyframes ehe-spin { to { transform: rotate(360deg); } }
     `,

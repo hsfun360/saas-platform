@@ -533,13 +533,13 @@
 /* SIDEBAR */
 .sidebar {
   width: 72px; /* Icons only width */
-  background: white;
+  background: var(--surface-card);
   display: flex;
   flex-direction: column;
   transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1000;
   white-space: nowrap;
-  border-right: 1px solid #dadce0;
+  border-right: 1px solid var(--border);
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -557,7 +557,7 @@
   height: 100%;
   box-shadow: 0 8px 10px rgba(0,0,0,0.2);
   /*box-shadow: 0 16px 10px 0 rgba(0,0,0,0.14), 0 11px 18px 0 rgba(0,0,0,0.12);*/
-  border-right: 1px solid #dadce0;
+  border-right: 1px solid var(--border);
 }
 
 /* --- NAVIGATION ITEMS (The Final Gmail Fix) --- */
@@ -573,7 +573,7 @@
   width: 6px;
 }
 .sidebar-nav::-webkit-scrollbar-thumb {
-  background: #dadce0;
+  background: var(--border);
   border-radius: 3px;
 }
 
@@ -590,11 +590,11 @@
   align-items: center;
   cursor: pointer;
   border-radius: 0 24px 24px 0;
-  color: #3c4043;
+  color: var(--text-secondary);
   text-decoration: none;
   border: none;
   background: none;
-  width: 100%; 
+  width: 100%;
   transition: background 0.2s;
   padding: 0; 
   margin: 0;
@@ -602,12 +602,12 @@
 }
 
 .sidebar-nav a:hover, .logout-item:hover {
-  background-color: #f1f3f4;
+  background-color: var(--surface-hover);
 }
 
 .sidebar-nav a.active {
-  background-color: #e8f0fe;
-  color: #1a73e8;
+  background-color: var(--surface-sunken);
+  color: var(--brand-text);
   font-weight: var(--weight-bold);
 }
 
@@ -627,13 +627,13 @@
   border: none;
   background: none;
   cursor: pointer;
-  color: #3c4043;
+  color: var(--text-secondary);
   text-align: left;
   border-radius: 0 24px 24px 0;
   overflow: hidden;
 }
 .nav-group__header:hover {
-  background-color: #f1f3f4;
+  background-color: var(--surface-hover);
 }
 .nav-group__label {
   flex: 1;
@@ -645,7 +645,7 @@
 }
 .nav-group__chevron {
   font-size: 18px;
-  color: #5f6368;
+  color: var(--text-muted);
   flex-shrink: 0;
   margin-right: var(--space-md);
   opacity: 0; /* fades in with the labels (rail hides it) */
@@ -701,7 +701,7 @@
 /* CONTENT AREA */
 .content-area {
   flex-grow: 1;
-  background-color: #f8f9fa;
+  background-color: var(--surface-page);
   padding: var(--space-lg);
   overflow-y: auto; /* Allow vertical scroll only inside the content area */
   box-sizing: border-box;
@@ -728,8 +728,8 @@
   right: 0;
   bottom: 0;
   height: var(--bottom-nav-height);
-  background: #ffffff;
-  border-top: 1px solid #dadce0;
+  background: var(--surface-card);
+  border-top: 1px solid var(--border);
   z-index: 1000;
 }
 
@@ -743,14 +743,14 @@
   min-height: 44px;
   border: none;
   background: none;
-  color: #5f6368;
+  color: var(--text-muted);
   font-size: var(--font-overline);
   text-decoration: none;
   cursor: pointer;
 }
 
 .bottom-nav-item.active {
-  color: #1a73e8;
+  color: var(--brand-text);
 }
 
 .bottom-nav-item .material-icons {
@@ -819,7 +819,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: var(--overlay);
     z-index: 999;
   }
 }
