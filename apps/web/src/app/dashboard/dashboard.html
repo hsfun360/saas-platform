@@ -80,7 +80,7 @@
 
         <!-- Language quick-switch (only when the user has more than one to pick from) -->
         @if (languageOptions.length > 1) {
-          <div style="position: relative; display: inline-block;">
+          <div style="position: relative; display: flex; align-items: center;">
             <button class="icon-btn" [title]="'language.switch' | t" [attr.aria-label]="'language.switch' | t"
                     aria-haspopup="true" [attr.aria-expanded]="isLanguageDropdownOpen"
                     (click)="toggleLanguageDropdown($event)" style="color: white; display: inline-flex; align-items: center; gap: 4px;">
@@ -108,7 +108,7 @@
           </div>
         }
 
-        <div style="position: relative; display: inline-block;">
+        <div style="position: relative; display: flex; align-items: center;">
           <button class="icon-btn" title="Apps" aria-label="Apps" aria-haspopup="true" [attr.aria-expanded]="isAppsDropdownOpen" (click)="toggleAppsDropdown($event)" style="color: white">
             <span class="material-icons" style="font-size: 24px; vertical-align: middle;">apps</span>
           </button>

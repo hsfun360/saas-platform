@@ -87,21 +87,39 @@
 
   <!-- ============ Create / edit role dialog ============ -->
   @if (roleDialogOpen()) {
-    <app-dialog [title]="editingRoleId() ? 'Edit role' : 'New role'" [busy]="isLoading()" (close)="cancelEdit()">
+    <app-dialog #roleDlg [title]="editingRoleId() ? 'Edit role' : 'New role'" [busy]="isLoading()"
+                [dirty]="roleForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this form. Leaving now will discard them."
+                (close)="cancelEdit()">
       @if (editLoading()) {
         <p style="color: #64748b;">Loading role…</p>
       }
 
+      <form [formGroup]="roleForm">
       <div style="margin-bottom: var(--space-lg);">
         <label for="rmRoleName" style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-sm); color: #334155; font-size: var(--font-h3);">Role Name *</label>
-        <input id="rmRoleName" type="text" [(ngModel)]="roleName" placeholder="e.g. Golf Pro, Front Desk Cashier"
+        <input id="rmRoleName" type="text" formControlName="roleName" maxlength="100" autocomplete="off"
+               placeholder="e.g. Golf Pro, Front Desk Cashier"
+               [attr.aria-invalid]="showError(roleForm.controls.roleName)" aria-describedby="rmRoleNameErr"
                style="width: 100%; padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 6px; font-size: var(--font-body);">
+        @if (showError(roleForm.controls.roleName)) {
+          <p id="rmRoleNameErr" class="field-error" role="alert">
+            @if (roleForm.controls.roleName.errors?.['required']) { Role name is required. }
+            @else { Role name is too long (max 100 characters). }
+          </p>
+        }
       </div>
 
       <div style="margin-bottom: var(--space-lg);">
         <label for="rmRoleDesc" style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-sm); color: #334155; font-size: var(--font-h3);">Description <span style="font-weight: var(--weight-regular); color: #64748b; font-size: var(--font-body-2);">(optional)</span></label>
-        <input id="rmRoleDesc" type="text" [(ngModel)]="roleDescription" placeholder="e.g. Handles front-desk check-in and payments"
+        <input id="rmRoleDesc" type="text" formControlName="roleDescription" maxlength="255" autocomplete="off"
+               placeholder="e.g. Handles front-desk check-in and payments"
+               [attr.aria-invalid]="showError(roleForm.controls.roleDescription)" aria-describedby="rmRoleDescErr"
                style="width: 100%; padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 6px; font-size: var(--font-body);">
+        @if (showError(roleForm.controls.roleDescription)) {
+          <p id="rmRoleDescErr" class="field-error" role="alert">Description is too long (max 255 characters).</p>
+        }
       </div>
 
       <div>
@@ -134,9 +152,10 @@
           }
         }
       </div>
+      </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelEdit()" [disabled]="isLoading()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="roleDlg.requestClose()" [disabled]="isLoading()">Cancel</button>
         <button type="button" class="btn btn--primary" (click)="onSubmit()" [disabled]="isLoading() || editLoading()">
           {{ isLoading() ? 'Saving…' : 'Save' }}
         </button>

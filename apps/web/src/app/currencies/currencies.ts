@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CurrencyService } from '../services/currency.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Currency } from '../models/auth.models';
@@ -8,30 +8,48 @@ import { Currency } from '../models/auth.models';
 // System Admin: maintain the ISO 4217 currency reference table - load the bundled
 // defaults, add currencies manually, edit them, and enable/disable or delete them.
 // Reuses the System Setup stylesheet (shared admin-screen look).
+//
+// Reactive Forms (canonical reference: platform-users): create/edit use typed
+// nonNullable FormGroups, validators live on the controls, and `form.dirty`
+// feeds the shared dialog's unsaved-changes guard directly.
 @Component({
   selector: 'app-currencies',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogComponent],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './currencies.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
 export class CurrenciesComponent implements OnInit {
   private readonly currencyService = inject(CurrencyService);
+  private readonly fb = inject(FormBuilder);
 
   readonly currencies = signal<Currency[]>([]);
   readonly loading = signal(false);
   readonly seeding = signal(false);
   readonly togglingCode = signal<string | null>(null);
 
-  // Add-currency dialog.
+  // Add-currency dialog. Code must be a 3-letter ISO 4217 code; numeric fields
+  // stay strings (nonNullable) and are parsed to numbers in the submit handler.
   readonly addOpen = signal(false);
   readonly addSaving = signal(false);
-  addForm = { code: '', name: '', symbol: '', numericCode: '', minorUnit: '2' };
+  readonly addForm = this.fb.nonNullable.group({
+    code: ['', [Validators.required, Validators.pattern(/^[A-Za-z]{3}$/)]],
+    numericCode: [''],
+    name: ['', [Validators.required, Validators.maxLength(100)]],
+    symbol: ['', [Validators.maxLength(8)]],
+    minorUnit: ['2'],
+  });
 
-  // Edit-currency dialog.
+  // Edit-currency dialog. The code is display-only (not a form field); it lives
+  // in a separate signal so it can key the update call.
   readonly editOpen = signal(false);
   readonly editSaving = signal(false);
-  editForm = { code: '', name: '', symbol: '', minorUnit: '2' };
+  readonly editingCode = signal('');
+  readonly editForm = this.fb.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(100)]],
+    symbol: ['', [Validators.maxLength(8)]],
+    minorUnit: ['2'],
+  });
 
   readonly search = signal('');
   readonly filtered = computed(() => {
@@ -101,9 +119,15 @@ export class CurrenciesComponent implements OnInit {
     });
   }
 
+  // Show a control's validation message once the user has interacted with it
+  // (or after a submit attempt marks everything touched).
+  showError(control: AbstractControl): boolean {
+    return control.invalid && control.touched;
+  }
+
   openAdd(): void {
     this.clearMessages();
-    this.addForm = { code: '', name: '', symbol: '', numericCode: '', minorUnit: '2' };
+    this.addForm.reset({ code: '', numericCode: '', name: '', symbol: '', minorUnit: '2' });
     this.addOpen.set(true);
   }
 
@@ -113,21 +137,18 @@ export class CurrenciesComponent implements OnInit {
 
   onSaveAdd(): void {
     this.clearMessages();
-    const code = this.addForm.code.trim().toUpperCase();
-    const name = this.addForm.name.trim();
-    if (!/^[A-Z]{3}$/.test(code)) {
-      this.errorMessage.set('Code must be a 3-letter ISO 4217 code (e.g. USD).');
+    if (this.addForm.invalid) {
+      this.addForm.markAllAsTouched();
       return;
     }
-    if (!name) {
-      this.errorMessage.set('Name is required.');
-      return;
-    }
-    const numericCode = this.addForm.numericCode.trim() ? Number(this.addForm.numericCode) : undefined;
-    const minorUnit = this.addForm.minorUnit.trim() ? Number(this.addForm.minorUnit) : 2;
+    const value = this.addForm.getRawValue();
+    const code = value.code.trim().toUpperCase();
+    const name = value.name.trim();
+    const numericCode = value.numericCode.trim() ? Number(value.numericCode) : undefined;
+    const minorUnit = value.minorUnit.trim() ? Number(value.minorUnit) : 2;
     this.addSaving.set(true);
     this.currencyService
-      .create({ code, name, symbol: this.addForm.symbol.trim() || undefined, numericCode, minorUnit })
+      .create({ code, name, symbol: value.symbol.trim() || undefined, numericCode, minorUnit })
       .subscribe({
         next: () => {
           this.successMessage.set(`${name} added.`);
@@ -144,12 +165,12 @@ export class CurrenciesComponent implements OnInit {
 
   openEdit(currency: Currency): void {
     this.clearMessages();
-    this.editForm = {
-      code: currency.code,
+    this.editingCode.set(currency.code);
+    this.editForm.reset({
       name: currency.name,
       symbol: currency.symbol || '',
       minorUnit: String(currency.minorUnit ?? 2),
-    };
+    });
     this.editOpen.set(true);
   }
 
@@ -159,15 +180,16 @@ export class CurrenciesComponent implements OnInit {
 
   onSaveEdit(): void {
     this.clearMessages();
-    const name = this.editForm.name.trim();
-    if (!name) {
-      this.errorMessage.set('Name is required.');
+    if (this.editForm.invalid) {
+      this.editForm.markAllAsTouched();
       return;
     }
-    const minorUnit = this.editForm.minorUnit.trim() ? Number(this.editForm.minorUnit) : 2;
+    const value = this.editForm.getRawValue();
+    const name = value.name.trim();
+    const minorUnit = value.minorUnit.trim() ? Number(value.minorUnit) : 2;
     this.editSaving.set(true);
     this.currencyService
-      .update(this.editForm.code, { name, symbol: this.editForm.symbol.trim(), minorUnit })
+      .update(this.editingCode(), { name, symbol: value.symbol.trim(), minorUnit })
       .subscribe({
         next: () => {
           this.successMessage.set(`${name} updated.`);

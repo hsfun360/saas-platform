@@ -1,0 +1,253 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">💵</span>
+      <div>
+        <h1>Membership Fee</h1>
+        <p class="saas-subtitle">Fees for this club — amount, tax scheme and optional installment schedule.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (fees().length > 0) {
+        {{ fees().length }} fees, {{ activeCount() }} active
+      } @else {
+        No fees yet — use "New fee" to add one.
+      }
+    </span>
+  </div>
+
+  <!-- Live filter -->
+  @if (!loading() && fees().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #mfSearchBox type="search" [value]="search()" (input)="search.set(mfSearchBox.value)"
+             placeholder="Search fees…" aria-label="Search fees" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading membership fees…</p></div>
+  } @else if (fees().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No membership fees yet. Use "New fee" to add one.</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No fees match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (f of filtered(); track f.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ f.membershipFeeCode }}</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">
+                  {{ f.amount | number:'1.2-2' }}@if (f.description) { · {{ f.description }} }@if (f.taxSchemeCode) { · Tax: {{ f.taxSchemeCode }} }
+                  ·
+                  @if (f.allowInstallment) {
+                    {{ f.noOfInstallment }} × {{ intervalLabel(f.installmentInterval) }}
+                  } @else {
+                    Single payment
+                  }
+                </span>
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (f.isActive === false) {
+                <span class="badge badge-inactive">Disabled</span>
+              } @else {
+                <span class="badge badge-active">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(f)">Edit</button>
+              @if (f.isActive === false) {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="toggleActive(f)" [disabled]="togglingId() === f.id">
+                  {{ togglingId() === f.id ? 'Saving…' : 'Enable' }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="toggleActive(f)" [disabled]="togglingId() === f.id">
+                  {{ togglingId() === f.id ? 'Saving…' : 'Disable' }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New fee FAB -->
+  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New fee">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New fee</span>
+  </button>
+
+  <!-- ============ Add / edit dialog ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #feeDlg [title]="dialogTitle()" [busy]="saving()"
+                [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this form. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="feeForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="fCode">Membership fee code <span class="required">*</span></label>
+            <input id="fCode" type="text" formControlName="membershipFeeCode" placeholder="e.g. ANNUAL"
+                   autocomplete="off" maxlength="50"
+                   [attr.aria-invalid]="showError(form.controls.membershipFeeCode)" aria-describedby="fCodeErr" />
+            @if (showError(form.controls.membershipFeeCode)) {
+              <p id="fCodeErr" class="field-error" role="alert">
+                @if (form.controls.membershipFeeCode.errors?.['required']) { Membership fee code is required. }
+                @else { Use 50 characters or fewer. }
+              </p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="fTax">Tax scheme</label>
+            <select id="fTax" formControlName="taxSchemeCode">
+              <option value="">— None —</option>
+              @for (t of taxSchemes(); track t.taxSchemeCode) {
+                <option [value]="t.taxSchemeCode">{{ t.taxSchemeCode }} — {{ t.name }}</option>
+              }
+            </select>
+            @if (!countrySet()) {
+              <span class="mf-hint">Set this company's country to use tax schemes.</span>
+            }
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="fDesc">Description</label>
+            <input id="fDesc" type="text" formControlName="description" placeholder="Optional summary" maxlength="200"
+                   [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="fDescErr" />
+            @if (showError(form.controls.description)) {
+              <p id="fDescErr" class="field-error" role="alert">Use 200 characters or fewer.</p>
+            }
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm); align-items: end;">
+          <div class="form-group">
+            <label for="fAmount">Amount <span class="required">*</span></label>
+            <input id="fAmount" type="number" inputmode="decimal" formControlName="amount" min="0" step="0.01"
+                   [attr.aria-invalid]="showError(form.controls.amount)" aria-describedby="fAmountErr" />
+            @if (showError(form.controls.amount)) {
+              <p id="fAmountErr" class="field-error" role="alert">
+                @if (form.controls.amount.errors?.['required']) { Amount is required. }
+                @else { Amount must be zero or more. }
+              </p>
+            }
+          </div>
+          <div class="form-group">
+            <label class="mf-check">
+              <input type="checkbox" formControlName="allowInstallment" />
+              <span>Allow installment</span>
+            </label>
+          </div>
+        </div>
+
+        @if (form.controls.allowInstallment.value) {
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-group">
+              <label for="fNo">No. of installments <span class="required">*</span></label>
+              <input id="fNo" type="number" inputmode="numeric" formControlName="noOfInstallment" min="1" max="120" step="1"
+                     [attr.aria-invalid]="showError(form.controls.noOfInstallment)" aria-describedby="fNoErr" />
+              @if (showError(form.controls.noOfInstallment)) {
+                <p id="fNoErr" class="field-error" role="alert">
+                  @if (form.controls.noOfInstallment.errors?.['required']) { Number of installments is required. }
+                  @else { Enter at least 1 installment. }
+                </p>
+              }
+            </div>
+            <div class="form-group">
+              <label for="fInterval">Installment interval <span class="required">*</span></label>
+              <select id="fInterval" formControlName="installmentInterval"
+                      [attr.aria-invalid]="showError(form.controls.installmentInterval)" aria-describedby="fIntervalErr">
+                <option value="" disabled>Select an interval…</option>
+                @for (i of intervals(); track i.key) {
+                  <option [value]="i.key">{{ i.label }}</option>
+                }
+              </select>
+              @if (showError(form.controls.installmentInterval)) {
+                <p id="fIntervalErr" class="field-error" role="alert">Select an installment interval.</p>
+              }
+            </div>
+          </div>
+
+          <!-- Membership Fee Scheme: installment stages -->
+          <div class="mf-schedule">
+            <div class="mf-schedule__head">
+              <span class="mf-schedule__title">Installment schedule</span>
+              <button type="button" class="btn btn--secondary btn--sm" (click)="generateSchedule()">Generate schedule</button>
+            </div>
+
+            @if (stages().length === 0) {
+              <p class="mf-hint">Enter the amount and number of installments, then "Generate schedule" to split it into stages.</p>
+            } @else {
+              <div class="mf-stages">
+                @for (s of stages(); track s.stageNo; let i = $index) {
+                  <div class="mf-stage">
+                    <span class="mf-stage__no">Stage {{ s.stageNo }}</span>
+                    <input class="mf-stage__amt" type="number" min="0" step="0.01"
+                           [value]="s.amount" (input)="updateStageAmount(i, $any($event.target).value)"
+                           [attr.aria-label]="'Stage ' + s.stageNo + ' amount'" />
+                    @if (s.isPosted) {
+                      <span class="badge badge-active">Posted</span>
+                    } @else {
+                      <span class="badge badge-inactive">Not posted</span>
+                    }
+                  </div>
+                }
+              </div>
+              <div class="mf-total" [class.mf-total--bad]="!scheduleBalanced()">
+                <span>Stages total: {{ stageTotal() | number:'1.2-2' }} / {{ amountValue() | number:'1.2-2' }}</span>
+                @if (scheduleBalanced()) {
+                  <span class="mf-total__ok">✓ balanced</span>
+                } @else {
+                  <span class="mf-total__warn">must equal the fee amount</span>
+                }
+              </div>
+            }
+          </div>
+        }
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="feeDlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="feeForm" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

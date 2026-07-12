@@ -109,34 +109,47 @@
 
   <!-- ============ Edit dial code dialog ============ -->
   @if (editOpen()) {
-    <app-dialog [title]="'Edit — ' + editForm.name" [busy]="editSaving()" (close)="closeEdit()">
-      <form id="editCountryForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
+    <app-dialog #editDlg [title]="'Edit — ' + editName()" [busy]="editSaving()" [dirty]="editForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes. Leaving now will discard them."
+                (close)="closeEdit()">
+      <form id="editCountryForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
         <div class="form-row">
           <div class="form-group">
             <label for="cDial">Dial code</label>
-            <input id="cDial" type="text" name="cDial" [(ngModel)]="editForm.dialCode" placeholder="e.g. +60" />
+            <input id="cDial" type="text" inputmode="tel" formControlName="dialCode" placeholder="e.g. +60" maxlength="8"
+                   [attr.aria-invalid]="showError(editForm.controls.dialCode)" aria-describedby="cDialErr" />
+            @if (showError(editForm.controls.dialCode)) {
+              <p id="cDialErr" class="field-error" role="alert">Dial code is too long.</p>
+            }
           </div>
         </div>
 
         <h3 style="margin: var(--space-md) 0 var(--space-xs); font-size: var(--font-h3); color: #0f172a;">Translations</h3>
         <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Localized country name per language. Leave blank to clear a translation.</p>
-        @if (editTranslations.length === 0) {
+        @if (translationControls.length === 0) {
           <p class="cell-subtle" style="margin: 0;">No languages configured. Load defaults on the Languages screen to add translations.</p>
         } @else {
-          @for (t of editTranslations; track t.code) {
-            <div class="form-row">
-              <div class="form-group">
-                <label [attr.for]="'tr-' + t.code">{{ t.label }} <span class="cell-subtle">({{ t.code | uppercase }})</span></label>
-                <input [id]="'tr-' + t.code" type="text" [name]="'tr-' + t.code" [(ngModel)]="t.name"
-                       [placeholder]="'Name in ' + t.label" />
+          <div formArrayName="translations">
+            @for (row of translationControls; track row.controls.languageCode.value; let i = $index) {
+              <div class="form-row" [formGroupName]="i">
+                <div class="form-group">
+                  <label [attr.for]="'tr-' + row.controls.languageCode.value">{{ row.controls.label.value }} <span class="cell-subtle">({{ row.controls.languageCode.value | uppercase }})</span></label>
+                  <input [id]="'tr-' + row.controls.languageCode.value" type="text" formControlName="name" maxlength="100"
+                         [placeholder]="'Name in ' + row.controls.label.value"
+                         [attr.aria-invalid]="showError(row.controls.name)" [attr.aria-describedby]="'tr-' + row.controls.languageCode.value + '-err'" />
+                  @if (showError(row.controls.name)) {
+                    <p [id]="'tr-' + row.controls.languageCode.value + '-err'" class="field-error" role="alert">Name is too long.</p>
+                  }
+                </div>
               </div>
-            </div>
-          }
+            }
+          </div>
         }
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="closeEdit()" [disabled]="editSaving()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="editDlg.requestClose()" [disabled]="editSaving()">Cancel</button>
         <button type="submit" form="editCountryForm" class="btn btn--primary" [disabled]="editSaving()">
           {{ editSaving() ? 'Saving…' : 'Save' }}
         </button>

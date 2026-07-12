@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MembershipStatusService } from '../services/membership-status.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { MembershipStatus, MembershipStatusOption, MembershipStatusCopySource } from '../models/auth.models';
@@ -9,15 +9,19 @@ import { MembershipStatus, MembershipStatusOption, MembershipStatusCopySource } 
 // Per-company master file: club-defined status codes with a lifecycle class,
 // system control and display colour. Enable/disable (no hard delete). Reuses the
 // System Setup stylesheet for the shared admin-screen look.
+//
+// Forms use typed Reactive Forms (canonical reference: platform-users): validators
+// live on the controls, `form.dirty` feeds the shared dialog's unsaved-changes guard.
 @Component({
   selector: 'app-membership-statuses',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogComponent],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './membership-statuses.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-statuses.css'],
 })
 export class MembershipStatusesComponent implements OnInit {
   private readonly service = inject(MembershipStatusService);
+  private readonly fb = inject(FormBuilder);
 
   readonly statuses = signal<MembershipStatus[]>([]);
   readonly classes = signal<MembershipStatusOption[]>([]);
@@ -25,16 +29,28 @@ export class MembershipStatusesComponent implements OnInit {
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);
 
-  // Add dialog.
+  // Add dialog. nonNullable keeps every control a non-null string.
   readonly addOpen = signal(false);
   readonly addSaving = signal(false);
-  addForm = this.blankForm();
+  readonly addForm = this.fb.nonNullable.group({
+    membershipStatus: ['', [Validators.required, Validators.maxLength(255)]],
+    statusClass: ['', [Validators.required]],
+    systemControl: ['', [Validators.required]],
+    description: ['', [Validators.maxLength(255)]],
+    statusColor: ['#000000'],
+  });
 
-  // Edit dialog.
+  // Edit dialog. The edited record's id isn't an input, so it lives outside the form.
   readonly editOpen = signal(false);
   readonly editSaving = signal(false);
   editId = '';
-  editForm = this.blankForm();
+  readonly editForm = this.fb.nonNullable.group({
+    membershipStatus: ['', [Validators.required, Validators.maxLength(255)]],
+    statusClass: ['', [Validators.required]],
+    systemControl: ['', [Validators.required]],
+    description: ['', [Validators.maxLength(255)]],
+    statusColor: ['#000000'],
+  });
 
   // Copy-from-another-company dialog (first-time setup only).
   readonly copyOpen = signal(false);
@@ -75,8 +91,10 @@ export class MembershipStatusesComponent implements OnInit {
     this.load();
   }
 
-  private blankForm() {
-    return { membershipStatus: '', statusClass: '', description: '', systemControl: '', statusColor: '#000000' };
+  // Show a control's validation message once the user has interacted with it
+  // (or after a submit attempt marks everything touched).
+  showError(control: AbstractControl): boolean {
+    return control.invalid && control.touched;
   }
 
   classLabel(key: string): string {
@@ -115,7 +133,7 @@ export class MembershipStatusesComponent implements OnInit {
 
   openAdd(): void {
     this.clearMessages();
-    this.addForm = this.blankForm();
+    this.addForm.reset({ membershipStatus: '', statusClass: '', systemControl: '', description: '', statusColor: '#000000' });
     this.addOpen.set(true);
   }
 
@@ -125,19 +143,11 @@ export class MembershipStatusesComponent implements OnInit {
 
   onSaveAdd(): void {
     this.clearMessages();
-    const f = this.addForm;
-    if (!f.membershipStatus.trim()) {
-      this.errorMessage.set('Membership status is required.');
+    if (this.addForm.invalid) {
+      this.addForm.markAllAsTouched(); // reveal every field's error at once
       return;
     }
-    if (!f.statusClass) {
-      this.errorMessage.set('Status class is required.');
-      return;
-    }
-    if (!f.systemControl) {
-      this.errorMessage.set('System control is required.');
-      return;
-    }
+    const f = this.addForm.getRawValue();
     this.addSaving.set(true);
     this.service
       .create({
@@ -164,13 +174,13 @@ export class MembershipStatusesComponent implements OnInit {
   openEdit(s: MembershipStatus): void {
     this.clearMessages();
     this.editId = s.id;
-    this.editForm = {
+    this.editForm.reset({
       membershipStatus: s.membershipStatus,
       statusClass: s.statusClass,
-      description: s.description || '',
       systemControl: s.systemControl,
+      description: s.description || '',
       statusColor: s.statusColor || '#000000',
-    };
+    });
     this.editOpen.set(true);
   }
 
@@ -180,11 +190,11 @@ export class MembershipStatusesComponent implements OnInit {
 
   onSaveEdit(): void {
     this.clearMessages();
-    const f = this.editForm;
-    if (!f.membershipStatus.trim()) {
-      this.errorMessage.set('Membership status is required.');
+    if (this.editForm.invalid) {
+      this.editForm.markAllAsTouched();
       return;
     }
+    const f = this.editForm.getRawValue();
     this.editSaving.set(true);
     this.service
       .update(this.editId, {

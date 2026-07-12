@@ -1,6 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { LanguageService } from '../services/language.service';
 import { TranslatePipe } from '../i18n/translate.pipe';
 import { Language } from '../models/auth.models';
@@ -12,7 +11,7 @@ import { Language } from '../models/auth.models';
 @Component({
   selector: 'app-account-languages',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslatePipe],
+  imports: [CommonModule, TranslatePipe],
   templateUrl: './account-languages.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

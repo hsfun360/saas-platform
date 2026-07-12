@@ -1,22 +1,47 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import {
+  AbstractControl,
+  FormArray,
+  FormBuilder,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { CountryService } from '../services/country.service';
 import { LanguageService } from '../services/language.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Country, Language } from '../models/auth.models';
 
+// One translation row = a small typed FormGroup. `languageCode` and `label` are
+// carried alongside the editable `name` so we can render the row's label and read
+// the code back into the API payload without a separate parallel array.
+type TranslationGroup = FormGroup<{
+  languageCode: FormControl<string>;
+  label: FormControl<string>;
+  name: FormControl<string>;
+}>;
+
 // System Admin: maintain the country reference table - sync it from the
 // world_countries dataset and enable/disable individual countries in the pickers.
 // Reuses the System Setup stylesheet (shared admin-screen look).
+//
+// The edit dialog uses Reactive Forms (see docs/coding-standards.md → "Forms",
+// canonical reference `platform-users`): a typed FormGroup with a `dialCode`
+// control plus a `translations` FormArray (one FormGroup per language). `form.dirty`
+// feeds the shared dialog's unsaved-changes guard directly.
 @Component({
   selector: 'app-countries',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogComponent],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './countries.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
 export class CountriesComponent implements OnInit {
+  private readonly languageService = inject(LanguageService);
+  private readonly fb = inject(FormBuilder);
+
   readonly countries = signal<Country[]>([]);
   readonly loading = signal(false);
   readonly syncing = signal(false);
@@ -26,15 +51,24 @@ export class CountriesComponent implements OnInit {
   // dialog offers. Loaded once on init; empty if the Language table isn't seeded.
   readonly languages = signal<Language[]>([]);
 
-  // Edit dialog (dial code + localized names).
+  // Edit dialog. The edited country's alpha-2 / display name aren't editable form
+  // inputs, so they live in signals outside the form (id + title source).
   readonly editOpen = signal(false);
   readonly editSaving = signal(false);
-  editForm = { alpha2: '', name: '', dialCode: '' };
-  // One row per language to translate, prefilled from the country's `names` map.
-  // `code` is the language code, `label` its display name, `name` the (editable)
-  // translation. English is listed first; languages already present on the country
-  // but not currently active are still shown so existing data stays editable.
-  editTranslations: { code: string; label: string; name: string }[] = [];
+  readonly editAlpha2 = signal('');
+  readonly editName = signal('');
+
+  // Edit form: a dial code control plus a FormArray of per-language translation
+  // rows (built fresh on each openEdit from the country's `names` map).
+  readonly editForm = this.fb.nonNullable.group({
+    dialCode: this.fb.nonNullable.control('', [Validators.maxLength(8)]),
+    translations: this.fb.nonNullable.array<TranslationGroup>([]),
+  });
+
+  // Convenience accessor for the template (`@for` over the rows) and read-back.
+  get translationControls(): TranslationGroup[] {
+    return this.editForm.controls.translations.controls;
+  }
 
   readonly search = signal('');
   readonly filtered = computed(() => {
@@ -53,8 +87,6 @@ export class CountriesComponent implements OnInit {
 
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
-
-  private readonly languageService = inject(LanguageService);
 
   constructor(private countryService: CountryService) {}
 
@@ -110,11 +142,37 @@ export class CountriesComponent implements OnInit {
     });
   }
 
+  // Show a control's validation message once the user has interacted with it
+  // (or after a submit attempt marks everything touched).
+  showError(control: AbstractControl): boolean {
+    return control.invalid && control.touched;
+  }
+
   openEdit(country: Country): void {
     this.clearMessages();
-    this.editForm = { alpha2: country.alpha2, name: country.name, dialCode: country.dialCode || '' };
-    this.editTranslations = this.buildTranslations(country);
+    this.editAlpha2.set(country.alpha2);
+    this.editName.set(country.name);
+
+    // Rebuild the translations FormArray from scratch: clear, then push one typed
+    // group per language row. Each group is created with its values as its
+    // nonNullable defaults, so the reset() below keeps those values and marks the
+    // whole form pristine.
+    const arr: FormArray<TranslationGroup> = this.editForm.controls.translations;
+    arr.clear();
+    for (const row of this.buildTranslations(country)) {
+      arr.push(this.buildTranslationGroup(row.code, row.label, row.name));
+    }
+    this.editForm.reset({ dialCode: country.dialCode || '' });
+
     this.editOpen.set(true);
+  }
+
+  private buildTranslationGroup(code: string, label: string, name: string): TranslationGroup {
+    return this.fb.nonNullable.group({
+      languageCode: this.fb.nonNullable.control(code),
+      label: this.fb.nonNullable.control(label),
+      name: this.fb.nonNullable.control(name, [Validators.maxLength(100)]),
+    });
   }
 
   // Union of the active languages and any language already present on the country's
@@ -141,14 +199,21 @@ export class CountriesComponent implements OnInit {
 
   onSaveEdit(): void {
     this.clearMessages();
-    this.editSaving.set(true);
+    if (this.editForm.invalid) {
+      this.editForm.markAllAsTouched();
+      return;
+    }
+    const value = this.editForm.getRawValue();
+    // Read the FormArray back into the exact payload the API expects: a map keyed
+    // by language code with trimmed names (empty string clears that translation).
     const names: Record<string, string> = {};
-    for (const t of this.editTranslations) names[t.code] = t.name.trim();
+    for (const t of value.translations) names[t.languageCode] = t.name.trim();
+    this.editSaving.set(true);
     this.countryService
-      .updateCountry(this.editForm.alpha2, { dialCode: this.editForm.dialCode.trim(), names })
+      .updateCountry(this.editAlpha2(), { dialCode: value.dialCode.trim(), names })
       .subscribe({
         next: () => {
-          this.successMessage.set(`${this.editForm.name} updated.`);
+          this.successMessage.set(`${this.editName()} updated.`);
           this.editSaving.set(false);
           this.editOpen.set(false);
           this.load();

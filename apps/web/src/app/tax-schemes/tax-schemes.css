@@ -3,6 +3,64 @@
    side-by-side on desktop, one pane at a time on mobile (detail covers master when
    a scheme is open, driven by the URL param). */
 
+/* Load-defaults preview: selectable list of platform templates for a country. */
+.tx-load-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 340px;
+  overflow-y: auto;
+}
+.tx-load-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.tx-load-item--off {
+  background: #f8fafc;
+  cursor: default;
+}
+.tx-load-item input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.tx-load-item__flag {
+  font-size: 1.25rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.tx-load-item__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.tx-load-item__title {
+  font-weight: var(--weight-semibold);
+  color: #1e293b;
+}
+.tx-load-item__sub {
+  font-size: var(--font-body-2);
+  color: #475569;
+}
+.tx-load-item__tag {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .tx-layout {
   display: grid;
   grid-template-columns: minmax(0, 420px) 1fr;
@@ -34,12 +92,19 @@
   gap: var(--space-sm);
 }
 
+/* Master card: content selects the scheme (main), status chip top-right, and the
+   Edit / Enable-Disable actions below - matching the app-wide action-row-with-badge
+   layout (same shape as Modules & Menus, plus a status chip). */
 .tx-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: "main badge";
-  align-items: center;
-  gap: var(--space-sm);
+  grid-template-areas:
+    "main badge"
+    "main actions";
+  /* top-align so the status chip sits inline with the title's first line (like the
+     Companies / Company Tax card), not floating above a vertically-centred title. */
+  align-items: start;
+  gap: var(--space-xs) var(--space-sm);
   padding: var(--space-xs) var(--space-sm);
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -55,13 +120,30 @@
   grid-area: main;
   display: flex;
   align-items: center;
+  gap: var(--space-sm);
   min-width: 0;
   min-height: 44px;
-  padding: var(--space-xs) 0;
+  padding: 0; /* no top offset, so the title's first line aligns with the status chip */
   background: transparent;
   border: none;
   text-align: left;
   cursor: pointer;
+}
+
+/* Country flag emoji shown as the scheme icon. */
+.tx-row__flag {
+  font-size: 1.35rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.tx-row__actions {
+  grid-area: actions;
+  justify-self: end;
+  align-self: end;
+  display: flex;
+  gap: var(--space-xs);
+  flex-shrink: 0;
 }
 
 .tx-row__text {
@@ -71,21 +153,46 @@
   overflow-wrap: anywhere;
 }
 
+/* Headline + detail line match the Companies card exactly (the app's canonical
+   listing card): body 16px semibold #1e293b title, body-2 14px #475569 subline. */
 .tx-row__title {
+  font-size: var(--font-body);
   font-weight: var(--weight-semibold);
-  color: #0f172a;
+  color: #1e293b;
 }
 
 .tx-row__sub {
   font-size: var(--font-body-2);
-  color: #64748b;
+  color: #475569;
+  margin-top: var(--space-xs);
 }
 
 .tx-row__badge {
   grid-area: badge;
   justify-self: end;
-  align-self: center;
+  align-self: start;
   white-space: nowrap;
+}
+
+/* Status chip — matches the Companies card badge exactly (compact overline pill),
+   rather than the larger shared `.badge`. On = green, off = grey (as Companies). */
+.tx-status {
+  display: inline-block;
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.tx-status--on {
+  background: #dcfce7;
+  color: #166534;
+}
+.tx-status--off {
+  background: #f1f5f9;
+  color: #64748b;
 }
 
 /* New-scheme FAB — pinned bottom-right, below shell drawer(1000)/backdrop(999)/header(1100). */
@@ -101,6 +208,18 @@
 @media (max-width: 767px) {
   .tx-fab {
     bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md));
+  }
+
+  /* Card reflow: badge stays top-right, actions drop to a full-width row below. */
+  .tx-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "main badge"
+      "actions actions";
+  }
+  .tx-row__actions {
+    justify-self: start;
+    align-self: center;
   }
 }
 
@@ -139,17 +258,18 @@
   min-width: 0;
 }
 
+.tx-detail-flag {
+  font-size: 1.6rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 .tx-detail-title h2 {
   margin: 0;
   font-size: var(--font-h2);
   overflow-wrap: anywhere;
 }
 
-.tx-detail-actions {
-  display: flex;
-  gap: var(--space-xs);
-  flex-shrink: 0;
-}
 
 .tx-meta {
   display: flex;
@@ -283,6 +403,10 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-sm);
+}
+/* A field that spans the whole row (e.g. scheme code when the country picker is hidden). */
+.tx-span-2 {
+  grid-column: 1 / -1;
 }
 
 .tx-check {

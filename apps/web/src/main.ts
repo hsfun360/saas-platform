@@ -44,8 +44,10 @@ import { AccountEmailTemplatesComponent } from './app/account-email-templates/ac
 import { AccountEmailTemplateEditComponent } from './app/account-email-templates/account-email-template-edit';
 import { SystemDashboardComponent } from './app/systems/system-dashboard';
 import { MembershipStatusesComponent } from './app/membership-statuses/membership-statuses';
+import { MembershipFeesComponent } from './app/membership-fees/membership-fees';
 import { TaxSchemesComponent } from './app/tax-schemes/tax-schemes';
 import { CompanyTaxComponent } from './app/company-tax/company-tax';
+import { PlatformProfileComponent } from './app/platform-profile/platform-profile';
 import { ItemsComponent } from './app/items/items';
 import { UnderConstructionComponent } from './app/under-construction/under-construction';
 import { AccessDeniedComponent } from './app/access-denied/access-denied';
@@ -100,6 +102,12 @@ const routes: Routes = [
       { path: 'admin/tax-schemes/:id', component: TaxSchemesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       // Company Tax — per active company: which schemes it uses + GL overrides.
       { path: 'admin/company-tax', component: CompanyTaxComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      // Platform Tax - the platform's own tax catalog (accountId NULL), SaaS Admin.
+      // Reuses the Tax Setup screen at platform scope via data.taxScope.
+      { path: 'admin/platform-tax', component: TaxSchemesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', taxScope: 'platform' } },
+      { path: 'admin/platform-tax/:id', component: TaxSchemesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', taxScope: 'platform' } },
+      // Platform Profile - the platform's own company of record (invoice issuer + tax anchor), SaaS Admin.
+      { path: 'admin/platform-profile', component: PlatformProfileComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/subscribers', component: SubscribersComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/system-roles', component: PlatformRolesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/platform-users', component: PlatformUsersComponent, canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
@@ -116,6 +124,7 @@ const routes: Routes = [
       { path: 'membership', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management', title: 'Membership Management', icon: 'card_membership', blurb: 'Members, tiers, dues and standing.' } },
       // Master File Setup → Membership Status (per-company master file).
       { path: 'membership/statuses', component: MembershipStatusesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/fees', component: MembershipFeesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'golf', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management', title: 'Golf Management', icon: 'sports_golf', blurb: 'Tee sheet, bookings and competitions.' } },
       { path: 'facility', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Facility Management', title: 'Facility Management', icon: 'meeting_room', blurb: 'Facilities, availability and reservations.' } },
 

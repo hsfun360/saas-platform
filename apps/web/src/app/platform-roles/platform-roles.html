@@ -89,16 +89,24 @@
 
   <!-- ============ Create / Edit role dialog ============ -->
   @if (roleDialogOpen()) {
-    <app-dialog [title]="dialogMode() === 'edit' ? 'Edit role' : 'Create role'" [busy]="roleSubmitting()" (close)="closeDialog()">
-      <form id="roleDialogForm" (ngSubmit)="onSubmit()" class="saas-form" style="padding: 0;">
+    <app-dialog #roleDlg [title]="dialogMode() === 'edit' ? 'Edit role' : 'Create role'" [busy]="roleSubmitting()"
+                [dirty]="roleForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this form. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="roleDialogForm" [formGroup]="roleForm" (ngSubmit)="onSubmit()" class="saas-form" style="padding: 0;">
         <div class="form-row">
           <div class="form-group">
             <label for="roleName">Role Name <span class="required">*</span></label>
-            <input id="roleName" type="text" name="roleName" [(ngModel)]="roleForm.name" placeholder="e.g. Account Dept" required />
+            <input id="roleName" type="text" formControlName="roleName" placeholder="e.g. Account Dept" autocomplete="off" maxlength="150"
+                   [attr.aria-invalid]="showError(roleForm.controls.roleName)" aria-describedby="roleNameErr" />
+            @if (showError(roleForm.controls.roleName)) {
+              <p id="roleNameErr" class="field-error" role="alert">Role name is required.</p>
+            }
           </div>
           <div class="form-group">
             <label for="roleDesc">Description</label>
-            <input id="roleDesc" type="text" name="roleDesc" [(ngModel)]="roleForm.description" placeholder="Optional" />
+            <input id="roleDesc" type="text" formControlName="description" placeholder="Optional" maxlength="255" />
           </div>
         </div>
 
@@ -128,7 +136,7 @@
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="closeDialog()" [disabled]="roleSubmitting()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="roleDlg.requestClose()" [disabled]="roleSubmitting()">Cancel</button>
         <button type="submit" form="roleDialogForm" class="btn btn--primary" [disabled]="roleSubmitting()">
           {{ roleSubmitting() ? 'Saving…' : 'Save' }}
         </button>

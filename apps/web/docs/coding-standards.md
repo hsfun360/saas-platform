@@ -43,10 +43,38 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Use `computed()` for derived state
 - Set `changeDetection: ChangeDetectionStrategy.OnPush` in `@Component` decorator
 - Prefer inline templates for small components
-- Prefer Reactive forms instead of Template-driven ones
+- **Use Reactive Forms for every data-entry form** — see the "Forms" section below. Do NOT use template-driven `[(ngModel)]` forms for new screens.
 - Do NOT use `ngClass`, use `class` bindings instead
 - Do NOT use `ngStyle`, use `style` bindings instead
 - When using external templates/styles, use paths relative to the component TS file.
+
+## Forms
+
+Use **Reactive Forms** (`FormGroup` / `FormBuilder`) for every data-entry form: create, edit, settings, and filters with validation.
+This is the single house standard; do NOT use template-driven `[(ngModel)]` forms for new screens.
+(`ngModel` remains valid only inside `ControlValueAccessor` components such as `<app-phone-input>`, which bind to `formControlName` all the same.)
+
+Why this is the standard, not just a preference:
+one form model exposes `dirty` / `valid` / `value` / `patchValue` / `reset`, supports cross-field and async validators (e.g. a server-side "already exists" check) and dynamic `FormArray`s, is testable without rendering the DOM, and fits the zoneless + signals architecture.
+Template-driven forms have no reliable central dirty/validity signal, which is exactly why the shared dialog's unsaved-changes guard wires cleanly on reactive screens and is fragile on `ngModel` ones.
+
+- **Typing:** build with `this.fb.nonNullable.group({...})` so controls stay non-null strings.
+  Put validators on the control (`Validators.required`, `email`, `minLength`, `maxLength`, and custom/cross-field validators), never re-implement them by hand in the submit handler.
+- **Submit:** guard with `if (form.invalid) { form.markAllAsTouched(); return; }`, then read `form.getRawValue()`.
+  Seed the form with `form.reset(initialValues)` on open so it starts pristine (which keeps the unsaved-changes guard and Save state correct).
+- **Unsaved-changes guard:** bind the shared `<app-dialog>`'s `[dirty]="form.dirty"` and route the footer Cancel through `dlg.requestClose()`.
+- **HTML5 input types are required:** give every field its correct native type/attributes, never a bare `type="text"`.
+  Use `type="email"` + `inputmode="email"`, `type="url"`, `type="number"` + `inputmode="decimal"` + `min`/`max`/`step`, `type="date"`, and `type="tel"` (or the shared `<app-phone-input>`), plus `autocomplete` and `maxlength` where they apply.
+  Correct types give mobile the right keyboard, enable free browser validation, and improve autofill.
+- **Accessibility:** render each control's error in a `role="alert"` element linked via `aria-describedby`, set `[attr.aria-invalid]` once the control is touched, and reveal errors only after touch or submit (a small `showError(control)` helper).
+
+**Canonical reference:** `platform-users` (`platform-users.ts` / `platform-users.html`) - two typed `FormGroup`s, control validators, `<app-phone-input>` via `formControlName`, inline `role="alert"` errors, correct HTML5 types, and the dialog `[dirty]` guard.
+`companies` is a second reactive example.
+Copy these for new CRUD screens.
+
+**Signal Forms:** Angular Signal Forms is experimental in v21 and NOT approved for production here.
+Do not use it for real screens yet; revisit when it stabilises.
+This supersedes any earlier note that suggested Signal Forms for login/registration.
 
 ## State Management
 

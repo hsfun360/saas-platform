@@ -22,6 +22,22 @@ textarea {
   min-width: 0; /* allow shrinking inside grid/flex cells instead of overflowing */
 }
 
+/* Reactive-form validation, global so every screen renders errors identically
+   regardless of its own component stylesheet (see docs/coding-standards.md →
+   "Forms"). `.field-error` is the inline `role="alert"` message under a control;
+   the `[aria-invalid]` rule tints the field itself once it's been touched.
+   #b91c1c on white is >= 4.5:1 (WCAG AA). */
+.field-error {
+  color: #b91c1c;
+  font-size: var(--font-body-2);
+  margin-top: var(--space-xs);
+}
+input[aria-invalid='true'],
+select[aria-invalid='true'],
+textarea[aria-invalid='true'] {
+  border-color: #b91c1c;
+}
+
 /* ============================================================== */
 /* Design tokens — typography + 8pt spacing scale                 */
 /* (see docs/project-overview.md → UI/UX Requirements)            */

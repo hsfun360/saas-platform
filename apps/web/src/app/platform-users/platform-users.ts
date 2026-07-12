@@ -1,6 +1,6 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AdminService } from '../services/admin.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
@@ -9,23 +9,40 @@ import { UserSummary } from '../models/auth.models';
 // Platform Users — split out of the old System Setup tab strip into its own
 // screen. Lists local platform users with search and creates them (FAB →
 // dialog). Reuses the System Setup stylesheet.
+//
+// Reactive Forms reference (see docs/coding-standards.md → "Forms"): create/edit
+// use typed FormGroups (nonNullable, so controls stay strings), validators live
+// on the controls (not scattered across the template or hand-rolled in the
+// submit handler), and `form.dirty` feeds the shared dialog's unsaved-changes
+// guard directly. Every field carries the correct HTML5 input type.
 @Component({
   selector: 'app-platform-users',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogComponent, PhoneInputComponent],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent],
   templateUrl: './platform-users.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
 export class PlatformUsersComponent implements OnInit {
-  users = signal<UserSummary[]>([]);
-  usersLoading = signal(false);
-  userForm = { email: '', password: '', fullName: '', phone: '', bio: '' };
-  userSubmitting = signal(false);
-  userDialogOpen = signal(false);
+  private readonly adminService = inject(AdminService);
+  private readonly fb = inject(FormBuilder);
+
+  readonly users = signal<UserSummary[]>([]);
+  readonly usersLoading = signal(false);
+
+  // Create form. nonNullable keeps every control a non-null string.
+  readonly createForm = this.fb.nonNullable.group({
+    email: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
+    password: ['', [Validators.required, Validators.minLength(6)]],
+    fullName: ['', [Validators.required, Validators.maxLength(150)]],
+    phone: [''],
+    bio: ['', [Validators.maxLength(500)]],
+  });
+  readonly userSubmitting = signal(false);
+  readonly userDialogOpen = signal(false);
 
   // Live filter over the loaded users (email / name / auth method).
-  userSearch = signal('');
-  filteredUsers = computed(() => {
+  readonly userSearch = signal('');
+  readonly filteredUsers = computed(() => {
     const query = this.userSearch().trim().toLowerCase();
     const list = this.users();
     if (!query) return list;
@@ -37,18 +54,23 @@ export class PlatformUsersComponent implements OnInit {
     );
   });
 
-  // Edit dialog state (mirrors the create dialog).
-  editForm = { id: '', email: '', fullName: '', phone: '', bio: '' };
-  editSubmitting = signal(false);
-  editDialogOpen = signal(false);
+  // Edit form (no password on edit). The edited user's id isn't an input, so it
+  // lives outside the form.
+  readonly editingUserId = signal('');
+  readonly editForm = this.fb.nonNullable.group({
+    email: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
+    fullName: ['', [Validators.required, Validators.maxLength(150)]],
+    phone: [''],
+    bio: ['', [Validators.maxLength(500)]],
+  });
+  readonly editSubmitting = signal(false);
+  readonly editDialogOpen = signal(false);
 
   // Id of the user whose active/inactive toggle is in flight (disables its button).
-  togglingId = signal<string | null>(null);
+  readonly togglingId = signal<string | null>(null);
 
-  successMessage = signal('');
-  errorMessage = signal('');
-
-  constructor(private adminService: AdminService) {}
+  readonly successMessage = signal('');
+  readonly errorMessage = signal('');
 
   ngOnInit(): void {
     this.loadUsers();
@@ -69,9 +91,15 @@ export class PlatformUsersComponent implements OnInit {
     this.userSearch.set('');
   }
 
+  // Show a control's validation message once the user has interacted with it
+  // (or after a submit attempt marks everything touched).
+  showError(control: AbstractControl): boolean {
+    return control.invalid && control.touched;
+  }
+
   openCreate(): void {
     this.clearMessages();
-    this.userForm = { email: '', password: '', fullName: '', phone: '', bio: '' };
+    this.createForm.reset({ email: '', password: '', fullName: '', phone: '', bio: '' });
     this.userDialogOpen.set(true);
   }
 
@@ -81,32 +109,23 @@ export class PlatformUsersComponent implements OnInit {
 
   onCreate(): void {
     this.clearMessages();
-    if (!this.userForm.email.trim()) {
-      this.errorMessage.set('Email is required.');
+    if (this.createForm.invalid) {
+      this.createForm.markAllAsTouched(); // reveal every field's error at once
       return;
     }
-    if (!this.userForm.password || this.userForm.password.length < 6) {
-      this.errorMessage.set('Password must be at least 6 characters.');
-      return;
-    }
-    if (!this.userForm.fullName.trim()) {
-      this.errorMessage.set('Full name is required.');
-      return;
-    }
-
+    const value = this.createForm.getRawValue();
     this.userSubmitting.set(true);
     this.adminService
       .createSaaSUser({
-        email: this.userForm.email.trim(),
-        password: this.userForm.password,
-        fullName: this.userForm.fullName.trim(),
-        phone: this.userForm.phone.trim() || undefined,
-        bio: this.userForm.bio.trim() || undefined,
+        email: value.email.trim(),
+        password: value.password,
+        fullName: value.fullName.trim(),
+        phone: value.phone.trim() || undefined,
+        bio: value.bio.trim() || undefined,
       })
       .subscribe({
         next: () => {
-          this.successMessage.set(`User "${this.userForm.email.trim()}" created.`);
-          this.userForm = { email: '', password: '', fullName: '', phone: '', bio: '' };
+          this.successMessage.set(`User "${value.email.trim()}" created.`);
           this.userSubmitting.set(false);
           this.userDialogOpen.set(false);
           this.loadUsers();
@@ -120,13 +139,13 @@ export class PlatformUsersComponent implements OnInit {
 
   openEdit(user: UserSummary): void {
     this.clearMessages();
-    this.editForm = {
-      id: user.id,
+    this.editingUserId.set(user.id);
+    this.editForm.reset({
       email: user.email || '',
       fullName: user.full_name || '',
       phone: user.phone || '',
       bio: user.bio || '',
-    };
+    });
     this.editDialogOpen.set(true);
   }
 
@@ -136,26 +155,22 @@ export class PlatformUsersComponent implements OnInit {
 
   onUpdate(): void {
     this.clearMessages();
-    if (!this.editForm.email.trim()) {
-      this.errorMessage.set('Email is required.');
+    if (this.editForm.invalid) {
+      this.editForm.markAllAsTouched();
       return;
     }
-    if (!this.editForm.fullName.trim()) {
-      this.errorMessage.set('Full name is required.');
-      return;
-    }
-
+    const value = this.editForm.getRawValue();
     this.editSubmitting.set(true);
     this.adminService
-      .updateUser(this.editForm.id, {
-        email: this.editForm.email.trim(),
-        fullName: this.editForm.fullName.trim(),
-        phone: this.editForm.phone.trim(),
-        bio: this.editForm.bio.trim(),
+      .updateUser(this.editingUserId(), {
+        email: value.email.trim(),
+        fullName: value.fullName.trim(),
+        phone: value.phone.trim(),
+        bio: value.bio.trim(),
       })
       .subscribe({
         next: () => {
-          this.successMessage.set(`User "${this.editForm.email.trim()}" updated.`);
+          this.successMessage.set(`User "${value.email.trim()}" updated.`);
           this.editSubmitting.set(false);
           this.editDialogOpen.set(false);
           this.loadUsers();

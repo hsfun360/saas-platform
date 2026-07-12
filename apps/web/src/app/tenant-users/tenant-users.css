@@ -62,6 +62,15 @@
   color: #dc2626;
 }
 
+/* Reactive-form validation message (create / invite dialogs). Mirrors the shared
+   .field-error in system-setup.css; scoped styles don't cross into this component,
+   so it's redeclared here rather than relying on the platform-users copy. */
+.field-error {
+  color: #b91c1c;
+  font-size: var(--font-body-2);
+  margin-top: var(--space-xs);
+}
+
 .field input,
 .field select,
 .user-table select {

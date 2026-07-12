@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { LanguageService } from '../services/language.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Language } from '../models/auth.models';
@@ -9,15 +9,20 @@ import { Language } from '../models/auth.models';
 // set, add languages manually, rename them, and enable/disable or delete them.
 // These are the languages the platform can be presented in (future i18n).
 // Reuses the System Setup stylesheet (shared admin-screen look).
+//
+// Reactive Forms (canonical reference: platform-users): create/edit use typed
+// nonNullable FormGroups, validators live on the controls, and `form.dirty`
+// feeds the shared dialog's unsaved-changes guard directly.
 @Component({
   selector: 'app-languages',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogComponent],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './languages.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
 export class LanguagesComponent implements OnInit {
   private readonly languageService = inject(LanguageService);
+  private readonly fb = inject(FormBuilder);
 
   readonly languages = signal<Language[]>([]);
   readonly loading = signal(false);
@@ -27,12 +32,19 @@ export class LanguagesComponent implements OnInit {
   // Add-language dialog.
   readonly addOpen = signal(false);
   readonly addSaving = signal(false);
-  addForm = { languageCode: '', name: '' };
+  readonly addForm = this.fb.nonNullable.group({
+    languageCode: ['', [Validators.required, Validators.maxLength(10)]],
+    name: ['', [Validators.required, Validators.maxLength(100)]],
+  });
 
-  // Edit-language dialog.
+  // Edit-language dialog. The code is display-only (not a form field); it lives
+  // in a separate signal so it can key the update call.
   readonly editOpen = signal(false);
   readonly editSaving = signal(false);
-  editForm = { languageCode: '', name: '' };
+  readonly editingCode = signal('');
+  readonly editForm = this.fb.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(100)]],
+  });
 
   readonly search = signal('');
   readonly filtered = computed(() => {
@@ -103,9 +115,15 @@ export class LanguagesComponent implements OnInit {
   }
 
 
+  // Show a control's validation message once the user has interacted with it
+  // (or after a submit attempt marks everything touched).
+  showError(control: AbstractControl): boolean {
+    return control.invalid && control.touched;
+  }
+
   openAdd(): void {
     this.clearMessages();
-    this.addForm = { languageCode: '', name: '' };
+    this.addForm.reset({ languageCode: '', name: '' });
     this.addOpen.set(true);
   }
 
@@ -115,12 +133,13 @@ export class LanguagesComponent implements OnInit {
 
   onSaveAdd(): void {
     this.clearMessages();
-    const languageCode = this.addForm.languageCode.trim().toLowerCase();
-    const name = this.addForm.name.trim();
-    if (!languageCode || !name) {
-      this.errorMessage.set('Language code and name are required.');
+    if (this.addForm.invalid) {
+      this.addForm.markAllAsTouched();
       return;
     }
+    const value = this.addForm.getRawValue();
+    const languageCode = value.languageCode.trim().toLowerCase();
+    const name = value.name.trim();
     this.addSaving.set(true);
     this.languageService.create({ languageCode, name }).subscribe({
       next: () => {
@@ -138,7 +157,8 @@ export class LanguagesComponent implements OnInit {
 
   openEdit(language: Language): void {
     this.clearMessages();
-    this.editForm = { languageCode: language.languageCode, name: language.name };
+    this.editingCode.set(language.languageCode);
+    this.editForm.reset({ name: language.name });
     this.editOpen.set(true);
   }
 
@@ -148,13 +168,13 @@ export class LanguagesComponent implements OnInit {
 
   onSaveEdit(): void {
     this.clearMessages();
-    const name = this.editForm.name.trim();
-    if (!name) {
-      this.errorMessage.set('Name is required.');
+    if (this.editForm.invalid) {
+      this.editForm.markAllAsTouched();
       return;
     }
+    const name = this.editForm.getRawValue().name.trim();
     this.editSaving.set(true);
-    this.languageService.update(this.editForm.languageCode, { name }).subscribe({
+    this.languageService.update(this.editingCode(), { name }).subscribe({
       next: () => {
         this.successMessage.set(`${name} updated.`);
         this.editSaving.set(false);

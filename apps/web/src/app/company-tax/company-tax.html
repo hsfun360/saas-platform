@@ -114,11 +114,14 @@
 
   <!-- ============ Edit adoption dialog ============ -->
   @if (editOpen() && editScheme(); as a) {
-    <app-dialog [title]="'Company tax — ' + a.taxSchemeCode" [busy]="editSaving()" (close)="closeEdit()">
-      <form id="ctEditForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
+    <app-dialog #ctDlg [title]="'Company tax — ' + a.taxSchemeCode" [busy]="editSaving()" [dirty]="editForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes. Leaving now will discard them."
+                (close)="closeEdit()">
+      <form id="ctEditForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
         <div class="form-row">
           <label class="ct-check">
-            <input type="checkbox" name="ctEnabled" [(ngModel)]="editEnabled" />
+            <input type="checkbox" formControlName="enabled" />
             <span>This company uses <strong>{{ a.taxSchemeCode }}</strong> ({{ a.name }})</span>
           </label>
         </div>
@@ -127,17 +130,22 @@
           <p class="cell-subtle" style="margin: var(--space-sm) 0 var(--space-xs);">
             GL account per component — leave blank to use the subscriber default (shown as the placeholder).
           </p>
-          <div class="ct-gl-list">
+          <div class="ct-gl-list" formGroupName="gl">
             @for (c of a.components; track c.taxCode) {
               <div class="ct-gl-row">
                 <div class="ct-gl-row__label">
                   <span class="ct-chip__code">{{ c.taxCode }}</span>
                   <span class="ct-chip__rate">{{ c.taxRate }}%</span>
                 </div>
-                <input type="text" class="ct-gl-row__input" [name]="'gl_' + c.taxCode"
-                       [(ngModel)]="editGl[c.taxCode]"
+                <input type="text" class="ct-gl-row__input" [formControlName]="c.taxCode"
+                       maxlength="50"
                        [placeholder]="c.defaultGlAccountCode || 'No default GL'"
+                       [attr.aria-invalid]="showError(editForm.controls.gl.controls[c.taxCode])"
+                       [attr.aria-describedby]="'ctGlErr_' + c.taxCode"
                        autocomplete="off" aria-label="Company GL account for {{ c.taxCode }}" />
+                @if (showError(editForm.controls.gl.controls[c.taxCode])) {
+                  <p [id]="'ctGlErr_' + c.taxCode" class="field-error" role="alert">GL account code is too long (max 50 characters).</p>
+                }
               </div>
             }
           </div>
@@ -145,7 +153,7 @@
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="closeEdit()" [disabled]="editSaving()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="ctDlg.requestClose()" [disabled]="editSaving()">Cancel</button>
         <button type="submit" form="ctEditForm" class="btn btn--primary" [disabled]="editSaving()">
           {{ editSaving() ? 'Saving…' : 'Save' }}
         </button>

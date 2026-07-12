@@ -270,7 +270,8 @@
 }
 
 .form-group input,
-.form-group select {
+.form-group select,
+.form-group textarea {
   width: 100%;
   box-sizing: border-box; /* keep padding/border inside the 100%, not added to it */
   min-width: 0;           /* a long <option> can't force the field wider than its column */
@@ -284,16 +285,37 @@
   background: #fafafa;
 }
 
+.form-group textarea {
+  resize: vertical;
+}
+
 .form-group input:focus,
-.form-group select:focus {
+.form-group select:focus,
+.form-group textarea:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
   background: #ffffff;
 }
 
-.form-group input::placeholder {
+.form-group input::placeholder,
+.form-group textarea::placeholder {
   color: #64748b;
+}
+
+/* Invalid field (aria-invalid set once the control is touched) + its message.
+   #b91c1c on white is ≥ 4.5:1 (WCAG AA). */
+.form-group input[aria-invalid='true'],
+.form-group select[aria-invalid='true'],
+.form-group textarea[aria-invalid='true'] {
+  border-color: #b91c1c;
+  background: #fef2f2;
+}
+
+.field-error {
+  color: #b91c1c;
+  font-size: var(--font-body-2);
+  margin-top: var(--space-xs);
 }
 
 /* ── BUTTONS ─────────────────────────────────── */
@@ -396,7 +418,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  padding: 0 var(--space-lg) var(--space-lg);
+  /* No horizontal inset - cards sit flush to the container gutter (the `.saas-container`
+     / screen wrapper already supplies the page gutter). Keeps listing cards edge-aligned,
+     matching the Companies + Tax Setup screens. */
+  padding-bottom: var(--space-lg);
 }
 
 .data-card {
@@ -408,7 +433,7 @@
 .data-card__title {
   font-size: var(--font-body);
   font-weight: var(--weight-semibold);
-  color: #0f172a;
+  color: #1e293b; /* listing-card headline standard (matches the Companies card) */
   word-break: break-word;
 }
 

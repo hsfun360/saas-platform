@@ -1,0 +1,153 @@
+/* Platform Profile - a flat settings form (issuer identity + billing/tax anchor) on
+   top of the shared System Setup look. Grouped into sections; each section a bordered
+   card so the long form reads as distinct blocks. */
+
+.pp-form {
+  padding: 0;
+}
+
+.pp-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.pp-section__title {
+  font-size: var(--font-h2);
+  font-weight: var(--weight-semibold);
+  color: #1e293b;
+  margin: 0 0 var(--space-xs);
+}
+
+.pp-section__hint {
+  font-size: var(--font-body-2);
+  color: #475569;
+  margin: 0 0 var(--space-md);
+}
+
+.pp-field-hint {
+  font-size: var(--font-caption);
+  color: #64748b;
+  margin: var(--space-xs) 0 0;
+}
+.pp-field-hint--error {
+  color: #b91c1c;
+}
+
+/* Logo upload: preview (or placeholder) + a compact "Choose logo" button that wraps a
+   visually-hidden file input (avoids the native file input's wide box), + Remove.
+   Mirrors the Company logo control. */
+.pp-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.pp-logo__img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  flex: 0 0 auto;
+}
+.pp-logo__placeholder {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  font-size: var(--font-caption);
+  flex: 0 0 auto;
+}
+.logo-upload {
+  cursor: pointer;
+}
+.logo-upload input[type='file'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.logo-upload:focus-within {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.pp-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-lg);
+}
+
+/* ---- Test a charge ---- */
+.pp-quote-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+.pp-quote-amount {
+  max-width: 220px;
+  flex: 1 1 160px;
+}
+
+.pp-quote-result {
+  margin-top: var(--space-md);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: var(--space-md);
+  background: #f8fafc;
+}
+.pp-quote-scheme {
+  font-weight: var(--weight-semibold);
+  color: #1e293b;
+}
+.pp-quote-ie {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 12px;
+  margin-left: var(--space-xs);
+}
+.pp-quote-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+  margin: var(--space-sm) 0 0;
+}
+.pp-quote-figures div {
+  display: flex;
+  flex-direction: column;
+}
+.pp-quote-figures dt {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: #64748b;
+}
+.pp-quote-figures dd {
+  font-size: var(--font-h3);
+  color: #1e293b;
+  margin: 0;
+}
+.pp-quote-lines {
+  margin: var(--space-sm) 0 0;
+  padding-left: var(--space-lg);
+  font-size: var(--font-body-2);
+  color: #475569;
+}

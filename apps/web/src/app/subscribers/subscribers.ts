@@ -1,6 +1,12 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { AdminService } from '../services/admin.service';
 import { LanguageService } from '../services/language.service';
 import { CurrencyService } from '../services/currency.service';
@@ -8,18 +14,33 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { SubscriptionInfo, AdminModule, TenantUser, Language, Currency } from '../models/auth.models';
 
+// Group-level cross-field validator for the create form: password and
+// confirmPassword must match. Sets a `passwordMismatch` error on the group so
+// the template can show a message under confirmPassword.
+function passwordsMatchValidator(group: AbstractControl): ValidationErrors | null {
+  const password = group.get('password')?.value;
+  const confirm = group.get('confirmPassword')?.value;
+  return password === confirm ? null : { passwordMismatch: true };
+}
+
 // Subscriber Management — its own screen (split out of the old System Setup tab
 // strip). Lists the subscriber accounts provisioned through this portal, lets a
 // System Admin create a new subscriber (FAB → dialog) and transfer a company's
 // Tenant Admin. Reuses the System Setup stylesheet so the look matches exactly.
+//
+// Reactive Forms (canonical reference: platform-users): create/edit use typed,
+// nonNullable FormGroups, validators live on the controls (create adds a
+// group-level password-match validator), and `form.dirty` feeds the shared
+// dialog's unsaved-changes guard directly.
 @Component({
   selector: 'app-subscribers',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogComponent, PhoneInputComponent],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent],
   templateUrl: './subscribers.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
 export class SubscribersComponent implements OnInit {
+  private readonly fb = inject(FormBuilder);
   // ── Subscriber list ──────────────────────────────────────────
   readonly subscriptions = signal<SubscriptionInfo[]>([]);
   readonly listLoading = signal(false);
@@ -42,16 +63,21 @@ export class SubscribersComponent implements OnInit {
   // ── Create subscriber (FAB → dialog) ─────────────────────────
   readonly createDialogOpen = signal(false);
   readonly creating = signal(false);
-  formModel = {
-    email: '',
-    password: '',
-    confirmPassword: '',
-    fullName: '',
-    subscriberName: '',
-    subscriptionPlan: 'BASIC',
-    registrationNumber: '',
-    phone: '',
-  };
+  // Create form. nonNullable keeps every control a non-null string. The
+  // group-level validator enforces password === confirmPassword.
+  readonly createForm = this.fb.nonNullable.group(
+    {
+      email: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
+      password: ['', [Validators.required, Validators.minLength(6)]],
+      confirmPassword: ['', [Validators.required]],
+      fullName: ['', [Validators.required, Validators.maxLength(150)]],
+      subscriberName: ['', [Validators.required, Validators.maxLength(200)]],
+      subscriptionPlan: ['BASIC', [Validators.required]],
+      registrationNumber: ['', [Validators.maxLength(100)]],
+      phone: [''],
+    },
+    { validators: passwordsMatchValidator },
+  );
   readonly subscriptionPlans = ['BASIC', 'PRO', 'ENTERPRISE'];
 
   // Modules the new subscriber is granted (defaults to all selected).
@@ -62,14 +88,15 @@ export class SubscribersComponent implements OnInit {
   // ── Edit subscriber (FAB-less; opened from a card's Edit button) ─
   readonly editDialogOpen = signal(false);
   readonly updating = signal(false);
-  editingId: string | null = null;
-  editForm = {
-    subscriberName: '',
-    registrationNumber: '',
-    timezone: '',
-    subscriptionPlan: 'BASIC',
-    status: 'ACTIVE',
-  };
+  // The edited subscriber's id isn't an input, so it lives outside the form.
+  readonly editingId = signal<string | null>(null);
+  readonly editForm = this.fb.nonNullable.group({
+    subscriberName: ['', [Validators.required, Validators.maxLength(200)]],
+    registrationNumber: ['', [Validators.maxLength(100)]],
+    timezone: ['', [Validators.maxLength(100)]],
+    subscriptionPlan: ['BASIC', [Validators.required]],
+    status: ['ACTIVE', [Validators.required]],
+  });
   readonly statuses = ['ACTIVE', 'SUSPENDED'];
 
   // ── Manage Tenant Admin (expands inside a subscriber card) ───
@@ -147,6 +174,12 @@ export class SubscribersComponent implements OnInit {
     }
   }
 
+  // Show a control's validation message once the user has interacted with it
+  // (or after a submit attempt marks everything touched).
+  showError(control: AbstractControl): boolean {
+    return control.invalid && control.touched;
+  }
+
   // ── Create ───────────────────────────────────────────────────
   openCreate(): void {
     this.clearMessages();
@@ -159,47 +192,23 @@ export class SubscribersComponent implements OnInit {
     this.createDialogOpen.set(false);
   }
 
-  private isValid(): boolean {
-    this.clearMessages();
-    if (!this.formModel.email.trim()) {
-      this.errorMessage.set('Email is required.');
-      return false;
-    }
-    if (!this.formModel.password) {
-      this.errorMessage.set('Password is required.');
-      return false;
-    }
-    if (this.formModel.password.length < 6) {
-      this.errorMessage.set('Password must be at least 6 characters.');
-      return false;
-    }
-    if (this.formModel.password !== this.formModel.confirmPassword) {
-      this.errorMessage.set('Passwords do not match.');
-      return false;
-    }
-    if (!this.formModel.fullName.trim()) {
-      this.errorMessage.set('Full name is required.');
-      return false;
-    }
-    if (!this.formModel.subscriberName.trim()) {
-      this.errorMessage.set('Subscriber / Company name is required.');
-      return false;
-    }
-    return true;
-  }
-
   onSubmit(): void {
-    if (!this.isValid()) return;
+    this.clearMessages();
+    if (this.createForm.invalid) {
+      this.createForm.markAllAsTouched(); // reveal every field's error at once
+      return;
+    }
+    const value = this.createForm.getRawValue();
 
     this.creating.set(true);
     const payload = {
-      email: this.formModel.email.trim(),
-      password: this.formModel.password,
-      fullName: this.formModel.fullName.trim(),
-      companyName: this.formModel.subscriberName.trim(), // backend still expects companyName
-      subscriptionPlan: this.formModel.subscriptionPlan,
-      registrationNumber: this.formModel.registrationNumber.trim() || undefined,
-      phone: this.formModel.phone.trim() || undefined,
+      email: value.email.trim(),
+      password: value.password, // confirmPassword is never sent to the server
+      fullName: value.fullName.trim(),
+      companyName: value.subscriberName.trim(), // backend still expects companyName
+      subscriptionPlan: value.subscriptionPlan,
+      registrationNumber: value.registrationNumber.trim() || undefined,
+      phone: value.phone.trim() || undefined,
       moduleIds: Array.from(this.selectedModuleIds),
     };
 
@@ -223,45 +232,47 @@ export class SubscribersComponent implements OnInit {
   startEdit(sub: SubscriptionInfo): void {
     this.clearMessages();
     const company = sub.Companies?.[0];
-    this.editingId = sub.id;
-    this.editForm = {
+    this.editingId.set(sub.id);
+    this.editForm.reset({
       subscriberName: sub.subscriberName || '',
       registrationNumber: company?.registrationNumber || '',
       timezone: company?.timezone || '',
       subscriptionPlan: sub.subscriptionPlan || 'BASIC',
       status: sub.status || 'ACTIVE',
-    };
+    });
     this.editDialogOpen.set(true);
   }
 
   cancelEdit(): void {
     this.editDialogOpen.set(false);
-    this.editingId = null;
+    this.editingId.set(null);
   }
 
   onUpdate(): void {
     this.clearMessages();
-    if (!this.editingId) return;
-    if (!this.editForm.subscriberName.trim()) {
-      this.errorMessage.set('Subscriber / Company name is required.');
+    const id = this.editingId();
+    if (!id) return;
+    if (this.editForm.invalid) {
+      this.editForm.markAllAsTouched();
       return;
     }
+    const value = this.editForm.getRawValue();
 
     this.updating.set(true);
     this.adminService
-      .updateSubscription(this.editingId, {
-        subscriberName: this.editForm.subscriberName.trim(),
-        subscriptionPlan: this.editForm.subscriptionPlan,
-        status: this.editForm.status,
-        registrationNumber: this.editForm.registrationNumber.trim() || undefined,
-        timezone: this.editForm.timezone.trim() || undefined,
+      .updateSubscription(id, {
+        subscriberName: value.subscriberName.trim(),
+        subscriptionPlan: value.subscriptionPlan,
+        status: value.status,
+        registrationNumber: value.registrationNumber.trim() || undefined,
+        timezone: value.timezone.trim() || undefined,
       })
       .subscribe({
         next: () => {
-          this.successMessage.set(`Subscriber "${this.editForm.subscriberName.trim()}" updated.`);
+          this.successMessage.set(`Subscriber "${value.subscriberName.trim()}" updated.`);
           this.updating.set(false);
           this.editDialogOpen.set(false);
-          this.editingId = null;
+          this.editingId.set(null);
           this.loadSubscriptions();
         },
         error: (err) => {
@@ -449,7 +460,7 @@ export class SubscribersComponent implements OnInit {
 
   // ── Helpers ──────────────────────────────────────────────────
   resetForm(): void {
-    this.formModel = {
+    this.createForm.reset({
       email: '',
       password: '',
       confirmPassword: '',
@@ -458,7 +469,7 @@ export class SubscribersComponent implements OnInit {
       subscriptionPlan: 'BASIC',
       registrationNumber: '',
       phone: '',
-    };
+    });
   }
 
   private clearMessages(): void {

@@ -1,0 +1,239 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🏢</span>
+      <div>
+        <h1>Platform Profile</h1>
+        <p class="saas-subtitle">The platform's own company of record - the issuer on every invoice, and the country that anchors the platform's own tax.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading platform profile…</p></div>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="onSave()" class="saas-form pp-form">
+
+      <!-- ===== Identity (invoice header) ===== -->
+      <section class="pp-section">
+        <h2 class="pp-section__title">Issuer identity</h2>
+        <p class="pp-section__hint">Appears in the header of every invoice the platform issues to a subscriber.</p>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ppLegal">Legal name <span class="required">*</span></label>
+            <input id="ppLegal" type="text" autocomplete="organization" formControlName="legalName"
+                   placeholder="e.g. ACME Software Sdn Bhd" maxlength="150"
+                   [attr.aria-invalid]="showError(form.controls.legalName)" aria-describedby="ppLegalErr" />
+            @if (showError(form.controls.legalName)) {
+              <p id="ppLegalErr" class="field-error" role="alert">
+                @if (form.controls.legalName.errors?.['required']) { Legal name is required (it heads every invoice). }
+                @else { Legal name is too long. }
+              </p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="ppTrading">Trading name</label>
+            <input id="ppTrading" type="text" autocomplete="organization" formControlName="tradingName"
+                   placeholder="Optional" maxlength="150" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ppReg">Company registration no.</label>
+            <input id="ppReg" type="text" formControlName="registrationNumber"
+                   placeholder="e.g. 202301012345" maxlength="50" />
+          </div>
+          <div class="form-group">
+            <label for="ppTaxReg">Tax registration no. (SST/GST)</label>
+            <input id="ppTaxReg" type="text" formControlName="taxRegistrationNumber"
+                   placeholder="Shown on tax invoices" maxlength="50" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ppEmail">Email</label>
+            <input id="ppEmail" type="email" inputmode="email" autocomplete="off" formControlName="email"
+                   placeholder="billing@example.com" maxlength="255"
+                   [attr.aria-invalid]="showError(form.controls.email)" aria-describedby="ppEmailErr" />
+            @if (showError(form.controls.email)) {
+              <p id="ppEmailErr" class="field-error" role="alert">Enter a valid email address.</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="ppPhone">Phone</label>
+            <app-phone-input formControlName="phone" inputId="ppPhone" placeholder="Optional"></app-phone-input>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ppWeb">Website</label>
+            <input id="ppWeb" type="url" inputmode="url" autocomplete="url" formControlName="website"
+                   placeholder="https://…" maxlength="255" />
+          </div>
+          <div class="form-group"></div>
+        </div>
+
+        <!-- Platform logo (invoice header). Upload → GCS, store the returned URL. -->
+        <div class="form-group">
+          <label>Logo</label>
+          <div class="pp-logo">
+            @if (form.controls.logo.value) {
+              <img [src]="form.controls.logo.value" alt="Platform logo preview" class="pp-logo__img" />
+            } @else {
+              <div class="pp-logo__placeholder">No logo</div>
+            }
+            <label class="btn btn--secondary btn--sm logo-upload">
+              {{ uploadingLogo() ? 'Uploading…' : 'Choose logo' }}
+              <input type="file" accept="image/*" (change)="onLogoSelected($event)" [disabled]="uploadingLogo()" />
+            </label>
+            @if (form.controls.logo.value) {
+              <button type="button" class="btn btn--danger btn--sm" (click)="removeLogo()">Remove</button>
+            }
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Address ===== -->
+      <section class="pp-section">
+        <h2 class="pp-section__title">Address</h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ppAddr1">Address line 1</label>
+            <input id="ppAddr1" type="text" autocomplete="address-line1" formControlName="addressLine1"
+                   placeholder="Optional" maxlength="150" />
+          </div>
+          <div class="form-group">
+            <label for="ppAddr2">Address line 2</label>
+            <input id="ppAddr2" type="text" autocomplete="address-line2" formControlName="addressLine2"
+                   placeholder="Optional" maxlength="150" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ppCity">City</label>
+            <input id="ppCity" type="text" autocomplete="address-level2" formControlName="city"
+                   placeholder="Optional" maxlength="100" />
+          </div>
+          <div class="form-group">
+            <label for="ppState">State</label>
+            <input id="ppState" type="text" autocomplete="address-level1" formControlName="state"
+                   placeholder="Optional" maxlength="100" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ppPostal">Postal code</label>
+            <input id="ppPostal" type="text" inputmode="numeric" autocomplete="postal-code" formControlName="postalCode"
+                   placeholder="Optional" maxlength="20" />
+          </div>
+          <div class="form-group">
+            <label for="ppCountryCode">Country</label>
+            <select id="ppCountryCode" formControlName="countryCode" (change)="onCountryChange()">
+              <option value="">Select a country…</option>
+              @for (c of countries(); track c.alpha2) {
+                <option [value]="c.alpha2">{{ c.flagEmoji ? c.flagEmoji + ' ' : '' }}{{ c.name }}</option>
+              }
+            </select>
+            <p class="pp-field-hint">Also the platform's tax country - it determines which tax schemes apply below.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Billing config (anchors the platform's own tax) ===== -->
+      <section class="pp-section">
+        <h2 class="pp-section__title">Billing &amp; tax</h2>
+        <p class="pp-section__hint">The default scheme (from your country's platform schemes) taxes any platform charge - Subscription Fee and other fees.</p>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ppCurrency">Base currency</label>
+            <select id="ppCurrency" formControlName="baseCurrencyCode">
+              <option value="">Select a currency…</option>
+              @for (cur of currencies(); track cur.code) {
+                <option [value]="cur.code">{{ cur.code }} — {{ cur.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="ppScheme">Default tax scheme</label>
+            <select id="ppScheme" formControlName="defaultTaxSchemeCode">
+              <option value="">{{ countryCode() ? 'No tax (none)' : 'Select a country first' }}</option>
+              @for (s of schemesForCountry(); track s.id) {
+                <option [value]="s.taxSchemeCode">{{ s.taxSchemeCode }} — {{ s.name }}</option>
+              }
+            </select>
+            @if (countryCode() && schemesForCountry().length === 0) {
+              <p class="pp-field-hint">No platform tax schemes for {{ countryName(countryCode()) }} yet - add them in Platform Tax.</p>
+            }
+          </div>
+        </div>
+      </section>
+
+      <div class="pp-actions">
+        <button type="submit" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save profile' }}
+        </button>
+      </div>
+    </form>
+
+    <!-- ===== Test: quote a charge through the profile ===== -->
+    <section class="pp-section pp-quote">
+      <h2 class="pp-section__title">Test a charge</h2>
+      <p class="pp-section__hint">Computes tax on an amount using this profile's country + default scheme - the exact path a platform-charge invoice will use. Save the profile first.</p>
+
+      <div class="pp-quote-row">
+        <div class="form-group pp-quote-amount">
+          <label for="ppAmount">Charge amount</label>
+          <input id="ppAmount" #ppAmountBox type="number" inputmode="decimal" [value]="quoteAmount()"
+                 (input)="quoteAmount.set(ppAmountBox.valueAsNumber)" min="0" step="0.01" />
+        </div>
+        <button type="button" class="btn btn--secondary" (click)="onQuote()" [disabled]="quoting()">
+          {{ quoting() ? 'Computing…' : 'Compute tax' }}
+        </button>
+      </div>
+
+      @if (quoteError()) {
+        <p class="pp-field-hint pp-field-hint--error">{{ quoteError() }}</p>
+      }
+      @if (quoteResult(); as q) {
+        <div class="pp-quote-result">
+          <div class="pp-quote-scheme">
+            {{ q.scheme.taxSchemeCode }} — {{ q.scheme.name }}
+            <span class="pp-quote-ie">{{ q.ieFlag }}</span>
+          </div>
+          <dl class="pp-quote-figures">
+            <div><dt>Net</dt><dd>{{ q.net | number:'1.2-2' }}</dd></div>
+            <div><dt>Tax</dt><dd>{{ q.taxTotal | number:'1.2-2' }}</dd></div>
+            <div><dt>Gross</dt><dd>{{ q.gross | number:'1.2-2' }}</dd></div>
+          </dl>
+          @if (q.lines.length) {
+            <ul class="pp-quote-lines">
+              @for (l of q.lines; track l.taxCode) {
+                <li>{{ l.taxCode }} @ {{ l.taxRate }}% = {{ l.taxAmount | number:'1.2-2' }}</li>
+              }
+            </ul>
+          }
+        </div>
+      }
+    </section>
+  }
+</div>

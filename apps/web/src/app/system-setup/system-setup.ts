@@ -1,6 +1,6 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AdminService } from '../services/admin.service';
 import { Role, UserSummary } from '../models/auth.models';
 
@@ -10,24 +10,35 @@ import { Role, UserSummary } from '../models/auth.models';
 @Component({
   selector: 'app-system-setup',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './system-setup.html',
   styleUrl: './system-setup.css',
 })
 export class SystemSetupComponent implements OnInit {
+  private readonly fb = inject(FormBuilder);
+
   roles = signal<Role[]>([]);
   users = signal<UserSummary[]>([]);
 
   // Current assignments = platform users who already hold a system role.
   assignedUsers = computed(() => this.users().filter((u) => !!u.roleName));
 
-  assignForm = { userId: '', roleId: '' };
+  readonly assignForm = this.fb.nonNullable.group({
+    userId: ['', Validators.required],
+    roleId: ['', Validators.required],
+  });
   assignSubmitting = signal(false);
 
   successMessage = signal('');
   errorMessage = signal('');
 
   constructor(private adminService: AdminService) {}
+
+  // Show a control's validation message once the user has interacted with it
+  // (or after a submit attempt marks everything touched).
+  showError(control: AbstractControl): boolean {
+    return control.invalid && control.touched;
+  }
 
   ngOnInit(): void {
     this.loadRoles();
@@ -50,25 +61,19 @@ export class SystemSetupComponent implements OnInit {
 
   onAssignRole(): void {
     this.clearMessages();
-    if (!this.assignForm.userId) {
-      this.errorMessage.set('Please select a user.');
-      return;
-    }
-    if (!this.assignForm.roleId) {
-      this.errorMessage.set('Please select a role.');
+    if (this.assignForm.invalid) {
+      this.assignForm.markAllAsTouched();
       return;
     }
 
+    const { userId, roleId } = this.assignForm.getRawValue();
     this.assignSubmitting.set(true);
     this.adminService
-      .assignUserToRole({
-        userId: this.assignForm.userId,
-        roleId: this.assignForm.roleId,
-      })
+      .assignUserToRole({ userId, roleId })
       .subscribe({
         next: (res) => {
           this.successMessage.set(res.message || 'Role assigned.');
-          this.assignForm = { userId: '', roleId: '' };
+          this.assignForm.reset({ userId: '', roleId: '' });
           this.assignSubmitting.set(false);
           this.loadUsers(); // refresh the assignments list below
         },

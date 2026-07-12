@@ -2,7 +2,15 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormArray,
+  FormBuilder,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import {
   CdkDropList,
   CdkDrag,
@@ -14,7 +22,6 @@ import { AdminService } from '../services/admin.service';
 import { LanguageService } from '../services/language.service';
 import { AdminMenu, AdminModule, Language } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
-import { FormsModule } from '@angular/forms';
 
 // A node in the module's menu tree (adjacency list). `children` are the menus
 // whose parentId is this menu, ordered by sequence. Held as plain objects whose
@@ -23,6 +30,16 @@ interface MenuTreeNode {
   menu: AdminMenu;
   children: MenuTreeNode[];
 }
+
+// One translation row = a small typed FormGroup. `languageCode` and `label` are
+// carried alongside the editable `name` so we can render the row's label and read
+// the code back into the API payload without a separate parallel array (mirrors
+// the `countries` screen).
+type TranslationGroup = FormGroup<{
+  languageCode: FormControl<string>;
+  label: FormControl<string>;
+  name: FormControl<string>;
+}>;
 
 // System/Master Admin master–detail maintenance for the platform catalogue:
 // Modules (master) on the left, and the selected module's Menus (detail) on the
@@ -37,7 +54,7 @@ interface MenuTreeNode {
   selector: 'app-modules-menus',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle],
   templateUrl: './modules-menus.html',
   styleUrls: ['./modules-menus.css'],
 })
@@ -48,9 +65,6 @@ export class ModulesMenusComponent implements OnInit {
 
   // Active languages drive the per-language "Translations" fields in the dialogs.
   readonly languages = signal<Language[]>([]);
-  // One editable row per language for the open module / menu dialog (English first).
-  moduleTranslations: { code: string; label: string; name: string }[] = [];
-  menuTranslations: { code: string; label: string; name: string }[] = [];
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly basePath = ['/admin', 'modules-menus'];
@@ -82,7 +96,13 @@ export class ModulesMenusComponent implements OnInit {
     icon: [''],
     description: [''],
     landingRoute: [''],
+    translations: this.fb.nonNullable.array<TranslationGroup>([]),
   });
+
+  // Convenience accessor for the template (`@for` over the rows) and read-back.
+  get moduleTranslationControls(): TranslationGroup[] {
+    return this.moduleForm.controls.translations.controls;
+  }
 
   // --- Detail: menus of the selected module ---
   readonly menus = signal<AdminMenu[]>([]);
@@ -120,7 +140,13 @@ export class ModulesMenusComponent implements OnInit {
     route: ['', [Validators.required, Validators.maxLength(200)]],
     icon: [''],
     parentId: [''], // '' = top level
+    translations: this.fb.nonNullable.array<TranslationGroup>([]),
   });
+
+  // Convenience accessor for the template (`@for` over the rows) and read-back.
+  get menuTranslationControls(): TranslationGroup[] {
+    return this.menuForm.controls.translations.controls;
+  }
 
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
@@ -158,10 +184,36 @@ export class ModulesMenusComponent implements OnInit {
       .sort((a, b) => (a.code === 'en' ? -1 : b.code === 'en' ? 1 : a.label.localeCompare(b.label)));
   }
 
-  private namesFrom(rows: { code: string; name: string }[]): Record<string, string> {
+  // Clear + repopulate a dialog's `translations` FormArray: one typed group per
+  // language row. Each group carries its values as its nonNullable defaults, so a
+  // subsequent form.reset() keeps them and marks the whole form pristine.
+  private populateTranslations(arr: FormArray<TranslationGroup>, names?: Record<string, string>): void {
+    arr.clear();
+    for (const row of this.buildTranslations(names)) {
+      arr.push(this.buildTranslationGroup(row.code, row.label, row.name));
+    }
+  }
+
+  private buildTranslationGroup(code: string, label: string, name: string): TranslationGroup {
+    return this.fb.nonNullable.group({
+      languageCode: this.fb.nonNullable.control(code),
+      label: this.fb.nonNullable.control(label),
+      name: this.fb.nonNullable.control(name, [Validators.maxLength(100)]),
+    });
+  }
+
+  // Fold a dialog's `translations` FormArray back into the `names` map the API
+  // expects: keyed by language code with trimmed names (empty clears that one).
+  private namesFrom(rows: { languageCode: string; name: string }[]): Record<string, string> {
     const names: Record<string, string> = {};
-    for (const r of rows) names[r.code] = r.name.trim();
+    for (const r of rows) names[r.languageCode] = r.name.trim();
     return names;
+  }
+
+  // Show a control's validation message once the user has interacted with it
+  // (or after a submit attempt marks everything touched).
+  showError(control: AbstractControl): boolean {
+    return control.invalid && control.touched;
   }
 
   private applySelection(moduleId: string | null): void {
@@ -203,21 +255,21 @@ export class ModulesMenusComponent implements OnInit {
   startCreateModule(): void {
     this.clearMessages();
     this.editingModuleId.set(null);
+    this.populateTranslations(this.moduleForm.controls.translations, {});
     this.moduleForm.reset({ name: '', icon: '', description: '', landingRoute: '' });
-    this.moduleTranslations = this.buildTranslations({});
     this.moduleDialogOpen.set(true);
   }
 
   startEditModule(m: AdminModule): void {
     this.clearMessages();
     this.editingModuleId.set(m.id);
-    this.moduleForm.setValue({
+    this.populateTranslations(this.moduleForm.controls.translations, m.names);
+    this.moduleForm.reset({
       name: m.name,
       icon: m.icon || '',
       description: m.description || '',
       landingRoute: m.landingRoute || '',
     });
-    this.moduleTranslations = this.buildTranslations(m.names);
     this.moduleDialogOpen.set(true);
   }
 
@@ -235,10 +287,10 @@ export class ModulesMenusComponent implements OnInit {
       return;
     }
 
-    const { name, icon, description, landingRoute } = this.moduleForm.getRawValue();
+    const { name, icon, description, landingRoute, translations } = this.moduleForm.getRawValue();
     const payload = {
       name: name.trim(), icon: icon.trim(), description: description.trim(), landingRoute: landingRoute.trim(),
-      names: this.namesFrom(this.moduleTranslations),
+      names: this.namesFrom(translations),
     };
     const editingId = this.editingModuleId();
 
@@ -328,8 +380,8 @@ export class ModulesMenusComponent implements OnInit {
     this.clearMessages();
     this.editingMenuId.set(null);
     this.parentOptions.set(this.buildParentOptions(null));
+    this.populateTranslations(this.menuForm.controls.translations, {});
     this.menuForm.reset({ name: '', route: '', icon: '', parentId: parentId || '' });
-    this.menuTranslations = this.buildTranslations({});
     this.menuDialogOpen.set(true);
   }
 
@@ -338,8 +390,8 @@ export class ModulesMenusComponent implements OnInit {
     this.editingMenuId.set(menu.id);
     // Exclude the menu itself and its descendants from the parent options (cycles).
     this.parentOptions.set(this.buildParentOptions(menu.id));
-    this.menuForm.setValue({ name: menu.name, route: menu.route || '', icon: menu.icon || '', parentId: menu.parentId || '' });
-    this.menuTranslations = this.buildTranslations(menu.names);
+    this.populateTranslations(this.menuForm.controls.translations, menu.names);
+    this.menuForm.reset({ name: menu.name, route: menu.route || '', icon: menu.icon || '', parentId: menu.parentId || '' });
     this.menuDialogOpen.set(true);
   }
 
@@ -376,9 +428,9 @@ export class ModulesMenusComponent implements OnInit {
       return;
     }
 
-    const { name, route, icon, parentId } = this.menuForm.getRawValue();
+    const { name, route, icon, parentId, translations } = this.menuForm.getRawValue();
     const editingId = this.editingMenuId();
-    const names = this.namesFrom(this.menuTranslations);
+    const names = this.namesFrom(translations);
     const parent = parentId || null;
 
     this.savingMenu.set(true);

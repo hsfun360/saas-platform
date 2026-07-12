@@ -1,6 +1,6 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms'; // 👈 Needed for ngModel
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../auth.service';
 import { Role } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
@@ -9,17 +9,27 @@ import { DialogComponent } from '../shared/dialog/dialog';
 // (RBAC) — NOT tied to a company. Company enters only at entitlement (module
 // subscription) and assignment (user↔role within a company). The permission
 // catalogue is the subscriber account's entitled menus.
+//
+// The name/description dialog is a typed Reactive Form (canonical reference:
+// platform-users); validators live on the controls and `roleForm.dirty` feeds
+// the shared dialog's unsaved-changes guard. The menu/permission checkboxes are
+// managed separately (a Set), not part of the form.
 @Component({
   selector: 'app-role-management',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogComponent],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './role-management.html',
   styleUrls: ['./role-management.css'],
 })
 export class RoleManagementComponent implements OnInit {
-  // Dialog form fields
-  roleName = '';
-  roleDescription = '';
+  private readonly authService = inject(AuthService);
+  private readonly fb = inject(FormBuilder);
+
+  // Dialog form (name + description). nonNullable keeps controls non-null strings.
+  readonly roleForm = this.fb.nonNullable.group({
+    roleName: ['', [Validators.required, Validators.maxLength(100)]],
+    roleDescription: ['', [Validators.maxLength(255)]],
+  });
 
   roles = signal<Role[]>([]);
   rolesLoading = signal(false);
@@ -56,8 +66,6 @@ export class RoleManagementComponent implements OnInit {
   // The system-managed role can't be edited or deleted (mirrors the backend
   // guard), so we hide its action buttons.
   readonly protectedRoleName = 'Tenant Admin';
-
-  constructor(private authService: AuthService) {}
 
   ngOnInit() {
     this.loadRoles();
@@ -102,6 +110,12 @@ export class RoleManagementComponent implements OnInit {
     this.roleSearch.set('');
   }
 
+  // Show a control's validation message once the user has interacted with it
+  // (or after a submit attempt marks everything touched).
+  showError(control: AbstractControl): boolean {
+    return control.invalid && control.touched;
+  }
+
   toggleMenu(menuId: string) {
     if (this.selectedMenuIds.has(menuId)) {
       this.selectedMenuIds.delete(menuId);
@@ -113,8 +127,7 @@ export class RoleManagementComponent implements OnInit {
   openCreate() {
     this.clearMessages();
     this.editingRoleId.set(null);
-    this.roleName = '';
-    this.roleDescription = '';
+    this.roleForm.reset({ roleName: '', roleDescription: '' });
     this.selectedMenuIds = new Set();
     this.roleDialogOpen.set(true);
   }
@@ -125,15 +138,13 @@ export class RoleManagementComponent implements OnInit {
     this.clearMessages();
     this.editingRoleId.set(role.id);
     this.roleDialogOpen.set(true);
-    this.roleName = role.name;
-    this.roleDescription = role.description || '';
+    this.roleForm.reset({ roleName: role.name, roleDescription: role.description || '' });
     this.selectedMenuIds = new Set();
 
     this.editLoading.set(true);
     this.authService.getRoleDetail(role.id).subscribe({
       next: (detail) => {
-        this.roleName = detail.name;
-        this.roleDescription = detail.description || '';
+        this.roleForm.reset({ roleName: detail.name, roleDescription: detail.description || '' });
         this.selectedMenuIds = new Set(detail.menuIds);
         this.editLoading.set(false);
       },
@@ -148,16 +159,15 @@ export class RoleManagementComponent implements OnInit {
   cancelEdit() {
     this.roleDialogOpen.set(false);
     this.editingRoleId.set(null);
-    this.roleName = '';
-    this.roleDescription = '';
+    this.roleForm.reset({ roleName: '', roleDescription: '' });
     this.selectedMenuIds = new Set();
   }
 
   onSubmit() {
     this.clearMessages();
 
-    if (!this.roleName) {
-      this.errorMessage.set('Please enter a Role Name.');
+    if (this.roleForm.invalid) {
+      this.roleForm.markAllAsTouched(); // reveal every field's error at once
       return;
     }
     if (this.selectedMenuIds.size === 0) {
@@ -165,6 +175,7 @@ export class RoleManagementComponent implements OnInit {
       return;
     }
 
+    const { roleName, roleDescription } = this.roleForm.getRawValue();
     const menuIdsArray = Array.from(this.selectedMenuIds);
     const editingId = this.editingRoleId();
 
@@ -172,7 +183,7 @@ export class RoleManagementComponent implements OnInit {
 
     if (editingId) {
       this.authService
-        .updateRole(editingId, { roleName: this.roleName, description: this.roleDescription, menuIds: menuIdsArray })
+        .updateRole(editingId, { roleName, description: roleDescription, menuIds: menuIdsArray })
         .subscribe({
           next: (res) => {
             this.successMessage.set(`Role '${res.role.name}' updated successfully!`);
@@ -188,7 +199,7 @@ export class RoleManagementComponent implements OnInit {
       return;
     }
 
-    this.authService.createRole(this.roleName, this.roleDescription, menuIdsArray).subscribe({
+    this.authService.createRole(roleName, roleDescription, menuIdsArray).subscribe({
       next: (res) => {
         this.successMessage.set(`Role '${res.role.name}' created successfully!`);
         this.isLoading.set(false);

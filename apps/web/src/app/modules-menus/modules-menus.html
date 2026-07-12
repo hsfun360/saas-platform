@@ -224,7 +224,8 @@
 
   <!-- ============ Add / edit module dialog ============ -->
   @if (moduleDialogOpen()) {
-    <app-dialog [title]="editingModuleId() ? 'Edit module' : 'Add module'" [busy]="savingModule()" (close)="cancelModuleEdit()">
+    <app-dialog #moduleDlg [title]="editingModuleId() ? 'Edit module' : 'Add module'" [busy]="savingModule()" [dirty]="moduleForm.dirty"
+                discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="cancelModuleEdit()">
       <form id="moduleForm" [formGroup]="moduleForm" (ngSubmit)="saveModule()">
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
           <label for="mod-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Name *</label>
@@ -263,23 +264,29 @@
         <div style="margin-top: var(--space-md); border-top: 1px solid #e2e8f0; padding-top: var(--space-md);">
           <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Translations</label>
           <p style="font-size: var(--font-caption); color: #64748b; margin: var(--space-xs) 0 var(--space-sm);">Localized name per language, shown in the sidebar / apps switcher. Leave blank to fall back to the name above.</p>
-          @if (moduleTranslations.length === 0) {
+          @if (moduleTranslationControls.length === 0) {
             <p style="font-size: var(--font-caption); color: #64748b; margin: 0;">No languages configured. Load defaults on the Languages screen to add translations.</p>
           } @else {
-            @for (t of moduleTranslations; track t.code) {
-              <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-sm);">
-                <label [attr.for]="'mod-tr-' + t.code" style="font-size: var(--font-caption); color: #475569;">{{ t.label }} ({{ t.code }})</label>
-                <input [id]="'mod-tr-' + t.code" type="text" [(ngModel)]="t.name" [ngModelOptions]="{standalone: true}"
-                       [placeholder]="'Name in ' + t.label"
-                       style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
-              </div>
-            }
+            <div formArrayName="translations">
+              @for (row of moduleTranslationControls; track row.controls.languageCode.value; let i = $index) {
+                <div [formGroupName]="i" style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-sm);">
+                  <label [attr.for]="'mod-tr-' + row.controls.languageCode.value" style="font-size: var(--font-caption); color: #475569;">{{ row.controls.label.value }} ({{ row.controls.languageCode.value }})</label>
+                  <input [id]="'mod-tr-' + row.controls.languageCode.value" type="text" formControlName="name" maxlength="100"
+                         [placeholder]="'Name in ' + row.controls.label.value"
+                         [attr.aria-invalid]="showError(row.controls.name)" [attr.aria-describedby]="'mod-tr-' + row.controls.languageCode.value + '-err'"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                  @if (showError(row.controls.name)) {
+                    <p [id]="'mod-tr-' + row.controls.languageCode.value + '-err'" class="field-error" role="alert">Name is too long.</p>
+                  }
+                </div>
+              }
+            </div>
           }
         </div>
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelModuleEdit()" [disabled]="savingModule()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="moduleDlg.requestClose()" [disabled]="savingModule()">Cancel</button>
         <button type="submit" form="moduleForm" class="btn btn--primary" [disabled]="savingModule()">
           {{ savingModule() ? 'Saving…' : 'Save' }}
         </button>
@@ -289,7 +296,8 @@
 
   <!-- ============ Add / edit menu dialog ============ -->
   @if (menuDialogOpen()) {
-    <app-dialog [title]="editingMenuId() ? 'Edit menu' : 'Add menu'" [busy]="savingMenu()" (close)="cancelMenuEdit()">
+    <app-dialog #menuDlg [title]="editingMenuId() ? 'Edit menu' : 'Add menu'" [busy]="savingMenu()" [dirty]="menuForm.dirty"
+                discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="cancelMenuEdit()">
       <form id="menuForm" [formGroup]="menuForm" (ngSubmit)="saveMenu()">
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
           <label for="menu-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Name *</label>
@@ -334,23 +342,29 @@
         <div style="margin-top: var(--space-md); border-top: 1px solid #e2e8f0; padding-top: var(--space-md);">
           <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155;">Translations</label>
           <p style="font-size: var(--font-caption); color: #64748b; margin: var(--space-xs) 0 var(--space-sm);">Localized name per language, shown in the sidebar. Leave blank to fall back to the name above.</p>
-          @if (menuTranslations.length === 0) {
+          @if (menuTranslationControls.length === 0) {
             <p style="font-size: var(--font-caption); color: #64748b; margin: 0;">No languages configured. Load defaults on the Languages screen to add translations.</p>
           } @else {
-            @for (t of menuTranslations; track t.code) {
-              <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-sm);">
-                <label [attr.for]="'menu-tr-' + t.code" style="font-size: var(--font-caption); color: #475569;">{{ t.label }} ({{ t.code }})</label>
-                <input [id]="'menu-tr-' + t.code" type="text" [(ngModel)]="t.name" [ngModelOptions]="{standalone: true}"
-                       [placeholder]="'Name in ' + t.label"
-                       style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
-              </div>
-            }
+            <div formArrayName="translations">
+              @for (row of menuTranslationControls; track row.controls.languageCode.value; let i = $index) {
+                <div [formGroupName]="i" style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-sm);">
+                  <label [attr.for]="'menu-tr-' + row.controls.languageCode.value" style="font-size: var(--font-caption); color: #475569;">{{ row.controls.label.value }} ({{ row.controls.languageCode.value }})</label>
+                  <input [id]="'menu-tr-' + row.controls.languageCode.value" type="text" formControlName="name" maxlength="100"
+                         [placeholder]="'Name in ' + row.controls.label.value"
+                         [attr.aria-invalid]="showError(row.controls.name)" [attr.aria-describedby]="'menu-tr-' + row.controls.languageCode.value + '-err'"
+                         style="padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body);">
+                  @if (showError(row.controls.name)) {
+                    <p [id]="'menu-tr-' + row.controls.languageCode.value + '-err'" class="field-error" role="alert">Name is too long.</p>
+                  }
+                </div>
+              }
+            </div>
           }
         </div>
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelMenuEdit()" [disabled]="savingMenu()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="menuDlg.requestClose()" [disabled]="savingMenu()">Cancel</button>
         <button type="submit" form="menuForm" class="btn btn--primary" [disabled]="savingMenu()">
           {{ savingMenu() ? 'Saving…' : 'Save' }}
         </button>

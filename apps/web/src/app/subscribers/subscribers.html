@@ -143,45 +143,84 @@
 
   <!-- ============ Create subscriber dialog ============ -->
   @if (createDialogOpen()) {
-    <app-dialog title="New subscriber" [busy]="creating()" (close)="cancelCreate()">
-      <form id="createSubscriberForm" (ngSubmit)="onSubmit()" class="saas-form" style="padding: 0;">
+    <app-dialog #createSubDlg title="New subscriber" [busy]="creating()"
+                [dirty]="createForm.dirty"
+                discardTitle="Discard this new subscriber?"
+                discardMessage="You have started entering a new subscriber. Leaving now will discard it."
+                (close)="cancelCreate()">
+      <form id="createSubscriberForm" [formGroup]="createForm" (ngSubmit)="onSubmit()" class="saas-form" style="padding: 0;">
         <div class="form-row">
           <div class="form-group">
             <label for="email">Email <span class="required">*</span></label>
-            <input id="email" type="email" name="email" [(ngModel)]="formModel.email" placeholder="admin@example.com" required autocomplete="off" />
+            <input id="email" type="email" inputmode="email" autocomplete="off" formControlName="email"
+                   placeholder="admin@example.com" maxlength="255"
+                   [attr.aria-invalid]="showError(createForm.controls.email)" aria-describedby="emailErr" />
+            @if (showError(createForm.controls.email)) {
+              <p id="emailErr" class="field-error" role="alert">
+                @if (createForm.controls.email.errors?.['required']) { Email is required. }
+                @else { Enter a valid email address. }
+              </p>
+            }
           </div>
           <div class="form-group">
             <label for="fullName">Full Name <span class="required">*</span></label>
-            <input id="fullName" type="text" name="fullName" [(ngModel)]="formModel.fullName" placeholder="John Tan" required />
+            <input id="fullName" type="text" autocomplete="name" formControlName="fullName"
+                   placeholder="John Tan" maxlength="150"
+                   [attr.aria-invalid]="showError(createForm.controls.fullName)" aria-describedby="fullNameErr" />
+            @if (showError(createForm.controls.fullName)) {
+              <p id="fullNameErr" class="field-error" role="alert">Full name is required.</p>
+            }
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
             <label for="password">Password <span class="required">*</span></label>
-            <input id="password" type="password" name="password" [(ngModel)]="formModel.password" placeholder="Min 6 characters" required minlength="6" />
+            <input id="password" type="password" autocomplete="new-password" formControlName="password"
+                   placeholder="Min 6 characters" minlength="6"
+                   [attr.aria-invalid]="showError(createForm.controls.password)" aria-describedby="passwordErr" />
+            @if (showError(createForm.controls.password)) {
+              <p id="passwordErr" class="field-error" role="alert">
+                @if (createForm.controls.password.errors?.['required']) { Password is required. }
+                @else { Password must be at least 6 characters. }
+              </p>
+            }
           </div>
           <div class="form-group">
             <label for="confirmPassword">Confirm Password <span class="required">*</span></label>
-            <input id="confirmPassword" type="password" name="confirmPassword" [(ngModel)]="formModel.confirmPassword" placeholder="Re-enter password" required />
+            <input id="confirmPassword" type="password" autocomplete="new-password" formControlName="confirmPassword"
+                   placeholder="Re-enter password"
+                   [attr.aria-invalid]="showError(createForm.controls.confirmPassword) || (createForm.errors?.['passwordMismatch'] && createForm.controls.confirmPassword.touched)"
+                   aria-describedby="confirmPasswordErr" />
+            @if (showError(createForm.controls.confirmPassword)) {
+              <p id="confirmPasswordErr" class="field-error" role="alert">Please confirm the password.</p>
+            } @else if (createForm.errors?.['passwordMismatch'] && createForm.controls.confirmPassword.touched) {
+              <p id="confirmPasswordErr" class="field-error" role="alert">Passwords do not match.</p>
+            }
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
             <label for="subscriberName">Subscriber / Company Name <span class="required">*</span></label>
-            <input id="subscriberName" type="text" name="subscriberName" [(ngModel)]="formModel.subscriberName" placeholder="My Club Sdn Bhd" required />
+            <input id="subscriberName" type="text" autocomplete="organization" formControlName="subscriberName"
+                   placeholder="My Club Sdn Bhd" maxlength="200"
+                   [attr.aria-invalid]="showError(createForm.controls.subscriberName)" aria-describedby="subscriberNameErr" />
+            @if (showError(createForm.controls.subscriberName)) {
+              <p id="subscriberNameErr" class="field-error" role="alert">Subscriber / Company name is required.</p>
+            }
           </div>
           <div class="form-group">
             <label for="registrationNumber">Registration No.</label>
-            <input id="registrationNumber" type="text" name="registrationNumber" [(ngModel)]="formModel.registrationNumber" placeholder="202501000001 (optional)" />
+            <input id="registrationNumber" type="text" autocomplete="off" formControlName="registrationNumber"
+                   placeholder="202501000001 (optional)" maxlength="100" />
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
             <label for="subscriptionPlan">Subscription Plan <span class="required">*</span></label>
-            <select id="subscriptionPlan" name="subscriptionPlan" [(ngModel)]="formModel.subscriptionPlan">
+            <select id="subscriptionPlan" formControlName="subscriptionPlan">
               @for (plan of subscriptionPlans; track plan) {
                 <option [value]="plan">{{ plan }}</option>
               }
@@ -189,7 +228,7 @@
           </div>
           <div class="form-group">
             <label for="phone">Phone No.</label>
-            <app-phone-input name="phone" [(ngModel)]="formModel.phone" inputId="phone" placeholder="Optional"></app-phone-input>
+            <app-phone-input formControlName="phone" inputId="phone" placeholder="Optional"></app-phone-input>
           </div>
         </div>
 
@@ -213,7 +252,7 @@
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelCreate()" [disabled]="creating()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="createSubDlg.requestClose()" [disabled]="creating()">Cancel</button>
         <button type="submit" form="createSubscriberForm" class="btn btn--primary" [disabled]="creating()">
           {{ creating() ? 'Saving…' : 'Save' }}
         </button>
@@ -223,23 +262,33 @@
 
   <!-- ============ Edit subscriber dialog ============ -->
   @if (editDialogOpen()) {
-    <app-dialog title="Edit subscriber" [busy]="updating()" (close)="cancelEdit()">
-      <form id="editSubscriberForm" (ngSubmit)="onUpdate()" class="saas-form" style="padding: 0;">
+    <app-dialog #editSubDlg title="Edit subscriber" [busy]="updating()"
+                [dirty]="editForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes. Leaving now will discard them."
+                (close)="cancelEdit()">
+      <form id="editSubscriberForm" [formGroup]="editForm" (ngSubmit)="onUpdate()" class="saas-form" style="padding: 0;">
         <div class="form-row">
           <div class="form-group">
             <label for="eName">Subscriber / Company Name <span class="required">*</span></label>
-            <input id="eName" type="text" name="eName" [(ngModel)]="editForm.subscriberName" placeholder="My Club Sdn Bhd" required />
+            <input id="eName" type="text" autocomplete="organization" formControlName="subscriberName"
+                   placeholder="My Club Sdn Bhd" maxlength="200"
+                   [attr.aria-invalid]="showError(editForm.controls.subscriberName)" aria-describedby="eNameErr" />
+            @if (showError(editForm.controls.subscriberName)) {
+              <p id="eNameErr" class="field-error" role="alert">Subscriber / Company name is required.</p>
+            }
           </div>
           <div class="form-group">
             <label for="eReg">Registration No.</label>
-            <input id="eReg" type="text" name="eReg" [(ngModel)]="editForm.registrationNumber" placeholder="202501000001 (optional)" />
+            <input id="eReg" type="text" autocomplete="off" formControlName="registrationNumber"
+                   placeholder="202501000001 (optional)" maxlength="100" />
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
             <label for="ePlan">Subscription Plan</label>
-            <select id="ePlan" name="ePlan" [(ngModel)]="editForm.subscriptionPlan">
+            <select id="ePlan" formControlName="subscriptionPlan">
               @for (plan of subscriptionPlans; track plan) {
                 <option [value]="plan">{{ plan }}</option>
               }
@@ -247,7 +296,7 @@
           </div>
           <div class="form-group">
             <label for="eStatus">Status</label>
-            <select id="eStatus" name="eStatus" [(ngModel)]="editForm.status">
+            <select id="eStatus" formControlName="status">
               @for (s of statuses; track s) {
                 <option [value]="s">{{ s }}</option>
               }
@@ -258,13 +307,14 @@
         <div class="form-row">
           <div class="form-group">
             <label for="eTz">Timezone</label>
-            <input id="eTz" type="text" name="eTz" [(ngModel)]="editForm.timezone" placeholder="Asia/Kuala_Lumpur (optional)" />
+            <input id="eTz" type="text" autocomplete="off" formControlName="timezone"
+                   placeholder="Asia/Kuala_Lumpur (optional)" maxlength="100" />
           </div>
         </div>
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelEdit()" [disabled]="updating()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="editSubDlg.requestClose()" [disabled]="updating()">Cancel</button>
         <button type="submit" form="editSubscriberForm" class="btn btn--primary" [disabled]="updating()">
           {{ updating() ? 'Saving…' : 'Save' }}
         </button>

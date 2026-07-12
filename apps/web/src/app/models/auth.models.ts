@@ -340,6 +340,40 @@ export interface MembershipStatusCopySource {
   statuses: MembershipStatus[];
 }
 
+// One installment stage of a Membership Fee (the Membership Fee Scheme detail).
+export interface MembershipFeeStage {
+  id?: string;
+  stageNo: number;
+  amount: number;
+  isPosted?: boolean;
+}
+
+// Membership Fee master record (per company) with its installment schedule.
+export interface MembershipFee {
+  id: string;
+  companyId?: string;
+  membershipFeeCode: string;
+  description?: string | null;
+  taxSchemeCode?: string | null;
+  amount: number;
+  allowInstallment: boolean;
+  noOfInstallment?: number | null;
+  installmentInterval?: string | null;   // one of MembershipFeeMeta.intervals[].key
+  isActive?: boolean;
+  stages: MembershipFeeStage[];
+}
+
+// Installment interval options, served by the API.
+export interface MembershipFeeMeta {
+  intervals: MembershipStatusOption[];
+}
+
+// A tax scheme available to the active company (for the fee's Tax Scheme picker).
+export interface TaxSchemeRef {
+  taxSchemeCode: string;
+  name: string;
+}
+
 // ISO 4217 currency reference row.
 export interface Currency {
   code: string;          // ISO 4217 alpha-3, e.g. 'MYR'
@@ -569,6 +603,7 @@ export interface TaxOption {
 export interface TaxMeta {
   ieFlags: TaxOption[];
   taxClasses: TaxOption[];
+  taxTypes: TaxOption[];
 }
 
 // One effective-dated rate line (a component of a scheme). A rate change is a new
@@ -577,6 +612,7 @@ export interface TaxRate {
   id: string;
   taxCode: string;
   taxRate: number;
+  taxType: string; // 'Tax' | 'Service Charge' (descriptive; no effect on calculation)
   taxPriority: number;
   isClaimable: boolean;
   claimPercentage: number;
@@ -607,6 +643,30 @@ export interface CompanyTaxAdoption {
   components: CompanyTaxLine[];
 }
 
+// A platform template's rate line, as shown in the Load-defaults preview.
+export interface TaxTemplateRate {
+  taxCode: string;
+  taxRate: number;
+  taxPriority: number;
+  isClaimable: boolean;
+  claimPercentage: number;
+}
+
+// A loadable platform-owned tax scheme (accountId NULL) with its current rate lines
+// and a flag for whether the subscriber already has it. Drives the Load-defaults
+// multi-select screen - what the platform curates is exactly what the subscriber loads.
+export interface TaxTemplateOption {
+  id: string;
+  countryCode: string;
+  taxSchemeCode: string;
+  name: string;
+  description?: string | null;
+  ieFlag: TaxIeFlag;
+  taxClass: TaxClass;
+  alreadyLoaded: boolean;
+  rates: TaxTemplateRate[];
+}
+
 // A tax scheme header plus its rate lines (the API returns rates inline on list).
 export interface TaxScheme {
   id: string;
@@ -619,5 +679,45 @@ export interface TaxScheme {
   sourceTemplateId?: string | null;
   isActive?: boolean;
   rates?: TaxRate[];
+}
+
+// The platform's own "company of record" (a singleton): the invoice-issuer identity
+// plus the billing country/scheme that anchors the platform's own tax.
+export interface PlatformProfile {
+  legalName: string | null;
+  tradingName: string | null;
+  registrationNumber: string | null;
+  taxRegistrationNumber: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  logo: string | null;
+  countryCode: string | null;
+  baseCurrencyCode: string | null;
+  defaultTaxSchemeCode: string | null;
+}
+
+// One tax line of a computed charge breakdown (from the shared calculator).
+export interface TaxQuoteLine {
+  taxCode: string;
+  taxRate: number;
+  taxAmount: number;
+  taxPriority: number;
+}
+
+// The computed tax breakdown for a platform charge (what the invoice will snapshot).
+export interface PlatformChargeQuote {
+  scheme: { taxSchemeCode: string; name: string; ieFlag: TaxIeFlag; taxClass: TaxClass };
+  asOf?: string | null;
+  ieFlag: TaxIeFlag;
+  net: number;
+  taxTotal: number;
+  gross: number;
+  lines: TaxQuoteLine[];
 }
 

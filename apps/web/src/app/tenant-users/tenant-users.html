@@ -108,44 +108,73 @@
 
   <!-- ============ Create user dialog ============ -->
   @if (createDialogOpen()) {
-    <app-dialog title="Create user" [busy]="creating()" (close)="cancelCreate()">
+    <app-dialog #createUserDlg title="Create user" [busy]="creating()"
+                [dirty]="createForm.dirty"
+                discardTitle="Discard this new user?"
+                discardMessage="You have started entering a new user. Leaving now will discard it."
+                (close)="cancelCreate()">
       <p class="subtle" style="margin-top: 0;">Create a brand-new user and place them in a company with a role.</p>
-      <form id="createUserForm" (ngSubmit)="onCreateUser()">
+      <form id="createUserForm" [formGroup]="createForm" (ngSubmit)="onCreateUser()">
         <div class="row">
           <div class="field">
             <label for="nuEmail">Email <span class="req">*</span></label>
-            <input id="nuEmail" type="email" name="nuEmail" [(ngModel)]="newUser.email" placeholder="user@example.com" autocomplete="off" required />
+            <input id="nuEmail" type="email" inputmode="email" autocomplete="off" formControlName="email"
+                   placeholder="user@example.com" maxlength="255"
+                   [attr.aria-invalid]="showError(createForm.controls.email)" aria-describedby="nuEmailErr" />
+            @if (showError(createForm.controls.email)) {
+              <p id="nuEmailErr" class="field-error" role="alert">
+                @if (createForm.controls.email.errors?.['required']) { Email is required. }
+                @else { Enter a valid email address. }
+              </p>
+            }
           </div>
           <div class="field">
             <label for="nuName">Full Name <span class="req">*</span></label>
-            <input id="nuName" type="text" name="nuName" [(ngModel)]="newUser.fullName" placeholder="Jane Doe" required />
+            <input id="nuName" type="text" autocomplete="name" formControlName="fullName"
+                   placeholder="Jane Doe" maxlength="150"
+                   [attr.aria-invalid]="showError(createForm.controls.fullName)" aria-describedby="nuNameErr" />
+            @if (showError(createForm.controls.fullName)) {
+              <p id="nuNameErr" class="field-error" role="alert">Full name is required.</p>
+            }
           </div>
         </div>
         <div class="row">
           <div class="field">
             <label for="nuPass">Password <span class="req">*</span></label>
-            <input id="nuPass" type="password" name="nuPass" [(ngModel)]="newUser.password" placeholder="Min 6 characters" required minlength="6" />
+            <input id="nuPass" type="password" autocomplete="new-password" formControlName="password"
+                   placeholder="Min 6 characters" minlength="6"
+                   [attr.aria-invalid]="showError(createForm.controls.password)" aria-describedby="nuPassErr" />
+            @if (showError(createForm.controls.password)) {
+              <p id="nuPassErr" class="field-error" role="alert">
+                @if (createForm.controls.password.errors?.['required']) { Password is required. }
+                @else { Password must be at least 6 characters. }
+              </p>
+            }
           </div>
           <div class="field">
             <label for="nuPhone">Phone</label>
-            <app-phone-input name="nuPhone" [(ngModel)]="newUser.phone" inputId="nuPhone" placeholder="Optional"></app-phone-input>
+            <app-phone-input formControlName="phone" inputId="nuPhone" placeholder="Optional"></app-phone-input>
           </div>
         </div>
         <div class="row">
           <div class="field">
             <label for="nuCompany">Company <span class="req">*</span></label>
-            <select id="nuCompany" name="nuCompany" [(ngModel)]="newUser.companyId">
+            <select id="nuCompany" formControlName="companyId"
+                    [attr.aria-invalid]="showError(createForm.controls.companyId)" aria-describedby="nuCompanyErr">
               <option value="">— Select company —</option>
               @for (c of companies(); track c.id) {
                 <option [value]="c.id">{{ c.name }}</option>
               }
             </select>
+            @if (showError(createForm.controls.companyId)) {
+              <p id="nuCompanyErr" class="field-error" role="alert">Choose a company for the new user.</p>
+            }
           </div>
           <div class="field">
             <label for="nuRole">Role</label>
-            <select id="nuRole" name="nuRole" [(ngModel)]="newUser.roleId">
+            <select id="nuRole" formControlName="roleId">
               <option value="">— No role —</option>
-              @for (r of rolesFor(newUser.companyId); track r.id) {
+              @for (r of rolesFor(createForm.controls.companyId.value); track r.id) {
                 <option [value]="r.id">{{ r.name }}</option>
               }
             </select>
@@ -154,7 +183,7 @@
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelCreate()" [disabled]="creating()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="createUserDlg.requestClose()" [disabled]="creating()">Cancel</button>
         <button type="submit" form="createUserForm" class="btn btn--primary" [disabled]="creating()">
           {{ creating() ? 'Saving…' : 'Save' }}
         </button>
@@ -164,28 +193,44 @@
 
   <!-- ============ Invite collaborator dialog ============ -->
   @if (inviteDialogOpen()) {
-    <app-dialog title="Invite collaborator" [busy]="inviting()" (close)="cancelInvite()">
+    <app-dialog #inviteDlg title="Invite collaborator" [busy]="inviting()"
+                [dirty]="inviteForm.dirty"
+                discardTitle="Discard this new invitation?"
+                discardMessage="You have started entering a new invitation. Leaving now will discard it."
+                (close)="cancelInvite()">
       <p class="subtle" style="margin-top: 0;">Invite someone by email — e.g. an external consultant. They keep their own identity and must accept before joining.</p>
-      <form id="inviteForm" (ngSubmit)="onInvite()">
+      <form id="inviteForm" [formGroup]="inviteForm" (ngSubmit)="onInvite()">
         <div class="row">
           <div class="field">
             <label for="ivEmail">Email <span class="req">*</span></label>
-            <input id="ivEmail" type="email" name="ivEmail" [(ngModel)]="invite.email" placeholder="consultant@example.com" autocomplete="off" required />
+            <input id="ivEmail" type="email" inputmode="email" autocomplete="off" formControlName="email"
+                   placeholder="consultant@example.com" maxlength="255"
+                   [attr.aria-invalid]="showError(inviteForm.controls.email)" aria-describedby="ivEmailErr" />
+            @if (showError(inviteForm.controls.email)) {
+              <p id="ivEmailErr" class="field-error" role="alert">
+                @if (inviteForm.controls.email.errors?.['required']) { Email is required. }
+                @else { Enter a valid email address. }
+              </p>
+            }
           </div>
           <div class="field">
             <label for="ivCompany">Company <span class="req">*</span></label>
-            <select id="ivCompany" name="ivCompany" [(ngModel)]="invite.companyId">
+            <select id="ivCompany" formControlName="companyId"
+                    [attr.aria-invalid]="showError(inviteForm.controls.companyId)" aria-describedby="ivCompanyErr">
               <option value="">— Select company —</option>
               @for (c of companies(); track c.id) {
                 <option [value]="c.id">{{ c.name }}</option>
               }
             </select>
+            @if (showError(inviteForm.controls.companyId)) {
+              <p id="ivCompanyErr" class="field-error" role="alert">Choose a company to invite them to.</p>
+            }
           </div>
           <div class="field">
             <label for="ivRole">Role</label>
-            <select id="ivRole" name="ivRole" [(ngModel)]="invite.roleId">
+            <select id="ivRole" formControlName="roleId">
               <option value="">— No role —</option>
-              @for (r of rolesFor(invite.companyId); track r.id) {
+              @for (r of rolesFor(inviteForm.controls.companyId.value); track r.id) {
                 <option [value]="r.id">{{ r.name }}</option>
               }
             </select>
@@ -194,7 +239,7 @@
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelInvite()" [disabled]="inviting()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="inviteDlg.requestClose()" [disabled]="inviting()">Cancel</button>
         <button type="submit" form="inviteForm" class="btn btn--primary" [disabled]="inviting()">
           {{ inviting() ? 'Sending…' : 'Send' }}
         </button>
@@ -207,27 +252,45 @@
     <app-dialog [title]="'Edit — ' + person.email" (close)="closeEdit()">
       <!-- Profile (global user fields) — only when account-scoped editable. -->
       @if (person.profileEditable) {
-        <form (ngSubmit)="onSaveProfile()">
+        <form [formGroup]="editProfileForm" (ngSubmit)="onSaveProfile()">
           <div class="row">
             <div class="field">
               <label for="epName">Full Name <span class="req">*</span></label>
-              <input id="epName" type="text" name="epName" [(ngModel)]="editProfile.fullName" required />
+              <input id="epName" type="text" autocomplete="name" formControlName="fullName" maxlength="150"
+                     [attr.aria-invalid]="showError(editProfileForm.controls.fullName)" aria-describedby="epNameErr" />
+              @if (showError(editProfileForm.controls.fullName)) {
+                <p id="epNameErr" class="field-error" role="alert">
+                  @if (editProfileForm.controls.fullName.errors?.['required']) { Full name is required. }
+                  @else { Full name is too long. }
+                </p>
+              }
             </div>
             <div class="field">
               <label for="epEmail">Email <span class="req">*</span></label>
-              <input id="epEmail" type="email" name="epEmail" [(ngModel)]="editProfile.email" required autocomplete="off" />
+              <input id="epEmail" type="email" inputmode="email" autocomplete="off" formControlName="email" maxlength="255"
+                     [attr.aria-invalid]="showError(editProfileForm.controls.email)" aria-describedby="epEmailErr" />
+              @if (showError(editProfileForm.controls.email)) {
+                <p id="epEmailErr" class="field-error" role="alert">
+                  @if (editProfileForm.controls.email.errors?.['required']) { Email is required. }
+                  @else { Enter a valid email address. }
+                </p>
+              }
             </div>
           </div>
           <div class="row">
             <div class="field">
               <label for="epPhone">Phone</label>
-              <app-phone-input name="epPhone" [(ngModel)]="editProfile.phone" inputId="epPhone" placeholder="Optional"></app-phone-input>
+              <app-phone-input formControlName="phone" inputId="epPhone" placeholder="Optional"></app-phone-input>
             </div>
           </div>
           <div class="row">
             <div class="field">
               <label for="epBio">Bio</label>
-              <textarea id="epBio" name="epBio" rows="3" [(ngModel)]="editProfile.bio" placeholder="Optional"></textarea>
+              <textarea id="epBio" rows="3" formControlName="bio" maxlength="500" placeholder="Optional"
+                        [attr.aria-invalid]="showError(editProfileForm.controls.bio)" aria-describedby="epBioErr"></textarea>
+              @if (showError(editProfileForm.controls.bio)) {
+                <p id="epBioErr" class="field-error" role="alert">Bio is too long.</p>
+              }
             </div>
           </div>
           <div style="display: flex; justify-content: flex-end; margin-bottom: var(--space-md);">
@@ -251,7 +314,7 @@
           <div class="assign-row">
             <span class="assign-row__info">
               <span style="min-width: 160px; font-weight: var(--weight-semibold); color: #1e293b;">{{ m.companyName }}</span>
-              <select [(ngModel)]="roleSel[key]" [attr.aria-label]="'Role for ' + person.email + ' in ' + m.companyName"
+              <select [value]="roleSel[key]" (change)="roleSel[key] = $any($event.target).value" [attr.aria-label]="'Role for ' + person.email + ' in ' + m.companyName"
                       style="padding: var(--space-xs) var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
                 <option value="">— No role —</option>
                 @for (r of rolesFor(m.companyId); track r.id) {
@@ -273,14 +336,14 @@
           <div class="assign-row" style="border-top: 1px dashed #e2e8f0; padding-top: var(--space-sm);">
             <span class="assign-row__info">
               <span class="subtle">Add to:</span>
-              <select [(ngModel)]="addCompany[person.id]" [attr.aria-label]="'Company to add ' + person.email + ' to'"
+              <select [value]="addCompany[person.id]" (change)="addCompany[person.id] = $any($event.target).value" [attr.aria-label]="'Company to add ' + person.email + ' to'"
                       style="padding: var(--space-xs) var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
                 <option value="">— Company —</option>
                 @for (c of companiesNotJoined(person); track c.id) {
                   <option [value]="c.id">{{ c.name }}</option>
                 }
               </select>
-              <select [(ngModel)]="addRole[person.id]" aria-label="Role for the new company"
+              <select [value]="addRole[person.id]" (change)="addRole[person.id] = $any($event.target).value" aria-label="Role for the new company"
                       style="padding: var(--space-xs) var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); max-width: 100%;">
                 <option value="">— No role —</option>
                 @for (r of rolesFor(addCompany[person.id]); track r.id) {

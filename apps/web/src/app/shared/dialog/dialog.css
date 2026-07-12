@@ -11,8 +11,10 @@
   padding: var(--space-lg);
 }
 
-/* Panel: a flex column — sticky header, scrollable body, fixed footer. */
+/* Panel: a flex column — sticky header, scrollable body, fixed footer.
+   position: relative anchors the discard-confirmation overlay to the panel. */
 .dlg {
+  position: relative;
   background: white;
   border-radius: 12px;
   width: 100%;
@@ -78,6 +80,44 @@
   padding: var(--space-md) var(--space-lg);
   border-top: 1px solid #e2e8f0;
   background: white;
+}
+
+/* Discard-changes confirmation — a small card layered over the whole panel so
+   the form behind it can't be touched until the user chooses. */
+.dlg__confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(15, 23, 42, 0.55);
+}
+.dlg__confirm-card {
+  width: 100%;
+  max-width: 400px;
+  background: white;
+  border-radius: 12px;
+  padding: var(--space-lg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+.dlg__confirm-title {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-h3);
+  font-weight: var(--weight-semibold);
+  color: #1e293b;
+}
+.dlg__confirm-msg {
+  margin: 0 0 var(--space-lg);
+  font-size: var(--font-body-2);
+  color: #475569;
+}
+.dlg__confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: var(--space-sm);
 }
 
 /* Full-screen on mobile: the dialog IS the screen, edge to edge. */

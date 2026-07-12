@@ -774,7 +774,11 @@
   .sidebar {
     position: fixed;
     top: var(--header-height); /* drawer slides in BELOW the header */
-    bottom: 0;
+    /* …and STOPS above the fixed bottom nav — otherwise the drawer runs to the
+       viewport bottom and the bottom nav (same z-index, later in the DOM) paints
+       over its last 60px, hiding the final menu items once an expanded menu makes
+       the list scroll. Reference the var so it can't drift from the bar's height. */
+    bottom: var(--bottom-nav-height);
     left: 0;
     width: 256px;
     transform: translateX(-100%);

@@ -109,7 +109,11 @@
 
   <!-- ============ Create company dialog ============ -->
   @if (showCreate()) {
-    <app-dialog title="New company" [busy]="creating()" (close)="cancelCreate()">
+    <app-dialog #createDlg title="New company" [busy]="creating()"
+                [dirty]="form.dirty"
+                discardTitle="Discard this new company?"
+                discardMessage="You have started entering a new company. Leaving now will discard it."
+                (close)="cancelCreate()">
       <form id="companyCreateForm" [formGroup]="form" (ngSubmit)="onSubmit()">
         <!-- Company logo (used on printed documents/reports). -->
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
@@ -256,7 +260,7 @@
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelCreate()" [disabled]="creating()">
+        <button type="button" class="btn btn--secondary" (click)="createDlg.requestClose()" [disabled]="creating()">
           Cancel
         </button>
         <button type="submit" form="companyCreateForm" class="btn btn--primary" [disabled]="creating()">
@@ -300,7 +304,11 @@
 
   <!-- ============ Edit details dialog ============ -->
   @if (editingProfileCompanyId(); as pid) {
-    <app-dialog [title]="'Edit details — ' + (editingProfileCompany()?.name || '')" [busy]="savingProfile()" (close)="cancelEditProfile()">
+    <app-dialog #detailsDlg [title]="'Edit details — ' + (editingProfileCompany()?.name || '')" [busy]="savingProfile()"
+                [dirty]="profileForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this company. Leaving now will discard them."
+                (close)="cancelEditProfile()">
       <form id="companyDetailsForm" [formGroup]="profileForm" (ngSubmit)="onSaveProfile(pid)">
         <!-- Company logo (used on printed documents/reports). -->
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
@@ -426,7 +434,7 @@
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelEditProfile()" [disabled]="savingProfile()">
+        <button type="button" class="btn btn--secondary" (click)="detailsDlg.requestClose()" [disabled]="savingProfile()">
           Cancel
         </button>
         <button type="submit" form="companyDetailsForm" class="btn btn--primary" [disabled]="savingProfile()">

@@ -115,53 +115,68 @@
 
   <!-- ============ Add status dialog ============ -->
   @if (addOpen()) {
-    <app-dialog [title]="'New membership status'" [busy]="addSaving()" (close)="closeAdd()">
-      <form id="addStatusForm" (ngSubmit)="onSaveAdd()" class="saas-form" style="padding: 0;">
+    <app-dialog #addDlg [title]="'New membership status'" [busy]="addSaving()" [dirty]="addForm.dirty"
+                discardTitle="Discard this new membership status?"
+                discardMessage="You have started entering a new membership status. Leaving now will discard it."
+                (close)="closeAdd()">
+      <form id="addStatusForm" [formGroup]="addForm" (ngSubmit)="onSaveAdd()" class="saas-form" style="padding: 0;">
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
-            <label for="aCode">Membership status</label>
-            <input id="aCode" type="text" name="aCode" [(ngModel)]="addForm.membershipStatus" placeholder="e.g. Active" autocomplete="off" required />
+            <label for="aCode">Membership status <span class="required">*</span></label>
+            <input id="aCode" type="text" formControlName="membershipStatus" placeholder="e.g. Active" autocomplete="off" maxlength="255"
+                   [attr.aria-invalid]="showError(addForm.controls.membershipStatus)" aria-describedby="aCodeErr" />
+            @if (showError(addForm.controls.membershipStatus)) {
+              <p id="aCodeErr" class="field-error" role="alert">Membership status is required.</p>
+            }
           </div>
           <div class="form-group">
-            <label for="aClass">Status class</label>
-            <select id="aClass" name="aClass" [(ngModel)]="addForm.statusClass" required>
+            <label for="aClass">Status class <span class="required">*</span></label>
+            <select id="aClass" formControlName="statusClass"
+                    [attr.aria-invalid]="showError(addForm.controls.statusClass)" aria-describedby="aClassErr">
               <option value="" disabled>Select a class…</option>
               @for (c of classes(); track c.key) {
                 <option [value]="c.key">{{ c.label }}</option>
               }
             </select>
+            @if (showError(addForm.controls.statusClass)) {
+              <p id="aClassErr" class="field-error" role="alert">Status class is required.</p>
+            }
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="aControl">System control</label>
-            <select id="aControl" name="aControl" [(ngModel)]="addForm.systemControl" required>
+            <label for="aControl">System control <span class="required">*</span></label>
+            <select id="aControl" formControlName="systemControl"
+                    [attr.aria-invalid]="showError(addForm.controls.systemControl)" aria-describedby="aControlErr">
               <option value="" disabled>Select a control…</option>
               @for (ctrl of controls(); track ctrl.key) {
                 <option [value]="ctrl.key">{{ ctrl.label }}</option>
               }
             </select>
+            @if (showError(addForm.controls.systemControl)) {
+              <p id="aControlErr" class="field-error" role="alert">System control is required.</p>
+            }
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="aDesc">Description</label>
-            <input id="aDesc" type="text" name="aDesc" [(ngModel)]="addForm.description" placeholder="Optional summary" />
+            <input id="aDesc" type="text" formControlName="description" placeholder="Optional summary" maxlength="255" />
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="aColor">Status colour</label>
             <div class="ms-color-row">
-              <input id="aColor" type="color" name="aColor" [(ngModel)]="addForm.statusColor" aria-label="Pick status colour" />
-              <input type="text" name="aColorHex" [(ngModel)]="addForm.statusColor" placeholder="#2563eb" maxlength="7" class="ms-color-hex" />
+              <input id="aColor" type="color" formControlName="statusColor" aria-label="Pick status colour" />
+              <input type="text" formControlName="statusColor" placeholder="#2563eb" maxlength="7" class="ms-color-hex" aria-label="Status colour hex" />
             </div>
           </div>
         </div>
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="closeAdd()" [disabled]="addSaving()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="addDlg.requestClose()" [disabled]="addSaving()">Cancel</button>
         <button type="submit" form="addStatusForm" class="btn btn--primary" [disabled]="addSaving()">
           {{ addSaving() ? 'Saving…' : 'Save' }}
         </button>
@@ -171,51 +186,66 @@
 
   <!-- ============ Edit status dialog ============ -->
   @if (editOpen()) {
-    <app-dialog [title]="'Edit — ' + editForm.membershipStatus" [busy]="editSaving()" (close)="closeEdit()">
-      <form id="editStatusForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
+    <app-dialog #editDlg [title]="'Edit — ' + editForm.controls.membershipStatus.value" [busy]="editSaving()" [dirty]="editForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes. Leaving now will discard them."
+                (close)="closeEdit()">
+      <form id="editStatusForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
-            <label for="eCode">Membership status</label>
-            <input id="eCode" type="text" name="eCode" [(ngModel)]="editForm.membershipStatus" autocomplete="off" required />
+            <label for="eCode">Membership status <span class="required">*</span></label>
+            <input id="eCode" type="text" formControlName="membershipStatus" autocomplete="off" maxlength="255"
+                   [attr.aria-invalid]="showError(editForm.controls.membershipStatus)" aria-describedby="eCodeErr" />
+            @if (showError(editForm.controls.membershipStatus)) {
+              <p id="eCodeErr" class="field-error" role="alert">Membership status is required.</p>
+            }
           </div>
           <div class="form-group">
-            <label for="eClass">Status class</label>
-            <select id="eClass" name="eClass" [(ngModel)]="editForm.statusClass" required>
+            <label for="eClass">Status class <span class="required">*</span></label>
+            <select id="eClass" formControlName="statusClass"
+                    [attr.aria-invalid]="showError(editForm.controls.statusClass)" aria-describedby="eClassErr">
               @for (c of classes(); track c.key) {
                 <option [value]="c.key">{{ c.label }}</option>
               }
             </select>
+            @if (showError(editForm.controls.statusClass)) {
+              <p id="eClassErr" class="field-error" role="alert">Status class is required.</p>
+            }
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="eControl">System control</label>
-            <select id="eControl" name="eControl" [(ngModel)]="editForm.systemControl" required>
+            <label for="eControl">System control <span class="required">*</span></label>
+            <select id="eControl" formControlName="systemControl"
+                    [attr.aria-invalid]="showError(editForm.controls.systemControl)" aria-describedby="eControlErr">
               @for (ctrl of controls(); track ctrl.key) {
                 <option [value]="ctrl.key">{{ ctrl.label }}</option>
               }
             </select>
+            @if (showError(editForm.controls.systemControl)) {
+              <p id="eControlErr" class="field-error" role="alert">System control is required.</p>
+            }
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="eDesc">Description</label>
-            <input id="eDesc" type="text" name="eDesc" [(ngModel)]="editForm.description" placeholder="Optional summary" />
+            <input id="eDesc" type="text" formControlName="description" placeholder="Optional summary" maxlength="255" />
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="eColor">Status colour</label>
             <div class="ms-color-row">
-              <input id="eColor" type="color" name="eColor" [(ngModel)]="editForm.statusColor" aria-label="Pick status colour" />
-              <input type="text" name="eColorHex" [(ngModel)]="editForm.statusColor" placeholder="#2563eb" maxlength="7" class="ms-color-hex" />
+              <input id="eColor" type="color" formControlName="statusColor" aria-label="Pick status colour" />
+              <input type="text" formControlName="statusColor" placeholder="#2563eb" maxlength="7" class="ms-color-hex" aria-label="Status colour hex" />
             </div>
           </div>
         </div>
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="closeEdit()" [disabled]="editSaving()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="editDlg.requestClose()" [disabled]="editSaving()">Cancel</button>
         <button type="submit" form="editStatusForm" class="btn btn--primary" [disabled]="editSaving()">
           {{ editSaving() ? 'Saving…' : 'Save' }}
         </button>

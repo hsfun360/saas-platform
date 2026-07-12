@@ -1,0 +1,92 @@
+/* Membership Fee screen — extras on top of the shared System Setup look. */
+
+.mf-hint {
+  display: block;
+  margin-top: var(--space-xs);
+  font-size: var(--font-body-2);
+  color: #64748b;
+}
+
+/* Allow-installment checkbox aligned with the amount field. */
+.mf-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.mf-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* Installment schedule block. */
+.mf-schedule {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.mf-schedule__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-sm);
+}
+
+.mf-schedule__title {
+  font-weight: var(--weight-semibold);
+  color: #0f172a;
+}
+
+.mf-stages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.mf-stage {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.mf-stage__no {
+  font-size: var(--font-body-2);
+  color: #475569;
+}
+
+.mf-stage__amt {
+  width: 100%;
+}
+
+.mf-total {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px dashed #e2e8f0;
+  font-size: var(--font-body-2);
+}
+
+.mf-total__ok {
+  color: #16a34a;
+  font-weight: var(--weight-semibold);
+}
+
+.mf-total__warn {
+  color: #b91c1c;
+  font-weight: var(--weight-semibold);
+}
+
+.mf-total--bad {
+  color: #b91c1c;
+}

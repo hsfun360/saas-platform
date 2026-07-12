@@ -111,39 +111,54 @@
 
   <!-- ============ Add currency dialog ============ -->
   @if (addOpen()) {
-    <app-dialog [title]="'New currency'" [busy]="addSaving()" (close)="closeAdd()">
-      <form id="addCurrencyForm" (ngSubmit)="onSaveAdd()" class="saas-form" style="padding: 0;">
+    <app-dialog #addDlg [title]="'New currency'" [busy]="addSaving()" [dirty]="addForm.dirty"
+                discardTitle="Discard this new currency?"
+                discardMessage="You have started entering a new currency. Leaving now will discard it."
+                (close)="closeAdd()">
+      <form id="addCurrencyForm" [formGroup]="addForm" (ngSubmit)="onSaveAdd()" class="saas-form" style="padding: 0;">
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
-            <label for="aCode">Code (ISO 4217)</label>
-            <input id="aCode" type="text" name="aCode" [(ngModel)]="addForm.code" placeholder="e.g. USD"
-                   maxlength="3" autocapitalize="characters" autocomplete="off" required />
+            <label for="aCode">Code (ISO 4217) <span class="required">*</span></label>
+            <input id="aCode" type="text" formControlName="code" placeholder="e.g. USD"
+                   maxlength="3" autocapitalize="characters" autocomplete="off"
+                   [attr.aria-invalid]="showError(addForm.controls.code)" aria-describedby="aCodeErr" />
+            @if (showError(addForm.controls.code)) {
+              <p id="aCodeErr" class="field-error" role="alert">
+                @if (addForm.controls.code.errors?.['required']) { Code is required. }
+                @else { Code must be a 3-letter ISO 4217 code (e.g. USD). }
+              </p>
+            }
           </div>
           <div class="form-group">
             <label for="aNumeric">Numeric code</label>
-            <input id="aNumeric" type="number" name="aNumeric" [(ngModel)]="addForm.numericCode" placeholder="e.g. 840" />
+            <input id="aNumeric" type="number" inputmode="numeric" formControlName="numericCode"
+                   placeholder="e.g. 840" min="0" max="999" step="1" />
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="aName">Name</label>
-            <input id="aName" type="text" name="aName" [(ngModel)]="addForm.name" placeholder="e.g. US Dollar" required />
+            <label for="aName">Name <span class="required">*</span></label>
+            <input id="aName" type="text" formControlName="name" placeholder="e.g. US Dollar" maxlength="100"
+                   [attr.aria-invalid]="showError(addForm.controls.name)" aria-describedby="aNameErr" />
+            @if (showError(addForm.controls.name)) {
+              <p id="aNameErr" class="field-error" role="alert">Name is required.</p>
+            }
           </div>
         </div>
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="aSymbol">Symbol</label>
-            <input id="aSymbol" type="text" name="aSymbol" [(ngModel)]="addForm.symbol" placeholder="e.g. $" />
+            <input id="aSymbol" type="text" formControlName="symbol" placeholder="e.g. $" maxlength="8" />
           </div>
           <div class="form-group">
             <label for="aMinor">Decimal places</label>
-            <input id="aMinor" type="number" name="aMinor" [(ngModel)]="addForm.minorUnit" min="0" max="4" />
+            <input id="aMinor" type="number" inputmode="numeric" formControlName="minorUnit" min="0" max="4" step="1" />
           </div>
         </div>
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="closeAdd()" [disabled]="addSaving()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="addDlg.requestClose()" [disabled]="addSaving()">Cancel</button>
         <button type="submit" form="addCurrencyForm" class="btn btn--primary" [disabled]="addSaving()">
           {{ addSaving() ? 'Saving…' : 'Save' }}
         </button>
@@ -153,34 +168,41 @@
 
   <!-- ============ Edit currency dialog ============ -->
   @if (editOpen()) {
-    <app-dialog [title]="'Edit — ' + editForm.code" [busy]="editSaving()" (close)="closeEdit()">
-      <form id="editCurrencyForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
+    <app-dialog #editDlg [title]="'Edit — ' + editingCode()" [busy]="editSaving()" [dirty]="editForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes. Leaving now will discard them."
+                (close)="closeEdit()">
+      <form id="editCurrencyForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
         <div class="form-row">
           <div class="form-group">
             <label for="eCode">Code (ISO 4217)</label>
-            <input id="eCode" type="text" name="eCode" [value]="editForm.code" disabled />
+            <input id="eCode" type="text" [value]="editingCode()" disabled />
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="eName">Name</label>
-            <input id="eName" type="text" name="eName" [(ngModel)]="editForm.name" placeholder="e.g. US Dollar" required />
+            <label for="eName">Name <span class="required">*</span></label>
+            <input id="eName" type="text" formControlName="name" placeholder="e.g. US Dollar" maxlength="100"
+                   [attr.aria-invalid]="showError(editForm.controls.name)" aria-describedby="eNameErr" />
+            @if (showError(editForm.controls.name)) {
+              <p id="eNameErr" class="field-error" role="alert">Name is required.</p>
+            }
           </div>
         </div>
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="eSymbol">Symbol</label>
-            <input id="eSymbol" type="text" name="eSymbol" [(ngModel)]="editForm.symbol" placeholder="e.g. $" />
+            <input id="eSymbol" type="text" formControlName="symbol" placeholder="e.g. $" maxlength="8" />
           </div>
           <div class="form-group">
             <label for="eMinor">Decimal places</label>
-            <input id="eMinor" type="number" name="eMinor" [(ngModel)]="editForm.minorUnit" min="0" max="4" />
+            <input id="eMinor" type="number" inputmode="numeric" formControlName="minorUnit" min="0" max="4" step="1" />
           </div>
         </div>
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="closeEdit()" [disabled]="editSaving()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="editDlg.requestClose()" [disabled]="editSaving()">Cancel</button>
         <button type="submit" form="editCurrencyForm" class="btn btn--primary" [disabled]="editSaving()">
           {{ editSaving() ? 'Saving…' : 'Save' }}
         </button>

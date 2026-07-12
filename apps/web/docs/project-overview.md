@@ -24,7 +24,7 @@
 
 ## 📐 Coding Guidelines & Architecture
 - **State Management:** Use Angular Signals for component state. Use a dedicated `AuthService` (Signals-based) to track login states.
-- **Forms:** Use Angular 21 Signal Forms for login and registration inputs.
+- **Forms:** Use **Reactive Forms** (`FormGroup` / `FormBuilder`) for all data-entry, each field carrying its correct HTML5 input type. See coding-standards.md → "Forms" for the full standard (canonical reference: `platform-users`). Angular Signal Forms is experimental and not approved for production yet.
 - **Change Detection:** Strictly Zoneless. No dependency on `zone.js`.
 - **Component Design:** Every component must be `standalone: true`.
 - **Naming Conventions:** Follow standard Angular style (`*.component.ts`, `*.service.ts`, `*.guard.ts`).
@@ -36,6 +36,17 @@
 - **Type Safety:** Enforce `strictNullChecks`. The `any` type is banned.
 
 ## UI/UX Requirements
+
+### Core design principle: no dark rooms - show the expected result
+
+**Never leave the user in the dark about what an action will produce.**
+Before an action runs - especially one that creates, copies, applies, or changes data - make the outcome visible so there are no surprises.
+
+- Actions that create/copy/apply/generate multiple things get a **preview + selection**, not a blind "do it all": show the actual items with details, mark ones already present, pre-select the new ones, and let the user choose.
+  Reference: Tax Setup "Load defaults" lists the exact schemes (code, name, rates), flags already-added ones, and multi-selects before copying.
+- **Buttons state the concrete outcome** ("Load 3 schemes", not "Load"); results report what was created vs skipped.
+- Show counts / affected items so the result is unambiguous; prefer previews and confirmations over silent success.
+
 - ALL user interfaces MUST be mobile-responsive
 - Use mobile-first design approach
 - **Three responsive tiers** (see "Responsive strategy" below): mobile (< 768px),
@@ -158,8 +169,9 @@ Every phone-type field uses the shared **`<app-phone-input>`** (`src/app/shared/
 a country dialling-code select (flag + code, e.g. `🇲🇾 +60`) beside the number input.
 Do **not** hand-roll a `<input type="tel">` for phone/mobile/fax.
 
-- It's a `ControlValueAccessor`, so it binds with either `[(ngModel)]` (template forms)
-  or `formControlName` (reactive forms), exactly like a native input.
+- It's a `ControlValueAccessor`, so it binds with `formControlName` (reactive forms - the
+  standard) exactly like a native input. It also accepts `[(ngModel)]`, but new screens use
+  Reactive Forms (see coding-standards.md → "Forms").
 - It reads/writes a **single combined string** - dialling code + national number, e.g.
   `+60123456789` - and splits it back on load by longest-prefix match (default `+60`).
   So the backend/model keeps one `phone` string; no separate country-code column.
@@ -170,8 +182,8 @@ Do **not** hand-roll a `<input type="tel">` for phone/mobile/fax.
 
 ```html
 <label for="uPhone">Phone</label>
-<app-phone-input name="uPhone" [(ngModel)]="form.phone" inputId="uPhone" placeholder="Optional"></app-phone-input>
-<!-- reactive: <app-phone-input formControlName="phone" inputId="cd-phone"></app-phone-input> -->
+<app-phone-input formControlName="phone" inputId="uPhone" placeholder="Optional"></app-phone-input>
+<!-- template-driven (legacy only): <app-phone-input name="uPhone" [(ngModel)]="form.phone" inputId="uPhone"></app-phone-input> -->
 ```
 
 Reference implementations: `platform-users`, `subscribers`, `tenant-users`, `companies`
@@ -356,7 +368,7 @@ mobile. No horizontal scroll, reads well at every width.
 ```css
 .data-list { display: flex; flex-direction: column; gap: var(--space-sm); }
 .data-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: var(--space-md); }
-.data-card__title { font-weight: var(--weight-semibold); color: #0f172a; word-break: break-word; }
+.data-card__title { font-size: var(--font-body); font-weight: var(--weight-semibold); color: #1e293b; word-break: break-word; }
 .data-card__meta { display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-lg); margin-top: var(--space-sm); }
 .data-card__meta .meta { display: flex; align-items: baseline; gap: var(--space-xs); min-width: 0; }
 .data-card__meta dt { font-size: var(--font-caption); font-weight: var(--weight-bold); text-transform: uppercase; color: #64748b; }
@@ -385,6 +397,33 @@ registration number, a plan) into the caption-less **subline**, and keep only tr
 metadata in the captioned meta line. Reference implementation: `subscribers.html`
 (`.data-card__title` → `.data-card__subline` `(reg)` + plan chip → `.data-card__meta`
 Companies/Created), with the `ACTIVE`/`SUSPENDED` status as the top-right badge.
+
+#### Listing card - the exact visual standard (match the Companies card)
+
+The **Companies card** (`companies.html`) is the canonical listing card; every
+listing/master card uses these exact values so screens don't drift.
+The shared `.data-card__*` classes implement them - use those, don't hand-roll a card.
+
+- **Headline:** `--font-body` (16px), `--weight-semibold`, colour `#1e293b`.
+- **Detail / subline:** `--font-body-2` (14px), colour `#475569` (the muted `.data-card__reg` tone); no captions on the subline.
+- **Meta caption** (only for true rollups like counts/dates): label `--font-caption`, `--weight-bold`, UPPERCASE, `#64748b`; value `--font-body-2`, `#1e293b`.
+- **Card alignment:** the list adds **no horizontal inset** - cards sit flush to the container gutter (the `.saas-container` / screen wrapper already supplies the page gutter), so every listing reaches the same edge. The shared `.data-list` follows this (no horizontal padding).
+
+**Status chip - the compact overline pill.**
+A record's Active / Inactive / Disabled status is a small pill pinned **top-right**, **inline with the title's first line** - the row grid is `align-items: start` so the chip aligns with the headline, never floating above a vertically-centred title, and never inline after the title text.
+Use these exact values - NOT the larger shared `.badge` (which is `--font-caption`, radius 20px, and red for inactive):
+
+- `--font-overline` (10px), `--weight-bold`, `text-transform: uppercase`, `letter-spacing: 0.5px`, `border-radius: 12px`, padding `--space-xs --space-sm`.
+- On / active: background `#dcfce7`, colour `#166534`. Off / inactive / disabled: background `#f1f5f9`, colour `#64748b` (grey, not red).
+- Reference: Companies (`.company-badge`) and Tax Setup (`.tx-status`).
+
+**Master-detail: the record's actions live on the MASTER card, not in the detail.**
+For a list → children master-detail (Modules & Menus, Tax Setup), the record's own actions - **Edit**, and for soft-lifecycle records **Enable/Disable** (never a hard **Delete** where posted data may reference the record) - sit on the master card via the action-row-with-badge grid.
+The detail pane holds only the children (menus, rate lines).
+Don't bury the record's Edit in the detail header.
+
+**Country-scoped records show the country flag as the leading icon.**
+Where a record is tied to a country (e.g. tax schemes), render `Country.flagEmoji` as the card icon (like the module icon in Modules & Menus), resolved from the active-countries list; render nothing if unknown.
 
 #### Listing chrome - search on top, "New" as a bottom FAB
 
@@ -438,6 +477,15 @@ For any non-trivial listing (more than a handful of rows), the **add** action an
     `form="…"`, so Enter-to-submit still works.
   - **A11y (handled by `<app-dialog>`):** focus moves to the first field on open, is
     **trapped** while open, **Esc** closes, and focus **returns to the trigger** on close.
+  - **Unsaved-changes guard (handled by `<app-dialog>`) - never lose a half-entered form.**
+    A create/edit dialog must not be abandonable without warning once the user has typed something.
+    The shared dialog owns this; each screen only opts in:
+    - Bind **`[dirty]="form.dirty"`** (a reactive `FormGroup`; the form stays pristine until the user edits a field), and route the footer **Cancel** through the dialog: `(click)="dlg.requestClose()"` with a `#dlg` template ref - so Cancel passes the same guard as the ✕ and Esc.
+    - Optionally set **`discardTitle`** / **`discardMessage`** for wording tailored to new-record vs edit (defaults are generic).
+    - **Every** leave path is covered while the form is dirty: **Cancel / ✕ / Esc** and the **browser Back button / mobile back gesture** show a styled in-dialog "Discard changes? / Keep editing" confirmation; a **browser refresh / tab close** fires the native "Leave site?" prompt.
+    - **Keep editing** returns the cursor to the exact field the user left off in (not the first field). A **pristine** form and a **successful Save** never prompt.
+    - Back is trapped by pushing a same-URL history entry when the dialog opens (the dialog is a signal-toggled modal with no URL of its own), intercepted via `popstate`, and the entry is cleaned up on close - guarded by a history-state marker so a forward navigation can't be yanked backward.
+    - Reference: `platform-users` and `companies` (`[dirty]="form.dirty"`, Cancel → `dlg.requestClose()`). This is the app-wide standard - apply it to every create/edit dialog.
 - **Two distinct empty states.** Separate "the data is empty" from "the search matched
   nothing":
   - No records at all → invite creation ("No items yet. Use 'New item'…").

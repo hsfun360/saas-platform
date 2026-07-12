@@ -1,4 +1,5 @@
-<app-dialog [title]="'Email delivery (SMTP) — ' + company().name" [busy]="saving() || removing()" (close)="onClose()">
+<app-dialog #smtpDlg [title]="'Email delivery (SMTP) — ' + company().name" [busy]="saving() || removing()" [dirty]="form.dirty"
+            discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="onClose()">
   @if (loading()) {
     <p style="color: #64748b;">Loading…</p>
   } @else {
@@ -89,7 +90,7 @@
   }
 
   <ng-container dialogFooter>
-    <button type="button" class="btn btn--secondary" (click)="onClose()" [disabled]="saving()">Cancel</button>
+    <button type="button" class="btn btn--secondary" (click)="smtpDlg.requestClose()" [disabled]="saving()">Cancel</button>
     @if (configured()) {
       <button type="button" class="btn btn--danger" (click)="remove()" [disabled]="removing()">
         {{ removing() ? 'Removing…' : 'Remove' }}

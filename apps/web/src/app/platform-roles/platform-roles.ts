@@ -1,6 +1,6 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AdminService } from '../services/admin.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Role, AdminMenu } from '../models/auth.models';
@@ -8,17 +8,29 @@ import { Role, AdminMenu } from '../models/auth.models';
 // Platform (system-level) Roles — split out of the old System Setup tab strip
 // into its own screen. Lists system roles with search and creates them (FAB →
 // dialog) from the platform menu catalogue. Reuses the System Setup stylesheet.
+//
+// The roleName + description fields use a typed Reactive Form (canonical reference:
+// platform-users). The menu-permission checkboxes are managed OUTSIDE the form (see
+// `selectedMenuIds`), so the FormGroup covers only the two text fields.
 @Component({
   selector: 'app-platform-roles',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogComponent],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './platform-roles.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
 export class PlatformRolesComponent implements OnInit {
+  private readonly fb = inject(FormBuilder);
+
   roles = signal<Role[]>([]);
   rolesLoading = signal(false);
-  roleForm = { id: '', name: '', description: '' };
+  // roleName + description only; permissions live in `selectedMenuIds` below. The
+  // edited role's id isn't an input, so it lives outside the form.
+  readonly editRoleId = signal('');
+  readonly roleForm = this.fb.nonNullable.group({
+    roleName: ['', [Validators.required, Validators.maxLength(150)]],
+    description: ['', [Validators.maxLength(255)]],
+  });
   roleSubmitting = signal(false);
   roleDialogOpen = signal(false);
   dialogMode = signal<'create' | 'edit'>('create');
@@ -96,6 +108,12 @@ export class PlatformRolesComponent implements OnInit {
     this.roleSearch.set('');
   }
 
+  // Show a control's validation message once the user has interacted with it
+  // (or after a submit attempt marks everything touched).
+  showError(control: AbstractControl): boolean {
+    return control.invalid && control.touched;
+  }
+
   // The seeded "System Admin" role is system-managed: it can't be edited or
   // deleted (backend enforces this too), so the UI hides those actions.
   isSystemManaged(role: Role): boolean {
@@ -105,7 +123,8 @@ export class PlatformRolesComponent implements OnInit {
   openCreate(): void {
     this.clearMessages();
     this.dialogMode.set('create');
-    this.roleForm = { id: '', name: '', description: '' };
+    this.editRoleId.set('');
+    this.roleForm.reset({ roleName: '', description: '' });
     this.selectedMenuIds.clear();
     this.loadMenus();
     this.roleDialogOpen.set(true);
@@ -114,7 +133,8 @@ export class PlatformRolesComponent implements OnInit {
   openEdit(role: Role): void {
     this.clearMessages();
     this.dialogMode.set('edit');
-    this.roleForm = { id: role.id, name: role.name, description: role.description || '' };
+    this.editRoleId.set(role.id);
+    this.roleForm.reset({ roleName: role.name, description: role.description || '' });
     this.selectedMenuIds = new Set((role.PermittedMenus || []).map((m) => m.id));
     this.loadMenus();
     this.roleDialogOpen.set(true);
@@ -126,18 +146,20 @@ export class PlatformRolesComponent implements OnInit {
 
   onSubmit(): void {
     this.clearMessages();
-    const name = this.roleForm.name.trim();
-    if (!name) {
-      this.errorMessage.set('Role name is required.');
+    if (this.roleForm.invalid) {
+      this.roleForm.markAllAsTouched(); // reveal the role-name error
       return;
     }
+    const value = this.roleForm.getRawValue();
+    const name = value.roleName.trim();
 
+    // Permissions are managed outside the form — send them exactly as before.
     const menuIds = Array.from(this.selectedMenuIds);
     this.roleSubmitting.set(true);
 
     if (this.dialogMode() === 'edit') {
       this.adminService
-        .updateRole(this.roleForm.id, { name, description: this.roleForm.description.trim(), menuIds })
+        .updateRole(this.editRoleId(), { name, description: value.description.trim(), menuIds })
         .subscribe({
           next: () => {
             this.successMessage.set(`Role "${name}" updated.`);
@@ -154,7 +176,7 @@ export class PlatformRolesComponent implements OnInit {
     }
 
     this.adminService
-      .createRole({ name, description: this.roleForm.description.trim(), menuIds })
+      .createRole({ name, description: value.description.trim(), menuIds })
       .subscribe({
         next: () => {
           this.successMessage.set(`Role "${name}" created with ${menuIds.length} menu permission(s).`);

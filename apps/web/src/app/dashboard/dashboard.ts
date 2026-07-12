@@ -178,6 +178,8 @@ export class Dashboard implements OnInit {
         { id: 'saas-config', name: 'Configuration', route: '', icon: 'settings', ...saas, parentId: null, sequence: 3 },
         { id: 'saas-modules', name: 'Modules & Menus', route: '/admin/modules-menus', icon: 'category', ...saas, parentId: 'saas-config', sequence: 0 },
         { id: 'saas-email-templates', name: 'Email Templates', route: '/admin/email-templates', icon: 'mail', ...saas, parentId: 'saas-config', sequence: 1 },
+        { id: 'saas-platform-tax', name: 'Platform Tax', route: '/admin/platform-tax', icon: 'receipt_long', ...saas, parentId: 'saas-config', sequence: 2 },
+        { id: 'saas-platform-profile', name: 'Platform Profile', route: '/admin/platform-profile', icon: 'store', ...saas, parentId: 'saas-config', sequence: 3 },
       );
     }
 

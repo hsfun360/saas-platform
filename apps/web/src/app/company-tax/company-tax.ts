@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormControl, FormRecord, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TaxSchemeService } from '../services/tax-scheme.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CompanyTaxAdoption } from '../models/auth.models';
@@ -10,15 +10,21 @@ import { CompanyTaxAdoption } from '../models/auth.models';
 // company's context, chooses which of that country's schemes THIS company uses and
 // overrides GL accounts per component. Opt-out model: a scheme is on unless disabled.
 // Reuses the System Setup stylesheet for the shared admin-screen look.
+//
+// The edit dialog is a typed Reactive Form (canonical reference: platform-users):
+// an `enabled` boolean control plus a nested `gl` FormGroup keyed by tax component
+// code (rebuilt per scheme, since the component set varies). `editForm.dirty` feeds
+// the shared dialog's unsaved-changes guard.
 @Component({
   selector: 'app-company-tax',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogComponent],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './company-tax.html',
   styleUrls: ['../system-setup/system-setup.css', './company-tax.css'],
 })
 export class CompanyTaxComponent implements OnInit {
   private readonly service = inject(TaxSchemeService);
+  private readonly fb = inject(FormBuilder);
 
   readonly adoptions = signal<CompanyTaxAdoption[]>([]);
   readonly loading = signal(false);
@@ -34,8 +40,14 @@ export class CompanyTaxComponent implements OnInit {
   readonly editOpen = signal(false);
   readonly editSaving = signal(false);
   readonly editScheme = signal<CompanyTaxAdoption | null>(null);
-  editEnabled = true;
-  editGl: Record<string, string> = {};
+  // `enabled` is the adopt flag; `gl` is a FormRecord keyed by component tax code,
+  // rebuilt in openEdit() because the component set differs per scheme. The record
+  // is held directly (typed for add/removeControl) and nested into the form.
+  private readonly glRecord = new FormRecord<FormControl<string>>({});
+  readonly editForm = this.fb.nonNullable.group({
+    enabled: this.fb.nonNullable.control(true),
+    gl: this.glRecord,
+  });
 
   readonly filtered = computed(() => {
     const q = this.search().trim().toLowerCase();
@@ -102,11 +114,24 @@ export class CompanyTaxComponent implements OnInit {
     });
   }
 
+  // Show a control's validation message once the user has interacted with it
+  // (or after a submit attempt marks everything touched).
+  showError(control: AbstractControl): boolean {
+    return control.invalid && control.touched;
+  }
+
   openEdit(a: CompanyTaxAdoption): void {
     this.clearMessages();
+    // Rebuild the gl record for this scheme's components, then seed it pristine.
+    const gl = this.glRecord;
+    for (const key of Object.keys(gl.controls)) gl.removeControl(key);
+    const overrides = this.overridesOf(a);
+    for (const c of a.components) {
+      gl.addControl(c.taxCode, this.fb.nonNullable.control(overrides[c.taxCode] || '', [Validators.maxLength(50)]));
+    }
+    this.editForm.controls.enabled.setValue(a.isEnabled);
+    this.editForm.markAsPristine();
     this.editScheme.set(a);
-    this.editEnabled = a.isEnabled;
-    this.editGl = this.overridesOf(a);
     this.editOpen.set(true);
   }
 
@@ -118,14 +143,19 @@ export class CompanyTaxComponent implements OnInit {
     this.clearMessages();
     const a = this.editScheme();
     if (!a) return;
+    if (this.editForm.invalid) {
+      this.editForm.markAllAsTouched();
+      return;
+    }
+    const raw = this.editForm.getRawValue();
     // Keep only non-empty overrides; a blank input clears that component's override.
     const glOverrides: Record<string, string> = {};
     for (const c of a.components) {
-      const v = (this.editGl[c.taxCode] || '').trim();
+      const v = (raw.gl[c.taxCode] || '').trim();
       if (v) glOverrides[c.taxCode] = v;
     }
     this.editSaving.set(true);
-    this.service.setCompanyAdoption(a.id, { isEnabled: this.editEnabled, glOverrides }).subscribe({
+    this.service.setCompanyAdoption(a.id, { isEnabled: raw.enabled, glOverrides }).subscribe({
       next: (res) => {
         this.successMessage.set(res.message);
         this.editSaving.set(false);

@@ -1,6 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { CurrencyService } from '../services/currency.service';
 import { Currency } from '../models/auth.models';
 
@@ -11,7 +10,7 @@ import { Currency } from '../models/auth.models';
 @Component({
   selector: 'app-account-currencies',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule],
   templateUrl: './account-currencies.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

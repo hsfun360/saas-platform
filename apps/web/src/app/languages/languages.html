@@ -109,25 +109,36 @@
 
   <!-- ============ Add language dialog ============ -->
   @if (addOpen()) {
-    <app-dialog [title]="'New language'" [busy]="addSaving()" (close)="closeAdd()">
-      <form id="addLanguageForm" (ngSubmit)="onSaveAdd()" class="saas-form" style="padding: 0;">
+    <app-dialog #addDlg [title]="'New language'" [busy]="addSaving()" [dirty]="addForm.dirty"
+                discardTitle="Discard this new language?"
+                discardMessage="You have started entering a new language. Leaving now will discard it."
+                (close)="closeAdd()">
+      <form id="addLanguageForm" [formGroup]="addForm" (ngSubmit)="onSaveAdd()" class="saas-form" style="padding: 0;">
         <div class="form-row">
           <div class="form-group">
-            <label for="lCode">Language code</label>
-            <input id="lCode" type="text" name="lCode" [(ngModel)]="addForm.languageCode"
-                   placeholder="e.g. en, ms, zh-tw" autocapitalize="off" autocomplete="off" required />
+            <label for="lCode">Language code <span class="required">*</span></label>
+            <input id="lCode" type="text" formControlName="languageCode"
+                   placeholder="e.g. en, ms, zh-tw" maxlength="10" autocapitalize="off" autocomplete="off"
+                   [attr.aria-invalid]="showError(addForm.controls.languageCode)" aria-describedby="lCodeErr" />
+            @if (showError(addForm.controls.languageCode)) {
+              <p id="lCodeErr" class="field-error" role="alert">Language code is required.</p>
+            }
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="lName">Name</label>
-            <input id="lName" type="text" name="lName" [(ngModel)]="addForm.name" placeholder="e.g. English" required />
+            <label for="lName">Name <span class="required">*</span></label>
+            <input id="lName" type="text" formControlName="name" placeholder="e.g. English" maxlength="100"
+                   [attr.aria-invalid]="showError(addForm.controls.name)" aria-describedby="lNameErr" />
+            @if (showError(addForm.controls.name)) {
+              <p id="lNameErr" class="field-error" role="alert">Name is required.</p>
+            }
           </div>
         </div>
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="closeAdd()" [disabled]="addSaving()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="addDlg.requestClose()" [disabled]="addSaving()">Cancel</button>
         <button type="submit" form="addLanguageForm" class="btn btn--primary" [disabled]="addSaving()">
           {{ addSaving() ? 'Saving…' : 'Save' }}
         </button>
@@ -137,24 +148,31 @@
 
   <!-- ============ Edit language dialog ============ -->
   @if (editOpen()) {
-    <app-dialog [title]="'Edit — ' + editForm.name" [busy]="editSaving()" (close)="closeEdit()">
-      <form id="editLanguageForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
+    <app-dialog #editDlg [title]="'Edit — ' + editingCode()" [busy]="editSaving()" [dirty]="editForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes. Leaving now will discard them."
+                (close)="closeEdit()">
+      <form id="editLanguageForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
         <div class="form-row">
           <div class="form-group">
             <label for="eCode">Language code</label>
-            <input id="eCode" type="text" name="eCode" [value]="editForm.languageCode | uppercase" disabled />
+            <input id="eCode" type="text" [value]="editingCode() | uppercase" disabled />
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="eName">Name</label>
-            <input id="eName" type="text" name="eName" [(ngModel)]="editForm.name" placeholder="e.g. English" required />
+            <label for="eName">Name <span class="required">*</span></label>
+            <input id="eName" type="text" formControlName="name" placeholder="e.g. English" maxlength="100"
+                   [attr.aria-invalid]="showError(editForm.controls.name)" aria-describedby="eNameErr" />
+            @if (showError(editForm.controls.name)) {
+              <p id="eNameErr" class="field-error" role="alert">Name is required.</p>
+            }
           </div>
         </div>
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="closeEdit()" [disabled]="editSaving()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="editDlg.requestClose()" [disabled]="editSaving()">Cancel</button>
         <button type="submit" form="editLanguageForm" class="btn btn--primary" [disabled]="editSaving()">
           {{ editSaving() ? 'Saving…' : 'Save' }}
         </button>

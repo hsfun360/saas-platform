@@ -1,6 +1,6 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../auth.service';
 import { AccountCompany, AccountPerson, AccountPendingInvite, Role } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
@@ -9,14 +9,24 @@ import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 // Person-centric User Management: each person is shown with the companies they
 // belong to and their role in each, with inline add-to-company / change-role /
 // remove actions. Everything is scoped to the companies the admin may manage.
+//
+// Every data-entry form here is a Reactive Form (see the canonical reference in
+// platform-users): typed nonNullable FormGroups, control validators, correct
+// HTML5 input types, and `form.dirty` feeding the shared dialog's unsaved-changes
+// guard. This covers the Create-user and Invite-collaborator dialogs and the Edit
+// dialog's "Edit profile" sub-form. The Edit dialog's per-row assignment selects
+// are inline action controls (pick a value → click Update/Add/Remove, which
+// commits immediately), not a validated form, so they bind [value] + (change)
+// straight to plain selection-state objects rather than a FormGroup.
 @Component({
   selector: 'app-tenant-users',
   standalone: true,
-  imports: [CommonModule, FormsModule, DialogComponent, PhoneInputComponent],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent],
   templateUrl: './tenant-users.html',
   styleUrl: './tenant-users.css',
 })
 export class TenantUsersComponent implements OnInit {
+  private readonly fb = inject(FormBuilder);
   readonly companies = signal<AccountCompany[]>([]);
   readonly people = signal<AccountPerson[]>([]);
   readonly invitations = signal<AccountPendingInvite[]>([]);
@@ -54,8 +64,14 @@ export class TenantUsersComponent implements OnInit {
   // fresh after each reload (and auto-closes if they lose all access).
   readonly editPersonId = signal<string | null>(null);
   readonly editPerson = computed(() => this.people().find((p) => p.id === this.editPersonId()) ?? null);
-  // Editable copy of the open person's global profile fields.
-  editProfile = { fullName: '', email: '', phone: '', bio: '' };
+  // The open person's global profile fields — a reactive form, seeded via reset()
+  // when the edit dialog opens.
+  readonly editProfileForm = this.fb.nonNullable.group({
+    fullName: ['', [Validators.required, Validators.maxLength(150)]],
+    email: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
+    phone: [''],
+    bio: ['', [Validators.maxLength(500)]],
+  });
   readonly savingProfile = signal(false);
   // Key of the action in flight (e.g. `role:<userId>:<companyId>`) — disables that button.
   readonly pendingKey = signal<string | null>(null);
@@ -65,9 +81,23 @@ export class TenantUsersComponent implements OnInit {
   addCompany: { [userId: string]: string } = {};   // userId -> companyId to add to
   addRole: { [userId: string]: string } = {};      // userId -> roleId for the add
 
-  newUser = { email: '', password: '', fullName: '', phone: '', companyId: '', roleId: '' };
+  // Create-user form. nonNullable keeps every control a non-null string.
+  readonly createForm = this.fb.nonNullable.group({
+    email: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
+    password: ['', [Validators.required, Validators.minLength(6)]],
+    fullName: ['', [Validators.required, Validators.maxLength(150)]],
+    phone: [''],
+    companyId: ['', [Validators.required]],
+    roleId: [''],
+  });
   readonly creating = signal(false);
-  invite = { email: '', companyId: '', roleId: '' };
+
+  // Invite-collaborator form.
+  readonly inviteForm = this.fb.nonNullable.group({
+    email: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
+    companyId: ['', [Validators.required]],
+    roleId: [''],
+  });
   readonly inviting = signal(false);
 
   constructor(private authService: AuthService) {}
@@ -116,12 +146,12 @@ export class TenantUsersComponent implements OnInit {
 
   openEdit(person: AccountPerson): void {
     this.clearMessages();
-    this.editProfile = {
+    this.editProfileForm.reset({
       fullName: person.full_name || '',
       email: person.email || '',
       phone: person.phone || '',
       bio: person.bio || '',
-    };
+    });
     this.editPersonId.set(person.id);
   }
 
@@ -133,21 +163,18 @@ export class TenantUsersComponent implements OnInit {
     const person = this.editPerson();
     if (!person) return;
     this.clearMessages();
-    if (!this.editProfile.fullName.trim()) {
-      this.errorMessage.set('Full name is required.');
+    if (this.editProfileForm.invalid) {
+      this.editProfileForm.markAllAsTouched(); // reveal every field's error at once
       return;
     }
-    if (!this.editProfile.email.trim()) {
-      this.errorMessage.set('Email is required.');
-      return;
-    }
+    const value = this.editProfileForm.getRawValue();
     this.savingProfile.set(true);
     this.authService
       .updateTenantUserProfile(person.id, {
-        fullName: this.editProfile.fullName.trim(),
-        email: this.editProfile.email.trim(),
-        phone: this.editProfile.phone.trim(),
-        bio: this.editProfile.bio.trim(),
+        fullName: value.fullName.trim(),
+        email: value.email.trim(),
+        phone: value.phone.trim(),
+        bio: value.bio.trim(),
       })
       .subscribe({
         next: (res) => {
@@ -166,6 +193,12 @@ export class TenantUsersComponent implements OnInit {
     return this.pendingKey() === key;
   }
 
+  // Show a control's validation message once the user has interacted with it
+  // (or after a submit attempt marks everything touched).
+  showError(control: AbstractControl): boolean {
+    return control.invalid && control.touched;
+  }
+
   private clearMessages(): void {
     this.successMessage.set('');
     this.errorMessage.set('');
@@ -177,7 +210,7 @@ export class TenantUsersComponent implements OnInit {
 
   openCreate(): void {
     this.clearMessages();
-    this.newUser = { email: '', password: '', fullName: '', phone: '', companyId: '', roleId: '' };
+    this.createForm.reset({ email: '', password: '', fullName: '', phone: '', companyId: '', roleId: '' });
     this.createDialogOpen.set(true);
   }
 
@@ -187,7 +220,7 @@ export class TenantUsersComponent implements OnInit {
 
   openInvite(): void {
     this.clearMessages();
-    this.invite = { email: '', companyId: '', roleId: '' };
+    this.inviteForm.reset({ email: '', companyId: '', roleId: '' });
     this.inviteDialogOpen.set(true);
   }
 
@@ -260,38 +293,26 @@ export class TenantUsersComponent implements OnInit {
 
   onCreateUser(): void {
     this.clearMessages();
-    if (!this.newUser.email.trim()) {
-      this.errorMessage.set('Email is required.');
+    if (this.createForm.invalid) {
+      this.createForm.markAllAsTouched(); // reveal every field's error at once
       return;
     }
-    if (!this.newUser.password || this.newUser.password.length < 6) {
-      this.errorMessage.set('Password must be at least 6 characters.');
-      return;
-    }
-    if (!this.newUser.fullName.trim()) {
-      this.errorMessage.set('Full name is required.');
-      return;
-    }
-    if (!this.newUser.companyId) {
-      this.errorMessage.set('Choose a company for the new user.');
-      return;
-    }
+    const value = this.createForm.getRawValue();
     this.creating.set(true);
     this.authService
       .createCompanyUser(
         {
-          email: this.newUser.email.trim(),
-          password: this.newUser.password,
-          fullName: this.newUser.fullName.trim(),
-          phone: this.newUser.phone.trim() || undefined,
-          roleId: this.newUser.roleId || undefined,
+          email: value.email.trim(),
+          password: value.password,
+          fullName: value.fullName.trim(),
+          phone: value.phone.trim() || undefined,
+          roleId: value.roleId || undefined,
         },
-        this.newUser.companyId,
+        value.companyId,
       )
       .subscribe({
         next: (res) => {
           this.successMessage.set(res.message || '✅ User created.');
-          this.newUser = { email: '', password: '', fullName: '', phone: '', companyId: '', roleId: '' };
           this.creating.set(false);
           this.createDialogOpen.set(false);
           this.load();
@@ -305,19 +326,15 @@ export class TenantUsersComponent implements OnInit {
 
   onInvite(): void {
     this.clearMessages();
-    if (!this.invite.email.trim()) {
-      this.errorMessage.set('Email is required.');
+    if (this.inviteForm.invalid) {
+      this.inviteForm.markAllAsTouched();
       return;
     }
-    if (!this.invite.companyId) {
-      this.errorMessage.set('Choose a company to invite them to.');
-      return;
-    }
+    const value = this.inviteForm.getRawValue();
     this.inviting.set(true);
-    this.authService.createInvitation(this.invite.email.trim(), this.invite.roleId || undefined, this.invite.companyId).subscribe({
+    this.authService.createInvitation(value.email.trim(), value.roleId || undefined, value.companyId).subscribe({
       next: (res) => {
         this.successMessage.set(res.message || '✅ Invitation sent.');
-        this.invite = { email: '', companyId: '', roleId: '' };
         this.inviting.set(false);
         this.inviteDialogOpen.set(false);
         this.load();

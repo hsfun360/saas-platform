@@ -113,38 +113,63 @@
 
   <!-- ============ Create user dialog ============ -->
   @if (userDialogOpen()) {
-    <app-dialog title="Create user" [busy]="userSubmitting()" (close)="cancelCreate()">
-      <form id="createPlatformUserForm" (ngSubmit)="onCreate()" class="saas-form" style="padding: 0;">
+    <app-dialog #createUserDlg title="Create user" [busy]="userSubmitting()"
+                [dirty]="createForm.dirty"
+                discardTitle="Discard this new user?"
+                discardMessage="You have started entering a new user. Leaving now will discard it."
+                (close)="cancelCreate()">
+      <form id="createPlatformUserForm" [formGroup]="createForm" (ngSubmit)="onCreate()" class="saas-form" style="padding: 0;">
         <div class="form-row">
           <div class="form-group">
             <label for="uEmail">Email <span class="required">*</span></label>
-            <input id="uEmail" type="email" name="uEmail" [(ngModel)]="userForm.email" placeholder="user@example.com" required autocomplete="off" />
+            <input id="uEmail" type="email" inputmode="email" autocomplete="off" formControlName="email"
+                   placeholder="user@example.com" maxlength="255"
+                   [attr.aria-invalid]="showError(createForm.controls.email)" aria-describedby="uEmailErr" />
+            @if (showError(createForm.controls.email)) {
+              <p id="uEmailErr" class="field-error" role="alert">
+                @if (createForm.controls.email.errors?.['required']) { Email is required. }
+                @else { Enter a valid email address. }
+              </p>
+            }
           </div>
           <div class="form-group">
             <label for="uFullName">Full Name <span class="required">*</span></label>
-            <input id="uFullName" type="text" name="uFullName" [(ngModel)]="userForm.fullName" placeholder="Jane Doe" required />
+            <input id="uFullName" type="text" autocomplete="name" formControlName="fullName"
+                   placeholder="Jane Doe" maxlength="150"
+                   [attr.aria-invalid]="showError(createForm.controls.fullName)" aria-describedby="uFullNameErr" />
+            @if (showError(createForm.controls.fullName)) {
+              <p id="uFullNameErr" class="field-error" role="alert">Full name is required.</p>
+            }
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="uPassword">Password <span class="required">*</span></label>
-            <input id="uPassword" type="password" name="uPassword" [(ngModel)]="userForm.password" placeholder="Min 6 characters" required minlength="6" />
+            <input id="uPassword" type="password" autocomplete="new-password" formControlName="password"
+                   placeholder="Min 6 characters" minlength="6"
+                   [attr.aria-invalid]="showError(createForm.controls.password)" aria-describedby="uPasswordErr" />
+            @if (showError(createForm.controls.password)) {
+              <p id="uPasswordErr" class="field-error" role="alert">
+                @if (createForm.controls.password.errors?.['required']) { Password is required. }
+                @else { Password must be at least 6 characters. }
+              </p>
+            }
           </div>
           <div class="form-group">
             <label for="uPhone">Phone</label>
-            <app-phone-input name="uPhone" [(ngModel)]="userForm.phone" inputId="uPhone" placeholder="Optional"></app-phone-input>
+            <app-phone-input formControlName="phone" inputId="uPhone" placeholder="Optional"></app-phone-input>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="uBio">Bio</label>
-            <textarea id="uBio" name="uBio" rows="3" [(ngModel)]="userForm.bio" placeholder="Optional"></textarea>
+            <textarea id="uBio" rows="3" formControlName="bio" placeholder="Optional" maxlength="500"></textarea>
           </div>
         </div>
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelCreate()" [disabled]="userSubmitting()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="createUserDlg.requestClose()" [disabled]="userSubmitting()">Cancel</button>
         <button type="submit" form="createPlatformUserForm" class="btn btn--primary" [disabled]="userSubmitting()">
           {{ userSubmitting() ? 'Saving…' : 'Save' }}
         </button>
@@ -154,34 +179,51 @@
 
   <!-- ============ Edit user dialog ============ -->
   @if (editDialogOpen()) {
-    <app-dialog title="Edit user" [busy]="editSubmitting()" (close)="cancelEdit()">
-      <form id="editPlatformUserForm" (ngSubmit)="onUpdate()" class="saas-form" style="padding: 0;">
+    <app-dialog #editUserDlg title="Edit user" [busy]="editSubmitting()"
+                [dirty]="editForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes. Leaving now will discard them."
+                (close)="cancelEdit()">
+      <form id="editPlatformUserForm" [formGroup]="editForm" (ngSubmit)="onUpdate()" class="saas-form" style="padding: 0;">
         <div class="form-row">
           <div class="form-group">
             <label for="eEmail">Email <span class="required">*</span></label>
-            <input id="eEmail" type="email" name="eEmail" [(ngModel)]="editForm.email" placeholder="user@example.com" required autocomplete="off" />
+            <input id="eEmail" type="email" inputmode="email" autocomplete="off" formControlName="email"
+                   placeholder="user@example.com" maxlength="255"
+                   [attr.aria-invalid]="showError(editForm.controls.email)" aria-describedby="eEmailErr" />
+            @if (showError(editForm.controls.email)) {
+              <p id="eEmailErr" class="field-error" role="alert">
+                @if (editForm.controls.email.errors?.['required']) { Email is required. }
+                @else { Enter a valid email address. }
+              </p>
+            }
           </div>
           <div class="form-group">
             <label for="eFullName">Full Name <span class="required">*</span></label>
-            <input id="eFullName" type="text" name="eFullName" [(ngModel)]="editForm.fullName" placeholder="Jane Doe" required />
+            <input id="eFullName" type="text" autocomplete="name" formControlName="fullName"
+                   placeholder="Jane Doe" maxlength="150"
+                   [attr.aria-invalid]="showError(editForm.controls.fullName)" aria-describedby="eFullNameErr" />
+            @if (showError(editForm.controls.fullName)) {
+              <p id="eFullNameErr" class="field-error" role="alert">Full name is required.</p>
+            }
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="ePhone">Phone</label>
-            <app-phone-input name="ePhone" [(ngModel)]="editForm.phone" inputId="ePhone" placeholder="Optional"></app-phone-input>
+            <app-phone-input formControlName="phone" inputId="ePhone" placeholder="Optional"></app-phone-input>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="eBio">Bio</label>
-            <textarea id="eBio" name="eBio" rows="3" [(ngModel)]="editForm.bio" placeholder="Optional"></textarea>
+            <textarea id="eBio" rows="3" formControlName="bio" placeholder="Optional" maxlength="500"></textarea>
           </div>
         </div>
       </form>
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelEdit()" [disabled]="editSubmitting()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="editUserDlg.requestClose()" [disabled]="editSubmitting()">Cancel</button>
         <button type="submit" form="editPlatformUserForm" class="btn btn--primary" [disabled]="editSubmitting()">
           {{ editSubmitting() ? 'Saving…' : 'Save' }}
         </button>

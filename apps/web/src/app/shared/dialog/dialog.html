@@ -1,4 +1,4 @@
-<div class="dlg-overlay" (keydown)="onKeydown($event)">
+<div class="dlg-overlay" (keydown)="onKeydown($event)" (focusin)="onFocusIn($event)">
   <div class="dlg" role="dialog" aria-modal="true" [attr.aria-label]="title()" tabindex="-1" #panel>
     <header class="dlg__header">
       <h2 class="dlg__title">{{ title() }}</h2>
@@ -14,5 +14,23 @@
     <div class="dlg__footer">
       <ng-content select="[dialogFooter]"></ng-content>
     </div>
+
+    @if (confirming()) {
+      <div class="dlg__confirm" role="alertdialog" aria-modal="true"
+           [attr.aria-label]="discardTitle()">
+        <div class="dlg__confirm-card">
+          <h3 class="dlg__confirm-title">{{ discardTitle() }}</h3>
+          <p class="dlg__confirm-msg">{{ discardMessage() }}</p>
+          <div class="dlg__confirm-actions">
+            <button type="button" class="btn btn--secondary" (click)="keepEditing()" #keepBtn>
+              Keep editing
+            </button>
+            <button type="button" class="btn btn--danger" (click)="discardChanges()">
+              Discard changes
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   </div>
 </div>
