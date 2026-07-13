@@ -140,11 +140,6 @@ async function initializeDB() {
         await require('./modules/notification/emailTemplate.service').seedPlatformDefaults();
         console.log('Email template defaults ensured.');
 
-        // Ensure the bundled platform tax-scheme templates exist (idempotent, always
-        // runs) so subscribers can "Load defaults for country" from day one.
-        await require('./modules/tax/taxTemplate.service').seedPlatformTaxTemplates();
-        console.log('Tax template defaults ensured.');
-
         await seedDatabase();
 
     } catch (error) {

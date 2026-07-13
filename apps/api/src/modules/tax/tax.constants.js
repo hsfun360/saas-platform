@@ -16,18 +16,27 @@ const IE_FLAG_KEYS = Object.values(IE_FLAGS);
 // Direction / posting nature of the scheme.
 //   INPUT  - tax on what the company buys (purchases / AP), potentially claimable.
 //   OUTPUT - tax the company collects on sales (billing / AR).
-//   CONTRA - an offsetting entry (e.g. a reverse-charge / self-billed pairing) that
-//            nets against another line rather than adding a cash tax.
+// (CONTRA / reverse-charge is deferred past the first rollout - add it here when needed.)
 const TAX_CLASSES = {
     INPUT: 'INPUT',
     OUTPUT: 'OUTPUT',
-    CONTRA: 'CONTRA',
 };
 const TAX_CLASS_KEYS = Object.values(TAX_CLASSES);
+
+// What a rate line represents. Purely descriptive - it does NOT change the pinned
+// tax calculation (a 'Service Charge' line cascades and rounds exactly like a 'Tax'
+// line). It is carried for reporting / GL classification only. Default 'Tax'.
+const TAX_TYPES = {
+    TAX: 'Tax',
+    SERVICE_CHARGE: 'Service Charge',
+};
+const TAX_TYPE_KEYS = Object.values(TAX_TYPES);
 
 module.exports = {
     IE_FLAGS,
     IE_FLAG_KEYS,
     TAX_CLASSES,
     TAX_CLASS_KEYS,
+    TAX_TYPES,
+    TAX_TYPE_KEYS,
 };

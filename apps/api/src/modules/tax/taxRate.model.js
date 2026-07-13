@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { TAX_SCHEMA } = require('../../platform/schemas');
+const { TAX_TYPES, TAX_TYPE_KEYS } = require('./tax.constants');
 
 // Tax Rate - the SUBSCRIBER-OWNED, effective-dated detail line(s) of a TaxScheme.
 //
@@ -42,6 +43,14 @@ const TaxRate = sequelize.define('TaxRate', {
     taxRate: {
         type: DataTypes.DECIMAL(7, 4),
         allowNull: false,
+    },
+    // What this line represents: 'Tax' or 'Service Charge'. Purely descriptive (for
+    // reporting / GL) - it does NOT affect the pinned tax calculation. Default 'Tax'.
+    taxType: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: TAX_TYPES.TAX,
+        validate: { isIn: [TAX_TYPE_KEYS] },
     },
     // Calculation order when a scheme stacks multiple components (1 = first).
     taxPriority: {

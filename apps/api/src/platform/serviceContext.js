@@ -94,10 +94,10 @@ async function listSubscriptionCompanies(req) {
 
     const companies = await Company.findAll({
         where: { accountId: current.accountId },
-        attributes: ['id', 'name'],
+        attributes: ['id', 'name', 'countryCode'],
         order: [['name', 'ASC']],
     });
-    return companies.map((c) => ({ id: c.id, name: c.name }));
+    return companies.map((c) => ({ id: c.id, name: c.name, countryCode: c.countryCode || null }));
 }
 
 // --- WHICH subscriber (Account) owns the caller's workspace ---------------
@@ -120,6 +120,74 @@ async function getActiveAccountId(req) {
     return current ? current.accountId : null;
 }
 
+// --- WHO is the platform (the invoice issuer) -----------------------------
+// The platform's own "company of record" singleton: its billing country + default
+// tax scheme (anchors the platform's own tax) and its issuer identity (invoice
+// header). A Control-Plane concern, exposed here so the tax gateway and a
+// future invoicing entity read it through the seam, never require the saas model.
+//
+// IN-PROCESS IMPLEMENTATION (monolith): lazy require of the singleton row.
+// WHEN SPLIT: GET {control-plane}/api/admin/platform-profile.
+// Returns null if the profile has never been saved.
+async function getPlatformProfile() {
+    const PlatformProfile = require('../modules/saas/platformProfile.model');
+    const profile = await PlatformProfile.findOne({ where: { singletonKey: 'platform' } });
+    if (!profile) return null;
+    return {
+        legalName: profile.legalName,
+        tradingName: profile.tradingName,
+        registrationNumber: profile.registrationNumber,
+        taxRegistrationNumber: profile.taxRegistrationNumber,
+        email: profile.email,
+        phone: profile.phone,
+        website: profile.website,
+        addressLine1: profile.addressLine1,
+        addressLine2: profile.addressLine2,
+        city: profile.city,
+        state: profile.state,
+        postalCode: profile.postalCode,
+        logo: profile.logo,
+        countryCode: profile.countryCode,
+        baseCurrencyCode: profile.baseCurrencyCode,
+        defaultTaxSchemeCode: profile.defaultTaxSchemeCode,
+    };
+}
+
+// --- WHICH currencies the caller's subscription uses -----------------------
+// The currencies a product screen may offer in a money field: the subscriber's
+// opted-in subset (AccountCurrency), falling back to every active platform
+// currency when the account never made a selection. Control-Plane data exposed
+// as a seam so product services never touch the reference tables directly.
+//
+// WHEN SPLIT: GET {control-plane}/api/admin/accounts/<accountId>/currencies.
+// Returns [{ code, name, symbol }].
+async function listAccountCurrencies(req) {
+    const { companyId } = getUserContext(req);
+    if (!companyId) return [];
+
+    const Company = require('../modules/saas/company.model');
+    const Currency = require('../modules/saas/currency.model');
+    const AccountCurrency = require('../modules/saas/accountCurrency.model');
+
+    const company = await Company.findByPk(companyId, { attributes: ['accountId'] });
+    if (!company || !company.accountId) return [];
+
+    const selected = await AccountCurrency.findAll({
+        where: { accountId: company.accountId },
+        attributes: ['currencyCode'],
+    });
+
+    const where = { isActive: true };
+    if (selected.length) where.code = selected.map((s) => s.currencyCode);
+
+    const currencies = await Currency.findAll({
+        where,
+        attributes: ['code', 'name', 'symbol'],
+        order: [['code', 'ASC']],
+    });
+    return currencies.map((c) => ({ code: c.code, name: c.name, symbol: c.symbol }));
+}
+
 // --- CALLING another service ---------------------------------------------
 // Resolve the base URL of a peer service. In the monolith this is null (same
 // process / same gateway). When a service is split out, set its env var
@@ -136,5 +204,7 @@ module.exports = {
     getActiveAccountId,
     requireModule,
     listSubscriptionCompanies,
+    listAccountCurrencies,
+    getPlatformProfile,
     internalServiceUrl,
 };

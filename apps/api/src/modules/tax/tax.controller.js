@@ -1,14 +1,28 @@
+const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
-const { getActiveAccountId } = require('../../platform/serviceContext');
+const { getActiveAccountId, listSubscriptionCompanies } = require('../../platform/serviceContext');
 const TaxScheme = require('./taxScheme.model');
 const TaxRate = require('./taxRate.model');
-const TaxSchemeTemplate = require('./taxSchemeTemplate.model');
-const TaxRateTemplate = require('./taxRateTemplate.model');
+const { resolveScheme } = require('./taxResolver');
+const { computeTax } = require('./taxCalculator');
+
+// Resolve the OWNER scope of a request. The same handlers serve two scopes:
+//   - subscriber (default): owner = the caller's Account id (from the active workspace).
+//   - platform: owner = NULL, when the SaaS-admin routes set req.taxPlatform (these
+//     rows tax the platform's own Subscription Fee billing). accountId null -> IS NULL.
+// Returns { accountId, ok } - ok is false only for a subscriber with no resolvable account.
+async function resolveScope(req) {
+    if (req.taxPlatform) return { accountId: null, ok: true };
+    const accountId = await getActiveAccountId(req);
+    return { accountId, ok: !!accountId };
+}
 const {
     IE_FLAGS,
     TAX_CLASSES,
     IE_FLAG_KEYS,
     TAX_CLASS_KEYS,
+    TAX_TYPES,
+    TAX_TYPE_KEYS,
 } = require('./tax.constants');
 
 // The Tax scheme catalog is SUBSCRIBER-owned (keyed by accountId), so every request
@@ -47,7 +61,13 @@ function parseRate(body) {
 
     const glAccountCode = str(body.glAccountCode) || null;
 
-    return { value: { taxCode, taxRate, taxPriority, isClaimable, claimPercentage, glAccountCode, effectiveFrom } };
+    // Descriptive only (does not affect the calculation). Defaults to 'Tax'.
+    const taxType = body.taxType === undefined || body.taxType === null || str(body.taxType) === ''
+        ? TAX_TYPES.TAX
+        : str(body.taxType);
+    if (!TAX_TYPE_KEYS.includes(taxType)) return { error: `Tax type must be one of: ${TAX_TYPE_KEYS.join(', ')}.` };
+
+    return { value: { taxCode, taxRate, taxType, taxPriority, isClaimable, claimPercentage, glAccountCode, effectiveFrom } };
 }
 
 // Shape a scheme (optionally with its rate lines) for the API response.
@@ -69,6 +89,7 @@ function toSchemeDto(scheme) {
             id: r.id,
             taxCode: r.taxCode,
             taxRate: Number(r.taxRate),
+            taxType: r.taxType,
             taxPriority: r.taxPriority,
             isClaimable: r.isClaimable,
             claimPercentage: Number(r.claimPercentage),
@@ -85,14 +106,57 @@ exports.getMeta = async (req, res) => {
     res.status(200).json({
         ieFlags: Object.values(IE_FLAGS).map((v) => ({ key: v, label: v })),
         taxClasses: Object.values(TAX_CLASSES).map((v) => ({ key: v, label: v })),
+        taxTypes: Object.values(TAX_TYPES).map((v) => ({ key: v, label: v })),
     });
+};
+
+// POST /api/admin/tax/quote   Body: { countryCode, taxSchemeCode, amount, date? }
+// Compute tax on an amount using a PLATFORM-owned scheme (accountId NULL). Lets us
+// test Subscription Fee tax now, before the billing entity exists. Platform-admin only
+// (the parent router enforces isSystemAdmin).
+exports.platformQuote = async (req, res) => {
+    try {
+        const countryCode = str(req.body.countryCode).toLowerCase();
+        const taxSchemeCode = str(req.body.taxSchemeCode);
+        const amount = Number(req.body.amount);
+        const onDate = typeof req.body.date === 'string' && req.body.date ? req.body.date : undefined;
+        if (!countryCode) return res.status(400).json({ message: 'Country is required.' });
+        if (!taxSchemeCode) return res.status(400).json({ message: 'Tax scheme code is required.' });
+        if (!Number.isFinite(amount)) return res.status(400).json({ message: 'A numeric amount is required.' });
+
+        const resolved = await resolveScheme({ accountId: null, countryCode, taxSchemeCode, onDate });
+        if (!resolved) return res.status(404).json({ message: 'No active platform tax scheme found for this country and code.' });
+
+        const breakdown = computeTax({ amount, ieFlag: resolved.scheme.ieFlag, components: resolved.components });
+        res.status(200).json({ scheme: resolved.scheme, asOf: resolved.asOf, ...breakdown });
+    } catch (error) {
+        console.error('Error quoting platform tax:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// GET /api/tax/company-countries - the distinct ISO alpha-2 codes of the countries
+// the subscriber's companies operate in (from Company.countryCode). The Add-scheme
+// screen restricts its country picker to these, and auto-selects when there is one.
+exports.getCompanyCountries = async (req, res) => {
+    try {
+        const companies = await listSubscriptionCompanies(req);
+        const codes = [...new Set(
+            companies.map((c) => (c.countryCode || '').trim().toLowerCase()).filter(Boolean),
+        )].sort();
+        res.status(200).json(codes);
+    } catch (error) {
+        console.error('Error listing company countries:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 };
 
 // GET /api/tax/schemes[?countryCode=XX] - the subscriber's schemes with rate lines.
 exports.listSchemes = async (req, res) => {
     try {
-        const accountId = await getActiveAccountId(req);
-        if (!accountId) return res.status(404).json({ message: 'Your account could not be resolved.' });
+        const scope = await resolveScope(req);
+        if (!scope.ok) return res.status(404).json({ message: 'Your account could not be resolved.' });
+        const accountId = scope.accountId;
 
         const where = { accountId };
         const countryCode = str(req.query.countryCode);
@@ -115,8 +179,9 @@ exports.listSchemes = async (req, res) => {
 // Creates the header and any supplied rate lines atomically.
 exports.createScheme = async (req, res) => {
     try {
-        const accountId = await getActiveAccountId(req);
-        if (!accountId) return res.status(404).json({ message: 'Your account could not be resolved.' });
+        const scope = await resolveScope(req);
+        if (!scope.ok) return res.status(404).json({ message: 'Your account could not be resolved.' });
+        const accountId = scope.accountId;
 
         const countryCode = str(req.body.countryCode);
         const taxSchemeCode = str(req.body.taxSchemeCode);
@@ -182,8 +247,9 @@ exports.createScheme = async (req, res) => {
 // Body: any of { taxSchemeCode, name, description, ieFlag, taxClass, isActive }
 exports.updateScheme = async (req, res) => {
     try {
-        const accountId = await getActiveAccountId(req);
-        if (!accountId) return res.status(404).json({ message: 'Your account could not be resolved.' });
+        const scope = await resolveScope(req);
+        if (!scope.ok) return res.status(404).json({ message: 'Your account could not be resolved.' });
+        const accountId = scope.accountId;
 
         const scheme = await TaxScheme.findOne({ where: { id: req.params.id, accountId } });
         if (!scheme) return res.status(404).json({ message: 'Tax scheme not found.' });
@@ -221,23 +287,35 @@ exports.updateScheme = async (req, res) => {
 
 // Confirm a rate line belongs to a scheme the caller's account owns.
 async function findOwnedRate(accountId, rateId) {
-    const rate = await TaxRate.findByPk(rateId, { include: [{ model: TaxScheme, as: 'Scheme', attributes: ['id', 'accountId'] }] });
+    const rate = await TaxRate.findByPk(rateId, { include: [{ model: TaxScheme, as: 'Scheme', attributes: ['id', 'accountId', 'taxClass'] }] });
     if (!rate || !rate.Scheme || rate.Scheme.accountId !== accountId) return null;
     return rate;
+}
+
+// Claimable (flag + %) only applies to INPUT tax. Force it off for any other class,
+// so the stored data is correct regardless of what the client sent.
+function enforceClaimable(value, taxClass) {
+    if (taxClass !== TAX_CLASSES.INPUT) {
+        value.isClaimable = false;
+        value.claimPercentage = 0;
+    }
+    return value;
 }
 
 // POST /api/tax/schemes/:id/rates - add a rate line to a scheme.
 // A rate CHANGE is a new line with a later effectiveFrom, not an edit of an old one.
 exports.addRate = async (req, res) => {
     try {
-        const accountId = await getActiveAccountId(req);
-        if (!accountId) return res.status(404).json({ message: 'Your account could not be resolved.' });
+        const scope = await resolveScope(req);
+        if (!scope.ok) return res.status(404).json({ message: 'Your account could not be resolved.' });
+        const accountId = scope.accountId;
 
         const scheme = await TaxScheme.findOne({ where: { id: req.params.id, accountId } });
         if (!scheme) return res.status(404).json({ message: 'Tax scheme not found.' });
 
         const parsed = parseRate(req.body);
         if (parsed.error) return res.status(400).json({ message: parsed.error });
+        enforceClaimable(parsed.value, scheme.taxClass);
 
         const clash = await TaxRate.findOne({ where: { taxSchemeId: scheme.id, taxCode: parsed.value.taxCode, effectiveFrom: parsed.value.effectiveFrom } });
         if (clash) return res.status(409).json({ message: `A '${parsed.value.taxCode}' rate effective ${parsed.value.effectiveFrom} already exists.` });
@@ -254,8 +332,9 @@ exports.addRate = async (req, res) => {
 // (Correcting a mis-keyed value; a genuine future rate change should be a new line.)
 exports.updateRate = async (req, res) => {
     try {
-        const accountId = await getActiveAccountId(req);
-        if (!accountId) return res.status(404).json({ message: 'Your account could not be resolved.' });
+        const scope = await resolveScope(req);
+        if (!scope.ok) return res.status(404).json({ message: 'Your account could not be resolved.' });
+        const accountId = scope.accountId;
 
         const rate = await findOwnedRate(accountId, req.params.id);
         if (!rate) return res.status(404).json({ message: 'Rate line not found.' });
@@ -264,6 +343,7 @@ exports.updateRate = async (req, res) => {
         const merged = {
             taxCode: req.body.taxCode !== undefined ? req.body.taxCode : rate.taxCode,
             taxRate: req.body.taxRate !== undefined ? req.body.taxRate : rate.taxRate,
+            taxType: req.body.taxType !== undefined ? req.body.taxType : rate.taxType,
             effectiveFrom: req.body.effectiveFrom !== undefined ? req.body.effectiveFrom : rate.effectiveFrom,
             taxPriority: req.body.taxPriority !== undefined ? req.body.taxPriority : rate.taxPriority,
             isClaimable: req.body.isClaimable !== undefined ? req.body.isClaimable : rate.isClaimable,
@@ -272,6 +352,7 @@ exports.updateRate = async (req, res) => {
         };
         const parsed = parseRate(merged);
         if (parsed.error) return res.status(400).json({ message: parsed.error });
+        enforceClaimable(parsed.value, rate.Scheme.taxClass);
 
         // Guard the (code, effectiveFrom) uniqueness when either changes.
         if (parsed.value.taxCode !== rate.taxCode || parsed.value.effectiveFrom !== String(rate.effectiveFrom)) {
@@ -293,68 +374,161 @@ exports.updateRate = async (req, res) => {
     }
 };
 
-// POST /api/tax/load-defaults   Body: { countryCode }
-// Copy the platform's active tax-scheme templates for a country into the subscriber's
-// own catalog (copy-on-adopt). Each new scheme records its `sourceTemplateId` for
-// provenance; from then on the subscriber owns it (no runtime link to the template).
-// Templates carry no effective date (they are a point-in-time snapshot), so copied
-// rate lines take the template's `seededAsOf` as their effectiveFrom (today if unset).
-// Idempotent per code: a scheme code the subscriber already has is skipped, not
-// duplicated or overwritten - so re-running only adds what is missing.
-exports.loadDefaults = async (req, res) => {
+// GET /api/tax/default-templates[?countryCode=XX]
+// The PLATFORM-OWNED tax schemes (TaxScheme rows with accountId NULL - the ones a
+// platform admin curates on the Platform Tax screen), each carrying its country, its
+// currently-effective rate lines, and a flag for whether the subscriber already has it.
+// Powers the Load-defaults screen: what the platform curates is exactly what the
+// subscriber can load (one source of truth). A `countryCode` query narrows to one
+// country; omitted, it spans the subscriber's company countries (one round trip).
+exports.getDefaultTemplates = async (req, res) => {
     try {
         const accountId = await getActiveAccountId(req);
         if (!accountId) return res.status(404).json({ message: 'Your account could not be resolved.' });
 
-        const countryCode = str(req.body.countryCode).toLowerCase();
-        if (!countryCode) return res.status(400).json({ message: 'Country is required.' });
+        const countries = await resolveTemplateCountries(req);
+        if (countries.length === 0) return res.status(200).json([]);
 
-        const templates = await TaxSchemeTemplate.findAll({
-            where: { countryCode, isActive: true },
-            include: [{ model: TaxRateTemplate, as: 'Rates' }],
-            order: [['taxSchemeCode', 'ASC']],
+        const platformSchemes = await TaxScheme.findAll({
+            where: { accountId: null, countryCode: { [Op.in]: countries }, isActive: true },
+            include: [{ model: TaxRate, as: 'Rates' }],
+            order: [['countryCode', 'ASC'], ['taxSchemeCode', 'ASC']],
         });
-        if (templates.length === 0) {
-            return res.status(200).json({ created: 0, skipped: 0, message: `No platform tax defaults are available for ${countryCode.toUpperCase()}.` });
-        }
+        const existing = await TaxScheme.findAll({
+            where: { accountId, countryCode: { [Op.in]: countries } },
+            attributes: ['countryCode', 'taxSchemeCode'],
+        });
+        const existingKeys = new Set(existing.map((s) => `${s.countryCode}|${s.taxSchemeCode}`));
 
-        const existing = await TaxScheme.findAll({ where: { accountId, countryCode }, attributes: ['taxSchemeCode'] });
-        const existingCodes = new Set(existing.map((s) => s.taxSchemeCode));
-        const fallbackDate = new Date().toISOString().slice(0, 10);
+        const out = platformSchemes.map((s) => ({
+            id: s.id,
+            countryCode: s.countryCode,
+            taxSchemeCode: s.taxSchemeCode,
+            name: s.name,
+            description: s.description,
+            ieFlag: s.ieFlag,
+            taxClass: s.taxClass,
+            alreadyLoaded: existingKeys.has(`${s.countryCode}|${s.taxSchemeCode}`),
+            // Show the current rate per code (the "SST 8%" the admin sees), not the full
+            // effective-dated history - the whole history is copied on load.
+            rates: currentEffectiveRates(s.Rates || [])
+                .sort((a, b) => a.taxPriority - b.taxPriority || a.taxCode.localeCompare(b.taxCode))
+                .map((r) => ({
+                    taxCode: r.taxCode,
+                    taxRate: Number(r.taxRate),
+                    taxPriority: r.taxPriority,
+                    isClaimable: r.isClaimable,
+                    claimPercentage: Number(r.claimPercentage),
+                })),
+        }));
+        res.status(200).json(out);
+    } catch (error) {
+        console.error('Error listing platform tax schemes:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// The countries the Load-defaults screen spans: an explicit ?countryCode wins,
+// otherwise the distinct countries the subscriber's companies operate in.
+async function resolveTemplateCountries(req) {
+    const explicit = str(req.query.countryCode).toLowerCase();
+    if (explicit) return [explicit];
+    const companies = await listSubscriptionCompanies(req);
+    return [...new Set(
+        companies.map((c) => (c.countryCode || '').trim().toLowerCase()).filter(Boolean),
+    )].sort();
+}
+
+// From a scheme's rate lines, the one currently in force per taxCode: the active line
+// with the latest effectiveFrom on or before today. Used to summarise a platform scheme
+// on the Load-defaults preview (the copy itself takes the full effective-dated set).
+function currentEffectiveRates(rates) {
+    const today = new Date().toISOString().slice(0, 10);
+    const byCode = new Map();
+    for (const r of rates) {
+        if (r.isActive === false) continue;
+        if (String(r.effectiveFrom) > today) continue; // not yet in force
+        const cur = byCode.get(r.taxCode);
+        if (!cur || String(r.effectiveFrom) > String(cur.effectiveFrom)) byCode.set(r.taxCode, r);
+    }
+    return [...byCode.values()];
+}
+
+// POST /api/tax/load-defaults   Body: { selections: [{ countryCode, taxSchemeCode }] }
+// Copy the selected PLATFORM-OWNED tax schemes (accountId NULL) into the subscriber's
+// own catalog (copy-on-adopt), across any mix of countries. Each new scheme records
+// the platform scheme's id as `sourceTemplateId` for provenance; from then on the
+// subscriber owns it (no runtime link back). The full effective-dated rate history is
+// copied verbatim, so the subscriber inherits any scheduled rate changes too.
+// Idempotent per (country, code): one the subscriber already has is skipped, not
+// duplicated or overwritten - so re-running only adds what is missing.
+exports.loadDefaults = async (req, res) => {
+    try {
+        const scope = await resolveScope(req);
+        if (!scope.ok) return res.status(404).json({ message: 'Your account could not be resolved.' });
+        const accountId = scope.accountId;
+
+        // The (country, code) pairs the user picked on the Load-defaults screen.
+        const rawSelections = Array.isArray(req.body.selections) ? req.body.selections : [];
+        const selectedKeys = new Set();
+        const countries = new Set();
+        for (const s of rawSelections) {
+            const cc = str(s && s.countryCode).toLowerCase();
+            const code = str(s && s.taxSchemeCode);
+            if (cc && code) {
+                selectedKeys.add(`${cc}|${code}`);
+                countries.add(cc);
+            }
+        }
+        if (selectedKeys.size === 0) return res.status(400).json({ message: 'Select at least one scheme to load.' });
+
+        const countryList = [...countries];
+        const platformSchemes = await TaxScheme.findAll({
+            where: { accountId: null, countryCode: { [Op.in]: countryList }, isActive: true },
+            include: [{ model: TaxRate, as: 'Rates' }],
+            order: [['countryCode', 'ASC'], ['taxSchemeCode', 'ASC']],
+        });
+        const existing = await TaxScheme.findAll({
+            where: { accountId, countryCode: { [Op.in]: countryList } },
+            attributes: ['countryCode', 'taxSchemeCode'],
+        });
+        const existingKeys = new Set(existing.map((s) => `${s.countryCode}|${s.taxSchemeCode}`));
 
         let created = 0;
         let skipped = 0;
         await sequelize.transaction(async (t) => {
-            for (const tmpl of templates) {
-                if (existingCodes.has(tmpl.taxSchemeCode)) {
+            for (const src of platformSchemes) {
+                const key = `${src.countryCode}|${src.taxSchemeCode}`;
+                if (!selectedKeys.has(key)) continue; // not chosen by the user
+                if (existingKeys.has(key)) {
                     skipped += 1;
                     continue;
                 }
                 const scheme = await TaxScheme.create({
                     accountId,
-                    countryCode,
-                    taxSchemeCode: tmpl.taxSchemeCode,
-                    name: tmpl.name,
-                    description: tmpl.description,
-                    ieFlag: tmpl.ieFlag,
-                    taxClass: tmpl.taxClass,
-                    sourceTemplateId: tmpl.id,
+                    countryCode: src.countryCode,
+                    taxSchemeCode: src.taxSchemeCode,
+                    name: src.name,
+                    description: src.description,
+                    ieFlag: src.ieFlag,
+                    taxClass: src.taxClass,
+                    sourceTemplateId: src.id,
                     isActive: true,
                 }, { transaction: t });
 
-                const effectiveFrom = tmpl.seededAsOf || fallbackDate;
-                if (tmpl.Rates && tmpl.Rates.length) {
+                if (src.Rates && src.Rates.length) {
                     await TaxRate.bulkCreate(
-                        tmpl.Rates.map((r) => ({
+                        src.Rates.map((r) => ({
                             taxSchemeId: scheme.id,
                             taxCode: r.taxCode,
                             taxRate: r.taxRate,
+                            taxType: r.taxType,
                             taxPriority: r.taxPriority,
                             isClaimable: r.isClaimable,
                             claimPercentage: r.claimPercentage,
                             glAccountCode: r.glAccountCode,
-                            effectiveFrom,
-                            isActive: true,
+                            effectiveFrom: r.effectiveFrom,
+                            isActive: r.isActive,
                         })),
                         { transaction: t },
                     );
@@ -363,7 +537,7 @@ exports.loadDefaults = async (req, res) => {
             }
         });
 
-        const parts = [`Loaded ${created} scheme${created === 1 ? '' : 's'} for ${countryCode.toUpperCase()}`];
+        const parts = [`Loaded ${created} scheme${created === 1 ? '' : 's'}`];
         if (skipped) parts.push(`${skipped} already existed`);
         res.status(200).json({ created, skipped, message: `${parts.join('; ')}.` });
     } catch (error) {
@@ -375,8 +549,9 @@ exports.loadDefaults = async (req, res) => {
 // DELETE /api/tax/rates/:id - remove a rate line (before it is used on documents).
 exports.deleteRate = async (req, res) => {
     try {
-        const accountId = await getActiveAccountId(req);
-        if (!accountId) return res.status(404).json({ message: 'Your account could not be resolved.' });
+        const scope = await resolveScope(req);
+        if (!scope.ok) return res.status(404).json({ message: 'Your account could not be resolved.' });
+        const accountId = scope.accountId;
 
         const rate = await findOwnedRate(accountId, req.params.id);
         if (!rate) return res.status(404).json({ message: 'Rate line not found.' });

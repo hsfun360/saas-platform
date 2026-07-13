@@ -1,5 +1,9 @@
 ﻿const express = require('express');
+const multer = require('multer');
 const router = express.Router();
+
+// In-memory upload (Cloud Run is stateless) for the platform logo, 1 MB cap.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1024 * 1024 } });
 const adminController = require('./admin.controller');
 const countryController = require('./country.controller');
 const languageController = require('./language.controller');
@@ -7,12 +11,18 @@ const currencyController = require('./currency.controller');
 const accountLanguageController = require('./accountLanguage.controller');
 const accountCurrencyController = require('./accountCurrency.controller');
 const emailTemplateController = require('../notification/emailTemplate.controller');
+const taxController = require('../tax/tax.controller');
+const platformProfileController = require('./platformProfile.controller');
 
 const { verifyToken } = require('../../platform/auth.middleware');
 const { isSystemAdmin } = require('./rbac.middleware');
 
 router.use(verifyToken);
 router.use(isSystemAdmin);
+
+// Flags tax handlers to operate on the PLATFORM-owned catalog (accountId NULL)
+// instead of a subscriber account. Applied only to the /admin/tax routes below.
+const asPlatformTax = (req, res, next) => { req.taxPlatform = true; next(); };
 
 // Role Management
 router.post('/roles', adminController.createRole);
@@ -57,6 +67,26 @@ router.put('/email-templates/:key', emailTemplateController.updatePlatformTempla
 router.post('/email-templates/:key/reset', emailTemplateController.resetPlatformTemplate);
 router.post('/email-templates/:key/preview', emailTemplateController.previewTemplate);
 router.post('/email-templates/:key/test', emailTemplateController.sendTestEmail);
+
+// Platform tax schemes (accountId NULL) - the platform's own catalog, e.g. tax on
+// Subscription Fee. Reuses the tax controller under platform scope. `/tax/quote`
+// computes tax on an amount for testing before the billing entity exists.
+router.get('/tax/meta', taxController.getMeta);
+router.get('/tax/schemes', asPlatformTax, taxController.listSchemes);
+router.post('/tax/schemes', asPlatformTax, taxController.createScheme);
+router.patch('/tax/schemes/:id', asPlatformTax, taxController.updateScheme);
+router.post('/tax/schemes/:id/rates', asPlatformTax, taxController.addRate);
+router.patch('/tax/rates/:id', asPlatformTax, taxController.updateRate);
+router.delete('/tax/rates/:id', asPlatformTax, taxController.deleteRate);
+router.post('/tax/quote', asPlatformTax, taxController.platformQuote);
+
+// Platform Profile (singleton) - the platform's own "company of record": invoice-issuer
+// identity + the billing country/scheme that anchors the platform's own tax. `/quote`
+// computes a charge's tax via the profile (proves MY charges resolve MY schemes).
+router.get('/platform-profile', platformProfileController.getProfile);
+router.put('/platform-profile', platformProfileController.updateProfile);
+router.post('/platform-profile/logo', upload.single('logo'), platformProfileController.uploadLogo);
+router.post('/platform-profile/quote', platformProfileController.quoteCharge);
 
 // Tenant Admin management (platform override for a specific company)
 router.get('/companies/:companyId/users', adminController.listCompanyUsers);

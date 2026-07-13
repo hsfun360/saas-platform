@@ -20,10 +20,13 @@ const TaxScheme = sequelize.define('TaxScheme', {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
     },
-    // The subscriber (Account) that owns this scheme. UUID reference, no FK.
+    // The owner of this scheme. A subscriber's Account id for a tenant scheme, or
+    // NULL for a PLATFORM-owned scheme (used to tax the platform's own Subscription
+    // Fee billing) - the same platform-default idiom as EmailTemplate.accountId.
+    // UUID reference, no FK.
     accountId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true, // NULL = platform-owned
     },
     // The country this scheme applies to (Country.code). Value reference, no FK.
     countryCode: {
@@ -49,15 +52,16 @@ const TaxScheme = sequelize.define('TaxScheme', {
         allowNull: false,
         validate: { isIn: [IE_FLAG_KEYS] },
     },
-    // Posting nature - one of TAX_CLASS_KEYS (INPUT | OUTPUT | CONTRA).
+    // Posting nature - one of TAX_CLASS_KEYS (INPUT | OUTPUT).
     taxClass: {
         type: DataTypes.STRING,
         allowNull: false,
         validate: { isIn: [TAX_CLASS_KEYS] },
     },
-    // Provenance only: the TaxSchemeTemplate this was seeded from, if any. A plain
-    // value (no FK) - copy-on-write means there is no runtime dependency once
-    // adopted. NULL for schemes the subscriber authored itself.
+    // Provenance only: the id of the platform-owned scheme (accountId NULL) this was
+    // copied from via "Load defaults", if any. A plain value (no FK) - copy-on-adopt
+    // means there is no runtime dependency once adopted. NULL for schemes the
+    // subscriber authored itself.
     sourceTemplateId: {
         type: DataTypes.UUID,
         allowNull: true,
@@ -73,7 +77,11 @@ const TaxScheme = sequelize.define('TaxScheme', {
     tableName: 'TaxScheme',
     timestamps: true,
     indexes: [
+        // One scheme code per (account, country). NULL accountId compares distinct in
+        // Postgres, so this does NOT constrain platform rows - the partial index below does.
         { name: 'IDX_TaxScheme_Account_Country_Code', fields: ['accountId', 'countryCode', 'taxSchemeCode'], unique: true },
+        // Exactly one platform scheme per (country, code).
+        { name: 'UX_TaxScheme_platform_country_code', fields: ['countryCode', 'taxSchemeCode'], unique: true, where: { accountId: null } },
     ],
 });
 

@@ -12,7 +12,7 @@
 // the schemes for ITS OWN country (Company.countryCode), under its subscriber
 // account. Consumers pass the request; they never assemble the scope themselves.
 
-const { getUserContext, internalServiceUrl } = require('./serviceContext');
+const { getUserContext, getPlatformProfile, internalServiceUrl } = require('./serviceContext');
 
 // Resolve the active company's tax scope: { companyId, accountId, countryCode }.
 // Returns null when there is no active workspace or the company has no country set
@@ -56,10 +56,57 @@ async function resolveCompanyTaxScheme(req, taxSchemeCode, onDate) {
     return resolveSchemeForCompany({ ...scope, taxSchemeCode, onDate });
 }
 
+// Quote the tax on an amount for the active company: resolve the scheme (company
+// adoption + GL overlay), then run the shared pure calculator. Returns a fully
+// computed breakdown the consumer SNAPSHOTS onto its transaction row - the one call
+// a charge makes at post time. `amount` is the net base for an EXCLUSIVE scheme, or
+// the tax-inclusive gross for an INCLUSIVE one (the scheme's ieFlag decides). Null if
+// the company has no country set or the scheme code does not resolve.
+async function quoteTax(req, { taxSchemeCode, amount, onDate }) {
+    const resolved = await resolveCompanyTaxScheme(req, taxSchemeCode, onDate);
+    if (!resolved) return null;
+
+    const { computeTax } = require('../modules/tax/taxCalculator');
+    const breakdown = computeTax({ amount, ieFlag: resolved.scheme.ieFlag, components: resolved.components });
+    return { scheme: resolved.scheme, asOf: resolved.asOf, ...breakdown };
+}
+
+// Quote the tax on a PLATFORM charge (e.g. a Subscription Fee, or any other fee the
+// platform bills a subscriber). Unlike quoteTax (subscriber/company scope), the scope
+// comes from the platform's own profile: its home country + its default tax scheme,
+// resolved against the platform-owned catalog (accountId NULL). This is why a MY
+// platform can never tax a charge with a Thai scheme - the country is pinned once, on
+// the profile. Returns { quote } on success or { error } for a bad/missing config, so
+// the caller (invoicing, or the admin test endpoint) can surface a clear message.
+async function quotePlatformCharge({ amount, onDate }) {
+    const profile = await getPlatformProfile();
+    if (!profile) return { error: 'Set up the Platform Profile before quoting a charge.' };
+    if (!profile.countryCode) return { error: 'The Platform Profile has no country set.' };
+    if (!profile.defaultTaxSchemeCode) return { error: 'The Platform Profile has no default tax scheme set.' };
+
+    // WHEN SPLIT: GET {internalServiceUrl('tax')}/internal/platform-schemes/<code>?countryCode&date
+    const { resolveScheme } = require('../modules/tax/taxResolver');
+    const resolved = await resolveScheme({
+        accountId: null, // platform-owned catalog
+        countryCode: profile.countryCode,
+        taxSchemeCode: profile.defaultTaxSchemeCode,
+        onDate,
+    });
+    if (!resolved) {
+        return { error: `No active platform tax scheme '${profile.defaultTaxSchemeCode}' for ${profile.countryCode.toUpperCase()}.` };
+    }
+
+    const { computeTax } = require('../modules/tax/taxCalculator');
+    const breakdown = computeTax({ amount, ieFlag: resolved.scheme.ieFlag, components: resolved.components });
+    return { quote: { scheme: resolved.scheme, asOf: resolved.asOf, ...breakdown } };
+}
+
 module.exports = {
     companyTaxScope,
     listCompanyTaxSchemes,
     resolveCompanyTaxScheme,
+    quoteTax,
+    quotePlatformCharge,
     // Re-exported so a future split can read the peer URL from one import site.
     internalServiceUrl,
 };

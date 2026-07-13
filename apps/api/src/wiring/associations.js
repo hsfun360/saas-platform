@@ -37,8 +37,7 @@ const CompanySmtpConfig = require('../modules/saas/companySmtpConfig.model'); //
 const MembershipStatus = require('../modules/membership/membershipStatus.model');
 // Shared financial reference (Tax). Header/detail pairs are intra-service, so they
 // DO associate; accountId/countryCode/companyId stay plain UUID/value references.
-const TaxSchemeTemplate = require('../modules/tax/taxSchemeTemplate.model');
-const TaxRateTemplate = require('../modules/tax/taxRateTemplate.model');
+// (The template seed layer was removed in the tax refactor - no template models.)
 const TaxScheme = require('../modules/tax/taxScheme.model');
 const TaxRate = require('../modules/tax/taxRate.model');
 const CompanyTaxScheme = require('../modules/tax/companyTaxScheme.model');
@@ -98,9 +97,6 @@ Invitation.belongsTo(Role, { foreignKey: 'roleId', as: 'Role' });
 
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).
-// 9a. Platform seed catalog.
-TaxSchemeTemplate.hasMany(TaxRateTemplate, { foreignKey: 'taxSchemeTemplateId', as: 'Rates', onDelete: 'CASCADE' });
-TaxRateTemplate.belongsTo(TaxSchemeTemplate, { foreignKey: 'taxSchemeTemplateId', as: 'Scheme' });
 // 9b. Subscriber-owned authoritative catalog (effective-dated rates).
 TaxScheme.hasMany(TaxRate, { foreignKey: 'taxSchemeId', as: 'Rates', onDelete: 'CASCADE' });
 TaxRate.belongsTo(TaxScheme, { foreignKey: 'taxSchemeId', as: 'Scheme' });
@@ -131,8 +127,6 @@ module.exports = {
     AccountCurrency,
     CompanySmtpConfig,
     MembershipStatus,
-    TaxSchemeTemplate,
-    TaxRateTemplate,
     TaxScheme,
     TaxRate,
     CompanyTaxScheme,

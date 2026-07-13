@@ -22,7 +22,13 @@ router.use(verifyToken);
 // Option lists for the screen's dropdowns (and what the API validates against).
 router.get('/meta', controller.getMeta);
 
-// Copy the platform's active templates for a country into the subscriber's catalog.
+// The countries the subscriber's companies operate in (for the Add-scheme picker).
+router.get('/company-countries', controller.getCompanyCountries);
+
+// The platform templates loadable for a country (for the Load-defaults preview/select).
+router.get('/default-templates', controller.getDefaultTemplates);
+
+// Copy the platform's selected templates for a country into the subscriber's catalog.
 router.post('/load-defaults', controller.loadDefaults);
 
 // Subscriber tax-scheme catalog (header) + effective-dated rate lines (detail).

@@ -28,6 +28,7 @@ function toComponentSnapshot(rate) {
     return {
         taxCode: rate.taxCode,
         taxRate: Number(rate.taxRate),
+        taxType: rate.taxType,
         taxPriority: rate.taxPriority,
         isClaimable: rate.isClaimable,
         claimPercentage: Number(rate.claimPercentage),
@@ -41,7 +42,10 @@ function toComponentSnapshot(rate) {
 // For each taxCode we take the row with the greatest effectiveFrom <= onDate, so a
 // scheme's concurrent components come back together, ordered by taxPriority.
 async function resolveScheme({ accountId, countryCode, taxSchemeCode, onDate }) {
-    if (!accountId || !countryCode || !taxSchemeCode) return null;
+    // accountId may be null (a PLATFORM-owned scheme) - that is a valid scope, not a
+    // missing arg. Only reject `undefined` (truly absent), which would otherwise make
+    // Sequelize drop the filter and match across accounts. countryCode + code required.
+    if (accountId === undefined || !countryCode || !taxSchemeCode) return null;
     const date = onDate || todayIso();
 
     const scheme = await TaxScheme.findOne({
