@@ -46,6 +46,7 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - **Use Reactive Forms for every data-entry form** — see the "Forms" section below. Do NOT use template-driven `[(ngModel)]` forms for new screens.
 - Do NOT use `ngClass`, use `class` bindings instead
 - Do NOT use `ngStyle`, use `style` bindings instead
+- **All colours come from the theme tokens** (`var(--surface-*)`, `--text-*`, `--border*`, `--brand*`, state/`--info`/`--accent`), so every screen works in **all 3 appearance modes** (System / Light / Dark). Never hard-code a `#hex` / `rgb()` in a component - a raw colour won't flip in dark mode. If the palette lacks a colour, add a token (a light value **and** a dark value) in `styles.css` rather than hard-coding. Any new screen/component/option must be built on the tokens + the shared theme-aware building blocks and verified in all three modes. See project-overview.md → "Colour tokens & appearance (3 modes)".
 - When using external templates/styles, use paths relative to the component TS file.
 
 ## Forms

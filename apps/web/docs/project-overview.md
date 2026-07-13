@@ -137,6 +137,35 @@ All UI components you generate MUST follow these patterns:
 | 2xl | 48px (3rem) | `--space-2xl` | Hero sections |
 | 3xl | 64px (4rem) | `--space-3xl` | Page top/bottom breathing room |
 
+#### Colour tokens & appearance (3 modes: System / Light / Dark)
+
+The app ships **light and dark themes**, chosen via a **3-mode** control in Settings → Appearance: **System** (follows the OS `prefers-color-scheme`, live), **Light**, or **Dark**.
+`ThemeService` (`src/app/services/theme.service.ts`) resolves the mode, persists it, and stamps `data-theme="light|dark"` on `<html>`; a tiny inline script in `index.html` applies it before first paint (no flash), and an `APP_INITIALIZER` re-applies on boot.
+Default is **Light** for now — flip the `ThemeService` default to `'system'` once every surface is verified in dark.
+
+**The rule: colour comes from semantic tokens, never hard-coded hex.**
+Every colour in CSS or an inline `style=` must reference a `var(--token)` from the set below (defined in `src/styles.css` under `:root` for light and `:root[data-theme="dark"]` for dark).
+This is what makes a screen support all three modes automatically - a component built on the tokens themes itself with zero extra work.
+A raw `#hex` / `rgb()` in a component is a bug: it won't flip in dark mode.
+
+| Group | Tokens | Use for |
+| --- | --- | --- |
+| Surface | `--surface-page` `--surface-card` `--surface-sunken` `--surface-input` `--surface-hover` `--surface-selected` | page bg, cards/dialogs/panels, subtle fills/hover, form inputs, selected/active row |
+| Text | `--text-primary` `--text-secondary` `--text-muted` `--text-on-brand` | body, secondary, captions, text on a brand fill |
+| Border | `--border` `--border-strong` | default dividers, input/emphasis borders |
+| Brand | `--brand` `--brand-hover` `--brand-text` `--brand-disabled` | primary button fill, hover, brand text/links, disabled brand button |
+| State | `--danger-*` `--success-*` `--info-*` (each `-text`/`-surface`/`-border`), `--chip-off-surface` `--chip-off-text` | errors, success, info banners; inactive status chip |
+| Accent / misc | `--accent` `--focus-ring` `--overlay` `--shadow` `--shadow-sm` | non-primary accent icons, focus ring, modal scrim, shadows |
+
+**Building a NEW screen, component, or option - it MUST work in both themes:**
+- Use the tokens for every colour; never hard-code a `#hex`.
+- Compose the shared, already-theme-aware building blocks - the `.btn` system, `<app-dialog>`, the listing-card standard (`.data-card` / `.status-chip`), and the form-field standard (`.saas-form` / `.form-group`) - rather than styling from scratch.
+- If you genuinely need a colour the palette doesn't have, **add a token** (a light value under `:root` **and** a dark value under `:root[data-theme="dark"]`) and reference it - do not hard-code the colour. Keep both values WCAG-AA against their background.
+- The dark header/branded bar and the header dropdowns are intentionally dark in both themes - a small, deliberate exception, not a pattern to copy.
+- Verify the screen in **all three modes** (System resolves to your OS) before shipping; a third-party widget in an iframe (e.g. TinyMCE) needs its own dark config, it won't inherit the tokens.
+
+Reference: `styles.css` (token definitions), `theme.service.ts`, and the Settings Appearance control (`dashboard/settings`).
+
 #### Button system (shared component)
 
 There is **one** button component, defined globally in `src/styles.css`. Always use it
