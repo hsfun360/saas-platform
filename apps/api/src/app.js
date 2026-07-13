@@ -211,9 +211,9 @@ async function seedDatabase() {
             { name: 'User Management', route: '/admin/users', icon: 'manage_accounts', moduleId: systemModule.id }
         ]);
 
-        // 3. Create SYSTEM Roles (companyId is NULL)
-        const sysAdminRole = await Role.create({ companyId: null, name: 'System Admin' });
-        const sysAccountRole = await Role.create({ companyId: null, name: 'Account Dept' });
+        // 3. Create SYSTEM (platform) Roles (accountId is NULL)
+        const sysAdminRole = await Role.create({ accountId: null, name: 'System Admin' });
+        const sysAccountRole = await Role.create({ accountId: null, name: 'Account Dept' });
 
         // Give System Admin access to System Menus
         await RoleMenu.bulkCreate(systemMenus.map(menu => ({ roleId: sysAdminRole.id, menuId: menu.id })));
@@ -226,7 +226,7 @@ async function seedDatabase() {
                 { companyId: testCompany.id, moduleId: golfModule.id }
             ]);
 
-            const tenantAdminRole = await Role.create({ companyId: testCompany.id, name: 'Tenant Admin' });
+            const tenantAdminRole = await Role.create({ accountId: testCompany.accountId, name: 'Tenant Admin' });
             const allTenantMenus = [...coreMenus, ...golfMenus];
             await RoleMenu.bulkCreate(allTenantMenus.map(m => ({ roleId: tenantAdminRole.id, menuId: m.id })));
 

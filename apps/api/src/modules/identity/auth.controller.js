@@ -370,11 +370,10 @@ async function resolveWorkspaceContext(userId, companyId) {
         // account without a membership row, taking the account's Tenant Admin role.
         const isOwner = await isAccountAdminForCompany(userId, companyId);
         if (!isOwner) return null;
-        // Account-level Tenant Admin role (with a legacy per-company fallback for
-        // rows not yet backfilled to accountId).
-        const adminRole =
-            (accountId && await Role.findOne({ where: { accountId, name: 'Tenant Admin' } })) ||
-            await Role.findOne({ where: { companyId, name: 'Tenant Admin' } });
+        // Account-level Tenant Admin role.
+        const adminRole = accountId
+            ? await Role.findOne({ where: { accountId, name: 'Tenant Admin' } })
+            : null;
         roleId = adminRole ? adminRole.id : null;
     }
 
@@ -1357,9 +1356,8 @@ exports.getAvailableMenus = async (req, res) => {
 
 // 2. Create a brand new Custom Role
 exports.createRole = async (req, res) => {
-    // Role is tied to a specific company. companyId may be given explicitly (the
-    // Role Management company picker) or defaults to the caller's active company;
-    // either way the caller must be able to administer that company.
+    // A role is account-level. The caller names a company (explicitly, or their active
+    // one) they can administer; the role is created under THAT company's account.
     const companyId = req.body.companyId || req.user.companyId;
     if (!companyId || !(await hasTenantAdminRole(req.user.id, companyId))) {
         return res.status(403).json({ message: "You don't have admin rights for that company." });
@@ -1375,9 +1373,16 @@ exports.createRole = async (req, res) => {
             return res.status(400).json({ message: "Role name and at least one menu are required." });
         }
 
-        // A. Create the actual Role isolated to this specific company
+        const company = await Company.findByPk(companyId, { attributes: ['accountId'], transaction });
+        const accountId = company ? company.accountId : null;
+        if (!accountId) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "Could not resolve the account for that company." });
+        }
+
+        // A. Create the account-level Role.
         const newRole = await Role.create({
-            companyId: companyId,
+            accountId,
             name: roleName
         }, { transaction });
 

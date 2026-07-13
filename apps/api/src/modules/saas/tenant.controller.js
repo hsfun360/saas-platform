@@ -56,10 +56,10 @@ exports.listTenantRoles = async (req, res) => {
     try {
         const target = await resolveTargetCompany(req, req.query.companyId);
         if (target.status) return res.status(target.status).json({ message: target.message });
-        const companyId = target.companyId;
+        const accountId = await resolveAccountId(target.companyId);
 
         const roles = await Role.findAll({
-            where: { companyId },
+            where: { accountId },
             attributes: ['id', 'name', 'description'],
             order: [['name', 'ASC']],
         });
@@ -76,9 +76,10 @@ exports.getTenantRole = async (req, res) => {
     try {
         const target = await resolveTargetCompany(req, req.query.companyId);
         if (target.status) return res.status(target.status).json({ message: target.message });
+        const accountId = await resolveAccountId(target.companyId);
 
         const role = await Role.findOne({
-            where: { id: req.params.roleId, companyId: target.companyId },
+            where: { id: req.params.roleId, accountId },
             attributes: ['id', 'name', 'description'],
         });
         if (!role) return res.status(404).json({ message: "Role not found." });
@@ -108,11 +109,11 @@ exports.getTenantRole = async (req, res) => {
 exports.updateTenantRole = async (req, res) => {
     const target = await resolveTargetCompany(req, req.body.companyId);
     if (target.status) return res.status(target.status).json({ message: target.message });
-    const companyId = target.companyId;
 
     const transaction = await sequelize.transaction();
     try {
-        const role = await Role.findOne({ where: { id: req.params.roleId, companyId }, transaction });
+        const accountId = await resolveAccountId(target.companyId, transaction);
+        const role = await Role.findOne({ where: { id: req.params.roleId, accountId }, transaction });
         if (!role) {
             await transaction.rollback();
             return res.status(404).json({ message: "Role not found." });
@@ -172,11 +173,11 @@ exports.updateTenantRole = async (req, res) => {
 exports.deleteTenantRole = async (req, res) => {
     const target = await resolveTargetCompany(req, req.query.companyId);
     if (target.status) return res.status(target.status).json({ message: target.message });
-    const companyId = target.companyId;
+    const accountId = await resolveAccountId(target.companyId);
 
     const transaction = await sequelize.transaction();
     try {
-        const role = await Role.findOne({ where: { id: req.params.roleId, companyId }, transaction });
+        const role = await Role.findOne({ where: { id: req.params.roleId, accountId }, transaction });
         if (!role) {
             await transaction.rollback();
             return res.status(404).json({ message: "Role not found." });
@@ -186,7 +187,9 @@ exports.deleteTenantRole = async (req, res) => {
             return res.status(400).json({ message: "The Tenant Admin role is managed by the system and can't be deleted." });
         }
 
-        const inUse = await CompanyUser.count({ where: { companyId, roleId: role.id }, transaction });
+        // The role is account-level, so "in use" is any membership holding it (across
+        // the account's companies), not just one company's.
+        const inUse = await CompanyUser.count({ where: { roleId: role.id }, transaction });
         if (inUse > 0) {
             await transaction.rollback();
             return res.status(409).json({
@@ -732,15 +735,11 @@ exports.listAccountUsers = async (req, res) => {
         const companyIds = companies.map(c => c.id);
         const companyNameById = new Map(companies.map(c => [c.id, c.name]));
 
-        // Roles per administrable company (for the role dropdowns).
-        const roles = companyIds.length
-            ? await Role.findAll({ where: { companyId: companyIds }, attributes: ['id', 'name', 'companyId'], order: [['name', 'ASC']] })
-            : [];
-        const rolesByCompany = {};
-        for (const r of roles) {
-            (rolesByCompany[r.companyId] ||= []).push({ id: r.id, name: r.name });
-        }
-        const companiesOut = companies.map(c => ({ id: c.id, name: c.name, roles: rolesByCompany[c.id] || [] }));
+        // Roles are account-level, so every administrable company shares the account's
+        // one role set (for the role dropdowns).
+        const roles = await Role.findAll({ where: { accountId }, attributes: ['id', 'name'], order: [['name', 'ASC']] });
+        const accountRoles = roles.map(r => ({ id: r.id, name: r.name }));
+        const companiesOut = companies.map(c => ({ id: c.id, name: c.name, roles: accountRoles }));
 
         // Memberships in those companies, grouped into people.
         const memberships = companyIds.length

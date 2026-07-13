@@ -50,23 +50,21 @@ async function wouldCreateCycle(menuId, newParentId, moduleId) {
 // --- 1. ROLE MANAGEMENT ---
 
 // POST /api/admin/roles
-// Body: { name, description?, companyId?, menuIds?: string[] }
-// Creates the role and (optionally) grants it the selected menu permissions,
-// both in a single transaction.
+// Body: { name, description?, menuIds?: string[] }
+// Creates a PLATFORM (system) role (accountId NULL) and (optionally) grants it the
+// selected menu permissions, both in a single transaction.
 exports.createRole = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
-        const { name, description, companyId, menuIds } = req.body;
+        const { name, description, menuIds } = req.body;
 
         if (!name) {
             await transaction.rollback();
             return res.status(400).json({ message: "Role name is required." });
         }
 
-        const targetCompanyId = companyId || null;
-
         const existingRole = await Role.findOne({
-            where: { name: name, companyId: targetCompanyId },
+            where: { name: name, accountId: null },
             transaction,
         });
 
@@ -78,7 +76,7 @@ exports.createRole = async (req, res) => {
         const newRole = await Role.create({
             name,
             description,
-            companyId: targetCompanyId,
+            accountId: null,
         }, { transaction });
 
         // Grant the selected menu permissions via the RoleMenu junction table.
@@ -98,14 +96,13 @@ exports.createRole = async (req, res) => {
     }
 };
 
-// GET /api/admin/roles?companyId=XYZ
-// Returns roles with their granted menus (PermittedMenus) for display.
+// GET /api/admin/roles
+// Returns the PLATFORM (system) roles (accountId NULL) with their granted menus
+// (PermittedMenus) for display.
 exports.getRoles = async (req, res) => {
     try {
-        const targetCompanyId = req.query.companyId || null;
-
         const roles = await Role.findAll({
-            where: { companyId: targetCompanyId },
+            where: { accountId: null },
             include: [{
                 model: Menu,
                 as: 'PermittedMenus',
@@ -131,7 +128,7 @@ exports.updateRole = async (req, res) => {
     try {
         const { name, description, menuIds } = req.body;
 
-        const role = await Role.findOne({ where: { id: req.params.id, companyId: null }, transaction });
+        const role = await Role.findOne({ where: { id: req.params.id, accountId: null }, transaction });
         if (!role) {
             await transaction.rollback();
             return res.status(404).json({ message: "Role not found." });
@@ -143,7 +140,7 @@ exports.updateRole = async (req, res) => {
 
         // Name (when provided) must stay unique among system roles.
         if (typeof name === 'string' && name.trim() && name.trim() !== role.name) {
-            const clash = await Role.findOne({ where: { name: name.trim(), companyId: null }, transaction });
+            const clash = await Role.findOne({ where: { name: name.trim(), accountId: null }, transaction });
             if (clash) {
                 await transaction.rollback();
                 return res.status(409).json({ message: "Another system role already uses this name." });
@@ -188,7 +185,7 @@ exports.updateRole = async (req, res) => {
 exports.deleteRole = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
-        const role = await Role.findOne({ where: { id: req.params.id, companyId: null }, transaction });
+        const role = await Role.findOne({ where: { id: req.params.id, accountId: null }, transaction });
         if (!role) {
             await transaction.rollback();
             return res.status(404).json({ message: "Role not found." });
