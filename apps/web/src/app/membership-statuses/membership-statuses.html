@@ -90,12 +90,12 @@
             <div class="data-row__actions">
               <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(s)">Edit</button>
               @if (s.isActive === false) {
-                <button type="button" class="btn btn--secondary btn--sm" (click)="toggleActive(s)"
+                <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(s)"
                         [disabled]="togglingId() === s.id">
                   {{ togglingId() === s.id ? 'Saving…' : 'Enable' }}
                 </button>
               } @else {
-                <button type="button" class="btn btn--secondary btn--sm" (click)="toggleActive(s)"
+                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(s)"
                         [disabled]="togglingId() === s.id">
                   {{ togglingId() === s.id ? 'Saving…' : 'Disable' }}
                 </button>

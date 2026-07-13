@@ -118,7 +118,9 @@
               }
               <div class="tx-row__actions">
                 <button type="button" class="btn btn--secondary btn--sm" (click)="openEditScheme(s)">Edit</button>
-                <button type="button" class="btn btn--secondary btn--sm" (click)="toggleSchemeActive(s)"
+                <button type="button" class="btn btn--sm"
+                        [class.btn--success]="s.isActive === false" [class.btn--danger]="s.isActive !== false"
+                        (click)="toggleSchemeActive(s)"
                         [disabled]="togglingSchemeId() === s.id">
                   {{ togglingSchemeId() === s.id ? 'Saving…' : (s.isActive === false ? 'Enable' : 'Disable') }}
                 </button>

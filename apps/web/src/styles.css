@@ -496,7 +496,7 @@ body {
   border-color: var(--text-muted);
 }
 
-/* Danger — destructive actions (Delete, Revoke, Remove). */
+/* Danger — destructive / deactivating actions (Delete, Revoke, Disable). */
 .btn--danger {
   background: var(--surface-card);
   color: var(--danger-text); /* AA on the card in both themes */
@@ -505,6 +505,18 @@ body {
 .btn--danger:hover:not(:disabled) {
   background: var(--danger-surface);
   border-color: var(--danger-text);
+}
+
+/* Success — affirmative / activating actions (Enable, Approve, Activate).
+   Mirrors --danger so an Enable/Disable pair reads green vs red at a glance. */
+.btn--success {
+  background: var(--surface-card);
+  color: var(--success-text); /* AA on the card in both themes */
+  border-color: var(--success-border);
+}
+.btn--success:hover:not(:disabled) {
+  background: var(--success-surface);
+  border-color: var(--success-text);
 }
 
 /* Link — looks like inline text but keeps the 44px target + a11y. */

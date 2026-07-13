@@ -177,7 +177,8 @@ guarantees the a11y touch target, and means a future restyle is a one-file chang
 | `.btn` | **Base - always required.** Provides the ≥ 44px touch target, padding, radius, focus styles, disabled state, and icon spacing. |
 | `.btn--primary` | The main call to action (Save, Create, Update, Add). |
 | `.btn--secondary` | Lower-emphasis / bordered actions (Edit, Cancel). |
-| `.btn--danger` | Destructive actions (Delete, Remove, Revoke). |
+| `.btn--danger` | Destructive / **deactivating** actions (Delete, Remove, Revoke, **Disable**). |
+| `.btn--success` | Affirmative / **activating** actions (**Enable**, Approve, Activate). |
 | `.btn--link` | Looks like an inline text link but keeps the 44px target + a11y. |
 | `.btn--sm` | Modifier: denser padding/text for inline row actions (still 44px tall). |
 | `.btn--block` | Modifier: full width (primary CTAs, esp. on mobile). |
@@ -186,6 +187,7 @@ Rules:
 - Compose a base + one colour + optional modifiers, e.g.
   `class="btn btn--secondary btn--sm"` or `class="btn btn--primary btn--block"`.
 - Pick the colour by **intent**, not by look: destructive actions are always `.btn--danger`.
+- **Enable / Disable toggles read as a colour pair app-wide:** the **Disable** action is always `.btn--danger` (red) and the **Enable** action is always `.btn--success` (green), so status is legible at a glance on every reference-data / listing screen. For a single button whose label flips, bind the colour to state (`[class.btn--danger]="isActive"` / `[class.btn--success]="!isActive"`).
 - Icon-in-button: put a `<span class="material-icons" aria-hidden="true">…</span>` inside;
   `.btn` already spaces it. Icon-only buttons still need an `aria-label`.
 - `button[type="submit"]` and `.btn--block` go full-width on mobile automatically.
