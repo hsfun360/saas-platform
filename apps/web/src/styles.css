@@ -424,6 +424,23 @@ body {
 }
 
 /* ============================================================== */
+/* Master–detail "return to row" flash                            */
+/* Applied by ScrollReturnService to the card the user came back  */
+/* from, so they can re-orient after the list re-renders. Outline */
+/* (not background) so it works over any card surface, in all 3   */
+/* appearance modes.                                              */
+/* ============================================================== */
+@keyframes return-flash {
+  0%, 55% { outline-color: var(--focus-ring); }
+  100% { outline-color: transparent; }
+}
+.return-flash {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  animation: return-flash 1.4s ease-out;
+}
+
+/* ============================================================== */
 /* Shared button system — use across all screens.                 */
 /* One source of truth so Edit / Delete / Save / etc. look the    */
 /* same everywhere. Every button keeps a >= 44px touch target     */

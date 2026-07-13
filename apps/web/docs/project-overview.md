@@ -300,6 +300,15 @@ For any screen with a **list (master) → item detail (detail)** relationship (e
   selection from it; navigate (don't mutate the signal directly) to change selection. This
   gives **deep linking** and working **browser back/forward** for free. Return to the master
   list by navigating to the param-less base path.
+- **Return to the row (required):** navigating between the two routes **recreates the
+  component**, so on the way back the master re-renders at the top - on mobile the user
+  who was editing the last card would have to scroll all the way down again. Wire the shared
+  `ScrollReturnService` (`services/scroll-return.service.ts`): tag each master card with
+  `[attr.data-return-id]="row.id"`, call `returnScroll.remember(listPath, id)` when the
+  detail opens (in the `paramMap` subscription), and `returnScroll.consume(listPath, injector)`
+  after the master's list data lands (only when nothing is selected). The service scrolls the
+  card back into view and flashes it (`.return-flash`, theme-aware). Works for the in-app
+  "← Back" and the browser/phone back button alike.
 
 ```css
 .mm-layout { display: grid; grid-template-columns: minmax(0, 420px) 1fr; gap: var(--space-lg); align-items: start; }
@@ -322,7 +331,9 @@ back()             { this.router.navigate(['/section']); }
 ```
 
 Reference implementation: `modules-menus.ts` + `modules-menus.css` (`.mm-layout`, `.mm-pane--*`,
-`.mm-back`), routed as `modules-menus` and `modules-menus/:moduleId`.
+`.mm-back`), routed as `modules-menus` and `modules-menus/:moduleId` - including the
+`ScrollReturnService` wiring. `items` is the copyable sample; `tax-schemes` and the two
+email-template screens (list + separate edit component) follow the same pattern.
 
 #### Section tabs (responsive strip + URL-driven)
 

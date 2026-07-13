@@ -35,6 +35,15 @@
   line-height: 1;
   flex-shrink: 0;
 }
+
+/* Service-charge marker on a scheme card (any rate line of taxType 'Service Charge'). */
+.tx-row__sc {
+  font-size: 16px;
+  line-height: 1;
+  vertical-align: -3px;
+  margin-left: var(--space-xs);
+  color: var(--accent);
+}
 .tx-load-item__text {
   display: flex;
   flex-direction: column;

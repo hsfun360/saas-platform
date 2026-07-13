@@ -98,7 +98,7 @@
       } @else {
         <div class="tx-list">
           @for (s of filtered(); track s.id) {
-            <div class="tx-row" [class.tx-row--active]="s.id === selectedId()">
+            <div class="tx-row" [class.tx-row--active]="s.id === selectedId()" [attr.data-return-id]="s.id">
               <button type="button" class="tx-row__select" (click)="select(s.id)"
                       [attr.aria-pressed]="s.id === selectedId()">
                 @if (countryFlag(s.countryCode)) {
@@ -107,7 +107,12 @@
                 <span class="tx-row__text">
                   <span class="tx-row__title">{{ s.taxSchemeCode }} — {{ s.name }}</span>
                   <span class="tx-row__sub">
-                    {{ countryName(s.countryCode) }} · {{ ieFlagLabel(s.ieFlag) }} · {{ taxClassLabel(s.taxClass) }}
+                    {{ ieFlagLabel(s.ieFlag) }} · {{ taxClassLabel(s.taxClass) }}
+                    @if (hasServiceCharge(s)) {
+                      <span class="material-icons tx-row__sc" role="img"
+                            [attr.aria-label]="'Includes a Service Charge component'"
+                            [attr.title]="'Includes a Service Charge component'">room_service</span>
+                    }
                   </span>
                 </span>
               </button>

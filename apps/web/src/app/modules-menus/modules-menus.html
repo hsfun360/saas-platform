@@ -51,7 +51,7 @@
       } @else {
         <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs);">
           @for (m of filteredModules(); track m.id) {
-            <li class="mm-row" [class.mm-row--active]="selectedModuleId() === m.id">
+            <li class="mm-row" [class.mm-row--active]="selectedModuleId() === m.id" [attr.data-return-id]="m.id">
               <button type="button" class="mm-row__select" (click)="selectModule(m.id)"
                       [attr.aria-pressed]="selectedModuleId() === m.id" [attr.aria-label]="'Manage menus for ' + m.name">
                 <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: var(--accent);">{{ m.icon || 'widgets' }}</span>

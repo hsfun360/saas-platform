@@ -26,7 +26,7 @@
   } @else {
     <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
       @for (t of templates(); track t.key) {
-        <div class="data-card">
+        <div class="data-card" [attr.data-return-id]="t.key">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <div class="data-card__title">{{ t.name }}</div>

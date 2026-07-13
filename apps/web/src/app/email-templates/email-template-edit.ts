@@ -6,6 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { debounceTime } from 'rxjs';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { EmailTemplateService } from '../services/email-template.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { EmailTemplateDetail, EmailTemplateVariable } from '../models/auth.models';
 import { EmailHtmlEditorComponent } from '../shared/email-html-editor/email-html-editor';
 import { VariableMenuComponent } from '../shared/variable-menu/variable-menu';
@@ -27,6 +28,7 @@ export class EmailTemplateEditComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly returnScroll = inject(ScrollReturnService);
 
   readonly key = signal<string>('');
   readonly loading = signal(true);
@@ -85,7 +87,11 @@ export class EmailTemplateEditComponent implements OnInit {
 
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((p) => {
       const key = p.get('key');
-      if (key) this.load(key);
+      if (key) {
+        // So the list scrolls back to this template's card on return.
+        this.returnScroll.remember('/admin/email-templates', key);
+        this.load(key);
+      }
     });
   }
 

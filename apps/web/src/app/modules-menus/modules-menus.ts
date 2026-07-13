@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -20,6 +20,7 @@ import {
 } from '@angular/cdk/drag-drop';
 import { AdminService } from '../services/admin.service';
 import { LanguageService } from '../services/language.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { AdminMenu, AdminModule, Language } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 
@@ -67,6 +68,8 @@ export class ModulesMenusComponent implements OnInit {
   readonly languages = signal<Language[]>([]);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
   private readonly basePath = ['/admin', 'modules-menus'];
 
   // --- Master: modules ---
@@ -218,6 +221,9 @@ export class ModulesMenusComponent implements OnInit {
 
   private applySelection(moduleId: string | null): void {
     this.selectedModuleId.set(moduleId);
+    // Remember the open module so the master scrolls its row back into view when
+    // the user returns to the plain list route (the component is recreated then).
+    if (moduleId) this.returnScroll.remember('/admin/modules-menus', moduleId);
     this.menuSearch.set(''); // don't carry a filter across modules
     this.cancelMenuEdit();
     if (moduleId) {
@@ -236,6 +242,8 @@ export class ModulesMenusComponent implements OnInit {
       next: (list) => {
         this.modules.set(list);
         this.modulesLoading.set(false);
+        // Back on the plain list route: scroll to the module the user came from.
+        if (!this.selectedModuleId()) this.returnScroll.consume('/admin/modules-menus', this.injector);
       },
       error: () => this.modulesLoading.set(false),
     });

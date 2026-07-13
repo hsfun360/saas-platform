@@ -1,7 +1,8 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AccountEmailTemplateService } from '../services/account-email-template.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { AccountEmailTemplateSummary } from '../models/auth.models';
 
 // Tenant Admin: the platform emails this subscriber may customise. Each row shows
@@ -15,6 +16,8 @@ import { AccountEmailTemplateSummary } from '../models/auth.models';
 })
 export class AccountEmailTemplatesComponent implements OnInit {
   private readonly service = inject(AccountEmailTemplateService);
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
 
   readonly templates = signal<AccountEmailTemplateSummary[]>([]);
   readonly loading = signal(false);
@@ -26,6 +29,8 @@ export class AccountEmailTemplatesComponent implements OnInit {
       next: (list) => {
         this.templates.set(list);
         this.loading.set(false);
+        // Coming back from the editor: scroll to the template the user was editing.
+        this.returnScroll.consume('/admin/account-email-templates', this.injector);
       },
       error: (err) => {
         this.errorMessage.set(err.error?.message || 'Failed to load email templates.');

@@ -1,10 +1,11 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TaxSchemeService } from '../services/tax-scheme.service';
 import { CountryService } from '../services/country.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { TaxScheme, TaxRate, TaxOption, Country, TaxTemplateOption } from '../models/auth.models';
 
@@ -26,6 +27,8 @@ export class TaxSchemesComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
 
   // Platform scope (accountId NULL catalog, SaaS Admin) vs subscriber scope. Set from
   // the route's `data.taxScope`; drives the API base and hides subscriber-only actions.
@@ -165,9 +168,13 @@ export class TaxSchemesComponent implements OnInit {
 
   constructor() {
     this.isPlatform.set(this.route.snapshot.data['taxScope'] === 'platform');
-    // The open scheme id is whatever the route says.
+    // The open scheme id is whatever the route says. Remember it so the master can
+    // scroll back to this scheme's row when the user returns to the list (the
+    // component is recreated on that navigation, so plain state would not survive).
     this.route.paramMap.pipe(takeUntilDestroyed()).subscribe((p) => {
-      this.selectedId.set(p.get('id'));
+      const id = p.get('id');
+      this.selectedId.set(id);
+      if (id) this.returnScroll.remember(this.basePath(), id);
     });
 
     // Claim percentage is required and 0–100 only while the line is claimable; when
@@ -271,6 +278,12 @@ export class TaxSchemesComponent implements OnInit {
     return this.countries().find((c) => c.alpha2 === code)?.flagEmoji || '';
   }
 
+  // True if any of the scheme's rate lines is a 'Service Charge' (vs plain 'Tax') -
+  // surfaces a service-charge icon on the scheme card.
+  hasServiceCharge(s: TaxScheme): boolean {
+    return (s.rates || []).some((r) => r.taxType === 'Service Charge');
+  }
+
   // "🇲🇾 Malaysia" label (flag + name), for the read-only country field.
   countryLabel(code: string): string {
     const flag = this.countryFlag(code);
@@ -306,6 +319,8 @@ export class TaxSchemesComponent implements OnInit {
       next: (data) => {
         this.schemes.set(data);
         this.loading.set(false);
+        // Back on the plain list route: scroll to the scheme the user was viewing.
+        if (!this.selectedId()) this.returnScroll.consume(this.basePath(), this.injector);
       },
       error: (err) => {
         this.loading.set(false);

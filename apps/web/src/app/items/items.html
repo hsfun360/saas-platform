@@ -56,7 +56,7 @@
       } @else {
         <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs);">
           @for (item of filteredItems(); track item.id) {
-            <li class="it-row" [class.it-row--active]="selectedId() === item.id">
+            <li class="it-row" [class.it-row--active]="selectedId() === item.id" [attr.data-return-id]="item.id">
               <button type="button" class="it-row__select" (click)="selectItem(item.id)"
                       [attr.aria-pressed]="selectedId() === item.id" [attr.aria-label]="'Open ' + item.name">
                 <span class="it-row__text">

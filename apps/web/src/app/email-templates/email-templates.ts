@@ -1,7 +1,8 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { EmailTemplateService } from '../services/email-template.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { EmailTemplateSummary } from '../models/auth.models';
 
 // System Admin: the platform email templates. A fixed catalogue (no create /
@@ -15,6 +16,8 @@ import { EmailTemplateSummary } from '../models/auth.models';
 })
 export class EmailTemplatesComponent implements OnInit {
   private readonly service = inject(EmailTemplateService);
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
 
   readonly templates = signal<EmailTemplateSummary[]>([]);
   readonly loading = signal(false);
@@ -26,6 +29,8 @@ export class EmailTemplatesComponent implements OnInit {
       next: (list) => {
         this.templates.set(list);
         this.loading.set(false);
+        // Coming back from the editor: scroll to the template the user was editing.
+        this.returnScroll.consume('/admin/email-templates', this.injector);
       },
       error: (err) => {
         this.errorMessage.set(err.error?.message || 'Failed to load email templates.');

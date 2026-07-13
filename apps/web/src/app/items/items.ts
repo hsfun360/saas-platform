@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ItemsService } from './items.service';
 import { Item } from './item.model';
+import { ScrollReturnService } from '../services/scroll-return.service';
 
 // Sample CRUD screen using the master–detail + URL-state pattern (see
 // docs/project-overview.md). The list (master) is on the left; the selected
@@ -29,6 +30,8 @@ export class ItemsComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
   private readonly basePath = ['/items'];
   private readonly newSentinel = 'new';
 
@@ -72,8 +75,13 @@ export class ItemsComponent implements OnInit {
 
   constructor() {
     // React to the :id param (direct nav, deep link, browser back/forward).
+    // A real record id is remembered so that when the user navigates back to the
+    // plain list route (which recreates this component), the master scrolls their
+    // row back into view instead of jumping to the top ('new' has no row).
     this.route.paramMap.pipe(takeUntilDestroyed()).subscribe((params) => {
-      this.selectedId.set(params.get('id'));
+      const id = params.get('id');
+      this.selectedId.set(id);
+      if (id && id !== this.newSentinel) this.returnScroll.remember('/items', id);
       this.syncForm();
     });
   }
@@ -91,6 +99,8 @@ export class ItemsComponent implements OnInit {
         // A deep link (/items/:id) may have arrived before the list loaded —
         // now that items are in, populate the edit form for the open item.
         this.syncForm();
+        // Back on the plain list route: scroll to the row the user came from.
+        if (!this.selectedId()) this.returnScroll.consume('/items', this.injector);
       },
       error: () => this.loading.set(false),
     });
