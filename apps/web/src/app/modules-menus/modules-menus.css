@@ -37,8 +37,8 @@
 }
 
 .mm-row--active {
-  border-color: #38bdf8;
-  background: #f0f9ff;
+  border-color: var(--accent);
+  background: var(--surface-selected);
 }
 
 /* The module name is a button that selects the module (loads its menus).
@@ -236,7 +236,7 @@
   color: #94a3b8;
 }
 .mm-hint__saving {
-  color: #0284c7;
+  color: var(--accent);
   font-weight: var(--weight-semibold);
 }
 
@@ -288,7 +288,7 @@
 }
 .mm-menu-row__icon {
   font-size: 18px;
-  color: #0284c7;
+  color: var(--accent);
   flex-shrink: 0;
 }
 .mm-menu-row__text {

@@ -5,6 +5,7 @@ import {
   ElementRef,
   OnDestroy,
   forwardRef,
+  inject,
   input,
   signal,
   viewChild,
@@ -12,6 +13,7 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import type { Editor, TinyMCE } from 'tinymce';
 import { EmailTemplateVariable } from '../../models/auth.models';
+import { ThemeService } from '../../services/theme.service';
 
 // A WYSIWYG editor for Handlebars email bodies, bound as a ControlValueAccessor so it
 // drops into a reactive form exactly like the old <textarea> (formControlName="bodyHtml").
@@ -153,6 +155,7 @@ export class EmailHtmlEditorComponent implements AfterViewInit, OnDestroy, Contr
   readonly variables = input<readonly EmailTemplateVariable[]>([]);
 
   private readonly host = viewChild.required<ElementRef<HTMLTextAreaElement>>('host');
+  private readonly theme = inject(ThemeService);
 
   readonly loadingEditor = signal(true);
   readonly failed = signal(false);
@@ -182,6 +185,10 @@ export class EmailHtmlEditorComponent implements AfterViewInit, OnDestroy, Contr
       base_url: '/tinymce',
       suffix: '.min',
       license_key: 'gpl',
+      // Match the app theme (resolved at open time; reopen the editor to re-skin
+      // after a live theme switch). Dark assets are bundled under /tinymce.
+      skin: this.theme.resolved() === 'dark' ? 'oxide-dark' : 'oxide',
+      content_css: this.theme.resolved() === 'dark' ? 'dark' : 'default',
       menubar: false,
       height: 480,
       branding: false,

@@ -44,7 +44,7 @@
       @for (role of filteredRoles(); track role.id) {
         <li class="role-row" [style.background]="editingRoleId() === role.id ? 'var(--surface-sunken)' : 'transparent'">
           <span class="role-main">
-            <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: #0284c7;">badge</span>
+            <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: var(--accent);">badge</span>
             <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
               <span>
                 <span style="font-weight: var(--weight-semibold); color: var(--text-primary);">{{ role.name }}</span>

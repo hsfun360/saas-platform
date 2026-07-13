@@ -104,8 +104,15 @@ textarea[aria-invalid='true'] {
   --success-text: #166534;
   --success-surface: #dcfce7;
   --success-border: #bbf7d0;
+  --info-text: #1e40af;
+  --info-surface: #eff6ff;
+  --info-border: #bfdbfe;
   --chip-off-surface: #f1f5f9;
   --chip-off-text: #64748b;
+
+  --brand-disabled: #a5c8fd;   /* brand button, disabled state */
+  --accent: #0284c7;           /* non-primary accent (rate %, icons) */
+  --surface-selected: #f0f9ff; /* selected/active row highlight */
 
   --focus-ring: #1a73e8;
   --overlay: rgba(15, 23, 42, 0.55);
@@ -139,8 +146,15 @@ textarea[aria-invalid='true'] {
   --success-text: #4ade80;
   --success-surface: #14321f;
   --success-border: #14532d;
+  --info-text: #93c5fd;
+  --info-surface: #172a45;
+  --info-border: #1e3a5f;
   --chip-off-surface: #232c3b;
   --chip-off-text: #94a3b8;
+
+  --brand-disabled: #2a4a7a;
+  --accent: #38bdf8;
+  --surface-selected: #1c2740;
 
   --focus-ring: #60a5fa;
   --overlay: rgba(0, 0, 0, 0.6);

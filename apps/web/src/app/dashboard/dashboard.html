@@ -246,19 +246,19 @@
     <main class="content-area">
 
       @if (myInvitations().length > 0) {
-        <div style="margin-bottom: var(--space-lg); background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: var(--space-md) var(--space-lg);">
-          <h3 style="margin: 0 0 var(--space-sm); color: #1e3a8a; display: flex; align-items: center; gap: var(--space-sm); font-size: var(--font-h2);">
+        <div style="margin-bottom: var(--space-lg); background: var(--info-surface); border: 1px solid var(--info-border); border-radius: 12px; padding: var(--space-md) var(--space-lg);">
+          <h3 style="margin: 0 0 var(--space-sm); color: var(--info-text); display: flex; align-items: center; gap: var(--space-sm); font-size: var(--font-h2);">
             ✉️ Pending Invitations
           </h3>
           <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-sm);">
             @for (inv of myInvitations(); track inv.id) {
-              <li style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: var(--space-sm) var(--space-md);">
+              <li style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); background: var(--surface-card); border: 1px solid var(--border); border-radius: 8px; padding: var(--space-sm) var(--space-md);">
                 <div>
-                  <div style="font-size: var(--font-body); font-weight: var(--weight-semibold); color: #1e293b;">
+                  <div style="font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary);">
                     {{ inv.companyName }}
-                    @if (inv.subscriberName) { <span style="font-weight: var(--weight-regular); color: #64748b;">· {{ inv.subscriberName }}</span> }
+                    @if (inv.subscriberName) { <span style="font-weight: var(--weight-regular); color: var(--text-muted);">· {{ inv.subscriberName }}</span> }
                   </div>
-                  <div style="font-size: var(--font-caption); color: #64748b; margin-top: var(--space-xs);">
+                  <div style="font-size: var(--font-caption); color: var(--text-muted); margin-top: var(--space-xs);">
                     Role: {{ inv.roleName || 'No role' }}
                   </div>
                 </div>
@@ -268,7 +268,7 @@
                     Accept
                   </button>
                   <button type="button" (click)="declineInvitation(inv.id)" [disabled]="respondingInvitationId() === inv.id"
-                          style="background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: var(--space-sm) var(--space-md); border-radius: 6px; cursor: pointer;">
+                          style="background: transparent; color: var(--text-muted); border: 1px solid var(--border-strong); padding: var(--space-sm) var(--space-md); border-radius: 6px; cursor: pointer;">
                     Decline
                   </button>
                 </div>

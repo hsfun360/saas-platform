@@ -28,7 +28,7 @@
 }
 .ct-chip__rate {
   font-weight: var(--weight-semibold);
-  color: #0284c7; /* sky-blue rate accent — no matching semantic token, left as-is */
+  color: var(--accent); /* sky-blue rate accent */
 }
 .ct-chip__gl {
   color: var(--text-secondary);

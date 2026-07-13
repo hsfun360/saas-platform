@@ -113,8 +113,8 @@
 }
 
 .tx-row--active {
-  border-color: #38bdf8;
-  background: #f0f9ff;
+  border-color: var(--accent);
+  background: var(--surface-selected);
 }
 
 .tx-row__select {
@@ -362,7 +362,7 @@
 }
 .tx-rate-pct {
   font-weight: var(--weight-semibold);
-  color: #0284c7;
+  color: var(--accent);
 }
 .tx-rate-eff {
   font-size: var(--font-caption);

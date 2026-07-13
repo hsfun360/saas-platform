@@ -54,7 +54,7 @@
             <li class="mm-row" [class.mm-row--active]="selectedModuleId() === m.id">
               <button type="button" class="mm-row__select" (click)="selectModule(m.id)"
                       [attr.aria-pressed]="selectedModuleId() === m.id" [attr.aria-label]="'Manage menus for ' + m.name">
-                <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: #0284c7;">{{ m.icon || 'widgets' }}</span>
+                <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: var(--accent);">{{ m.icon || 'widgets' }}</span>
                 <span class="mm-row__text">
                   <span style="font-weight: var(--weight-semibold); color: var(--text-primary);">{{ m.name }}</span>
                   @if (m.description) {
@@ -136,7 +136,7 @@
               @for (menu of filteredMenus(); track menu.id) {
                 <li class="mm-row" [class.mm-row--active]="editingMenuId() === menu.id">
                   <span class="mm-row__text" style="flex-direction: row; align-items: center; gap: var(--space-sm); flex-wrap: wrap;">
-                    <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: #0284c7;">{{ menu.icon || 'folder' }}</span>
+                    <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: var(--accent);">{{ menu.icon || 'folder' }}</span>
                     <span style="font-weight: var(--weight-semibold); color: var(--text-primary);">{{ menu.name }}</span>
                     <span style="color: var(--text-muted); font-size: var(--font-body-2);">{{ menu.route }}</span>
                   </span>
