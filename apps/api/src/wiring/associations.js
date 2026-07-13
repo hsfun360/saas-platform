@@ -33,8 +33,14 @@ const AccountCurrency = require('../modules/saas/accountCurrency.model'); // Acc
 const AccountLanguage = require('../modules/saas/accountLanguage.model'); // Account <-> Language join
 const CompanySmtpConfig = require('../modules/saas/companySmtpConfig.model'); // per-company outgoing SMTP (references companyId by UUID; no FK)
 // Product tier (Membership Management). Master files reference companyId by plain
-// UUID (no cross-service FK), per the golden rules - so they have no associations.
+// UUID (no cross-service FK), per the golden rules. Intra-service parent-child
+// links (fee -> stages, type -> fee lines) DO use real associations - that
+// boundary is inside the membership service.
 const MembershipStatus = require('../modules/membership/membershipStatus.model');
+const MembershipFee = require('../modules/membership/membershipFee.model');
+const MembershipFeeScheme = require('../modules/membership/membershipFeeScheme.model');
+const MembershipType = require('../modules/membership/membershipType.model');
+const MembershipTypeFee = require('../modules/membership/membershipTypeFee.model');
 // Shared financial reference (Tax). Header/detail pairs are intra-service, so they
 // DO associate; accountId/countryCode/companyId stay plain UUID/value references.
 // (The template seed layer was removed in the tax refactor - no template models.)
@@ -95,6 +101,15 @@ Invitation.belongsTo(Company, { foreignKey: 'companyId', as: 'Company' });
 Invitation.belongsTo(Account, { foreignKey: 'accountId', as: 'Account' });
 Invitation.belongsTo(Role, { foreignKey: 'roleId', as: 'Role' });
 
+// 8d. Membership master-file header/detail pairs (both sides owned by the
+// membership service, so real intra-service FKs with cascade).
+// Membership Fee -> its installment stages.
+MembershipFee.hasMany(MembershipFeeScheme, { foreignKey: 'membershipFeeId', as: 'Stages', onDelete: 'CASCADE' });
+MembershipFeeScheme.belongsTo(MembershipFee, { foreignKey: 'membershipFeeId', as: 'Fee' });
+// Membership Type -> its additional fee lines.
+MembershipType.hasMany(MembershipTypeFee, { foreignKey: 'membershipTypeId', as: 'AdditionalFees', onDelete: 'CASCADE' });
+MembershipTypeFee.belongsTo(MembershipType, { foreignKey: 'membershipTypeId', as: 'Type' });
+
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).
 // 9b. Subscriber-owned authoritative catalog (effective-dated rates).
@@ -127,6 +142,10 @@ module.exports = {
     AccountCurrency,
     CompanySmtpConfig,
     MembershipStatus,
+    MembershipFee,
+    MembershipFeeScheme,
+    MembershipType,
+    MembershipTypeFee,
     TaxScheme,
     TaxRate,
     CompanyTaxScheme,

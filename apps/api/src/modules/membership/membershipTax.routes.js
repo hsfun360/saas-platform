@@ -7,5 +7,6 @@ const controller = require('./membershipTax.controller');
 // just consume the Tax service (through the gateway seam) for the active company.
 router.get('/schemes', controller.listSchemes);
 router.get('/schemes/:code', controller.resolveScheme);
+router.post('/quote', controller.quote);
 
 module.exports = router;

@@ -46,6 +46,7 @@ import { AccountEmailTemplateEditComponent } from './app/account-email-templates
 import { SystemDashboardComponent } from './app/systems/system-dashboard';
 import { MembershipStatusesComponent } from './app/membership-statuses/membership-statuses';
 import { MembershipFeesComponent } from './app/membership-fees/membership-fees';
+import { MembershipTypesComponent } from './app/membership-types/membership-types';
 import { TaxSchemesComponent } from './app/tax-schemes/tax-schemes';
 import { CompanyTaxComponent } from './app/company-tax/company-tax';
 import { PlatformProfileComponent } from './app/platform-profile/platform-profile';
@@ -126,6 +127,7 @@ const routes: Routes = [
       // Master File Setup → Membership Status (per-company master file).
       { path: 'membership/statuses', component: MembershipStatusesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/fees', component: MembershipFeesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/types', component: MembershipTypesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'golf', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management', title: 'Golf Management', icon: 'sports_golf', blurb: 'Tee sheet, bookings and competitions.' } },
       { path: 'facility', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Facility Management', title: 'Facility Management', icon: 'meeting_room', blurb: 'Facilities, availability and reservations.' } },
 

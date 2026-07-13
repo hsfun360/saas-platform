@@ -1,0 +1,102 @@
+/* Membership Type screen — extras on top of the shared System Setup look.
+   Colours come from theme tokens so the screen works in all three modes. */
+
+.mt-hint {
+  display: block;
+  margin-top: var(--space-xs);
+  font-size: var(--font-body-2);
+  color: var(--text-muted);
+}
+
+/* Grouped sections inside the dialog. */
+.mt-fieldset {
+  margin: var(--space-md) 0 0;
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.mt-fieldset legend {
+  padding: 0 var(--space-xs);
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+
+/* Rights + conversion checkbox grids. */
+.mt-rights {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-xs) var(--space-md);
+}
+
+.mt-convert {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.mt-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 40px;
+  cursor: pointer;
+  font-size: var(--font-body-2);
+}
+
+.mt-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .mt-rights {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Additional-fee line editor rows. */
+.mt-feeline {
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+}
+
+.mt-feeline__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.mt-feeline__no {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+
+/* Rights chips on the record card. */
+.mt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.mt-chip {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px var(--space-sm);
+  border-radius: 12px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}

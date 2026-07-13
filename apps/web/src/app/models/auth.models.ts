@@ -374,6 +374,46 @@ export interface TaxSchemeRef {
   name: string;
 }
 
+// One additional-fee line of a Membership Type (Category Details - Fee).
+export interface MembershipTypeFeeLine {
+  id?: string;
+  transactionType: string;
+  description?: string | null;
+  taxSchemeCode?: string | null;
+  currencyCode: string;
+  amount: number;
+}
+
+// Membership Type master record (main table - category details + default rights).
+export interface MembershipType {
+  additionalFees: MembershipTypeFeeLine[];
+  id: string;
+  companyId?: string;
+  category: string;
+  description?: string | null;
+  membershipClass: string;            // 'personal' | 'corporate'
+  golfingAllow: boolean;
+  dependentGolfingAllow: boolean;
+  votingRight: boolean;
+  transferRight: boolean;
+  conversionTargetIds: string[];      // other MembershipType ids it can convert to
+  childAgeFrom?: number | null;       // personal
+  childAgeTo?: number | null;         // personal
+  playTimes?: number | null;          // personal
+  noOfNominee?: number | null;        // corporate
+  nomineeCategoryId?: string | null;  // corporate → another MembershipType id
+  defaultMembershipStatusId?: string | null;
+  defaultMembershipFeeId?: string | null;
+  arDebtorType?: string | null;
+  creditLimit?: number | null;
+  isActive?: boolean;
+}
+
+// Membership class options, served by the API.
+export interface MembershipTypeMeta {
+  classes: MembershipStatusOption[];
+}
+
 // ISO 4217 currency reference row.
 export interface Currency {
   code: string;          // ISO 4217 alpha-3, e.g. 'MYR'

@@ -1,0 +1,338 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🏅</span>
+      <div>
+        <h1>Membership Type</h1>
+        <p class="saas-subtitle">Category setup for this club — rights, limits and defaults.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (types().length > 0) {
+        {{ types().length }} types, {{ activeCount() }} active
+      } @else {
+        No types yet — use "New type" to add one.
+      }
+    </span>
+  </div>
+
+  <!-- Live filter -->
+  @if (!loading() && types().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #mtSearchBox type="search" [value]="search()" (input)="search.set(mtSearchBox.value)"
+             placeholder="Search types…" aria-label="Search types" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading membership types…</p></div>
+  } @else if (types().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No membership types yet. Use "New type" to add one.</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No types match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (t of filtered(); track t.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ t.category }}</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">
+                  {{ classLabel(t.membershipClass) }}@if (t.description) { · {{ t.description }} }
+                </span>
+              </div>
+              <dl class="data-card__meta">
+                @if (t.defaultMembershipStatusId) {
+                  <div class="meta"><dt>Default status</dt><dd>{{ statusLabel(t.defaultMembershipStatusId) }}</dd></div>
+                }
+                @if (t.defaultMembershipFeeId) {
+                  <div class="meta"><dt>Default fee</dt><dd>{{ feeLabel(t.defaultMembershipFeeId) }}</dd></div>
+                }
+                @if (t.creditLimit != null) {
+                  <div class="meta"><dt>Credit limit</dt><dd>{{ t.creditLimit | number:'1.2-2' }}</dd></div>
+                }
+                @if (t.additionalFees.length > 0) {
+                  <div class="meta"><dt>Add'l fees</dt><dd>{{ t.additionalFees.length }}</dd></div>
+                }
+              </dl>
+              <div class="mt-chips">
+                @if (t.golfingAllow) { <span class="mt-chip">Golf</span> }
+                @if (t.dependentGolfingAllow) { <span class="mt-chip">Dep. golf</span> }
+                @if (t.votingRight) { <span class="mt-chip">Voting</span> }
+                @if (t.transferRight) { <span class="mt-chip">Transfer</span> }
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (t.isActive === false) {
+                <span class="badge badge-inactive">Disabled</span>
+              } @else {
+                <span class="badge badge-active">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">Edit</button>
+              @if (t.isActive === false) {
+                <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                  {{ togglingId() === t.id ? 'Saving…' : 'Enable' }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                  {{ togglingId() === t.id ? 'Saving…' : 'Disable' }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New type FAB -->
+  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New type">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New type</span>
+  </button>
+
+  <!-- ============ Add / edit dialog ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this membership type. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="typeForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+
+        <!-- Category + class -->
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="tCat">Category <span class="required">*</span></label>
+            <input id="tCat" type="text" formControlName="category" placeholder="e.g. ORD" autocomplete="off" maxlength="30"
+                   [attr.aria-invalid]="showError(form.controls.category)" aria-describedby="tCatErr" />
+            @if (showError(form.controls.category)) {
+              <p id="tCatErr" class="field-error" role="alert">
+                @if (form.controls.category.errors?.['required']) { Category is required. } @else { Use 30 characters or fewer. }
+              </p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="tClass">Membership class <span class="required">*</span></label>
+            <select id="tClass" formControlName="membershipClass">
+              @for (c of classes(); track c.key) {
+                <option [value]="c.key">{{ c.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="tDesc">Description</label>
+            <input id="tDesc" type="text" formControlName="description" placeholder="Optional name/summary" maxlength="200" />
+          </div>
+        </div>
+
+        <!-- Rights -->
+        <fieldset class="mt-fieldset">
+          <legend>Default rights</legend>
+          <div class="mt-rights">
+            <label class="mt-check"><input type="checkbox" formControlName="golfingAllow" /><span>Membership golfing allow</span></label>
+            <label class="mt-check"><input type="checkbox" formControlName="dependentGolfingAllow" /><span>Dependent golfing allow</span></label>
+            <label class="mt-check"><input type="checkbox" formControlName="votingRight" /><span>Voting right</span></label>
+            <label class="mt-check"><input type="checkbox" formControlName="transferRight" /><span>Transfer right</span></label>
+          </div>
+        </fieldset>
+
+        <!-- Defaults -->
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="tStatus">Default membership status</label>
+            <select id="tStatus" formControlName="defaultMembershipStatusId">
+              <option value="">— None —</option>
+              @for (s of statuses(); track s.id) {
+                <option [value]="s.id">{{ s.membershipStatus }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tFee">Default membership fee</label>
+            <select id="tFee" formControlName="defaultMembershipFeeId">
+              <option value="">— None —</option>
+              @for (f of fees(); track f.id) {
+                <option [value]="f.id">{{ f.membershipFeeCode }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="tAr">A/R debtor type</label>
+            <input id="tAr" type="text" formControlName="arDebtorType" placeholder="e.g. MEMBER" maxlength="50" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="tCredit">Credit limit</label>
+            <input id="tCredit" type="number" inputmode="decimal" formControlName="creditLimit" min="0" step="0.01" />
+          </div>
+        </div>
+
+        <!-- Category conversion -->
+        <fieldset class="mt-fieldset">
+          <legend>Category conversion — can convert to</legend>
+          @if (otherTypes().length === 0) {
+            <p class="mt-hint">No other categories yet to convert into.</p>
+          } @else {
+            <div class="mt-convert">
+              @for (t of otherTypes(); track t.id) {
+                <label class="mt-check">
+                  <input type="checkbox" [checked]="isConversionSelected(t.id)" (change)="toggleConversion(t.id)" />
+                  <span>{{ t.category }}@if (t.description) { — {{ t.description }} }</span>
+                </label>
+              }
+            </div>
+          }
+        </fieldset>
+
+        <!-- Additional fees (Category Details - Fee) -->
+        <fieldset class="mt-fieldset">
+          <legend>Additional fees</legend>
+          @if (feeLines().length === 0) {
+            <p class="mt-hint">No additional fees. Use "Add fee" to attach one (e.g. entrance or processing fees).</p>
+          }
+          @for (row of feeLines(); track $index; let i = $index) {
+            <div class="mt-feeline">
+              <div class="mt-feeline__head">
+                <span class="mt-feeline__no">Fee {{ i + 1 }}</span>
+                <button type="button" class="btn btn--danger btn--sm" (click)="removeFeeLine(i)"
+                        [attr.aria-label]="'Remove fee ' + (i + 1)">Remove</button>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label [for]="'flType' + i">Transaction type <span class="required">*</span></label>
+                  <input [id]="'flType' + i" type="text" [value]="row.transactionType"
+                         (input)="updateFeeLine(i, 'transactionType', $any($event.target).value)"
+                         placeholder="e.g. ENTRANCE" autocomplete="off" maxlength="50" />
+                </div>
+                <div class="form-group">
+                  <label [for]="'flDesc' + i">Description</label>
+                  <input [id]="'flDesc' + i" type="text" [value]="row.description"
+                         (input)="updateFeeLine(i, 'description', $any($event.target).value)"
+                         placeholder="Optional summary" maxlength="200" />
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label [for]="'flTax' + i">Scheme code (tax)</label>
+                  <select [id]="'flTax' + i" [value]="row.taxSchemeCode"
+                          (change)="updateFeeLine(i, 'taxSchemeCode', $any($event.target).value)">
+                    <option value="">— None —</option>
+                    @for (t of taxSchemes(); track t.taxSchemeCode) {
+                      <option [value]="t.taxSchemeCode" [selected]="t.taxSchemeCode === row.taxSchemeCode">{{ t.taxSchemeCode }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label [for]="'flCur' + i">Currency <span class="required">*</span></label>
+                  <select [id]="'flCur' + i" [value]="row.currencyCode"
+                          (change)="updateFeeLine(i, 'currencyCode', $any($event.target).value)">
+                    @for (c of currencies(); track c.code) {
+                      <option [value]="c.code" [selected]="c.code === row.currencyCode">{{ c.code }}@if (c.symbol) { ({{ c.symbol }}) }</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label [for]="'flAmt' + i">Amount <span class="required">*</span></label>
+                  <input [id]="'flAmt' + i" type="number" inputmode="decimal" [value]="row.amount"
+                         (input)="updateFeeLine(i, 'amount', $any($event.target).value)" min="0" step="0.01" />
+                </div>
+              </div>
+            </div>
+          }
+          <button type="button" class="btn btn--secondary btn--sm" (click)="addFeeLine()">
+            <span class="material-icons" aria-hidden="true">add</span>
+            <span>Add fee</span>
+          </button>
+        </fieldset>
+
+        <!-- Personal-only -->
+        @if (isPersonal()) {
+          <fieldset class="mt-fieldset">
+            <legend>Personal</legend>
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-group">
+                <label for="tAgeFrom">Child age from</label>
+                <input id="tAgeFrom" type="number" inputmode="numeric" formControlName="childAgeFrom" min="0" step="1" />
+              </div>
+              <div class="form-group">
+                <label for="tAgeTo">Child age to</label>
+                <input id="tAgeTo" type="number" inputmode="numeric" formControlName="childAgeTo" min="0" step="1" />
+              </div>
+              <div class="form-group">
+                <label for="tPlay">Play times</label>
+                <input id="tPlay" type="number" inputmode="numeric" formControlName="playTimes" min="0" step="1" />
+              </div>
+            </div>
+          </fieldset>
+        }
+
+        <!-- Corporate-only -->
+        @if (!isPersonal()) {
+          <fieldset class="mt-fieldset">
+            <legend>Corporate</legend>
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-group">
+                <label for="tNoNom">No. of nominee</label>
+                <input id="tNoNom" type="number" inputmode="numeric" formControlName="noOfNominee" min="0" step="1" />
+              </div>
+              <div class="form-group">
+                <label for="tNomCat">Nominee category</label>
+                <select id="tNomCat" formControlName="nomineeCategoryId">
+                  <option value="">— None —</option>
+                  @for (t of otherTypes(); track t.id) {
+                    <option [value]="t.id">{{ t.category }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+          </fieldset>
+        }
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="typeForm" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

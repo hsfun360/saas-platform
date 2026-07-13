@@ -10,6 +10,8 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken, requireModule } = require('../../platform/serviceContext');
 const membershipStatusRoutes = require('./membershipStatus.routes');
+const membershipFeeRoutes = require('./membershipFee.routes');
+const membershipTypeRoutes = require('./membershipType.routes');
 const membershipTaxRoutes = require('./membershipTax.routes');
 
 // Liveness probe — unauthenticated, so the gateway/monitoring can check the seam.
@@ -21,6 +23,8 @@ router.use(requireModule('Membership Management'));
 
 // --- Master File Setup ---
 router.use('/statuses', membershipStatusRoutes);
+router.use('/fees', membershipFeeRoutes);
+router.use('/types', membershipTypeRoutes);
 
 // --- Tax consumption (reads the Tax service via the gateway seam) ---
 router.use('/tax', membershipTaxRoutes);
