@@ -16,7 +16,7 @@ for every other service.
 
 **Subscriber-owned shared reference data** (one list per Account, maintained by the
 Tenant Admin, consumed by the product systems by value reference - never a
-cross-service FK): `IndustryType`, `Salutation`, `Nationality`, `PublicHoliday`.
+cross-service FK): `IndustryType`, `Salutation`, `Nationality`, `Race`, `PublicHoliday`.
 Each follows the same shape: unique `(accountId, code)`, enable/disable via
 `isActive` (no hard delete), maintenance under `/api/auth/account/<name>` +
 a System Setup screen (`/admin/<name>`), and an active-only consumer list at
