@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { MembershipStatus, MembershipStatusMeta, MembershipStatusCopySource } from '../models/auth.models';
 
-// Membership Status master file for the active company (club). All endpoints sit
+// Membership Status master file for the active company. All endpoints sit
 // behind the Membership Management module entitlement on the API. Enable/disable
 // via update({ isActive }) rather than delete.
 @Injectable({ providedIn: 'root' })

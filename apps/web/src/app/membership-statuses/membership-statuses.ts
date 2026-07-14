@@ -6,7 +6,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { MembershipStatus, MembershipStatusOption, MembershipStatusCopySource } from '../models/auth.models';
 
 // Membership Management → Master File Setup → Membership Status.
-// Per-company master file: club-defined status codes with a lifecycle class,
+// Per-company master file: company-defined status codes with a lifecycle class,
 // system control and display colour. Enable/disable (no hard delete). Reuses the
 // System Setup stylesheet for the shared admin-screen look.
 //

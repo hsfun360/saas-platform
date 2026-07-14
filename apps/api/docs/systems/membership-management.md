@@ -8,6 +8,22 @@ Manage club members: member records, categories/tiers, dues/billing, status
 (active/suspended/expired), dependents, cards. Likely the **identity anchor for the
 other product systems** - Golf and Facility reference a member.
 
+### Target market (direction, 2026-07-14)
+The legacy source system targeted golf clubs; this SaaS deliberately targets ANY
+membership-run business: fitness centers, facility-only clubs, loyalty/rewards
+programs, and golf clubs alike.
+Design rule that follows: **Membership owns the generic lifecycle** (member,
+status, type, fees, billing); **each product module owns what a membership
+entitles you to in that product** (golf rights belong to Golf, court booking to
+Facility, points rules to a future Loyalty module) - attached by
+`membershipTypeId` value reference, shown only when the company subscribes to
+that module.
+Known legacy leak to unwind when a second product needs type-level privileges:
+`MembershipType.golfingAllow` / `dependentGolfingAllow` / `playTimes` are
+golf-specific and should migrate to a golf-side privileges table at that point.
+Triage every remaining SRS item through this lens (e.g. play times -> golf;
+vehicle passes and articles/newsletters -> generic).
+
 ## Owns (data) - fill in
 - e.g. `Member`, `MembershipTier`, `MemberDependent`, `MembershipBilling`…
 - References `userId` and `companyId` by **UUID only** (no FK into Identity/Control

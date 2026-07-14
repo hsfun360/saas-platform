@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { MembershipFee, MembershipFeeMeta, TaxSchemeRef } from '../models/auth.models';
 
-// Membership Fee master file for the active company (club). Header + installment
+// Membership Fee master file for the active company. Header + installment
 // stages are saved together. Enable/disable via setActive rather than delete.
 @Injectable({ providedIn: 'root' })
 export class MembershipFeeService {

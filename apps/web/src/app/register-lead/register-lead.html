@@ -3,7 +3,7 @@
     
     <h2>Start your Free Trial</h2>
     @if (!successMessage) {
-      <p>Set up your club's workspace in minutes.</p>
+      <p>Set up your company's workspace in minutes.</p>
     }
 
     @if (successMessage) {
@@ -38,12 +38,12 @@
         </div>
 
         <div class="form-group" style="margin-bottom: var(--space-md);">
-          <label for="companyName">Company / Club Name</label>
+          <label for="companyName">Company Name</label>
           <input 
             id="companyName" 
             type="text" 
             formControlName="companyName" 
-            placeholder="Acme Sports Club"
+            placeholder="Acme Fitness & Leisure Sdn Bhd"
             style="width: 100%; padding: var(--space-sm);"
           >
           @if (submitted && registerForm.get('companyName')?.errors?.['required']) {

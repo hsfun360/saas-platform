@@ -204,7 +204,7 @@
           <div class="form-group">
             <label for="subscriberName">Subscriber / Company Name <span class="required">*</span></label>
             <input id="subscriberName" type="text" autocomplete="organization" formControlName="subscriberName"
-                   placeholder="My Club Sdn Bhd" maxlength="200"
+                   placeholder="My Company Sdn Bhd" maxlength="200"
                    [attr.aria-invalid]="showError(createForm.controls.subscriberName)" aria-describedby="subscriberNameErr" />
             @if (showError(createForm.controls.subscriberName)) {
               <p id="subscriberNameErr" class="field-error" role="alert">Subscriber / Company name is required.</p>
@@ -272,7 +272,7 @@
           <div class="form-group">
             <label for="eName">Subscriber / Company Name <span class="required">*</span></label>
             <input id="eName" type="text" autocomplete="organization" formControlName="subscriberName"
-                   placeholder="My Club Sdn Bhd" maxlength="200"
+                   placeholder="My Company Sdn Bhd" maxlength="200"
                    [attr.aria-invalid]="showError(editForm.controls.subscriberName)" aria-describedby="eNameErr" />
             @if (showError(editForm.controls.subscriberName)) {
               <p id="eNameErr" class="field-error" role="alert">Subscriber / Company name is required.</p>
