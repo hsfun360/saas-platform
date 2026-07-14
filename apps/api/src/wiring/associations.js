@@ -35,6 +35,7 @@ const CompanySmtpConfig = require('../modules/saas/companySmtpConfig.model'); //
 const IndustryType = require('../modules/saas/industryType.model'); // subscriber-owned reference data (accountId value ref; no associations)
 const Salutation = require('../modules/saas/salutation.model'); // subscriber-owned reference data (accountId value ref; no associations)
 const Nationality = require('../modules/saas/nationality.model'); // subscriber-owned reference data (accountId value ref; deliberately NOT linked to Country)
+const Race = require('../modules/saas/race.model'); // subscriber-owned reference data (accountId value ref; no associations)
 const PublicHoliday = require('../modules/saas/publicHoliday.model'); // subscriber-owned reference data, scoped by country (accountId + countryCode value refs; no associations)
 // Product tier (Membership Management). Master files reference companyId by plain
 // UUID (no cross-service FK), per the golden rules. Intra-service parent-child
@@ -53,6 +54,9 @@ const UnitCourse = require('../modules/golf/unitCourse.model');
 const UnitCourseHole = require('../modules/golf/unitCourseHole.model');
 const UnitCourseTeeBox = require('../modules/golf/unitCourseTeeBox.model');
 const UnitCourseTeeBoxDistance = require('../modules/golf/unitCourseTeeBoxDistance.model');
+// 18-hole course = a pairing of unit courses. The nine references are plain
+// UUIDs validated in the controller (no eager-load need), so no associations.
+const Course = require('../modules/golf/course.model');
 // Shared financial reference (Tax). Header/detail pairs are intra-service, so they
 // DO associate; accountId/countryCode/companyId stay plain UUID/value references.
 // (The template seed layer was removed in the tax refactor - no template models.)
@@ -171,6 +175,7 @@ module.exports = {
     IndustryType,
     Salutation,
     Nationality,
+    Race,
     PublicHoliday,
     MembershipStatus,
     MembershipFee,
@@ -182,6 +187,7 @@ module.exports = {
     UnitCourseHole,
     UnitCourseTeeBox,
     UnitCourseTeeBoxDistance,
+    Course,
     TaxScheme,
     TaxRate,
     CompanyTaxScheme,

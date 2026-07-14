@@ -351,6 +351,15 @@ export interface HolidayCountry {
   flagEmoji?: string | null;
 }
 
+// Race - subscriber-owned reference data (one race/ethnicity list per Account,
+// shared by all companies; pure demographic vocabulary, linked to nothing else).
+export interface Race {
+  id: string;
+  raceCode: string;
+  description?: string | null;
+  isActive?: boolean;
+}
+
 // Membership Status master record (per company) - a product-tier master file.
 export interface MembershipStatus {
   id: string;
@@ -536,6 +545,25 @@ export interface UnitCourse {
   completionMinutes?: number | null;
   hasFloodlight: boolean;
   floodlightLeadMinutes?: number | null; // minutes before dark the lighting fee starts
+  isActive?: boolean;
+}
+
+// Golf - 18-hole Course master record: a pairing of unit courses (first nine
+// OUT|COMPOSITE + second nine IN|COMPOSITE) with optional alternate and night
+// fallback nines. Nine references are UnitCourse ids. Field names match the
+// screen labels and DB columns (user's business vocabulary).
+export interface GolfCourse {
+  id: string;
+  companyId?: string;
+  courseCode: string;
+  displaySequence?: number | null;
+  description?: string | null;
+  firstNineId: string;
+  secondNineId: string;
+  alternateNineId?: string | null;
+  nightNineId?: string | null;
+  crossOverMinutes?: number | null;
+  photo?: string | null; // public URL of the course picture
   isActive?: boolean;
 }
 

@@ -39,6 +39,7 @@ import { AccountCurrenciesComponent } from './app/account-currencies/account-cur
 import { IndustryTypesComponent } from './app/industry-types/industry-types';
 import { SalutationsComponent } from './app/salutations/salutations';
 import { NationalitiesComponent } from './app/nationalities/nationalities';
+import { RacesComponent } from './app/races/races';
 import { PublicHolidaysComponent } from './app/public-holidays/public-holidays';
 import { TenantUsersComponent } from './app/tenant-users/tenant-users';
 import { CompaniesComponent } from './app/companies/companies';
@@ -52,6 +53,7 @@ import { MembershipStatusesComponent } from './app/membership-statuses/membershi
 import { MembershipFeesComponent } from './app/membership-fees/membership-fees';
 import { MembershipTypesComponent } from './app/membership-types/membership-types';
 import { GolfUnitCoursesComponent } from './app/golf-unit-courses/golf-unit-courses';
+import { GolfCoursesComponent } from './app/golf-courses/golf-courses';
 import { TaxSchemesComponent } from './app/tax-schemes/tax-schemes';
 import { CompanyTaxComponent } from './app/company-tax/company-tax';
 import { PlatformProfileComponent } from './app/platform-profile/platform-profile';
@@ -106,6 +108,7 @@ const routes: Routes = [
       { path: 'admin/industry-types', component: IndustryTypesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/salutations', component: SalutationsComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/nationalities', component: NationalitiesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/races', component: RacesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/public-holidays', component: PublicHolidaysComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/account-email-templates', component: AccountEmailTemplatesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/account-email-templates/:key', component: AccountEmailTemplateEditComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
@@ -141,6 +144,8 @@ const routes: Routes = [
       { path: 'golf', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management', title: 'Golf Management', icon: 'sports_golf', blurb: 'Tee sheet, bookings and competitions.' } },
       // Master File Setup → Unit Courses (per-company 9-hole building blocks).
       { path: 'golf/unit-courses', component: GolfUnitCoursesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },
+      // Master File Setup → Courses (18-hole pairing of two unit courses).
+      { path: 'golf/courses', component: GolfCoursesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },
       { path: 'facility', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Facility Management', title: 'Facility Management', icon: 'meeting_room', blurb: 'Facilities, availability and reservations.' } },
 
       // Shown when systemAccessGuard denies a route (no guard on this one).

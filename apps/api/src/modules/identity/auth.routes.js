@@ -23,6 +23,7 @@ const accountEmailTemplateController = require('../saas/accountEmailTemplate.con
 const industryTypeController = require('../saas/industryType.controller');
 const salutationController = require('../saas/salutation.controller');
 const nationalityController = require('../saas/nationality.controller');
+const raceController = require('../saas/race.controller');
 const publicHolidayController = require('../saas/publicHoliday.controller');
 const { hasTenantAdminRole } = require('../saas/tenant');
 
@@ -277,6 +278,13 @@ router.patch('/account/salutations/:id', authenticateToken, requireTenant, requi
 router.get('/account/nationalities', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.listNationalities);
 router.post('/account/nationalities', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.createNationality);
 router.patch('/account/nationalities/:id', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.updateNationality);
+
+// --- SUBSCRIBER RACES (Tenant Admin self-service) ---
+// Subscriber-owned race/ethnicity list, shared account-wide and consumed across
+// products via /api/races. Pure demographic vocabulary - linked to nothing else.
+router.get('/account/races', authenticateToken, requireTenant, requireTenantAdmin, raceController.listRaces);
+router.post('/account/races', authenticateToken, requireTenant, requireTenantAdmin, raceController.createRace);
+router.patch('/account/races/:id', authenticateToken, requireTenant, requireTenantAdmin, raceController.updateRace);
 
 // --- SUBSCRIBER PUBLIC HOLIDAYS (Tenant Admin self-service) ---
 // Subscriber-owned holiday calendar, scoped by country (the countries the
