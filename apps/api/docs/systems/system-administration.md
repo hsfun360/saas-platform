@@ -16,7 +16,7 @@ for every other service.
 
 **Subscriber-owned shared reference data** (one list per Account, maintained by the
 Tenant Admin, consumed by the product systems by value reference - never a
-cross-service FK): `IndustryType`, `Salutation`, `Nationality`.
+cross-service FK): `IndustryType`, `Salutation`, `Nationality`, `PublicHoliday`.
 Each follows the same shape: unique `(accountId, code)`, enable/disable via
 `isActive` (no hard delete), maintenance under `/api/auth/account/<name>` +
 a System Setup screen (`/admin/<name>`), and an active-only consumer list at
@@ -24,6 +24,16 @@ a System Setup screen (`/admin/<name>`), and an active-only consumer list at
 (Promoted out of the Membership master files - see
 [membership-management.md](membership-management.md) #4-#6. Note: `Nationality`
 is deliberately NOT linked to `Country` - residence is not nationality.)
+
+`PublicHoliday` extends the shape with a country dimension: rows are unique per
+`(accountId, countryCode, holidayDate, description)`, where `countryCode` is a
+value reference to `Country.alpha2` and must be one of the account's active
+companies' `Company.countryCode` values (the countries the subscriber operates
+in, served by `GET /api/auth/account/public-holidays/countries`).
+The System Setup screen (`/admin/public-holidays`) hides the country picker and
+defaults it silently when the subscriber's companies are all in one country.
+The consumer list `GET /api/public-holidays?year=` resolves the caller's
+company country automatically and returns only that country's active holidays.
 
 ## Public API (gateway seam: `/api/admin` + tenant routes under `/api/auth/company/*`)
 - Provision subscribers (Account + Company + owner User), list subscribers.

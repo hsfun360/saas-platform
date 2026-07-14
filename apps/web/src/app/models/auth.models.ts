@@ -334,6 +334,23 @@ export interface Nationality {
   isActive?: boolean;
 }
 
+// Subscriber-owned public holiday, scoped by country (Company.countryCode).
+export interface PublicHoliday {
+  id: string;
+  countryCode: string;           // ISO 3166-1 alpha-2, lowercase (e.g. 'my')
+  holidayDate: string;           // YYYY-MM-DD
+  description: string;           // the holiday's name, e.g. 'Hari Merdeka'
+  isActive?: boolean;
+}
+
+// A country a Tenant Admin can maintain holidays for - derived from the
+// account's active companies' address countries.
+export interface HolidayCountry {
+  countryCode: string;
+  name: string;
+  flagEmoji?: string | null;
+}
+
 // Membership Status master record (per company) - a product-tier master file.
 export interface MembershipStatus {
   id: string;

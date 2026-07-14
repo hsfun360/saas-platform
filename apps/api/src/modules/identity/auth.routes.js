@@ -23,6 +23,7 @@ const accountEmailTemplateController = require('../saas/accountEmailTemplate.con
 const industryTypeController = require('../saas/industryType.controller');
 const salutationController = require('../saas/salutation.controller');
 const nationalityController = require('../saas/nationality.controller');
+const publicHolidayController = require('../saas/publicHoliday.controller');
 const { hasTenantAdminRole } = require('../saas/tenant');
 
 // Test Route to verify that the auth routes are working
@@ -276,6 +277,14 @@ router.patch('/account/salutations/:id', authenticateToken, requireTenant, requi
 router.get('/account/nationalities', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.listNationalities);
 router.post('/account/nationalities', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.createNationality);
 router.patch('/account/nationalities/:id', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.updateNationality);
+
+// --- SUBSCRIBER PUBLIC HOLIDAYS (Tenant Admin self-service) ---
+// Subscriber-owned holiday calendar, scoped by country (the countries the
+// account's companies operate in); consumed via /api/public-holidays.
+router.get('/account/public-holidays/countries', authenticateToken, requireTenant, requireTenantAdmin, publicHolidayController.listHolidayCountries);
+router.get('/account/public-holidays', authenticateToken, requireTenant, requireTenantAdmin, publicHolidayController.listPublicHolidays);
+router.post('/account/public-holidays', authenticateToken, requireTenant, requireTenantAdmin, publicHolidayController.createPublicHoliday);
+router.patch('/account/public-holidays/:id', authenticateToken, requireTenant, requireTenantAdmin, publicHolidayController.updatePublicHoliday);
 
 // --- SUBSCRIBER EMAIL TEMPLATES (Tenant Admin self-service) ---
 // A subscriber's own versions of the platform templates flagged tenant-overridable.

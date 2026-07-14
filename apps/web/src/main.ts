@@ -39,6 +39,7 @@ import { AccountCurrenciesComponent } from './app/account-currencies/account-cur
 import { IndustryTypesComponent } from './app/industry-types/industry-types';
 import { SalutationsComponent } from './app/salutations/salutations';
 import { NationalitiesComponent } from './app/nationalities/nationalities';
+import { PublicHolidaysComponent } from './app/public-holidays/public-holidays';
 import { TenantUsersComponent } from './app/tenant-users/tenant-users';
 import { CompaniesComponent } from './app/companies/companies';
 import { ModulesMenusComponent } from './app/modules-menus/modules-menus';
@@ -105,6 +106,7 @@ const routes: Routes = [
       { path: 'admin/industry-types', component: IndustryTypesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/salutations', component: SalutationsComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/nationalities', component: NationalitiesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/public-holidays', component: PublicHolidaysComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/account-email-templates', component: AccountEmailTemplatesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/account-email-templates/:key', component: AccountEmailTemplateEditComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       // Tax Setup — subscriber-owned tax-scheme catalog (master–detail; :id opens a scheme).

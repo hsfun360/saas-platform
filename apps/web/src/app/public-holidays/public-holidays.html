@@ -1,0 +1,201 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">📅</span>
+      <div>
+        <h1>Public Holidays</h1>
+        <p class="saas-subtitle">
+          @if (singleCountry(); as sc) {
+            Your subscription's public holiday calendar for {{ sc.flagEmoji }} {{ sc.name }} — shared by all companies and used across systems.
+          } @else {
+            Your subscription's public holiday calendars, per country your companies operate in — used across systems.
+          }
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (holidays().length > 0) {
+        {{ holidays().length }} holidays, {{ activeCount() }} active
+      } @else {
+        No public holidays yet — use "New holiday" to add one.
+      }
+    </span>
+  </div>
+
+  <!-- Country filter (only when companies span multiple countries) -->
+  @if (multiCountry()) {
+    <div style="display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-bottom: var(--space-md);" role="group" aria-label="Filter by country">
+      <button type="button" class="btn btn--sm"
+              [class.btn--primary]="countryFilter() === ''"
+              [class.btn--secondary]="countryFilter() !== ''"
+              (click)="countryFilter.set('')">All countries</button>
+      @for (c of countries(); track c.countryCode) {
+        <button type="button" class="btn btn--sm"
+                [class.btn--primary]="countryFilter() === c.countryCode"
+                [class.btn--secondary]="countryFilter() !== c.countryCode"
+                (click)="countryFilter.set(c.countryCode)">{{ c.flagEmoji }} {{ c.name }}</button>
+      }
+    </div>
+  }
+
+  <!-- Live filter -->
+  @if (!loading() && holidays().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #holSearchBox type="search" [value]="search()" (input)="search.set(holSearchBox.value)"
+             placeholder="Search holidays…" aria-label="Search public holidays" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading public holidays…</p></div>
+  } @else if (countries().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🌍</span>
+      <p>None of your companies has an address country set yet. Set each company's country in Companies first — holidays are set up per country.</p>
+    </div>
+  } @else if (holidays().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No public holidays yet. Use "New holiday" to add one (e.g. Hari Merdeka — 31 Aug).</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No holidays match your filter.</p>
+      @if (search()) {
+        <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+      }
+      @if (countryFilter()) {
+        <button type="button" class="btn btn--secondary btn--sm" (click)="countryFilter.set('')">Show all countries</button>
+      }
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (h of filtered(); track h.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ h.description }}</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">{{ h.holidayDate | date:'EEE, d MMM y' }}</span>
+                @if (showCardCountry(h)) {
+                  <span class="data-card__reg">{{ countryFlag(h.countryCode) }} {{ countryName(h.countryCode) }}</span>
+                }
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (h.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(h)">Edit</button>
+              @if (h.isActive === false) {
+                <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(h)" [disabled]="togglingId() === h.id">
+                  {{ togglingId() === h.id ? 'Saving…' : 'Enable' }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(h)" [disabled]="togglingId() === h.id">
+                  {{ togglingId() === h.id ? 'Saving…' : 'Disable' }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New holiday FAB (needs at least one company country to scope to) -->
+  @if (countries().length > 0) {
+    <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New public holiday">
+      <span class="material-icons" aria-hidden="true">add</span>
+      <span>New holiday</span>
+    </button>
+  }
+
+  <!-- ============ Add / edit dialog ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this public holiday. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="publicHolidayForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+        <!-- Country: hidden and defaulted when the subscriber operates in a single country -->
+        @if (multiCountry()) {
+          <div class="form-row">
+            <div class="form-group">
+              <label for="holCountry">Country <span class="required">*</span></label>
+              <select id="holCountry" formControlName="countryCode"
+                      [attr.aria-invalid]="showError(form.controls.countryCode)" aria-describedby="holCountryErr">
+                <option value="" disabled>Select a country…</option>
+                @for (c of countries(); track c.countryCode) {
+                  <option [value]="c.countryCode">{{ c.flagEmoji }} {{ c.name }}</option>
+                }
+              </select>
+              @if (showError(form.controls.countryCode)) {
+                <p id="holCountryErr" class="field-error" role="alert">Country is required.</p>
+              }
+            </div>
+          </div>
+        }
+        <div class="form-row">
+          <div class="form-group">
+            <label for="holDate">Date <span class="required">*</span></label>
+            <input id="holDate" type="date" formControlName="holidayDate"
+                   [attr.aria-invalid]="showError(form.controls.holidayDate)" aria-describedby="holDateErr" />
+            @if (showError(form.controls.holidayDate)) {
+              <p id="holDateErr" class="field-error" role="alert">Holiday date is required.</p>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="holDesc">Holiday name <span class="required">*</span></label>
+            <input id="holDesc" type="text" formControlName="description" placeholder="e.g. Hari Merdeka"
+                   autocomplete="off" maxlength="200"
+                   [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="holDescErr" />
+            @if (showError(form.controls.description)) {
+              <p id="holDescErr" class="field-error" role="alert">
+                @if (form.controls.description.errors?.['required']) { Holiday name is required. }
+                @else { Use 200 characters or fewer. }
+              </p>
+            }
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="publicHolidayForm" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>
