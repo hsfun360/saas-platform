@@ -24,6 +24,29 @@ golf-specific and should migrate to a golf-side privileges table at that point.
 Triage every remaining SRS item through this lens (e.g. play times -> golf;
 vehicle passes and articles/newsletters -> generic).
 
+### Member self-service portal (direction, 2026-07-14)
+Members themselves log in to the system - for payments, bookings and other
+self-service activities - not only staff.
+Design constraints that follow (bake in when the Member master is built):
+- **One identity, two surfaces:** members authenticate through the SAME Identity
+  service (User table, SSO, reset, invitations); `Member.userId` is a nullable
+  UUID link (no FK - identity seam). One User may map to many Member rows
+  (multi-company, even multi-subscriber), like staff via CompanyUser.
+- **Login branches after auth:** staff memberships (CompanyUser) -> admin shell;
+  member links (Member.userId) -> a member PORTAL surface (own routes, e.g.
+  `/portal/*`); a user who is both gets a choice.
+- **Member authorization is NOT staff RBAC:** no roles/menus for members. Member
+  endpoints sit behind a member-context guard (JWT claim "acting as member X of
+  company Y") that staff middlewares reject and vice versa - a member token must
+  be unusable on `/api/admin/*` by construction.
+- **Runtime policy = master files:** the member's Membership Status
+  `systemControl` (barred / allow / warning / warning-no-charge) gates
+  transacting in the portal; the Membership Type's product privileges gate which
+  activities (golf booking vs facility etc.).
+- Onboarding: "send portal invitation" reuses the existing invitation +
+  setup-password machinery. Members outnumber staff 10-100x; keep portal
+  endpoints read-lean.
+
 ## Owns (data) - fill in
 - e.g. `Member`, `MembershipTier`, `MemberDependent`, `MembershipBilling`…
 - References `userId` and `companyId` by **UUID only** (no FK into Identity/Control
