@@ -40,6 +40,7 @@ const industryTypeRoutes = require('./modules/saas/industryType.routes');
 const salutationRoutes = require('./modules/saas/salutation.routes');
 const nationalityRoutes = require('./modules/saas/nationality.routes');
 const raceRoutes = require('./modules/saas/race.routes');
+const titleRoutes = require('./modules/saas/title.routes');
 const publicHolidayRoutes = require('./modules/saas/publicHoliday.routes');
 const weekendDayRoutes = require('./modules/saas/companyWeekendDay.routes');
 // Product tier (core systems) — stubs reserving the gateway seam. See
@@ -81,6 +82,7 @@ function createApp() {
     app.use('/api/salutations', salutationRoutes);
     app.use('/api/nationalities', nationalityRoutes);
     app.use('/api/races', raceRoutes);
+    app.use('/api/titles', titleRoutes);
     app.use('/api/public-holidays', publicHolidayRoutes);
     app.use('/api/weekend-days', weekendDayRoutes);
     // Public (unauthenticated) active-languages list, for the login screen's

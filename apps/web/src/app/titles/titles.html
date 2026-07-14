@@ -1,0 +1,159 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🎖️</span>
+      <div>
+        <h1>Titles</h1>
+        <p class="saas-subtitle">Honorifics for your subscription — some are country-specific (e.g. Datuk, Tan Sri in Malaysia).</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (titles().length > 0) {
+        {{ titles().length }} titles, {{ activeCount() }} active
+      } @else {
+        No titles yet — use "New title" to add one.
+      }
+    </span>
+  </div>
+
+  <!-- Live filter -->
+  @if (!loading() && titles().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #titleSearchBox type="search" [value]="search()" (input)="search.set(titleSearchBox.value)"
+             placeholder="Search titles…" aria-label="Search titles" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading titles…</p></div>
+  } @else if (titles().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No titles yet. Use "New title" to add one (e.g. DATUK — Datuk → Malaysia, or SIR — Sir → any country).</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No titles match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (t of filtered(); track t.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">
+                @if (countryFlag(t.countryCode)) { {{ countryFlag(t.countryCode) }} } {{ t.titleCode }}
+              </div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">
+                  @if (t.description) { {{ t.description }} }@if (t.description) { · }@if (t.countryCode) { {{ countryName(t.countryCode) }} } @else { Any country }
+                </span>
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (t.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">Edit</button>
+              @if (t.isActive === false) {
+                <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                  {{ togglingId() === t.id ? 'Saving…' : 'Enable' }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                  {{ togglingId() === t.id ? 'Saving…' : 'Disable' }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New title FAB -->
+  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New title">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New title</span>
+  </button>
+
+  <!-- ============ Add / edit dialog ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this title. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="titleForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="titleCode">Title code <span class="required">*</span></label>
+            <input id="titleCode" type="text" formControlName="titleCode" placeholder="e.g. DATUK"
+                   autocomplete="off" maxlength="30"
+                   [attr.aria-invalid]="showError(form.controls.titleCode)" aria-describedby="titleCodeErr" />
+            @if (showError(form.controls.titleCode)) {
+              <p id="titleCodeErr" class="field-error" role="alert">
+                @if (form.controls.titleCode.errors?.['required']) { Title code is required. }
+                @else { Use 30 characters or fewer. }
+              </p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="titleCountry">Country</label>
+            <select id="titleCountry" formControlName="countryCode">
+              <option value="">— Any country (universal) —</option>
+              @for (c of countries(); track c.alpha2) {
+                <option [value]="c.alpha2">@if (c.flagEmoji) {{{ c.flagEmoji }} }{{ c.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="titleDesc">Description</label>
+            <input id="titleDesc" type="text" formControlName="description" placeholder="e.g. Datuk" maxlength="200"
+                   [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="titleDescErr" />
+            @if (showError(form.controls.description)) {
+              <p id="titleDescErr" class="field-error" role="alert">Use 200 characters or fewer.</p>
+            }
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="titleForm" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

@@ -24,6 +24,7 @@ const industryTypeController = require('../saas/industryType.controller');
 const salutationController = require('../saas/salutation.controller');
 const nationalityController = require('../saas/nationality.controller');
 const raceController = require('../saas/race.controller');
+const titleController = require('../saas/title.controller');
 const publicHolidayController = require('../saas/publicHoliday.controller');
 const weekendDayController = require('../saas/companyWeekendDay.controller');
 const numberingSchemeController = require('../saas/numberingScheme.controller');
@@ -296,6 +297,13 @@ router.patch('/account/nationalities/:id', authenticateToken, requireTenant, req
 router.get('/account/races', authenticateToken, requireTenant, requireTenantAdmin, raceController.listRaces);
 router.post('/account/races', authenticateToken, requireTenant, requireTenantAdmin, raceController.createRace);
 router.patch('/account/races/:id', authenticateToken, requireTenant, requireTenantAdmin, raceController.updateRace);
+
+// --- SUBSCRIBER TITLES / HONORIFICS (Tenant Admin self-service) ---
+// Subscriber-owned honorific list (Datuk/Tan Sri/Sir/...), each optionally
+// country-bound (Country.alpha2; NULL = universal). Consumed via /api/titles.
+router.get('/account/titles', authenticateToken, requireTenant, requireTenantAdmin, titleController.listTitles);
+router.post('/account/titles', authenticateToken, requireTenant, requireTenantAdmin, titleController.createTitle);
+router.patch('/account/titles/:id', authenticateToken, requireTenant, requireTenantAdmin, titleController.updateTitle);
 
 // --- SUBSCRIBER PUBLIC HOLIDAYS (Tenant Admin self-service) ---
 // Subscriber-owned holiday calendar, scoped by country (the countries the

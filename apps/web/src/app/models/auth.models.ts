@@ -367,6 +367,16 @@ export interface Race {
   isActive?: boolean;
 }
 
+// Title (honorific) - subscriber-owned reference data (Datuk/Tan Sri/Sir/...),
+// each optionally bound to a Country (alpha-2); NULL countryCode = universal.
+export interface Title {
+  id: string;
+  titleCode: string;
+  description?: string | null;
+  countryCode?: string | null;
+  isActive?: boolean;
+}
+
 // Numbering Control - per-company document numbering (Membership No. now).
 export interface NumberingScheme {
   id: string;
@@ -601,6 +611,39 @@ export interface GolfCourse {
   crossOverMinutes?: number | null;
   photo?: string | null; // public URL of the course picture
   isActive?: boolean;
+}
+
+// Golf - one generated flight-time slot of a tee-time set.
+export interface CourseTeeTimeSlot {
+  id?: string;
+  slotNumber: number;
+  teeTime: string; // 'HH:MM' (API may return 'HH:MM:SS')
+  maxPlayers: number;
+  isFrontDesk?: boolean;
+}
+
+// Golf - one tee-off time setup of a course. A course holds several, versioned
+// by day scope (all/weekday/weekend - public holidays count as weekend) and
+// effective date (seasonal daylight). `Slots` is the API list shape.
+export interface CourseTeeTimeSet {
+  id: string;
+  courseId?: string;
+  description?: string | null;
+  dayScope: string; // 'all' | 'weekday' | 'weekend'
+  effectiveDate: string; // 'YYYY-MM-DD'
+  firstTeeTime: string;
+  lastTeeTime: string;
+  intervalMinutes: number;
+  playersPerFlight: number;
+  mustPlay18Until?: string | null;
+  mustPlay9Until?: string | null;
+  frontDeskFrom?: string | null;
+  isActive?: boolean;
+  Slots?: CourseTeeTimeSlot[];
+}
+
+export interface GolfCourseMeta {
+  dayScopes: MembershipStatusOption[];
 }
 
 // ISO 4217 currency reference row.

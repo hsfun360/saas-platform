@@ -36,6 +36,7 @@ const IndustryType = require('../modules/saas/industryType.model'); // subscribe
 const Salutation = require('../modules/saas/salutation.model'); // subscriber-owned reference data (accountId value ref; no associations)
 const Nationality = require('../modules/saas/nationality.model'); // subscriber-owned reference data (accountId value ref; deliberately NOT linked to Country)
 const Race = require('../modules/saas/race.model'); // subscriber-owned reference data (accountId value ref; no associations)
+const Title = require('../modules/saas/title.model'); // subscriber-owned reference data (accountId + optional Country.alpha2 value refs; no associations)
 const PublicHoliday = require('../modules/saas/publicHoliday.model'); // subscriber-owned reference data, scoped by country (accountId + countryCode value refs; no associations)
 const CompanyWeekendDay = require('../modules/saas/companyWeekendDay.model'); // company-level weekend/rest-day set (companyId value ref; no associations)
 const NumberingScheme = require('../modules/saas/numberingScheme.model'); // per-company document numbering config (companyId value ref; no associations)
@@ -59,6 +60,8 @@ const UnitCourseTeeBoxDistance = require('../modules/golf/unitCourseTeeBoxDistan
 // 18-hole course = a pairing of unit courses. The nine references are plain
 // UUIDs validated in the controller (no eager-load need), so no associations.
 const Course = require('../modules/golf/course.model');
+const CourseTeeTimeSet = require('../modules/golf/courseTeeTimeSet.model');
+const CourseTeeTimeSlot = require('../modules/golf/courseTeeTimeSlot.model');
 // Shared financial reference (Tax). Header/detail pairs are intra-service, so they
 // DO associate; accountId/countryCode/companyId stay plain UUID/value references.
 // (The template seed layer was removed in the tax refactor - no template models.)
@@ -142,6 +145,11 @@ UnitCourse.hasMany(UnitCourseTeeBox, { foreignKey: 'unitCourseId', as: 'TeeBoxes
 UnitCourseTeeBox.belongsTo(UnitCourse, { foreignKey: 'unitCourseId', as: 'UnitCourse' });
 UnitCourseTeeBox.hasMany(UnitCourseTeeBoxDistance, { foreignKey: 'teeBoxId', as: 'Distances', onDelete: 'CASCADE' });
 UnitCourseTeeBoxDistance.belongsTo(UnitCourseTeeBox, { foreignKey: 'teeBoxId', as: 'TeeBox' });
+// Course -> its tee-time sets -> generated flight-time slots.
+Course.hasMany(CourseTeeTimeSet, { foreignKey: 'courseId', as: 'TeeTimeSets', onDelete: 'CASCADE' });
+CourseTeeTimeSet.belongsTo(Course, { foreignKey: 'courseId', as: 'Course' });
+CourseTeeTimeSet.hasMany(CourseTeeTimeSlot, { foreignKey: 'teeTimeSetId', as: 'Slots', onDelete: 'CASCADE' });
+CourseTeeTimeSlot.belongsTo(CourseTeeTimeSet, { foreignKey: 'teeTimeSetId', as: 'TeeTimeSet' });
 
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).
@@ -178,6 +186,7 @@ module.exports = {
     Salutation,
     Nationality,
     Race,
+    Title,
     PublicHoliday,
     CompanyWeekendDay,
     NumberingScheme,
@@ -192,6 +201,8 @@ module.exports = {
     UnitCourseTeeBox,
     UnitCourseTeeBoxDistance,
     Course,
+    CourseTeeTimeSet,
+    CourseTeeTimeSlot,
     TaxScheme,
     TaxRate,
     CompanyTaxScheme,
