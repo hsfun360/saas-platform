@@ -1,19 +1,33 @@
 # Golf Management
 
-> Status: PLANNED (stub at `src/modules/golf`, gateway seam `/api/golf` reserved).
-> Tier: **Product (core system)**. Fill in as it is built.
+> Status: IN PROGRESS (Master File Setup being built at `src/modules/golf`).
+> Tier: **Product (core system)**.
+> Source spec: the 2006 Mission Hills master-file SRS (MH-MasterFile-SRS-V2.1); options are being carried over one by one.
 
 ## Purpose
 Golf operations: courses, tee-time scheduling and booking, flights/pairings,
 handicaps, competitions, pro-shop/scoring as needed.
 
-## Owns (data) - fill in
-- e.g. `Course`, `TeeSheet`, `TeeTime`, `Booking`, `Flight`, `Competition`…
-- References `companyId` and `memberId` by **UUID only**.
+## Domain model - how a golf course is set up
+Golf courses are built from NINE-hole **unit courses** first.
+A unit course has a type: `out` (front nine only), `in` (back nine only) or `composite` (either).
+A full 18-hole **course** is then formed by picking two unit courses - the 1st as the OUT (front) nine and the 2nd as the IN (back) nine - plus optional standby and floodlit fallback nines.
+Hole numbering follows the type (OUT -> 1-9, IN -> 10-18).
 
-## Public API (gateway seam: `/api/golf`) - fill in
-- e.g. `GET /courses`, `/tee-times?date=`, `POST /bookings`, `/competitions`…
-- (Seed already reserves a "Tee Time Setup" menu at `/golf/tee-times`.)
+## Owns (data)
+- `golf.UnitCourse` - 9-hole unit course master file (code, type, completion minutes, floodlight + lighting-fee lead time). **Built.**
+- `golf.UnitCourseHole` - hole rows of a unit course (par 3/4/5, handicap index, remarks); numbering fixed by the type (OUT 1-9, IN 10-18, COMPOSITE 1-18). HCP parity follows the numbering context: holes 1-9 take ODD indexes, holes 10-18 EVEN, so an OUT+IN pairing yields a full 1-18 set. Intra-service FK, cascades with the unit course. **Built.**
+- `golf.UnitCourseTeeBox` + `golf.UnitCourseTeeBoxDistance` - tee boxes of a unit course (colour code, number, description, measurement unit meter/yard) with PER-HOLE distances (the scorecard's yardage rows; OUT/IN totals are computed, never stored). Cascade with the unit course. Difficulty ratings (course/slope) deliberately live at the 18-hole Course level (2.2.4), not here. **Built.**
+- Planned next (per spec): `Course` (18-hole pairing), tee-time rules/schedules, closure plans, handicap control, penalties, player types.
+- All tables live in the `golf` Postgres schema; references `companyId` and `memberId` by **UUID only**.
+
+## Public API (gateway seam: `/api/golf`)
+- `GET /health` - liveness (unauthenticated).
+- `GET /unit-courses/meta` - course-type vocabulary (OUT/IN/COMPOSITE, incl. each type's hole range).
+- `GET /unit-courses` · `POST /unit-courses` · `PATCH /unit-courses/:id` - Unit Course master file (enable/disable via `isActive`, no hard delete).
+- `GET /unit-courses/:id/holes` · `PUT /unit-courses/:id/holes` - Hole Setup; PUT replaces the set atomically and enforces the type's exact numbering.
+- `GET /unit-courses/:id/tee-boxes` · `PUT /unit-courses/:id/tee-boxes` - Tee Box Setup; PUT replaces headers + per-hole distances atomically (colour unique per course, unit meter/yard, distance 1-2000 per hole).
+- (Seed already reserves a "Tee Time Setup" menu at `/golf/tee-times`; the Unit Course screen is `/golf/unit-courses`.)
 
 ## Depends on
 - Identity (JWT verify) · Control Plane (`requireModule('Golf Management')`, roles).
@@ -28,4 +42,4 @@ handicaps, competitions, pro-shop/scoring as needed.
 - Valid JWT + active company subscribed to the **Golf Management** module.
 
 ## Migration status
-- [ ] Models · [ ] Routes/controllers · [ ] Events · [ ] Own DB · [ ] Own deploy
+- [x] Models (UnitCourse, UnitCourseHole, UnitCourseTeeBox+Distance) · [x] Routes/controllers (unit-courses, holes, tee-boxes) · [ ] Events · [ ] Own DB (own `golf` schema, shared instance) · [ ] Own deploy

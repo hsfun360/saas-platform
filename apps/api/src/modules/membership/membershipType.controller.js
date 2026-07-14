@@ -1,12 +1,21 @@
 const { sequelize } = require('../../platform/db');
 const MembershipType = require('./membershipType.model');
 const MembershipTypeFee = require('./membershipTypeFee.model');
+const MembershipTypeStandingCharge = require('./membershipTypeStandingCharge.model');
 const MembershipStatus = require('./membershipStatus.model');
 const MembershipFee = require('./membershipFee.model');
 const { getUserContext, listAccountCurrencies } = require('../../platform/serviceContext');
-const { MEMBERSHIP_CLASSES, MEMBERSHIP_CLASS_KEYS } = require('./membershipType.constants');
+const {
+    MEMBERSHIP_CLASSES,
+    MEMBERSHIP_CLASS_KEYS,
+    STANDING_FREQUENCIES,
+    STANDING_FREQUENCY_KEYS,
+} = require('./membershipType.constants');
 
-const FEES_INCLUDE = [{ model: MembershipTypeFee, as: 'AdditionalFees' }];
+const FEES_INCLUDE = [
+    { model: MembershipTypeFee, as: 'AdditionalFees' },
+    { model: MembershipTypeStandingCharge, as: 'StandingCharges' },
+];
 
 function companyIdOf(req) {
     return getUserContext(req).companyId || null;
@@ -33,12 +42,29 @@ function toFeeLineDto(f) {
     };
 }
 
+function toStandingChargeDto(c) {
+    return {
+        id: c.id,
+        membershipStatusId: c.membershipStatusId,
+        description: c.description,
+        chargesControl: c.chargesControl,
+        transactionType: c.transactionType,
+        transactionDescription: c.transactionDescription,
+        taxSchemeCode: c.taxSchemeCode,
+        currencyCode: c.currencyCode,
+        amount: Number(c.amount),
+        frequency: c.frequency,
+        fixedMonth: c.fixedMonth,
+    };
+}
+
 function toTypeDto(t) {
     return {
         additionalFees: (t.AdditionalFees || [])
             .slice()
             .sort((a, b) => a.transactionType.localeCompare(b.transactionType))
             .map(toFeeLineDto),
+        standingCharges: (t.StandingCharges || []).map(toStandingChargeDto),
         id: t.id,
         companyId: t.companyId,
         category: t.category,
@@ -85,6 +111,64 @@ function normalizeFeeLines(body) {
         });
     }
     return { value: lines };
+}
+
+// Validate + normalise the standing-charge rows. The screen sends only rows with
+// a billing item configured (empty status rows = no charge). Returns { value } or
+// { error }. Status ownership is checked separately against the company's master.
+function normalizeStandingCharges(body) {
+    const raw = Array.isArray(body.standingCharges) ? body.standingCharges : [];
+    const rows = [];
+    const seenStatus = new Set();
+    for (const c of raw) {
+        const membershipStatusId = str(c.membershipStatusId);
+        if (!membershipStatusId) return { error: 'Each standing charge needs a membership status.' };
+        if (seenStatus.has(membershipStatusId)) return { error: 'Only one standing charge per membership status.' };
+        seenStatus.add(membershipStatusId);
+
+        const transactionType = str(c.transactionType);
+        if (!transactionType) return { error: 'Transaction type is required for each standing charge.' };
+
+        const currencyCode = str(c.currencyCode).toUpperCase();
+        if (!/^[A-Z]{3}$/.test(currencyCode)) return { error: 'Each standing charge needs a 3-letter currency code.' };
+
+        const amount = Number(c.amount);
+        if (!Number.isFinite(amount) || amount < 0) return { error: 'Each standing charge amount must be a non-negative number.' };
+
+        const frequency = str(c.frequency);
+        if (!STANDING_FREQUENCY_KEYS.includes(frequency)) return { error: 'Invalid standing-charge frequency.' };
+
+        let fixedMonth = null;
+        if (frequency === 'fixed-month') {
+            fixedMonth = Number(c.fixedMonth);
+            if (!Number.isInteger(fixedMonth) || fixedMonth < 1 || fixedMonth > 12) {
+                return { error: 'A "Fixed Month" charge needs a month between 1 and 12.' };
+            }
+        }
+
+        rows.push({
+            membershipStatusId,
+            description: typeof c.description === 'string' ? c.description.trim() || null : null,
+            chargesControl: typeof c.chargesControl === 'string' ? c.chargesControl.trim() || null : null,
+            transactionType,
+            transactionDescription: typeof c.transactionDescription === 'string' ? c.transactionDescription.trim() || null : null,
+            taxSchemeCode: str(c.taxSchemeCode) || null,
+            currencyCode,
+            amount: Math.round((amount + Number.EPSILON) * 100) / 100,
+            frequency,
+            fixedMonth,
+        });
+    }
+    return { value: rows };
+}
+
+// Every standing-charge status must be one of the company's own statuses.
+async function validateStandingChargeStatuses(companyId, rows) {
+    if (!rows.length) return null;
+    const ids = rows.map((r) => r.membershipStatusId);
+    const found = await MembershipStatus.findAll({ where: { id: ids, companyId }, attributes: ['id'] });
+    if (found.length !== ids.length) return 'One or more standing-charge statuses were not found.';
+    return null;
 }
 
 // Pure validation + normalisation of a type payload (class-conditional fields are
@@ -176,7 +260,7 @@ async function validateRefs(companyId, v, selfId) {
 
 // GET /api/membership/types/meta - the membership class options for the dropdown.
 exports.getMeta = async (req, res) => {
-    res.status(200).json({ classes: MEMBERSHIP_CLASSES });
+    res.status(200).json({ classes: MEMBERSHIP_CLASSES, frequencies: STANDING_FREQUENCIES });
 };
 
 // GET /api/membership/types/currencies - the subscriber's currency set for the
@@ -221,8 +305,14 @@ exports.createType = async (req, res) => {
         const parsedFees = normalizeFeeLines(req.body);
         if (parsedFees.error) return res.status(400).json({ message: parsedFees.error });
 
+        const parsedCharges = normalizeStandingCharges(req.body);
+        if (parsedCharges.error) return res.status(400).json({ message: parsedCharges.error });
+
         const refErr = await validateRefs(companyId, v, null);
         if (refErr) return res.status(400).json({ message: refErr });
+
+        const chargeErr = await validateStandingChargeStatuses(companyId, parsedCharges.value);
+        if (chargeErr) return res.status(400).json({ message: chargeErr });
 
         const existing = await MembershipType.findOne({ where: { companyId, category: v.category } });
         if (existing) return res.status(409).json({ message: `Membership type '${v.category}' already exists.` });
@@ -232,6 +322,12 @@ exports.createType = async (req, res) => {
             if (parsedFees.value.length) {
                 await MembershipTypeFee.bulkCreate(
                     parsedFees.value.map((f) => ({ ...f, membershipTypeId: created.id })),
+                    { transaction: t },
+                );
+            }
+            if (parsedCharges.value.length) {
+                await MembershipTypeStandingCharge.bulkCreate(
+                    parsedCharges.value.map((c) => ({ ...c, membershipTypeId: created.id })),
                     { transaction: t },
                 );
             }
@@ -262,8 +358,14 @@ exports.updateType = async (req, res) => {
         const parsedFees = normalizeFeeLines(req.body);
         if (parsedFees.error) return res.status(400).json({ message: parsedFees.error });
 
+        const parsedCharges = normalizeStandingCharges(req.body);
+        if (parsedCharges.error) return res.status(400).json({ message: parsedCharges.error });
+
         const refErr = await validateRefs(companyId, v, type.id);
         if (refErr) return res.status(400).json({ message: refErr });
+
+        const chargeErr = await validateStandingChargeStatuses(companyId, parsedCharges.value);
+        if (chargeErr) return res.status(400).json({ message: chargeErr });
 
         if (v.category !== type.category) {
             const clash = await MembershipType.findOne({ where: { companyId, category: v.category } });
@@ -274,12 +376,19 @@ exports.updateType = async (req, res) => {
             Object.assign(type, v);
             await type.save({ transaction: t });
 
-            // Replace the additional-fee lines wholesale (setup data - no posted
-            // state to preserve, unlike MembershipFeeScheme stages).
+            // Replace both child sets wholesale (setup data - no posted state to
+            // preserve, unlike MembershipFeeScheme stages).
             await MembershipTypeFee.destroy({ where: { membershipTypeId: type.id }, transaction: t });
             if (parsedFees.value.length) {
                 await MembershipTypeFee.bulkCreate(
                     parsedFees.value.map((f) => ({ ...f, membershipTypeId: type.id })),
+                    { transaction: t },
+                );
+            }
+            await MembershipTypeStandingCharge.destroy({ where: { membershipTypeId: type.id }, transaction: t });
+            if (parsedCharges.value.length) {
+                await MembershipTypeStandingCharge.bulkCreate(
+                    parsedCharges.value.map((c) => ({ ...c, membershipTypeId: type.id })),
                     { transaction: t },
                 );
             }

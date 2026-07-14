@@ -1,0 +1,191 @@
+/* Unit Courses (Golf) - screen-specific bits on top of the shared admin look.
+   All colours come from the theme tokens so the screen works in all 3 modes. */
+
+/* Course-type pill shown beside the code in the card title. */
+.uc-type {
+  display: inline-block;
+  margin-left: var(--space-xs);
+  padding: 2px var(--space-sm);
+  border-radius: 12px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.5px;
+  vertical-align: middle;
+}
+
+/* Checkbox row (floodlight toggle). */
+.uc-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.uc-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--brand);
+}
+
+/* Helper text under a field (e.g. the selected type's meaning). */
+.uc-hint {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+
+/* Holes dialog - one compact grid row per hole. */
+.uc-hole-head,
+.uc-hole-row {
+  display: grid;
+  grid-template-columns: 44px 76px 76px minmax(0, 1fr);
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.uc-hole-head {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.uc-hole-row {
+  margin-bottom: var(--space-xs);
+}
+
+/* Grid cells sit outside .form-group, so restate the shared input standard
+   (base + focus) here - same tokens and focus ring as e.g. Description. */
+.uc-hole-row input,
+.uc-hole-row select,
+.uc-tee-dist-grid input {
+  min-height: 40px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.uc-hole-row input:focus,
+.uc-hole-row select:focus,
+.uc-tee-dist-grid input:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  background: var(--surface-card);
+}
+
+.uc-hole-num {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.uc-holes-total {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+/* Tee boxes dialog - one bordered block per tee box. */
+.uc-tee {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+  background: var(--surface-card);
+}
+
+.uc-tee-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 76px 110px auto;
+  gap: var(--space-sm);
+  align-items: end;
+}
+
+/* The tee's display-colour picker - swatch-sized, aligned with the inputs. */
+.uc-tee-swatch {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-xs);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-input);
+  cursor: pointer;
+}
+
+.uc-tee-remove {
+  margin-bottom: var(--space-sm); /* align with the inputs, not their labels */
+}
+
+@media (max-width: 767px) {
+  .uc-tee-head {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* Small section caption inside a tee block (Distances / ratings). */
+.uc-tee-section-label {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+/* Scorecard-style distance grid: one column per hole + the OUT/IN total.
+   Scrolls horizontally inside the dialog on narrow screens. */
+.uc-tee-dist-scroll {
+  overflow-x: auto;
+  /* Breathing room so the focus ring isn't clipped by the scroll container. */
+  padding: 4px;
+  margin: 0 -4px var(--space-xs);
+}
+
+.uc-tee-dist-grid {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(48px, 1fr));
+  gap: var(--space-xs);
+  align-items: center;
+  min-width: 520px;
+}
+
+.uc-tee-dist-hole {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.uc-tee-dist-grid input {
+  padding: var(--space-xs);
+  text-align: center;
+  /* No spinner buttons - clicking up 300 times is not how you enter a yardage. */
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.uc-tee-dist-grid input::-webkit-outer-spin-button,
+.uc-tee-dist-grid input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.uc-tee-dist-total {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  text-align: center;
+}
+

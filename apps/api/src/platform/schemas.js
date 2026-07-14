@@ -26,7 +26,7 @@ const TAX_SCHEMA = 'tax';
 
 // Schemas that must exist before `sequelize.sync()` creates the product tables.
 // A service is added here as soon as it defines its first schema-scoped model.
-const PRODUCT_SCHEMAS = [MEMBERSHIP_SCHEMA, TAX_SCHEMA];
+const PRODUCT_SCHEMAS = [MEMBERSHIP_SCHEMA, GOLF_SCHEMA, TAX_SCHEMA];
 
 // Idempotently create every product schema. Runs once at boot, before sync,
 // inside the same advisory-locked block so only one instance does it.

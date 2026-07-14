@@ -27,7 +27,7 @@ const MembershipFeeScheme = sequelize.define('MembershipFeeScheme', {
     },
     // The portion of the fee due at this stage. Stages sum to the fee amount.
     amount: {
-        type: DataTypes.DECIMAL(14, 2),
+        type: DataTypes.DECIMAL(21, 2),
         allowNull: false,
         defaultValue: 0,
     },

@@ -67,7 +67,7 @@ const MembershipType = sequelize.define('MembershipType', {
     // Default Accounts-Receivable debtor type. Free text until an A/R master exists.
     arDebtorType: { type: DataTypes.STRING, allowNull: true },
     // Maximum financial credit allowance.
-    creditLimit: { type: DataTypes.DECIMAL(14, 2), allowNull: true },
+    creditLimit: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
 
     isActive: {
         type: DataTypes.BOOLEAN,

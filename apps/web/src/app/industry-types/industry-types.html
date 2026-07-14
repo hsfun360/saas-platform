@@ -1,0 +1,148 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🏭</span>
+      <div>
+        <h1>Industry Types</h1>
+        <p class="saas-subtitle">Your subscription's industry classification — shared by all companies and used across systems.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (types().length > 0) {
+        {{ types().length }} industry types, {{ activeCount() }} active
+      } @else {
+        No industry types yet — use "New industry type" to add one.
+      }
+    </span>
+  </div>
+
+  <!-- Live filter -->
+  @if (!loading() && types().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #itSearchBox type="search" [value]="search()" (input)="search.set(itSearchBox.value)"
+             placeholder="Search industry types…" aria-label="Search industry types" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading industry types…</p></div>
+  } @else if (types().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No industry types yet. Use "New industry type" to add one.</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No industry types match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (t of filtered(); track t.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ t.industryTypeCode }}</div>
+              @if (t.description) {
+                <div class="data-card__subline">
+                  <span class="data-card__reg">{{ t.description }}</span>
+                </div>
+              }
+            </div>
+            <div class="data-row__badge">
+              @if (t.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">Edit</button>
+              @if (t.isActive === false) {
+                <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                  {{ togglingId() === t.id ? 'Saving…' : 'Enable' }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                  {{ togglingId() === t.id ? 'Saving…' : 'Disable' }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New industry type FAB -->
+  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New industry type">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New industry type</span>
+  </button>
+
+  <!-- ============ Add / edit dialog ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this industry type. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="industryTypeForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="itCode">Industry type code <span class="required">*</span></label>
+            <input id="itCode" type="text" formControlName="industryTypeCode" placeholder="e.g. FNB"
+                   autocomplete="off" maxlength="30"
+                   [attr.aria-invalid]="showError(form.controls.industryTypeCode)" aria-describedby="itCodeErr" />
+            @if (showError(form.controls.industryTypeCode)) {
+              <p id="itCodeErr" class="field-error" role="alert">
+                @if (form.controls.industryTypeCode.errors?.['required']) { Industry type code is required. }
+                @else { Use 30 characters or fewer. }
+              </p>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="itDesc">Description</label>
+            <input id="itDesc" type="text" formControlName="description" placeholder="e.g. Food & Beverage" maxlength="200"
+                   [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="itDescErr" />
+            @if (showError(form.controls.description)) {
+              <p id="itDescErr" class="field-error" role="alert">Use 200 characters or fewer.</p>
+            }
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="industryTypeForm" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

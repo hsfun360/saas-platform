@@ -6,6 +6,9 @@
 - **Port Binding:** The server must listen on `process.env.PORT` to comply with Cloud Run requirements.
 - **Error Handling:** Centralized async middleware to catch errors. Return unified JSON payloads: `{ error: string, details?: any }`.
 - **Naming Conventions:** CamelCase for routes and parameters, PascalCase for controllers/classes.
+- **Money columns are `numeric(21,2)`:** every DB column holding a currency amount (amounts, fees, charges, credit limits) is declared `DataTypes.DECIMAL(21, 2)` - never `(14,2)` or ad-hoc precisions.
+  Percentages/rates are not money and keep their own precision (tax rate `DECIMAL(7,4)`, claim percentage `DECIMAL(5,2)`).
+  See docs/systems/saas-platform.md -> "Schema conventions".
 
 ## 🔑 Secrets & Configuration (STANDARD - platform-agnostic)
 - **The app reads every secret from a plain environment variable** (`process.env.X`), never from a provider-specific SDK or a file path hard-coded to one host.

@@ -14,6 +14,17 @@ for every other service.
 `Menu`, `CompanyModule` (subscriptions), `Role`, `RoleMenu` (permissions),
 `Invitation`, `RegistrationLead`.
 
+**Subscriber-owned shared reference data** (one list per Account, maintained by the
+Tenant Admin, consumed by the product systems by value reference - never a
+cross-service FK): `IndustryType`, `Salutation`, `Nationality`.
+Each follows the same shape: unique `(accountId, code)`, enable/disable via
+`isActive` (no hard delete), maintenance under `/api/auth/account/<name>` +
+a System Setup screen (`/admin/<name>`), and an active-only consumer list at
+`GET /api/<name>` for any workspace user's pickers.
+(Promoted out of the Membership master files - see
+[membership-management.md](membership-management.md) #4-#6. Note: `Nationality`
+is deliberately NOT linked to `Country` - residence is not nationality.)
+
 ## Public API (gateway seam: `/api/admin` + tenant routes under `/api/auth/company/*`)
 - Provision subscribers (Account + Company + owner User), list subscribers.
 - Modules & Menus maintenance (the product catalog every core system registers in).

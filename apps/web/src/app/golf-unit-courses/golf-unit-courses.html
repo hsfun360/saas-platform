@@ -1,0 +1,377 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">⛳</span>
+      <div>
+        <h1>Unit Courses</h1>
+        <p class="saas-subtitle">The 9-hole building blocks — pair an OUT and an IN nine later to form an 18-hole course.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (courses().length > 0) {
+        {{ courses().length }} unit courses, {{ activeCount() }} active
+      } @else {
+        No unit courses yet — use "New unit course" to add one.
+      }
+    </span>
+  </div>
+
+  <!-- Live filter (code / description / type). -->
+  @if (!loading() && courses().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #ucSearchBox type="search" [value]="search()" (input)="search.set(ucSearchBox.value)"
+             placeholder="Search unit courses…" aria-label="Search unit courses" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading unit courses…</p></div>
+  } @else if (courses().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">⛳</span>
+      <p>No unit courses yet. A unit course is one nine — set them up first, then pair two (OUT + IN) into an 18-hole course.</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No unit courses match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (c of filtered(); track c.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">
+                {{ c.unitCourseCode }}
+                <span class="uc-type" [title]="typeDescription(c.courseType)">{{ typeLabel(c.courseType) }}</span>
+              </div>
+              @if (c.description || c.remarks) {
+                <div class="data-card__subline">
+                  <span class="data-card__reg">{{ c.description }}@if (c.description && c.remarks) { · }{{ c.remarks }}</span>
+                </div>
+              }
+              <dl class="data-card__meta">
+                @if (c.completionMinutes) {
+                  <div class="meta"><dt>Completion</dt><dd>{{ c.completionMinutes }} min</dd></div>
+                }
+                <div class="meta">
+                  <dt>Floodlight</dt>
+                  <dd>
+                    @if (c.hasFloodlight) {
+                      Yes@if (c.floodlightLeadMinutes != null) { — fee from {{ c.floodlightLeadMinutes }} min before dark }
+                    } @else {
+                      No
+                    }
+                  </dd>
+                </div>
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              @if (c.isActive === false) {
+                <span class="badge badge-inactive">Disabled</span>
+              } @else {
+                <span class="badge badge-active">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openHoles(c)">Holes</button>
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openTees(c)">Tees</button>
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">Edit</button>
+              @if (c.isActive === false) {
+                <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(c)"
+                        [disabled]="togglingId() === c.id">
+                  {{ togglingId() === c.id ? 'Saving…' : 'Enable' }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(c)"
+                        [disabled]="togglingId() === c.id">
+                  {{ togglingId() === c.id ? 'Saving…' : 'Disable' }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New unit course FAB -->
+  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New unit course">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New unit course</span>
+  </button>
+
+  <!-- ============ Add / edit dialog ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #ucDlg [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+                discardTitle="Discard this unit course?"
+                discardMessage="You have unsaved changes on this unit course. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="unitCourseForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="ucCode">Unit course code <span class="required">*</span></label>
+            <input id="ucCode" type="text" formControlName="unitCourseCode" placeholder="e.g. OZ" autocomplete="off"
+                   maxlength="20" style="text-transform: uppercase;"
+                   [attr.aria-invalid]="showError(form.controls.unitCourseCode)" aria-describedby="ucCodeErr" />
+            @if (showError(form.controls.unitCourseCode)) {
+              <p id="ucCodeErr" class="field-error" role="alert">Unit course code is required (max 20 characters).</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="ucType">Type <span class="required">*</span></label>
+            <select id="ucType" formControlName="courseType"
+                    [attr.aria-invalid]="showError(form.controls.courseType)" aria-describedby="ucTypeErr ucTypeHint">
+              <option value="" disabled>Select a type…</option>
+              @for (t of types(); track t.key) {
+                <option [value]="t.key">{{ t.label }}</option>
+              }
+            </select>
+            @if (form.controls.courseType.value) {
+              <p id="ucTypeHint" class="uc-hint">{{ typeDescription(form.controls.courseType.value) }}</p>
+            }
+            @if (showError(form.controls.courseType)) {
+              <p id="ucTypeErr" class="field-error" role="alert">Type is required.</p>
+            }
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="ucSeq">Number</label>
+            <input id="ucSeq" type="number" inputmode="numeric" formControlName="seq" min="0" max="9999" step="1"
+                   placeholder="Display order" [attr.aria-invalid]="showError(form.controls.seq)" aria-describedby="ucSeqErr" />
+            @if (showError(form.controls.seq)) {
+              <p id="ucSeqErr" class="field-error" role="alert">Number must be between 0 and 9999.</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="ucCompletion">Completion time (minutes)</label>
+            <input id="ucCompletion" type="number" inputmode="numeric" formControlName="completionMinutes" min="1" max="600" step="1"
+                   placeholder="e.g. 110" [attr.aria-invalid]="showError(form.controls.completionMinutes)" aria-describedby="ucCompletionErr" />
+            @if (showError(form.controls.completionMinutes)) {
+              <p id="ucCompletionErr" class="field-error" role="alert">Completion time must be between 1 and 600 minutes.</p>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ucDesc">Description</label>
+            <input id="ucDesc" type="text" formControlName="description" placeholder="e.g. Olazabal front nine" maxlength="255" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="uc-check">
+              <input type="checkbox" formControlName="hasFloodlight" />
+              <span>Floodlit (night golf) — this nine has lighting equipment</span>
+            </label>
+          </div>
+        </div>
+        @if (form.controls.hasFloodlight.value) {
+          <div class="form-row">
+            <div class="form-group">
+              <label for="ucLead">Lighting fee starts (minutes before dark)</label>
+              <input id="ucLead" type="number" inputmode="numeric" formControlName="floodlightLeadMinutes" min="0" max="600" step="1"
+                     placeholder="e.g. 30" [attr.aria-invalid]="showError(form.controls.floodlightLeadMinutes)" aria-describedby="ucLeadErr ucLeadHint" />
+              <p id="ucLeadHint" class="uc-hint">The dark time itself comes from Daylight / Dark Time Setup.</p>
+              @if (showError(form.controls.floodlightLeadMinutes)) {
+                <p id="ucLeadErr" class="field-error" role="alert">Lead time must be between 0 and 600 minutes.</p>
+              }
+            </div>
+          </div>
+        }
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ucRemarks">Remarks</label>
+            <input id="ucRemarks" type="text" formControlName="remarks" placeholder="Optional" maxlength="255" />
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="ucDlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="unitCourseForm" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Holes dialog (spec 2.2.2) ============ -->
+  @if (holesOpen()) {
+    <app-dialog #holesDlg [title]="holesTitle()" [busy]="holesSaving()" [dirty]="holesDirty()"
+                discardTitle="Discard hole changes?"
+                discardMessage="You have unsaved hole changes. Leaving now will discard them."
+                (close)="closeHoles()">
+      <div class="saas-form" style="padding: 0;">
+        @if (holesLoading()) {
+          <div class="loading-state"><div class="spinner"></div><p>Loading holes…</p></div>
+        } @else {
+          <p class="uc-hint" style="margin-bottom: var(--space-sm);">{{ holesHint(holesCourse()) }}</p>
+          <div class="uc-hole-head" aria-hidden="true">
+            <span>Hole</span><span>Par</span><span>HCP</span><span>Remarks</span>
+          </div>
+          @for (row of holeRows(); track row.holeNumber; let i = $index) {
+            <div class="uc-hole-row">
+              <span class="uc-hole-num">{{ row.holeNumber }}</span>
+              <select [value]="row.par" (change)="updateHole(i, 'par', $any($event.target).value)"
+                      [attr.aria-label]="'Hole ' + row.holeNumber + ' par'">
+                <option value="">—</option>
+                @for (p of parOptions; track p) {
+                  <option [value]="p" [selected]="row.par === '' + p">{{ p }}</option>
+                }
+              </select>
+              <select [value]="row.handicapIndex" (change)="updateHole(i, 'handicapIndex', $any($event.target).value)"
+                      [attr.aria-label]="'Hole ' + row.holeNumber + ' handicap index'">
+                <option value="">—</option>
+                @for (n of hcpOptions(row.holeNumber); track n) {
+                  <option [value]="n" [selected]="row.handicapIndex === '' + n">{{ n }}</option>
+                }
+              </select>
+              <input type="text" maxlength="255" [value]="row.remarks"
+                     (input)="updateHole(i, 'remarks', $any($event.target).value)"
+                     [attr.aria-label]="'Hole ' + row.holeNumber + ' remarks'" />
+            </div>
+          }
+          <p class="uc-holes-total">Total par: <strong>{{ totalPar() }}</strong></p>
+        }
+      </div>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="holesDlg.requestClose()" [disabled]="holesSaving()">Cancel</button>
+        @if (!holesLoading()) {
+          <button type="button" class="btn btn--primary" (click)="onSaveHoles()" [disabled]="holesSaving()">
+            {{ holesSaving() ? 'Saving…' : 'Save ' + holeRows().length + ' holes' }}
+          </button>
+        }
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Tee boxes dialog (spec 2.2.3) ============ -->
+  @if (teesOpen()) {
+    <app-dialog #teesDlg [title]="teesTitle()" [busy]="teesSaving()" [dirty]="teesDirty()"
+                discardTitle="Discard tee box changes?"
+                discardMessage="You have unsaved tee box changes. Leaving now will discard them."
+                (close)="closeTees()">
+      <div class="saas-form" style="padding: 0;">
+        @if (teesLoading()) {
+          <div class="loading-state"><div class="spinner"></div><p>Loading tee boxes…</p></div>
+        } @else {
+          @if (teeRows().length === 0) {
+            <div class="empty-state">
+              <span class="empty-icon">🏌️</span>
+              <p>No tee boxes yet. Use "Add tee box" to define this nine's tees (e.g. BLUE, WHITE, RED).</p>
+            </div>
+          }
+          @for (row of teeRows(); track $index; let i = $index) {
+            <div class="uc-tee">
+              <div class="uc-tee-head">
+                <div class="form-group">
+                  <label [for]="'teeColor' + i">Colour code <span class="required">*</span></label>
+                  <input [id]="'teeColor' + i" type="text" maxlength="20" [value]="row.colorCode"
+                         placeholder="e.g. BLUE" style="text-transform: uppercase;"
+                         (input)="updateTee(i, 'colorCode', $any($event.target).value)" />
+                </div>
+                <div class="form-group">
+                  <label [for]="'teeHex' + i">Colour</label>
+                  <input [id]="'teeHex' + i" type="color" class="uc-tee-swatch" [value]="row.colorHex"
+                         (input)="updateTee(i, 'colorHex', $any($event.target).value)"
+                         [attr.aria-label]="'Tee colour for ' + (row.colorCode || 'tee ' + (i + 1))" />
+                </div>
+                <div class="form-group">
+                  <label [for]="'teeSeq' + i">Number</label>
+                  <select [id]="'teeSeq' + i" [value]="row.seq"
+                          (change)="updateTee(i, 'seq', $any($event.target).value)">
+                    <option value="">—</option>
+                    @for (n of seqOptions; track n) {
+                      <option [value]="n" [selected]="row.seq === '' + n">{{ n }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label [for]="'teeUnit' + i">Measurement</label>
+                  <select [id]="'teeUnit' + i" [value]="row.measurementUnit"
+                          (change)="updateTee(i, 'measurementUnit', $any($event.target).value)">
+                    @for (u of measurementUnits(); track u.key) {
+                      <option [value]="u.key" [selected]="row.measurementUnit === u.key">{{ u.label }}</option>
+                    }
+                  </select>
+                </div>
+                <button type="button" class="btn btn--danger btn--sm uc-tee-remove" (click)="removeTeeRow(i)"
+                        [attr.aria-label]="'Remove tee box ' + (row.colorCode || i + 1)">Remove</button>
+              </div>
+              <div class="form-group">
+                <label [for]="'teeDesc' + i">Description</label>
+                <input [id]="'teeDesc' + i" type="text" maxlength="255" [value]="row.description"
+                       placeholder="Optional" (input)="updateTee(i, 'description', $any($event.target).value)" />
+              </div>
+              <p class="uc-tee-section-label">Distance per hole ({{ row.measurementUnit === 'yard' ? 'yards' : 'meters' }})</p>
+              @for (chunk of teeHoleChunks(teesCourse()); track chunk[0]) {
+                <div class="uc-tee-dist-scroll">
+                  <div class="uc-tee-dist-grid">
+                    @for (n of chunk; track n) {
+                      <span class="uc-tee-dist-hole">{{ n }}</span>
+                    }
+                    <span class="uc-tee-dist-hole">{{ chunk[0] <= 9 ? 'OUT' : 'IN' }}</span>
+                    @for (n of chunk; track n) {
+                      <input type="number" inputmode="numeric" min="1" max="2000" step="1"
+                             [value]="row.distances[n]"
+                             (input)="updateTeeDistance(i, n, $any($event.target).value)"
+                             [attr.aria-label]="(row.colorCode || 'tee') + ' distance hole ' + n" />
+                    }
+                    <span class="uc-tee-dist-total">{{ teeTotal(row, chunk) }}</span>
+                  </div>
+                </div>
+              }
+              @if (teeHoleChunks(teesCourse()).length > 1) {
+                <p class="uc-holes-total">Total: <strong>{{ teeGrandTotal(row) }}</strong></p>
+              }
+            </div>
+          }
+          <button type="button" class="btn btn--secondary" (click)="addTeeRow()">
+            <span class="material-icons" aria-hidden="true">add</span>
+            <span>Add tee box</span>
+          </button>
+        }
+      </div>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="teesDlg.requestClose()" [disabled]="teesSaving()">Cancel</button>
+        @if (!teesLoading()) {
+          <button type="button" class="btn btn--primary" (click)="onSaveTees()" [disabled]="teesSaving()">
+            {{ teesSaving() ? 'Saving…' : 'Save ' + teeRows().length + ' tee ' + (teeRows().length === 1 ? 'box' : 'boxes') }}
+          </button>
+        }
+      </ng-container>
+    </app-dialog>
+  }
+</div>

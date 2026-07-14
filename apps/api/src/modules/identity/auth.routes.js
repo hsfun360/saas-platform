@@ -20,6 +20,9 @@ const invitationController = require('../saas/invitation.controller');
 const accountLanguageController = require('../saas/accountLanguage.controller');
 const accountCurrencyController = require('../saas/accountCurrency.controller');
 const accountEmailTemplateController = require('../saas/accountEmailTemplate.controller');
+const industryTypeController = require('../saas/industryType.controller');
+const salutationController = require('../saas/salutation.controller');
+const nationalityController = require('../saas/nationality.controller');
 const { hasTenantAdminRole } = require('../saas/tenant');
 
 // Test Route to verify that the auth routes are working
@@ -252,6 +255,27 @@ router.patch('/me/language', authenticateToken, accountLanguageController.setMyL
 // read by the Companies screen to populate a company's default-currency picker.
 router.get('/account/currencies', authenticateToken, requireTenant, requireTenantAdmin, accountCurrencyController.getAccountCurrencies);
 router.put('/account/currencies', authenticateToken, requireTenant, requireTenantAdmin, accountCurrencyController.updateAccountCurrencies);
+
+// --- SUBSCRIBER INDUSTRY TYPES (Tenant Admin self-service) ---
+// Subscriber-owned industry taxonomy, shared by every company in the account and
+// consumed across products (Membership / Golf) via /api/industry-types.
+router.get('/account/industry-types', authenticateToken, requireTenant, requireTenantAdmin, industryTypeController.listIndustryTypes);
+router.post('/account/industry-types', authenticateToken, requireTenant, requireTenantAdmin, industryTypeController.createIndustryType);
+router.patch('/account/industry-types/:id', authenticateToken, requireTenant, requireTenantAdmin, industryTypeController.updateIndustryType);
+
+// --- SUBSCRIBER SALUTATIONS (Tenant Admin self-service) ---
+// Subscriber-owned salutation list (Mr/Mrs/Datuk/...), shared by every company in
+// the account and consumed across products via /api/salutations.
+router.get('/account/salutations', authenticateToken, requireTenant, requireTenantAdmin, salutationController.listSalutations);
+router.post('/account/salutations', authenticateToken, requireTenant, requireTenantAdmin, salutationController.createSalutation);
+router.patch('/account/salutations/:id', authenticateToken, requireTenant, requireTenantAdmin, salutationController.updateSalutation);
+
+// --- SUBSCRIBER NATIONALITIES (Tenant Admin self-service) ---
+// Subscriber-owned nationality list, each entry optionally anchored to a platform
+// Country (alpha-2); shared account-wide and consumed via /api/nationalities.
+router.get('/account/nationalities', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.listNationalities);
+router.post('/account/nationalities', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.createNationality);
+router.patch('/account/nationalities/:id', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.updateNationality);
 
 // --- SUBSCRIBER EMAIL TEMPLATES (Tenant Admin self-service) ---
 // A subscriber's own versions of the platform templates flagged tenant-overridable.

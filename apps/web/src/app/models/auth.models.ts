@@ -306,6 +306,34 @@ export interface Language {
   isActive?: boolean;
 }
 
+// Industry Type - subscriber-owned reference data (one taxonomy per Account,
+// shared by all companies and consumed by Membership / Golf pickers).
+export interface IndustryType {
+  id: string;
+  industryTypeCode: string;
+  description?: string | null;
+  isActive?: boolean;
+}
+
+// Salutation - subscriber-owned reference data (Mr/Mrs/Datuk/..., one list per
+// Account, shared by all companies and consumed by Membership / Golf pickers).
+export interface Salutation {
+  id: string;
+  salutationCode: string;
+  description?: string | null;
+  isActive?: boolean;
+}
+
+// Nationality - subscriber-owned reference data (one list per Account).
+// Deliberately NOT linked to Country: Country is address data, and a person's
+// residential country is not their nationality.
+export interface Nationality {
+  id: string;
+  nationalityCode: string;
+  description?: string | null;   // the demonym, e.g. 'Malaysian'
+  isActive?: boolean;
+}
+
 // Membership Status master record (per company) - a product-tier master file.
 export interface MembershipStatus {
   id: string;
@@ -384,9 +412,26 @@ export interface MembershipTypeFeeLine {
   amount: number;
 }
 
+// One standing charge of a Membership Type - the standard periodic fee applied
+// while a member carries a given Membership Status.
+export interface MembershipTypeStandingCharge {
+  id?: string;
+  membershipStatusId: string;
+  description?: string | null;
+  chargesControl?: string | null;
+  transactionType: string;
+  transactionDescription?: string | null;
+  taxSchemeCode?: string | null;
+  currencyCode: string;
+  amount: number;
+  frequency: string;              // one of MembershipTypeMeta.frequencies[].key
+  fixedMonth?: number | null;     // 1-12 when frequency is 'fixed-month'
+}
+
 // Membership Type master record (main table - category details + default rights).
 export interface MembershipType {
   additionalFees: MembershipTypeFeeLine[];
+  standingCharges: MembershipTypeStandingCharge[];
   id: string;
   companyId?: string;
   category: string;
@@ -409,9 +454,72 @@ export interface MembershipType {
   isActive?: boolean;
 }
 
-// Membership class options, served by the API.
+// Membership class + standing-charge frequency options, served by the API.
 export interface MembershipTypeMeta {
   classes: MembershipStatusOption[];
+  frequencies: MembershipStatusOption[];
+}
+
+// Golf - course-type option served by the API (OUT / IN / COMPOSITE).
+// holeFrom/holeTo is the hole-number range Hole Setup uses for the type.
+export interface UnitCourseTypeOption {
+  key: string;
+  label: string;
+  description: string;
+  holeFrom: number;
+  holeTo: number;
+}
+
+// Golf - one hole row of a unit course (par / handicap index / remarks).
+// HCP parity follows the numbering: holes 1-9 odd, holes 10-18 even.
+export interface UnitCourseHole {
+  id?: string;
+  holeNumber: number;
+  par?: number | null;
+  handicapIndex?: number | null;
+  remarks?: string | null;
+}
+
+export interface UnitCourseMeta {
+  types: UnitCourseTypeOption[];
+  measurementUnits: MembershipStatusOption[];
+}
+
+// Golf - per-hole distance from a tee box (a scorecard yardage cell).
+export interface UnitCourseTeeBoxDistance {
+  holeNumber: number;
+  distance: number;
+}
+
+// Golf - one tee box of a unit course. Distances are per hole (OUT/IN totals
+// are computed) in the header's measurementUnit. `Distances` is the API list
+// shape (association alias); `distances` is the save-payload shape. Difficulty
+// ratings live at the 18-hole Course level, not here.
+export interface UnitCourseTeeBox {
+  id?: string;
+  colorCode: string;
+  seq?: number | null;          // display order, 1-5
+  colorHex?: string | null;     // actual display colour for future UI rendering
+  description?: string | null;
+  measurementUnit?: string;     // 'meter' | 'yard'
+  distances?: UnitCourseTeeBoxDistance[];
+  Distances?: UnitCourseTeeBoxDistance[];
+}
+
+// Golf - Unit Course (9-hole) master record. A full 18-hole course is formed
+// later by pairing two unit courses: one OUT (front nine) + one IN (back nine).
+export interface UnitCourse {
+  id: string;
+  companyId?: string;
+  unitCourseCode: string;
+  seq?: number | null;
+  description?: string | null;
+  courseType: string;                    // 'out' | 'in' | 'composite'
+  remarks?: string | null;
+  completionMinutes?: number | null;
+  hasFloodlight: boolean;
+  floodlightLeadMinutes?: number | null; // minutes before dark the lighting fee starts
+  isActive?: boolean;
 }
 
 // ISO 4217 currency reference row.

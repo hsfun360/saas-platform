@@ -13,7 +13,7 @@ tenancy, RBAC, subscriptions, provisioning, notifications.
 | Service | Module folder | Owns | Doc |
 | --- | --- | --- | --- |
 | Identity / Auth | `src/modules/identity` | `User`; mints the JWT | [identity-auth.md](identity-auth.md) |
-| System Administration (Control Plane) | `src/modules/saas` | `Account, Company, CompanyUser, Module, Menu, CompanyModule, Role, RoleMenu, Invitation, RegistrationLead` | [system-administration.md](system-administration.md) |
+| System Administration (Control Plane) | `src/modules/saas` | `Account, Company, CompanyUser, Module, Menu, CompanyModule, Role, RoleMenu, Invitation, RegistrationLead` + subscriber-owned reference data (`IndustryType, Salutation, Nationality`) | [system-administration.md](system-administration.md) |
 | Notification | `src/modules/notification` | Outbox → email / Pub/Sub | [notification.md](notification.md) |
 
 **Product tier** - the core systems a club actually uses. Each becomes its own

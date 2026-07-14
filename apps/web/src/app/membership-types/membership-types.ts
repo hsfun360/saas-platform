@@ -6,6 +6,7 @@ import { MembershipTypeService } from '../services/membership-type.service';
 import { MembershipStatusService } from '../services/membership-status.service';
 import { MembershipFeeService } from '../services/membership-fee.service';
 import { DialogComponent } from '../shared/dialog/dialog';
+import { MoneyInputDirective } from '../shared/money-input.directive';
 import { Currency, MembershipType, MembershipStatus, MembershipFee, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
 
 // Editable additional-fee row (amounts kept as strings for the inputs).
@@ -17,6 +18,29 @@ interface FeeLineRow {
   amount: string;
 }
 
+// Editable standing-charge row - one per active Membership Status (auto-seeded).
+// A row with an empty transaction type means "no standing charge for this status"
+// and is not persisted.
+interface StandingRow {
+  membershipStatusId: string;
+  statusLabel: string;      // status value from the master, display only
+  statusClassLabel: string; // status class from the master, display only
+  description: string;
+  chargesControl: string;
+  transactionType: string;
+  transactionDescription: string;
+  taxSchemeCode: string;
+  currencyCode: string;
+  amount: string;
+  frequency: string;
+  fixedMonth: string;       // '1'..'12' when frequency is 'fixed-month'
+}
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
 // Membership Management → Master File Setup → Membership Type (Phase 1: main table).
 // Category details + default rights + defaults. `membershipClass` toggles the
 // personal-only (child age / play times) and corporate-only (nominee) fields.
@@ -24,7 +48,7 @@ interface FeeLineRow {
 @Component({
   selector: 'app-membership-types',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective],
   templateUrl: './membership-types.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-types.css'],
 })
@@ -43,6 +67,10 @@ export class MembershipTypesComponent implements OnInit {
   // Additional-fee lines (Category Details - Fee) - generated/edited in place,
   // saved atomically with the type. Row edits mark the form dirty by hand.
   readonly feeLines = signal<FeeLineRow[]>([]);
+  // Standing charges - auto-seeded one row per active Membership Status.
+  readonly standingRows = signal<StandingRow[]>([]);
+  readonly frequencies = signal<MembershipStatusOption[]>([]);
+  readonly monthNames = MONTH_NAMES;
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);
 
@@ -160,7 +188,45 @@ export class MembershipTypesComponent implements OnInit {
   }
 
   loadMeta(): void {
-    this.service.meta().subscribe({ next: (m) => this.classes.set(m.classes), error: () => {} });
+    this.service.meta().subscribe({
+      next: (m) => {
+        this.classes.set(m.classes);
+        this.frequencies.set(m.frequencies || []);
+      },
+      error: () => {},
+    });
+  }
+
+  // Seed one standing-charge row per ACTIVE Membership Status, prefilled from the
+  // type's persisted charges (statuses with no persisted charge start empty).
+  private seedStandingRows(persisted: MembershipType['standingCharges']): void {
+    const byStatus = new Map((persisted || []).map((c) => [c.membershipStatusId, c]));
+    const defaultCurrency = this.currencies()[0]?.code || '';
+    const rows = this.statuses()
+      .filter((s) => s.isActive !== false)
+      .map((s) => {
+        const c = byStatus.get(s.id);
+        return {
+          membershipStatusId: s.id,
+          statusLabel: s.membershipStatus,
+          statusClassLabel: s.statusClass,
+          description: c?.description || '',
+          chargesControl: c?.chargesControl || '',
+          transactionType: c?.transactionType || '',
+          transactionDescription: c?.transactionDescription || '',
+          taxSchemeCode: c?.taxSchemeCode || '',
+          currencyCode: c?.currencyCode || defaultCurrency,
+          amount: c ? String(c.amount) : '0',
+          frequency: c?.frequency || '',
+          fixedMonth: c?.fixedMonth ? String(c.fixedMonth) : '',
+        };
+      });
+    this.standingRows.set(rows);
+  }
+
+  updateStandingRow(index: number, field: keyof StandingRow, value: string): void {
+    this.standingRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+    this.form.markAsDirty();
   }
 
   loadRefs(): void {
@@ -209,6 +275,7 @@ export class MembershipTypesComponent implements OnInit {
     });
     this.syncClassControls('personal');
     this.feeLines.set([]);
+    this.seedStandingRows([]);
     this.dialogOpen.set(true);
   }
 
@@ -244,6 +311,7 @@ export class MembershipTypesComponent implements OnInit {
         amount: String(f.amount),
       })),
     );
+    this.seedStandingRows(t.standingCharges || []);
     this.dialogOpen.set(true);
   }
 
@@ -308,7 +376,43 @@ export class MembershipTypesComponent implements OnInit {
       }
     }
 
+    // Standing charges: only rows with a transaction type are persisted (an empty
+    // row = no standing charge for that status). Validate the configured ones.
+    const configuredCharges = this.standingRows().filter((r) => r.transactionType.trim());
+    for (const row of configuredCharges) {
+      const label = row.statusLabel;
+      if (!row.currencyCode) {
+        this.errorMessage.set(`Standing charge for '${label}': pick a currency.`);
+        return;
+      }
+      const amt = Number(row.amount);
+      if (!Number.isFinite(amt) || amt < 0) {
+        this.errorMessage.set(`Standing charge for '${label}': amount must be a non-negative number.`);
+        return;
+      }
+      if (!row.frequency) {
+        this.errorMessage.set(`Standing charge for '${label}': select a frequency.`);
+        return;
+      }
+      if (row.frequency === 'fixed-month' && !row.fixedMonth) {
+        this.errorMessage.set(`Standing charge for '${label}': pick the month for a Fixed Month charge.`);
+        return;
+      }
+    }
+
     const payload: Partial<MembershipType> = {
+      standingCharges: configuredCharges.map((r) => ({
+        membershipStatusId: r.membershipStatusId,
+        description: r.description.trim() || null,
+        chargesControl: r.chargesControl.trim() || null,
+        transactionType: r.transactionType.trim(),
+        transactionDescription: r.transactionDescription.trim() || null,
+        taxSchemeCode: r.taxSchemeCode || null,
+        currencyCode: r.currencyCode,
+        amount: Number(r.amount) || 0,
+        frequency: r.frequency,
+        fixedMonth: r.frequency === 'fixed-month' ? Number(r.fixedMonth) : null,
+      })),
       additionalFees: this.feeLines().map((r) => ({
         transactionType: r.transactionType.trim(),
         description: r.description.trim() || null,

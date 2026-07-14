@@ -9,4 +9,19 @@ const MEMBERSHIP_CLASSES = [
 
 const MEMBERSHIP_CLASS_KEYS = MEMBERSHIP_CLASSES.map((c) => c.key);
 
-module.exports = { MEMBERSHIP_CLASSES, MEMBERSHIP_CLASS_KEYS };
+// How often a standing charge is applied. 'fixed-month' bills once a year in a
+// specific month (the row's fixedMonth, 1-12).
+const STANDING_FREQUENCIES = [
+    { key: 'monthly', label: 'Monthly' },
+    { key: 'annually', label: 'Annually' },
+    { key: 'fixed-month', label: 'Fixed Month' },
+];
+
+const STANDING_FREQUENCY_KEYS = STANDING_FREQUENCIES.map((f) => f.key);
+
+module.exports = {
+    MEMBERSHIP_CLASSES,
+    MEMBERSHIP_CLASS_KEYS,
+    STANDING_FREQUENCIES,
+    STANDING_FREQUENCY_KEYS,
+};

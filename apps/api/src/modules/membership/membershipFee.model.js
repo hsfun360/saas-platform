@@ -35,8 +35,9 @@ const MembershipFee = sequelize.define('MembershipFee', {
         allowNull: true,
     },
     // Fee amount. For an installment fee this is the total the stages must sum to.
+    // numeric(21,2) is the platform-wide standard for money columns.
     amount: {
-        type: DataTypes.DECIMAL(14, 2),
+        type: DataTypes.DECIMAL(21, 2),
         allowNull: false,
         defaultValue: 0,
     },

@@ -31,6 +31,25 @@ other product systems** - Golf and Facility reference a member.
 ## Migration status
 - [ ] Models · [ ] Routes/controllers · [ ] Events · [ ] Own DB · [ ] Own deploy
 
+## Source specification (legacy system)
+
+The master files and functions below derive from the 2007 Mission Hills SRS: `MH-需求规格说明书-MEM-v3.0.doc` (path: `D:\OneDrive - IFCA MSC Berhad\Documents\Customers\China\Mission Hills\System Specification\`).
+Full module inventory from that spec (§ numbers are the spec's):
+
+**§2.1 Master File Setup (主文件设置)** - 17 files:
+system master (2.1.1, global params/default codes - maps to a per-company Membership Settings singleton here), member status (2.1.2, BUILT #1), membership fee (2.1.3, BUILT #2), membership type (2.1.4, BUILT #3), industry type (2.1.5, = our #4), article/club-magazine master (2.1.6), misc-attribute definitions (2.1.7, user-defined fields), hobby (2.1.8), title (2.1.9), nationality (2.1.10, = our #6; reference platform Country), country (2.1.11, superseded by the platform Country table), race (2.1.12, = our #7), document-numbering control (2.1.13, 凭证控制 - candidate shared capability), survey questionnaire (2.1.14) + survey form (2.1.15), special identity (2.1.16), name format (2.1.17). Salutation (our #5) appears as a field of name format / member profile, not its own file in the spec.
+
+**§2.2 Sales Management (销售管理):** agent type, income scale, fee scale, market source, sales location masters; salesperson maintenance; prospect management (personal + corporate) with follow-up expiry/warning, sales history, remarks; member follow-up (salesperson) transfer.
+
+**§2.3 Membership Management (会籍管理):** member/membership CRM for five member kinds - individual, corporate, nominee (corporate seat), spouse, child - with per-member: dependents, misc attributes, per-member standing-charge overrides (additional/exception on top of the type's standing charges), article subscription, hobbies, vehicle passes; ID (member no.) conversion, category conversion, status conversion (immediate) + scheduled status-conversion plan, membership transfer (with cascade rules driven by status class + system-master default statuses); member surveys.
+
+**§2.4 Children management:** generate expiring child members, convert child -> full member, converted-children history.
+**§2.5 Vehicle-pass management:** generate parking stickers (serial per year), member vehicle maintenance, issue/return/history.
+**§2.6 Article management:** generate issuance from schedule, post article fees.
+**§2.7 Day-End (日结)** and **§3 SUN accounting interface** - legacy-only (replaced here by the platform's own billing/outbox + a future GL export seam).
+
+Legacy deltas worth remembering: status class was only Authorized/Unauthorized/Warning (we generalised to 10 classes on the user's requirements, with systemControl carrying the old charges-control values); fee billing intervals were bi-monthly/monthly/quarterly/semi-annually with equal/percentage/manual allocation (we shipped monthly/quarterly/half-yearly/annually + generate-then-edit).
+
 ## Master File Setup (planned)
 
 > Status: PLANNED - list captured, per-file requirements to be provided one at a time.
@@ -48,10 +67,10 @@ other product systems** - Golf and Facility reference a member.
 | --- | --- | --- | --- |
 | 1 | Membership Status | Lifecycle state of a member (e.g. Active, Suspended, Expired, Resigned). | **BUILT** - see below. Drives entitlement/standing checks used by Golf and Facility. |
 | 2 | Membership Fee | Fee/dues definitions applied to membership (amount, cycle, currency). | **BUILT** - see below. Header + installment schedule; references a Tax Scheme via the tax seam. |
-| 3 | Membership Type | Category/tier of membership (e.g. Ordinary, Corporate, Life, Term). | **BUILDING (phased)** - Phase 1 (main table) done; Phase 2 Additional Fees + Phase 3 Standing Charges pending. |
-| 4 | Industry Type | Member's industry/business sector, for corporate members and reporting. | |
-| 5 | Salutation | Title prefix for a person (e.g. Mr, Mrs, Ms, Dr, Datuk). | Small curated list; culture/locale aware. |
-| 6 | Nationality | Member's nationality. | Should reference the existing platform **Country** reference table (alpha-2) rather than a free-text list. |
+| 3 | Membership Type | Category/tier of membership (e.g. Ordinary, Corporate, Life, Term). | **BUILT** - all 3 phases (main table + Additional Fees + Standing Charges). |
+| 4 | Industry Type | Member's industry/business sector, for corporate members and reporting. | **PROMOTED to subscriber level + BUILT** (2026-07-14). Control-Plane `IndustryType` (accountId-scoped, one taxonomy per subscription, shared across products). Maintenance: `/auth/account/industry-types` (Tenant Admin) + screen `/admin/industry-types` (System Setup). Consumers (Membership/Golf pickers): `GET /api/industry-types` (active list, any workspace user) - store `industryTypeCode` as a value reference. |
+| 5 | Salutation | Title prefix for a person (e.g. Mr, Mrs, Ms, Dr, Datuk). | **PROMOTED to subscriber level + BUILT** (2026-07-14). Control-Plane `Salutation` (accountId-scoped). Maintenance: `/auth/account/salutations` (Tenant Admin) + screen `/admin/salutations` (System Setup). Consumers: `GET /api/salutations` (active list) - store `salutationCode` as a value reference. |
+| 6 | Nationality | Member's nationality. | **PROMOTED to subscriber level + BUILT** (2026-07-14). Control-Plane `Nationality` (accountId-scoped): plain code + demonym. **Deliberately NOT linked to Country** - Country is address data; a person's residential country cannot be translated to their nationality (living in Malaysia does not make someone Malaysian). Maintenance: `/auth/account/nationalities` + screen `/admin/nationalities` (System Setup). Consumers: `GET /api/nationalities` - store `nationalityCode` as a value reference. |
 | 7 | Race | Member's race/ethnicity, for demographic reporting. | Locale-specific; keep the default set editable per subscriber. |
 
 ### DB isolation - own Postgres schema
@@ -117,8 +136,12 @@ Three tables planned (main + two children). **Phase 1 (main table) is built**; P
 Cross-refs are plain UUIDs validated against the company's own status/fee/type rows. Class-conditional fields are nulled server-side for the other class.
 API under `/api/membership/types` (meta, list, POST, PUT, PATCH toggle). Screen `/membership/types` (Reactive Forms + dialog unsaved-changes guard).
 
-**Phase 2 (pending) - Additional Fees** child: `transactionType` (free text), `description`, `taxSchemeCode` (OUTPUT-only via seam), `currencyCode`, `amount`.
-**Phase 3 (pending) - Standing Charges** child: auto-seed one row per active Membership Status; `statusClass`, `description`, `chargesControl` (free text), `transactionType` + `description`, `taxSchemeCode`, `currencyCode`, `amount`, `frequency` (monthly/annually/fixed-month), `fixedMonth`.
+**Phase 2 (BUILT) - Additional Fees** child `membership."MembershipTypeFee"`: `membershipTypeId` (FK, cascade), `transactionType` (free text), `description`, `taxSchemeCode` (OUTPUT-only, picker via the tax seam), `currencyCode` (subscriber's currency set via `serviceContext.listAccountCurrencies`, falling back to all active), `amount`.
+Lines are edited inside the type dialog and saved atomically with the parent (`additionalFees` array on POST/PUT; replaced wholesale on update - pure setup data, nothing to preserve).
+Extra endpoint: `GET /api/membership/types/currencies`.
+**Phase 3 (BUILT) - Standing Charges** child `membership."MembershipTypeStandingCharge"`: `membershipTypeId` (FK, cascade), `membershipStatusId` (one row per status, unique per type; status code + class displayed from the Status master), `description`, `chargesControl` (free text), `transactionType` + `transactionDescription`, `taxSchemeCode` (OUTPUT-only via seam), `currencyCode`, `amount`, `frequency` (monthly | annually | fixed-month), `fixedMonth` (1-12, required for fixed-month).
+The screen auto-seeds one row per **active** Membership Status; a row left without a transaction type means "no standing charge for that status" and is not persisted.
+Rows are saved atomically with the type (`standingCharges` array on POST/PUT, replaced wholesale on update); `frequencies` served via `/types/meta`.
 
 Deferred masters (A/R debtor type, Transaction type, Charges control) are **free text** until their own master files exist.
 

@@ -32,6 +32,9 @@ const Currency = require('../modules/saas/currency.model'); // reference table
 const AccountCurrency = require('../modules/saas/accountCurrency.model'); // Account <-> Currency join
 const AccountLanguage = require('../modules/saas/accountLanguage.model'); // Account <-> Language join
 const CompanySmtpConfig = require('../modules/saas/companySmtpConfig.model'); // per-company outgoing SMTP (references companyId by UUID; no FK)
+const IndustryType = require('../modules/saas/industryType.model'); // subscriber-owned reference data (accountId value ref; no associations)
+const Salutation = require('../modules/saas/salutation.model'); // subscriber-owned reference data (accountId value ref; no associations)
+const Nationality = require('../modules/saas/nationality.model'); // subscriber-owned reference data (accountId value ref; deliberately NOT linked to Country)
 // Product tier (Membership Management). Master files reference companyId by plain
 // UUID (no cross-service FK), per the golden rules. Intra-service parent-child
 // links (fee -> stages, type -> fee lines) DO use real associations - that
@@ -41,6 +44,14 @@ const MembershipFee = require('../modules/membership/membershipFee.model');
 const MembershipFeeScheme = require('../modules/membership/membershipFeeScheme.model');
 const MembershipType = require('../modules/membership/membershipType.model');
 const MembershipTypeFee = require('../modules/membership/membershipTypeFee.model');
+const MembershipTypeStandingCharge = require('../modules/membership/membershipTypeStandingCharge.model');
+// Product tier (Golf Management). Same golden rules - master files reference
+// companyId by plain UUID (no cross-service FK). Intra-service parent-child
+// links (unit course -> holes) DO use real associations.
+const UnitCourse = require('../modules/golf/unitCourse.model');
+const UnitCourseHole = require('../modules/golf/unitCourseHole.model');
+const UnitCourseTeeBox = require('../modules/golf/unitCourseTeeBox.model');
+const UnitCourseTeeBoxDistance = require('../modules/golf/unitCourseTeeBoxDistance.model');
 // Shared financial reference (Tax). Header/detail pairs are intra-service, so they
 // DO associate; accountId/countryCode/companyId stay plain UUID/value references.
 // (The template seed layer was removed in the tax refactor - no template models.)
@@ -109,6 +120,21 @@ MembershipFeeScheme.belongsTo(MembershipFee, { foreignKey: 'membershipFeeId', as
 // Membership Type -> its additional fee lines.
 MembershipType.hasMany(MembershipTypeFee, { foreignKey: 'membershipTypeId', as: 'AdditionalFees', onDelete: 'CASCADE' });
 MembershipTypeFee.belongsTo(MembershipType, { foreignKey: 'membershipTypeId', as: 'Type' });
+// Membership Type -> its standing charges (one per membership status).
+MembershipType.hasMany(MembershipTypeStandingCharge, { foreignKey: 'membershipTypeId', as: 'StandingCharges', onDelete: 'CASCADE' });
+MembershipTypeStandingCharge.belongsTo(MembershipType, { foreignKey: 'membershipTypeId', as: 'Type' });
+
+// 8e. Golf master-file header/detail pairs (both sides owned by the golf
+// service, so real intra-service FKs with cascade).
+// Unit Course -> its hole rows (numbering fixed by the course type).
+UnitCourse.hasMany(UnitCourseHole, { foreignKey: 'unitCourseId', as: 'Holes', onDelete: 'CASCADE' });
+UnitCourseHole.belongsTo(UnitCourse, { foreignKey: 'unitCourseId', as: 'UnitCourse' });
+// Unit Course -> its tee boxes -> per-hole distances. (Difficulty ratings are
+// NOT kept at this level - they arrive with the 18-hole Course Setup.)
+UnitCourse.hasMany(UnitCourseTeeBox, { foreignKey: 'unitCourseId', as: 'TeeBoxes', onDelete: 'CASCADE' });
+UnitCourseTeeBox.belongsTo(UnitCourse, { foreignKey: 'unitCourseId', as: 'UnitCourse' });
+UnitCourseTeeBox.hasMany(UnitCourseTeeBoxDistance, { foreignKey: 'teeBoxId', as: 'Distances', onDelete: 'CASCADE' });
+UnitCourseTeeBoxDistance.belongsTo(UnitCourseTeeBox, { foreignKey: 'teeBoxId', as: 'TeeBox' });
 
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).
@@ -141,11 +167,19 @@ module.exports = {
     Currency,
     AccountCurrency,
     CompanySmtpConfig,
+    IndustryType,
+    Salutation,
+    Nationality,
     MembershipStatus,
     MembershipFee,
     MembershipFeeScheme,
     MembershipType,
     MembershipTypeFee,
+    MembershipTypeStandingCharge,
+    UnitCourse,
+    UnitCourseHole,
+    UnitCourseTeeBox,
+    UnitCourseTeeBoxDistance,
     TaxScheme,
     TaxRate,
     CompanyTaxScheme,

@@ -61,6 +61,12 @@ monolith. When Identity is extracted, those become **soft UUID references** (no 
 FK) and eager-loads become a token claim or a service call. New product services
 **must not** add any new cross-boundary FK - store peer ids as plain UUIDs.
 
+### Schema conventions
+
+- **Money/amount columns are `numeric(21,2)`** (`DataTypes.DECIMAL(21, 2)` in the model): amounts, fees, charges, credit limits - any value denominated in a currency.
+  The previous `numeric(14,2)` columns have been widened; `sequelize.sync({ alter: true })` applies the widening on boot, and it is lossless.
+  Percentages and rates are NOT money and keep their own precision (e.g. tax rate `DECIMAL(7,4)`, claim percentage `DECIMAL(5,2)`).
+
 ## Auth model
 
 - Only **Identity** mints JWTs (RS256, private key). Claims: `id, email, companyId,
