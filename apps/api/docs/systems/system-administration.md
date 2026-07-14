@@ -46,6 +46,24 @@ A company with no rows is "not configured": the consumer list
 `GET /api/weekend-days` (the caller's own company) returns `[]` and
 weekday/weekend pricing (e.g. golf green fees) never applies a weekend rate.
 
+**Numbering Control** (SRS 2.1.13): `NumberingScheme` - per-company document
+numbering, one row per `(companyId, purpose)` (only `membership` today; the
+table is general for prospect/application/etc. later).
+`mode` = `auto` (system generates on save) or `manual` (staff key it in, e.g.
+pre-printed cards).
+For `auto`, a token `format` (`{PREFIX}{SEQ}{YYYY}{YY}{MM}{TYPE}` - `{TYPE}` is
+the membership type's category code, filled at creation) plus a running counter
+(`currentNumber` + `currentPeriod`, reset `never`/`annually`/`monthly`) produce
+the next value, issued **atomically** (row lock) by
+[`platform/numberingGateway.js`](../src/platform/numberingGateway.js) - the seam
+the future member screen calls (`getMode` / `issueNumber`); products never touch
+the model.
+Maintenance: Tenant-Admin routes under `/api/auth/company/numbering-schemes`
+(active company) + a System Setup screen (`/admin/numbering`) with a live
+next-number preview.
+Note: the counter is one series per company+purpose; per-membership-type
+independent series would be a follow-up (segment the counter) if a club needs it.
+
 ## Public API (gateway seam: `/api/admin` + tenant routes under `/api/auth/company/*`)
 - Provision subscribers (Account + Company + owner User), list subscribers.
 - Modules & Menus maintenance (the product catalog every core system registers in).
