@@ -159,7 +159,7 @@
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm); align-items: end;">
           <div class="form-group">
             <label for="fAmount">Amount <span class="required">*</span></label>
-            <input id="fAmount" type="number" inputmode="decimal" formControlName="amount" min="0" step="0.01"
+            <input id="fAmount" type="number" inputmode="decimal" appMoney formControlName="amount" min="0" step="0.01"
                    [attr.aria-invalid]="showError(form.controls.amount)" aria-describedby="fAmountErr" />
             @if (showError(form.controls.amount)) {
               <p id="fAmountErr" class="field-error" role="alert">
@@ -218,8 +218,8 @@
                 @for (s of stages(); track s.stageNo; let i = $index) {
                   <div class="mf-stage">
                     <span class="mf-stage__no">Stage {{ s.stageNo }}</span>
-                    <input class="mf-stage__amt" type="number" min="0" step="0.01"
-                           [value]="s.amount" (input)="updateStageAmount(i, $any($event.target).value)"
+                    <input class="mf-stage__amt" type="number" inputmode="decimal" min="0" step="0.01"
+                           appMoney [moneyValue]="s.amount" (input)="updateStageAmount(i, $any($event.target).value)"
                            [attr.aria-label]="'Stage ' + s.stageNo + ' amount'" />
                     @if (s.isPosted) {
                       <span class="badge badge-active">Posted</span>

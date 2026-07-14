@@ -67,6 +67,10 @@ Template-driven forms have no reliable central dirty/validity signal, which is e
 - **HTML5 input types are required:** give every field its correct native type/attributes, never a bare `type="text"`.
   Use `type="email"` + `inputmode="email"`, `type="url"`, `type="number"` + `inputmode="decimal"` + `min`/`max`/`step`, `type="date"`, and `type="tel"` (or the shared `<app-phone-input>`), plus `autocomplete` and `maxlength` where they apply.
   Correct types give mobile the right keyboard, enable free browser validation, and improve autofill.
+- **Money/amount fields are masked to two decimals** with the shared `appMoney` directive (`shared/money-input.directive.ts`), on top of `type="number" inputmode="decimal" min="0" step="0.01"`.
+  The field always displays `0.00`-style values (seeded, and re-formatted on blur - never while typing) while the form value stays a plain number.
+  With `formControlName` the directive is the ControlValueAccessor; for row inputs kept outside a FormGroup, bind `appMoney [moneyValue]="row.amount"` and keep the existing `(input)` handler.
+  Reference: `membership-fees` (both modes: the fee Amount control + the installment stage rows).
 - **Accessibility:** render each control's error in a `role="alert"` element linked via `aria-describedby`, set `[attr.aria-invalid]` once the control is touched, and reveal errors only after touch or submit (a small `showError(control)` helper).
 
 **Canonical reference:** `platform-users` (`platform-users.ts` / `platform-users.html`) - two typed `FormGroup`s, control validators, `<app-phone-input>` via `formControlName`, inline `role="alert"` errors, correct HTML5 types, and the dialog `[dirty]` guard.

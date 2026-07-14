@@ -6,6 +6,7 @@ import { CountryService } from '../services/country.service';
 import { CurrencyService } from '../services/currency.service';
 import { TaxSchemeService } from '../services/tax-scheme.service';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
+import { MoneyInputDirective } from '../shared/money-input.directive';
 import { PlatformProfile, PlatformChargeQuote, Country, Currency, TaxScheme } from '../models/auth.models';
 
 // SaaS Administration → Platform Profile: the platform's own "company of record" (a
@@ -20,7 +21,7 @@ import { PlatformProfile, PlatformChargeQuote, Country, Currency, TaxScheme } fr
 @Component({
   selector: 'app-platform-profile',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, PhoneInputComponent],
+  imports: [CommonModule, ReactiveFormsModule, PhoneInputComponent, MoneyInputDirective],
   templateUrl: './platform-profile.html',
   styleUrls: ['../system-setup/system-setup.css', './platform-profile.css'],
 })
