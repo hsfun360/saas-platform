@@ -560,6 +560,23 @@
   border-right: 1px solid var(--border);
 }
 
+/* --- Sub-menu hierarchy (master vs sub-menu) ---
+   When the sidebar shows labels (pinned / hover-expanded / mobile drawer /
+   desktop persistent), nested menus indent under their parent behind a
+   connecting rail line, so which items belong to which section reads at a
+   glance. In the 72px icon-only rail there is no room to indent - the vars
+   stay 0/transparent and every icon keeps the single centered column. The
+   35px indent puts the rail line directly under the parent icon's center. */
+.sidebar {
+  --subnav-indent: 0px;
+  --subnav-rail: transparent;
+}
+.sidebar.pinned,
+.sidebar:not(.pinned):hover {
+  --subnav-indent: 35px;
+  --subnav-rail: var(--border-strong);
+}
+
 /* --- NAVIGATION ITEMS (The Final Gmail Fix) --- */
 .sidebar-nav {
   flex: 1 1 auto;
@@ -635,6 +652,14 @@
 .nav-group__header:hover {
   background-color: var(--surface-hover);
 }
+/* An OPEN section's header is emphasised so it reads as the master of the
+   indented items below it (collapsed sections stay secondary). */
+.nav-group__header[aria-expanded="true"] {
+  color: var(--text-primary);
+}
+.nav-group__header[aria-expanded="true"] .nav-group__label {
+  font-weight: var(--weight-semibold);
+}
 .nav-group__label {
   flex: 1;
   min-width: 0;
@@ -653,8 +678,15 @@
 }
 .nav-group__menus {
   list-style: none;
-  padding: 0;
-  margin: 0;
+  padding: 2px 0 4px;
+  margin: 0 0 0 var(--subnav-indent);
+  border-left: 2px solid var(--subnav-rail);
+  transition: margin-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* Sub-menu icons render a step smaller than their master's - a hierarchy cue
+   that also works in the icon-only rail (the 72px column stays aligned). */
+.nav-group__menus .icon {
+  font-size: 18px;
 }
 
 /* Chevron follows the label's visibility (tablet hover / pin expand). */
@@ -795,6 +827,11 @@
   .sidebar .nav-group__chevron {
     opacity: 1;
   }
+  /* Drawer is always full width - sub-menus always show their indent + rail. */
+  .sidebar {
+    --subnav-indent: 35px;
+    --subnav-rail: var(--border-strong);
+  }
   .sidebar:not(.pinned):hover {
     position: fixed;
     width: 256px;
@@ -841,6 +878,11 @@
   }
   .sidebar .nav-group__chevron {
     opacity: 1;              /* section chevrons always visible on desktop */
+  }
+  /* Persistent full sidebar - sub-menus always show their indent + rail. */
+  .sidebar {
+    --subnav-indent: 35px;
+    --subnav-rail: var(--border-strong);
   }
   /* Already full width — neutralise the rail's hover-overlay + shadow so it
      stays in flow and pushes content (no overlay on desktop). */
