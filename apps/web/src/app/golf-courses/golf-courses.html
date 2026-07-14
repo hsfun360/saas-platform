@@ -1,0 +1,252 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🏌️</span>
+      <div>
+        <h1>Courses</h1>
+        <p class="saas-subtitle">18-hole courses — pair an OUT and an IN nine, with optional alternate and night nines.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (courses().length > 0) {
+        {{ courses().length }} courses, {{ activeCount() }} active
+      } @else {
+        No courses yet — use "New course" to pair two nines.
+      }
+    </span>
+  </div>
+
+  <!-- Live filter (code / description / nines). -->
+  @if (!loading() && courses().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #gcSearchBox type="search" [value]="search()" (input)="search.set(gcSearchBox.value)"
+             placeholder="Search courses…" aria-label="Search courses" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading courses…</p></div>
+  } @else if (courses().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🏌️</span>
+      <p>No courses yet. A course pairs two unit courses — the 1st as the first nine (OUT) and the 2nd as the second nine (IN). Set up your unit courses first, then pair them here.</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No courses match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (c of filtered(); track c.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="gc-main">
+                @if (c.photo) {
+                  <img class="gc-thumb" [src]="c.photo" [alt]="c.courseCode + ' course picture'" />
+                }
+                <div class="gc-info">
+                  <div class="data-card__title">{{ c.courseCode }}</div>
+                  @if (c.description) {
+                    <div class="data-card__subline">
+                      <span class="data-card__reg">{{ c.description }}</span>
+                    </div>
+                  }
+                  <dl class="data-card__meta">
+                    <div class="meta"><dt>First</dt><dd>{{ nineCode(c.firstNineId) || '—' }}</dd></div>
+                    <div class="meta"><dt>Second</dt><dd>{{ nineCode(c.secondNineId) || '—' }}</dd></div>
+                    @if (c.alternateNineId) {
+                      <div class="meta"><dt>Alternate</dt><dd>{{ nineCode(c.alternateNineId) }}</dd></div>
+                    }
+                    @if (c.nightNineId) {
+                      <div class="meta"><dt>Night</dt><dd>{{ nineCode(c.nightNineId) }}</dd></div>
+                    }
+                    @if (c.crossOverMinutes) {
+                      <div class="meta"><dt>Cross over</dt><dd>{{ c.crossOverMinutes }} min</dd></div>
+                    }
+                  </dl>
+                </div>
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (c.isActive === false) {
+                <span class="badge badge-inactive">Disabled</span>
+              } @else {
+                <span class="badge badge-active">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">Edit</button>
+              @if (c.isActive === false) {
+                <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(c)"
+                        [disabled]="togglingId() === c.id">
+                  {{ togglingId() === c.id ? 'Saving…' : 'Enable' }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(c)"
+                        [disabled]="togglingId() === c.id">
+                  {{ togglingId() === c.id ? 'Saving…' : 'Disable' }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New course FAB -->
+  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New course">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New course</span>
+  </button>
+
+  <!-- ============ Add / edit dialog ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #gcDlg [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+                discardTitle="Discard this course?"
+                discardMessage="You have unsaved changes on this course. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="golfCourseForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="gcCode">Course code <span class="required">*</span></label>
+            <input id="gcCode" type="text" formControlName="courseCode" placeholder="e.g. ELS" autocomplete="off"
+                   maxlength="20" style="text-transform: uppercase;"
+                   [attr.aria-invalid]="showError(form.controls.courseCode)" aria-describedby="gcCodeErr" />
+            @if (showError(form.controls.courseCode)) {
+              <p id="gcCodeErr" class="field-error" role="alert">Course code is required (max 20 characters).</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="gcSeq">Display sequence</label>
+            <input id="gcSeq" type="number" inputmode="numeric" formControlName="displaySequence" min="1" max="999" step="1"
+                   placeholder="Display order" [attr.aria-invalid]="showError(form.controls.displaySequence)" aria-describedby="gcSeqErr" />
+            @if (showError(form.controls.displaySequence)) {
+              <p id="gcSeqErr" class="field-error" role="alert">Display sequence must be between 1 and 999.</p>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="gcDesc">Description</label>
+            <input id="gcDesc" type="text" formControlName="description" placeholder="e.g. Els Course" maxlength="255" />
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="gcFront">First nine (OUT) <span class="required">*</span></label>
+            <select id="gcFront" formControlName="firstNineId"
+                    [attr.aria-invalid]="showError(form.controls.firstNineId)" aria-describedby="gcFrontErr">
+              <option value="" disabled>Select the first nine…</option>
+              @for (u of firstNineOptions(); track u.id) {
+                <option [value]="u.id">{{ u.unitCourseCode }}@if (u.description) { — {{ u.description }} }</option>
+              }
+            </select>
+            @if (showError(form.controls.firstNineId)) {
+              <p id="gcFrontErr" class="field-error" role="alert">First nine is required.</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="gcBack">Second nine (IN) <span class="required">*</span></label>
+            <select id="gcBack" formControlName="secondNineId"
+                    [attr.aria-invalid]="showError(form.controls.secondNineId)" aria-describedby="gcBackErr">
+              <option value="" disabled>Select the second nine…</option>
+              @for (u of secondNineOptions(); track u.id) {
+                <option [value]="u.id">{{ u.unitCourseCode }}@if (u.description) { — {{ u.description }} }</option>
+              }
+            </select>
+            @if (showError(form.controls.secondNineId)) {
+              <p id="gcBackErr" class="field-error" role="alert">Second nine is required.</p>
+            }
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="gcStandby">Alternate nine</label>
+            <select id="gcStandby" formControlName="alternateNineId">
+              <option value="">None</option>
+              @for (u of alternateNineOptions(); track u.id) {
+                <option [value]="u.id">{{ u.unitCourseCode }}@if (u.description) { — {{ u.description }} }</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="gcFloodlit">Night nine (after dark)</label>
+            <select id="gcFloodlit" formControlName="nightNineId" aria-describedby="gcFloodlitHint">
+              <option value="">None</option>
+              @for (u of nightNineOptions(); track u.id) {
+                <option [value]="u.id">{{ u.unitCourseCode }}@if (u.description) { — {{ u.description }} }</option>
+              }
+            </select>
+            <p id="gcFloodlitHint" class="gc-hint">Only floodlit unit courses are offered.</p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="gcTurn">Cross over time (minutes)</label>
+            <input id="gcTurn" type="number" inputmode="numeric" formControlName="crossOverMinutes" min="1" max="600" step="1"
+                   placeholder="e.g. 120" [attr.aria-invalid]="showError(form.controls.crossOverMinutes)" aria-describedby="gcTurnErr gcTurnHint" />
+            <p id="gcTurnHint" class="gc-hint">Minutes from tee-off until players move from the first nine to the second nine.</p>
+            @if (showError(form.controls.crossOverMinutes)) {
+              <p id="gcTurnErr" class="field-error" role="alert">Cross over time must be between 1 and 600 minutes.</p>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="gcPhoto">Course picture</label>
+            @if (form.controls.photo.value) {
+              <img class="gc-photo-preview" [src]="form.controls.photo.value" alt="Course picture preview" />
+            }
+            <div class="gc-photo-actions">
+              <input #gcPhotoFile id="gcPhoto" type="file" accept="image/*" class="gc-photo-file"
+                     (change)="onPhotoSelected(gcPhotoFile)" />
+              <button type="button" class="btn btn--secondary btn--sm" (click)="gcPhotoFile.click()" [disabled]="uploading()">
+                {{ uploading() ? 'Uploading…' : (form.controls.photo.value ? 'Replace picture' : 'Upload picture') }}
+              </button>
+              @if (form.controls.photo.value) {
+                <button type="button" class="btn btn--danger btn--sm" (click)="removePhoto()" [disabled]="uploading()">Remove</button>
+              }
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="gcDlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="golfCourseForm" class="btn btn--primary" [disabled]="saving() || uploading()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

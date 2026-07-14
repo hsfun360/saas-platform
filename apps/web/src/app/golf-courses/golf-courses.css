@@ -1,0 +1,62 @@
+/* Courses (Golf) - screen-specific bits on top of the shared admin look.
+   All colours come from the theme tokens so the screen works in all 3 modes. */
+
+/* Card main area: photo thumbnail beside the course info. */
+.gc-main {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.gc-thumb {
+  width: 96px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.gc-info {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .gc-thumb {
+    width: 72px;
+    height: 48px;
+  }
+}
+
+/* Helper text under a field. */
+.gc-hint {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+
+/* Course picture upload in the dialog. */
+.gc-photo-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 180px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-bottom: var(--space-sm);
+}
+
+.gc-photo-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+/* The native file input stays in the DOM for a11y but the styled button drives it. */
+.gc-photo-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
