@@ -35,6 +35,17 @@ defaults it silently when the subscriber's companies are all in one country.
 The consumer list `GET /api/public-holidays?year=` resolves the caller's
 company country automatically and returns only that country's active holidays.
 
+**Company-level setup**: `CompanyWeekendDay` - which weekday(s) are one
+company's weekend / rest days (ISO 1-7; varies by state even within a country,
+e.g. Fri+Sat vs Sat+Sun in Malaysia).
+A selection set, not a lifecycle master: one row per `(companyId, dayOfWeek)`
+(unique together), saved whole via
+`GET/PUT /api/auth/companies/:companyId/weekend-days` (Tenant Admin, a dialog
+on the Companies screen like the SMTP config); no `isActive`.
+A company with no rows is "not configured": the consumer list
+`GET /api/weekend-days` (the caller's own company) returns `[]` and
+weekday/weekend pricing (e.g. golf green fees) never applies a weekend rate.
+
 ## Public API (gateway seam: `/api/admin` + tenant routes under `/api/auth/company/*`)
 - Provision subscribers (Account + Company + owner User), list subscribers.
 - Modules & Menus maintenance (the product catalog every core system registers in).

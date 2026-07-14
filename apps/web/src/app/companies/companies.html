@@ -92,6 +92,10 @@
                 <span class="material-icons" aria-hidden="true">mail</span>
                 Email (SMTP)
               </button>
+              <button type="button" class="btn btn--secondary btn--sm" (click)="weekendCompany.set(company)">
+                <span class="material-icons" aria-hidden="true">weekend</span>
+                Weekend days
+              </button>
             </div>
           </div>
         </li>
@@ -445,6 +449,11 @@
   <!-- ============ Per-company SMTP dialog ============ -->
   @if (smtpCompany()) {
     <app-company-smtp-dialog [company]="smtpCompany()!" (close)="smtpCompany.set(null)"></app-company-smtp-dialog>
+  }
+
+  <!-- ============ Per-company Weekend days dialog ============ -->
+  @if (weekendCompany()) {
+    <app-company-weekend-dialog [company]="weekendCompany()!" (close)="weekendCompany.set(null)"></app-company-weekend-dialog>
   }
 
 </section>

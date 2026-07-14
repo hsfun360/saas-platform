@@ -25,6 +25,7 @@ const salutationController = require('../saas/salutation.controller');
 const nationalityController = require('../saas/nationality.controller');
 const raceController = require('../saas/race.controller');
 const publicHolidayController = require('../saas/publicHoliday.controller');
+const weekendDayController = require('../saas/companyWeekendDay.controller');
 const { hasTenantAdminRole } = require('../saas/tenant');
 
 // Test Route to verify that the auth routes are working
@@ -335,6 +336,11 @@ router.get('/companies/:companyId/smtp', authenticateToken, requireTenant, requi
 router.put('/companies/:companyId/smtp', authenticateToken, requireTenant, requireTenantAdmin, tenantController.upsertCompanySmtp);
 router.delete('/companies/:companyId/smtp', authenticateToken, requireTenant, requireTenantAdmin, tenantController.deleteCompanySmtp);
 router.post('/companies/:companyId/smtp/test', authenticateToken, requireTenant, requireTenantAdmin, tenantController.testCompanySmtp);
+// Per-company weekend/rest-day setup (drives weekday/weekend pricing, e.g. golf
+// green fees); consumed via /api/weekend-days. Like SMTP, the controller
+// re-checks admin rights against the TARGET company, not just the active one.
+router.get('/companies/:companyId/weekend-days', authenticateToken, requireTenant, requireTenantAdmin, weekendDayController.getCompanyWeekendDays);
+router.put('/companies/:companyId/weekend-days', authenticateToken, requireTenant, requireTenantAdmin, weekendDayController.setCompanyWeekendDays);
 router.put('/companies/:companyId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateCompany);
 
 module.exports = router;

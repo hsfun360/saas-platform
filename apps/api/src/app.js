@@ -41,6 +41,7 @@ const salutationRoutes = require('./modules/saas/salutation.routes');
 const nationalityRoutes = require('./modules/saas/nationality.routes');
 const raceRoutes = require('./modules/saas/race.routes');
 const publicHolidayRoutes = require('./modules/saas/publicHoliday.routes');
+const weekendDayRoutes = require('./modules/saas/companyWeekendDay.routes');
 // Product tier (core systems) — stubs reserving the gateway seam. See
 // docs/systems/ for each service's spec and the cross-service rules.
 const membershipRoutes = require('./modules/membership/membership.routes');
@@ -81,6 +82,7 @@ function createApp() {
     app.use('/api/nationalities', nationalityRoutes);
     app.use('/api/races', raceRoutes);
     app.use('/api/public-holidays', publicHolidayRoutes);
+    app.use('/api/weekend-days', weekendDayRoutes);
     // Public (unauthenticated) active-languages list, for the login screen's
     // language switcher (no user/subscriber context exists yet before login).
     app.get('/api/public/languages', languageController.listActiveLanguages);

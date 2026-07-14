@@ -1,0 +1,45 @@
+<app-dialog #wkDlg [title]="'Weekend days — ' + company().name" [busy]="saving()" [dirty]="form.dirty"
+            discardTitle="Discard your changes?" discardMessage="You have unsaved weekend-day changes. Leaving now will discard them." (close)="onClose()">
+  @if (loading()) {
+    <p style="color: var(--text-muted);">Loading…</p>
+  } @else {
+    <p class="wk-hint">
+      Tick the day(s) that count as this company's weekend / rest days — e.g. Friday &amp; Saturday in Johor or Kedah,
+      Saturday &amp; Sunday in KL. Weekday/weekend pricing (such as golf green fees) uses this setting.
+    </p>
+
+    @if (successMessage()) {
+      <div class="wk-summary" style="background: var(--success-surface); color: var(--success-text); border-color: var(--success-border);" role="status">✅ {{ successMessage() }}</div>
+    }
+    @if (errorMessage()) {
+      <div class="wk-summary" style="background: var(--danger-surface); color: var(--danger-text); border-color: var(--danger-border);" role="alert">❌ {{ errorMessage() }}</div>
+    }
+
+    <form id="weekendForm" [formGroup]="form" (ngSubmit)="save()">
+      <div class="wk-list" role="group" [attr.aria-label]="'Weekend days for ' + company().name">
+        @for (d of days; track d.day) {
+          <label class="wk-day" [class.wk-day--on]="isOn(d.key)">
+            <input type="checkbox" [formControlName]="d.key">
+            <span>{{ d.label }}</span>
+          </label>
+        }
+      </div>
+
+      <!-- The concrete outcome, before it commits -->
+      <div class="wk-summary" aria-live="polite">
+        @if (selectedLabels().length > 0) {
+          Weekend: <strong>{{ selectedLabels().join(' & ') }}</strong> — these days will take weekend rates.
+        } @else {
+          No weekend days selected — weekend pricing will never apply for this company.
+        }
+      </div>
+    </form>
+  }
+
+  <ng-container dialogFooter>
+    <button type="button" class="btn btn--secondary" (click)="wkDlg.requestClose()" [disabled]="saving()">Cancel</button>
+    <button type="submit" form="weekendForm" class="btn btn--primary" [disabled]="saving() || loading()">
+      {{ saving() ? 'Saving…' : 'Save' }}
+    </button>
+  </ng-container>
+</app-dialog>

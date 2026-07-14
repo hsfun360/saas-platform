@@ -351,6 +351,13 @@ export interface HolidayCountry {
   flagEmoji?: string | null;
 }
 
+// A company's weekend/rest-day set (company-level setup): ISO 8601 weekday
+// numbers, 1 = Monday ... 7 = Sunday. Empty = not configured, so weekday/
+// weekend pricing (e.g. golf green fees) never applies a weekend rate.
+export interface CompanyWeekendDays {
+  weekendDays: number[];
+}
+
 // Race - subscriber-owned reference data (one race/ethnicity list per Account,
 // shared by all companies; pure demographic vocabulary, linked to nothing else).
 export interface Race {

@@ -37,6 +37,7 @@ const Salutation = require('../modules/saas/salutation.model'); // subscriber-ow
 const Nationality = require('../modules/saas/nationality.model'); // subscriber-owned reference data (accountId value ref; deliberately NOT linked to Country)
 const Race = require('../modules/saas/race.model'); // subscriber-owned reference data (accountId value ref; no associations)
 const PublicHoliday = require('../modules/saas/publicHoliday.model'); // subscriber-owned reference data, scoped by country (accountId + countryCode value refs; no associations)
+const CompanyWeekendDay = require('../modules/saas/companyWeekendDay.model'); // company-level weekend/rest-day set (companyId value ref; no associations)
 // Product tier (Membership Management). Master files reference companyId by plain
 // UUID (no cross-service FK), per the golden rules. Intra-service parent-child
 // links (fee -> stages, type -> fee lines) DO use real associations - that
@@ -177,6 +178,7 @@ module.exports = {
     Nationality,
     Race,
     PublicHoliday,
+    CompanyWeekendDay,
     MembershipStatus,
     MembershipFee,
     MembershipFeeScheme,

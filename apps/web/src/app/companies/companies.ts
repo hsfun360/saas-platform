@@ -7,6 +7,7 @@ import { CompanyEntity, ModuleOption, Country, Currency } from '../models/auth.m
 import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { CompanySmtpDialogComponent } from '../company-smtp/company-smtp-dialog';
+import { CompanyWeekendDialogComponent } from '../company-weekend/company-weekend-dialog';
 import { TimezoneLabelPipe } from '../shared/timezone-label.pipe';
 import { COUNTRY_TIMEZONES, FALLBACK_COUNTRIES } from '../shared/countries';
 
@@ -16,7 +17,7 @@ import { COUNTRY_TIMEZONES, FALLBACK_COUNTRIES } from '../shared/countries';
   selector: 'app-companies',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, DialogComponent, PhoneInputComponent, CompanySmtpDialogComponent, TimezoneLabelPipe],
+  imports: [ReactiveFormsModule, DialogComponent, PhoneInputComponent, CompanySmtpDialogComponent, CompanyWeekendDialogComponent, TimezoneLabelPipe],
   templateUrl: './companies.html',
   styleUrls: ['./companies.css'],
 })
@@ -34,6 +35,8 @@ export class CompaniesComponent implements OnInit {
   readonly modules = signal<ModuleOption[]>([]);
   // The company whose SMTP dialog is open (null = closed).
   readonly smtpCompany = signal<CompanyEntity | null>(null);
+  // The company whose Weekend-days dialog is open (null = closed).
+  readonly weekendCompany = signal<CompanyEntity | null>(null);
   // Active countries from the DB (Country table) for the editable country combobox.
   // Seeded with a bundled fallback so the combobox + timezone linkage work even
   // before the DB Country table is synced; replaced by the DB list once available.
