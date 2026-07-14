@@ -367,6 +367,35 @@ export interface Race {
   isActive?: boolean;
 }
 
+// Numbering Control - per-company document numbering (Membership No. now).
+export interface NumberingScheme {
+  id: string;
+  companyId?: string;
+  purpose: string;               // 'membership'
+  mode: string;                  // 'auto' | 'manual'
+  prefix?: string | null;
+  format?: string | null;        // token template, e.g. '{PREFIX}{YYYY}-{SEQ}'
+  seqPadLength: number;
+  startingNumber: number;
+  currentNumber: number;
+  resetRule: string;             // 'never' | 'annually' | 'monthly'
+  currentPeriod?: string | null;
+  isActive?: boolean;
+  nextPreview?: string | null;   // sample of the next number (auto mode)
+}
+
+export interface NumberingToken {
+  token: string;
+  label: string;
+}
+
+export interface NumberingSchemeMeta {
+  modes: MembershipStatusOption[];
+  resetRules: MembershipStatusOption[];
+  purposes: MembershipStatusOption[];
+  tokens: NumberingToken[];
+}
+
 // Membership Status master record (per company) - a product-tier master file.
 export interface MembershipStatus {
   id: string;

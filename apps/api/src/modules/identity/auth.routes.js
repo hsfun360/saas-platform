@@ -26,6 +26,7 @@ const nationalityController = require('../saas/nationality.controller');
 const raceController = require('../saas/race.controller');
 const publicHolidayController = require('../saas/publicHoliday.controller');
 const weekendDayController = require('../saas/companyWeekendDay.controller');
+const numberingSchemeController = require('../saas/numberingScheme.controller');
 const { hasTenantAdminRole } = require('../saas/tenant');
 
 // Test Route to verify that the auth routes are working
@@ -220,6 +221,15 @@ const requireTenantAdmin = async (req, res, next) => {
 // 2. requireTenant checks if they actually belong to a Company workspace.
 router.get('/company/menus', authenticateToken, requireTenant, requireTenantAdmin, authController.getAvailableMenus);
 router.post('/company/roles', authenticateToken, requireTenant, requireTenantAdmin, authController.createRole);
+
+// --- NUMBERING CONTROL (Tenant Admin, active company) ---
+// Per-company document numbering (Membership No. now). Consumed by products via
+// platform/numberingGateway.js. mode auto|manual drives auto-generate vs manual.
+router.get('/company/numbering-schemes/meta', authenticateToken, requireTenant, requireTenantAdmin, numberingSchemeController.getMeta);
+router.get('/company/numbering-schemes', authenticateToken, requireTenant, requireTenantAdmin, numberingSchemeController.listSchemes);
+router.post('/company/numbering-schemes', authenticateToken, requireTenant, requireTenantAdmin, numberingSchemeController.createScheme);
+router.post('/company/numbering-schemes/preview', authenticateToken, requireTenant, requireTenantAdmin, numberingSchemeController.previewScheme);
+router.patch('/company/numbering-schemes/:id', authenticateToken, requireTenant, requireTenantAdmin, numberingSchemeController.updateScheme);
 
 // --- TENANT USER MANAGEMENT (Tenant Admin only) ---
 router.get('/company/roles', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listTenantRoles);

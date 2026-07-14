@@ -40,6 +40,7 @@ import { IndustryTypesComponent } from './app/industry-types/industry-types';
 import { SalutationsComponent } from './app/salutations/salutations';
 import { NationalitiesComponent } from './app/nationalities/nationalities';
 import { RacesComponent } from './app/races/races';
+import { NumberingComponent } from './app/numbering/numbering';
 import { PublicHolidaysComponent } from './app/public-holidays/public-holidays';
 import { TenantUsersComponent } from './app/tenant-users/tenant-users';
 import { CompaniesComponent } from './app/companies/companies';
@@ -109,6 +110,7 @@ const routes: Routes = [
       { path: 'admin/salutations', component: SalutationsComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/nationalities', component: NationalitiesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/races', component: RacesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/numbering', component: NumberingComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/public-holidays', component: PublicHolidaysComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/account-email-templates', component: AccountEmailTemplatesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/account-email-templates/:key', component: AccountEmailTemplateEditComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },

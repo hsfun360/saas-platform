@@ -1,0 +1,68 @@
+/* Numbering Control screen — extras on top of the shared System Setup look.
+   Colours from theme tokens so it works in all three appearance modes. */
+
+.nb-hint {
+  display: block;
+  margin-top: var(--space-xs);
+  font-size: var(--font-body-2);
+  color: var(--text-muted);
+}
+
+/* Format token "insert" chips. */
+.nb-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.nb-tokens__label {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+.nb-token {
+  font-family: monospace;
+  font-size: var(--font-body-2);
+  padding: 2px var(--space-sm);
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.nb-token:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+/* Live "next number" preview. */
+.nb-preview {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+}
+
+.nb-preview__label {
+  display: block;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.nb-preview__value {
+  display: block;
+  margin-top: var(--space-xs);
+  font-family: monospace;
+  font-size: var(--font-h3);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  word-break: break-all;
+}
