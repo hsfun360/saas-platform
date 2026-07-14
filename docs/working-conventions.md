@@ -19,6 +19,17 @@ App-specific rules live in each app's own `CLAUDE.md` (for example `apps/web`, `
 - Never manually modify `CHANGELOG.md` or any file marked as auto-generated.
   Change the source that produces them instead.
 
+### Branching & commits (trunk-based)
+
+- Day-to-day work happens on the single long-lived **`dev`** branch.
+  Do not create per-feature branches: multiple agent sessions share one working directory, so a branch switch affects everyone and cannot isolate work streams.
+- Commit small and often - ideally one commit per master file / discrete feature - so history separates the work streams even though the tree cannot.
+  Frequent commits also limit the blast radius when concurrent sessions touch shared files.
+- Prefix every commit with its stream: `feat(membership): ...`, `feat(golf): ...`, `feat(saas): ...`, `feat(web): ...`, `fix(...)`, `docs(...)`.
+- At verified checkpoints (deployed + user-checked), merge/push `dev` -> `master`.
+  `master` always reflects a deployed, verified state.
+- Deploys build from the working tree, not from git, so keep the tree committed before deploying and prefer deploying at commit boundaries.
+
 ## Technical Decisions
 
 - When making technical decisions, do not give much weight to development cost.
