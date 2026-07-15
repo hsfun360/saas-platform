@@ -47,10 +47,11 @@ Design constraints that follow (bake in when the Member master is built):
   setup-password machinery. Members outnumber staff 10-100x; keep portal
   endpoints read-lean.
 
-## Owns (data) - fill in
-- e.g. `Member`, `MembershipTier`, `MemberDependent`, `MembershipBilling`…
+## Owns (data)
+- Master files: `MembershipStatus`, `MembershipFee` (+ `MembershipFeeScheme`), `MembershipType` (+ `MembershipTypeFee`, `MembershipTypeStandingCharge`).
+- CRM core (SRS 2.3 Phase 1): `Membership` (the contract/seat) and `Member` (the person - individual / nominee / dependent). See "Built: Membership / Member CRM" below.
 - References `userId` and `companyId` by **UUID only** (no FK into Identity/Control
-  Plane). A member may or may not map to a login `User`.
+  Plane). A member may or may not map to a login `User` (`Member.userId`, the future portal link).
 
 ## Public API (gateway seam: `/api/membership`) - fill in
 - e.g. `GET/POST /members`, `/members/:id`, `/tiers`, `/members/:id/billing`…
@@ -203,6 +204,36 @@ The screen auto-seeds one row per **active** Membership Status; a row left witho
 Rows are saved atomically with the type (`standingCharges` array on POST/PUT, replaced wholesale on update); `frequencies` served via `/types/meta`.
 
 Deferred masters (A/R debtor type, Transaction type, Charges control) are **free text** until their own master files exist.
+
+## Built: Membership / Member CRM (SRS 2.3 Phase 1, 2026-07-15)
+
+The domain model (user-defined) splits the CONTRACT from the PEOPLE:
+
+- `membership."Membership"` - the contract/seat a company sells.
+  `membershipClass` `individual` | `corporate` is copied from the Membership Type and immutable (category conversion is a Phase 3 function).
+  Owns the commercial side: status (+ `statusDate`), fee, join/billing dates, credit (`creditFlag` personal|combined, `creditLimit`, `terms`, `statementMode` individual|combined, reminder/interest/monthly/yearly flags), document references (`certificateNo`/`applicationNo`/`reference`/`proposer`), sales codes (free text until §2.2 Sales Management exists), the corporate company profile (name/registration/tax/contact/address), a mailing-address set, `approvalStatus` (workflow seam - always `approved` today, the planned workflow module will create `pending` and flip it), and ownership stamps (`createdBy`/`createdByDepartmentId`/`updatedBy`).
+  Unique `(companyId, membershipNo)`; the number comes from **Numbering Control** (`numberingGateway.issueNumber`, purpose `membership`, `{TYPE}` = the type's category) in auto mode, or is keyed in (manual / no scheme).
+- `membership."Member"` - a person. ONE table, three kinds (`memberKind`):
+  `individual` (THE member of an individual membership - **auto-created in the same transaction** as the membership, member number = membership number, status mirrors the contract),
+  `nominee` (a corporate seat - created under a corporate membership, capped by the type's `noOfNominee`),
+  `dependent` (`dependentType` spouse|son|daughter|ward, `principalMemberId` -> its individual member OR nominee; only son/daughter/ward carry `expiryDate` - feeds §2.4 child expiry later).
+  Owns the person profile: salutation/title/nationality/race/industry codes (subscriber reference-data value refs), names (first/middle/last, name-on-card, `localName` native script), gender/birth/identity no/marital (+date), contacts, employment, resident + mailing addresses, `joinDate`, per-person `memberStatusId` (+ `statusDate` - the Phase 3 cascade rules depend on each person carrying their own status), nominee `creditLimit`, and `userId` (nullable portal identity link, no FK).
+  Unique `(companyId, memberNo)` across all kinds; nominee/dependent numbers default to `<parentNo>-A/B/C...` (server-suggested, editable).
+  Intra-service REAL FKs: `Member.membershipId` -> Membership (no cascade delete), `Member.principalMemberId` self-FK.
+  Deliberately NOT stored: raw credit-card numbers (PCI - a payment token comes with payments work); photo/signature wait for Cloud Storage (`photoUrl`/`signatureUrl` later).
+
+Status sync (individual class): changing the membership status updates the individual member's `memberStatusId` and vice versa, in one transaction.
+
+API (behind `verifyToken` + `requireModule('Membership Management')`):
+- `/api/membership/memberships` (+ `requireMenuAction('/membership/memberships')`): `GET /meta` (vocabularies + numbering mode), `GET /options` (type/status/fee pickers in one call - avoids cross-menu RBAC on the other masters' endpoints), `GET /` (list with display name + member counts), `POST /` (create; individual requires a nested `member` profile), `GET /:id` (detail + member tree), `PUT /:id` (contract edit; number/class/type immutable), `GET /:id/members/suggest-no`, `POST /:id/members` (nominee, seat-capped), `POST /:id/members/:memberId/dependents`, `PUT /:id/members/:memberId`.
+- `/api/membership/members` (+ `requireMenuAction('/membership/members')`): `GET /meta`, `GET /?q=&kind=` - flat read-only search across every person (member no / name / IC / email, capped at 200 rows).
+
+Web: `/membership/memberships` (list with class filter chips + coloured status dot; class-aware create/edit dialog - the picked type drives individual-vs-corporate sections and defaults; a Members dialog manages the people tree with New nominee / Add dependent / Edit) and `/membership/members` (flat search screen, server-side debounced).
+Both need DB Menus under Membership Management (routes `/membership/memberships`, `/membership/members`) + role grants.
+
+Phase 2 (planned): per-member standing-charge overrides (additional/exception), hobbies / misc attributes / article subscriptions as their §2.1 masters get built.
+Phase 3 (planned): ID conversion, category conversion, status conversion (immediate + scheduled plan), membership transfer - each with follow-the-principal cascades; requires the §2.1.1 Membership Settings singleton (No Conversion / Category Conversion / Transfer Resigned default statuses).
+Cascade vocabulary decision pending user confirmation: cascades follow `systemControl != 'barred'` (the generalisation of legacy Authorized/Warning-follow, Unauthorized-skip).
 
 ### Open questions (resolve per file as requirements arrive)
 - Which of these are truly tenant-scoped vs. shared platform reference data (Nationality clearly leans platform; Race/Salutation lean locale-curated).
