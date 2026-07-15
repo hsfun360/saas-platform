@@ -7,6 +7,10 @@ Each manual is also published as an in-app guide: a static copy lives at `apps/w
 
 - [Countries](saas-administration/countries.md) - the country reference list behind every country picker.
 
+## System Setup
+
+- [Companies](system-setup/companies.md) - the business entities under the subscription: details, modules, per-company email (SMTP) and weekend days.
+
 ## Golf Management
 
 - [Unit Courses](golf-management/golf-unit-courses.md) - the 9-hole building blocks: holes (par/HCP) and tee boxes (colours + per-hole distances).
