@@ -104,6 +104,7 @@
               }
             </div>
             <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openTeeTimes(c)">Tee times</button>
               <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">Edit</button>
               @if (c.isActive === false) {
                 <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(c)"
@@ -163,36 +164,36 @@
         </div>
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
-            <label for="gcFront">First nine (OUT) <span class="required">*</span></label>
-            <select id="gcFront" formControlName="firstNineId"
-                    [attr.aria-invalid]="showError(form.controls.firstNineId)" aria-describedby="gcFrontErr">
+            <label for="gcFirst">First nine (OUT) <span class="required">*</span></label>
+            <select id="gcFirst" formControlName="firstNineId"
+                    [attr.aria-invalid]="showError(form.controls.firstNineId)" aria-describedby="gcFirstErr">
               <option value="" disabled>Select the first nine…</option>
               @for (u of firstNineOptions(); track u.id) {
                 <option [value]="u.id">{{ u.unitCourseCode }}@if (u.description) { — {{ u.description }} }</option>
               }
             </select>
             @if (showError(form.controls.firstNineId)) {
-              <p id="gcFrontErr" class="field-error" role="alert">First nine is required.</p>
+              <p id="gcFirstErr" class="field-error" role="alert">First nine is required.</p>
             }
           </div>
           <div class="form-group">
-            <label for="gcBack">Second nine (IN) <span class="required">*</span></label>
-            <select id="gcBack" formControlName="secondNineId"
-                    [attr.aria-invalid]="showError(form.controls.secondNineId)" aria-describedby="gcBackErr">
+            <label for="gcSecond">Second nine (IN) <span class="required">*</span></label>
+            <select id="gcSecond" formControlName="secondNineId"
+                    [attr.aria-invalid]="showError(form.controls.secondNineId)" aria-describedby="gcSecondErr">
               <option value="" disabled>Select the second nine…</option>
               @for (u of secondNineOptions(); track u.id) {
                 <option [value]="u.id">{{ u.unitCourseCode }}@if (u.description) { — {{ u.description }} }</option>
               }
             </select>
             @if (showError(form.controls.secondNineId)) {
-              <p id="gcBackErr" class="field-error" role="alert">Second nine is required.</p>
+              <p id="gcSecondErr" class="field-error" role="alert">Second nine is required.</p>
             }
           </div>
         </div>
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
-            <label for="gcStandby">Alternate nine</label>
-            <select id="gcStandby" formControlName="alternateNineId">
+            <label for="gcAlternate">Alternate nine</label>
+            <select id="gcAlternate" formControlName="alternateNineId">
               <option value="">None</option>
               @for (u of alternateNineOptions(); track u.id) {
                 <option [value]="u.id">{{ u.unitCourseCode }}@if (u.description) { — {{ u.description }} }</option>
@@ -200,24 +201,24 @@
             </select>
           </div>
           <div class="form-group">
-            <label for="gcFloodlit">Night nine (after dark)</label>
-            <select id="gcFloodlit" formControlName="nightNineId" aria-describedby="gcFloodlitHint">
+            <label for="gcNight">Night nine (after dark)</label>
+            <select id="gcNight" formControlName="nightNineId" aria-describedby="gcNightHint">
               <option value="">None</option>
               @for (u of nightNineOptions(); track u.id) {
                 <option [value]="u.id">{{ u.unitCourseCode }}@if (u.description) { — {{ u.description }} }</option>
               }
             </select>
-            <p id="gcFloodlitHint" class="gc-hint">Only floodlit unit courses are offered.</p>
+            <p id="gcNightHint" class="gc-hint">Only floodlit unit courses are offered.</p>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="gcTurn">Cross over time (minutes)</label>
-            <input id="gcTurn" type="number" inputmode="numeric" formControlName="crossOverMinutes" min="1" max="600" step="1"
-                   placeholder="e.g. 120" [attr.aria-invalid]="showError(form.controls.crossOverMinutes)" aria-describedby="gcTurnErr gcTurnHint" />
-            <p id="gcTurnHint" class="gc-hint">Minutes from tee-off until players move from the first nine to the second nine.</p>
+            <label for="gcCross">Cross over time (minutes)</label>
+            <input id="gcCross" type="number" inputmode="numeric" formControlName="crossOverMinutes" min="1" max="600" step="1"
+                   placeholder="e.g. 120" [attr.aria-invalid]="showError(form.controls.crossOverMinutes)" aria-describedby="gcCrossErr gcCrossHint" />
+            <p id="gcCrossHint" class="gc-hint">Minutes from tee-off until players cross over from the first nine to the second nine.</p>
             @if (showError(form.controls.crossOverMinutes)) {
-              <p id="gcTurnErr" class="field-error" role="alert">Cross over time must be between 1 and 600 minutes.</p>
+              <p id="gcCrossErr" class="field-error" role="alert">Cross over time must be between 1 and 600 minutes.</p>
             }
           </div>
         </div>
@@ -246,6 +247,209 @@
         <button type="submit" form="golfCourseForm" class="btn btn--primary" [disabled]="saving() || uploading()">
           {{ saving() ? 'Saving…' : 'Save' }}
         </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Tee times dialog: ONE dialog, three views ============ -->
+  <!-- The shared dialog manages a history back-trap per instance, so the flow
+       switches VIEWS inside one open dialog instead of swapping dialogs. -->
+  @if (ttOpen()) {
+    <app-dialog #ttDlg [title]="ttTitle()" [busy]="ttBusy()" [dirty]="ttDirty()"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved tee-time changes. Leaving now will discard them."
+                (close)="closeTeeTimes()">
+      <div class="saas-form" style="padding: 0;">
+        @switch (ttMode()) {
+
+          @case ('list') {
+            @if (ttLoading()) {
+              <div class="loading-state"><div class="spinner"></div><p>Loading tee-time sets…</p></div>
+            } @else if (ttSets().length === 0) {
+              <div class="empty-state">
+                <span class="empty-icon">🕐</span>
+                <p>No tee-time sets yet. Each course keeps its own flight times — add one set per day scope, and a new set with a later effective date when daylight changes.</p>
+              </div>
+            } @else {
+              @for (s of ttSets(); track s.id) {
+                <div class="tt-set">
+                  <div class="tt-set__head">
+                    <div class="tt-set__title">
+                      {{ scopeLabel(s.dayScope) }} · from {{ s.effectiveDate }}
+                      @if (s.isActive === false) {
+                        <span class="badge badge-inactive">Disabled</span>
+                      } @else {
+                        <span class="badge badge-active">Active</span>
+                      }
+                    </div>
+                    @if (s.description) {
+                      <div class="tt-set__desc">{{ s.description }}</div>
+                    }
+                    <div class="tt-set__meta">
+                      {{ hhmm(s.firstTeeTime) }}–{{ hhmm(s.lastTeeTime) }} · every {{ s.intervalMinutes }} min ·
+                      {{ s.playersPerFlight }} players · {{ slotCount(s) }} slot{{ slotCount(s) === 1 ? '' : 's' }}
+                      @if (s.frontDeskFrom) { · front desk from {{ hhmm(s.frontDeskFrom) }} }
+                    </div>
+                  </div>
+                  <div class="tt-set__actions">
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="openSlots(s)">Flight times ({{ slotCount(s) }})</button>
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="openSetForm(s)">Edit</button>
+                    @if (s.isActive === false) {
+                      <button type="button" class="btn btn--success btn--sm" (click)="toggleSetActive(s)" [disabled]="ttTogglingId() === s.id">
+                        {{ ttTogglingId() === s.id ? 'Saving…' : 'Enable' }}
+                      </button>
+                    } @else {
+                      <button type="button" class="btn btn--danger btn--sm" (click)="toggleSetActive(s)" [disabled]="ttTogglingId() === s.id">
+                        {{ ttTogglingId() === s.id ? 'Saving…' : 'Disable' }}
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            }
+            @if (!ttLoading()) {
+              <button type="button" class="btn btn--secondary" (click)="openSetForm()">
+                <span class="material-icons" aria-hidden="true">add</span>
+                <span>Add tee-time set</span>
+              </button>
+            }
+          }
+
+          @case ('form') {
+            <form id="ttSetForm" [formGroup]="ttForm" (ngSubmit)="onSaveSet()">
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label for="ttScope">Day scope <span class="required">*</span></label>
+                  <select id="ttScope" formControlName="dayScope" aria-describedby="ttScopeHint">
+                    @for (sc of dayScopes(); track sc.key) {
+                      <option [value]="sc.key">{{ sc.label }}</option>
+                    }
+                  </select>
+                  <p id="ttScopeHint" class="gc-hint">Public holidays count as weekends.</p>
+                </div>
+                <div class="form-group">
+                  <label for="ttEff">Effective date <span class="required">*</span></label>
+                  <input id="ttEff" type="date" formControlName="effectiveDate"
+                         [attr.aria-invalid]="showError(ttForm.controls.effectiveDate)" aria-describedby="ttEffErr" />
+                  @if (showError(ttForm.controls.effectiveDate)) {
+                    <p id="ttEffErr" class="field-error" role="alert">Effective date is required.</p>
+                  }
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="ttDesc">Description</label>
+                  <input id="ttDesc" type="text" formControlName="description" placeholder="e.g. Summer schedule" maxlength="255" />
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label for="ttFirst">First tee-off <span class="required">*</span></label>
+                  <input id="ttFirst" type="time" formControlName="firstTeeTime"
+                         [attr.aria-invalid]="showError(ttForm.controls.firstTeeTime)" aria-describedby="ttFirstErr" />
+                  @if (showError(ttForm.controls.firstTeeTime)) {
+                    <p id="ttFirstErr" class="field-error" role="alert">First tee-off time is required.</p>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="ttLast">Last tee-off <span class="required">*</span></label>
+                  <input id="ttLast" type="time" formControlName="lastTeeTime"
+                         [attr.aria-invalid]="showError(ttForm.controls.lastTeeTime)" aria-describedby="ttLastErr" />
+                  @if (showError(ttForm.controls.lastTeeTime)) {
+                    <p id="ttLastErr" class="field-error" role="alert">Last tee-off time is required.</p>
+                  }
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label for="ttInterval">Flight interval (minutes) <span class="required">*</span></label>
+                  <input id="ttInterval" type="number" inputmode="numeric" formControlName="intervalMinutes" min="1" max="120" step="1"
+                         placeholder="e.g. 8" [attr.aria-invalid]="showError(ttForm.controls.intervalMinutes)" aria-describedby="ttIntervalErr" />
+                  @if (showError(ttForm.controls.intervalMinutes)) {
+                    <p id="ttIntervalErr" class="field-error" role="alert">Interval must be between 1 and 120 minutes.</p>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="ttPlayers">Players per flight <span class="required">*</span></label>
+                  <input id="ttPlayers" type="number" inputmode="numeric" formControlName="playersPerFlight" min="1" max="10" step="1"
+                         [attr.aria-invalid]="showError(ttForm.controls.playersPerFlight)" aria-describedby="ttPlayersErr" />
+                  @if (showError(ttForm.controls.playersPerFlight)) {
+                    <p id="ttPlayersErr" class="field-error" role="alert">Players per flight must be between 1 and 10.</p>
+                  }
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label for="tt18">Must play 18 holes until</label>
+                  <input id="tt18" type="time" formControlName="mustPlay18Until" />
+                </div>
+                <div class="form-group">
+                  <label for="tt9">Must play 9 holes until</label>
+                  <input id="tt9" type="time" formControlName="mustPlay9Until" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="ttFd">Front desk from</label>
+                  <input id="ttFd" type="time" formControlName="frontDeskFrom" aria-describedby="ttFdHint" />
+                  <p id="ttFdHint" class="gc-hint">Slots from this time onward are reserved for the front desk.</p>
+                </div>
+              </div>
+            </form>
+          }
+
+          @case ('slots') {
+            @if (slotRows().length === 0) {
+              <div class="empty-state">
+                <span class="empty-icon">🕐</span>
+                <p>No flight times yet — generate them from this set's schedule, then adjust individual flights as needed.</p>
+              </div>
+            } @else {
+              <div class="tt-slot-head" aria-hidden="true">
+                <span>#</span><span>Tee-off</span><span>Players</span><span>Front desk</span>
+              </div>
+              @for (row of slotRows(); track row.slotNumber; let i = $index) {
+                <div class="tt-slot-row">
+                  <span class="tt-slot-num">{{ row.slotNumber }}</span>
+                  <input type="time" [value]="row.teeTime"
+                         (input)="updateSlot(i, 'teeTime', $any($event.target).value)"
+                         [attr.aria-label]="'Slot ' + row.slotNumber + ' tee-off time'" />
+                  <input type="number" inputmode="numeric" min="1" max="10" step="1" [value]="row.maxPlayers"
+                         (input)="updateSlot(i, 'maxPlayers', $any($event.target).value)"
+                         [attr.aria-label]="'Slot ' + row.slotNumber + ' players'" />
+                  <label class="tt-slot-fd">
+                    <input type="checkbox" [checked]="row.isFrontDesk" (change)="toggleSlotFrontDesk(i)"
+                           [attr.aria-label]="'Slot ' + row.slotNumber + ' front desk only'" />
+                  </label>
+                </div>
+              }
+            }
+            <button type="button" class="btn btn--secondary" (click)="generateSlots()" [disabled]="generateCount() === 0">
+              <span class="material-icons" aria-hidden="true">schedule</span>
+              <span>{{ slotRows().length ? 'Regenerate' : 'Generate' }} {{ generateCount() }} flights ({{ hhmm(ttSlotSet()?.firstTeeTime) }}–{{ hhmm(ttSlotSet()?.lastTeeTime) }} every {{ ttSlotSet()?.intervalMinutes }} min)</span>
+            </button>
+          }
+        }
+      </div>
+
+      <ng-container dialogFooter>
+        @switch (ttMode()) {
+          @case ('list') {
+            <button type="button" class="btn btn--secondary" (click)="ttDlg.requestClose()">Close</button>
+          }
+          @case ('form') {
+            <button type="button" class="btn btn--secondary" (click)="backToList()" [disabled]="ttSaving()">Back to list</button>
+            <button type="submit" form="ttSetForm" class="btn btn--primary" [disabled]="ttSaving()">
+              {{ ttSaving() ? 'Saving…' : 'Save' }}
+            </button>
+          }
+          @case ('slots') {
+            <button type="button" class="btn btn--secondary" (click)="backToList()" [disabled]="ttSlotsSaving()">Back to list</button>
+            <button type="button" class="btn btn--primary" (click)="onSaveSlots()" [disabled]="ttSlotsSaving()">
+              {{ ttSlotsSaving() ? 'Saving…' : 'Save ' + slotRows().length + ' flights' }}
+            </button>
+          }
+        }
       </ng-container>
     </app-dialog>
   }

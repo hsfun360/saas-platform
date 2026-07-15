@@ -19,7 +19,8 @@ Hole numbering follows the type (OUT -> 1-9, IN -> 10-18).
 - `golf.UnitCourseHole` - hole rows of a unit course (par 3/4/5, handicap index, remarks); numbering fixed by the type (OUT 1-9, IN 10-18, COMPOSITE 1-18). HCP parity follows the numbering context: holes 1-9 take ODD indexes, holes 10-18 EVEN, so an OUT+IN pairing yields a full 1-18 set. Intra-service FK, cascades with the unit course. **Built.**
 - `golf.UnitCourseTeeBox` + `golf.UnitCourseTeeBoxDistance` - tee boxes of a unit course (colour code, number, description, measurement unit meter/yard) with PER-HOLE distances (the scorecard's yardage rows; OUT/IN totals are computed, never stored). Cascade with the unit course. Difficulty ratings (course/slope) deliberately live at the 18-hole Course level (2.2.4), not here. **Built.**
 - `golf.Course` - the 18-hole course (spec 2.2.4): code/display sequence/description, first nine (OUT|COMPOSITE), second nine (IN|COMPOSITE, must differ from first), optional alternate nine and night nine (must be a floodlit unit course), cross over time, course photo (GCS URL). Column names match the screen labels (user's vocabulary); the legacy zone column is dropped. **Built.**
-- Planned next (per spec): per-course tee-time rules/schedules, closure plans, handicap control, min players, penalties, player types.
+- `golf.CourseTeeTimeSet` + `golf.CourseTeeTimeSlot` - per-COURSE tee-off/flight time setups (spec 2.2.5/2.2.6 collapsed: flight time is a property of the course - walking courses take longer intervals, unlit courses a shorter day). Versioned by day scope (all/weekday/weekend - public holidays count as weekend by business rule; classification from Company Weekend Days + Public Holidays, no Date Type master) + effective date (seasonal daylight). Slots generated from the header, individually adjustable, front-desk-only flag per slot. **Built.**
+- Planned next (per spec): tee-sheet generation (2.2.10/2.2.11), closure plans, handicap control, min players, penalties, player types.
 - All tables live in the `golf` Postgres schema; references `companyId` and `memberId` by **UUID only**.
 
 ## Public API (gateway seam: `/api/golf`)
@@ -29,6 +30,8 @@ Hole numbering follows the type (OUT -> 1-9, IN -> 10-18).
 - `GET /unit-courses/:id/holes` · `PUT /unit-courses/:id/holes` - Hole Setup; PUT replaces the set atomically and enforces the type's exact numbering.
 - `GET /unit-courses/:id/tee-boxes` · `PUT /unit-courses/:id/tee-boxes` - Tee Box Setup; PUT replaces headers + per-hole distances atomically (colour unique per course, unit meter/yard, distance 1-2000 per hole).
 - `GET /courses` · `POST /courses` · `PATCH /courses/:id` · `POST /courses/photo` - Course Setup; nine references validated against the company's unit courses (type + floodlight rules), photo upload returns a GCS URL.
+- `GET /courses/meta` - day-scope vocabulary for tee-time sets.
+- `GET /courses/:id/tee-time-sets` · `POST /courses/:id/tee-time-sets` · `PATCH /courses/:id/tee-time-sets/:setId` · `PUT /courses/:id/tee-time-sets/:setId/slots` - per-course tee-time sets; unique (course, dayScope, effectiveDate); PUT replaces the slot list atomically.
 - (Seed already reserves a "Tee Time Setup" menu at `/golf/tee-times`; the Unit Course screen is `/golf/unit-courses`.)
 
 ## Depends on

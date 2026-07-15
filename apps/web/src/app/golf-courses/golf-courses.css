@@ -60,3 +60,117 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* Tee-time sets list - one bordered block per set. */
+.tt-set {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
+  background: var(--surface-card);
+}
+
+.tt-set__title {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.tt-set__desc {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.tt-set__meta {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.tt-set__actions {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  margin-top: var(--space-sm);
+}
+
+/* Slot editor - # | tee-off | players | front-desk checkbox. */
+.tt-slot-head,
+.tt-slot-row {
+  display: grid;
+  grid-template-columns: 44px 120px 90px 90px;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.tt-slot-head {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.tt-slot-row {
+  margin-bottom: var(--space-xs);
+}
+
+/* Same shared input standard as the other grid editors (base + focus). */
+.tt-slot-row input[type='time'],
+.tt-slot-row input[type='number'] {
+  min-height: 40px;
+  padding: var(--space-xs);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.tt-slot-row input[type='time']:focus,
+.tt-slot-row input[type='number']:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  background: var(--surface-card);
+}
+
+.tt-slot-row input[type='number'] {
+  text-align: center;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.tt-slot-row input[type='number']::-webkit-outer-spin-button,
+.tt-slot-row input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.tt-slot-num {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.tt-slot-fd {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 40px;
+  cursor: pointer;
+}
+
+.tt-slot-fd input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+}
