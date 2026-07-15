@@ -70,6 +70,78 @@ function requireModule(moduleName) {
     };
 }
 
+// --- WHAT they may DO on a screen (RBAC: role -> menu -> action) -----------
+// Express middleware: the caller's role in the active company must hold a grant
+// to the screen (Menu.route = `menuRoute`) that allows the action implied by the
+// HTTP method (GET/HEAD -> view, POST -> create, PUT/PATCH -> edit,
+// DELETE -> delete). Complements requireModule (entitlement = does the COMPANY
+// have the system; this = does the USER's role allow the action).
+//
+// Bypasses: platform admins, and the account's implicit-full-access
+// "Tenant Admin" role. A menuRoute not registered in the Menu table enforces
+// nothing (screens outside the catalogue can't be granted, so there is nothing
+// to check against - entitlement still applies).
+//
+// IN-PROCESS IMPLEMENTATION (monolith): looks the grant up via Control-Plane
+// models (lazy requires - same pattern as requireModule).
+// WHEN SPLIT: replace the marked block with a Control-Plane call, e.g.
+//   GET {control-plane}/api/admin/permissions?userId=&companyId=&route=
+// or validate a permissions claim carried on the JWT. Callers unchanged.
+const ACTION_BY_METHOD = { GET: 'view', HEAD: 'view', POST: 'create', PUT: 'edit', PATCH: 'edit', DELETE: 'delete' };
+
+function requireMenuAction(menuRoute) {
+    return async (req, res, next) => {
+        try {
+            const { userId, companyId, isSystemAdmin } = getUserContext(req);
+            if (isSystemAdmin) return next(); // platform admin bypass
+            if (!userId || !companyId) {
+                return res.status(403).json({ message: 'No active workspace selected.' });
+            }
+
+            // ----- in-process permission lookup (Control-Plane owned) -----
+            const CompanyUser = require('../modules/saas/companyUser.model');
+            const Role = require('../modules/saas/role.model');
+            const Menu = require('../modules/saas/menu.model');
+            const RoleMenu = require('../modules/saas/roleMenu.model');
+
+            const membership = await CompanyUser.findOne({
+                where: { userId, companyId },
+                attributes: ['roleId'],
+            });
+            if (!membership || !membership.roleId) {
+                return res.status(403).json({ message: 'You have no role in this workspace.' });
+            }
+            const role = await Role.findByPk(membership.roleId, { attributes: ['id', 'name'] });
+            if (!role) {
+                return res.status(403).json({ message: 'You have no role in this workspace.' });
+            }
+            if (role.name === 'Tenant Admin') return next(); // implicit full access
+
+            const menu = await Menu.findOne({ where: { route: menuRoute }, attributes: ['id', 'name'] });
+            if (!menu) return next(); // screen not in the catalogue -> nothing to enforce
+
+            const grant = await RoleMenu.findOne({ where: { roleId: role.id, menuId: menu.id } });
+            if (!grant) {
+                return res.status(403).json({ message: `Your role has no access to ${menu.name}.` });
+            }
+            const action = ACTION_BY_METHOD[req.method] || 'edit';
+            const allowed =
+                action === 'view' ? true :
+                action === 'create' ? grant.canCreate !== false :
+                action === 'edit' ? grant.canEdit !== false :
+                grant.canDelete !== false;
+            if (!allowed) {
+                return res.status(403).json({ message: `Your role may not ${action} on ${menu.name}.` });
+            }
+            return next();
+            // ----- end in-process block (swap for a service call when split) -----
+        } catch (err) {
+            console.error('requireMenuAction permission check failed:', err);
+            return res.status(500).json({ message: 'Permission check failed.' });
+        }
+    };
+}
+
 // --- WHICH companies share the caller's subscription ----------------------
 // Resolve the sibling companies under the same Account (subscription) as the
 // caller's active workspace. A Control-Plane concern, exposed here as a seam so
@@ -203,6 +275,7 @@ module.exports = {
     getUserContext,
     getActiveAccountId,
     requireModule,
+    requireMenuAction,
     listSubscriptionCompanies,
     listAccountCurrencies,
     getPlatformProfile,

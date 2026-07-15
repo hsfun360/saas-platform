@@ -258,7 +258,13 @@ exports.login = async (req, res) => {
 };
 
 // Map a Menu (with its Module eager-loaded) to the frontend MenuItem shape.
-function mapMenuItem(m) {
+// `actions` = what the role may DO on the screen beyond viewing it, so the UI
+// can hide Create/Edit/Delete controls. A granted menu loaded through the
+// RoleMenu join carries its flags on m.RoleMenu; `fullAccess` covers the
+// Tenant-Admin / all-entitled paths where no join row exists. Ancestor group
+// sections (present only for the sidebar tree) get all-false.
+function mapMenuItem(m, fullAccess = false) {
+    const grant = m.RoleMenu || null;
     return {
         id: m.id,
         name: m.name,
@@ -273,6 +279,11 @@ function mapMenuItem(m) {
         // renders as a collapsible sidebar section. `sequence` orders siblings.
         parentId: m.parentId || null,
         sequence: m.sequence || 0,
+        actions: {
+            create: fullAccess || (grant ? grant.canCreate !== false : false),
+            edit: fullAccess || (grant ? grant.canEdit !== false : false),
+            delete: fullAccess || (grant ? grant.canDelete !== false : false),
+        },
     };
 }
 
@@ -324,7 +335,7 @@ async function buildWorkspaceMenus(roleId, companyId) {
             ? await Menu.findAll({ where: { moduleId: moduleIds }, include: [{ model: Module, as: 'Module' }] })
             : [];
         const allById = new Map(all.map(m => [m.id, m]));
-        return { roleName, menus: withAncestors(permitted, allById).map(mapMenuItem) };
+        return { roleName, menus: withAncestors(permitted, allById).map(m => mapMenuItem(m)) };
     }
 
     const subs = await CompanyModule.findAll({ where: { companyId }, attributes: ['moduleId'] });
@@ -334,15 +345,16 @@ async function buildWorkspaceMenus(roleId, companyId) {
         : [];
 
     if (roleName === 'Tenant Admin') {
-        // All entitled menus — parent sections are already part of the set.
-        return { roleName, menus: entitled.map(mapMenuItem) };
+        // All entitled menus with implicit full access — parent sections are
+        // already part of the set.
+        return { roleName, menus: entitled.map(m => mapMenuItem(m, true)) };
     }
 
     // A normal role: its granted menus ∩ the company's entitled menus, plus the
     // ancestor sections of those grants (resolved from the entitled set).
     const entitledById = new Map(entitled.map(m => [m.id, m]));
     const granted = permitted.filter(m => entitledById.has(m.id));
-    return { roleName, menus: withAncestors(granted, entitledById).map(mapMenuItem) };
+    return { roleName, menus: withAncestors(granted, entitledById).map(m => mapMenuItem(m)) };
 }
 
 // Resolve the role name + effective menus for a user within one workspace.

@@ -8,7 +8,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { verifyToken, requireModule } = require('../../platform/serviceContext');
+const { verifyToken, requireModule, requireMenuAction } = require('../../platform/serviceContext');
 const membershipStatusRoutes = require('./membershipStatus.routes');
 const membershipFeeRoutes = require('./membershipFee.routes');
 const membershipTypeRoutes = require('./membershipType.routes');
@@ -22,9 +22,12 @@ router.use(verifyToken);
 router.use(requireModule('Membership Management'));
 
 // --- Master File Setup ---
-router.use('/statuses', membershipStatusRoutes);
-router.use('/fees', membershipFeeRoutes);
-router.use('/types', membershipTypeRoutes);
+// requireMenuAction adds per-action RBAC on top of the entitlement: the caller's
+// role must hold a grant to the screen (Menu.route), and the HTTP method maps to
+// the granted action (GET view / POST create / PUT+PATCH edit / DELETE delete).
+router.use('/statuses', requireMenuAction('/membership/statuses'), membershipStatusRoutes);
+router.use('/fees', requireMenuAction('/membership/fees'), membershipFeeRoutes);
+router.use('/types', requireMenuAction('/membership/types'), membershipTypeRoutes);
 
 // --- Tax consumption (reads the Tax service via the gateway seam) ---
 router.use('/tax', membershipTaxRoutes);

@@ -275,12 +275,21 @@ exports.getAccountRole = async (req, res) => {
         });
         if (!role) return res.status(404).json({ message: "Role not found." });
 
-        const grants = await RoleMenu.findAll({ where: { roleId: role.id }, attributes: ['menuId'] });
+        const grants = await RoleMenu.findAll({
+            where: { roleId: role.id },
+            attributes: ['menuId', 'canCreate', 'canEdit', 'canDelete'],
+        });
         res.status(200).json({
             id: role.id,
             name: role.name,
             description: role.description,
-            menuIds: grants.map(g => g.menuId),
+            menuIds: grants.map(g => g.menuId), // legacy shape, kept for older clients
+            permissions: grants.map(g => ({
+                menuId: g.menuId,
+                canCreate: g.canCreate,
+                canEdit: g.canEdit,
+                canDelete: g.canDelete,
+            })),
         });
     } catch (error) {
         console.error("Error fetching account role:", error);
@@ -288,7 +297,34 @@ exports.getAccountRole = async (req, res) => {
     }
 };
 
-// POST /api/auth/account/roles  Body: { roleName, description?, menuIds: string[] }
+// Normalize a role's grant payload to [{ menuId, canCreate, canEdit, canDelete }].
+// Accepts the current shape `permissions: [{ menuId, canCreate?, canEdit?, canDelete? }]`
+// (missing flags default TRUE = full access) and the legacy `menuIds: string[]`
+// (full access). Deduped by menuId, last entry wins.
+function normalizeGrants(body) {
+    const byMenu = new Map();
+    if (Array.isArray(body.permissions)) {
+        for (const p of body.permissions) {
+            if (!p || typeof p.menuId !== 'string' || !p.menuId) continue;
+            byMenu.set(p.menuId, {
+                menuId: p.menuId,
+                canCreate: p.canCreate !== false,
+                canEdit: p.canEdit !== false,
+                canDelete: p.canDelete !== false,
+            });
+        }
+    } else if (Array.isArray(body.menuIds)) {
+        for (const menuId of body.menuIds) {
+            if (typeof menuId !== 'string' || !menuId) continue;
+            byMenu.set(menuId, { menuId, canCreate: true, canEdit: true, canDelete: true });
+        }
+    }
+    return [...byMenu.values()];
+}
+
+// POST /api/auth/account/roles
+// Body: { roleName, description?, permissions: [{ menuId, canCreate?, canEdit?, canDelete? }] }
+// (legacy `menuIds: string[]` still accepted = full access per menu)
 exports.createAccountRole = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
@@ -303,13 +339,13 @@ exports.createAccountRole = async (req, res) => {
             await transaction.rollback();
             return res.status(400).json({ message: "Role name is required." });
         }
-        const desired = Array.isArray(req.body.menuIds) ? [...new Set(req.body.menuIds)] : [];
-        if (desired.length === 0) {
+        const grants = normalizeGrants(req.body);
+        if (grants.length === 0) {
             await transaction.rollback();
             return res.status(400).json({ message: "Select at least one menu permission." });
         }
-        const found = await Menu.count({ where: { id: desired }, transaction });
-        if (found !== desired.length) {
+        const found = await Menu.count({ where: { id: grants.map(g => g.menuId) }, transaction });
+        if (found !== grants.length) {
             await transaction.rollback();
             return res.status(400).json({ message: "One or more selected menus do not exist." });
         }
@@ -325,7 +361,7 @@ exports.createAccountRole = async (req, res) => {
             { accountId, name, description: (req.body.description || '').trim() || null },
             { transaction },
         );
-        await RoleMenu.bulkCreate(desired.map(menuId => ({ roleId: role.id, menuId })), { transaction });
+        await RoleMenu.bulkCreate(grants.map(g => ({ roleId: role.id, ...g })), { transaction });
 
         await transaction.commit();
         res.status(201).json({ message: "Role created.", role: { id: role.id, name: role.name, description: role.description } });
@@ -336,7 +372,9 @@ exports.createAccountRole = async (req, res) => {
     }
 };
 
-// PUT /api/auth/account/roles/:roleId  Body: { roleName?, description?, menuIds: string[] }
+// PUT /api/auth/account/roles/:roleId
+// Body: { roleName?, description?, permissions: [{ menuId, canCreate?, canEdit?, canDelete? }] }
+// (legacy `menuIds: string[]` still accepted = full access per menu)
 exports.updateAccountRole = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
@@ -356,13 +394,13 @@ exports.updateAccountRole = async (req, res) => {
             return res.status(400).json({ message: "The Tenant Admin role is managed by the system and can't be edited." });
         }
 
-        const desired = Array.isArray(req.body.menuIds) ? [...new Set(req.body.menuIds)] : [];
-        if (desired.length === 0) {
+        const grants = normalizeGrants(req.body);
+        if (grants.length === 0) {
             await transaction.rollback();
             return res.status(400).json({ message: "A role must keep at least one menu permission." });
         }
-        const found = await Menu.count({ where: { id: desired }, transaction });
-        if (found !== desired.length) {
+        const found = await Menu.count({ where: { id: grants.map(g => g.menuId) }, transaction });
+        if (found !== grants.length) {
             await transaction.rollback();
             return res.status(400).json({ message: "One or more selected menus do not exist." });
         }
@@ -379,13 +417,10 @@ exports.updateAccountRole = async (req, res) => {
         }
         if (Object.keys(updates).length > 0) await role.update(updates, { transaction });
 
-        // Diff the granted menus.
-        const current = await RoleMenu.findAll({ where: { roleId: role.id }, attributes: ['menuId'], transaction });
-        const currentIds = current.map(c => c.menuId);
-        const toAdd = desired.filter(id => !currentIds.includes(id));
-        const toRemove = currentIds.filter(id => !desired.includes(id));
-        if (toAdd.length > 0) await RoleMenu.bulkCreate(toAdd.map(menuId => ({ roleId: role.id, menuId })), { transaction });
-        if (toRemove.length > 0) await RoleMenu.destroy({ where: { roleId: role.id, menuId: toRemove }, transaction });
+        // Replace the grant set whole (small table, one transaction): simpler
+        // than a three-way diff now that each grant also carries action flags.
+        await RoleMenu.destroy({ where: { roleId: role.id }, transaction });
+        await RoleMenu.bulkCreate(grants.map(g => ({ roleId: role.id, ...g })), { transaction });
 
         await transaction.commit();
         const updated = await Role.findByPk(role.id, { attributes: ['id', 'name', 'description'] });
