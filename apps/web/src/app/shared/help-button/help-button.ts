@@ -34,9 +34,11 @@ import { HelpService } from '../../services/help.service';
              [attr.aria-label]="'User guide: ' + help.currentTitle()"
              (keydown.escape)="close()">
         <header class="hp-head">
-          <span class="material-icons" aria-hidden="true" style="font-size: 20px; color: var(--brand-text);">menu_book</span>
-          <h2 class="hp-title">{{ help.currentTitle() }}</h2>
           <button type="button" #closeBtn class="hp-close" (click)="close()" aria-label="Close the user guide">
+            <span class="material-icons" aria-hidden="true">arrow_back</span>
+          </button>
+          <h2 class="hp-title">{{ help.currentTitle() }}</h2>
+          <button type="button" class="hp-close" (click)="close()" aria-label="Close the user guide">
             <span class="material-icons" aria-hidden="true">close</span>
           </button>
         </header>
@@ -67,20 +69,28 @@ import { HelpService } from '../../services/help.service';
       }
       .hp-btn .material-icons { font-size: 24px; }
       .hp-btn:hover { background: var(--surface-hover); }
+      /* The panel and its backdrop sit BELOW the app header (the header owns
+         z-index 1100 and an ancestor stacking context caps us underneath it -
+         starting at --header-height keeps our own header row, with its close
+         buttons, always visible instead of hidden behind the red bar). */
       .hp-backdrop {
-        position: fixed; inset: 0;
+        position: fixed; top: var(--header-height, 0px); right: 0; bottom: 0; left: 0;
         background: var(--overlay);
-        z-index: 1100;
+        z-index: 1050;
       }
       .hp-panel {
-        position: fixed; top: 0; right: 0; bottom: 0;
+        position: fixed; top: var(--header-height, 0px); right: 0; bottom: 0;
         width: min(480px, 100vw);
         background: var(--surface-card);
         border-left: 1px solid var(--border);
         box-shadow: var(--shadow);
-        z-index: 1101;
+        z-index: 1051;
         display: flex; flex-direction: column;
         animation: hp-slide-in 0.2s ease-out;
+      }
+      /* Mobile: stop above the bottom nav so its tabs stay reachable. */
+      @media (max-width: 768px) {
+        .hp-panel, .hp-backdrop { bottom: var(--bottom-nav-height, 0px); }
       }
       @keyframes hp-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
       .hp-head {
