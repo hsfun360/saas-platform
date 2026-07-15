@@ -70,6 +70,21 @@ next-number preview.
 Note: the counter is one series per company+purpose; per-membership-type
 independent series would be a follow-up (segment the counter) if a club needs it.
 
+**Menus & the role permission picker**: `Menu` nests via `parentId` (adjacency
+list; a menu with children is a pure grouping section in the sidebar, not a
+navigable screen).
+Each menu also carries a `description` (STRING 255, nullable) + localized
+`descriptions` (JSONB keyed by language code, same fallback pattern as
+`name`/`names`), maintained in Modules & Menus and shown under the menu name in
+the Role Management permission picker so a role builder understands each option.
+RBAC grants (`RoleMenu`) store **leaf menus only**: grouping menus are never
+granted - login re-adds the ancestor sections of any granted menu
+(`withAncestors` in `identity/auth.controller.js`), and the role screen strips
+legacy parent grants on load/save.
+The picker itself renders one collapsible card per module (tri-state select-all
++ "x of y selected" in the header), the real menu tree with group sub-headings,
+a live search over name/description, and a selection summary before Save.
+
 ## Public API (gateway seam: `/api/admin` + tenant routes under `/api/auth/company/*`)
 - Provision subscribers (Account + Company + owner User), list subscribers.
 - Modules & Menus maintenance (the product catalog every core system registers in).
