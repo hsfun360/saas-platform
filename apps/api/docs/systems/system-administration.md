@@ -16,7 +16,8 @@ for every other service.
 
 **Subscriber-owned shared reference data** (one list per Account, maintained by the
 Tenant Admin, consumed by the product systems by value reference - never a
-cross-service FK): `IndustryType`, `Salutation`, `Nationality`, `Race`, `Title`, `PublicHoliday`.
+cross-service FK): `IndustryType`, `Salutation`, `Nationality`, `Race`, `Title`, `PublicHoliday`,
+`Department`, `Position`.
 `Title` (honorific: Datuk/Tan Sri/Sir/...) additionally carries an OPTIONAL
 `countryCode` (`Country.alpha2`; NULL = universal) because some honours are
 country-specific; validated against the full Country table (not just operating
@@ -100,9 +101,20 @@ Frontend gating (UX only, backend stays authoritative): `PermissionsService.can(
 + the structural `*appCan="'create'|'edit'|'delete'"` directive hide the
 New/Edit/Delete/Enable/Disable controls a role doesn't have; reference screens:
 the three membership master files.
-Roadmap context: Phase 2 adds Department + Position (rank) masters on
-`CompanyUser`; Phase 3 adds per-role data scope (own / department / all) with
-`createdBy` + department stamps on product records.
+**Org placement (Phase 2 of the CRUD/permission roadmap)**: `Department` and
+`Position` are subscriber masters (IndustryType shape; screens at
+`/admin/departments` and `/admin/positions`, consumer lists at
+`GET /api/departments` / `/api/positions`).
+`Position.rank` INTEGER = seniority (HIGHER = more senior; equal ranks are
+peers; defaults seed Staff 10 / Supervisor 20 / Manager 30 via a
+preview-and-select "Load defaults").
+Both are assigned per company membership - `CompanyUser.departmentId` /
+`positionId` (nullable plain UUIDs like `roleId`, set through
+`POST /auth/company/users/assign-role` and the User Management screen).
+Unassigned = no placement; Phase 3 treats that as "own records only".
+Roadmap context: Phase 3 (not built) adds per-role data scope
+(own / department / all) with `createdBy` + department stamps on product
+records; the department rule = same department AND lower rank than the caller.
 
 ## Public API (gateway seam: `/api/admin` + tenant routes under `/api/auth/company/*`)
 - Provision subscribers (Account + Company + owner User), list subscribers.
