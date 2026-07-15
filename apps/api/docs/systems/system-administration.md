@@ -112,9 +112,26 @@ Both are assigned per company membership - `CompanyUser.departmentId` /
 `positionId` (nullable plain UUIDs like `roleId`, set through
 `POST /auth/company/users/assign-role` and the User Management screen).
 Unassigned = no placement; Phase 3 treats that as "own records only".
-Roadmap context: Phase 3 (not built) adds per-role data scope
-(own / department / all) with `createdBy` + department stamps on product
-records; the department rule = same department AND lower rank than the caller.
+
+**Data scope (Phase 3 of the CRUD/permission roadmap)**: `Role.dataScope`
+(STRING(20) NOT NULL DEFAULT 'all'; own / department / all) bounds whose
+records the role may Edit/Delete (viewing untouched); a radio in the role
+dialog sets it.
+The rule: `own` = records the caller created; `department` = own, plus records
+stamped with the caller's CURRENT department whose owner's current rank is
+STRICTLY lower (senior over junior; peers cannot; an owner without a position
+counts as most junior; a caller without placement falls back to own-only);
+`all` = everything including legacy unowned rows (which own/department can
+NEVER touch).
+Records carry `createdBy` + `createdByDepartmentId` (stamped at creation) +
+`updatedBy` (every save; workflow groundwork) - reference implementation: the
+three membership masters, which enforce via `canModifyRecord()` on update paths
+and return a per-row `canModify` flag (from `annotateCanModify()`) so the UI
+hides Edit/Enable/Disable on untouchable rows.
+Seam: `getAccessContext` / `getCallerPlacement` / `canModifyRecord` /
+`annotateCanModify` in `platform/serviceContext.js`.
+Every new product table MUST include the three stamp columns and wire the same
+enforcement.
 
 ## Public API (gateway seam: `/api/admin` + tenant routes under `/api/auth/company/*`)
 - Provision subscribers (Account + Company + owner User), list subscribers.
