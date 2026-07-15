@@ -101,6 +101,7 @@ Frontend gating (UX only, backend stays authoritative): `PermissionsService.can(
 + the structural `*appCan="'create'|'edit'|'delete'"` directive hide the
 New/Edit/Delete/Enable/Disable controls a role doesn't have; reference screens:
 the three membership master files.
+
 **Org placement (Phase 2 of the CRUD/permission roadmap)**: `Department` and
 `Position` are subscriber masters (IndustryType shape; screens at
 `/admin/departments` and `/admin/positions`, consumer lists at
@@ -139,10 +140,15 @@ enforcement.
 - Roles + role↔menu permissions; tenant user management; collaborator invitations;
   company profile + module subscriptions.
 
-## Provides to other services (the entitlement contract)
+## Provides to other services (the authorization contract)
 - **Module subscription check** - "is company X subscribed to module Y?" Backs
   `requireModule()` in `platform/serviceContext.js`. When split, expose this as e.g.
   `GET /api/admin/entitlements?companyId=&module=` (or a signed claim).
+- **Menu-action check** - "may user X's role create/edit/delete on screen Y?"
+  Backs `requireMenuAction()` (role -> `RoleMenu` grant flags by `Menu.route`).
+- **Data-scope context** - a user's role `dataScope` + department + position
+  rank in the active company. Backs `getAccessContext()` /
+  `canModifyRecord()` / `annotateCanModify()` for row-level authorization.
 - **Context** - a company's roles, a user's permitted menus, account ownership.
 
 ## Depends on

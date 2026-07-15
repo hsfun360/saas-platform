@@ -101,6 +101,26 @@ Legacy deltas worth remembering: status class was only Authorized/Unauthorized/W
 - Each gets an admin maintenance screen under the Membership module and a "Load defaults" seed where a sensible default set exists.
 - Where a master file overlaps an existing platform reference table, reference it rather than duplicating it (see notes below).
 
+### RBAC (this module is the reference implementation)
+The three built masters (#1-#3) carry the full three-layer authorization model -
+copy this wiring for every new Membership screen:
+- **Route wiring** (`membership.routes.js`): each screen's sub-router mounts
+  behind `requireMenuAction('<screen route>')` on top of the module-wide
+  `requireModule('Membership Management')` - the HTTP method maps to the role's
+  per-menu Create/Edit/Delete grant flags.
+- **Ownership stamps** (all three models): `createdBy`,
+  `createdByDepartmentId` (creator's department at creation), `updatedBy`
+  (every save). Create/copy paths stamp them from
+  `getCallerPlacement()` + `getUserContext()`.
+- **Data-scope enforcement**: every update/enable-disable path checks
+  `canModifyRecord(req, row)` (403 when the caller's role data scope -
+  own / department / all - does not cover the record); list responses carry a
+  per-row `canModify` from `annotateCanModify()` so the frontend hides
+  Edit/Enable/Disable on rows the caller cannot touch.
+- **Frontend**: the screens wrap their New-FAB / Edit / Enable / Disable
+  buttons in `*appCan` (menu-action gating) and honour `canModify` per row.
+Full model + rule definitions: [system-administration.md](system-administration.md).
+
 ### The files (develop one by one)
 | # | Master file | Intended purpose (to confirm) | Notes |
 | --- | --- | --- | --- |

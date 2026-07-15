@@ -23,6 +23,18 @@ Authenticates users and mints the platform JWT. Source of truth for *who a user 
   companyName, isSystemAdmin`. 24h expiry.
 - Everyone else verifies with the **public key**. Future: expose JWKS.
 
+## Login menus payload (RBAC surface for the frontend)
+- Login/switch-workspace resolves the user's effective menus:
+  role's granted menus ∩ the active company's entitled menus, plus the ancestor
+  grouping sections of any grant (`withAncestors` - grants store LEAF menus
+  only). The "Tenant Admin" role gets implicit full access to all entitled menus.
+- Each menu ships `actions: { create, edit, delete }` from its `RoleMenu` grant
+  flags (all-true for Tenant Admin / full-access paths; all-false on grouping
+  sections), which the frontend's `PermissionsService` / `*appCan` use to hide
+  action buttons. UX only - the authoritative checks are `requireMenuAction` +
+  the data-scope helpers in `platform/serviceContext.js`
+  (see [system-administration.md](system-administration.md)).
+
 ## Depends on
 - Notification (async, via outbox): UserRegistered, PasswordResetRequested, etc.
 - Control Plane (today via in-process require for workspace/role resolution at

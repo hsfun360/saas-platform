@@ -194,6 +194,26 @@ Rules:
 - The auth screens (login / reset / forgot / system-setup) keep their own scoped
   `.btn-primary` (single-dash) for their centred-card layout - don't confuse the two.
 
+#### Permission-gated actions (RBAC) - FAB / Edit / Delete buttons
+
+Access is three questions, and the UI reflects two of them per screen (the backend stays the only authoritative gate - see `apps/api/docs/systems/system-administration.md`):
+
+1. **Which screens** a role can open - the menu grants (sidebar + route guards, unchanged).
+2. **Which actions** the role has on this screen - per-menu Create / Edit / Delete flags, granted in Role Management and shipped on each login menu as `actions {create, edit, delete}`.
+3. **Whose records** the role may amend - the role's data scope (own / department / all), computed server-side per row.
+
+**The standard for every CRUD screen** (reference implementations: the three membership master screens):
+
+- Wrap every action control in the structural **`*appCan`** directive (`shared/can.directive.ts`, backed by `PermissionsService.can()` which resolves the current route against the stored menus):
+  - the **New/Create FAB** and any "Copy from…" / "Load defaults" seeding button → `*appCan="'create'"`
+  - **Edit** and **Enable/Disable** row buttons → `*appCan="'edit'"`
+  - **Delete/Remove** row buttons → `*appCan="'delete'"`
+  A user without the action simply does not see the button - never show a control that will 403.
+- Where the listing endpoint returns a per-row **`canModify`** flag (data scope), hide the row's Edit/Enable/Disable actions when it is `false`: `@if (row.canModify !== false) { …buttons… }`. Absent flag = allowed (older endpoints).
+- Defaults are deliberately permissive: system/tenant admins, menus cached before the flags shipped, and screens not in the menu catalogue all resolve to allowed - gating only engages when a grant explicitly withholds an action.
+
+**Role Management (where grants are made)** presents the same model to the admin: one collapsible card per module (tri-state select-all + "x of y selected"), the real menu tree with grouping menus as non-selectable headings, each selected menu's Create/Edit/Delete toggles (new grants start as full access), a menu search, a Data-scope radio (own / department / all in plain language), and a selection summary before Save.
+
 #### Phone / mobile / fax fields (shared component)
 
 Every phone-type field uses the shared **`<app-phone-input>`** (`src/app/shared/phone-input`) -

@@ -44,10 +44,16 @@ Overall architecture, conventions and the migration plan: **[saas-platform.md](s
 2. **Reference other services' data by UUID only** - no cross-service Sequelize
    association/FK. (e.g. Golf stores `memberId` as a plain UUID, it does not
    `belongsTo` the Membership `Member` model.)
-3. **Identity comes from the JWT, entitlements from the Control Plane.** A service
-   never re-implements auth or RBAC. It verifies the JWT (public key) for *who*,
-   and asks the Control Plane for *what they're allowed to* (module subscription,
-   role permissions). Both go through `platform/serviceContext.js`.
+3. **Identity comes from the JWT, entitlements + RBAC from the Control Plane.**
+   A service never re-implements auth or RBAC. It verifies the JWT (public key)
+   for *who*, and asks the Control Plane - always through
+   `platform/serviceContext.js` - for the three authorization questions:
+   *is the company entitled* (`requireModule`), *may this role perform the
+   action on this screen* (`requireMenuAction` - role→menu grants with
+   Create/Edit/Delete flags), and *whose records may they amend*
+   (`canModifyRecord` / `annotateCanModify` - the role's data scope
+   own/department/all against the record's `createdBy` + department stamps,
+   department = same department and strictly senior by `Position.rank`).
 4. **Cross-service calls go through the seam, never `require()` across modules.**
    Synchronous reads → the control-plane/peer HTTP API (`internalServiceUrl()`).
    Writes / fan-out → events via the transactional **outbox**, not direct calls.

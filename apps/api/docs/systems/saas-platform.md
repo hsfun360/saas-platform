@@ -46,6 +46,25 @@ change to HTTP / signed claims - callers are untouched.
 - **Are they entitled** → `requireModule('<Module name>')` middleware: the active
   company must be subscribed to that module (Control-Plane owned). Today an
   in-process lookup; later a Control-Plane API call or a signed entitlements claim.
+- **May they perform this action** → `requireMenuAction('<screen route>')`
+  middleware (RBAC): the caller's role must hold a grant to the screen
+  (`Menu.route`), and the HTTP method maps to the granted action flag
+  (GET view / POST create / PUT+PATCH edit / DELETE delete - `RoleMenu.canCreate/canEdit/canDelete`).
+  Tenant Admin and platform admins bypass; a route not in the Menu catalogue
+  enforces nothing.
+  Every product route group MUST wire this beside `requireModule` (reference:
+  `modules/membership/membership.routes.js`).
+- **Whose records may they amend** → the data-scope helpers
+  (`getAccessContext`, `getCallerPlacement`, `canModifyRecord`,
+  `annotateCanModify`): a role's `dataScope` (`own` / `department` / `all`)
+  bounds Edit/Delete against the record's ownership stamps
+  (`createdBy`, `createdByDepartmentId`; every save also stamps `updatedBy`).
+  The department rule is same-department AND strictly-senior (`Position.rank`).
+  Controllers enforce with `canModifyRecord()` on update paths, stamp on create,
+  and return a per-row `canModify` (from `annotateCanModify()`) so the UI hides
+  actions the caller cannot use.
+  Full rule + reference implementation (the membership masters):
+  [system-administration.md](system-administration.md).
 - **Reading another service's data** → call its HTTP API via
   `internalServiceUrl('<service>')` (env-driven; `null` = in-process today). Never
   `require()` another module's models.
@@ -66,6 +85,9 @@ FK) and eager-loads become a token claim or a service call. New product services
 - **Money/amount columns are `numeric(21,2)`** (`DataTypes.DECIMAL(21, 2)` in the model): amounts, fees, charges, credit limits - any value denominated in a currency.
   The previous `numeric(14,2)` columns have been widened; `sequelize.sync({ alter: true })` applies the widening on boot, and it is lossless.
   Percentages and rates are NOT money and keep their own precision (e.g. tax rate `DECIMAL(7,4)`, claim percentage `DECIMAL(5,2)`).
+- **Every new product table carries the ownership stamps** `createdBy` (UUID, nullable), `createdByDepartmentId` (UUID, nullable - the creator's department at creation) and `updatedBy` (UUID, nullable, stamped on every save).
+  They power the RBAC data scope (see "How services talk to each other") and are groundwork for the planned user-defined workflow engine.
+  Prefer explicit status/state columns over booleans for records a future approval flow may govern.
 
 ## Auth model
 
