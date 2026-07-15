@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MembershipStatusService } from '../services/membership-status.service';
 import { DialogComponent } from '../shared/dialog/dialog';
+import { CanDirective } from '../shared/can.directive';
 import { MembershipStatus, MembershipStatusOption, MembershipStatusCopySource } from '../models/auth.models';
 
 // Membership Management → Master File Setup → Membership Status.
@@ -15,7 +16,7 @@ import { MembershipStatus, MembershipStatusOption, MembershipStatusCopySource } 
 @Component({
   selector: 'app-membership-statuses',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent, CanDirective],
   templateUrl: './membership-statuses.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-statuses.css'],
 })

@@ -56,7 +56,7 @@
     <div class="empty-state">
       <span class="empty-icon">📭</span>
       <p>No membership statuses yet. Use "New status" to add one, or copy from another company in your subscription.</p>
-      <button type="button" class="btn btn--secondary" (click)="openCopy()">Copy from another company</button>
+      <button *appCan="'create'" type="button" class="btn btn--secondary" (click)="openCopy()">Copy from another company</button>
     </div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
@@ -88,14 +88,14 @@
               }
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(s)">Edit</button>
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(s)">Edit</button>
               @if (s.isActive === false) {
-                <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(s)"
+                <button *appCan="'edit'" type="button" class="btn btn--success btn--sm" (click)="toggleActive(s)"
                         [disabled]="togglingId() === s.id">
                   {{ togglingId() === s.id ? 'Saving…' : 'Enable' }}
                 </button>
               } @else {
-                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(s)"
+                <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="toggleActive(s)"
                         [disabled]="togglingId() === s.id">
                   {{ togglingId() === s.id ? 'Saving…' : 'Disable' }}
                 </button>
@@ -108,7 +108,7 @@
   }
 
   <!-- New status FAB -->
-  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New status">
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New status">
     <span class="material-icons" aria-hidden="true">add</span>
     <span>New status</span>
   </button>

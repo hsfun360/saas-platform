@@ -11,6 +11,7 @@ import {
   MenuItem,
   Role,
   RoleDetail,
+  RoleMenuPermission,
   TenantUser,
   CreateTenantUserData,
   ModuleOption,
@@ -137,18 +138,18 @@ export class AuthService {
     return this.http.get<MenuItem[]>(`${this.apiBaseUrl}/auth/account/menus`);
   }
 
-  createRole(roleName: string, description: string, menuIds: string[]): Observable<{ message: string; role: Role }> {
-    return this.http.post<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles`, { roleName, description, menuIds });
+  createRole(roleName: string, description: string, permissions: RoleMenuPermission[]): Observable<{ message: string; role: Role }> {
+    return this.http.post<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles`, { roleName, description, permissions });
   }
 
-  // A single role with the exact set of menu IDs it grants — prefills the edit form.
+  // A single role with the exact menu grants (+ action flags) — prefills the edit form.
   getRoleDetail(roleId: string): Observable<RoleDetail> {
     return this.http.get<RoleDetail>(`${this.apiBaseUrl}/auth/account/roles/${roleId}`);
   }
 
   updateRole(
     roleId: string,
-    data: { roleName?: string; description?: string; menuIds: string[] },
+    data: { roleName?: string; description?: string; permissions: RoleMenuPermission[] },
   ): Observable<{ message: string; role: Role }> {
     return this.http.put<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles/${roleId}`, data);
   }

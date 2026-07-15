@@ -87,13 +87,13 @@
               }
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(f)">Edit</button>
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(f)">Edit</button>
               @if (f.isActive === false) {
-                <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(f)" [disabled]="togglingId() === f.id">
+                <button *appCan="'edit'" type="button" class="btn btn--success btn--sm" (click)="toggleActive(f)" [disabled]="togglingId() === f.id">
                   {{ togglingId() === f.id ? 'Saving…' : 'Enable' }}
                 </button>
               } @else {
-                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(f)" [disabled]="togglingId() === f.id">
+                <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="toggleActive(f)" [disabled]="togglingId() === f.id">
                   {{ togglingId() === f.id ? 'Saving…' : 'Disable' }}
                 </button>
               }
@@ -105,7 +105,7 @@
   }
 
   <!-- New fee FAB -->
-  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New fee">
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New fee">
     <span class="material-icons" aria-hidden="true">add</span>
     <span>New fee</span>
   </button>

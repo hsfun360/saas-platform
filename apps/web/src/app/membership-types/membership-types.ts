@@ -6,6 +6,7 @@ import { MembershipTypeService } from '../services/membership-type.service';
 import { MembershipStatusService } from '../services/membership-status.service';
 import { MembershipFeeService } from '../services/membership-fee.service';
 import { DialogComponent } from '../shared/dialog/dialog';
+import { CanDirective } from '../shared/can.directive';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import { Currency, MembershipType, MembershipStatus, MembershipFee, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
 
@@ -48,7 +49,7 @@ const MONTH_NAMES = [
 @Component({
   selector: 'app-membership-types',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective],
   templateUrl: './membership-types.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-types.css'],
 })

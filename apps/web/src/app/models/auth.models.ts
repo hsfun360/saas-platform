@@ -24,6 +24,9 @@
   // children renders as a collapsible sidebar section. `sequence` orders siblings.
   parentId?: string | null;
   sequence?: number;
+  // What the role may DO on this screen beyond viewing it (login payload).
+  // Absent on menus cached before this shipped -> treat as all-allowed.
+  actions?: { create: boolean; edit: boolean; delete: boolean };
 }
 
 export interface Workspace {
@@ -160,11 +163,22 @@ export interface Role {
 
 // A role together with the exact menu IDs it grants — returned by GET
 // /company/roles/:roleId to prefill the Role Management edit form.
+// One menu grant inside a role: the grant existing = View; the flags refine
+// what the role may do on that screen (missing flag = allowed, the migration
+// default).
+export interface RoleMenuPermission {
+  menuId: string;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
 export interface RoleDetail {
   id: string;
   name: string;
   description?: string | null;
-  menuIds: string[];
+  menuIds: string[]; // legacy shape (grant existing = full access)
+  permissions?: RoleMenuPermission[];
 }
 
 export interface PermittedMenu {

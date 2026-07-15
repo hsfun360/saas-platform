@@ -124,7 +124,10 @@
 
       <div>
         <label style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-xs); color: var(--text-secondary); font-size: var(--font-h3);">Assign Permissions</label>
-        <p style="color: var(--text-muted); font-size: var(--font-body-2); margin-bottom: var(--space-md); margin-top: 0;">Select which menus this role is allowed to access.</p>
+        <p style="color: var(--text-muted); font-size: var(--font-body-2); margin-bottom: var(--space-md); margin-top: 0;">
+          Select which menus this role is allowed to access.
+          Ticking a menu grants viewing plus full Create / Edit / Delete — untick the actions the role should not have.
+        </p>
 
         @if (menusLoading()) {
           <p style="color: var(--text-muted);">Loading menus…</p>
@@ -185,18 +188,44 @@
                         <span class="perm-group__name">{{ row.name }}</span>
                       </div>
                     } @else {
-                      <label class="perm-leaf" [style.padding-left.px]="row.depth * 24">
-                        <input type="checkbox" class="perm-check"
-                               [checked]="selectedMenuIds().has(row.id)"
-                               (change)="toggleMenu(row.id)">
-                        <span class="material-icons perm-row__icon" aria-hidden="true">{{ row.icon }}</span>
-                        <span class="perm-leaf__text">
-                          <span class="perm-leaf__name">{{ row.name }}</span>
-                          @if (row.description) {
-                            <span class="perm-leaf__desc">{{ row.description }}</span>
-                          }
-                        </span>
-                      </label>
+                      <div class="perm-leaf" [style.padding-left.px]="row.depth * 24">
+                        <label class="perm-leaf__view">
+                          <input type="checkbox" class="perm-check"
+                                 [checked]="isSelected(row.id)"
+                                 (change)="toggleMenu(row.id)">
+                          <span class="material-icons perm-row__icon" aria-hidden="true">{{ row.icon }}</span>
+                          <span class="perm-leaf__text">
+                            <span class="perm-leaf__name">{{ row.name }}</span>
+                            @if (row.description) {
+                              <span class="perm-leaf__desc">{{ row.description }}</span>
+                            }
+                          </span>
+                        </label>
+                        <!-- Action refinement: shown once View is granted. New
+                             grants start as full access; untick to restrict. -->
+                        @if (isSelected(row.id)) {
+                          <span class="perm-actions">
+                            <label class="perm-action">
+                              <input type="checkbox" [checked]="actionAllowed(row.id, 'create')"
+                                     (change)="toggleAction(row.id, 'create')"
+                                     [attr.aria-label]="'Allow create in ' + row.name">
+                              Create
+                            </label>
+                            <label class="perm-action">
+                              <input type="checkbox" [checked]="actionAllowed(row.id, 'edit')"
+                                     (change)="toggleAction(row.id, 'edit')"
+                                     [attr.aria-label]="'Allow edit in ' + row.name">
+                              Edit
+                            </label>
+                            <label class="perm-action">
+                              <input type="checkbox" [checked]="actionAllowed(row.id, 'delete')"
+                                     (change)="toggleAction(row.id, 'delete')"
+                                     [attr.aria-label]="'Allow delete in ' + row.name">
+                              Delete
+                            </label>
+                          </span>
+                        }
+                      </div>
                     }
                   }
                 </div>

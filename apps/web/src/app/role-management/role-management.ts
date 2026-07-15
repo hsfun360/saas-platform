@@ -2,8 +2,19 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../auth.service';
-import { MenuItem, Role } from '../models/auth.models';
+import { MenuItem, Role, RoleMenuPermission } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
+
+// The action flags of one selected (View-granted) menu. A menu present in the
+// selection map = View; the flags refine Create/Edit/Delete. New grants start
+// with full access and the role builder unticks what the role shouldn't do.
+interface GrantFlags {
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
+}
+
+const FULL_ACCESS: GrantFlags = { create: true, edit: true, delete: true };
 
 // A node in one module's permission tree (adjacency list over Menu.parentId).
 // A node with children is a pure grouping section — it is NOT selectable: the
@@ -87,7 +98,9 @@ export class RoleManagementComponent implements OnInit {
   // permission picker shows derives from it.
   accountMenus = signal<MenuItem[]>([]);
   menusLoading = signal(false);
-  selectedMenuIds = signal<ReadonlySet<string>>(new Set<string>());
+
+  // menuId -> action flags. A key existing = the role may VIEW that menu.
+  selectedGrants = signal<ReadonlyMap<string, GrantFlags>>(new Map<string, GrantFlags>());
 
   // Live filter over the permission catalogue (menu name / description /
   // module name). While searching, every matching card renders expanded.
@@ -132,7 +145,7 @@ export class RoleManagementComponent implements OnInit {
 
   // "N menus across M modules" — the outcome preview shown next to Save.
   readonly selectionSummary = computed(() => {
-    const selected = this.selectedMenuIds();
+    const selected = this.selectedGrants();
     let menus = 0;
     let modules = 0;
     for (const mod of this.permModules()) {
@@ -280,27 +293,47 @@ export class RoleManagementComponent implements OnInit {
   // Tri-state over a leaf set: drives [checked] / [indeterminate].
   selState(leafIds: string[]): 'all' | 'some' | 'none' {
     if (!leafIds.length) return 'none';
-    const selected = this.selectedMenuIds();
+    const selected = this.selectedGrants();
     let hit = 0;
     for (const id of leafIds) if (selected.has(id)) hit++;
     return hit === leafIds.length ? 'all' : hit > 0 ? 'some' : 'none';
   }
 
   selectedIn(leafIds: string[]): number {
-    const selected = this.selectedMenuIds();
+    const selected = this.selectedGrants();
     return leafIds.filter((id) => selected.has(id)).length;
   }
 
-  // Select-all semantics: not-yet-complete (none or some) selects the rest;
+  isSelected(menuId: string): boolean {
+    return this.selectedGrants().has(menuId);
+  }
+
+  actionAllowed(menuId: string, action: keyof GrantFlags): boolean {
+    const flags = this.selectedGrants().get(menuId);
+    return !!flags && flags[action];
+  }
+
+  // Select-all semantics: not-yet-complete (none or some) selects the rest
+  // (new grants start as full access, already-selected rows keep their flags);
   // fully selected clears.
   toggleAll(leafIds: string[]) {
-    const next = new Set(this.selectedMenuIds());
+    const next = new Map(this.selectedGrants());
     const complete = leafIds.length > 0 && leafIds.every((id) => next.has(id));
     for (const id of leafIds) {
       if (complete) next.delete(id);
-      else next.add(id);
+      else if (!next.has(id)) next.set(id, { ...FULL_ACCESS });
     }
-    this.selectedMenuIds.set(next);
+    this.selectedGrants.set(next);
+  }
+
+  // Flip one action flag on a selected menu (the toggle only renders while the
+  // menu's View checkbox is ticked, so the grant always exists here).
+  toggleAction(menuId: string, action: keyof GrantFlags) {
+    const current = this.selectedGrants().get(menuId);
+    if (!current) return;
+    const next = new Map(this.selectedGrants());
+    next.set(menuId, { ...current, [action]: !current[action] });
+    this.selectedGrants.set(next);
   }
 
   isExpanded(moduleName: string): boolean {
@@ -321,17 +354,19 @@ export class RoleManagementComponent implements OnInit {
     return control.invalid && control.touched;
   }
 
+  // Toggle a menu's View grant. Selecting starts as full access (untick
+  // actions to restrict); deselecting drops the whole grant.
   toggleMenu(menuId: string) {
-    const next = new Set(this.selectedMenuIds());
+    const next = new Map(this.selectedGrants());
     if (next.has(menuId)) next.delete(menuId);
-    else next.add(menuId);
-    this.selectedMenuIds.set(next);
+    else next.set(menuId, { ...FULL_ACCESS });
+    this.selectedGrants.set(next);
   }
 
   // Fresh picker state on every dialog open: nothing selected, every module
   // card collapsed, no leftover search.
   private resetPicker() {
-    this.selectedMenuIds.set(new Set<string>());
+    this.selectedGrants.set(new Map<string, GrantFlags>());
     this.expandedModules.set(new Set<string>());
     this.permSearch.set('');
   }
@@ -360,7 +395,17 @@ export class RoleManagementComponent implements OnInit {
         // Drop legacy grants to grouping menus — sections are implied by their
         // granted children (the backend re-adds ancestors at login).
         const groups = this.groupIds();
-        this.selectedMenuIds.set(new Set(detail.menuIds.filter((id) => !groups.has(id))));
+        const next = new Map<string, GrantFlags>();
+        if (detail.permissions) {
+          for (const p of detail.permissions) {
+            if (groups.has(p.menuId)) continue;
+            next.set(p.menuId, { create: p.canCreate !== false, edit: p.canEdit !== false, delete: p.canDelete !== false });
+          }
+        } else {
+          // Older backend: menu ids only = full access per menu.
+          for (const id of detail.menuIds) if (!groups.has(id)) next.set(id, { ...FULL_ACCESS });
+        }
+        this.selectedGrants.set(next);
         this.editLoading.set(false);
       },
       error: (err) => {
@@ -388,8 +433,12 @@ export class RoleManagementComponent implements OnInit {
     // Grouping menus are never granted (safety net for the race where a role
     // loaded before the catalogue did, so group ids weren't stripped yet).
     const groups = this.groupIds();
-    const menuIdsArray = Array.from(this.selectedMenuIds()).filter((id) => !groups.has(id));
-    if (menuIdsArray.length === 0) {
+    const permissions: RoleMenuPermission[] = [];
+    for (const [menuId, flags] of this.selectedGrants()) {
+      if (groups.has(menuId)) continue;
+      permissions.push({ menuId, canCreate: flags.create, canEdit: flags.edit, canDelete: flags.delete });
+    }
+    if (permissions.length === 0) {
       this.errorMessage.set('Please select at least one menu permission.');
       return;
     }
@@ -401,7 +450,7 @@ export class RoleManagementComponent implements OnInit {
 
     if (editingId) {
       this.authService
-        .updateRole(editingId, { roleName, description: roleDescription, menuIds: menuIdsArray })
+        .updateRole(editingId, { roleName, description: roleDescription, permissions })
         .subscribe({
           next: (res) => {
             this.successMessage.set(`Role '${res.role.name}' updated successfully!`);
@@ -417,7 +466,7 @@ export class RoleManagementComponent implements OnInit {
       return;
     }
 
-    this.authService.createRole(roleName, roleDescription, menuIdsArray).subscribe({
+    this.authService.createRole(roleName, roleDescription, permissions).subscribe({
       next: (res) => {
         this.successMessage.set(`Role '${res.role.name}' created successfully!`);
         this.isLoading.set(false);
