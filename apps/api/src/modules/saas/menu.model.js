@@ -19,6 +19,19 @@ const Menu = sequelize.define('Menu', {
         allowNull: false,
         defaultValue: {},
     },
+    // One-liner explaining what the screen does — shown under the menu name in
+    // the role permission picker so a role builder understands each option.
+    description: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+    },
+    // Localized descriptions keyed by language code, same pattern as `names`:
+    // resolved at display with fallback to `description`.
+    descriptions: {
+        type: DataTypes.JSONB,
+        allowNull: false,
+        defaultValue: {},
+    },
     // Adjacency list: a menu may nest under another menu in the SAME module
     // (arbitrary depth). Null = top level. A menu with children acts as a
     // collapsible section in the sidebar. Self-referencing FK, SET NULL on

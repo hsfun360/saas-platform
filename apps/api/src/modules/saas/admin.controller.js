@@ -349,7 +349,7 @@ exports.listModuleMenus = async (req, res) => {
 
         const menus = await Menu.findAll({
             where: { moduleId: req.params.moduleId },
-            attributes: ['id', 'name', 'names', 'route', 'icon', 'parentId', 'moduleId', 'sequence'],
+            attributes: ['id', 'name', 'names', 'description', 'descriptions', 'route', 'icon', 'parentId', 'moduleId', 'sequence'],
             order: [['sequence', 'ASC'], ['name', 'ASC']],
         });
         res.status(200).json(menus);
@@ -359,7 +359,7 @@ exports.listModuleMenus = async (req, res) => {
     }
 };
 
-// POST /api/admin/menus  Body: { name, route, icon?, moduleId, parentId? }
+// POST /api/admin/menus  Body: { name, route, icon?, moduleId, parentId?, names?, description?, descriptions? }
 exports.createMenu = async (req, res) => {
     try {
         const name = (req.body.name || '').trim();
@@ -387,6 +387,8 @@ exports.createMenu = async (req, res) => {
         const menu = await Menu.create({
             name,
             names: mergeNames({}, req.body.names),
+            description: (req.body.description || '').trim() || null,
+            descriptions: mergeNames({}, req.body.descriptions),
             route,
             icon: icon || undefined, // fall back to the model default ('folder')
             moduleId,
@@ -400,7 +402,7 @@ exports.createMenu = async (req, res) => {
     }
 };
 
-// PUT /api/admin/menus/:menuId  Body: { name?, route?, icon?, moduleId?, parentId? }
+// PUT /api/admin/menus/:menuId  Body: { name?, route?, icon?, moduleId?, parentId?, names?, description?, descriptions? }
 exports.updateMenu = async (req, res) => {
     try {
         const menu = await Menu.findByPk(req.params.menuId);
@@ -433,6 +435,8 @@ exports.updateMenu = async (req, res) => {
             }
         }
         if (req.body.names && typeof req.body.names === 'object') updates.names = mergeNames(menu.names, req.body.names);
+        if (typeof req.body.description === 'string') updates.description = req.body.description.trim() || null;
+        if (req.body.descriptions && typeof req.body.descriptions === 'object') updates.descriptions = mergeNames(menu.descriptions, req.body.descriptions);
 
         await menu.update(updates);
         res.status(200).json({ message: "Menu updated.", menu });

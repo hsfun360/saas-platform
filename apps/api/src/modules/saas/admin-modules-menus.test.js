@@ -118,15 +118,19 @@ test('createMenu rejects a non-existent module (400)', async () => {
 
 test('createMenu creates a menu under an existing module (201)', async () => {
     Module.findByPk = fn(async () => ({ id: 'mod-1' }));
+    Menu.max = fn(async () => null); // sibling-sequence lookup (was hitting a real DB)
     Menu.create = fn(async (data) => ({ id: 'menu-1', ...data }));
     const res = mockRes();
-    await controller.createMenu({ body: { name: ' Tee Times ', route: ' /golf/tee ', moduleId: 'mod-1' } }, res);
+    await controller.createMenu({ body: { name: ' Tee Times ', route: ' /golf/tee ', moduleId: 'mod-1', description: ' Book tee times ' } }, res);
     assert.strictEqual(res.statusCode, 201);
     const created = Menu.create.calls[0][0];
     assert.strictEqual(created.name, 'Tee Times');
     assert.strictEqual(created.route, '/golf/tee');
     assert.strictEqual(created.moduleId, 'mod-1');
     assert.strictEqual(created.parentId, null);
+    assert.strictEqual(created.sequence, 0, 'appends to the end of an empty sibling set');
+    assert.strictEqual(created.description, 'Book tee times');
+    assert.deepStrictEqual(created.descriptions, {});
 });
 
 test('deleteMenu removes the menu and its RoleMenu grants (200)', async () => {
