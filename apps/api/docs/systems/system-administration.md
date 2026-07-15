@@ -85,6 +85,25 @@ The picker itself renders one collapsible card per module (tri-state select-all
 + "x of y selected" in the header), the real menu tree with group sub-headings,
 a live search over name/description, and a selection summary before Save.
 
+**Action-level RBAC (Phase 1 of the CRUD/permission roadmap)**: each `RoleMenu`
+grant carries `canCreate` / `canEdit` / `canDelete` (BOOLEAN NOT NULL DEFAULT
+true - the row existing means View, so pre-flag grants stay full access).
+The role endpoints accept `permissions: [{ menuId, canCreate?, canEdit?, canDelete? }]`
+(legacy `menuIds` still accepted = full access), and the login menus payload
+carries `actions: { create, edit, delete }` per menu.
+Enforcement: `requireMenuAction(menuRoute)` in `platform/serviceContext.js` -
+the product-side middleware that maps the HTTP method (GET view / POST create /
+PUT+PATCH edit / DELETE delete) to the caller's grant on the screen's `Menu.route`;
+Tenant Admin and platform admins bypass; an unregistered route enforces nothing.
+Reference wiring: `modules/membership/membership.routes.js` (statuses/fees/types).
+Frontend gating (UX only, backend stays authoritative): `PermissionsService.can()`
++ the structural `*appCan="'create'|'edit'|'delete'"` directive hide the
+New/Edit/Delete/Enable/Disable controls a role doesn't have; reference screens:
+the three membership master files.
+Roadmap context: Phase 2 adds Department + Position (rank) masters on
+`CompanyUser`; Phase 3 adds per-role data scope (own / department / all) with
+`createdBy` + department stamps on product records.
+
 ## Public API (gateway seam: `/api/admin` + tenant routes under `/api/auth/company/*`)
 - Provision subscribers (Account + Company + owner User), list subscribers.
 - Modules & Menus maintenance (the product catalog every core system registers in).
