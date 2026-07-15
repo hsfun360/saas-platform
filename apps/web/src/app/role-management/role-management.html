@@ -52,7 +52,11 @@
                   <span style="color: var(--text-muted); font-size: var(--font-body-2);"> — {{ role.description }}</span>
                 }
               </span>
-              <span style="font-size: var(--font-caption); color: var(--text-muted);">{{ role.PermittedMenus?.length || 0 }} menus</span>
+              <span style="font-size: var(--font-caption); color: var(--text-muted);">
+                {{ role.PermittedMenus?.length || 0 }} menus
+                @if (role.dataScope === 'own') { · own records only }
+                @else if (role.dataScope === 'department') { · department scope }
+              </span>
             </span>
           </span>
 
@@ -121,6 +125,36 @@
           <p id="rmRoleDescErr" class="field-error" role="alert">Description is too long (max 255 characters).</p>
         }
       </div>
+
+      <!-- Row-level data scope: WHOSE records the role may Edit/Delete.
+           Viewing and the per-menu action toggles below stay unaffected. -->
+      <fieldset class="scope-fieldset">
+        <legend class="scope-legend">Data scope</legend>
+        <p style="color: var(--text-muted); font-size: var(--font-body-2); margin: 0 0 var(--space-sm);">
+          Whose records this role may amend on the screens it can edit.
+        </p>
+        <label class="scope-option">
+          <input type="radio" formControlName="dataScope" value="own">
+          <span class="scope-option__text">
+            <span class="scope-option__name">Own records</span>
+            <span class="scope-option__desc">Only records this user created themselves.</span>
+          </span>
+        </label>
+        <label class="scope-option">
+          <input type="radio" formControlName="dataScope" value="department">
+          <span class="scope-option__text">
+            <span class="scope-option__name">Department (senior over junior)</span>
+            <span class="scope-option__desc">Own records, plus records created in the user's department by someone of a lower position rank — e.g. a Supervisor or Manager amending a Staff entry. Colleagues of the same rank cannot amend each other's records.</span>
+          </span>
+        </label>
+        <label class="scope-option">
+          <input type="radio" formControlName="dataScope" value="all">
+          <span class="scope-option__text">
+            <span class="scope-option__name">All records</span>
+            <span class="scope-option__desc">Every record in the company (no ownership restriction).</span>
+          </span>
+        </label>
+      </fieldset>
 
       <div>
         <label style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-xs); color: var(--text-secondary); font-size: var(--font-h3);">Assign Permissions</label>

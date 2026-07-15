@@ -88,17 +88,21 @@
               }
             </div>
             <div class="data-row__actions">
-              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(s)">Edit</button>
-              @if (s.isActive === false) {
-                <button *appCan="'edit'" type="button" class="btn btn--success btn--sm" (click)="toggleActive(s)"
-                        [disabled]="togglingId() === s.id">
-                  {{ togglingId() === s.id ? 'Saving…' : 'Enable' }}
-                </button>
-              } @else {
-                <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="toggleActive(s)"
-                        [disabled]="togglingId() === s.id">
-                  {{ togglingId() === s.id ? 'Saving…' : 'Disable' }}
-                </button>
+              <!-- Row-level data scope: the server flags rows this user's role
+                   may not amend (canModify=false) — hide the actions entirely. -->
+              @if (s.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(s)">Edit</button>
+                @if (s.isActive === false) {
+                  <button *appCan="'edit'" type="button" class="btn btn--success btn--sm" (click)="toggleActive(s)"
+                          [disabled]="togglingId() === s.id">
+                    {{ togglingId() === s.id ? 'Saving…' : 'Enable' }}
+                  </button>
+                } @else {
+                  <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="toggleActive(s)"
+                          [disabled]="togglingId() === s.id">
+                    {{ togglingId() === s.id ? 'Saving…' : 'Disable' }}
+                  </button>
+                }
               }
             </div>
           </div>

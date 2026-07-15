@@ -159,10 +159,15 @@ export interface ChangePasswordData {
 
 // A Role is an account-level named set of menu permissions (RBAC), not tied to a
 // company. Company enters only at entitlement + assignment.
+// WHOSE records a role may Edit/Delete (row-level data scope; viewing is
+// untouched): own records / same-department juniors' records / everything.
+export type RoleDataScope = 'own' | 'department' | 'all';
+
 export interface Role {
   id: string;
   name: string;
   description?: string;
+  dataScope?: RoleDataScope;
   PermittedMenus?: PermittedMenu[];
 }
 
@@ -182,6 +187,7 @@ export interface RoleDetail {
   id: string;
   name: string;
   description?: string | null;
+  dataScope?: RoleDataScope;
   menuIds: string[]; // legacy shape (grant existing = full access)
   permissions?: RoleMenuPermission[];
 }
@@ -473,6 +479,9 @@ export interface MembershipStatus {
   systemControl: string;        // one of MembershipStatusMeta.controls[].key
   statusColor?: string | null;  // hex, e.g. '#22c55e'
   isActive?: boolean;
+  // Row-level data scope: whether the CALLER may modify this record (computed
+  // server-side per row). false hides Edit/Enable/Disable; absent = allowed.
+  canModify?: boolean;
 }
 
 // A fixed option (key + display label) served by the API.
@@ -517,6 +526,9 @@ export interface MembershipFee {
   noOfInstallment?: number | null;
   installmentInterval?: string | null;   // one of MembershipFeeMeta.intervals[].key
   isActive?: boolean;
+  // Row-level data scope: whether the CALLER may modify this record (computed
+  // server-side per row). false hides Edit/Enable/Disable; absent = allowed.
+  canModify?: boolean;
   stages: MembershipFeeStage[];
 }
 
@@ -563,6 +575,9 @@ export interface MembershipType {
   standingCharges: MembershipTypeStandingCharge[];
   id: string;
   companyId?: string;
+  // Row-level data scope: whether the CALLER may modify this record (computed
+  // server-side per row). false hides Edit/Enable/Disable; absent = allowed.
+  canModify?: boolean;
   category: string;
   description?: string | null;
   membershipClass: string;            // 'personal' | 'corporate'

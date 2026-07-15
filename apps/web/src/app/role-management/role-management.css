@@ -275,3 +275,54 @@
   font-size: var(--font-body-2);
   color: var(--text-muted);
 }
+
+/* ============ Data scope (role dialog) ============
+   Radio group choosing WHOSE records the role may Edit/Delete. */
+
+.scope-fieldset {
+  border: none;
+  padding: 0;
+  margin: 0 0 var(--space-lg);
+}
+
+.scope-legend {
+  padding: 0;
+  font-weight: var(--weight-bold);
+  color: var(--text-secondary);
+  font-size: var(--font-h3);
+  margin-bottom: var(--space-xs);
+}
+
+.scope-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.scope-option input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--brand);
+}
+
+.scope-option__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.scope-option__name {
+  color: var(--text-primary);
+}
+
+.scope-option__desc {
+  font-size: var(--font-body-2);
+  color: var(--text-muted);
+}

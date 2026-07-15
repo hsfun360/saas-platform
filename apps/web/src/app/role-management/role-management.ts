@@ -2,7 +2,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../auth.service';
-import { MenuItem, Role, RoleMenuPermission } from '../models/auth.models';
+import { MenuItem, Role, RoleDataScope, RoleMenuPermission } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 
 // The action flags of one selected (View-granted) menu. A menu present in the
@@ -72,10 +72,12 @@ export class RoleManagementComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly fb = inject(FormBuilder);
 
-  // Dialog form (name + description). nonNullable keeps controls non-null strings.
+  // Dialog form (name + description + data scope). nonNullable keeps controls
+  // non-null; dataScope defaults to 'all' (the pre-Phase-3 behaviour).
   readonly roleForm = this.fb.nonNullable.group({
     roleName: ['', [Validators.required, Validators.maxLength(100)]],
     roleDescription: ['', [Validators.maxLength(255)]],
+    dataScope: ['all' as RoleDataScope],
   });
 
   roles = signal<Role[]>([]);
@@ -374,7 +376,7 @@ export class RoleManagementComponent implements OnInit {
   openCreate() {
     this.clearMessages();
     this.editingRoleId.set(null);
-    this.roleForm.reset({ roleName: '', roleDescription: '' });
+    this.roleForm.reset({ roleName: '', roleDescription: '', dataScope: 'all' });
     this.resetPicker();
     this.roleDialogOpen.set(true);
   }
@@ -385,13 +387,13 @@ export class RoleManagementComponent implements OnInit {
     this.clearMessages();
     this.editingRoleId.set(role.id);
     this.roleDialogOpen.set(true);
-    this.roleForm.reset({ roleName: role.name, roleDescription: role.description || '' });
+    this.roleForm.reset({ roleName: role.name, roleDescription: role.description || '', dataScope: role.dataScope || 'all' });
     this.resetPicker();
 
     this.editLoading.set(true);
     this.authService.getRoleDetail(role.id).subscribe({
       next: (detail) => {
-        this.roleForm.reset({ roleName: detail.name, roleDescription: detail.description || '' });
+        this.roleForm.reset({ roleName: detail.name, roleDescription: detail.description || '', dataScope: detail.dataScope || 'all' });
         // Drop legacy grants to grouping menus — sections are implied by their
         // granted children (the backend re-adds ancestors at login).
         const groups = this.groupIds();
@@ -419,7 +421,7 @@ export class RoleManagementComponent implements OnInit {
   cancelEdit() {
     this.roleDialogOpen.set(false);
     this.editingRoleId.set(null);
-    this.roleForm.reset({ roleName: '', roleDescription: '' });
+    this.roleForm.reset({ roleName: '', roleDescription: '', dataScope: 'all' });
     this.resetPicker();
   }
 
@@ -443,14 +445,14 @@ export class RoleManagementComponent implements OnInit {
       return;
     }
 
-    const { roleName, roleDescription } = this.roleForm.getRawValue();
+    const { roleName, roleDescription, dataScope } = this.roleForm.getRawValue();
     const editingId = this.editingRoleId();
 
     this.isLoading.set(true);
 
     if (editingId) {
       this.authService
-        .updateRole(editingId, { roleName, description: roleDescription, permissions })
+        .updateRole(editingId, { roleName, description: roleDescription, dataScope, permissions })
         .subscribe({
           next: (res) => {
             this.successMessage.set(`Role '${res.role.name}' updated successfully!`);
@@ -466,7 +468,7 @@ export class RoleManagementComponent implements OnInit {
       return;
     }
 
-    this.authService.createRole(roleName, roleDescription, permissions).subscribe({
+    this.authService.createRole(roleName, roleDescription, permissions, dataScope).subscribe({
       next: (res) => {
         this.successMessage.set(`Role '${res.role.name}' created successfully!`);
         this.isLoading.set(false);

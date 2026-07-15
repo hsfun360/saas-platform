@@ -10,6 +10,7 @@ import {
   ChangePasswordData,
   MenuItem,
   Role,
+  RoleDataScope,
   RoleDetail,
   RoleMenuPermission,
   TenantUser,
@@ -138,8 +139,8 @@ export class AuthService {
     return this.http.get<MenuItem[]>(`${this.apiBaseUrl}/auth/account/menus`);
   }
 
-  createRole(roleName: string, description: string, permissions: RoleMenuPermission[]): Observable<{ message: string; role: Role }> {
-    return this.http.post<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles`, { roleName, description, permissions });
+  createRole(roleName: string, description: string, permissions: RoleMenuPermission[], dataScope: RoleDataScope): Observable<{ message: string; role: Role }> {
+    return this.http.post<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles`, { roleName, description, permissions, dataScope });
   }
 
   // A single role with the exact menu grants (+ action flags) — prefills the edit form.
@@ -149,7 +150,7 @@ export class AuthService {
 
   updateRole(
     roleId: string,
-    data: { roleName?: string; description?: string; permissions: RoleMenuPermission[] },
+    data: { roleName?: string; description?: string; dataScope?: RoleDataScope; permissions: RoleMenuPermission[] },
   ): Observable<{ message: string; role: Role }> {
     return this.http.put<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles/${roleId}`, data);
   }
