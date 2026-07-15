@@ -20,6 +20,18 @@ const CompanyUser = sequelize.define('CompanyUser', {
         type: DataTypes.UUID,
         allowNull: true, // We set this to true temporarily so it doesn't break your existing test user!
     },
+    // Org placement within THIS company (a person can differ per company).
+    // Plain UUID references to the subscriber's Department / Position masters
+    // (validated in the controller, like roleId). Null = unassigned; the
+    // Phase-3 data-scope rule treats unassigned as "own records only".
+    departmentId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    positionId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
     isActive: { 
         type: DataTypes.BOOLEAN, 
         defaultValue: true }

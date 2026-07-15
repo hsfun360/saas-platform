@@ -13,6 +13,8 @@ const CompanyModule = require('./companyModule.model');
 const Menu = require('./menu.model');
 const RoleMenu = require('./roleMenu.model');
 const Invitation = require('./invitation.model');
+const Department = require('./department.model');
+const Position = require('./position.model');
 const bcrypt = require('bcryptjs');
 const { sequelize } = require('../../platform/db');
 const { hasTenantAdminRole } = require('./tenant');
@@ -494,8 +496,22 @@ exports.listTenantUsers = async (req, res) => {
         });
         const userById = new Map(users.map(u => [u.id, u]));
 
+        // Resolve the org placement labels (plain UUID refs, no association).
+        const departmentIds = [...new Set(memberships.map(m => m.departmentId).filter(Boolean))];
+        const positionIds = [...new Set(memberships.map(m => m.positionId).filter(Boolean))];
+        const departments = departmentIds.length
+            ? await Department.findAll({ where: { id: departmentIds }, attributes: ['id', 'departmentCode', 'description'] })
+            : [];
+        const positions = positionIds.length
+            ? await Position.findAll({ where: { id: positionIds }, attributes: ['id', 'positionCode', 'description', 'rank'] })
+            : [];
+        const departmentById = new Map(departments.map(d => [d.id, d]));
+        const positionById = new Map(positions.map(p => [p.id, p]));
+
         const result = memberships.map(m => {
             const u = userById.get(m.userId);
+            const dept = m.departmentId ? departmentById.get(m.departmentId) : null;
+            const pos = m.positionId ? positionById.get(m.positionId) : null;
             return {
                 id: m.userId,
                 email: u ? u.email : null,
@@ -503,6 +519,10 @@ exports.listTenantUsers = async (req, res) => {
                 authMethod: u ? u.authMethod : null,
                 roleId: m.roleId,
                 roleName: m.Role ? m.Role.name : null,
+                departmentId: m.departmentId || null,
+                departmentName: dept ? (dept.description || dept.departmentCode) : null,
+                positionId: m.positionId || null,
+                positionName: pos ? (pos.description || pos.positionCode) : null,
             };
         });
 
@@ -580,8 +600,11 @@ exports.createTenantUser = async (req, res) => {
     }
 };
 
-// POST /api/auth/company/users/assign-role  -> set a user's role within a company
-// Body: { userId, roleId, companyId? }
+// POST /api/auth/company/users/assign-role  -> set a user's role (and org
+// placement) within a company.
+// Body: { userId, roleId, companyId?, departmentId?, positionId? }
+// departmentId/positionId: omitted = unchanged; null/'' = clear; a UUID must
+// belong to the caller's account (subscriber masters).
 exports.assignTenantUserRole = async (req, res) => {
     try {
         const { userId, roleId, companyId: bodyCompanyId } = req.body;
@@ -617,6 +640,24 @@ exports.assignTenantUserRole = async (req, res) => {
                     message: "Cannot remove the last Tenant Admin. Assign another Tenant Admin first.",
                 });
             }
+        }
+
+        // Org placement (optional): validate against the subscriber's masters.
+        if ('departmentId' in req.body) {
+            const departmentId = req.body.departmentId || null;
+            if (departmentId) {
+                const dept = await Department.findOne({ where: { id: departmentId, accountId } });
+                if (!dept) return res.status(400).json({ message: "Selected department does not belong to your account." });
+            }
+            membership.departmentId = departmentId;
+        }
+        if ('positionId' in req.body) {
+            const positionId = req.body.positionId || null;
+            if (positionId) {
+                const pos = await Position.findOne({ where: { id: positionId, accountId } });
+                if (!pos) return res.status(400).json({ message: "Selected position does not belong to your account." });
+            }
+            membership.positionId = positionId;
         }
 
         membership.roleId = roleId;
@@ -795,6 +836,18 @@ exports.listAccountUsers = async (req, res) => {
             allMemberships.filter(m => m.companyId === null || !accountCompanyIdSet.has(m.companyId)).map(m => m.userId),
         );
 
+        // Resolve org-placement labels (plain UUID refs to the subscriber masters).
+        const deptIds = [...new Set(memberships.map(m => m.departmentId).filter(Boolean))];
+        const posIds = [...new Set(memberships.map(m => m.positionId).filter(Boolean))];
+        const depts = deptIds.length
+            ? await Department.findAll({ where: { id: deptIds }, attributes: ['id', 'departmentCode', 'description'] })
+            : [];
+        const poss = posIds.length
+            ? await Position.findAll({ where: { id: posIds }, attributes: ['id', 'positionCode', 'description', 'rank'] })
+            : [];
+        const deptById = new Map(depts.map(d => [d.id, d]));
+        const posById = new Map(poss.map(p => [p.id, p]));
+
         const peopleMap = new Map();
         for (const m of memberships) {
             const u = userById.get(m.userId);
@@ -806,11 +859,17 @@ exports.listAccountUsers = async (req, res) => {
                     memberships: [],
                 });
             }
+            const dept = m.departmentId ? deptById.get(m.departmentId) : null;
+            const pos = m.positionId ? posById.get(m.positionId) : null;
             peopleMap.get(m.userId).memberships.push({
                 companyId: m.companyId,
                 companyName: companyNameById.get(m.companyId) || null,
                 roleId: m.roleId,
                 roleName: m.Role ? m.Role.name : null,
+                departmentId: m.departmentId || null,
+                departmentName: dept ? (dept.description || dept.departmentCode) : null,
+                positionId: m.positionId || null,
+                positionName: pos ? (pos.description || pos.positionCode) : null,
             });
         }
         const people = [...peopleMap.values()].sort((a, b) => (a.email || '').localeCompare(b.email || ''));

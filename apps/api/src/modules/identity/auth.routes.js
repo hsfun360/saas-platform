@@ -25,6 +25,8 @@ const salutationController = require('../saas/salutation.controller');
 const nationalityController = require('../saas/nationality.controller');
 const raceController = require('../saas/race.controller');
 const titleController = require('../saas/title.controller');
+const departmentController = require('../saas/department.controller');
+const positionController = require('../saas/position.controller');
 const publicHolidayController = require('../saas/publicHoliday.controller');
 const weekendDayController = require('../saas/companyWeekendDay.controller');
 const numberingSchemeController = require('../saas/numberingScheme.controller');
@@ -304,6 +306,24 @@ router.patch('/account/races/:id', authenticateToken, requireTenant, requireTena
 router.get('/account/titles', authenticateToken, requireTenant, requireTenantAdmin, titleController.listTitles);
 router.post('/account/titles', authenticateToken, requireTenant, requireTenantAdmin, titleController.createTitle);
 router.patch('/account/titles/:id', authenticateToken, requireTenant, requireTenantAdmin, titleController.updateTitle);
+
+// --- SUBSCRIBER DEPARTMENTS (Tenant Admin self-service) ---
+// Subscriber-owned department list, shared account-wide, assigned to users per
+// company (CompanyUser.departmentId) and consumed via /api/departments.
+// Feeds the RBAC data-scope rule (Phase 3).
+router.get('/account/departments', authenticateToken, requireTenant, requireTenantAdmin, departmentController.listDepartments);
+router.post('/account/departments', authenticateToken, requireTenant, requireTenantAdmin, departmentController.createDepartment);
+router.patch('/account/departments/:id', authenticateToken, requireTenant, requireTenantAdmin, departmentController.updateDepartment);
+
+// --- SUBSCRIBER POSITIONS (Tenant Admin self-service) ---
+// Subscriber-owned position ladder with a seniority `rank` (higher = more
+// senior; drives the Phase-3 "senior may amend subordinate's record" rule).
+// Assigned per company (CompanyUser.positionId), consumed via /api/positions.
+router.get('/account/positions/defaults', authenticateToken, requireTenant, requireTenantAdmin, positionController.getDefaultPositions);
+router.post('/account/positions/seed', authenticateToken, requireTenant, requireTenantAdmin, positionController.seedPositions);
+router.get('/account/positions', authenticateToken, requireTenant, requireTenantAdmin, positionController.listPositions);
+router.post('/account/positions', authenticateToken, requireTenant, requireTenantAdmin, positionController.createPosition);
+router.patch('/account/positions/:id', authenticateToken, requireTenant, requireTenantAdmin, positionController.updatePosition);
 
 // --- SUBSCRIBER PUBLIC HOLIDAYS (Tenant Admin self-service) ---
 // Subscriber-owned holiday calendar, scoped by country (the countries the
