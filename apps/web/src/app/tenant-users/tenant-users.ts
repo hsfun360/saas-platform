@@ -2,7 +2,9 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../auth.service';
-import { AccountCompany, AccountPerson, AccountPendingInvite, Role } from '../models/auth.models';
+import { DepartmentService } from '../services/department.service';
+import { PositionService } from '../services/position.service';
+import { AccountCompany, AccountPerson, AccountPendingInvite, Department, Position, Role } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 
@@ -78,8 +80,14 @@ export class TenantUsersComponent implements OnInit {
 
   // Template-driven selection state.
   roleSel: { [key: string]: string } = {};        // `${userId}:${companyId}` -> roleId
+  deptSel: { [key: string]: string } = {};         // `${userId}:${companyId}` -> departmentId ('' = none)
+  posSel: { [key: string]: string } = {};          // `${userId}:${companyId}` -> positionId ('' = none)
   addCompany: { [userId: string]: string } = {};   // userId -> companyId to add to
   addRole: { [userId: string]: string } = {};      // userId -> roleId for the add
+
+  // Subscriber org masters for the assignment dropdowns (active only).
+  readonly departments = signal<Department[]>([]);
+  readonly positions = signal<Position[]>([]);
 
   // Create-user form. nonNullable keeps every control a non-null string.
   readonly createForm = this.fb.nonNullable.group({
@@ -100,10 +108,22 @@ export class TenantUsersComponent implements OnInit {
   });
   readonly inviting = signal(false);
 
+  private readonly departmentService = inject(DepartmentService);
+  private readonly positionService = inject(PositionService);
+
   constructor(private authService: AuthService) {}
 
   ngOnInit(): void {
     this.load();
+    // Org masters for the per-membership Department/Position dropdowns.
+    this.departmentService.listActive().subscribe({
+      next: (rows) => this.departments.set(rows),
+      error: () => {}, // none configured -> dropdowns just offer "None"
+    });
+    this.positionService.listActive().subscribe({
+      next: (rows) => this.positions.set(rows),
+      error: () => {},
+    });
   }
 
   load(): void {
@@ -120,11 +140,15 @@ export class TenantUsersComponent implements OnInit {
         this.invitations.set(res.invitations);
         // Seed selection state so the bound <select>s show the current values.
         this.roleSel = {};
+        this.deptSel = {};
+        this.posSel = {};
         for (const p of res.people) {
           this.addCompany[p.id] = '';
           this.addRole[p.id] = '';
           for (const m of p.memberships) {
             this.roleSel[`${p.id}:${m.companyId}`] = m.roleId || '';
+            this.deptSel[`${p.id}:${m.companyId}`] = m.departmentId || '';
+            this.posSel[`${p.id}:${m.companyId}`] = m.positionId || '';
           }
         }
         this.loading.set(false);
@@ -230,13 +254,17 @@ export class TenantUsersComponent implements OnInit {
 
   onChangeRole(userId: string, companyId: string): void {
     this.clearMessages();
-    const roleId = this.roleSel[`${userId}:${companyId}`];
+    const key = `${userId}:${companyId}`;
+    const roleId = this.roleSel[key];
     if (!roleId) {
       this.errorMessage.set('Please choose a role.');
       return;
     }
     this.pendingKey.set(`role:${userId}:${companyId}`);
-    this.authService.assignCompanyUserRole(userId, roleId, companyId).subscribe({
+    this.authService.assignCompanyUserRole(userId, roleId, companyId, {
+      departmentId: this.deptSel[key] || null,
+      positionId: this.posSel[key] || null,
+    }).subscribe({
       next: (res) => {
         this.successMessage.set(res.message || '✅ Role updated.');
         this.pendingKey.set(null);

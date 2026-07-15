@@ -1,0 +1,148 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🏢</span>
+      <div>
+        <h1>Departments</h1>
+        <p class="saas-subtitle">Your subscription's department list — shared by all companies, assigned to users in User Management.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (departments().length > 0) {
+        {{ departments().length }} departments, {{ activeCount() }} active
+      } @else {
+        No departments yet — use "New department" to add one.
+      }
+    </span>
+  </div>
+
+  <!-- Live filter -->
+  @if (!loading() && departments().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #deptSearchBox type="search" [value]="search()" (input)="search.set(deptSearchBox.value)"
+             placeholder="Search departments…" aria-label="Search departments" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading departments…</p></div>
+  } @else if (departments().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No departments yet. Use "New department" to add one.</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No departments match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (d of filtered(); track d.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ d.departmentCode }}</div>
+              @if (d.description) {
+                <div class="data-card__subline">
+                  <span class="data-card__reg">{{ d.description }}</span>
+                </div>
+              }
+            </div>
+            <div class="data-row__badge">
+              @if (d.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(d)">Edit</button>
+              @if (d.isActive === false) {
+                <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(d)" [disabled]="togglingId() === d.id">
+                  {{ togglingId() === d.id ? 'Saving…' : 'Enable' }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(d)" [disabled]="togglingId() === d.id">
+                  {{ togglingId() === d.id ? 'Saving…' : 'Disable' }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New department FAB -->
+  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New department">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New department</span>
+  </button>
+
+  <!-- ============ Add / edit dialog ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this department. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="departmentForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="deptCode">Department code <span class="required">*</span></label>
+            <input id="deptCode" type="text" formControlName="departmentCode" placeholder="e.g. FIN"
+                   autocomplete="off" maxlength="30"
+                   [attr.aria-invalid]="showError(form.controls.departmentCode)" aria-describedby="deptCodeErr" />
+            @if (showError(form.controls.departmentCode)) {
+              <p id="deptCodeErr" class="field-error" role="alert">
+                @if (form.controls.departmentCode.errors?.['required']) { Department code is required. }
+                @else { Use 30 characters or fewer. }
+              </p>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="deptDesc">Description</label>
+            <input id="deptDesc" type="text" formControlName="description" placeholder="e.g. Finance" maxlength="200"
+                   [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="deptDescErr" />
+            @if (showError(form.controls.description)) {
+              <p id="deptDescErr" class="field-error" role="alert">Use 200 characters or fewer.</p>
+            }
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="departmentForm" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

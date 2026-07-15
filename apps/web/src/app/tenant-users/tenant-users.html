@@ -305,7 +305,8 @@
         </p>
       }
 
-      <h3 style="margin: var(--space-sm) 0; font-size: var(--font-h3); color: var(--text-primary);">Companies &amp; roles</h3>
+      <h3 style="margin: var(--space-sm) 0; font-size: var(--font-h3); color: var(--text-primary);">Companies, roles &amp; placement</h3>
+      <p class="subtle" style="margin: 0 0 var(--space-sm);">Role controls what they may do; department and position control whose records they may amend (seniority within the same department).</p>
 
       <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
         <!-- Per-company role + remove. -->
@@ -319,6 +320,21 @@
                 <option value="">— No role —</option>
                 @for (r of rolesFor(m.companyId); track r.id) {
                   <option [value]="r.id">{{ r.name }}</option>
+                }
+              </select>
+              <!-- Org placement (Phase 2 RBAC): feeds the data-scope rule. -->
+              <select [value]="deptSel[key]" (change)="deptSel[key] = $any($event.target).value" [attr.aria-label]="'Department for ' + person.email + ' in ' + m.companyName"
+                      style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); max-width: 100%; background: var(--surface-card); color: var(--text-primary);">
+                <option value="">— No department —</option>
+                @for (d of departments(); track d.id) {
+                  <option [value]="d.id">{{ d.description || d.departmentCode }}</option>
+                }
+              </select>
+              <select [value]="posSel[key]" (change)="posSel[key] = $any($event.target).value" [attr.aria-label]="'Position for ' + person.email + ' in ' + m.companyName"
+                      style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); max-width: 100%; background: var(--surface-card); color: var(--text-primary);">
+                <option value="">— No position —</option>
+                @for (p of positions(); track p.id) {
+                  <option [value]="p.id">{{ p.description || p.positionCode }}</option>
                 }
               </select>
             </span>

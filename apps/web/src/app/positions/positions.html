@@ -1,0 +1,209 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🪜</span>
+      <div>
+        <h1>Positions</h1>
+        <p class="saas-subtitle">Your subscription's seniority ladder — higher rank = more senior. Assigned to users in User Management.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line + Load defaults -->
+  <div style="margin-bottom: var(--space-md); display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap;">
+    <span class="cell-subtle">
+      @if (positions().length > 0) {
+        {{ positions().length }} positions, {{ activeCount() }} active
+      } @else {
+        No positions yet — use "New position" or load the standard ladder.
+      }
+    </span>
+    <button type="button" class="btn btn--secondary btn--sm" (click)="openDefaults()">
+      <span class="material-icons" aria-hidden="true">playlist_add</span>
+      Load defaults
+    </button>
+  </div>
+
+  <!-- Live filter -->
+  @if (!loading() && positions().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #posSearchBox type="search" [value]="search()" (input)="search.set(posSearchBox.value)"
+             placeholder="Search positions…" aria-label="Search positions" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading positions…</p></div>
+  } @else if (positions().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">📭</span>
+      <p>No positions yet. Load the standard ladder or use "New position".</p>
+      <button type="button" class="btn btn--secondary" (click)="openDefaults()">Load defaults</button>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No positions match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (p of filtered(); track p.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ p.positionCode }}</div>
+              <div class="data-card__subline">
+                @if (p.description) {
+                  <span class="data-card__reg">{{ p.description }} · </span>
+                }
+                <span class="data-card__reg">Rank {{ p.rank }}</span>
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (p.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(p)">Edit</button>
+              @if (p.isActive === false) {
+                <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(p)" [disabled]="togglingId() === p.id">
+                  {{ togglingId() === p.id ? 'Saving…' : 'Enable' }}
+                </button>
+              } @else {
+                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(p)" [disabled]="togglingId() === p.id">
+                  {{ togglingId() === p.id ? 'Saving…' : 'Disable' }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New position FAB -->
+  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New position">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New position</span>
+  </button>
+
+  <!-- ============ Add / edit dialog ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this position. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="positionForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="posCode">Position code <span class="required">*</span></label>
+            <input id="posCode" type="text" formControlName="positionCode" placeholder="e.g. MGR"
+                   autocomplete="off" maxlength="30"
+                   [attr.aria-invalid]="showError(form.controls.positionCode)" aria-describedby="posCodeErr" />
+            @if (showError(form.controls.positionCode)) {
+              <p id="posCodeErr" class="field-error" role="alert">
+                @if (form.controls.positionCode.errors?.['required']) { Position code is required. }
+                @else { Use 30 characters or fewer. }
+              </p>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="posDesc">Description</label>
+            <input id="posDesc" type="text" formControlName="description" placeholder="e.g. Manager" maxlength="200"
+                   [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="posDescErr" />
+            @if (showError(form.controls.description)) {
+              <p id="posDescErr" class="field-error" role="alert">Use 200 characters or fewer.</p>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="posRank">Rank <span class="required">*</span></label>
+            <input id="posRank" type="number" formControlName="rank" inputmode="numeric" step="1" placeholder="e.g. 30"
+                   [attr.aria-invalid]="showError(form.controls.rank)" aria-describedby="posRankErr posRankHint" />
+            <p id="posRankHint" class="cell-subtle" style="margin: var(--space-xs) 0 0;">
+              Higher = more senior. A senior can be allowed to amend a junior's records in the same department; equal ranks are peers.
+            </p>
+            @if (showError(form.controls.rank)) {
+              <p id="posRankErr" class="field-error" role="alert">Rank is required (a whole number).</p>
+            }
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="positionForm" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Load defaults (preview + select) dialog ============ -->
+  @if (defaultsOpen()) {
+    <app-dialog [title]="'Load default positions'" [busy]="seeding()" (close)="closeDefaults()">
+      @if (defaultsLoading()) {
+        <p style="color: var(--text-muted);">Loading defaults…</p>
+      } @else {
+        <p style="color: var(--text-muted); font-size: var(--font-body-2); margin-top: 0;">
+          The standard three-level ladder. Already-added positions are marked and won't be changed.
+        </p>
+        <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-xs);">
+          @for (d of defaults(); track d.positionCode) {
+            <li>
+              <label style="display: flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer; color: var(--text-secondary);"
+                     [style.opacity]="d.alreadyExists ? 0.6 : 1">
+                <input type="checkbox" style="width: 18px; height: 18px;"
+                       [checked]="selectedDefaults().has(d.positionCode)"
+                       [disabled]="d.alreadyExists"
+                       (change)="toggleDefault(d.positionCode)">
+                <span style="font-weight: var(--weight-semibold); color: var(--text-primary);">{{ d.positionCode }}</span>
+                <span>{{ d.description }}</span>
+                <span style="margin-left: auto; font-size: var(--font-caption); color: var(--text-muted); white-space: nowrap;">
+                  Rank {{ d.rank }}@if (d.alreadyExists) { · already added }
+                </span>
+              </label>
+            </li>
+          }
+        </ul>
+      }
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="closeDefaults()" [disabled]="seeding()">Cancel</button>
+        <button type="button" class="btn btn--primary" (click)="seedSelected()"
+                [disabled]="seeding() || defaultsLoading() || selectedDefaultCount() === 0">
+          {{ seeding() ? 'Adding…' : 'Add ' + selectedDefaultCount() + ' position' + (selectedDefaultCount() === 1 ? '' : 's') }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

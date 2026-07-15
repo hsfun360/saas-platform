@@ -183,8 +183,21 @@ export class AuthService {
     return this.http.patch<{ message: string }>(`${this.apiBaseUrl}/auth/company/users/${userId}`, data);
   }
 
-  assignCompanyUserRole(userId: string, roleId: string, companyId?: string): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/company/users/assign-role`, { userId, roleId, companyId });
+  // Set a user's role (and optional org placement) within a company.
+  // placement.departmentId / positionId: null clears the assignment; omit the
+  // placement object entirely to leave both unchanged.
+  assignCompanyUserRole(
+    userId: string,
+    roleId: string,
+    companyId?: string,
+    placement?: { departmentId: string | null; positionId: string | null },
+  ): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/company/users/assign-role`, {
+      userId,
+      roleId,
+      companyId,
+      ...(placement ?? {}),
+    });
   }
 
   revokeCompanyUser(userId: string, companyId?: string): Observable<{ message: string }> {

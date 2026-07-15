@@ -70,6 +70,11 @@ export interface PersonMembership {
   companyName?: string;
   roleId?: string | null;
   roleName?: string | null;
+  // Org placement within this company (subscriber Department/Position masters).
+  departmentId?: string | null;
+  departmentName?: string | null;
+  positionId?: string | null;
+  positionName?: string | null;
 }
 
 export interface AccountPerson {
@@ -337,6 +342,34 @@ export interface IndustryType {
   industryTypeCode: string;
   description?: string | null;
   isActive?: boolean;
+}
+
+// Department - subscriber-owned reference data (one list per Account, shared by
+// all companies); assigned to users per company (CompanyUser.departmentId).
+export interface Department {
+  id: string;
+  departmentCode: string;
+  description?: string | null;
+  isActive?: boolean;
+}
+
+// Position - subscriber-owned position ladder. `rank`: higher = more senior
+// (drives the RBAC data-scope seniority rule); equal ranks are peers.
+export interface Position {
+  id: string;
+  positionCode: string;
+  description?: string | null;
+  rank: number;
+  isActive?: boolean;
+}
+
+// One bundled Position default, flagged with whether the account already has it
+// (the Load-defaults preview).
+export interface PositionDefault {
+  positionCode: string;
+  description: string;
+  rank: number;
+  alreadyExists: boolean;
 }
 
 // Salutation - subscriber-owned reference data (Mr/Mrs/Datuk/..., one list per

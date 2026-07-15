@@ -37,6 +37,8 @@ import { CurrenciesComponent } from './app/currencies/currencies';
 import { AccountLanguagesComponent } from './app/account-languages/account-languages';
 import { AccountCurrenciesComponent } from './app/account-currencies/account-currencies';
 import { IndustryTypesComponent } from './app/industry-types/industry-types';
+import { DepartmentsComponent } from './app/departments/departments';
+import { PositionsComponent } from './app/positions/positions';
 import { SalutationsComponent } from './app/salutations/salutations';
 import { NationalitiesComponent } from './app/nationalities/nationalities';
 import { RacesComponent } from './app/races/races';
@@ -108,6 +110,8 @@ const routes: Routes = [
       { path: 'admin/account-currencies', component: AccountCurrenciesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       // Subscriber-owned shared reference data (consumed across products).
       { path: 'admin/industry-types', component: IndustryTypesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/departments', component: DepartmentsComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/positions', component: PositionsComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/salutations', component: SalutationsComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/nationalities', component: NationalitiesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/races', component: RacesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
