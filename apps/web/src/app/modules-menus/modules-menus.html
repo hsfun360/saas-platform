@@ -317,6 +317,19 @@
           }
         </div>
 
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+          <label for="menu-description" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">
+            Description <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional — what the screen is for)</span>
+          </label>
+          <input id="menu-description" type="text" formControlName="description" maxlength="255" placeholder="e.g. Define the bookable tee time slots per course"
+                 [attr.aria-invalid]="showError(menuForm.controls.description)" aria-describedby="menu-description-err"
+                 style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
+          <span style="font-size: var(--font-caption); color: var(--text-muted);">Shown under the menu name when assigning role permissions.</span>
+          @if (showError(menuForm.controls.description)) {
+            <p id="menu-description-err" class="field-error" role="alert">Description is too long (max 255 characters).</p>
+          }
+        </div>
+
         <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
           <label for="menu-icon" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">
             Material icon <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional)</span>
@@ -341,7 +354,7 @@
 
         <div style="margin-top: var(--space-md); border-top: 1px solid var(--border); padding-top: var(--space-md);">
           <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Translations</label>
-          <p style="font-size: var(--font-caption); color: var(--text-muted); margin: var(--space-xs) 0 var(--space-sm);">Localized name per language, shown in the sidebar. Leave blank to fall back to the name above.</p>
+          <p style="font-size: var(--font-caption); color: var(--text-muted); margin: var(--space-xs) 0 var(--space-sm);">Localized name and description per language. Leave blank to fall back to the values above.</p>
           @if (menuTranslationControls.length === 0) {
             <p style="font-size: var(--font-caption); color: var(--text-muted); margin: 0;">No languages configured. Load defaults on the Languages screen to add translations.</p>
           } @else {
@@ -355,6 +368,14 @@
                          style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
                   @if (showError(row.controls.name)) {
                     <p [id]="'menu-tr-' + row.controls.languageCode.value + '-err'" class="field-error" role="alert">Name is too long.</p>
+                  }
+                  <input [id]="'menu-tr-desc-' + row.controls.languageCode.value" type="text" formControlName="description" maxlength="255"
+                         [attr.aria-label]="'Description in ' + row.controls.label.value"
+                         [placeholder]="'Description in ' + row.controls.label.value"
+                         [attr.aria-invalid]="showError(row.controls.description)" [attr.aria-describedby]="'menu-tr-desc-' + row.controls.languageCode.value + '-err'"
+                         style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
+                  @if (showError(row.controls.description)) {
+                    <p [id]="'menu-tr-desc-' + row.controls.languageCode.value + '-err'" class="field-error" role="alert">Description is too long.</p>
                   }
                 </div>
               }

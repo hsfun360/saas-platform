@@ -35,11 +35,13 @@ interface MenuTreeNode {
 // One translation row = a small typed FormGroup. `languageCode` and `label` are
 // carried alongside the editable `name` so we can render the row's label and read
 // the code back into the API payload without a separate parallel array (mirrors
-// the `countries` screen).
+// the `countries` screen). `description` is only rendered (and saved) by the
+// menu dialog; the module dialog ignores it.
 type TranslationGroup = FormGroup<{
   languageCode: FormControl<string>;
   label: FormControl<string>;
   name: FormControl<string>;
+  description: FormControl<string>;
 }>;
 
 // System/Master Admin master–detail maintenance for the platform catalogue:
@@ -141,6 +143,7 @@ export class ModulesMenusComponent implements OnInit {
   readonly menuForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
     route: ['', [Validators.required, Validators.maxLength(200)]],
+    description: ['', [Validators.maxLength(255)]],
     icon: [''],
     parentId: [''], // '' = top level
     translations: this.fb.nonNullable.array<TranslationGroup>([]),
@@ -177,31 +180,41 @@ export class ModulesMenusComponent implements OnInit {
   // Union of active languages + any language already present on the row's `names`
   // (so existing translations stay editable even if that language was later
   // deactivated). English first, then alphabetical by label.
-  private buildTranslations(names?: Record<string, string>): { code: string; label: string; name: string }[] {
+  private buildTranslations(
+    names?: Record<string, string>,
+    descriptions?: Record<string, string>,
+  ): { code: string; label: string; name: string; description: string }[] {
     const map = names || {};
+    const descMap = descriptions || {};
     const labels = new Map<string, string>();
     for (const l of this.languages()) labels.set(l.languageCode, l.name);
     for (const code of Object.keys(map)) if (!labels.has(code)) labels.set(code, code.toUpperCase());
+    for (const code of Object.keys(descMap)) if (!labels.has(code)) labels.set(code, code.toUpperCase());
     return [...labels.entries()]
-      .map(([code, label]) => ({ code, label, name: map[code] || '' }))
+      .map(([code, label]) => ({ code, label, name: map[code] || '', description: descMap[code] || '' }))
       .sort((a, b) => (a.code === 'en' ? -1 : b.code === 'en' ? 1 : a.label.localeCompare(b.label)));
   }
 
   // Clear + repopulate a dialog's `translations` FormArray: one typed group per
   // language row. Each group carries its values as its nonNullable defaults, so a
   // subsequent form.reset() keeps them and marks the whole form pristine.
-  private populateTranslations(arr: FormArray<TranslationGroup>, names?: Record<string, string>): void {
+  private populateTranslations(
+    arr: FormArray<TranslationGroup>,
+    names?: Record<string, string>,
+    descriptions?: Record<string, string>,
+  ): void {
     arr.clear();
-    for (const row of this.buildTranslations(names)) {
-      arr.push(this.buildTranslationGroup(row.code, row.label, row.name));
+    for (const row of this.buildTranslations(names, descriptions)) {
+      arr.push(this.buildTranslationGroup(row.code, row.label, row.name, row.description));
     }
   }
 
-  private buildTranslationGroup(code: string, label: string, name: string): TranslationGroup {
+  private buildTranslationGroup(code: string, label: string, name: string, description: string): TranslationGroup {
     return this.fb.nonNullable.group({
       languageCode: this.fb.nonNullable.control(code),
       label: this.fb.nonNullable.control(label),
       name: this.fb.nonNullable.control(name, [Validators.maxLength(100)]),
+      description: this.fb.nonNullable.control(description, [Validators.maxLength(255)]),
     });
   }
 
@@ -211,6 +224,13 @@ export class ModulesMenusComponent implements OnInit {
     const names: Record<string, string> = {};
     for (const r of rows) names[r.languageCode] = r.name.trim();
     return names;
+  }
+
+  // Same fold for the localized menu descriptions (Menu.descriptions).
+  private descriptionsFrom(rows: { languageCode: string; description: string }[]): Record<string, string> {
+    const descriptions: Record<string, string> = {};
+    for (const r of rows) descriptions[r.languageCode] = r.description.trim();
+    return descriptions;
   }
 
   // Show a control's validation message once the user has interacted with it
@@ -388,8 +408,8 @@ export class ModulesMenusComponent implements OnInit {
     this.clearMessages();
     this.editingMenuId.set(null);
     this.parentOptions.set(this.buildParentOptions(null));
-    this.populateTranslations(this.menuForm.controls.translations, {});
-    this.menuForm.reset({ name: '', route: '', icon: '', parentId: parentId || '' });
+    this.populateTranslations(this.menuForm.controls.translations, {}, {});
+    this.menuForm.reset({ name: '', route: '', description: '', icon: '', parentId: parentId || '' });
     this.menuDialogOpen.set(true);
   }
 
@@ -398,8 +418,8 @@ export class ModulesMenusComponent implements OnInit {
     this.editingMenuId.set(menu.id);
     // Exclude the menu itself and its descendants from the parent options (cycles).
     this.parentOptions.set(this.buildParentOptions(menu.id));
-    this.populateTranslations(this.menuForm.controls.translations, menu.names);
-    this.menuForm.reset({ name: menu.name, route: menu.route || '', icon: menu.icon || '', parentId: menu.parentId || '' });
+    this.populateTranslations(this.menuForm.controls.translations, menu.names, menu.descriptions);
+    this.menuForm.reset({ name: menu.name, route: menu.route || '', description: menu.description || '', icon: menu.icon || '', parentId: menu.parentId || '' });
     this.menuDialogOpen.set(true);
   }
 
@@ -420,7 +440,7 @@ export class ModulesMenusComponent implements OnInit {
   cancelMenuEdit(): void {
     this.menuDialogOpen.set(false);
     this.editingMenuId.set(null);
-    this.menuForm.reset({ name: '', route: '', icon: '' });
+    this.menuForm.reset({ name: '', route: '', description: '', icon: '' });
   }
 
   saveMenu(): void {
@@ -436,15 +456,16 @@ export class ModulesMenusComponent implements OnInit {
       return;
     }
 
-    const { name, route, icon, parentId, translations } = this.menuForm.getRawValue();
+    const { name, route, description, icon, parentId, translations } = this.menuForm.getRawValue();
     const editingId = this.editingMenuId();
     const names = this.namesFrom(translations);
+    const descriptions = this.descriptionsFrom(translations);
     const parent = parentId || null;
 
     this.savingMenu.set(true);
     const req$ = editingId
-      ? this.admin.updateMenu(editingId, { name: name.trim(), route: route.trim(), icon: icon.trim(), parentId: parent, names })
-      : this.admin.createMenu({ name: name.trim(), route: route.trim(), icon: icon.trim(), moduleId, parentId: parent, names });
+      ? this.admin.updateMenu(editingId, { name: name.trim(), route: route.trim(), description: description.trim(), icon: icon.trim(), parentId: parent, names, descriptions })
+      : this.admin.createMenu({ name: name.trim(), route: route.trim(), description: description.trim(), icon: icon.trim(), moduleId, parentId: parent, names, descriptions });
 
     req$.subscribe({
       next: (res) => {

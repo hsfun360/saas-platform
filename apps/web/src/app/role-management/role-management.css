@@ -105,3 +105,135 @@
     justify-self: start; /* bottom-left on mobile */
   }
 }
+
+/* ============ Permission picker (role dialog) ============
+   One collapsible card per module: header = tri-state select-all + name +
+   "x of y selected" + chevron; body = the module's menu tree. Group menus
+   render as indented section headings (own select-all, not grantable);
+   leaves are checkbox rows with the menu description on a second line. */
+
+.perm-search {
+  margin-bottom: var(--space-md);
+}
+
+.perm-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: var(--space-sm);
+}
+
+.perm-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--surface-sunken);
+  padding-left: var(--space-md);
+}
+
+/* The header's expand/collapse hit area: everything except the checkbox. */
+.perm-card__toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md) var(--space-sm) var(--space-xs);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary);
+  font-size: var(--font-body);
+}
+
+.perm-card__name {
+  font-weight: var(--weight-bold);
+  min-width: 0;
+}
+
+.perm-card__count {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.perm-card__toggle .material-icons {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.perm-card__body {
+  padding: var(--space-xs) var(--space-md) var(--space-sm);
+  border-top: 1px solid var(--border);
+}
+
+.perm-check {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--brand);
+}
+
+/* Grouping menu: section heading + its own select-all. */
+.perm-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  padding: var(--space-xs) 0;
+  color: var(--text-secondary);
+  font-weight: var(--weight-semibold);
+}
+
+.perm-group__name {
+  min-width: 0;
+}
+
+/* Selectable menu row: checkbox + icon + name, description underneath. */
+.perm-leaf {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  min-height: 44px;
+  padding: var(--space-xs) 0;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+/* Keep checkbox and icon aligned with the name's first line. */
+.perm-leaf .perm-check,
+.perm-leaf .perm-row__icon {
+  margin-top: 2px;
+}
+
+.perm-row__icon {
+  font-size: 18px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.perm-leaf__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.perm-leaf__name {
+  color: var(--text-primary);
+}
+
+.perm-leaf__desc {
+  font-size: var(--font-body-2);
+  color: var(--text-muted);
+}
+
+.perm-summary {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--font-body-2);
+  color: var(--text-muted);
+}

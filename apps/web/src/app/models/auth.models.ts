@@ -7,6 +7,10 @@
   // Localized menu names keyed by language code (DB Menu.names); the display label
   // resolves names[lang] ?? name at render time.
   names?: Record<string, string>;
+  // One-liner explaining what the screen does (base + localized, like name/names);
+  // shown under the menu name in the role permission picker.
+  description?: string | null;
+  descriptions?: Record<string, string>;
   route: string;
   icon?: string;
   moduleName?: string;
@@ -172,6 +176,10 @@ export interface AdminMenu {
   id: string;
   name: string;
   names?: Record<string, string>;
+  // One-liner explaining what the screen does (base + localized, same pattern
+  // as name/names) — shown under the name in the role permission picker.
+  description?: string | null;
+  descriptions?: Record<string, string>;
   route?: string;
   icon?: string;
   moduleId?: string;
@@ -206,6 +214,8 @@ export interface MenuInput {
   moduleId: string;
   parentId?: string | null;
   names?: Record<string, string>;
+  description?: string;
+  descriptions?: Record<string, string>;
 }
 
 // --- Email templates (platform defaults + tenant overrides) ---
