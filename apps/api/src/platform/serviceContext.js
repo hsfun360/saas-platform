@@ -142,6 +142,142 @@ function requireMenuAction(menuRoute) {
     };
 }
 
+// --- WHOSE records they may touch (RBAC data scope, Phase 3) ---------------
+// Row-level authorization: a role's `dataScope` ('own' | 'department' | 'all')
+// bounds Edit/Delete to records the caller owns, records of juniors in their
+// department, or everything. Records carry the stamps `createdBy` (owner
+// userId) + `createdByDepartmentId` (owner's department at creation).
+//
+// The rule (agreed 2026-07-15):
+//   own        - record.createdBy === caller
+//   department - own, OR (record's stamped department === caller's CURRENT
+//                department AND caller's rank is STRICTLY higher than the
+//                owner's current rank - peers cannot touch each other).
+//                A caller with no department/position falls back to own-only;
+//                an owner with no position counts as most junior.
+//   all        - everything, including legacy rows with no owner stamp.
+//                (Under own/department, unowned legacy rows are untouchable.)
+//
+// IN-PROCESS IMPLEMENTATION (monolith): Control-Plane model lookups (lazy
+// requires). WHEN SPLIT: resolve the context from a Control-Plane call or a
+// claims bundle; the record comparison stays local. Callers unchanged.
+
+// Resolve the caller's row-level access context in their active workspace:
+// { scope, userId, departmentId, rank }. System admins, the implicit-full
+// Tenant Admin role, and the System workspace all resolve to scope 'all'.
+// No role -> most restrictive ('own').
+async function getAccessContext(req) {
+    const { userId, companyId, isSystemAdmin } = getUserContext(req);
+    if (isSystemAdmin || !companyId) {
+        return { scope: 'all', userId, departmentId: null, rank: null };
+    }
+
+    const CompanyUser = require('../modules/saas/companyUser.model');
+    const Role = require('../modules/saas/role.model');
+    const Position = require('../modules/saas/position.model');
+
+    const membership = await CompanyUser.findOne({
+        where: { userId, companyId },
+        attributes: ['roleId', 'departmentId', 'positionId'],
+    });
+    if (!membership) return { scope: 'own', userId, departmentId: null, rank: null };
+
+    let scope = 'own';
+    if (membership.roleId) {
+        const role = await Role.findByPk(membership.roleId, { attributes: ['name', 'dataScope'] });
+        if (role) scope = role.name === 'Tenant Admin' ? 'all' : (role.dataScope || 'all');
+    }
+
+    let rank = null;
+    if (membership.positionId) {
+        const position = await Position.findByPk(membership.positionId, { attributes: ['rank', 'isActive'] });
+        if (position && position.isActive !== false) rank = position.rank;
+    }
+
+    return { scope, userId, departmentId: membership.departmentId || null, rank };
+}
+
+// The caller's org placement in the active company, for STAMPING new records:
+// { departmentId, positionId } (nulls when unassigned / System workspace).
+async function getCallerPlacement(req) {
+    const { userId, companyId } = getUserContext(req);
+    if (!userId || !companyId) return { departmentId: null, positionId: null };
+    const CompanyUser = require('../modules/saas/companyUser.model');
+    const membership = await CompanyUser.findOne({
+        where: { userId, companyId },
+        attributes: ['departmentId', 'positionId'],
+    });
+    return {
+        departmentId: membership ? membership.departmentId || null : null,
+        positionId: membership ? membership.positionId || null : null,
+    };
+}
+
+// Current rank of each record owner within the caller's company, for the
+// strictly-senior comparison. Missing membership/position = most junior.
+async function ownerRanksIn(companyId, ownerIds) {
+    const ids = [...new Set(ownerIds.filter(Boolean))];
+    if (!ids.length || !companyId) return new Map();
+
+    const CompanyUser = require('../modules/saas/companyUser.model');
+    const Position = require('../modules/saas/position.model');
+
+    const memberships = await CompanyUser.findAll({
+        where: { userId: ids, companyId },
+        attributes: ['userId', 'positionId'],
+    });
+    const positionIds = [...new Set(memberships.map(m => m.positionId).filter(Boolean))];
+    const positions = positionIds.length
+        ? await Position.findAll({ where: { id: positionIds }, attributes: ['id', 'rank', 'isActive'] })
+        : [];
+    const rankByPosition = new Map(positions.filter(p => p.isActive !== false).map(p => [p.id, p.rank]));
+
+    const ranks = new Map();
+    for (const m of memberships) {
+        if (m.positionId && rankByPosition.has(m.positionId)) ranks.set(m.userId, rankByPosition.get(m.positionId));
+    }
+    return ranks;
+}
+
+// Pure comparison once the context and the owner's rank are known.
+// `ownerRank` = undefined/null means the owner has no (active) position.
+function scopeAllows(ctx, record, ownerRank) {
+    if (ctx.scope === 'all') return true;
+    const owner = record ? record.createdBy || null : null;
+    if (owner && owner === ctx.userId) return true; // own records always
+    if (ctx.scope !== 'department') return false;
+    if (!owner) return false; // legacy unowned rows: 'all' scope only
+    if (!ctx.departmentId || ctx.rank === null || ctx.rank === undefined) return false; // unplaced caller = own-only
+    if ((record.createdByDepartmentId || null) !== ctx.departmentId) return false;
+    const theirRank = ownerRank === null || ownerRank === undefined ? -Infinity : ownerRank;
+    return ctx.rank > theirRank; // strictly senior; peers cannot
+}
+
+// May the caller modify ONE record? -> boolean. Pass the context from
+// getAccessContext when checking several records; otherwise it is resolved here.
+async function canModifyRecord(req, record, ctx = null) {
+    const context = ctx || await getAccessContext(req);
+    if (context.scope === 'all') return true;
+    if (record && record.createdBy && record.createdBy === context.userId) return true;
+    if (context.scope !== 'department' || !record || !record.createdBy) return scopeAllows(context, record);
+    const { companyId } = getUserContext(req);
+    const ranks = await ownerRanksIn(companyId, [record.createdBy]);
+    return scopeAllows(context, record, ranks.get(record.createdBy));
+}
+
+// Batch form for listings: one boolean per record (same order), resolving every
+// owner's rank in a single pair of queries - powers the per-row `canModify`
+// flag so the UI hides Edit/Delete on rows the caller cannot touch.
+async function annotateCanModify(req, records) {
+    const ctx = await getAccessContext(req);
+    if (ctx.scope === 'all') return records.map(() => true);
+    const { companyId } = getUserContext(req);
+    const ranks = ctx.scope === 'department'
+        ? await ownerRanksIn(companyId, records.map(r => r.createdBy))
+        : new Map();
+    return records.map(r => scopeAllows(ctx, r, ranks.get(r ? r.createdBy : null)));
+}
+
 // --- WHICH companies share the caller's subscription ----------------------
 // Resolve the sibling companies under the same Account (subscription) as the
 // caller's active workspace. A Control-Plane concern, exposed here as a seam so
@@ -276,6 +412,10 @@ module.exports = {
     getActiveAccountId,
     requireModule,
     requireMenuAction,
+    getAccessContext,
+    getCallerPlacement,
+    canModifyRecord,
+    annotateCanModify,
     listSubscriptionCompanies,
     listAccountCurrencies,
     getPlatformProfile,

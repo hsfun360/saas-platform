@@ -1,5 +1,11 @@
 const MembershipStatus = require('./membershipStatus.model');
-const { getUserContext, listSubscriptionCompanies } = require('../../platform/serviceContext');
+const {
+    getUserContext,
+    listSubscriptionCompanies,
+    getCallerPlacement,
+    canModifyRecord,
+    annotateCanModify,
+} = require('../../platform/serviceContext');
 const {
     STATUS_CLASSES,
     SYSTEM_CONTROLS,
@@ -38,7 +44,10 @@ exports.listStatuses = async (req, res) => {
             where: { companyId },
             order: [['membershipStatus', 'ASC']],
         });
-        res.status(200).json(rows);
+        // Row-level data scope: flag which rows the caller's role may modify,
+        // so the UI hides Edit/Enable/Disable instead of 403-ing after a click.
+        const flags = await annotateCanModify(req, rows);
+        res.status(200).json(rows.map((r, i) => ({ ...r.toJSON(), canModify: flags[i] })));
     } catch (error) {
         console.error('Error listing membership statuses:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -66,6 +75,8 @@ exports.createStatus = async (req, res) => {
         const existing = await MembershipStatus.findOne({ where: { companyId, membershipStatus } });
         if (existing) return res.status(409).json({ message: `Membership status '${membershipStatus}' already exists.` });
 
+        // Ownership stamps: creator + their department at creation (data scope).
+        const { departmentId } = await getCallerPlacement(req);
         const status = await MembershipStatus.create({
             companyId,
             membershipStatus,
@@ -73,6 +84,9 @@ exports.createStatus = async (req, res) => {
             description: description || null,
             systemControl,
             statusColor,
+            createdBy: getUserContext(req).userId,
+            createdByDepartmentId: departmentId,
+            updatedBy: getUserContext(req).userId,
         });
         res.status(201).json({ message: 'Membership status created.', status });
     } catch (error) {
@@ -90,6 +104,11 @@ exports.updateStatus = async (req, res) => {
 
         const status = await MembershipStatus.findOne({ where: { id: req.params.id, companyId } });
         if (!status) return res.status(404).json({ message: 'Membership status not found.' });
+
+        // Row-level data scope: own / department (strictly senior) / all.
+        if (!(await canModifyRecord(req, status))) {
+            return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
+        }
 
         if (typeof req.body.membershipStatus === 'string' && req.body.membershipStatus.trim()) {
             const membershipStatus = req.body.membershipStatus.trim();
@@ -117,6 +136,7 @@ exports.updateStatus = async (req, res) => {
         }
         if (typeof req.body.isActive === 'boolean') status.isActive = req.body.isActive;
 
+        status.updatedBy = getUserContext(req).userId;
         await status.save();
         res.status(200).json({ message: 'Membership status updated.', status });
     } catch (error) {
@@ -206,6 +226,9 @@ exports.copyStatuses = async (req, res) => {
         const sourceStatuses = await MembershipStatus.findAll({ where });
         if (sourceStatuses.length === 0) return res.status(400).json({ message: 'No statuses found to copy.' });
 
+        // Copies are records the CALLER creates in the target company.
+        const placement = await getCallerPlacement(req);
+        const callerId = getUserContext(req).userId;
         const clones = sourceStatuses.map((s) => ({
             companyId,
             membershipStatus: s.membershipStatus,
@@ -214,6 +237,9 @@ exports.copyStatuses = async (req, res) => {
             systemControl: s.systemControl,
             statusColor: s.statusColor,
             isActive: s.isActive,
+            createdBy: callerId,
+            createdByDepartmentId: placement.departmentId,
+            updatedBy: callerId,
         }));
         const created = await MembershipStatus.bulkCreate(clones);
 

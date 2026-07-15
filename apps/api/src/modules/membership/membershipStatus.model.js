@@ -55,6 +55,22 @@ const MembershipStatus = sequelize.define('MembershipStatus', {
         allowNull: false,
         defaultValue: true,
     },
+    // Ownership stamps (RBAC data scope + future workflow): the creator, their
+    // department at creation time, and the last editor. Plain UUID references
+    // into the Control Plane. Null on pre-Phase-3 rows = modifiable only by
+    // 'all'-scope roles.
+    createdBy: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    createdByDepartmentId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    updatedBy: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
 }, {
     // Owned by the Membership service -> its own Postgres schema, so the whole
     // service extracts as `pg_dump --schema=membership`. See platform/schemas.js.

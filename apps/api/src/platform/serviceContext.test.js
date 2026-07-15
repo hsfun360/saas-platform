@@ -12,7 +12,8 @@ const CompanyUser = require('../modules/saas/companyUser.model');
 const Role = require('../modules/saas/role.model');
 const Menu = require('../modules/saas/menu.model');
 const RoleMenu = require('../modules/saas/roleMenu.model');
-const { requireMenuAction } = require('./serviceContext');
+const Position = require('../modules/saas/position.model');
+const { requireMenuAction, canModifyRecord, annotateCanModify } = require('./serviceContext');
 
 function fn(impl) {
     const f = (...args) => {
@@ -123,4 +124,85 @@ test('requireMenuAction: DELETE allowed when canDelete', async () => {
     const res = mockRes();
     await requireMenuAction('/membership/fees')(mockReq('DELETE', USER), res, next);
     assert.strictEqual(next.calls.length, 1);
+});
+
+// ---------------------------------------------------------------------------
+// Data scope (Phase 3): canModifyRecord / annotateCanModify
+// ---------------------------------------------------------------------------
+
+// Stub one caller: their membership (role/department/position), their role's
+// dataScope, their position's rank, and the record-owners' memberships.
+function stubScope({ dataScope, callerDept, callerRank, owners = {} }) {
+    CompanyUser.findOne = fn(async () => ({
+        roleId: 'role-1',
+        departmentId: callerDept ?? null,
+        positionId: callerRank === null || callerRank === undefined ? null : 'pos-caller',
+    }));
+    Role.findByPk = fn(async () => ({ name: 'Front Desk', dataScope }));
+    // Caller position (findByPk) and owner positions (findAll) share ids of the
+    // form pos-<rank>. `owners` maps ownerUserId -> rank (or null = no position).
+    Position.findByPk = fn(async () => ({ rank: callerRank, isActive: true }));
+    CompanyUser.findAll = fn(async () => Object.entries(owners)
+        .map(([userId, rank]) => ({ userId, positionId: rank === null ? null : `pos-${rank}` })));
+    Position.findAll = fn(async ({ where }) => (where.id || [])
+        .map((id) => ({ id, rank: Number(String(id).replace('pos-', '')), isActive: true })));
+}
+
+const rec = (createdBy, dept) => ({ createdBy, createdByDepartmentId: dept ?? null });
+
+test('data scope: system admin is always allowed', async () => {
+    CompanyUser.findOne = fn(async () => { throw new Error('must not be called'); });
+    const ok = await canModifyRecord(mockReq('PUT', { ...USER, isSystemAdmin: true }), rec('someone-else', 'd1'));
+    assert.strictEqual(ok, true);
+});
+
+test("data scope 'own': own record yes, someone else's no, legacy unowned no", async () => {
+    stubScope({ dataScope: 'own', callerDept: 'd1', callerRank: 10 });
+    const req = mockReq('PUT', USER);
+    assert.strictEqual(await canModifyRecord(req, rec(USER.id, 'd1')), true);
+    assert.strictEqual(await canModifyRecord(req, rec('other-user', 'd1')), false);
+    assert.strictEqual(await canModifyRecord(req, rec(null, null)), false);
+});
+
+test("data scope 'department': strictly senior in the same department only", async () => {
+    const req = mockReq('PUT', USER);
+
+    // Supervisor (20) vs Staff owner (10), same department -> allowed.
+    stubScope({ dataScope: 'department', callerDept: 'd1', callerRank: 20, owners: { 'staff-1': 10 } });
+    assert.strictEqual(await canModifyRecord(req, rec('staff-1', 'd1')), true);
+
+    // Peer (same rank) -> denied.
+    stubScope({ dataScope: 'department', callerDept: 'd1', callerRank: 10, owners: { 'peer-1': 10 } });
+    assert.strictEqual(await canModifyRecord(req, rec('peer-1', 'd1')), false);
+
+    // Senior but DIFFERENT department -> denied.
+    stubScope({ dataScope: 'department', callerDept: 'd1', callerRank: 30, owners: { 'staff-2': 10 } });
+    assert.strictEqual(await canModifyRecord(req, rec('staff-2', 'd2')), false);
+
+    // Owner with no position counts as most junior -> senior allowed.
+    stubScope({ dataScope: 'department', callerDept: 'd1', callerRank: 20, owners: { 'newbie': null } });
+    assert.strictEqual(await canModifyRecord(req, rec('newbie', 'd1')), true);
+
+    // Legacy unowned row -> denied (only 'all' scope).
+    stubScope({ dataScope: 'department', callerDept: 'd1', callerRank: 30 });
+    assert.strictEqual(await canModifyRecord(req, rec(null, 'd1')), false);
+});
+
+test("data scope 'department': caller without placement falls back to own-only", async () => {
+    const req = mockReq('PUT', USER);
+    stubScope({ dataScope: 'department', callerDept: null, callerRank: null, owners: { 'staff-1': 10 } });
+    assert.strictEqual(await canModifyRecord(req, rec('staff-1', 'd1')), false);
+    assert.strictEqual(await canModifyRecord(req, rec(USER.id, 'd1')), true);
+});
+
+test('data scope: annotateCanModify flags a whole listing in one pass', async () => {
+    stubScope({ dataScope: 'department', callerDept: 'd1', callerRank: 20, owners: { 'staff-1': 10, 'boss-1': 30 } });
+    const flags = await annotateCanModify(mockReq('GET', USER), [
+        rec(USER.id, 'd1'),      // own -> true
+        rec('staff-1', 'd1'),    // junior, same dept -> true
+        rec('boss-1', 'd1'),     // senior owner -> false
+        rec('staff-1', 'd2'),    // junior, other dept -> false
+        rec(null, null),         // legacy unowned -> false
+    ]);
+    assert.deepStrictEqual(flags, [true, true, false, false, false]);
 });

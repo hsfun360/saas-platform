@@ -4,7 +4,13 @@ const MembershipTypeFee = require('./membershipTypeFee.model');
 const MembershipTypeStandingCharge = require('./membershipTypeStandingCharge.model');
 const MembershipStatus = require('./membershipStatus.model');
 const MembershipFee = require('./membershipFee.model');
-const { getUserContext, listAccountCurrencies } = require('../../platform/serviceContext');
+const {
+    getUserContext,
+    listAccountCurrencies,
+    getCallerPlacement,
+    canModifyRecord,
+    annotateCanModify,
+} = require('../../platform/serviceContext');
 const {
     MEMBERSHIP_CLASSES,
     MEMBERSHIP_CLASS_KEYS,
@@ -58,8 +64,11 @@ function toStandingChargeDto(c) {
     };
 }
 
-function toTypeDto(t) {
+// `canModify` (row-level data scope) is stamped by the list handler; detail
+// responses after a successful create/update are by definition modifiable.
+function toTypeDto(t, canModify = true) {
     return {
+        canModify,
         additionalFees: (t.AdditionalFees || [])
             .slice()
             .sort((a, b) => a.transactionType.localeCompare(b.transactionType))
@@ -285,7 +294,9 @@ exports.listTypes = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
         const rows = await MembershipType.findAll({ where: { companyId }, include: FEES_INCLUDE, order: [['category', 'ASC']] });
-        res.status(200).json(rows.map(toTypeDto));
+        // Row-level data scope: flag which rows the caller's role may modify.
+        const flags = await annotateCanModify(req, rows);
+        res.status(200).json(rows.map((r, i) => toTypeDto(r, flags[i])));
     } catch (error) {
         console.error('Error listing membership types:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -317,8 +328,17 @@ exports.createType = async (req, res) => {
         const existing = await MembershipType.findOne({ where: { companyId, category: v.category } });
         if (existing) return res.status(409).json({ message: `Membership type '${v.category}' already exists.` });
 
+        // Ownership stamps: creator + their department at creation (data scope).
+        const placement = await getCallerPlacement(req);
+        const callerId = getUserContext(req).userId;
         const type = await sequelize.transaction(async (t) => {
-            const created = await MembershipType.create({ companyId, ...v }, { transaction: t });
+            const created = await MembershipType.create({
+                companyId,
+                ...v,
+                createdBy: callerId,
+                createdByDepartmentId: placement.departmentId,
+                updatedBy: callerId,
+            }, { transaction: t });
             if (parsedFees.value.length) {
                 await MembershipTypeFee.bulkCreate(
                     parsedFees.value.map((f) => ({ ...f, membershipTypeId: created.id })),
@@ -351,6 +371,11 @@ exports.updateType = async (req, res) => {
         const type = await MembershipType.findOne({ where: { id: req.params.id, companyId } });
         if (!type) return res.status(404).json({ message: 'Membership type not found.' });
 
+        // Row-level data scope: own / department (strictly senior) / all.
+        if (!(await canModifyRecord(req, type))) {
+            return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
+        }
+
         const parsed = normalizeTypeBody(req.body);
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         const v = parsed.value;
@@ -374,6 +399,7 @@ exports.updateType = async (req, res) => {
 
         await sequelize.transaction(async (t) => {
             Object.assign(type, v);
+            type.updatedBy = getUserContext(req).userId;
             await type.save({ transaction: t });
 
             // Replace both child sets wholesale (setup data - no posted state to
@@ -411,8 +437,14 @@ exports.setActive = async (req, res) => {
         const type = await MembershipType.findOne({ where: { id: req.params.id, companyId } });
         if (!type) return res.status(404).json({ message: 'Membership type not found.' });
 
+        // Row-level data scope: own / department (strictly senior) / all.
+        if (!(await canModifyRecord(req, type))) {
+            return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
+        }
+
         if (typeof req.body.isActive === 'boolean') {
             type.isActive = req.body.isActive;
+            type.updatedBy = getUserContext(req).userId;
             await type.save();
         }
         const full = await MembershipType.findByPk(type.id, { include: FEES_INCLUDE });

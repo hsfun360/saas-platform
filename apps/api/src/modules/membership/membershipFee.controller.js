@@ -1,7 +1,12 @@
 const { sequelize } = require('../../platform/db');
 const MembershipFee = require('./membershipFee.model');
 const MembershipFeeScheme = require('./membershipFeeScheme.model');
-const { getUserContext } = require('../../platform/serviceContext');
+const {
+    getUserContext,
+    getCallerPlacement,
+    canModifyRecord,
+    annotateCanModify,
+} = require('../../platform/serviceContext');
 const { listCompanyTaxSchemes } = require('../../platform/taxGateway');
 const { INSTALLMENT_INTERVALS, INSTALLMENT_INTERVAL_KEYS } = require('./membershipFee.constants');
 
@@ -15,9 +20,12 @@ function companyIdOf(req) {
 
 // Shape a fee (with its stages) for the API response. DECIMALs come back as
 // strings from Sequelize, so coerce amounts to numbers.
-function toFeeDto(fee) {
+// `canModify` (row-level data scope) is stamped by the list handler; detail
+// responses after a successful create/update are by definition modifiable.
+function toFeeDto(fee, canModify = true) {
     const stages = fee.Stages ? [...fee.Stages].sort((a, b) => a.stageNo - b.stageNo) : [];
     return {
+        canModify,
         id: fee.id,
         companyId: fee.companyId,
         membershipFeeCode: fee.membershipFeeCode,
@@ -121,7 +129,9 @@ exports.listFees = async (req, res) => {
             include: [{ model: MembershipFeeScheme, as: 'Stages' }],
             order: [['membershipFeeCode', 'ASC']],
         });
-        res.status(200).json(fees.map(toFeeDto));
+        // Row-level data scope: flag which rows the caller's role may modify.
+        const flags = await annotateCanModify(req, fees);
+        res.status(200).json(fees.map((f, i) => toFeeDto(f, flags[i])));
     } catch (error) {
         console.error('Error listing membership fees:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -141,6 +151,9 @@ exports.createFee = async (req, res) => {
         const existing = await MembershipFee.findOne({ where: { companyId, membershipFeeCode: v.membershipFeeCode } });
         if (existing) return res.status(409).json({ message: `Membership fee '${v.membershipFeeCode}' already exists.` });
 
+        // Ownership stamps: creator + their department at creation (data scope).
+        const placement = await getCallerPlacement(req);
+        const callerId = getUserContext(req).userId;
         const fee = await sequelize.transaction(async (t) => {
             const created = await MembershipFee.create({
                 companyId,
@@ -151,6 +164,9 @@ exports.createFee = async (req, res) => {
                 allowInstallment: v.allowInstallment,
                 noOfInstallment: v.noOfInstallment,
                 installmentInterval: v.installmentInterval,
+                createdBy: callerId,
+                createdByDepartmentId: placement.departmentId,
+                updatedBy: callerId,
             }, { transaction: t });
 
             if (v.stages.length) {
@@ -183,6 +199,11 @@ exports.updateFee = async (req, res) => {
         });
         if (!fee) return res.status(404).json({ message: 'Membership fee not found.' });
 
+        // Row-level data scope: own / department (strictly senior) / all.
+        if (!(await canModifyRecord(req, fee))) {
+            return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
+        }
+
         const parsed = validateFeePayload(req.body);
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         const v = parsed.value;
@@ -203,6 +224,7 @@ exports.updateFee = async (req, res) => {
             fee.allowInstallment = v.allowInstallment;
             fee.noOfInstallment = v.noOfInstallment;
             fee.installmentInterval = v.installmentInterval;
+            fee.updatedBy = getUserContext(req).userId;
             await fee.save({ transaction: t });
 
             await MembershipFeeScheme.destroy({ where: { membershipFeeId: fee.id }, transaction: t });
@@ -236,8 +258,14 @@ exports.setActive = async (req, res) => {
         const fee = await MembershipFee.findOne({ where: { id: req.params.id, companyId } });
         if (!fee) return res.status(404).json({ message: 'Membership fee not found.' });
 
+        // Row-level data scope: own / department (strictly senior) / all.
+        if (!(await canModifyRecord(req, fee))) {
+            return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
+        }
+
         if (typeof req.body.isActive === 'boolean') {
             fee.isActive = req.body.isActive;
+            fee.updatedBy = getUserContext(req).userId;
             await fee.save();
         }
         const full = await MembershipFee.findByPk(fee.id, { include: [{ model: MembershipFeeScheme, as: 'Stages' }] });

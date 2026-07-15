@@ -254,7 +254,7 @@ exports.listAccountRoles = async (req, res) => {
 
         const roles = await Role.findAll({
             where: { accountId },
-            attributes: ['id', 'name', 'description'],
+            attributes: ['id', 'name', 'description', 'dataScope'],
             include: [{ model: Menu, as: 'PermittedMenus', attributes: ['id', 'name'], through: { attributes: [] } }],
             order: [['name', 'ASC']],
         });
@@ -273,7 +273,7 @@ exports.getAccountRole = async (req, res) => {
 
         const role = await Role.findOne({
             where: { id: req.params.roleId, accountId },
-            attributes: ['id', 'name', 'description'],
+            attributes: ['id', 'name', 'description', 'dataScope'],
         });
         if (!role) return res.status(404).json({ message: "Role not found." });
 
@@ -285,6 +285,7 @@ exports.getAccountRole = async (req, res) => {
             id: role.id,
             name: role.name,
             description: role.description,
+            dataScope: role.dataScope || 'all',
             menuIds: grants.map(g => g.menuId), // legacy shape, kept for older clients
             permissions: grants.map(g => ({
                 menuId: g.menuId,
@@ -324,8 +325,10 @@ function normalizeGrants(body) {
     return [...byMenu.values()];
 }
 
+const DATA_SCOPES = ['own', 'department', 'all'];
+
 // POST /api/auth/account/roles
-// Body: { roleName, description?, permissions: [{ menuId, canCreate?, canEdit?, canDelete? }] }
+// Body: { roleName, description?, dataScope?, permissions: [{ menuId, canCreate?, canEdit?, canDelete? }] }
 // (legacy `menuIds: string[]` still accepted = full access per menu)
 exports.createAccountRole = async (req, res) => {
     const transaction = await sequelize.transaction();
@@ -359,14 +362,20 @@ exports.createAccountRole = async (req, res) => {
             return res.status(409).json({ message: "A role with that name already exists." });
         }
 
+        const dataScope = typeof req.body.dataScope === 'string' ? req.body.dataScope : 'all';
+        if (!DATA_SCOPES.includes(dataScope)) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "Data scope must be one of: own, department, all." });
+        }
+
         const role = await Role.create(
-            { accountId, name, description: (req.body.description || '').trim() || null },
+            { accountId, name, description: (req.body.description || '').trim() || null, dataScope },
             { transaction },
         );
         await RoleMenu.bulkCreate(grants.map(g => ({ roleId: role.id, ...g })), { transaction });
 
         await transaction.commit();
-        res.status(201).json({ message: "Role created.", role: { id: role.id, name: role.name, description: role.description } });
+        res.status(201).json({ message: "Role created.", role: { id: role.id, name: role.name, description: role.description, dataScope: role.dataScope } });
     } catch (error) {
         if (transaction && !transaction.finished) await transaction.rollback();
         console.error("Error creating account role:", error);
@@ -375,7 +384,7 @@ exports.createAccountRole = async (req, res) => {
 };
 
 // PUT /api/auth/account/roles/:roleId
-// Body: { roleName?, description?, permissions: [{ menuId, canCreate?, canEdit?, canDelete? }] }
+// Body: { roleName?, description?, dataScope?, permissions: [{ menuId, canCreate?, canEdit?, canDelete? }] }
 // (legacy `menuIds: string[]` still accepted = full access per menu)
 exports.updateAccountRole = async (req, res) => {
     const transaction = await sequelize.transaction();
@@ -410,6 +419,13 @@ exports.updateAccountRole = async (req, res) => {
         const updates = {};
         if (typeof req.body.roleName === 'string' && req.body.roleName.trim()) updates.name = req.body.roleName.trim();
         if (typeof req.body.description === 'string') updates.description = req.body.description.trim() || null;
+        if (typeof req.body.dataScope === 'string') {
+            if (!DATA_SCOPES.includes(req.body.dataScope)) {
+                await transaction.rollback();
+                return res.status(400).json({ message: "Data scope must be one of: own, department, all." });
+            }
+            updates.dataScope = req.body.dataScope;
+        }
         if (updates.name && updates.name !== role.name) {
             const clash = await Role.findOne({ where: { accountId, name: updates.name }, transaction });
             if (clash) {
@@ -425,7 +441,7 @@ exports.updateAccountRole = async (req, res) => {
         await RoleMenu.bulkCreate(grants.map(g => ({ roleId: role.id, ...g })), { transaction });
 
         await transaction.commit();
-        const updated = await Role.findByPk(role.id, { attributes: ['id', 'name', 'description'] });
+        const updated = await Role.findByPk(role.id, { attributes: ['id', 'name', 'description', 'dataScope'] });
         res.status(200).json({ message: "Role updated.", role: updated });
     } catch (error) {
         if (transaction && !transaction.finished) await transaction.rollback();

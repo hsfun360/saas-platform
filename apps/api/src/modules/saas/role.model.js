@@ -26,6 +26,18 @@ const Role = sequelize.define('Role', {
     description: {
         type: DataTypes.STRING,
         allowNull: true // optional human-readable description, shown in Role Management
+    },
+    // WHOSE records the role may Edit/Delete (row-level data scope; viewing is
+    // untouched). Kept as STRING (not ENUM) so sync({ alter }) stays simple:
+    //   'own'        - only records the user created
+    //   'department' - own + records stamped with the user's department whose
+    //                  owner's rank is strictly LOWER (senior-only; peers no)
+    //   'all'        - every record (the pre-Phase-3 behaviour, so the default)
+    dataScope: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: 'all',
+        validate: { isIn: [['own', 'department', 'all']] }
     }
 }, {
     indexes: [
