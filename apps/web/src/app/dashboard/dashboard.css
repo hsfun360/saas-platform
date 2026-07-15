@@ -737,10 +737,22 @@
   padding: var(--space-lg);
   overflow-y: auto; /* Allow vertical scroll only inside the content area */
   box-sizing: border-box;
+  position: relative; /* anchors the floating help (Book) icon below */
   /*transition: margin-left 0.15s ease-in-out;*/
 
   /* Add margin to prevent content from hiding behind collapsed sidebar */
   /*margin-left: 0; */
+}
+
+/* Floating help (Book) icon: sits at the end of the screen's title line, top-right
+   of the content area, so the top header stays uncluttered (esp. on mobile). It
+   scrolls away with the title, like part of the screen header. The component only
+   renders its icon when the current route has a published guide. */
+.content-help {
+  position: absolute;
+  top: var(--space-lg);
+  right: var(--space-lg);
+  z-index: 10;
 }
 
 /* If the sidebar is pinned, the content doesn't need to change because it's flexed.
@@ -844,6 +856,10 @@
     padding: var(--space-md);
     padding-bottom: 84px;
   }
+  .content-help {
+    top: var(--space-md);
+    right: var(--space-md);
+  }
 
   /* Reveal the mobile chrome. */
   .bottom-nav {
@@ -894,6 +910,10 @@
   /* Larger content gutter on desktop (the "larger spacing" tier). */
   .content-area {
     padding: var(--space-xl);
+  }
+  .content-help {
+    top: var(--space-xl);
+    right: var(--space-xl);
   }
 }
 

@@ -6,6 +6,7 @@ import { ActiveSystemService } from '../services/active-system.service';
 import { LanguageService } from '../services/language.service';
 import { I18nService } from '../i18n/i18n.service';
 import { TranslatePipe } from '../i18n/translate.pipe';
+import { HelpButtonComponent } from '../shared/help-button/help-button';
 import { MenuItem, WorkspaceOption, MyInvitation, Language } from '../models/auth.models';
 
 // Translation keys for CODE-DEFINED nav labels (the hardcoded admin menus below +
@@ -51,7 +52,7 @@ interface NavNode {
     selector: 'app-dashboard',
     templateUrl: './dashboard.html',
     styleUrl: './dashboard.css',
-    imports: [CommonModule, RouterModule, TranslatePipe],
+    imports: [CommonModule, RouterModule, TranslatePipe, HelpButtonComponent],
     host: {
       '(document:click)': 'closeDropdown()',
       '(document:keydown.escape)': 'onEscape()'

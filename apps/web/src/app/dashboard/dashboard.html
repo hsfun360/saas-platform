@@ -75,7 +75,6 @@
       </div>
 
       <div class="header-actions" style="display: flex; align-items: center; gap: var(--space-sm); border-left: 1px solid #e2e8f0; padding-left: var(--space-md);">
-        <button class="icon-btn hide-mobile" title="Help" aria-label="Help" style="color: white">?</button>
         <button class="icon-btn hide-mobile" title="Settings" aria-label="Settings" routerLink="/settings" style="color: white">⚙</button>
 
         <!-- Language quick-switch (only when the user has more than one to pick from) -->
@@ -244,6 +243,10 @@
     </aside>
 
     <main class="content-area">
+
+      <!-- Book icon: floats at the end of the screen's title line (only when the
+           current screen has a published user guide) - keeps the top header free. -->
+      <app-help-button class="content-help"></app-help-button>
 
       @if (myInvitations().length > 0) {
         <div style="margin-bottom: var(--space-lg); background: var(--info-surface); border: 1px solid var(--info-border); border-radius: 12px; padding: var(--space-md) var(--space-lg);">

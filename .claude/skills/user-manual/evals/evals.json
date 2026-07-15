@@ -1,0 +1,33 @@
+{
+  "skill_name": "user-manual",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Write the user manual for the Membership Fee option.",
+      "expected_output": "A Markdown end-user manual for the Membership Fee screen: purpose, screen tour, common tasks (add/edit/disable, generate installment schedule), and a field-by-field reference table grounded in the actual form (code, tax scheme, description, amount, allow installment, no. of installments, interval, stages).",
+      "files": [],
+      "assertions": [
+        "covers-all-form-fields: the field reference documents every field of the fee dialog - Membership fee code, Tax scheme, Description, Amount, Allow installment, No. of installments, Installment interval, and the installment stage amounts (verify against the form group in apps/web/src/app/membership-fees/membership-fees.ts)",
+        "required-flags-correct: fields marked Required in the manual match the form validators (code and amount required; description and tax scheme optional; installment fields required only when Allow installment is on)",
+        "explains-usage: a purpose/overview section explains in business terms what the Membership Fee option is for and when staff use it",
+        "covers-all-actions: documents adding, editing, enabling/disabling a fee AND the Generate schedule flow for installments (stages must total the fee amount)",
+        "no-dev-jargon: the manual never uses developer vocabulary such as component, API, endpoint, formControl, signal, boolean, null, database table",
+        "field-table-structure: field explanations are presented as a table (or equivalent structured list) that states for each field whether it is required, what to enter, and its rules"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Our staff keep asking how the Countries screen under Reference data works. Produce help documentation for it, including field explanations.",
+      "expected_output": "A Markdown end-user manual for the Countries reference screen: what it is for, list/search/status chips, Sync now action, edit dialog fields, enable/disable meaning, written for non-technical staff.",
+      "files": [],
+      "assertions": [
+        "covers-edit-dialog-fields: the field reference documents every field of the Countries edit dialog (verify against the form in apps/web/src/app/countries/countries.ts - nothing missing, nothing invented)",
+        "covers-sync: documents the Sync now action - what it does and what the 'Last synced' line means",
+        "explains-disable-meaning: explains in business terms what disabling a country does (e.g. removed from country pickers) and that Enable brings it back",
+        "explains-usage: a purpose/overview section explains what the Countries reference data is for and which parts of the system consume it",
+        "no-dev-jargon: the manual never uses developer vocabulary such as component, API, endpoint, formControl, signal, boolean, null, database table",
+        "field-table-structure: field explanations are presented as a table (or equivalent structured list) that states for each field whether it is required, what to enter, and its rules"
+      ]
+    }
+  ]
+}
