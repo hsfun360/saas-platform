@@ -56,6 +56,8 @@ import { SystemDashboardComponent } from './app/systems/system-dashboard';
 import { MembershipStatusesComponent } from './app/membership-statuses/membership-statuses';
 import { MembershipFeesComponent } from './app/membership-fees/membership-fees';
 import { MembershipTypesComponent } from './app/membership-types/membership-types';
+import { MembershipsComponent } from './app/memberships/memberships';
+import { MembersComponent } from './app/members/members';
 import { GolfUnitCoursesComponent } from './app/golf-unit-courses/golf-unit-courses';
 import { GolfCoursesComponent } from './app/golf-courses/golf-courses';
 import { TaxSchemesComponent } from './app/tax-schemes/tax-schemes';
@@ -149,6 +151,10 @@ const routes: Routes = [
       { path: 'membership/statuses', component: MembershipStatusesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/fees', component: MembershipFeesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/types', component: MembershipTypesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      // Membership / Member CRM (SRS 2.3): the contract list (individual +
+      // corporate, nominees/dependents managed inside) and the flat member search.
+      { path: 'membership/memberships', component: MembershipsComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/members', component: MembersComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'golf', component: SystemDashboardComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management', title: 'Golf Management', icon: 'sports_golf', blurb: 'Tee sheet, bookings and competitions.' } },
       // Master File Setup → Unit Courses (per-company 9-hole building blocks).
       { path: 'golf/unit-courses', component: GolfUnitCoursesComponent, canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },

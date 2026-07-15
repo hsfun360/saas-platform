@@ -13,6 +13,8 @@ const membershipStatusRoutes = require('./membershipStatus.routes');
 const membershipFeeRoutes = require('./membershipFee.routes');
 const membershipTypeRoutes = require('./membershipType.routes');
 const membershipTaxRoutes = require('./membershipTax.routes');
+const membershipsRoutes = require('./memberships.routes');
+const membersRoutes = require('./members.routes');
 
 // Liveness probe — unauthenticated, so the gateway/monitoring can check the seam.
 router.get('/health', (req, res) => res.json({ service: 'membership', status: 'ok' }));
@@ -28,6 +30,12 @@ router.use(requireModule('Membership Management'));
 router.use('/statuses', requireMenuAction('/membership/statuses'), membershipStatusRoutes);
 router.use('/fees', requireMenuAction('/membership/fees'), membershipFeeRoutes);
 router.use('/types', requireMenuAction('/membership/types'), membershipTypeRoutes);
+
+// --- Membership / Member CRM (SRS 2.3) ---
+// Memberships own all member CRUD (nominees/dependents are managed from that
+// screen); the members mount is the flat read-only search screen.
+router.use('/memberships', requireMenuAction('/membership/memberships'), membershipsRoutes);
+router.use('/members', requireMenuAction('/membership/members'), membersRoutes);
 
 // --- Tax consumption (reads the Tax service via the gateway seam) ---
 router.use('/tax', membershipTaxRoutes);

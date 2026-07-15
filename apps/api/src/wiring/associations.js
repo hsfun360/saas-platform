@@ -50,6 +50,9 @@ const MembershipFeeScheme = require('../modules/membership/membershipFeeScheme.m
 const MembershipType = require('../modules/membership/membershipType.model');
 const MembershipTypeFee = require('../modules/membership/membershipTypeFee.model');
 const MembershipTypeStandingCharge = require('../modules/membership/membershipTypeStandingCharge.model');
+// Membership / Member CRM (SRS 2.3): the contract and its people. Intra-service.
+const Membership = require('../modules/membership/membership.model');
+const Member = require('../modules/membership/member.model');
 // Product tier (Golf Management). Same golden rules - master files reference
 // companyId by plain UUID (no cross-service FK). Intra-service parent-child
 // links (unit course -> holes) DO use real associations.
@@ -133,6 +136,13 @@ MembershipTypeFee.belongsTo(MembershipType, { foreignKey: 'membershipTypeId', as
 // Membership Type -> its standing charges (one per membership status).
 MembershipType.hasMany(MembershipTypeStandingCharge, { foreignKey: 'membershipTypeId', as: 'StandingCharges', onDelete: 'CASCADE' });
 MembershipTypeStandingCharge.belongsTo(MembershipType, { foreignKey: 'membershipTypeId', as: 'Type' });
+// Membership (the contract) -> its Members (individual / nominees / dependents).
+// No cascade: a membership with people on it must never be silently emptied.
+Membership.hasMany(Member, { foreignKey: 'membershipId', as: 'Members' });
+Member.belongsTo(Membership, { foreignKey: 'membershipId', as: 'Membership' });
+// Dependents hang off their principal (an individual member or a nominee).
+Member.hasMany(Member, { foreignKey: 'principalMemberId', as: 'Dependents' });
+Member.belongsTo(Member, { foreignKey: 'principalMemberId', as: 'Principal' });
 
 // 8e. Golf master-file header/detail pairs (both sides owned by the golf
 // service, so real intra-service FKs with cascade).
@@ -196,6 +206,8 @@ module.exports = {
     MembershipType,
     MembershipTypeFee,
     MembershipTypeStandingCharge,
+    Membership,
+    Member,
     UnitCourse,
     UnitCourseHole,
     UnitCourseTeeBox,

@@ -604,6 +604,179 @@ export interface MembershipTypeMeta {
   frequencies: MembershipStatusOption[];
 }
 
+// --- Membership / Member CRM (SRS 2.3) ---
+
+// A person under a Membership: individual member, nominee, or dependent.
+export interface Member {
+  id: string;
+  membershipId: string;
+  memberNo: string;
+  memberKind: string;                  // 'individual' | 'nominee' | 'dependent'
+  dependentType?: string | null;       // 'spouse' | 'son' | 'daughter' | 'ward'
+  principalMemberId?: string | null;   // dependent -> its individual member / nominee
+  memberStatusId: string;
+  statusDate?: string | null;
+  salutationCode?: string | null;
+  titleCode?: string | null;
+  firstName?: string | null;
+  middleName?: string | null;
+  lastName: string;
+  nameOnCard?: string | null;
+  localName?: string | null;           // native-script full name
+  gender?: string | null;
+  birthDate?: string | null;
+  identityNo?: string | null;
+  nationalityCode?: string | null;
+  raceCode?: string | null;
+  maritalStatus?: string | null;
+  maritalDate?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  fax?: string | null;
+  email?: string | null;
+  employerName?: string | null;
+  designation?: string | null;
+  industryTypeCode?: string | null;
+  residentAddress?: string | null;
+  residentPostcode?: string | null;
+  residentState?: string | null;
+  residentCountryCode?: string | null;
+  mailingSource?: string | null;       // 'resident' | 'employer' | 'other'
+  mailingAddress?: string | null;
+  mailingPostcode?: string | null;
+  mailingState?: string | null;
+  mailingCountryCode?: string | null;
+  joinDate?: string | null;
+  expiryDate?: string | null;          // dependent children/ward only
+  creditLimit?: number | null;
+  remarks?: string | null;
+}
+
+// The contract/seat a company sells - individual or corporate.
+export interface Membership {
+  id: string;
+  companyId?: string;
+  canModify?: boolean;
+  membershipNo: string;
+  membershipClass: string;             // 'personal' | 'corporate'
+  membershipTypeId: string;
+  membershipStatusId: string;
+  statusDate?: string | null;
+  membershipFeeId?: string | null;
+  joinDate: string;
+  billingDate?: string | null;         // corporate
+  creditFlag?: string | null;          // 'personal' | 'combined' (individual class)
+  creditLimit?: number | null;
+  terms?: number | null;
+  statementMode?: string | null;       // 'individual' | 'combined'
+  sendReminders: boolean;
+  chargeInterest: boolean;
+  monthlyFee: boolean;
+  yearlyFee: boolean;
+  certificateNo?: string | null;
+  applicationNo?: string | null;
+  reference?: string | null;
+  proposer?: string | null;
+  salesCode?: string | null;
+  followupSalesCode?: string | null;
+  corporateName?: string | null;       // corporate profile
+  registrationNo?: string | null;
+  taxNo?: string | null;
+  contactPerson?: string | null;
+  contactDesignation?: string | null;
+  phone?: string | null;
+  fax?: string | null;
+  mobile?: string | null;
+  email?: string | null;
+  industryTypeCode?: string | null;
+  address?: string | null;
+  postcode?: string | null;
+  state?: string | null;
+  countryCode?: string | null;
+  mailingSource?: string | null;       // 'main' | 'other'
+  mailingAddress?: string | null;
+  mailingPostcode?: string | null;
+  mailingState?: string | null;
+  mailingCountryCode?: string | null;
+  approvalStatus?: string;
+  remarks?: string | null;
+  // List extras (server-computed).
+  displayName?: string | null;
+  nomineeCount?: number;
+  dependentCount?: number;
+  // Detail extras.
+  members?: Member[];
+}
+
+// Vocabularies + the active company's numbering mode for the membership form.
+export interface MembershipMeta {
+  memberKinds: MembershipStatusOption[];
+  dependentTypes: MembershipStatusOption[];
+  expiringDependentTypes: string[];
+  genders: MembershipStatusOption[];
+  maritalStatuses: MembershipStatusOption[];
+  creditFlags: MembershipStatusOption[];
+  statementModes: MembershipStatusOption[];
+  memberMailingSources: MembershipStatusOption[];
+  membershipMailingSources: MembershipStatusOption[];
+  numberingMode: 'auto' | 'manual' | null;
+}
+
+// The master-file pickers the membership form needs, in one call.
+export interface MembershipOptions {
+  types: {
+    id: string;
+    category: string;
+    description?: string | null;
+    membershipClass: string;
+    noOfNominee?: number | null;
+    nomineeCategoryId?: string | null;
+    defaultMembershipStatusId?: string | null;
+    defaultMembershipFeeId?: string | null;
+    creditLimit?: number | null;
+    childAgeFrom?: number | null;
+    childAgeTo?: number | null;
+  }[];
+  statuses: { id: string; membershipStatus: string; statusClass: string; statusColor?: string | null }[];
+  fees: { id: string; membershipFeeCode: string; description?: string | null; amount: number }[];
+}
+
+// Flat member-search row (the read-only Members screen).
+export interface MemberSearchRow {
+  id: string;
+  memberNo: string;
+  memberKind: string;
+  dependentType?: string | null;
+  memberStatusId: string;
+  salutationCode?: string | null;
+  firstName?: string | null;
+  lastName: string;
+  localName?: string | null;
+  gender?: string | null;
+  birthDate?: string | null;
+  identityNo?: string | null;
+  email?: string | null;
+  mobile?: string | null;
+  joinDate?: string | null;
+  expiryDate?: string | null;
+  membershipId: string;
+  membershipNo?: string | null;
+  membershipClass?: string | null;
+  corporateName?: string | null;
+}
+
+export interface MemberSearchResult {
+  total: number;
+  limit: number;
+  members: MemberSearchRow[];
+}
+
+export interface MembersMeta {
+  memberKinds: MembershipStatusOption[];
+  dependentTypes: MembershipStatusOption[];
+  statuses: { id: string; membershipStatus: string; statusClass: string; statusColor?: string | null }[];
+}
+
 // Golf - course-type option served by the API (OUT / IN / COMPOSITE).
 // holeFrom/holeTo is the hole-number range Hole Setup uses for the type.
 export interface UnitCourseTypeOption {

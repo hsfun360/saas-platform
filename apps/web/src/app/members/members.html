@@ -1,0 +1,99 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">👥</span>
+      <div>
+        <h1>Members</h1>
+        <p class="saas-subtitle">Every person across all memberships — individual members, nominees and dependents. Manage them from the Memberships screen.</p>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Kind filter chips -->
+  <div class="ms-filter" role="group" aria-label="Filter by member kind">
+    <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="kindFilter() === ''" (click)="setKind('')">All</button>
+    @for (k of meta()?.memberKinds; track k.key) {
+      <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="kindFilter() === k.key" (click)="setKind(k.key)">{{ k.label }}</button>
+    }
+  </div>
+
+  <!-- Server-side search (the result list is capped) -->
+  <div class="saas-search">
+    <span class="saas-search__icon" aria-hidden="true">🔍</span>
+    <input #memberSearchBox type="search" [value]="search()" (input)="onSearchInput(memberSearchBox.value)"
+           placeholder="Search by number, name, ID or email…" aria-label="Search members" class="saas-search__input">
+    @if (search()) {
+      <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+    }
+  </div>
+
+  <!-- Count line -->
+  @if (searched() && !loading()) {
+    <div style="margin-bottom: var(--space-md);">
+      <span class="cell-subtle">
+        @if (total() > limit()) {
+          Showing the first {{ limit() }} of {{ total() }} members — type to narrow the search.
+        } @else {
+          {{ total() }} member(s) found.
+        }
+      </span>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Searching members…</p></div>
+  } @else if (rows().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">📭</span>
+      @if (search() || kindFilter()) {
+        <p>No members match your search.</p>
+        <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch(); setKind('')">Clear search</button>
+      } @else {
+        <p>No members yet. Members appear here once memberships are created on the Memberships screen.</p>
+      }
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (m of rows(); track m.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ m.memberNo }} — {{ memberName(m) }}</div>
+              <div class="data-card__subline">
+                <span class="ms-class-chip" [class.ms-class-chip--dep]="m.memberKind === 'dependent'">
+                  {{ m.memberKind === 'dependent' ? dependentLabel(m.dependentType) : kindLabel(m.memberKind) }}
+                </span>
+                <span class="data-card__reg">
+                  {{ m.membershipNo }}@if (m.corporateName) { · {{ m.corporateName }}}
+                </span>
+              </div>
+              <dl class="data-card__meta">
+                @if (m.identityNo) { <div class="meta"><dt>ID</dt><dd>{{ m.identityNo }}</dd></div> }
+                @if (m.email) { <div class="meta"><dt>Email</dt><dd>{{ m.email }}</dd></div> }
+                @if (m.mobile) { <div class="meta"><dt>Mobile</dt><dd>{{ m.mobile }}</dd></div> }
+                @if (m.joinDate) { <div class="meta"><dt>Joined</dt><dd>{{ m.joinDate }}</dd></div> }
+                @if (m.expiryDate) { <div class="meta"><dt>Expires</dt><dd>{{ m.expiryDate }}</dd></div> }
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              <span class="ms-status">
+                <span class="ms-status__dot" [style.background]="statusColor(m.memberStatusId)" aria-hidden="true"></span>
+                {{ statusName(m.memberStatusId) }}
+              </span>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
