@@ -233,7 +233,7 @@
 .mm-hint__grip {
   font-size: 18px;
   vertical-align: middle;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 .mm-hint__saving {
   color: var(--accent);
@@ -267,13 +267,63 @@
   height: 44px;
   border: none;
   background: transparent;
-  color: #94a3b8;
+  color: var(--text-muted);
   cursor: grab;
   flex-shrink: 0;
   touch-action: none; /* let CDK own touch dragging */
 }
 .mm-grip:active {
   cursor: grabbing;
+}
+
+/* Expand/collapse caret on a group row (a menu with sub-menus). Leaf rows get
+   an empty spacer of the same width so icons and names stay aligned. */
+.mm-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.mm-caret:hover {
+  background: var(--surface-hover);
+}
+.mm-caret--spacer {
+  cursor: default;
+}
+.mm-caret .material-icons {
+  font-size: 20px;
+}
+
+/* Sub-menu count chip on a group row - tells what's inside while collapsed. */
+.mm-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  margin-left: var(--space-xs);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-semibold);
+}
+
+/* Expand all / Collapse all shortcuts above the tree. */
+.mm-tree-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-xs);
 }
 
 .mm-menu-row {
@@ -316,7 +366,7 @@
   margin: 0;
   padding: var(--space-sm);
   text-align: center;
-  color: #94a3b8;
+  color: var(--text-muted);
   font-size: var(--font-body-2);
   border: 1px dashed var(--border-strong);
   background: var(--surface-card);

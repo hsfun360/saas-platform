@@ -167,9 +167,23 @@
                     <button type="button" cdkDragHandle class="mm-grip" aria-label="Reorder menu">
                       <span class="material-icons" aria-hidden="true">drag_indicator</span>
                     </button>
+                    @if (node.children.length) {
+                      <button type="button" class="mm-caret" (click)="toggleMenuGroup(node.menu.id)"
+                              [attr.aria-expanded]="!isMenuCollapsed(node.menu.id)"
+                              [attr.aria-label]="(isMenuCollapsed(node.menu.id) ? 'Expand ' : 'Collapse ') + node.menu.name">
+                        <span class="material-icons" aria-hidden="true">{{ isMenuCollapsed(node.menu.id) ? 'chevron_right' : 'expand_more' }}</span>
+                      </button>
+                    } @else {
+                      <span class="mm-caret mm-caret--spacer" aria-hidden="true"></span>
+                    }
                     <span class="material-icons mm-menu-row__icon" aria-hidden="true">{{ node.menu.icon || 'folder' }}</span>
                     <span class="mm-menu-row__text">
-                      <span class="mm-menu-row__name">{{ node.menu.name }}</span>
+                      <span class="mm-menu-row__name">
+                        {{ node.menu.name }}
+                        @if (node.children.length) {
+                          <span class="mm-count" [attr.aria-label]="node.children.length + ' sub-menus'">{{ node.children.length }}</span>
+                        }
+                      </span>
                       <span class="mm-menu-row__route">{{ node.menu.route }}</span>
                     </span>
                     <span class="mm-menu-row__actions">
@@ -187,7 +201,7 @@
                       </button>
                     </span>
                   </div>
-                  @if (node.children.length) {
+                  @if (node.children.length && !isMenuCollapsed(node.menu.id)) {
                     <div class="mm-tree-children">
                       <ng-container *ngTemplateOutlet="menuNodes; context: { $implicit: node.children }"></ng-container>
                     </div>
@@ -200,6 +214,10 @@
             </div>
           </ng-template>
 
+          <div class="mm-tree-tools">
+            <button type="button" class="btn btn--link btn--sm" (click)="expandAllMenus()">Expand all</button>
+            <button type="button" class="btn btn--link btn--sm" (click)="collapseAllMenus()">Collapse all</button>
+          </div>
           <ng-container *ngTemplateOutlet="menuNodes; context: { $implicit: tree() }"></ng-container>
         }
       }

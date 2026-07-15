@@ -119,6 +119,13 @@ export class ModulesMenusComponent implements OnInit {
   readonly tree = signal<MenuTreeNode[]>([]);
   readonly savingLayout = signal(false);
 
+  // Collapsed menu groups (ids of nodes whose children are hidden). Groups start
+  // COLLAPSED when a module is opened - long trees stay scannable - and the
+  // state then survives edit/drag reloads within that module. Saving a menu
+  // expands its parent so the result is never hidden.
+  readonly collapsedMenus = signal<ReadonlySet<string>>(new Set());
+  private defaultCollapseOnLoad = false;
+
   // Parent options for the menu dialog's "Parent" picker (depth-indented labels),
   // excluding the menu being edited and its own descendants (no cycles).
   readonly parentOptions = signal<{ id: string; label: string }[]>([]);
@@ -247,10 +254,12 @@ export class ModulesMenusComponent implements OnInit {
     this.menuSearch.set(''); // don't carry a filter across modules
     this.cancelMenuEdit();
     if (moduleId) {
+      this.defaultCollapseOnLoad = true; // fresh module -> groups start collapsed
       this.loadMenus(moduleId);
     } else {
       this.menus.set([]);
       this.tree.set([]);
+      this.collapsedMenus.set(new Set());
     }
   }
 
@@ -373,10 +382,65 @@ export class ModulesMenusComponent implements OnInit {
     this.admin.listModuleMenus(moduleId).subscribe({
       next: (menus) => {
         this.menus.set(menus);
-        this.tree.set(this.buildTree(menus));
+        const tree = this.buildTree(menus);
+        this.tree.set(tree);
+        // Opening a module: start with every group folded so a long tree reads
+        // as its top level. Reloads after edits/drags keep the user's state.
+        if (this.defaultCollapseOnLoad) {
+          this.defaultCollapseOnLoad = false;
+          this.collapsedMenus.set(new Set(this.groupIds(tree)));
+        }
         this.menusLoading.set(false);
       },
       error: () => this.menusLoading.set(false),
+    });
+  }
+
+  // ---- Collapsible menu groups ----
+
+  // Ids of every node that has children (recursively).
+  private groupIds(nodes: MenuTreeNode[]): string[] {
+    const ids: string[] = [];
+    const walk = (list: MenuTreeNode[]) => {
+      for (const node of list) {
+        if (node.children.length) {
+          ids.push(node.menu.id);
+          walk(node.children);
+        }
+      }
+    };
+    walk(nodes);
+    return ids;
+  }
+
+  isMenuCollapsed(id: string): boolean {
+    return this.collapsedMenus().has(id);
+  }
+
+  toggleMenuGroup(id: string): void {
+    this.collapsedMenus.update((set) => {
+      const next = new Set(set);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  expandAllMenus(): void {
+    this.collapsedMenus.set(new Set());
+  }
+
+  collapseAllMenus(): void {
+    this.collapsedMenus.set(new Set(this.groupIds(this.tree())));
+  }
+
+  // Make sure a (new) parent's children are visible, e.g. right after a menu
+  // was created or moved under it - the result must never land hidden.
+  private expandMenuGroup(id: string): void {
+    this.collapsedMenus.update((set) => {
+      if (!set.has(id)) return set;
+      const next = new Set(set);
+      next.delete(id);
+      return next;
     });
   }
 
@@ -472,6 +536,8 @@ export class ModulesMenusComponent implements OnInit {
         this.successMessage.set(res.message || (editingId ? 'Menu updated.' : 'Menu created.'));
         this.savingMenu.set(false);
         this.cancelMenuEdit();
+        // The saved menu must be visible after the reload - unfold its parent.
+        if (parent) this.expandMenuGroup(parent);
         this.loadMenus(moduleId);
       },
       error: (err) => {
