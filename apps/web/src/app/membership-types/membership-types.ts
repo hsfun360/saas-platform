@@ -65,10 +65,13 @@ export class MembershipTypesComponent implements OnInit {
   readonly taxSchemes = signal<TaxSchemeRef[]>([]);
   readonly currencies = signal<Currency[]>([]);
   // Transaction Type master (active rows) - the fee/charge pickers, each dialog
-  // filtered by the charge types it accepts.
+  // filtered by the charge types it accepts. Joining fees HIDE membership-fee
+  // and absentee-fee (user rule, 2026-07-16 - those items are billed by the
+  // Membership Fee master / absentee function, never on joining); standing
+  // charges show standing-charges only.
   readonly txTypes = signal<TransactionTypePickerRow[]>([]);
   readonly joiningFeeTxTypes = computed(() =>
-    this.txTypes().filter((t) => t.chargeType === 'membership-fee' || t.chargeType === 'absentee-fee'));
+    this.txTypes().filter((t) => t.chargeType !== 'membership-fee' && t.chargeType !== 'absentee-fee'));
   readonly standingTxTypes = computed(() =>
     this.txTypes().filter((t) => t.chargeType === 'standing-charges'));
   // Additional-fee lines (Category Details - Fee) - generated/edited in place,

@@ -174,7 +174,8 @@ function normalizeStandingCharges(body) {
 
 // Every picked transaction type must exist in the company's Transaction Type
 // master, be ACTIVE, and carry one of the charge types the consumer allows
-// (Joining fees: membership-fee + absentee-fee; Standing charges: standing-charges).
+// (Joining fees: everything EXCEPT membership-fee/absentee-fee; Standing
+// charges: standing-charges only).
 async function validateTransactionTypes(companyId, codes, allowedChargeTypes, consumerLabel) {
     const unique = [...new Set(codes)];
     if (!unique.length) return null;
@@ -499,10 +500,13 @@ exports.updateAdditionalFees = async (req, res) => {
         const parsedFees = normalizeFeeLines(req.body);
         if (parsedFees.error) return res.status(400).json({ message: parsedFees.error });
 
+        // Joining fees accept every charge type EXCEPT membership-fee and
+        // absentee-fee (user rule, 2026-07-16 - those items are billed by the
+        // Membership Fee master / absentee function, never on joining).
         const txErr = await validateTransactionTypes(
             type.companyId,
             parsedFees.value.map((f) => f.transactionType),
-            ['membership-fee', 'absentee-fee'],
+            ['standing-charges', 'membership-transfer', 'miscellaneous'],
             'a joining fee',
         );
         if (txErr) return res.status(400).json({ message: txErr });
