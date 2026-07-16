@@ -266,8 +266,8 @@
           <label for="mod-desc" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">
             Description <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional)</span>
           </label>
-          <input id="mod-desc" type="text" formControlName="description" placeholder="Short description"
-                 style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
+          <textarea id="mod-desc" formControlName="description" rows="3" placeholder="Short description"
+                    style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary); font-family: inherit; line-height: 1.4; resize: vertical;"></textarea>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
@@ -339,9 +339,9 @@
           <label for="menu-description" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">
             Description <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional — what the screen is for)</span>
           </label>
-          <input id="menu-description" type="text" formControlName="description" maxlength="255" placeholder="e.g. Define the bookable tee time slots per course"
-                 [attr.aria-invalid]="showError(menuForm.controls.description)" aria-describedby="menu-description-err"
-                 style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
+          <textarea id="menu-description" formControlName="description" rows="3" maxlength="255" placeholder="e.g. Define the bookable tee time slots per course"
+                    [attr.aria-invalid]="showError(menuForm.controls.description)" aria-describedby="menu-description-err"
+                    style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary); font-family: inherit; line-height: 1.4; resize: vertical;"></textarea>
           <span style="font-size: var(--font-caption); color: var(--text-muted);">Shown under the menu name when assigning role permissions.</span>
           @if (showError(menuForm.controls.description)) {
             <p id="menu-description-err" class="field-error" role="alert">Description is too long (max 255 characters).</p>

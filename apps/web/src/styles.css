@@ -391,8 +391,14 @@ body {
   transition: border-color 0.2s, box-shadow 0.2s;
   background: var(--surface-input);
 }
+/* Multi-line fields (Description / Remarks standard: rows="3"): match the
+   inputs' typography (textareas default to monospace in some browsers), keep
+   a comfortable line height, and scroll internally past 3 lines. The user may
+   still drag it taller (resize: vertical). */
 .form-group textarea {
   resize: vertical;
+  font-family: inherit;
+  line-height: 1.4;
 }
 .form-group input:focus,
 .form-group select:focus,

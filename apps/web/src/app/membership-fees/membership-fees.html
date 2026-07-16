@@ -152,8 +152,8 @@
         <div class="form-row">
           <div class="form-group">
             <label for="fDesc">Description</label>
-            <input id="fDesc" type="text" formControlName="description" placeholder="Optional summary" maxlength="200"
-                   [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="fDescErr" />
+            <textarea id="fDesc" formControlName="description" rows="3" placeholder="Optional summary" maxlength="200"
+                      [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="fDescErr"></textarea>
             @if (showError(form.controls.description)) {
               <p id="fDescErr" class="field-error" role="alert">Use 200 characters or fewer.</p>
             }
