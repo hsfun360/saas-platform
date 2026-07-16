@@ -6,7 +6,7 @@
       <span class="saas-icon">🏅</span>
       <div>
         <h1>Membership Type</h1>
-        <p class="saas-subtitle">Category setup for this company — rights, limits and defaults.</p>
+        <p class="saas-subtitle">Membership type setup for this company — rights, term, limits and defaults.</p>
       </div>
     </div>
   </div>
@@ -87,10 +87,11 @@
                 }
               </dl>
               <div class="mt-chips">
-                @if (t.golfingAllow) { <span class="mt-chip">Golf</span> }
+                @if (t.isGolfAllow) { <span class="mt-chip">Golf</span> }
                 @if (t.dependentGolfingAllow) { <span class="mt-chip">Dep. golf</span> }
                 @if (t.votingRight) { <span class="mt-chip">Voting</span> }
                 @if (t.transferRight) { <span class="mt-chip">Transfer</span> }
+                @if (t.isTermMembership) { <span class="mt-chip">Term · {{ t.termMonths }} mo</span> } @else { <span class="mt-chip">Lifetime</span> }
               </div>
             </div>
             <div class="data-row__badge">
@@ -139,12 +140,12 @@
         <!-- Category + class -->
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
-            <label for="tCat">Category <span class="required">*</span></label>
+            <label for="tCat">Membership Type <span class="required">*</span></label>
             <input id="tCat" type="text" formControlName="category" placeholder="e.g. ORD" autocomplete="off" maxlength="30"
                    [attr.aria-invalid]="showError(form.controls.category)" aria-describedby="tCatErr" />
             @if (showError(form.controls.category)) {
               <p id="tCatErr" class="field-error" role="alert">
-                @if (form.controls.category.errors?.['required']) { Category is required. } @else { Use 30 characters or fewer. }
+                @if (form.controls.category.errors?.['required']) { Membership type is required. } @else { Use 30 characters or fewer. }
               </p>
             }
           </div>
@@ -165,14 +166,37 @@
           </div>
         </div>
 
-        <!-- Rights -->
+        <!-- Rights. Golf settings show only when golfing access is granted. -->
         <fieldset class="mt-fieldset">
           <legend>Default rights</legend>
           <div class="mt-rights">
-            <label class="mt-check"><input type="checkbox" formControlName="golfingAllow" /><span>Membership golfing allow</span></label>
-            <label class="mt-check"><input type="checkbox" formControlName="dependentGolfingAllow" /><span>Dependent golfing allow</span></label>
+            <label class="mt-check"><input type="checkbox" formControlName="isGolfAllow" /><span>Golfing access</span></label>
+            @if (isGolfAllowed()) {
+              <label class="mt-check"><input type="checkbox" formControlName="dependentGolfingAllow" /><span>Dependent golfing allow</span></label>
+            }
             <label class="mt-check"><input type="checkbox" formControlName="votingRight" /><span>Voting right</span></label>
             <label class="mt-check"><input type="checkbox" formControlName="transferRight" /><span>Transfer right</span></label>
+          </div>
+        </fieldset>
+
+        <!-- Term: lifetime by default; a fixed period in months when enabled. -->
+        <fieldset class="mt-fieldset">
+          <legend>Term</legend>
+          <div class="mt-rights">
+            <label class="mt-check"><input type="checkbox" formControlName="isTermMembership" /><span>Term membership (fixed period)</span></label>
+            @if (isTerm()) {
+              <div class="form-group">
+                <label for="tTermMonths">Term (months) <span class="required">*</span></label>
+                <input id="tTermMonths" type="number" inputmode="numeric" formControlName="termMonths" min="1" step="1"
+                       placeholder="e.g. 18 = 1.5 years"
+                       [attr.aria-invalid]="showError(form.controls.termMonths)" aria-describedby="tTermMonthsErr" />
+                @if (showError(form.controls.termMonths)) {
+                  <p id="tTermMonthsErr" class="field-error" role="alert">Enter the term in months (at least 1).</p>
+                }
+              </div>
+            } @else {
+              <p class="mt-hint" style="margin: 0;">Lifetime — no fixed period.</p>
+            }
           </div>
         </fieldset>
 
@@ -209,11 +233,11 @@
           </div>
         </div>
 
-        <!-- Category conversion -->
+        <!-- Type conversion -->
         <fieldset class="mt-fieldset">
-          <legend>Category conversion — can convert to</legend>
+          <legend>Type conversion — can convert to</legend>
           @if (otherTypes().length === 0) {
-            <p class="mt-hint">No other categories yet to convert into.</p>
+            <p class="mt-hint">No other membership types yet to convert into.</p>
           } @else {
             <div class="mt-convert">
               @for (t of otherTypes(); track t.id) {
@@ -388,7 +412,7 @@
         <!-- Personal-only -->
         @if (isPersonal()) {
           <fieldset class="mt-fieldset">
-            <legend>Personal</legend>
+            <legend>Individual</legend>
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
               <div class="form-group">
                 <label for="tAgeFrom">Child age from</label>
@@ -398,10 +422,12 @@
                 <label for="tAgeTo">Child age to</label>
                 <input id="tAgeTo" type="number" inputmode="numeric" formControlName="childAgeTo" min="0" step="1" />
               </div>
-              <div class="form-group">
-                <label for="tPlay">Play times</label>
-                <input id="tPlay" type="number" inputmode="numeric" formControlName="playTimes" min="0" step="1" />
-              </div>
+              @if (isGolfAllowed()) {
+                <div class="form-group">
+                  <label for="tPlay">Play times</label>
+                  <input id="tPlay" type="number" inputmode="numeric" formControlName="playTimes" min="0" step="1" />
+                </div>
+              }
             </div>
           </fieldset>
         }
@@ -416,7 +442,7 @@
                 <input id="tNoNom" type="number" inputmode="numeric" formControlName="noOfNominee" min="0" step="1" />
               </div>
               <div class="form-group">
-                <label for="tNomCat">Nominee category</label>
+                <label for="tNomCat">Nominee membership type</label>
                 <select id="tNomCat" formControlName="nomineeCategoryId">
                   <option value="">— None —</option>
                   @for (t of otherTypes(); track t.id) {

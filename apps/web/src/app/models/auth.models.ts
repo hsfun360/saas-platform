@@ -581,10 +581,12 @@ export interface MembershipType {
   category: string;
   description?: string | null;
   membershipClass: string;            // 'personal' | 'corporate'
-  golfingAllow: boolean;
+  isGolfAllow: boolean;               // golfing access; golf settings apply only when true
   dependentGolfingAllow: boolean;
   votingRight: boolean;
   transferRight: boolean;
+  isTermMembership: boolean;          // fixed-term (vs lifetime)
+  termMonths?: number | null;         // period in months when term (18 = 1.5 years)
   conversionTargetIds: string[];      // other MembershipType ids it can convert to
   childAgeFrom?: number | null;       // personal
   childAgeTo?: number | null;         // personal

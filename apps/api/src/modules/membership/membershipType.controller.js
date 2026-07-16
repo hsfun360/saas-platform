@@ -79,10 +79,12 @@ function toTypeDto(t, canModify = true) {
         category: t.category,
         description: t.description,
         membershipClass: t.membershipClass,
-        golfingAllow: t.golfingAllow,
+        isGolfAllow: t.isGolfAllow,
         dependentGolfingAllow: t.dependentGolfingAllow,
         votingRight: t.votingRight,
         transferRight: t.transferRight,
+        isTermMembership: t.isTermMembership,
+        termMonths: t.termMonths,
         conversionTargetIds: t.conversionTargetIds || [],
         childAgeFrom: t.childAgeFrom,
         childAgeTo: t.childAgeTo,
@@ -190,10 +192,22 @@ function normalizeTypeBody(body) {
     const membershipClass = str(body.membershipClass);
     if (!MEMBERSHIP_CLASS_KEYS.includes(membershipClass)) return { error: 'Invalid membership class.' };
 
-    const golfingAllow = !!body.golfingAllow;
-    const dependentGolfingAllow = !!body.dependentGolfingAllow;
+    const isGolfAllow = !!body.isGolfAllow;
+    // Golf-only settings apply only when golfing access is granted.
+    const dependentGolfingAllow = isGolfAllow && !!body.dependentGolfingAllow;
     const votingRight = !!body.votingRight;
     const transferRight = !!body.transferRight;
+
+    // Term membership: a fixed period in months (18 = 1.5 years); lifetime when off.
+    const isTermMembership = !!body.isTermMembership;
+    let termMonths = numOrNull(body.termMonths);
+    if (isTermMembership) {
+        if (termMonths === null || !Number.isInteger(termMonths) || termMonths < 1) {
+            return { error: 'A term membership needs its period in months (a whole number of at least 1).' };
+        }
+    } else {
+        termMonths = null;
+    }
 
     let childAgeFrom = numOrNull(body.childAgeFrom);
     let childAgeTo = numOrNull(body.childAgeTo);
@@ -230,10 +244,14 @@ function normalizeTypeBody(body) {
         return { error: 'Child age "from" must not be greater than "to".' };
     }
 
+    // Play times is a golf setting - meaningless without golfing access.
+    if (!isGolfAllow) playTimes = null;
+
     return {
         value: {
             category, description, membershipClass,
-            golfingAllow, dependentGolfingAllow, votingRight, transferRight,
+            isGolfAllow, dependentGolfingAllow, votingRight, transferRight,
+            isTermMembership, termMonths,
             conversionTargetIds,
             childAgeFrom, childAgeTo, playTimes,
             noOfNominee, nomineeCategoryId,

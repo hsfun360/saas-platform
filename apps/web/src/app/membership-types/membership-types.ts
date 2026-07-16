@@ -83,10 +83,12 @@ export class MembershipTypesComponent implements OnInit {
     category: ['', [Validators.required, Validators.maxLength(30)]],
     description: ['', [Validators.maxLength(200)]],
     membershipClass: ['personal', [Validators.required]],
-    golfingAllow: [false],
+    isGolfAllow: [false],
     dependentGolfingAllow: [false],
     votingRight: [false],
     transferRight: [false],
+    isTermMembership: [false],
+    termMonths: this.fb.control<number | null>(null, [Validators.min(1)]),
     conversionTargetIds: this.fb.nonNullable.control<string[]>([]),
     defaultMembershipStatusId: [''],
     defaultMembershipFeeId: [''],
@@ -170,6 +172,15 @@ export class MembershipTypesComponent implements OnInit {
 
   isPersonal(): boolean {
     return this.form.controls.membershipClass.value === 'personal';
+  }
+
+  // Golf settings (dependent golfing, play times) show only when golfing access is on.
+  isGolfAllowed(): boolean {
+    return this.form.controls.isGolfAllow.value;
+  }
+
+  isTerm(): boolean {
+    return this.form.controls.isTermMembership.value;
   }
 
   classLabel(key: string): string {
@@ -259,10 +270,12 @@ export class MembershipTypesComponent implements OnInit {
       category: '',
       description: '',
       membershipClass: 'personal',
-      golfingAllow: false,
+      isGolfAllow: false,
       dependentGolfingAllow: false,
       votingRight: false,
       transferRight: false,
+      isTermMembership: false,
+      termMonths: null,
       conversionTargetIds: [],
       defaultMembershipStatusId: '',
       defaultMembershipFeeId: '',
@@ -287,10 +300,12 @@ export class MembershipTypesComponent implements OnInit {
       category: t.category,
       description: t.description || '',
       membershipClass: t.membershipClass,
-      golfingAllow: !!t.golfingAllow,
+      isGolfAllow: !!t.isGolfAllow,
       dependentGolfingAllow: !!t.dependentGolfingAllow,
       votingRight: !!t.votingRight,
       transferRight: !!t.transferRight,
+      isTermMembership: !!t.isTermMembership,
+      termMonths: t.termMonths ?? null,
       conversionTargetIds: [...(t.conversionTargetIds || [])],
       defaultMembershipStatusId: t.defaultMembershipStatusId || '',
       defaultMembershipFeeId: t.defaultMembershipFeeId || '',
@@ -360,6 +375,13 @@ export class MembershipTypesComponent implements OnInit {
     const v = this.form.getRawValue();
     const personal = v.membershipClass === 'personal';
 
+    // A term membership needs its period (server re-validates).
+    if (v.isTermMembership && (!v.termMonths || v.termMonths < 1)) {
+      this.errorMessage.set('A term membership needs its period in months (at least 1).');
+      this.form.controls.termMonths.markAsTouched();
+      return;
+    }
+
     // Client-side check of the fee lines (server re-validates).
     for (const [i, row] of this.feeLines().entries()) {
       if (!row.transactionType.trim()) {
@@ -424,10 +446,12 @@ export class MembershipTypesComponent implements OnInit {
       category: v.category.trim(),
       description: v.description.trim() || null,
       membershipClass: v.membershipClass,
-      golfingAllow: v.golfingAllow,
-      dependentGolfingAllow: v.dependentGolfingAllow,
+      isGolfAllow: v.isGolfAllow,
+      dependentGolfingAllow: v.isGolfAllow ? v.dependentGolfingAllow : false,
       votingRight: v.votingRight,
       transferRight: v.transferRight,
+      isTermMembership: v.isTermMembership,
+      termMonths: v.isTermMembership ? v.termMonths ?? null : null,
       conversionTargetIds: v.conversionTargetIds,
       defaultMembershipStatusId: v.defaultMembershipStatusId || null,
       defaultMembershipFeeId: v.defaultMembershipFeeId || null,
@@ -435,7 +459,7 @@ export class MembershipTypesComponent implements OnInit {
       creditLimit: v.creditLimit ?? null,
       childAgeFrom: personal ? v.childAgeFrom ?? null : null,
       childAgeTo: personal ? v.childAgeTo ?? null : null,
-      playTimes: personal ? v.playTimes ?? null : null,
+      playTimes: personal && v.isGolfAllow ? v.playTimes ?? null : null,
       noOfNominee: personal ? null : v.noOfNominee ?? null,
       nomineeCategoryId: personal ? null : v.nomineeCategoryId || null,
     };

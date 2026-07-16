@@ -19,7 +19,7 @@ Facility, points rules to a future Loyalty module) - attached by
 `membershipTypeId` value reference, shown only when the company subscribes to
 that module.
 Known legacy leak to unwind when a second product needs type-level privileges:
-`MembershipType.golfingAllow` / `dependentGolfingAllow` / `playTimes` are
+`MembershipType.isGolfAllow` / `dependentGolfingAllow` / `playTimes` are
 golf-specific and should migrate to a golf-side privileges table at that point.
 Triage every remaining SRS item through this lens (e.g. play times -> golf;
 vehicle passes and articles/newsletters -> generic).
@@ -191,9 +191,9 @@ Web: screen at `/membership/fees`. Needs the same DB activation as #1 (a Menu un
 
 Three tables planned (main + two children). **Phase 1 (main table) is built**; Phases 2-3 pending.
 
-**Phase 1 - `membership."MembershipType"`** (main / category details + default rights, per company):
-`category` (unique/company), `description`, `membershipClass` (personal | corporate - the discriminator), rights `golfingAllow` / `dependentGolfingAllow` / `votingRight` / `transferRight`, `conversionTargetIds` (uuid[] of other types it can convert to), personal-only `childAgeFrom` / `childAgeTo` / `playTimes`, corporate-only `noOfNominee` / `nomineeCategoryId`, defaults `defaultMembershipStatusId` (→ Status master) / `defaultMembershipFeeId` (→ Fee master) / `arDebtorType` (free text for now) / `creditLimit`, `isActive`.
-Cross-refs are plain UUIDs validated against the company's own status/fee/type rows. Class-conditional fields are nulled server-side for the other class.
+**Phase 1 - `membership."MembershipType"`** (main / type details + default rights, per company):
+`category` (the membership type code, unique/company; UI label is "Membership Type" - 2026-07-16 naming standardisation), `description`, `membershipClass` (personal | corporate - the discriminator; stored key `personal`, DISPLAY label "Individual"), rights `isGolfAllow` (renamed from `golfingAllow` 2026-07-16; the golfing-access gate - golf settings apply/show only when true) / `dependentGolfingAllow` / `votingRight` / `transferRight`, term `isTermMembership` + `termMonths` (fixed period in MONTHS, 18 = 1.5 years, per the KLGCC term catalog; false = lifetime), `conversionTargetIds` (uuid[] of other types it can convert to), personal-only `childAgeFrom` / `childAgeTo` / `playTimes` (playTimes also requires `isGolfAllow`), corporate-only `noOfNominee` / `nomineeCategoryId`, defaults `defaultMembershipStatusId` (→ Status master) / `defaultMembershipFeeId` (→ Fee master) / `arDebtorType` (free text for now) / `creditLimit`, `isActive`.
+Cross-refs are plain UUIDs validated against the company's own status/fee/type rows. Class-conditional fields are nulled server-side for the other class; golf-conditional and term-conditional fields likewise.
 API under `/api/membership/types` (meta, list, POST, PUT, PATCH toggle). Screen `/membership/types` (Reactive Forms + dialog unsaved-changes guard).
 
 **Phase 2 (BUILT) - Additional Fees** child `membership."MembershipTypeFee"`: `membershipTypeId` (FK, cascade), `transactionType` (free text), `description`, `taxSchemeCode` (OUTPUT-only, picker via the tax seam), `currencyCode` (subscriber's currency set via `serviceContext.listAccountCurrencies`, falling back to all active), `amount`.

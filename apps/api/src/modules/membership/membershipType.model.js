@@ -36,7 +36,10 @@ const MembershipType = sequelize.define('MembershipType', {
     },
 
     // --- Default rights ---
-    golfingAllow: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    // Golfing access gate (KLGCC "inclusive/without golfing access"): golf-only
+    // settings (dependent golfing, play times) apply only when true.
+    // Renamed from golfingAllow (in-place column rename, 2026-07-16).
+    isGolfAllow: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     dependentGolfingAllow: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     votingRight: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     transferRight: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
@@ -48,6 +51,12 @@ const MembershipType = sequelize.define('MembershipType', {
         allowNull: false,
         defaultValue: [],
     },
+
+    // --- Term membership (KLGCC "Term (Golf) for N years" etc.) ---
+    // false = lifetime/perpetual. When true, termMonths carries the fixed period
+    // in MONTHS (18 = 1.5 years) - months chosen over years for flexibility.
+    isTermMembership: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    termMonths: { type: DataTypes.INTEGER, allowNull: true },
 
     // --- Personal-only ---
     childAgeFrom: { type: DataTypes.INTEGER, allowNull: true },
