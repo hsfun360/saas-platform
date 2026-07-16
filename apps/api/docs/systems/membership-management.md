@@ -203,7 +203,13 @@ Extra endpoint: `GET /api/membership/types/currencies`.
 Standing charges are raised from the member's status at the point the charge is billed; statuses a club never charges (deceased/terminated/resigned/...) simply have no row.
 Since 2026-07-16 they are maintained from their OWN dialog on the listing card ("Standing charges" button), saved via `PUT /api/membership/types/:id/standing-charges` (replaced wholesale); the dialog auto-seeds one row per **active** Membership Status and a row left without a transaction type is not persisted; `frequencies` served via `/types/meta`.
 
-Deferred masters (A/R debtor type, Transaction type, Charges control) are **free text** until their own master files exist.
+### Built: Transaction Type master (2026-07-16)
+
+`membership."TransactionType"` - per-company billing-item catalog: `transactionType` (code, unique per company), `chargeType` (fixed vocabulary via `/meta`: membership-fee | standing-charges | membership-transfer | absentee-fee | miscellaneous), `description`, `taxSchemeCode` (Tax service value reference BY CODE via the tax seam - the code is the scheme's stable business identity across effective-dated versions/reseeds, so consumers never store the tax row's UUID), `isActive`, RBAC stamps.
+**The transaction type is the SINGLE SOURCE of tax** for a billing item (user decision): the Joining fees and Standing charges rows dropped their own `taxSchemeCode` columns and instead PICK a transaction type from this master - Joining fees filtered to charge types membership-fee + absentee-fee, Standing charges to standing-charges (server re-validates active + charge type on save); the row's tax shows read-only from the picked type.
+API `/api/membership/transaction-types` (meta / tax-schemes / list / POST / PUT / PATCH toggle) behind `requireMenuAction('/membership/transaction-types')`; picker for the Types screen served at `GET /api/membership/types/transaction-types` (avoids cross-menu RBAC). Screen `/membership/transaction-types` (menu row added by the user in the DB).
+
+Deferred masters (A/R debtor type, Charges control) are **free text** until their own master files exist.
 
 ## Built: Membership / Member CRM (SRS 2.3 Phase 1, 2026-07-15)
 
