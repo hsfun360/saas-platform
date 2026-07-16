@@ -79,6 +79,18 @@ gcloud run deploy $env:IMAGE_NAME `
 - **Schema columns auto-apply on boot** - `app.js` runs `sequelize.sync({ alter: true })`
   under an advisory lock, so new nullable columns (e.g. `Module.landingRoute`,
   `Role.description`) are added when the revision starts. No manual step.
+- **Fingerprint gate (2026-07-16):** the sync is SKIPPED when nothing changed.
+  Boot hashes the model definitions (`src/platform/schemaFingerprint.js`) and
+  compares against the one-row `public."SchemaMeta"` table: match → log
+  `Database schema up to date (fingerprint match) - skipping sync.` and the
+  instance is ready in seconds; mismatch (a release edited a model) → full sync
+  runs once, then the fingerprint is updated. So expect the multi-minute
+  `Database schema synced successfully.` only on the FIRST boot after a
+  model-changing release - scale-ups/cold starts/no-op deploys skip.
+- **Escape hatch:** if the DB was changed manually (dropped/altered outside the
+  models) and you need a full re-sync despite an unchanged fingerprint, deploy
+  once with `--update-env-vars FORCE_SCHEMA_SYNC=1`, then remove it
+  (`--remove-env-vars FORCE_SCHEMA_SYNC`) so later boots go back to skipping.
 - **Data migrations are manual**, run from a machine that can reach the DB
   (`DATABASE_URL` in `apps/api/.env`), NOT part of the deploy. Run them from the
   `apps/api` folder (that is where `package.json` and the scripts live). Run the

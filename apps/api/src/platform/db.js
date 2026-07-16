@@ -11,6 +11,11 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
     protocol: 'postgres',
     logging: false, // Set to true to see SQL queries in the console
     dialectOptions: {
+        // TCP keepalive on every pooled connection - the external Postgres was
+        // observed dropping idle/long-lived connections mid-work (ECONNRESET
+        // during the boot schema sync, 2026-07-16). Probes start after 10s idle.
+        keepAlive: true,
+        keepAliveInitialDelayMillis: 10000,
         // Required for deployment platforms like Cloud Run/Render/Heroku that use SSL
         // --- TEMPORARILY REMOVE OR COMMENT OUT THIS SECTION FOR LOCAL TESTING ---
         /*

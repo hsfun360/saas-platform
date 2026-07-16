@@ -135,15 +135,36 @@ async function initializeDB() {
         console.log('Waiting for Database Sync Lock...');
         await sequelize.query('SELECT pg_advisory_lock(999999)');
         lockAcquired = true;
-        console.log('Lock acquired. Syncing database schema...');
 
-        // Product-tier services own their own Postgres schema (membership, …) so
-        // they can be pg_dump --schema extracted later. Create them before sync,
-        // inside the lock, so the schema-scoped models have a schema to land in.
-        await require('./platform/schemas').ensureProductSchemas(sequelize);
+        // Schema-fingerprint gate: the full alter-sync is minutes of
+        // information_schema interrogation, but the models only change on the
+        // rare release that edits a model file. Hash the model definitions and
+        // skip the sync when the stored fingerprint matches - so deploys,
+        // scale-ups and cold starts settle in seconds unless the schema really
+        // changed. FORCE_SCHEMA_SYNC=1 overrides (e.g. after manual DDL).
+        const {
+            computeSchemaFingerprint,
+            readStoredFingerprint,
+            writeStoredFingerprint,
+        } = require('./platform/schemaFingerprint');
+        const fingerprint = computeSchemaFingerprint(sequelize);
+        const stored = await readStoredFingerprint(sequelize);
+        const forceSync = process.env.FORCE_SCHEMA_SYNC === '1';
 
-        await sequelize.sync({ alter: true });
-        console.log('Database schema synced successfully.');
+        if (stored === fingerprint && !forceSync) {
+            console.log('Lock acquired. Database schema up to date (fingerprint match) - skipping sync.');
+        } else {
+            console.log(`Lock acquired. ${forceSync ? 'FORCE_SCHEMA_SYNC=1' : 'Schema fingerprint changed'} - syncing database schema...`);
+
+            // Product-tier services own their own Postgres schema (membership, …) so
+            // they can be pg_dump --schema extracted later. Create them before sync,
+            // inside the lock, so the schema-scoped models have a schema to land in.
+            await require('./platform/schemas').ensureProductSchemas(sequelize);
+
+            await sequelize.sync({ alter: true });
+            await writeStoredFingerprint(sequelize, fingerprint);
+            console.log('Database schema synced successfully.');
+        }
 
         // Backfill Company.countryCode from the alpha-2 the Companies picker already
         // stored in the free-text `country`, for rows created before countryCode
