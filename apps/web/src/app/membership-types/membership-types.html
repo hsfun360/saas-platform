@@ -83,7 +83,10 @@
                   <div class="meta"><dt>Credit limit</dt><dd>{{ t.creditLimit | number:'1.2-2' }}</dd></div>
                 }
                 @if (t.additionalFees.length > 0) {
-                  <div class="meta"><dt>Add'l fees</dt><dd>{{ t.additionalFees.length }}</dd></div>
+                  <div class="meta"><dt>Joining fees</dt><dd>{{ t.additionalFees.length }}</dd></div>
+                }
+                @if (t.standingCharges.length > 0) {
+                  <div class="meta"><dt>Standing charges</dt><dd>{{ t.standingCharges.length }}</dd></div>
                 }
               </dl>
               <div class="mt-chips">
@@ -105,6 +108,8 @@
               <!-- Row-level data scope: the server flags rows this user's role
                    may not amend (canModify=false) — hide the actions entirely. -->
               @if (t.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openFees(t)">Joining fees</button>
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openCharges(t)">Standing charges</button>
                 <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">Edit</button>
                 @if (t.isActive === false) {
                   <button *appCan="'edit'" type="button" class="btn btn--success btn--sm" (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
@@ -250,11 +255,74 @@
           }
         </fieldset>
 
+        <!-- Personal-only -->
+        @if (isPersonal()) {
+          <fieldset class="mt-fieldset">
+            <legend>Individual</legend>
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-group">
+                <label for="tAgeFrom">Child age from</label>
+                <input id="tAgeFrom" type="number" inputmode="numeric" formControlName="childAgeFrom" min="0" step="1" />
+              </div>
+              <div class="form-group">
+                <label for="tAgeTo">Child age to</label>
+                <input id="tAgeTo" type="number" inputmode="numeric" formControlName="childAgeTo" min="0" step="1" />
+              </div>
+              @if (isGolfAllowed()) {
+                <div class="form-group">
+                  <label for="tPlay">Play times</label>
+                  <input id="tPlay" type="number" inputmode="numeric" formControlName="playTimes" min="0" step="1" />
+                </div>
+              }
+            </div>
+          </fieldset>
+        }
+
+        <!-- Corporate-only -->
+        @if (!isPersonal()) {
+          <fieldset class="mt-fieldset">
+            <legend>Corporate</legend>
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-group">
+                <label for="tNoNom">No. of nominee</label>
+                <input id="tNoNom" type="number" inputmode="numeric" formControlName="noOfNominee" min="0" step="1" />
+              </div>
+              <div class="form-group">
+                <label for="tNomCat">Nominee membership type</label>
+                <select id="tNomCat" formControlName="nomineeCategoryId">
+                  <option value="">— None —</option>
+                  @for (t of otherTypes(); track t.id) {
+                    <option [value]="t.id">{{ t.category }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+          </fieldset>
+        }
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="typeForm" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Joining fees dialog (A) ============ -->
+  @if (feesOpen()) {
+    <app-dialog #feesDlg [title]="'Joining fees — ' + (feesType()?.category || '')" [busy]="feesSaving()" [dirty]="feesDirty()"
+                discardTitle="Discard joining-fee changes?"
+                discardMessage="You have unsaved changes to these joining fees. Leaving now will discard them."
+                (close)="closeFees()">
+      <div class="saas-form" style="padding: 0;">
+        <p class="mt-hint" style="margin: 0 0 var(--space-sm);">One-time charges billed when someone joins as a new member under this type. A type can carry more than one (e.g. processing fee + entrance fee).</p>
         <!-- Additional fees (Category Details - Fee) -->
         <fieldset class="mt-fieldset">
-          <legend>Additional fees</legend>
+          <legend>Joining fees</legend>
           @if (feeLines().length === 0) {
-            <p class="mt-hint">No additional fees. Use "Add fee" to attach one (e.g. entrance or processing fees).</p>
+            <p class="mt-hint">No joining fees yet. Use "Add fee" to attach one (e.g. processing or entrance fees).</p>
           }
           @for (row of feeLines(); track $index; let i = $index) {
             <div class="mt-feeline">
@@ -310,7 +378,22 @@
             <span>Add fee</span>
           </button>
         </fieldset>
+      </div>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="feesDlg.requestClose()" [disabled]="feesSaving()">Cancel</button>
+        <button type="button" class="btn btn--primary" (click)="saveFees()" [disabled]="feesSaving()">{{ feesSaving() ? 'Saving…' : 'Save' }}</button>
+      </ng-container>
+    </app-dialog>
+  }
 
+  <!-- ============ Standing charges dialog (B) ============ -->
+  @if (chargesOpen()) {
+    <app-dialog #chargesDlg [title]="'Standing charges — ' + (chargesType()?.category || '')" [busy]="chargesSaving()" [dirty]="chargesDirty()"
+                discardTitle="Discard standing-charge changes?"
+                discardMessage="You have unsaved changes to these standing charges. Leaving now will discard them."
+                (close)="closeCharges()">
+      <div class="saas-form" style="padding: 0;">
+        <p class="mt-hint" style="margin: 0 0 var(--space-sm);">Recurring charges raised from the member's status at the point the charge is billed. Only fill in the statuses this type charges — statuses like deceased, terminated or resigned simply stay empty.</p>
         <!-- Standing charges (one row per active membership status) -->
         <fieldset class="mt-fieldset">
           <legend>Standing charges</legend>
@@ -408,59 +491,12 @@
             }
           }
         </fieldset>
-
-        <!-- Personal-only -->
-        @if (isPersonal()) {
-          <fieldset class="mt-fieldset">
-            <legend>Individual</legend>
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-              <div class="form-group">
-                <label for="tAgeFrom">Child age from</label>
-                <input id="tAgeFrom" type="number" inputmode="numeric" formControlName="childAgeFrom" min="0" step="1" />
-              </div>
-              <div class="form-group">
-                <label for="tAgeTo">Child age to</label>
-                <input id="tAgeTo" type="number" inputmode="numeric" formControlName="childAgeTo" min="0" step="1" />
-              </div>
-              @if (isGolfAllowed()) {
-                <div class="form-group">
-                  <label for="tPlay">Play times</label>
-                  <input id="tPlay" type="number" inputmode="numeric" formControlName="playTimes" min="0" step="1" />
-                </div>
-              }
-            </div>
-          </fieldset>
-        }
-
-        <!-- Corporate-only -->
-        @if (!isPersonal()) {
-          <fieldset class="mt-fieldset">
-            <legend>Corporate</legend>
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-              <div class="form-group">
-                <label for="tNoNom">No. of nominee</label>
-                <input id="tNoNom" type="number" inputmode="numeric" formControlName="noOfNominee" min="0" step="1" />
-              </div>
-              <div class="form-group">
-                <label for="tNomCat">Nominee membership type</label>
-                <select id="tNomCat" formControlName="nomineeCategoryId">
-                  <option value="">— None —</option>
-                  @for (t of otherTypes(); track t.id) {
-                    <option [value]="t.id">{{ t.category }}</option>
-                  }
-                </select>
-              </div>
-            </div>
-          </fieldset>
-        }
-      </form>
-
+      </div>
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
-        <button type="submit" form="typeForm" class="btn btn--primary" [disabled]="saving()">
-          {{ saving() ? 'Saving…' : 'Save' }}
-        </button>
+        <button type="button" class="btn btn--secondary" (click)="chargesDlg.requestClose()" [disabled]="chargesSaving()">Cancel</button>
+        <button type="button" class="btn btn--primary" (click)="saveCharges()" [disabled]="chargesSaving()">{{ chargesSaving() ? 'Saving…' : 'Save' }}</button>
       </ng-container>
     </app-dialog>
   }
+
 </div>

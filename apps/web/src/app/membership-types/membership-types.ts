@@ -79,6 +79,20 @@ export class MembershipTypesComponent implements OnInit {
   readonly saving = signal(false);
   readonly editId = signal<string | null>(null);
 
+  // Joining-fees dialog (A): one-time charges billed when a new member joins
+  // under the type. Its own dialog on the listing, separate from the type form.
+  readonly feesOpen = signal(false);
+  readonly feesSaving = signal(false);
+  readonly feesDirty = signal(false);
+  readonly feesType = signal<MembershipType | null>(null);
+
+  // Standing-charges dialog (B): per-status recurring charges. Only statuses the
+  // club charges get a row filled in.
+  readonly chargesOpen = signal(false);
+  readonly chargesSaving = signal(false);
+  readonly chargesDirty = signal(false);
+  readonly chargesType = signal<MembershipType | null>(null);
+
   readonly form = this.fb.nonNullable.group({
     category: ['', [Validators.required, Validators.maxLength(30)]],
     description: ['', [Validators.maxLength(200)]],
@@ -238,7 +252,7 @@ export class MembershipTypesComponent implements OnInit {
 
   updateStandingRow(index: number, field: keyof StandingRow, value: string): void {
     this.standingRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
-    this.form.markAsDirty();
+    this.chargesDirty.set(true);
   }
 
   loadRefs(): void {
@@ -288,8 +302,6 @@ export class MembershipTypesComponent implements OnInit {
       nomineeCategoryId: '',
     });
     this.syncClassControls('individual');
-    this.feeLines.set([]);
-    this.seedStandingRows([]);
     this.dialogOpen.set(true);
   }
 
@@ -318,6 +330,17 @@ export class MembershipTypesComponent implements OnInit {
       nomineeCategoryId: t.nomineeCategoryId || '',
     });
     this.syncClassControls(t.membershipClass);
+    this.dialogOpen.set(true);
+  }
+
+  closeDialog(): void {
+    this.dialogOpen.set(false);
+  }
+
+  // --- Joining fees dialog (A) ---
+  openFees(t: MembershipType): void {
+    this.clearMessages();
+    this.feesType.set(t);
     this.feeLines.set(
       (t.additionalFees || []).map((f) => ({
         transactionType: f.transactionType,
@@ -327,32 +350,144 @@ export class MembershipTypesComponent implements OnInit {
         amount: String(f.amount),
       })),
     );
-    this.seedStandingRows(t.standingCharges || []);
-    this.dialogOpen.set(true);
+    this.feesDirty.set(false);
+    this.feesOpen.set(true);
   }
 
-  closeDialog(): void {
-    this.dialogOpen.set(false);
+  closeFees(): void {
+    this.feesOpen.set(false);
+    this.feesType.set(null);
   }
 
-  // --- Additional fees (Category Details - Fee) ---
+  saveFees(): void {
+    this.clearMessages();
+    const type = this.feesType();
+    if (!type) return;
+
+    // Client-side check of the fee lines (server re-validates).
+    for (const [i, row] of this.feeLines().entries()) {
+      if (!row.transactionType.trim()) {
+        this.errorMessage.set(`Joining fee #${i + 1}: transaction type is required.`);
+        return;
+      }
+      if (!row.currencyCode) {
+        this.errorMessage.set(`Joining fee #${i + 1}: pick a currency.`);
+        return;
+      }
+      const amt = Number(row.amount);
+      if (!Number.isFinite(amt) || amt < 0) {
+        this.errorMessage.set(`Joining fee #${i + 1}: amount must be a non-negative number.`);
+        return;
+      }
+    }
+
+    this.feesSaving.set(true);
+    this.service.updateAdditionalFees(type.id, this.feeLines().map((r) => ({
+      transactionType: r.transactionType.trim(),
+      description: r.description.trim() || null,
+      taxSchemeCode: r.taxSchemeCode || null,
+      currencyCode: r.currencyCode,
+      amount: Number(r.amount) || 0,
+    }))).subscribe({
+      next: (res) => {
+        this.successMessage.set(res.message);
+        this.feesSaving.set(false);
+        this.closeFees();
+        this.load();
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to save joining fees.');
+        this.feesSaving.set(false);
+      },
+    });
+  }
+
   addFeeLine(): void {
     const defaultCurrency = this.currencies()[0]?.code || '';
     this.feeLines.update((rows) => [
       ...rows,
       { transactionType: '', description: '', taxSchemeCode: '', currencyCode: defaultCurrency, amount: '0' },
     ]);
-    this.form.markAsDirty();
+    this.feesDirty.set(true);
   }
 
   removeFeeLine(index: number): void {
     this.feeLines.update((rows) => rows.filter((_, i) => i !== index));
-    this.form.markAsDirty();
+    this.feesDirty.set(true);
   }
 
   updateFeeLine(index: number, field: keyof FeeLineRow, value: string): void {
     this.feeLines.update((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
-    this.form.markAsDirty();
+    this.feesDirty.set(true);
+  }
+
+  // --- Standing charges dialog (B) ---
+  openCharges(t: MembershipType): void {
+    this.clearMessages();
+    this.chargesType.set(t);
+    this.seedStandingRows(t.standingCharges || []);
+    this.chargesDirty.set(false);
+    this.chargesOpen.set(true);
+  }
+
+  closeCharges(): void {
+    this.chargesOpen.set(false);
+    this.chargesType.set(null);
+  }
+
+  saveCharges(): void {
+    this.clearMessages();
+    const type = this.chargesType();
+    if (!type) return;
+
+    // Only rows with a transaction type are persisted (an empty row = no
+    // standing charge for that status). Validate the configured ones.
+    const configuredCharges = this.standingRows().filter((r) => r.transactionType.trim());
+    for (const row of configuredCharges) {
+      const label = row.statusLabel;
+      if (!row.currencyCode) {
+        this.errorMessage.set(`Standing charge for '${label}': pick a currency.`);
+        return;
+      }
+      const amt = Number(row.amount);
+      if (!Number.isFinite(amt) || amt < 0) {
+        this.errorMessage.set(`Standing charge for '${label}': amount must be a non-negative number.`);
+        return;
+      }
+      if (!row.frequency) {
+        this.errorMessage.set(`Standing charge for '${label}': select a frequency.`);
+        return;
+      }
+      if (row.frequency === 'fixed-month' && !row.fixedMonth) {
+        this.errorMessage.set(`Standing charge for '${label}': pick the month for a Fixed Month charge.`);
+        return;
+      }
+    }
+
+    this.chargesSaving.set(true);
+    this.service.updateStandingCharges(type.id, configuredCharges.map((r) => ({
+      membershipStatusId: r.membershipStatusId,
+      description: r.description.trim() || null,
+      chargesControl: r.chargesControl.trim() || null,
+      transactionType: r.transactionType.trim(),
+      transactionDescription: r.transactionDescription.trim() || null,
+      taxSchemeCode: r.taxSchemeCode || null,
+      currencyCode: r.currencyCode,
+      amount: Number(r.amount) || 0,
+      frequency: r.frequency,
+      fixedMonth: r.frequency === 'fixed-month' ? Number(r.fixedMonth) : null,
+    }))).subscribe({
+      next: (res) => {
+        this.successMessage.set(res.message);
+        this.chargesSaving.set(false);
+        this.closeCharges();
+        this.load();
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to save standing charges.');
+        this.chargesSaving.set(false);
+      },
+    });
   }
 
   toggleConversion(id: string): void {
@@ -382,67 +517,9 @@ export class MembershipTypesComponent implements OnInit {
       return;
     }
 
-    // Client-side check of the fee lines (server re-validates).
-    for (const [i, row] of this.feeLines().entries()) {
-      if (!row.transactionType.trim()) {
-        this.errorMessage.set(`Additional fee #${i + 1}: transaction type is required.`);
-        return;
-      }
-      if (!row.currencyCode) {
-        this.errorMessage.set(`Additional fee #${i + 1}: pick a currency.`);
-        return;
-      }
-      const amt = Number(row.amount);
-      if (!Number.isFinite(amt) || amt < 0) {
-        this.errorMessage.set(`Additional fee #${i + 1}: amount must be a non-negative number.`);
-        return;
-      }
-    }
-
-    // Standing charges: only rows with a transaction type are persisted (an empty
-    // row = no standing charge for that status). Validate the configured ones.
-    const configuredCharges = this.standingRows().filter((r) => r.transactionType.trim());
-    for (const row of configuredCharges) {
-      const label = row.statusLabel;
-      if (!row.currencyCode) {
-        this.errorMessage.set(`Standing charge for '${label}': pick a currency.`);
-        return;
-      }
-      const amt = Number(row.amount);
-      if (!Number.isFinite(amt) || amt < 0) {
-        this.errorMessage.set(`Standing charge for '${label}': amount must be a non-negative number.`);
-        return;
-      }
-      if (!row.frequency) {
-        this.errorMessage.set(`Standing charge for '${label}': select a frequency.`);
-        return;
-      }
-      if (row.frequency === 'fixed-month' && !row.fixedMonth) {
-        this.errorMessage.set(`Standing charge for '${label}': pick the month for a Fixed Month charge.`);
-        return;
-      }
-    }
-
+    // Joining fees / standing charges are maintained from their own dialogs on
+    // the listing - the type form saves only the type row.
     const payload: Partial<MembershipType> = {
-      standingCharges: configuredCharges.map((r) => ({
-        membershipStatusId: r.membershipStatusId,
-        description: r.description.trim() || null,
-        chargesControl: r.chargesControl.trim() || null,
-        transactionType: r.transactionType.trim(),
-        transactionDescription: r.transactionDescription.trim() || null,
-        taxSchemeCode: r.taxSchemeCode || null,
-        currencyCode: r.currencyCode,
-        amount: Number(r.amount) || 0,
-        frequency: r.frequency,
-        fixedMonth: r.frequency === 'fixed-month' ? Number(r.fixedMonth) : null,
-      })),
-      additionalFees: this.feeLines().map((r) => ({
-        transactionType: r.transactionType.trim(),
-        description: r.description.trim() || null,
-        taxSchemeCode: r.taxSchemeCode || null,
-        currencyCode: r.currencyCode,
-        amount: Number(r.amount) || 0,
-      })),
       category: v.category.trim(),
       description: v.description.trim() || null,
       membershipClass: v.membershipClass,

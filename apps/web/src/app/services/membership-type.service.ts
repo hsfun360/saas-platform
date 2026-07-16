@@ -35,4 +35,14 @@ export class MembershipTypeService {
   setActive(id: string, isActive: boolean): Observable<{ message: string; type: MembershipType }> {
     return this.http.patch<{ message: string; type: MembershipType }>(`${this.base}/${id}`, { isActive });
   }
+
+  // Joining fees (one-time charges on joining) - replaced wholesale.
+  updateAdditionalFees(id: string, additionalFees: MembershipType['additionalFees']): Observable<{ message: string; type: MembershipType }> {
+    return this.http.put<{ message: string; type: MembershipType }>(`${this.base}/${id}/additional-fees`, { additionalFees });
+  }
+
+  // Standing charges (per-status recurring charges) - replaced wholesale.
+  updateStandingCharges(id: string, standingCharges: MembershipType['standingCharges']): Observable<{ message: string; type: MembershipType }> {
+    return this.http.put<{ message: string; type: MembershipType }>(`${this.base}/${id}/standing-charges`, { standingCharges });
+  }
 }

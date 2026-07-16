@@ -331,45 +331,23 @@ exports.createType = async (req, res) => {
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         const v = parsed.value;
 
-        const parsedFees = normalizeFeeLines(req.body);
-        if (parsedFees.error) return res.status(400).json({ message: parsedFees.error });
-
-        const parsedCharges = normalizeStandingCharges(req.body);
-        if (parsedCharges.error) return res.status(400).json({ message: parsedCharges.error });
-
         const refErr = await validateRefs(companyId, v, null);
         if (refErr) return res.status(400).json({ message: refErr });
-
-        const chargeErr = await validateStandingChargeStatuses(companyId, parsedCharges.value);
-        if (chargeErr) return res.status(400).json({ message: chargeErr });
 
         const existing = await MembershipType.findOne({ where: { companyId, category: v.category } });
         if (existing) return res.status(409).json({ message: `Membership type '${v.category}' already exists.` });
 
         // Ownership stamps: creator + their department at creation (data scope).
+        // Joining fees / standing charges are maintained through their own
+        // endpoints (below), not on create.
         const placement = await getCallerPlacement(req);
         const callerId = getUserContext(req).userId;
-        const type = await sequelize.transaction(async (t) => {
-            const created = await MembershipType.create({
-                companyId,
-                ...v,
-                createdBy: callerId,
-                createdByDepartmentId: placement.departmentId,
-                updatedBy: callerId,
-            }, { transaction: t });
-            if (parsedFees.value.length) {
-                await MembershipTypeFee.bulkCreate(
-                    parsedFees.value.map((f) => ({ ...f, membershipTypeId: created.id })),
-                    { transaction: t },
-                );
-            }
-            if (parsedCharges.value.length) {
-                await MembershipTypeStandingCharge.bulkCreate(
-                    parsedCharges.value.map((c) => ({ ...c, membershipTypeId: created.id })),
-                    { transaction: t },
-                );
-            }
-            return created;
+        const type = await MembershipType.create({
+            companyId,
+            ...v,
+            createdBy: callerId,
+            createdByDepartmentId: placement.departmentId,
+            updatedBy: callerId,
         });
 
         const full = await MembershipType.findByPk(type.id, { include: FEES_INCLUDE });
@@ -398,45 +376,19 @@ exports.updateType = async (req, res) => {
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         const v = parsed.value;
 
-        const parsedFees = normalizeFeeLines(req.body);
-        if (parsedFees.error) return res.status(400).json({ message: parsedFees.error });
-
-        const parsedCharges = normalizeStandingCharges(req.body);
-        if (parsedCharges.error) return res.status(400).json({ message: parsedCharges.error });
-
         const refErr = await validateRefs(companyId, v, type.id);
         if (refErr) return res.status(400).json({ message: refErr });
-
-        const chargeErr = await validateStandingChargeStatuses(companyId, parsedCharges.value);
-        if (chargeErr) return res.status(400).json({ message: chargeErr });
 
         if (v.category !== type.category) {
             const clash = await MembershipType.findOne({ where: { companyId, category: v.category } });
             if (clash) return res.status(409).json({ message: `Membership type '${v.category}' already exists.` });
         }
 
-        await sequelize.transaction(async (t) => {
-            Object.assign(type, v);
-            type.updatedBy = getUserContext(req).userId;
-            await type.save({ transaction: t });
-
-            // Replace both child sets wholesale (setup data - no posted state to
-            // preserve, unlike MembershipFeeScheme stages).
-            await MembershipTypeFee.destroy({ where: { membershipTypeId: type.id }, transaction: t });
-            if (parsedFees.value.length) {
-                await MembershipTypeFee.bulkCreate(
-                    parsedFees.value.map((f) => ({ ...f, membershipTypeId: type.id })),
-                    { transaction: t },
-                );
-            }
-            await MembershipTypeStandingCharge.destroy({ where: { membershipTypeId: type.id }, transaction: t });
-            if (parsedCharges.value.length) {
-                await MembershipTypeStandingCharge.bulkCreate(
-                    parsedCharges.value.map((c) => ({ ...c, membershipTypeId: type.id })),
-                    { transaction: t },
-                );
-            }
-        });
+        // Joining fees / standing charges are maintained through their own
+        // endpoints (below); this update touches the type row only.
+        Object.assign(type, v);
+        type.updatedBy = getUserContext(req).userId;
+        await type.save();
 
         const full = await MembershipType.findByPk(type.id, { include: FEES_INCLUDE });
         res.status(200).json({ message: 'Membership type updated.', type: toTypeDto(full) });
@@ -469,6 +421,94 @@ exports.setActive = async (req, res) => {
         res.status(200).json({ message: 'Membership type updated.', type: toTypeDto(full) });
     } catch (error) {
         console.error('Error updating membership type:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// Loads the type for a child-collection update, enforcing company ownership and
+// row-level data scope. Returns { type } or writes the error response.
+async function loadTypeForChildUpdate(req, res) {
+    const companyId = companyIdOf(req);
+    if (!companyId) {
+        res.status(400).json({ message: 'Select a workspace first.' });
+        return null;
+    }
+    const type = await MembershipType.findOne({ where: { id: req.params.id, companyId } });
+    if (!type) {
+        res.status(404).json({ message: 'Membership type not found.' });
+        return null;
+    }
+    if (!(await canModifyRecord(req, type))) {
+        res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
+        return null;
+    }
+    return type;
+}
+
+// PUT /api/membership/types/:id/additional-fees - replace the type's JOINING
+// FEES: the one-time charges billed when a new member joins under this type
+// (processing fee, entrance fee, ...). Maintained from its own dialog on the
+// listing, separate from the type form.
+exports.updateAdditionalFees = async (req, res) => {
+    try {
+        const type = await loadTypeForChildUpdate(req, res);
+        if (!type) return;
+
+        const parsedFees = normalizeFeeLines(req.body);
+        if (parsedFees.error) return res.status(400).json({ message: parsedFees.error });
+
+        await sequelize.transaction(async (t) => {
+            // Replace wholesale - pure setup data, nothing posted to preserve.
+            await MembershipTypeFee.destroy({ where: { membershipTypeId: type.id }, transaction: t });
+            if (parsedFees.value.length) {
+                await MembershipTypeFee.bulkCreate(
+                    parsedFees.value.map((f) => ({ ...f, membershipTypeId: type.id })),
+                    { transaction: t },
+                );
+            }
+            type.updatedBy = getUserContext(req).userId;
+            await type.save({ transaction: t });
+        });
+
+        const full = await MembershipType.findByPk(type.id, { include: FEES_INCLUDE });
+        res.status(200).json({ message: `Joining fees for '${type.category}' saved.`, type: toTypeDto(full) });
+    } catch (error) {
+        console.error('Error updating joining fees:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// PUT /api/membership/types/:id/standing-charges - replace the type's STANDING
+// CHARGES: recurring charges raised per the member's status at billing time.
+// Only statuses the club actually charges get a row (deceased/terminated/
+// resigned etc. simply have none). Maintained from its own dialog on the listing.
+exports.updateStandingCharges = async (req, res) => {
+    try {
+        const type = await loadTypeForChildUpdate(req, res);
+        if (!type) return;
+
+        const parsedCharges = normalizeStandingCharges(req.body);
+        if (parsedCharges.error) return res.status(400).json({ message: parsedCharges.error });
+
+        const chargeErr = await validateStandingChargeStatuses(type.companyId, parsedCharges.value);
+        if (chargeErr) return res.status(400).json({ message: chargeErr });
+
+        await sequelize.transaction(async (t) => {
+            await MembershipTypeStandingCharge.destroy({ where: { membershipTypeId: type.id }, transaction: t });
+            if (parsedCharges.value.length) {
+                await MembershipTypeStandingCharge.bulkCreate(
+                    parsedCharges.value.map((c) => ({ ...c, membershipTypeId: type.id })),
+                    { transaction: t },
+                );
+            }
+            type.updatedBy = getUserContext(req).userId;
+            await type.save({ transaction: t });
+        });
+
+        const full = await MembershipType.findByPk(type.id, { include: FEES_INCLUDE });
+        res.status(200).json({ message: `Standing charges for '${type.category}' saved.`, type: toTypeDto(full) });
+    } catch (error) {
+        console.error('Error updating standing charges:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
