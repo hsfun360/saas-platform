@@ -393,103 +393,116 @@
                 discardMessage="You have unsaved changes to these standing charges. Leaving now will discard them."
                 (close)="closeCharges()">
       <div class="saas-form" style="padding: 0;">
-        <p class="mt-hint" style="margin: 0 0 var(--space-sm);">Recurring charges raised from the member's status at the point the charge is billed. Only fill in the statuses this type charges — statuses like deceased, terminated or resigned simply stay empty.</p>
+        <p class="mt-hint" style="margin: 0 0 var(--space-sm);">Recurring charges raised from the member's status at the point the charge is billed. Use "Add charge" per charge — a status can carry more than one, and statuses you never charge (deceased, terminated, resigned, …) simply have no rows.</p>
         @if (standingTxTypes().length === 0) {
           <p class="mt-hint" style="margin: 0 0 var(--space-sm);">⚠️ No transaction types with charge type "Standing Charges" yet — set them up in the Transaction Type master first.</p>
         }
-        <!-- Standing charges (one row per active membership status) -->
+        <!-- Standing charges: explicit rows, added like joining fees -->
         <fieldset class="mt-fieldset">
           <legend>Standing charges</legend>
           @if (standingRows().length === 0) {
-            <p class="mt-hint">No membership statuses set up yet — add them in Membership Status first.</p>
-          } @else {
-            <p class="mt-hint" style="margin: 0 0 var(--space-sm);">One row per membership status. Leave the transaction type empty for statuses with no standing charge.</p>
-            @for (row of standingRows(); track row.membershipStatusId; let i = $index) {
-              <div class="mt-feeline">
-                <div class="mt-feeline__head">
-                  <span class="mt-feeline__no">{{ row.statusLabel }}</span>
-                  <span class="mt-chip">{{ row.statusClassLabel }}</span>
+            <p class="mt-hint">No standing charges yet. Use "Add charge" to attach one (e.g. monthly subscription while Active).</p>
+          }
+          @for (row of standingRows(); track $index; let i = $index) {
+            <div class="mt-feeline">
+              <div class="mt-feeline__head">
+                <span class="mt-feeline__no">Charge {{ i + 1 }}</span>
+                <button type="button" class="btn btn--danger btn--sm" (click)="removeStandingRow(i)"
+                        [attr.aria-label]="'Remove charge ' + (i + 1)">Remove</button>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label [for]="'scStatus' + i">Membership status <span class="required">*</span></label>
+                  <select [id]="'scStatus' + i" [value]="row.membershipStatusId"
+                          (change)="updateStandingRow(i, 'membershipStatusId', $any($event.target).value)">
+                    <option value="" disabled [selected]="!row.membershipStatusId">Select a status…</option>
+                    @for (s of activeStatuses(); track s.id) {
+                      <option [value]="s.id" [selected]="s.id === row.membershipStatusId">{{ s.membershipStatus }} ({{ s.statusClass }})</option>
+                    }
+                  </select>
                 </div>
+                <div class="form-group">
+                  <label [for]="'scType' + i">Transaction type <span class="required">*</span></label>
+                  <select [id]="'scType' + i" [value]="row.transactionType"
+                          (change)="updateStandingRow(i, 'transactionType', $any($event.target).value)">
+                    <option value="" disabled [selected]="!row.transactionType">Select a transaction type…</option>
+                    @for (t of standingTxTypes(); track t.transactionType) {
+                      <option [value]="t.transactionType" [selected]="t.transactionType === row.transactionType">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
+                    }
+                  </select>
+                  @if (row.transactionType) {
+                    <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Tax: {{ txTaxLabel(row.transactionType) }}</p>
+                  }
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label [for]="'scTxDesc' + i">Transaction description</label>
+                  <input [id]="'scTxDesc' + i" type="text" [value]="row.transactionDescription"
+                         (input)="updateStandingRow(i, 'transactionDescription', $any($event.target).value)"
+                         placeholder="Billing item summary" maxlength="200" />
+                </div>
+                <div class="form-group">
+                  <label [for]="'scDesc' + i">Description</label>
+                  <input [id]="'scDesc' + i" type="text" [value]="row.description"
+                         (input)="updateStandingRow(i, 'description', $any($event.target).value)"
+                         placeholder="Standing-charge summary" maxlength="200" />
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label [for]="'scCtrl' + i">Charges control</label>
+                  <input [id]="'scCtrl' + i" type="text" [value]="row.chargesControl"
+                         (input)="updateStandingRow(i, 'chargesControl', $any($event.target).value)"
+                         placeholder="e.g. AUTO-POST" maxlength="50" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                  <label [for]="'scCur' + i">Currency <span class="required">*</span></label>
+                  <select [id]="'scCur' + i" [value]="row.currencyCode"
+                          (change)="updateStandingRow(i, 'currencyCode', $any($event.target).value)">
+                    @for (c of currencies(); track c.code) {
+                      <option [value]="c.code" [selected]="c.code === row.currencyCode">{{ c.code }}@if (c.symbol) { ({{ c.symbol }}) }</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label [for]="'scAmt' + i">Amount <span class="required">*</span></label>
+                  <input [id]="'scAmt' + i" type="number" inputmode="decimal" appMoney [moneyValue]="row.amount"
+                         (input)="updateStandingRow(i, 'amount', $any($event.target).value)" min="0" step="0.01" />
+                </div>
+                <div class="form-group">
+                  <label [for]="'scFreq' + i">Frequency <span class="required">*</span></label>
+                  <select [id]="'scFreq' + i" [value]="row.frequency"
+                          (change)="updateStandingRow(i, 'frequency', $any($event.target).value)">
+                    <option value="" disabled [selected]="!row.frequency">Select a frequency…</option>
+                    @for (f of frequencies(); track f.key) {
+                      <option [value]="f.key" [selected]="f.key === row.frequency">{{ f.label }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              @if (row.frequency === 'fixed-month') {
                 <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                   <div class="form-group">
-                    <label [for]="'scType' + i">Transaction type</label>
-                    <select [id]="'scType' + i" [value]="row.transactionType"
-                            (change)="updateStandingRow(i, 'transactionType', $any($event.target).value)">
-                      <option value="" [selected]="!row.transactionType">— No charge for this status —</option>
-                      @for (t of standingTxTypes(); track t.transactionType) {
-                        <option [value]="t.transactionType" [selected]="t.transactionType === row.transactionType">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
+                    <label [for]="'scMonth' + i">Month <span class="required">*</span></label>
+                    <select [id]="'scMonth' + i" [value]="row.fixedMonth"
+                            (change)="updateStandingRow(i, 'fixedMonth', $any($event.target).value)">
+                      <option value="" disabled [selected]="!row.fixedMonth">Select a month…</option>
+                      @for (m of monthNames; track m; let mi = $index) {
+                        <option [value]="mi + 1" [selected]="(mi + 1) + '' === row.fixedMonth">{{ m }}</option>
                       }
                     </select>
-                    @if (row.transactionType) {
-                      <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Tax: {{ txTaxLabel(row.transactionType) }}</p>
-                    }
-                  </div>
-                  <div class="form-group">
-                    <label [for]="'scTxDesc' + i">Transaction description</label>
-                    <input [id]="'scTxDesc' + i" type="text" [value]="row.transactionDescription"
-                           (input)="updateStandingRow(i, 'transactionDescription', $any($event.target).value)"
-                           placeholder="Billing item summary" maxlength="200" />
                   </div>
                 </div>
-                @if (row.transactionType.trim()) {
-                  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-                    <div class="form-group">
-                      <label [for]="'scDesc' + i">Description</label>
-                      <input [id]="'scDesc' + i" type="text" [value]="row.description"
-                             (input)="updateStandingRow(i, 'description', $any($event.target).value)"
-                             placeholder="Standing-charge summary" maxlength="200" />
-                    </div>
-                    <div class="form-group">
-                      <label [for]="'scCtrl' + i">Charges control</label>
-                      <input [id]="'scCtrl' + i" type="text" [value]="row.chargesControl"
-                             (input)="updateStandingRow(i, 'chargesControl', $any($event.target).value)"
-                             placeholder="e.g. AUTO-POST" maxlength="50" autocomplete="off" />
-                    </div>
-                  </div>
-                  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-                    <div class="form-group">
-                      <label [for]="'scCur' + i">Currency</label>
-                      <select [id]="'scCur' + i" [value]="row.currencyCode"
-                              (change)="updateStandingRow(i, 'currencyCode', $any($event.target).value)">
-                        @for (c of currencies(); track c.code) {
-                          <option [value]="c.code" [selected]="c.code === row.currencyCode">{{ c.code }}@if (c.symbol) { ({{ c.symbol }}) }</option>
-                        }
-                      </select>
-                    </div>
-                    <div class="form-group">
-                      <label [for]="'scAmt' + i">Amount</label>
-                      <input [id]="'scAmt' + i" type="number" inputmode="decimal" appMoney [moneyValue]="row.amount"
-                             (input)="updateStandingRow(i, 'amount', $any($event.target).value)" min="0" step="0.01" />
-                    </div>
-                  </div>
-                  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-                    <div class="form-group">
-                      <label [for]="'scFreq' + i">Frequency</label>
-                      <select [id]="'scFreq' + i" [value]="row.frequency"
-                              (change)="updateStandingRow(i, 'frequency', $any($event.target).value)">
-                        <option value="" disabled [selected]="!row.frequency">Select a frequency…</option>
-                        @for (f of frequencies(); track f.key) {
-                          <option [value]="f.key" [selected]="f.key === row.frequency">{{ f.label }}</option>
-                        }
-                      </select>
-                    </div>
-                    @if (row.frequency === 'fixed-month') {
-                      <div class="form-group">
-                        <label [for]="'scMonth' + i">Month</label>
-                        <select [id]="'scMonth' + i" [value]="row.fixedMonth"
-                                (change)="updateStandingRow(i, 'fixedMonth', $any($event.target).value)">
-                          <option value="" disabled [selected]="!row.fixedMonth">Select a month…</option>
-                          @for (m of monthNames; track m; let mi = $index) {
-                            <option [value]="mi + 1" [selected]="(mi + 1) + '' === row.fixedMonth">{{ m }}</option>
-                          }
-                        </select>
-                      </div>
-                    }
-                  </div>
-                }
-              </div>
-            }
+              }
+            </div>
           }
+          <button type="button" class="btn btn--secondary btn--sm" (click)="addStandingRow()">
+            <span class="material-icons" aria-hidden="true">add</span>
+            <span>Add charge</span>
+          </button>
         </fieldset>
       </div>
       <ng-container dialogFooter>

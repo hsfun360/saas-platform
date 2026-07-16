@@ -124,18 +124,16 @@ function normalizeFeeLines(body) {
     return { value: lines };
 }
 
-// Validate + normalise the standing-charge rows. The screen sends only rows with
-// a billing item configured (empty status rows = no charge). Returns { value } or
-// { error }. Status ownership is checked separately against the company's master.
+// Validate + normalise the standing-charge rows. Rows are added explicitly (like
+// joining fees); a status may carry MULTIPLE charges (user rule 2026-07-16).
+// Returns { value } or { error }. Status ownership is checked separately against
+// the company's master.
 function normalizeStandingCharges(body) {
     const raw = Array.isArray(body.standingCharges) ? body.standingCharges : [];
     const rows = [];
-    const seenStatus = new Set();
     for (const c of raw) {
         const membershipStatusId = str(c.membershipStatusId);
         if (!membershipStatusId) return { error: 'Each standing charge needs a membership status.' };
-        if (seenStatus.has(membershipStatusId)) return { error: 'Only one standing charge per membership status.' };
-        seenStatus.add(membershipStatusId);
 
         const transactionType = str(c.transactionType);
         if (!transactionType) return { error: 'Transaction type is required for each standing charge.' };

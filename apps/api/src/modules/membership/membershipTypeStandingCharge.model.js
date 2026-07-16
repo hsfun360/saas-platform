@@ -2,10 +2,11 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { MEMBERSHIP_SCHEMA } = require('../../platform/schemas');
 
-// Membership Type - Standing Charges (detail). The standard periodic fee applied
-// to members of this type while they carry a given Membership Status. One row per
-// (type, status) - the screen auto-seeds a row for every active status and only
-// rows with a billing item configured are persisted.
+// Membership Type - Standing Charges (detail). The standard periodic fees applied
+// to members of this type while they carry a given Membership Status. A status
+// can carry MULTIPLE charges (user rule 2026-07-16 - the old one-row-per-status
+// unique constraint and the auto-seeded grid are gone); rows are added
+// explicitly like joining fees.
 //
 // Owned by the same service as MembershipType, so a real parent-child FK with
 // cascade is used (intra-service). `membershipStatusId` references the company's
@@ -28,7 +29,7 @@ const MembershipTypeStandingCharge = sequelize.define('MembershipTypeStandingCha
         allowNull: false,
     },
     // The Membership Status this charge applies to (status code + class shown from
-    // the status master). Unique per type.
+    // the status master). A status may appear on several rows.
     membershipStatusId: {
         type: DataTypes.UUID,
         allowNull: false,
@@ -77,7 +78,9 @@ const MembershipTypeStandingCharge = sequelize.define('MembershipTypeStandingCha
     tableName: 'MembershipTypeStandingCharge',
     timestamps: true,
     indexes: [
-        { name: 'IDX_MembershipTypeStandingCharge_Type_Status', fields: ['membershipTypeId', 'membershipStatusId'], unique: true },
+        // Non-unique lookup index (was unique one-per-status until 2026-07-16;
+        // the old unique index is dropped by migration before deploy).
+        { name: 'IDX_MembershipTypeStandingCharge_Type_Status', fields: ['membershipTypeId', 'membershipStatusId'] },
     ],
 });
 

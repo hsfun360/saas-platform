@@ -19,13 +19,10 @@ interface FeeLineRow {
   amount: string;
 }
 
-// Editable standing-charge row - one per active Membership Status (auto-seeded).
-// A row with an empty transaction type means "no standing charge for this status"
-// and is not persisted.
+// Editable standing-charge row - added explicitly like a joining fee (no
+// auto-seeded per-status grid); a status can carry MORE than one charge.
 interface StandingRow {
-  membershipStatusId: string;
-  statusLabel: string;      // status value from the master, display only
-  statusClassLabel: string; // status class from the master, display only
+  membershipStatusId: string; // picked from the Status master
   description: string;
   chargesControl: string;
   transactionType: string;  // Transaction Type master code (carries the tax)
@@ -248,30 +245,24 @@ export class MembershipTypesComponent implements OnInit {
     });
   }
 
-  // Seed one standing-charge row per ACTIVE Membership Status, prefilled from the
-  // type's persisted charges (statuses with no persisted charge start empty).
-  private seedStandingRows(persisted: MembershipType['standingCharges']): void {
-    const byStatus = new Map((persisted || []).map((c) => [c.membershipStatusId, c]));
-    const defaultCurrency = this.defaultCurrencyCode();
-    const rows = this.statuses()
-      .filter((s) => s.isActive !== false)
-      .map((s) => {
-        const c = byStatus.get(s.id);
-        return {
-          membershipStatusId: s.id,
-          statusLabel: s.membershipStatus,
-          statusClassLabel: s.statusClass,
-          description: c?.description || '',
-          chargesControl: c?.chargesControl || '',
-          transactionType: c?.transactionType || '',
-          transactionDescription: c?.transactionDescription || '',
-          currencyCode: c?.currencyCode || defaultCurrency,
-          amount: c ? String(c.amount) : '0',
-          frequency: c?.frequency || '',
-          fixedMonth: c?.fixedMonth ? String(c.fixedMonth) : '',
-        };
-      });
-    this.standingRows.set(rows);
+  // Active statuses for the per-row status picker.
+  readonly activeStatuses = computed(() => this.statuses().filter((s) => s.isActive !== false));
+
+  addStandingRow(): void {
+    this.standingRows.update((rows) => [
+      ...rows,
+      {
+        membershipStatusId: '', description: '', chargesControl: '',
+        transactionType: '', transactionDescription: '',
+        currencyCode: this.defaultCurrencyCode(), amount: '0', frequency: '', fixedMonth: '',
+      },
+    ]);
+    this.chargesDirty.set(true);
+  }
+
+  removeStandingRow(index: number): void {
+    this.standingRows.update((rows) => rows.filter((_, i) => i !== index));
+    this.chargesDirty.set(true);
   }
 
   updateStandingRow(index: number, field: keyof StandingRow, value: string): void {
@@ -448,7 +439,19 @@ export class MembershipTypesComponent implements OnInit {
   openCharges(t: MembershipType): void {
     this.clearMessages();
     this.chargesType.set(t);
-    this.seedStandingRows(t.standingCharges || []);
+    this.standingRows.set(
+      (t.standingCharges || []).map((c) => ({
+        membershipStatusId: c.membershipStatusId,
+        description: c.description || '',
+        chargesControl: c.chargesControl || '',
+        transactionType: c.transactionType,
+        transactionDescription: c.transactionDescription || '',
+        currencyCode: c.currencyCode,
+        amount: String(c.amount),
+        frequency: c.frequency,
+        fixedMonth: c.fixedMonth ? String(c.fixedMonth) : '',
+      })),
+    );
     this.chargesDirty.set(false);
     this.chargesOpen.set(true);
   }
@@ -463,32 +466,39 @@ export class MembershipTypesComponent implements OnInit {
     const type = this.chargesType();
     if (!type) return;
 
-    // Only rows with a transaction type are persisted (an empty row = no
-    // standing charge for that status). Validate the configured ones.
-    const configuredCharges = this.standingRows().filter((r) => r.transactionType.trim());
-    for (const row of configuredCharges) {
-      const label = row.statusLabel;
+    // Every row is an explicit charge (added via "Add charge") - all persisted,
+    // all validated. A status may appear on more than one row.
+    for (const [i, row] of this.standingRows().entries()) {
+      const label = `Charge #${i + 1}`;
+      if (!row.membershipStatusId) {
+        this.errorMessage.set(`${label}: select the membership status.`);
+        return;
+      }
+      if (!row.transactionType.trim()) {
+        this.errorMessage.set(`${label}: select the transaction type.`);
+        return;
+      }
       if (!row.currencyCode) {
-        this.errorMessage.set(`Standing charge for '${label}': pick a currency.`);
+        this.errorMessage.set(`${label}: pick a currency.`);
         return;
       }
       const amt = Number(row.amount);
       if (!Number.isFinite(amt) || amt < 0) {
-        this.errorMessage.set(`Standing charge for '${label}': amount must be a non-negative number.`);
+        this.errorMessage.set(`${label}: amount must be a non-negative number.`);
         return;
       }
       if (!row.frequency) {
-        this.errorMessage.set(`Standing charge for '${label}': select a frequency.`);
+        this.errorMessage.set(`${label}: select a frequency.`);
         return;
       }
       if (row.frequency === 'fixed-month' && !row.fixedMonth) {
-        this.errorMessage.set(`Standing charge for '${label}': pick the month for a Fixed Month charge.`);
+        this.errorMessage.set(`${label}: pick the month for a Fixed Month charge.`);
         return;
       }
     }
 
     this.chargesSaving.set(true);
-    this.service.updateStandingCharges(type.id, configuredCharges.map((r) => ({
+    this.service.updateStandingCharges(type.id, this.standingRows().map((r) => ({
       membershipStatusId: r.membershipStatusId,
       description: r.description.trim() || null,
       chargesControl: r.chargesControl.trim() || null,
