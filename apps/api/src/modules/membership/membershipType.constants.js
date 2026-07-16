@@ -2,10 +2,10 @@
 // kinds of membership; the class drives which conditional fields apply (child age
 // range + play times for personal; nominee count + nominee category for corporate).
 // Served to the screen via /types/meta and validated on the server.
-// NOTE: the stored key for the individual class remains 'personal' (already in
-// production rows); only the display label says 'Individual'.
+// Stored key and label both say 'individual' (migrated from the legacy key
+// 'personal' on 2026-07-16 - data rows updated in the same release).
 const MEMBERSHIP_CLASSES = [
-    { key: 'personal', label: 'Individual' },
+    { key: 'individual', label: 'Individual' },
     { key: 'corporate', label: 'Corporate' },
 ];
 

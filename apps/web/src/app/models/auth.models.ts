@@ -580,7 +580,7 @@ export interface MembershipType {
   canModify?: boolean;
   category: string;
   description?: string | null;
-  membershipClass: string;            // 'personal' | 'corporate'
+  membershipClass: string;            // 'individual' | 'corporate'
   isGolfAllow: boolean;               // golfing access; golf settings apply only when true
   dependentGolfingAllow: boolean;
   votingRight: boolean;
@@ -660,7 +660,7 @@ export interface Membership {
   companyId?: string;
   canModify?: boolean;
   membershipNo: string;
-  membershipClass: string;             // 'personal' | 'corporate'
+  membershipClass: string;             // 'individual' | 'corporate'
   membershipTypeId: string;
   membershipStatusId: string;
   statusDate?: string | null;

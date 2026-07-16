@@ -231,7 +231,7 @@ function normalizeTypeBody(body) {
         : [];
 
     // Class-conditional: keep only the fields that apply to this class.
-    if (membershipClass === 'personal') {
+    if (membershipClass === 'individual') {
         noOfNominee = null;
         nomineeCategoryId = null;
     } else {

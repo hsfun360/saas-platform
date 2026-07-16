@@ -58,7 +58,7 @@ export class MembershipsComponent implements OnInit {
   readonly countries = signal<Country[]>([]);
 
   readonly search = signal('');
-  readonly classFilter = signal(''); // '' | 'personal' | 'corporate'
+  readonly classFilter = signal(''); // '' | 'individual' | 'corporate'
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
 
@@ -187,7 +187,7 @@ export class MembershipsComponent implements OnInit {
     );
   });
 
-  readonly individualCount = computed(() => this.memberships().filter((m) => m.membershipClass === 'personal').length);
+  readonly individualCount = computed(() => this.memberships().filter((m) => m.membershipClass === 'individual').length);
   readonly corporateCount = computed(() => this.memberships().filter((m) => m.membershipClass === 'corporate').length);
 
   // The type picked in the (add) membership dialog decides the class + defaults.
@@ -405,7 +405,7 @@ export class MembershipsComponent implements OnInit {
   onSaveMembership(): void {
     this.clearMessages();
     const editing = this.editMembership();
-    const isIndividual = this.dialogClass() === 'personal';
+    const isIndividual = this.dialogClass() === 'individual';
 
     const invalidContract = this.membershipForm.invalid;
     const invalidPerson = !editing && isIndividual && this.memberForm.invalid;

@@ -82,7 +82,7 @@ export class MembershipTypesComponent implements OnInit {
   readonly form = this.fb.nonNullable.group({
     category: ['', [Validators.required, Validators.maxLength(30)]],
     description: ['', [Validators.maxLength(200)]],
-    membershipClass: ['personal', [Validators.required]],
+    membershipClass: ['individual', [Validators.required]],
     isGolfAllow: [false],
     dependentGolfingAllow: [false],
     votingRight: [false],
@@ -146,7 +146,7 @@ export class MembershipTypesComponent implements OnInit {
   // The enable branch does NOT reset, so loaded edit values are preserved.
   private syncClassControls(cls: string): void {
     const c = this.form.controls;
-    if (cls === 'personal') {
+    if (cls === 'individual') {
       c.childAgeFrom.enable({ emitEvent: false });
       c.childAgeTo.enable({ emitEvent: false });
       c.playTimes.enable({ emitEvent: false });
@@ -171,7 +171,7 @@ export class MembershipTypesComponent implements OnInit {
   }
 
   isPersonal(): boolean {
-    return this.form.controls.membershipClass.value === 'personal';
+    return this.form.controls.membershipClass.value === 'individual';
   }
 
   // Golf settings (dependent golfing, play times) show only when golfing access is on.
@@ -269,7 +269,7 @@ export class MembershipTypesComponent implements OnInit {
     this.form.reset({
       category: '',
       description: '',
-      membershipClass: 'personal',
+      membershipClass: 'individual',
       isGolfAllow: false,
       dependentGolfingAllow: false,
       votingRight: false,
@@ -287,7 +287,7 @@ export class MembershipTypesComponent implements OnInit {
       noOfNominee: null,
       nomineeCategoryId: '',
     });
-    this.syncClassControls('personal');
+    this.syncClassControls('individual');
     this.feeLines.set([]);
     this.seedStandingRows([]);
     this.dialogOpen.set(true);
@@ -373,7 +373,7 @@ export class MembershipTypesComponent implements OnInit {
       return;
     }
     const v = this.form.getRawValue();
-    const personal = v.membershipClass === 'personal';
+    const personal = v.membershipClass === 'individual';
 
     // A term membership needs its period (server re-validates).
     if (v.isTermMembership && (!v.termMonths || v.termMonths < 1)) {

@@ -29,7 +29,7 @@ const MembershipType = sequelize.define('MembershipType', {
         type: DataTypes.STRING,
         allowNull: true,
     },
-    // 'personal' | 'corporate' - one of membershipType.constants MEMBERSHIP_CLASS_KEYS.
+    // 'individual' | 'corporate' - one of membershipType.constants MEMBERSHIP_CLASS_KEYS.
     membershipClass: {
         type: DataTypes.STRING,
         allowNull: false,

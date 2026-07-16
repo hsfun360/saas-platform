@@ -215,7 +215,7 @@ function normalizeMembershipBody(body, membershipClass) {
     const value = {
         joinDate,
         billingDate: membershipClass === 'corporate' ? billingDate : null,
-        creditFlag: membershipClass === 'personal' ? creditFlag : null,
+        creditFlag: membershipClass === 'individual' ? creditFlag : null,
         creditLimit,
         terms,
         statementMode,
@@ -537,7 +537,7 @@ exports.createMembership = async (req, res) => {
 
         // 5. The individual profile (individual class only).
         let profile = null;
-        if (membershipClass === 'personal') {
+        if (membershipClass === 'individual') {
             const parsedProfile = normalizeMemberProfile(req.body.member || {});
             if (parsedProfile.error) return res.status(400).json({ message: parsedProfile.error });
             profile = parsedProfile.value;
@@ -582,7 +582,7 @@ exports.createMembership = async (req, res) => {
 
             // The individual member is born with the membership; the member number
             // IS the membership number, the person's status mirrors the contract's.
-            if (membershipClass === 'personal') {
+            if (membershipClass === 'individual') {
                 await Member.create({
                     companyId,
                     membershipId: ms.id,
@@ -653,7 +653,7 @@ exports.updateMembership = async (req, res) => {
             await ms.save({ transaction: t });
 
             // Individual class: the person's own status follows the contract.
-            if (statusChanged && ms.membershipClass === 'personal') {
+            if (statusChanged && ms.membershipClass === 'individual') {
                 await Member.update(
                     { memberStatusId: statusId, statusDate: todayStr(), updatedBy: ms.updatedBy },
                     { where: { membershipId: ms.id, memberKind: 'individual' }, transaction: t },

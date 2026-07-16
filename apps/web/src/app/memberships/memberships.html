@@ -42,7 +42,7 @@
   @if (!loading() && memberships().length > 0) {
     <div class="ms-filter" role="group" aria-label="Filter by class">
       <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="classFilter() === ''" (click)="classFilter.set('')">All</button>
-      <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="classFilter() === 'personal'" (click)="classFilter.set('personal')">Individual</button>
+      <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="classFilter() === 'individual'" (click)="classFilter.set('individual')">Individual</button>
       <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="classFilter() === 'corporate'" (click)="classFilter.set('corporate')">Corporate</button>
     </div>
 
@@ -400,7 +400,7 @@
         @if (dialogClass()) {
           <h3 class="dlg-section">Credit &amp; billing</h3>
           <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-            @if (dialogClass() === 'personal') {
+            @if (dialogClass() === 'individual') {
               <div class="form-group">
                 <label for="msCreditFlag">Credit flag</label>
                 <select id="msCreditFlag" formControlName="creditFlag">
@@ -580,7 +580,7 @@
 
         <!-- Individual class on create: the member profile is captured here and
              the Member record is created automatically with the membership. -->
-        @if (!editMembership() && dialogClass() === 'personal') {
+        @if (!editMembership() && dialogClass() === 'individual') {
           <div class="ms-profile-note">
             <span class="material-icons" aria-hidden="true">person_add</span>
             The member record below is created automatically with this membership.
@@ -590,7 +590,7 @@
         @if (!editMembership() && !dialogClass()) {
           <p class="cell-subtle" style="margin-top: var(--space-md);">Select a membership type to continue — the type decides whether this is an individual or a corporate membership.</p>
         }
-        @if (editMembership() && dialogClass() === 'personal') {
+        @if (editMembership() && dialogClass() === 'individual') {
           <h3 class="dlg-section">Notes</h3>
           <div class="form-row">
             <div class="form-group">
