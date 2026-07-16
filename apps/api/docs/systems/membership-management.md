@@ -197,11 +197,11 @@ Cross-refs are plain UUIDs validated against the company's own status/fee/type r
 API under `/api/membership/types` (meta, list, POST, PUT, PATCH toggle). Screen `/membership/types` (Reactive Forms + dialog unsaved-changes guard).
 
 **Phase 2 (BUILT) - Additional Fees** child `membership."MembershipTypeFee"`: `membershipTypeId` (FK, cascade), `transactionType` (free text), `description`, `taxSchemeCode` (OUTPUT-only, picker via the tax seam), `currencyCode` (subscriber's currency set via `serviceContext.listAccountCurrencies`, falling back to all active), `amount`.
-Lines are edited inside the type dialog and saved atomically with the parent (`additionalFees` array on POST/PUT; replaced wholesale on update - pure setup data, nothing to preserve).
+Since 2026-07-16 these are the type's **"Joining fees"** (one-time charges billed when a new member joins - processing/entrance/...; a type can carry several) and are maintained from their OWN dialog on the listing card, saved via `PUT /api/membership/types/:id/additional-fees` (replaced wholesale - pure setup data); the type form itself no longer carries them.
 Extra endpoint: `GET /api/membership/types/currencies`.
 **Phase 3 (BUILT) - Standing Charges** child `membership."MembershipTypeStandingCharge"`: `membershipTypeId` (FK, cascade), `membershipStatusId` (one row per status, unique per type; status code + class displayed from the Status master), `description`, `chargesControl` (free text), `transactionType` + `transactionDescription`, `taxSchemeCode` (OUTPUT-only via seam), `currencyCode`, `amount`, `frequency` (monthly | annually | fixed-month), `fixedMonth` (1-12, required for fixed-month).
-The screen auto-seeds one row per **active** Membership Status; a row left without a transaction type means "no standing charge for that status" and is not persisted.
-Rows are saved atomically with the type (`standingCharges` array on POST/PUT, replaced wholesale on update); `frequencies` served via `/types/meta`.
+Standing charges are raised from the member's status at the point the charge is billed; statuses a club never charges (deceased/terminated/resigned/...) simply have no row.
+Since 2026-07-16 they are maintained from their OWN dialog on the listing card ("Standing charges" button), saved via `PUT /api/membership/types/:id/standing-charges` (replaced wholesale); the dialog auto-seeds one row per **active** Membership Status and a row left without a transaction type is not persisted; `frequencies` served via `/types/meta`.
 
 Deferred masters (A/R debtor type, Transaction type, Charges control) are **free text** until their own master files exist.
 
