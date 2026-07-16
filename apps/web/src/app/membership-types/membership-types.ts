@@ -221,6 +221,13 @@ export class MembershipTypesComponent implements OnInit {
     if (!id) return '';
     return this.types().find((t) => t.id === id)?.category || '';
   }
+  // New money rows always default to the COMPANY'S default currency (user rule),
+  // falling back to the first of the subscriber's set only when none is set.
+  private defaultCurrencyCode(): string {
+    const list = this.currencies();
+    return list.find((c) => c.isDefault)?.code || list[0]?.code || '';
+  }
+
   // The tax a picked transaction type carries (read-only display - tax is
   // single-sourced from the Transaction Type master).
   txTaxLabel(code: string): string {
@@ -245,7 +252,7 @@ export class MembershipTypesComponent implements OnInit {
   // type's persisted charges (statuses with no persisted charge start empty).
   private seedStandingRows(persisted: MembershipType['standingCharges']): void {
     const byStatus = new Map((persisted || []).map((c) => [c.membershipStatusId, c]));
-    const defaultCurrency = this.currencies()[0]?.code || '';
+    const defaultCurrency = this.defaultCurrencyCode();
     const rows = this.statuses()
       .filter((s) => s.isActive !== false)
       .map((s) => {
@@ -419,7 +426,7 @@ export class MembershipTypesComponent implements OnInit {
   }
 
   addFeeLine(): void {
-    const defaultCurrency = this.currencies()[0]?.code || '';
+    const defaultCurrency = this.defaultCurrencyCode();
     this.feeLines.update((rows) => [
       ...rows,
       { transactionType: '', description: '', currencyCode: defaultCurrency, amount: '0' },

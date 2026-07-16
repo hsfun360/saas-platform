@@ -377,7 +377,7 @@ async function listAccountCurrencies(req) {
     const Currency = require('../modules/saas/currency.model');
     const AccountCurrency = require('../modules/saas/accountCurrency.model');
 
-    const company = await Company.findByPk(companyId, { attributes: ['accountId'] });
+    const company = await Company.findByPk(companyId, { attributes: ['accountId', 'defaultCurrencyCode'] });
     if (!company || !company.accountId) return [];
 
     const selected = await AccountCurrency.findAll({
@@ -393,7 +393,14 @@ async function listAccountCurrencies(req) {
         attributes: ['code', 'name', 'symbol'],
         order: [['code', 'ASC']],
     });
-    return currencies.map((c) => ({ code: c.code, name: c.name, symbol: c.symbol }));
+    // Flag the caller company's default currency so money pickers can preselect
+    // it (user rule: currency always defaults to the Company's default).
+    return currencies.map((c) => ({
+        code: c.code,
+        name: c.name,
+        symbol: c.symbol,
+        isDefault: c.code === company.defaultCurrencyCode,
+    }));
 }
 
 // --- CALLING another service ---------------------------------------------

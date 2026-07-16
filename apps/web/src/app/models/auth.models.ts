@@ -926,6 +926,7 @@ export interface Currency {
   symbol?: string | null;
   minorUnit?: number;    // decimal places (2 for most, 0 for JPY, 3 for KWD…)
   isActive?: boolean;
+  isDefault?: boolean;   // the caller company's default currency (company-aware endpoints)
 }
 
 // A subscriber's (Account's) currency selection: which currencies are available to
