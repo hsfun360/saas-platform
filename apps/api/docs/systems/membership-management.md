@@ -201,7 +201,8 @@ Since 2026-07-16 these are the type's **"Joining fees"** (one-time charges bille
 Extra endpoint: `GET /api/membership/types/currencies`.
 **Phase 3 (BUILT) - Standing Charges** child `membership."MembershipTypeStandingCharge"`: `membershipTypeId` (FK, cascade), `membershipStatusId` (one row per status, unique per type; status code + class displayed from the Status master), `description`, `chargesControl` (free text), `transactionType` + `transactionDescription`, `taxSchemeCode` (OUTPUT-only via seam), `currencyCode`, `amount`, `frequency` (monthly | annually | fixed-month), `fixedMonth` (1-12, required for fixed-month).
 Standing charges are raised from the member's status at the point the charge is billed; statuses a club never charges (deceased/terminated/resigned/...) simply have no row.
-Since 2026-07-16 they are maintained from their OWN dialog on the listing card ("Standing charges" button), saved via `PUT /api/membership/types/:id/standing-charges` (replaced wholesale); the dialog auto-seeds one row per **active** Membership Status and a row left without a transaction type is not persisted; `frequencies` served via `/types/meta`.
+Since 2026-07-16 they are maintained from their OWN dialog on the listing card ("Standing charges" button), saved via `PUT /api/membership/types/:id/standing-charges` (replaced wholesale); `frequencies` served via `/types/meta`.
+UX rework (same day, user direction): NO pre-populated per-status grid - charges are added explicitly ("Add charge", like joining fees), each row picks its Membership Status AND transaction type, and a status may carry MULTIPLE charges (the unique `(membershipTypeId, membershipStatusId)` index was dropped and recreated non-unique); statuses never charged simply have no rows.
 
 ### Built: Transaction Type master (2026-07-16)
 
