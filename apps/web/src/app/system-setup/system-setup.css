@@ -3,7 +3,10 @@
    ─────────────────────────────────────────────── */
 
 .saas-container {
-  max-width: 960px;
+  /* Content-width cap: keeps each row's text and actions in one glance and
+     line lengths readable. 1140px balances that against big desktop monitors
+     (960px left excessive side voids). */
+  max-width: 1140px;
   margin: 0 auto;
   padding: var(--space-xl) var(--space-lg);
   font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
@@ -99,11 +102,19 @@
 }
 
 /* ── FLOATING ACTION BUTTON ──────────────────── */
-/* Pinned bottom-right, above content but below the shell drawer (1000) /
-   backdrop (999) / header (1100). Composes the shared .btn .btn--primary. */
+/* Always-visible, pinned to the bottom-right OF THE CONTENT COLUMN rather
+   than the viewport corner, so on a wide monitor the action sits next to the
+   list it belongs to. Fixed positioning only knows the viewport, so the
+   offset subtracts the sidebar's in-flow width, published by the shell as
+   --content-sidebar, and centers on the container's 1140px cap; max() falls
+   back to the plain corner gutter when the screen is narrower than the cap.
+   (Not position: sticky - sticky never lifts a below-the-fold last child
+   into view, so on long lists the button would only appear at the end.)
+   Above content but below the shell drawer (1000) / backdrop (999) /
+   header (1100). Composes the shared .btn .btn--primary. */
 .saas-fab {
   position: fixed;
-  right: var(--space-lg);
+  right: max(var(--space-lg), (100vw - var(--content-sidebar, 0px) - 1140px) / 2 + var(--space-lg));
   bottom: var(--space-lg);
   z-index: 900;
   border-radius: 28px;

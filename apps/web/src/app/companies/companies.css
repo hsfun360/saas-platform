@@ -46,12 +46,15 @@
   background: var(--surface-sunken);
 }
 
-/* Floating "New company" action — pinned bottom-right, above content but below
-   the shell drawer (1000) / backdrop (999) / header (1100). Composes the shared
+/* Floating "New company" action — always visible, pinned to the bottom-right
+   of the CONTENT COLUMN (same formula as .saas-fab: viewport minus the
+   shell-published --content-sidebar, centered on the 1140px cap; max() falls
+   back to the corner gutter on narrow screens). Above content but below the
+   shell drawer (1000) / backdrop (999) / header (1100). Composes the shared
    .btn .btn--primary, keeping the ≥44px target, colour and focus ring. */
 .company-fab {
   position: fixed;
-  right: var(--space-lg);
+  right: max(var(--space-lg), (100vw - var(--content-sidebar, 0px) - 1140px) / 2 + var(--space-lg));
   bottom: var(--space-lg);
   z-index: 900;
   border-radius: 28px;

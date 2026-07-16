@@ -14,6 +14,17 @@
      it, and any fixed bottom-anchored UI (FABs on listing screens) offsets by it
      so it never hides behind the bar. */
   --bottom-nav-height: 60px;
+  /* Width the sidebar occupies IN FLOW (not overlays), published for screens:
+     fixed-position UI (the listing FABs) uses it to align to the centered
+     content column instead of the viewport corner. Tablet rail = 72px (hover
+     expansion overlays, so it stays 72); pinned/desktop = 256px; mobile
+     drawer overlays = 0. Overridden per state/breakpoint below. */
+  --content-sidebar: 72px;
+}
+
+/* Pinned sidebar pushes content (tablet tier) - tell the screens. */
+.main-layout:has(.sidebar.pinned) {
+  --content-sidebar: 256px;
 }
 
 /* --- GOOGLE STYLE TOP BAR --- */
@@ -844,6 +855,10 @@
     --subnav-indent: 35px;
     --subnav-rail: var(--border-strong);
   }
+  /* The drawer overlays content - it never occupies flow width. */
+  :host, .main-layout:has(.sidebar.pinned) {
+    --content-sidebar: 0px;
+  }
   .sidebar:not(.pinned):hover {
     position: fixed;
     width: 256px;
@@ -899,6 +914,10 @@
   .sidebar {
     --subnav-indent: 35px;
     --subnav-rail: var(--border-strong);
+  }
+  /* Persistent sidebar always occupies 256px of flow width. */
+  :host {
+    --content-sidebar: 256px;
   }
   /* Already full width — neutralise the rail's hover-overlay + shadow so it
      stays in flow and pushes content (no overlay on desktop). */
