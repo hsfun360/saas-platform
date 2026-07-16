@@ -12,6 +12,7 @@ const { verifyToken, requireModule, requireMenuAction } = require('../../platfor
 const membershipStatusRoutes = require('./membershipStatus.routes');
 const membershipFeeRoutes = require('./membershipFee.routes');
 const membershipTypeRoutes = require('./membershipType.routes');
+const transactionTypesRoutes = require('./transactionTypes.routes');
 const membershipTaxRoutes = require('./membershipTax.routes');
 const membershipsRoutes = require('./memberships.routes');
 const membersRoutes = require('./members.routes');
@@ -30,6 +31,7 @@ router.use(requireModule('Membership Management'));
 router.use('/statuses', requireMenuAction('/membership/statuses'), membershipStatusRoutes);
 router.use('/fees', requireMenuAction('/membership/fees'), membershipFeeRoutes);
 router.use('/types', requireMenuAction('/membership/types'), membershipTypeRoutes);
+router.use('/transaction-types', requireMenuAction('/membership/transaction-types'), transactionTypesRoutes);
 
 // --- Membership / Member CRM (SRS 2.3) ---
 // Memberships own all member CRUD (nominees/dependents are managed from that

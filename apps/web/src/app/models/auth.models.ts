@@ -543,30 +543,55 @@ export interface TaxSchemeRef {
   name: string;
 }
 
-// One additional-fee line of a Membership Type (Category Details - Fee).
+// One joining-fee line of a Membership Type - a one-time charge billed when a
+// new member joins under the type. Tax comes from the Transaction Type master
+// (single source) - the line carries no taxSchemeCode.
 export interface MembershipTypeFeeLine {
   id?: string;
-  transactionType: string;
+  transactionType: string;        // Transaction Type master code
   description?: string | null;
-  taxSchemeCode?: string | null;
   currencyCode: string;
   amount: number;
 }
 
 // One standing charge of a Membership Type - the standard periodic fee applied
-// while a member carries a given Membership Status.
+// while a member carries a given Membership Status. Tax comes from the
+// Transaction Type master (single source).
 export interface MembershipTypeStandingCharge {
   id?: string;
   membershipStatusId: string;
   description?: string | null;
   chargesControl?: string | null;
-  transactionType: string;
+  transactionType: string;        // Transaction Type master code
   transactionDescription?: string | null;
-  taxSchemeCode?: string | null;
   currencyCode: string;
   amount: number;
   frequency: string;              // one of MembershipTypeMeta.frequencies[].key
   fixedMonth?: number | null;     // 1-12 when frequency is 'fixed-month'
+}
+
+// Transaction Type master record - the billing-item catalog (per company).
+// Carries THE tax scheme for the item; consuming rows don't store their own.
+export interface MembershipTransactionType {
+  id: string;
+  canModify?: boolean;
+  transactionType: string;
+  chargeType: string;             // one of TransactionTypeMeta.chargeTypes[].key
+  description?: string | null;
+  taxSchemeCode?: string | null;
+  isActive?: boolean;
+}
+
+export interface TransactionTypeMeta {
+  chargeTypes: MembershipStatusOption[];
+}
+
+// Picker row served to the Membership Type screen's fee/charge dialogs.
+export interface TransactionTypePickerRow {
+  transactionType: string;
+  chargeType: string;
+  description?: string | null;
+  taxSchemeCode?: string | null;
 }
 
 // Membership Type master record (main table - category details + default rights).

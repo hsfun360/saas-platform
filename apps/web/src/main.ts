@@ -111,6 +111,7 @@ const routes: Routes = [
       { path: 'membership/statuses', loadComponent: () => import('./app/membership-statuses/membership-statuses').then((m) => m.MembershipStatusesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/fees', loadComponent: () => import('./app/membership-fees/membership-fees').then((m) => m.MembershipFeesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/types', loadComponent: () => import('./app/membership-types/membership-types').then((m) => m.MembershipTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/transaction-types', loadComponent: () => import('./app/membership-transaction-types/membership-transaction-types').then((m) => m.MembershipTransactionTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       // Membership / Member CRM (SRS 2.3): the contract list (individual +
       // corporate, nominees/dependents managed inside) and the flat member search.
       { path: 'membership/memberships', loadComponent: () => import('./app/memberships/memberships').then((m) => m.MembershipsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },

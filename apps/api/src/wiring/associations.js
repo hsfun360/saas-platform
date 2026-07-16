@@ -50,6 +50,7 @@ const MembershipFeeScheme = require('../modules/membership/membershipFeeScheme.m
 const MembershipType = require('../modules/membership/membershipType.model');
 const MembershipTypeFee = require('../modules/membership/membershipTypeFee.model');
 const MembershipTypeStandingCharge = require('../modules/membership/membershipTypeStandingCharge.model');
+const TransactionType = require('../modules/membership/transactionType.model'); // billing-item master (companyId value ref; tax by code via seam; no associations)
 // Membership / Member CRM (SRS 2.3): the contract and its people. Intra-service.
 const Membership = require('../modules/membership/membership.model');
 const Member = require('../modules/membership/member.model');
@@ -206,6 +207,7 @@ module.exports = {
     MembershipType,
     MembershipTypeFee,
     MembershipTypeStandingCharge,
+    TransactionType,
     Membership,
     Member,
     UnitCourse,

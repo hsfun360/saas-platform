@@ -318,6 +318,9 @@
                 (close)="closeFees()">
       <div class="saas-form" style="padding: 0;">
         <p class="mt-hint" style="margin: 0 0 var(--space-sm);">One-time charges billed when someone joins as a new member under this type. A type can carry more than one (e.g. processing fee + entrance fee).</p>
+        @if (joiningFeeTxTypes().length === 0) {
+          <p class="mt-hint" style="margin: 0 0 var(--space-sm);">⚠️ No transaction types with charge type "Membership Fee" or "Absentee Fee" yet — set them up in the Transaction Type master first.</p>
+        }
         <!-- Additional fees (Category Details - Fee) -->
         <fieldset class="mt-fieldset">
           <legend>Joining fees</legend>
@@ -334,9 +337,16 @@
               <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                 <div class="form-group">
                   <label [for]="'flType' + i">Transaction type <span class="required">*</span></label>
-                  <input [id]="'flType' + i" type="text" [value]="row.transactionType"
-                         (input)="updateFeeLine(i, 'transactionType', $any($event.target).value)"
-                         placeholder="e.g. ENTRANCE" autocomplete="off" maxlength="50" />
+                  <select [id]="'flType' + i" [value]="row.transactionType"
+                          (change)="updateFeeLine(i, 'transactionType', $any($event.target).value)">
+                    <option value="" disabled [selected]="!row.transactionType">Select a transaction type…</option>
+                    @for (t of joiningFeeTxTypes(); track t.transactionType) {
+                      <option [value]="t.transactionType" [selected]="t.transactionType === row.transactionType">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
+                    }
+                  </select>
+                  @if (row.transactionType) {
+                    <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Tax: {{ txTaxLabel(row.transactionType) }}</p>
+                  }
                 </div>
                 <div class="form-group">
                   <label [for]="'flDesc' + i">Description</label>
@@ -345,17 +355,7 @@
                          placeholder="Optional summary" maxlength="200" />
                 </div>
               </div>
-              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-                <div class="form-group">
-                  <label [for]="'flTax' + i">Scheme code (tax)</label>
-                  <select [id]="'flTax' + i" [value]="row.taxSchemeCode"
-                          (change)="updateFeeLine(i, 'taxSchemeCode', $any($event.target).value)">
-                    <option value="">— None —</option>
-                    @for (t of taxSchemes(); track t.taxSchemeCode) {
-                      <option [value]="t.taxSchemeCode" [selected]="t.taxSchemeCode === row.taxSchemeCode">{{ t.taxSchemeCode }}</option>
-                    }
-                  </select>
-                </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                 <div class="form-group">
                   <label [for]="'flCur' + i">Currency <span class="required">*</span></label>
                   <select [id]="'flCur' + i" [value]="row.currencyCode"
@@ -394,6 +394,9 @@
                 (close)="closeCharges()">
       <div class="saas-form" style="padding: 0;">
         <p class="mt-hint" style="margin: 0 0 var(--space-sm);">Recurring charges raised from the member's status at the point the charge is billed. Only fill in the statuses this type charges — statuses like deceased, terminated or resigned simply stay empty.</p>
+        @if (standingTxTypes().length === 0) {
+          <p class="mt-hint" style="margin: 0 0 var(--space-sm);">⚠️ No transaction types with charge type "Standing Charges" yet — set them up in the Transaction Type master first.</p>
+        }
         <!-- Standing charges (one row per active membership status) -->
         <fieldset class="mt-fieldset">
           <legend>Standing charges</legend>
@@ -410,9 +413,16 @@
                 <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                   <div class="form-group">
                     <label [for]="'scType' + i">Transaction type</label>
-                    <input [id]="'scType' + i" type="text" [value]="row.transactionType"
-                           (input)="updateStandingRow(i, 'transactionType', $any($event.target).value)"
-                           placeholder="Empty = no charge" autocomplete="off" maxlength="50" />
+                    <select [id]="'scType' + i" [value]="row.transactionType"
+                            (change)="updateStandingRow(i, 'transactionType', $any($event.target).value)">
+                      <option value="" [selected]="!row.transactionType">— No charge for this status —</option>
+                      @for (t of standingTxTypes(); track t.transactionType) {
+                        <option [value]="t.transactionType" [selected]="t.transactionType === row.transactionType">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
+                      }
+                    </select>
+                    @if (row.transactionType) {
+                      <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Tax: {{ txTaxLabel(row.transactionType) }}</p>
+                    }
                   </div>
                   <div class="form-group">
                     <label [for]="'scTxDesc' + i">Transaction description</label>
@@ -436,17 +446,7 @@
                              placeholder="e.g. AUTO-POST" maxlength="50" autocomplete="off" />
                     </div>
                   </div>
-                  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-                    <div class="form-group">
-                      <label [for]="'scTax' + i">Scheme code (tax)</label>
-                      <select [id]="'scTax' + i" [value]="row.taxSchemeCode"
-                              (change)="updateStandingRow(i, 'taxSchemeCode', $any($event.target).value)">
-                        <option value="">— None —</option>
-                        @for (t of taxSchemes(); track t.taxSchemeCode) {
-                          <option [value]="t.taxSchemeCode" [selected]="t.taxSchemeCode === row.taxSchemeCode">{{ t.taxSchemeCode }}</option>
-                        }
-                      </select>
-                    </div>
+                  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                     <div class="form-group">
                       <label [for]="'scCur' + i">Currency</label>
                       <select [id]="'scCur' + i" [value]="row.currencyCode"

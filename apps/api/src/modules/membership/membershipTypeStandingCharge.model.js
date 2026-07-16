@@ -11,8 +11,11 @@ const { MEMBERSHIP_SCHEMA } = require('../../platform/schemas');
 // cascade is used (intra-service). `membershipStatusId` references the company's
 // own Membership Status master (#1) - same-service, but kept a plain UUID like the
 // type's own default refs so a status can be disabled without a hard constraint.
-// `chargesControl` and `transactionType` stay free text until their master files
-// exist; `taxSchemeCode` / `currencyCode` are value references via the seams.
+// `chargesControl` stays free text until its master file exists;
+// `transactionType` references the company's Transaction Type master by code
+// (charge type standing-charges) and TAX comes from that master - the row's own
+// taxSchemeCode column was dropped 2026-07-16; `currencyCode` is a value
+// reference to the platform Currency table.
 const MembershipTypeStandingCharge = sequelize.define('MembershipTypeStandingCharge', {
     id: {
         type: DataTypes.UUID,
@@ -46,11 +49,6 @@ const MembershipTypeStandingCharge = sequelize.define('MembershipTypeStandingCha
         allowNull: false,
     },
     transactionDescription: {
-        type: DataTypes.STRING,
-        allowNull: true,
-    },
-    // Tax plan - Tax module scheme code (via the seam). NULL = no tax.
-    taxSchemeCode: {
         type: DataTypes.STRING,
         allowNull: true,
     },

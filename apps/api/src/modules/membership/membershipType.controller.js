@@ -4,6 +4,7 @@ const MembershipTypeFee = require('./membershipTypeFee.model');
 const MembershipTypeStandingCharge = require('./membershipTypeStandingCharge.model');
 const MembershipStatus = require('./membershipStatus.model');
 const MembershipFee = require('./membershipFee.model');
+const TransactionType = require('./transactionType.model');
 const {
     getUserContext,
     listAccountCurrencies,
@@ -37,12 +38,13 @@ function numOrNull(v) {
     return Number(v);
 }
 
+// Tax is single-sourced from the Transaction Type master (2026-07-16) - the
+// fee/charge rows no longer carry their own taxSchemeCode.
 function toFeeLineDto(f) {
     return {
         id: f.id,
         transactionType: f.transactionType,
         description: f.description,
-        taxSchemeCode: f.taxSchemeCode,
         currencyCode: f.currencyCode,
         amount: Number(f.amount),
     };
@@ -56,7 +58,6 @@ function toStandingChargeDto(c) {
         chargesControl: c.chargesControl,
         transactionType: c.transactionType,
         transactionDescription: c.transactionDescription,
-        taxSchemeCode: c.taxSchemeCode,
         currencyCode: c.currencyCode,
         amount: Number(c.amount),
         frequency: c.frequency,
@@ -116,7 +117,6 @@ function normalizeFeeLines(body) {
         lines.push({
             transactionType,
             description: typeof f.description === 'string' ? f.description.trim() || null : null,
-            taxSchemeCode: str(f.taxSchemeCode) || null,
             currencyCode,
             amount: Math.round((amount + Number.EPSILON) * 100) / 100,
         });
@@ -163,7 +163,6 @@ function normalizeStandingCharges(body) {
             chargesControl: typeof c.chargesControl === 'string' ? c.chargesControl.trim() || null : null,
             transactionType,
             transactionDescription: typeof c.transactionDescription === 'string' ? c.transactionDescription.trim() || null : null,
-            taxSchemeCode: str(c.taxSchemeCode) || null,
             currencyCode,
             amount: Math.round((amount + Number.EPSILON) * 100) / 100,
             frequency,
@@ -171,6 +170,27 @@ function normalizeStandingCharges(body) {
         });
     }
     return { value: rows };
+}
+
+// Every picked transaction type must exist in the company's Transaction Type
+// master, be ACTIVE, and carry one of the charge types the consumer allows
+// (Joining fees: membership-fee + absentee-fee; Standing charges: standing-charges).
+async function validateTransactionTypes(companyId, codes, allowedChargeTypes, consumerLabel) {
+    const unique = [...new Set(codes)];
+    if (!unique.length) return null;
+    const found = await TransactionType.findAll({
+        where: { companyId, transactionType: unique, isActive: true },
+        attributes: ['transactionType', 'chargeType'],
+    });
+    const byCode = new Map(found.map((t) => [t.transactionType, t.chargeType]));
+    for (const code of unique) {
+        const chargeType = byCode.get(code);
+        if (!chargeType) return `Transaction type '${code}' was not found (or is disabled) in the Transaction Type master.`;
+        if (!allowedChargeTypes.includes(chargeType)) {
+            return `Transaction type '${code}' has the wrong charge type for ${consumerLabel}.`;
+        }
+    }
+    return null;
 }
 
 // Every standing-charge status must be one of the company's own statuses.
@@ -301,6 +321,28 @@ exports.getCurrencies = async (req, res) => {
         res.status(200).json(currencies);
     } catch (error) {
         console.error('Error listing currencies for membership types:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// GET /api/membership/types/transaction-types - the company's ACTIVE Transaction
+// Type master rows for the Joining-fees / Standing-charges pickers (served here
+// so the Types screen needs no grant on the Transaction Type menu). The client
+// filters by chargeType per dialog; taxSchemeCode is shown read-only (tax is
+// single-sourced from the transaction type).
+exports.getTransactionTypes = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+
+        const rows = await TransactionType.findAll({
+            where: { companyId, isActive: true },
+            attributes: ['transactionType', 'chargeType', 'description', 'taxSchemeCode'],
+            order: [['transactionType', 'ASC']],
+        });
+        res.status(200).json(rows);
+    } catch (error) {
+        console.error('Error listing transaction types for membership types:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -457,6 +499,14 @@ exports.updateAdditionalFees = async (req, res) => {
         const parsedFees = normalizeFeeLines(req.body);
         if (parsedFees.error) return res.status(400).json({ message: parsedFees.error });
 
+        const txErr = await validateTransactionTypes(
+            type.companyId,
+            parsedFees.value.map((f) => f.transactionType),
+            ['membership-fee', 'absentee-fee'],
+            'a joining fee',
+        );
+        if (txErr) return res.status(400).json({ message: txErr });
+
         await sequelize.transaction(async (t) => {
             // Replace wholesale - pure setup data, nothing posted to preserve.
             await MembershipTypeFee.destroy({ where: { membershipTypeId: type.id }, transaction: t });
@@ -492,6 +542,14 @@ exports.updateStandingCharges = async (req, res) => {
 
         const chargeErr = await validateStandingChargeStatuses(type.companyId, parsedCharges.value);
         if (chargeErr) return res.status(400).json({ message: chargeErr });
+
+        const txErr = await validateTransactionTypes(
+            type.companyId,
+            parsedCharges.value.map((c) => c.transactionType),
+            ['standing-charges'],
+            'a standing charge',
+        );
+        if (txErr) return res.status(400).json({ message: txErr });
 
         await sequelize.transaction(async (t) => {
             await MembershipTypeStandingCharge.destroy({ where: { membershipTypeId: type.id }, transaction: t });

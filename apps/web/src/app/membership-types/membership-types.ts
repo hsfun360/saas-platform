@@ -8,13 +8,13 @@ import { MembershipFeeService } from '../services/membership-fee.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { MoneyInputDirective } from '../shared/money-input.directive';
-import { Currency, MembershipType, MembershipStatus, MembershipFee, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
+import { Currency, MembershipType, MembershipStatus, MembershipFee, MembershipStatusOption, TaxSchemeRef, TransactionTypePickerRow } from '../models/auth.models';
 
-// Editable additional-fee row (amounts kept as strings for the inputs).
+// Editable joining-fee row (amounts kept as strings for the inputs). The
+// transaction type comes from the Transaction Type master and carries the tax.
 interface FeeLineRow {
   transactionType: string;
   description: string;
-  taxSchemeCode: string;
   currencyCode: string;
   amount: string;
 }
@@ -28,9 +28,8 @@ interface StandingRow {
   statusClassLabel: string; // status class from the master, display only
   description: string;
   chargesControl: string;
-  transactionType: string;
+  transactionType: string;  // Transaction Type master code (carries the tax)
   transactionDescription: string;
-  taxSchemeCode: string;
   currencyCode: string;
   amount: string;
   frequency: string;
@@ -65,6 +64,13 @@ export class MembershipTypesComponent implements OnInit {
   readonly fees = signal<MembershipFee[]>([]);
   readonly taxSchemes = signal<TaxSchemeRef[]>([]);
   readonly currencies = signal<Currency[]>([]);
+  // Transaction Type master (active rows) - the fee/charge pickers, each dialog
+  // filtered by the charge types it accepts.
+  readonly txTypes = signal<TransactionTypePickerRow[]>([]);
+  readonly joiningFeeTxTypes = computed(() =>
+    this.txTypes().filter((t) => t.chargeType === 'membership-fee' || t.chargeType === 'absentee-fee'));
+  readonly standingTxTypes = computed(() =>
+    this.txTypes().filter((t) => t.chargeType === 'standing-charges'));
   // Additional-fee lines (Category Details - Fee) - generated/edited in place,
   // saved atomically with the type. Row edits mark the form dirty by hand.
   readonly feeLines = signal<FeeLineRow[]>([]);
@@ -212,6 +218,15 @@ export class MembershipTypesComponent implements OnInit {
     if (!id) return '';
     return this.types().find((t) => t.id === id)?.category || '';
   }
+  // The tax a picked transaction type carries (read-only display - tax is
+  // single-sourced from the Transaction Type master).
+  txTaxLabel(code: string): string {
+    if (!code) return '';
+    const taxCode = this.txTypes().find((t) => t.transactionType === code)?.taxSchemeCode;
+    if (!taxCode) return 'No tax';
+    const s = this.taxSchemes().find((x) => x.taxSchemeCode === taxCode);
+    return s ? `${s.taxSchemeCode}${s.name ? ' — ' + s.name : ''}` : taxCode;
+  }
 
   loadMeta(): void {
     this.service.meta().subscribe({
@@ -240,7 +255,6 @@ export class MembershipTypesComponent implements OnInit {
           chargesControl: c?.chargesControl || '',
           transactionType: c?.transactionType || '',
           transactionDescription: c?.transactionDescription || '',
-          taxSchemeCode: c?.taxSchemeCode || '',
           currencyCode: c?.currencyCode || defaultCurrency,
           amount: c ? String(c.amount) : '0',
           frequency: c?.frequency || '',
@@ -261,6 +275,7 @@ export class MembershipTypesComponent implements OnInit {
     // OUTPUT-only tax schemes (same source as the Membership Fee screen).
     this.feeService.taxSchemes().subscribe({ next: (r) => this.taxSchemes.set(r.schemes), error: () => {} });
     this.service.currencies().subscribe({ next: (d) => this.currencies.set(d), error: () => {} });
+    this.service.transactionTypes().subscribe({ next: (d) => this.txTypes.set(d), error: () => {} });
   }
 
   load(): void {
@@ -345,7 +360,6 @@ export class MembershipTypesComponent implements OnInit {
       (t.additionalFees || []).map((f) => ({
         transactionType: f.transactionType,
         description: f.description || '',
-        taxSchemeCode: f.taxSchemeCode || '',
         currencyCode: f.currencyCode,
         amount: String(f.amount),
       })),
@@ -385,7 +399,6 @@ export class MembershipTypesComponent implements OnInit {
     this.service.updateAdditionalFees(type.id, this.feeLines().map((r) => ({
       transactionType: r.transactionType.trim(),
       description: r.description.trim() || null,
-      taxSchemeCode: r.taxSchemeCode || null,
       currencyCode: r.currencyCode,
       amount: Number(r.amount) || 0,
     }))).subscribe({
@@ -406,7 +419,7 @@ export class MembershipTypesComponent implements OnInit {
     const defaultCurrency = this.currencies()[0]?.code || '';
     this.feeLines.update((rows) => [
       ...rows,
-      { transactionType: '', description: '', taxSchemeCode: '', currencyCode: defaultCurrency, amount: '0' },
+      { transactionType: '', description: '', currencyCode: defaultCurrency, amount: '0' },
     ]);
     this.feesDirty.set(true);
   }
@@ -471,7 +484,6 @@ export class MembershipTypesComponent implements OnInit {
       chargesControl: r.chargesControl.trim() || null,
       transactionType: r.transactionType.trim(),
       transactionDescription: r.transactionDescription.trim() || null,
-      taxSchemeCode: r.taxSchemeCode || null,
       currencyCode: r.currencyCode,
       amount: Number(r.amount) || 0,
       frequency: r.frequency,

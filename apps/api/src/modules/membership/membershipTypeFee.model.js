@@ -2,14 +2,15 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { MEMBERSHIP_SCHEMA } = require('../../platform/schemas');
 
-// Membership Type - Additional Fees (Category Details - Fee, detail). Auxiliary
-// fees attached to a membership type: a transaction-type code, an optional tax
-// scheme (referenced by CODE via the tax seam), and a currency + amount.
+// Membership Type - Joining Fees (detail): one-time charges billed when a new
+// member joins under the type (processing / entrance fees, ...).
 //
 // Owned by the same service as MembershipType, so a real parent-child FK with
-// cascade is used (intra-service). `transactionType` stays free text until a
-// Transaction Type master file exists; `currencyCode` is a value reference to the
-// platform Currency table (no FK - reference data lives in the Control Plane).
+// cascade is used (intra-service). `transactionType` references the company's
+// Transaction Type master by code (validated in the app; charge type
+// membership-fee | absentee-fee); TAX comes from that master - the row carries
+// no taxSchemeCode of its own (column dropped 2026-07-16). `currencyCode` is a
+// value reference to the platform Currency table (no FK).
 const MembershipTypeFee = sequelize.define('MembershipTypeFee', {
     id: {
         type: DataTypes.UUID,
@@ -21,17 +22,12 @@ const MembershipTypeFee = sequelize.define('MembershipTypeFee', {
         type: DataTypes.UUID,
         allowNull: false,
     },
-    // Code mapping the transaction (free text until a master file exists).
+    // Transaction Type master code (value reference, validated in the app).
     transactionType: {
         type: DataTypes.STRING,
         allowNull: false,
     },
     description: {
-        type: DataTypes.STRING,
-        allowNull: true,
-    },
-    // Tax plan for this fee - Tax module scheme code (via the seam). NULL = no tax.
-    taxSchemeCode: {
         type: DataTypes.STRING,
         allowNull: true,
     },
