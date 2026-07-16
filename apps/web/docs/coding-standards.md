@@ -67,7 +67,8 @@ Template-driven forms have no reliable central dirty/validity signal, which is e
 - **HTML5 input types are required:** give every field its correct native type/attributes, never a bare `type="text"`.
   Use `type="email"` + `inputmode="email"`, `type="url"`, `type="number"` + `inputmode="decimal"` + `min`/`max`/`step`, `type="date"`, and `type="tel"` (or the shared `<app-phone-input>`), plus `autocomplete` and `maxlength` where they apply.
   Correct types give mobile the right keyboard, enable free browser validation, and improve autofill.
-- **Description / Remarks fields are multi-line:** use `<textarea rows="3">` (never a single-line text input) so staff can key several lines; the field stays three lines tall and scrolls internally beyond that, and `resize: vertical` lets the user drag it taller.
+- **Description / Remarks fields are multi-line:** use `<textarea rows="2" wrap="off">` (never a single-line text input).
+  The field is two lines tall and scrolls vertically beyond that; `wrap="off"` means a line only breaks where the user presses Enter (long lines scroll horizontally instead of soft-wrapping), and `resize: vertical` lets the user drag it taller.
   The global `.form-group textarea` styling handles the look (font inheritance, tokens).
   Exception: fields where "Description" is really the record's display NAME (code+description reference masters like Salutation, Race, Title) and compact grid cells (per-hole remarks, per-language translation rows) stay single-line.
 - **Money/amount fields are masked to two decimals** with the shared `appMoney` directive (`shared/money-input.directive.ts`), on top of `type="number" inputmode="decimal" min="0" step="0.01"`.

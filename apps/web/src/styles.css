@@ -391,10 +391,11 @@ body {
   transition: border-color 0.2s, box-shadow 0.2s;
   background: var(--surface-input);
 }
-/* Multi-line fields (Description / Remarks standard: rows="3"): match the
-   inputs' typography (textareas default to monospace in some browsers), keep
-   a comfortable line height, and scroll internally past 3 lines. The user may
-   still drag it taller (resize: vertical). */
+/* Multi-line fields (Description / Remarks standard: rows="2" wrap="off"):
+   match the inputs' typography (textareas default to monospace in some
+   browsers), keep a comfortable line height, and scroll vertically past 2
+   lines / horizontally past the field width (no soft wrap - lines break only
+   on Enter). The user may still drag it taller (resize: vertical). */
 .form-group textarea {
   resize: vertical;
   font-family: inherit;
