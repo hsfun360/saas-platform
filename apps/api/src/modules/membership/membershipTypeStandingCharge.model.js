@@ -12,10 +12,10 @@ const { MEMBERSHIP_SCHEMA } = require('../../platform/schemas');
 // cascade is used (intra-service). `membershipStatusId` references the company's
 // own Membership Status master (#1) - same-service, but kept a plain UUID like the
 // type's own default refs so a status can be disabled without a hard constraint.
-// `chargesControl` stays free text until its master file exists;
 // `transactionType` references the company's Transaction Type master by code
-// (charge type standing-charges) and TAX comes from that master - the row's own
-// taxSchemeCode column was dropped 2026-07-16; `currencyCode` is a value
+// (charge type standing-charges); TAX and the billing-line description come from
+// that master (the row's own taxSchemeCode, transactionDescription and
+// chargesControl columns were dropped 2026-07-16); `currencyCode` is a value
 // reference to the platform Currency table.
 const MembershipTypeStandingCharge = sequelize.define('MembershipTypeStandingCharge', {
     id: {
@@ -34,24 +34,18 @@ const MembershipTypeStandingCharge = sequelize.define('MembershipTypeStandingCha
         type: DataTypes.UUID,
         allowNull: false,
     },
-    // Summary of the standing charge.
+    // Summary of the standing charge (the billing line text comes from the
+    // Transaction Type master's description; this is charge-level notes).
     description: {
         type: DataTypes.STRING,
         allowNull: true,
     },
-    // Regulations around fee handling (free text until a master file exists).
-    chargesControl: {
-        type: DataTypes.STRING,
-        allowNull: true,
-    },
-    // The specific billing item: its code and summary.
+    // The billing item - Transaction Type master code. Its description and tax
+    // come from the master (transactionDescription + chargesControl columns
+    // dropped 2026-07-16 per user - redundant / drove nothing yet).
     transactionType: {
         type: DataTypes.STRING,
         allowNull: false,
-    },
-    transactionDescription: {
-        type: DataTypes.STRING,
-        allowNull: true,
     },
     // ISO 4217 alpha-3 code referencing Currency.code (value reference, no FK).
     currencyCode: {

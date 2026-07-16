@@ -561,9 +561,7 @@ export interface MembershipTypeStandingCharge {
   id?: string;
   membershipStatusId: string;
   description?: string | null;
-  chargesControl?: string | null;
-  transactionType: string;        // Transaction Type master code
-  transactionDescription?: string | null;
+  transactionType: string;        // Transaction Type master code (carries tax + line description)
   currencyCode: string;
   amount: number;
   frequency: string;              // one of MembershipTypeMeta.frequencies[].key

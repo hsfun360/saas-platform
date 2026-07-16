@@ -24,9 +24,7 @@ interface FeeLineRow {
 interface StandingRow {
   membershipStatusId: string; // picked from the Status master
   description: string;
-  chargesControl: string;
-  transactionType: string;  // Transaction Type master code (carries the tax)
-  transactionDescription: string;
+  transactionType: string;  // Transaction Type master code (carries tax + line description)
   currencyCode: string;
   amount: string;
   frequency: string;
@@ -252,8 +250,7 @@ export class MembershipTypesComponent implements OnInit {
     this.standingRows.update((rows) => [
       ...rows,
       {
-        membershipStatusId: '', description: '', chargesControl: '',
-        transactionType: '', transactionDescription: '',
+        membershipStatusId: '', description: '', transactionType: '',
         currencyCode: this.defaultCurrencyCode(), amount: '0', frequency: '', fixedMonth: '',
       },
     ]);
@@ -443,9 +440,7 @@ export class MembershipTypesComponent implements OnInit {
       (t.standingCharges || []).map((c) => ({
         membershipStatusId: c.membershipStatusId,
         description: c.description || '',
-        chargesControl: c.chargesControl || '',
         transactionType: c.transactionType,
-        transactionDescription: c.transactionDescription || '',
         currencyCode: c.currencyCode,
         amount: String(c.amount),
         frequency: c.frequency,
@@ -501,9 +496,7 @@ export class MembershipTypesComponent implements OnInit {
     this.service.updateStandingCharges(type.id, this.standingRows().map((r) => ({
       membershipStatusId: r.membershipStatusId,
       description: r.description.trim() || null,
-      chargesControl: r.chargesControl.trim() || null,
       transactionType: r.transactionType.trim(),
-      transactionDescription: r.transactionDescription.trim() || null,
       currencyCode: r.currencyCode,
       amount: Number(r.amount) || 0,
       frequency: r.frequency,

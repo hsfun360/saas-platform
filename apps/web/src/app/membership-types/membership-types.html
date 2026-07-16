@@ -437,24 +437,10 @@
               </div>
               <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                 <div class="form-group">
-                  <label [for]="'scTxDesc' + i">Transaction description</label>
-                  <input [id]="'scTxDesc' + i" type="text" [value]="row.transactionDescription"
-                         (input)="updateStandingRow(i, 'transactionDescription', $any($event.target).value)"
-                         placeholder="Billing item summary" maxlength="200" />
-                </div>
-                <div class="form-group">
                   <label [for]="'scDesc' + i">Description</label>
                   <input [id]="'scDesc' + i" type="text" [value]="row.description"
                          (input)="updateStandingRow(i, 'description', $any($event.target).value)"
                          placeholder="Standing-charge summary" maxlength="200" />
-                </div>
-              </div>
-              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-                <div class="form-group">
-                  <label [for]="'scCtrl' + i">Charges control</label>
-                  <input [id]="'scCtrl' + i" type="text" [value]="row.chargesControl"
-                         (input)="updateStandingRow(i, 'chargesControl', $any($event.target).value)"
-                         placeholder="e.g. AUTO-POST" maxlength="50" autocomplete="off" />
                 </div>
                 <div class="form-group">
                   <label [for]="'scCur' + i">Currency <span class="required">*</span></label>
