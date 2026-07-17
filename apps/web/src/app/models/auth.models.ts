@@ -671,15 +671,7 @@ export interface Member {
   employerName?: string | null;
   designation?: string | null;
   industryTypeCode?: string | null;
-  residentAddress?: string | null;
-  residentPostcode?: string | null;
-  residentState?: string | null;
-  residentCountryCode?: string | null;
-  mailingSource?: string | null;       // 'resident' | 'employer' | 'other'
-  mailingAddress?: string | null;
-  mailingPostcode?: string | null;
-  mailingState?: string | null;
-  mailingCountryCode?: string | null;
+  addresses?: AddressEntry[];          // typed address book (one row per type)
   joinDate?: string | null;
   expiryDate?: string | null;          // dependent children/ward only
   creditLimit?: number | null;
@@ -723,15 +715,7 @@ export interface Membership {
   mobile?: string | null;
   email?: string | null;
   industryTypeCode?: string | null;
-  address?: string | null;
-  postcode?: string | null;
-  state?: string | null;
-  countryCode?: string | null;
-  mailingSource?: string | null;       // 'main' | 'other'
-  mailingAddress?: string | null;
-  mailingPostcode?: string | null;
-  mailingState?: string | null;
-  mailingCountryCode?: string | null;
+  addresses?: AddressEntry[];          // typed address book ('company' + 'mailing' rows)
   approvalStatus?: string;
   remarks?: string | null;
   // List extras (server-computed).
@@ -775,9 +759,19 @@ export interface MembershipMeta {
   maritalStatuses: MembershipStatusOption[];
   creditFlags: MembershipStatusOption[];
   statementModes: MembershipStatusOption[];
-  memberMailingSources: MembershipStatusOption[];
-  membershipMailingSources: MembershipStatusOption[];
+  addressTypes: MembershipStatusOption[];
   numberingMode: 'auto' | 'manual' | null;
+}
+
+// One row of a typed address book (membership."Address"): at most one per
+// (owner, addressType); 'residential' | 'mailing' | 'company' | 'other'.
+export interface AddressEntry {
+  addressType: string;
+  address: string;
+  city?: string | null;
+  postcode?: string | null;
+  state?: string | null;
+  countryCode?: string | null;
 }
 
 // The master-file pickers the membership form needs, in one call.

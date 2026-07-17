@@ -54,6 +54,7 @@ const TransactionType = require('../modules/membership/transactionType.model'); 
 // Membership / Member CRM (SRS 2.3): the contract and its people. Intra-service.
 const Membership = require('../modules/membership/membership.model');
 const Member = require('../modules/membership/member.model');
+const Address = require('../modules/membership/address.model');
 // Product tier (Golf Management). Same golden rules - master files reference
 // companyId by plain UUID (no cross-service FK). Intra-service parent-child
 // links (unit course -> holes) DO use real associations.
@@ -144,6 +145,12 @@ Member.belongsTo(Membership, { foreignKey: 'membershipId', as: 'Membership' });
 // Dependents hang off their principal (an individual member or a nominee).
 Member.hasMany(Member, { foreignKey: 'principalMemberId', as: 'Dependents' });
 Member.belongsTo(Member, { foreignKey: 'principalMemberId', as: 'Principal' });
+// Typed address book - pure value children of the contract OR a person, so
+// they cascade with their owner.
+Membership.hasMany(Address, { foreignKey: 'membershipId', as: 'Addresses', onDelete: 'CASCADE' });
+Address.belongsTo(Membership, { foreignKey: 'membershipId', as: 'Membership' });
+Member.hasMany(Address, { foreignKey: 'memberId', as: 'Addresses', onDelete: 'CASCADE' });
+Address.belongsTo(Member, { foreignKey: 'memberId', as: 'Member' });
 
 // 8e. Golf master-file header/detail pairs (both sides owned by the golf
 // service, so real intra-service FKs with cascade).
@@ -210,6 +217,7 @@ module.exports = {
     TransactionType,
     Membership,
     Member,
+    Address,
     UnitCourse,
     UnitCourseHole,
     UnitCourseTeeBox,

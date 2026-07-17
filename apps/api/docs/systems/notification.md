@@ -166,6 +166,17 @@ producer (has companyId)
   until it is set, the SMTP screens return a clear "encryption not configured"
   error and nothing else is affected.
 - New columns/tables apply on API boot via `sequelize.sync({ alter: true })`.
+- ⚠️ **Per-company template overrides need ONE manual DDL BEFORE the deploy.** The
+  old `UX_EmailTemplate_account_key` is a plain unique on `(accountId, templateKey)`,
+  which would block a company row from coexisting with the subscriber-wide row.
+  `sync({ alter: true })` does **not** drop/replace an existing unique index, so run
+  this against the DB first, then deploy (boot creates the new partial + company
+  indexes):
+  ```sql
+  DROP INDEX IF EXISTS "UX_EmailTemplate_account_key";
+  ```
+  Dropping it early is safe: nothing creates duplicate account rows (the upsert keys
+  on the scope), so the old code keeps working until the new revision starts.
 - **Email editor + branding** ship as an **API + web** change (no new secrets, no
   worker change: rendering runs in the API at enqueue and in the live preview).
   The new `EmailTemplate.brandColor` / `includeLogo` columns apply via the boot

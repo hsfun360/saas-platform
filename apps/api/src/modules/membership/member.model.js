@@ -95,16 +95,8 @@ const Member = sequelize.define('Member', {
     industryTypeCode: { type: DataTypes.STRING, allowNull: true },
 
     // --- Addresses ---
-    residentAddress: { type: DataTypes.STRING, allowNull: true },
-    residentPostcode: { type: DataTypes.STRING, allowNull: true },
-    residentState: { type: DataTypes.STRING, allowNull: true },
-    residentCountryCode: { type: DataTypes.STRING(2), allowNull: true },
-    // 'resident' | 'employer' | 'other'.
-    mailingSource: { type: DataTypes.STRING, allowNull: true },
-    mailingAddress: { type: DataTypes.STRING, allowNull: true },
-    mailingPostcode: { type: DataTypes.STRING, allowNull: true },
-    mailingState: { type: DataTypes.STRING, allowNull: true },
-    mailingCountryCode: { type: DataTypes.STRING(2), allowNull: true },
+    // Live in the typed membership."Address" table ('residential' + 'mailing'
+    // + 'other' rows per member) since 2026-07-17.
 
     // --- Membership dates & credit ---
     joinDate: { type: DataTypes.DATEONLY, allowNull: true },

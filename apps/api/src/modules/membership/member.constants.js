@@ -49,17 +49,14 @@ const STATEMENT_MODES = [
     { key: 'combined', label: 'Combined - one statement for the membership' },
 ];
 
-// Where a member's mail goes (legacy: company / resident / other address).
-const MEMBER_MAILING_SOURCES = [
-    { key: 'resident', label: 'Resident address' },
-    { key: 'employer', label: 'Employer address' },
-    { key: 'other', label: 'Other address' },
-];
-
-// Where a membership's (contract-level) mail goes.
-const MEMBERSHIP_MAILING_SOURCES = [
-    { key: 'main', label: 'Main address' },
-    { key: 'other', label: 'Other address' },
+// Typed address book (membership."Address") - at most one row per (owner,
+// type). Mail resolution: the 'mailing' row wins, else 'residential' (member)
+// / 'company' (contract). Replaces the legacy mailingSource columns.
+const ADDRESS_TYPES = [
+    { key: 'residential', label: 'Residential' },
+    { key: 'mailing', label: 'Mailing' },
+    { key: 'company', label: 'Company' },
+    { key: 'other', label: 'Other' },
 ];
 
 // Workflow seam: memberships are effective immediately today; the planned
@@ -75,8 +72,7 @@ const GENDER_KEYS = GENDERS.map((k) => k.key);
 const MARITAL_STATUS_KEYS = MARITAL_STATUSES.map((k) => k.key);
 const CREDIT_FLAG_KEYS = CREDIT_FLAGS.map((k) => k.key);
 const STATEMENT_MODE_KEYS = STATEMENT_MODES.map((k) => k.key);
-const MEMBER_MAILING_SOURCE_KEYS = MEMBER_MAILING_SOURCES.map((k) => k.key);
-const MEMBERSHIP_MAILING_SOURCE_KEYS = MEMBERSHIP_MAILING_SOURCES.map((k) => k.key);
+const ADDRESS_TYPE_KEYS = ADDRESS_TYPES.map((k) => k.key);
 const APPROVAL_STATUS_KEYS = APPROVAL_STATUSES.map((k) => k.key);
 
 module.exports = {
@@ -93,10 +89,8 @@ module.exports = {
     CREDIT_FLAG_KEYS,
     STATEMENT_MODES,
     STATEMENT_MODE_KEYS,
-    MEMBER_MAILING_SOURCES,
-    MEMBER_MAILING_SOURCE_KEYS,
-    MEMBERSHIP_MAILING_SOURCES,
-    MEMBERSHIP_MAILING_SOURCE_KEYS,
+    ADDRESS_TYPES,
+    ADDRESS_TYPE_KEYS,
     APPROVAL_STATUSES,
     APPROVAL_STATUS_KEYS,
 };

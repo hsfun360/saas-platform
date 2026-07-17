@@ -129,6 +129,57 @@
     <span>New membership</span>
   </button>
 
+  <!-- ============ Typed address book (contract + person forms) ============ -->
+  <ng-template #addressBook let-array="array" let-prefix="prefix" let-preferred="preferred">
+    <h3 class="dlg-section">Addresses</h3>
+    <p class="cell-subtle" style="margin-top: 0;">Mail goes to the Mailing address when one exists, otherwise to the {{ preferred === 'company' ? 'Company' : 'Residential' }} address.</p>
+    @for (g of array.controls; track g; let i = $index) {
+      <div class="ms-addr" [formGroup]="g">
+        <div class="ms-addr__grid">
+          <div class="form-group">
+            <label [for]="prefix + 'Type' + i">Type</label>
+            <select [id]="prefix + 'Type' + i" formControlName="addressType">
+              @for (t of meta()?.addressTypes; track t.key) {
+                <option [value]="t.key">{{ t.label }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group ms-addr__line">
+            <label [for]="prefix + 'Line' + i">Address</label>
+            <input [id]="prefix + 'Line' + i" type="text" formControlName="address" autocomplete="off" maxlength="255" />
+          </div>
+          <div class="form-group">
+            <label [for]="prefix + 'City' + i">City</label>
+            <input [id]="prefix + 'City' + i" type="text" formControlName="city" autocomplete="off" maxlength="100" />
+          </div>
+          <div class="form-group">
+            <label [for]="prefix + 'Postcode' + i">Postcode</label>
+            <input [id]="prefix + 'Postcode' + i" type="text" formControlName="postcode" autocomplete="off" maxlength="20" />
+          </div>
+          <div class="form-group">
+            <label [for]="prefix + 'State' + i">State</label>
+            <input [id]="prefix + 'State' + i" type="text" formControlName="state" autocomplete="off" maxlength="100" />
+          </div>
+          <div class="form-group">
+            <label [for]="prefix + 'Country' + i">Country</label>
+            <select [id]="prefix + 'Country' + i" formControlName="countryCode">
+              <option value="">—</option>
+              @for (c of countries(); track c.alpha2) {
+                <option [value]="c.alpha2">@if (c.flagEmoji) {{{ c.flagEmoji }} }{{ c.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="ms-addr__actions">
+          <button type="button" class="btn btn--danger btn--sm" (click)="removeAddress(array, i)">
+            Remove {{ addressTypeLabel(g.getRawValue().addressType) }} address
+          </button>
+        </div>
+      </div>
+    }
+    <button type="button" class="btn btn--secondary btn--sm" (click)="addAddress(array, preferred)">Add address</button>
+  </ng-template>
+
   <!-- ============ Person profile fields (shared by both dialogs) ============ -->
   <ng-template #profileFields>
     <div [formGroup]="memberForm">
@@ -302,63 +353,7 @@
         </div>
       </div>
 
-      <h3 class="dlg-section">Resident address</h3>
-      <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label for="mResAddress">Address</label>
-          <input id="mResAddress" type="text" formControlName="residentAddress" autocomplete="off" maxlength="255" />
-        </div>
-        <div class="form-group">
-          <label for="mResPostcode">Postcode</label>
-          <input id="mResPostcode" type="text" formControlName="residentPostcode" autocomplete="off" maxlength="20" />
-        </div>
-        <div class="form-group">
-          <label for="mResState">State</label>
-          <input id="mResState" type="text" formControlName="residentState" autocomplete="off" maxlength="100" />
-        </div>
-        <div class="form-group">
-          <label for="mResCountry">Country</label>
-          <select id="mResCountry" formControlName="residentCountryCode">
-            <option value="">—</option>
-            @for (c of countries(); track c.alpha2) {
-              <option [value]="c.alpha2">@if (c.flagEmoji) {{{ c.flagEmoji }} }{{ c.name }}</option>
-            }
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="mMailSource">Mail goes to</label>
-          <select id="mMailSource" formControlName="mailingSource">
-            @for (o of meta()?.memberMailingSources; track o.key) {
-              <option [value]="o.key">{{ o.label }}</option>
-            }
-          </select>
-        </div>
-      </div>
-      @if (memberValue().mailingSource === 'other') {
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label for="mMailAddress">Mailing address</label>
-            <input id="mMailAddress" type="text" formControlName="mailingAddress" autocomplete="off" maxlength="255" />
-          </div>
-          <div class="form-group">
-            <label for="mMailPostcode">Postcode</label>
-            <input id="mMailPostcode" type="text" formControlName="mailingPostcode" autocomplete="off" maxlength="20" />
-          </div>
-          <div class="form-group">
-            <label for="mMailState">State</label>
-            <input id="mMailState" type="text" formControlName="mailingState" autocomplete="off" maxlength="100" />
-          </div>
-          <div class="form-group">
-            <label for="mMailCountry">Country</label>
-            <select id="mMailCountry" formControlName="mailingCountryCode">
-              <option value="">—</option>
-              @for (c of countries(); track c.alpha2) {
-                <option [value]="c.alpha2">@if (c.flagEmoji) {{{ c.flagEmoji }} }{{ c.name }}</option>
-              }
-            </select>
-          </div>
-        </div>
-      }
+      <ng-container [ngTemplateOutlet]="addressBook" [ngTemplateOutletContext]="{ array: memberAddressArray, prefix: 'mAddr', preferred: 'residential' }"></ng-container>
 
       <h3 class="dlg-section">Notes</h3>
       <div class="form-row">
@@ -558,61 +553,8 @@
                 }
               </select>
             </div>
-            <div class="form-group" style="grid-column: 1 / -1;">
-              <label for="msAddress">Company address</label>
-              <input id="msAddress" type="text" formControlName="address" autocomplete="off" maxlength="255" />
-            </div>
-            <div class="form-group">
-              <label for="msPostcode">Postcode</label>
-              <input id="msPostcode" type="text" formControlName="postcode" autocomplete="off" maxlength="20" />
-            </div>
-            <div class="form-group">
-              <label for="msState">State</label>
-              <input id="msState" type="text" formControlName="state" autocomplete="off" maxlength="100" />
-            </div>
-            <div class="form-group">
-              <label for="msCountry">Country</label>
-              <select id="msCountry" formControlName="countryCode">
-                <option value="">—</option>
-                @for (c of countries(); track c.alpha2) {
-                  <option [value]="c.alpha2">@if (c.flagEmoji) {{{ c.flagEmoji }} }{{ c.name }}</option>
-                }
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="msMailSource">Mail goes to</label>
-              <select id="msMailSource" formControlName="mailingSource">
-                @for (o of meta()?.membershipMailingSources; track o.key) {
-                  <option [value]="o.key">{{ o.label }}</option>
-                }
-              </select>
-            </div>
           </div>
-          @if (msValue().mailingSource === 'other') {
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-              <div class="form-group" style="grid-column: 1 / -1;">
-                <label for="msMailAddress">Mailing address</label>
-                <input id="msMailAddress" type="text" formControlName="mailingAddress" autocomplete="off" maxlength="255" />
-              </div>
-              <div class="form-group">
-                <label for="msMailPostcode">Postcode</label>
-                <input id="msMailPostcode" type="text" formControlName="mailingPostcode" autocomplete="off" maxlength="20" />
-              </div>
-              <div class="form-group">
-                <label for="msMailState">State</label>
-                <input id="msMailState" type="text" formControlName="mailingState" autocomplete="off" maxlength="100" />
-              </div>
-              <div class="form-group">
-                <label for="msMailCountry">Country</label>
-                <select id="msMailCountry" formControlName="mailingCountryCode">
-                  <option value="">—</option>
-                  @for (c of countries(); track c.alpha2) {
-                    <option [value]="c.alpha2">@if (c.flagEmoji) {{{ c.flagEmoji }} }{{ c.name }}</option>
-                  }
-                </select>
-              </div>
-            </div>
-          }
+          <ng-container [ngTemplateOutlet]="addressBook" [ngTemplateOutletContext]="{ array: msAddressArray, prefix: 'msAddr', preferred: 'company' }"></ng-container>
 
           <h3 class="dlg-section">Notes</h3>
           <div class="form-row">

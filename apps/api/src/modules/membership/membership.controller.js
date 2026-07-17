@@ -48,11 +48,10 @@ const {
     CREDIT_FLAG_KEYS,
     STATEMENT_MODES,
     STATEMENT_MODE_KEYS,
-    MEMBER_MAILING_SOURCES,
-    MEMBER_MAILING_SOURCE_KEYS,
-    MEMBERSHIP_MAILING_SOURCES,
-    MEMBERSHIP_MAILING_SOURCE_KEYS,
+    ADDRESS_TYPES,
+    ADDRESS_TYPE_KEYS,
 } = require('./member.constants');
+const Address = require('./address.model');
 const { MEMBERSHIP_CLASS_KEYS } = require('./membershipType.constants');
 
 const NUMBERING_PURPOSE = 'membership';
@@ -121,15 +120,6 @@ function toMemberDto(m, extra = {}) {
         employerName: m.employerName,
         designation: m.designation,
         industryTypeCode: m.industryTypeCode,
-        residentAddress: m.residentAddress,
-        residentPostcode: m.residentPostcode,
-        residentState: m.residentState,
-        residentCountryCode: m.residentCountryCode,
-        mailingSource: m.mailingSource,
-        mailingAddress: m.mailingAddress,
-        mailingPostcode: m.mailingPostcode,
-        mailingState: m.mailingState,
-        mailingCountryCode: m.mailingCountryCode,
         joinDate: m.joinDate,
         expiryDate: m.expiryDate,
         creditLimit: m.creditLimit == null ? null : Number(m.creditLimit),
@@ -175,15 +165,6 @@ function toMembershipDto(ms, extra = {}) {
         mobile: ms.mobile,
         email: ms.email,
         industryTypeCode: ms.industryTypeCode,
-        address: ms.address,
-        postcode: ms.postcode,
-        state: ms.state,
-        countryCode: ms.countryCode,
-        mailingSource: ms.mailingSource,
-        mailingAddress: ms.mailingAddress,
-        mailingPostcode: ms.mailingPostcode,
-        mailingState: ms.mailingState,
-        mailingCountryCode: ms.mailingCountryCode,
         approvalStatus: ms.approvalStatus,
         remarks: ms.remarks,
         ...extra,
@@ -219,11 +200,6 @@ function normalizeMembershipBody(body, membershipClass) {
     const statementMode = strOrNull(body.statementMode);
     if (statementMode && !STATEMENT_MODE_KEYS.includes(statementMode)) return { error: 'Invalid statement mode.' };
 
-    const mailingSource = strOrNull(body.mailingSource);
-    if (mailingSource && !MEMBERSHIP_MAILING_SOURCE_KEYS.includes(mailingSource)) {
-        return { error: 'Invalid mailing address option.' };
-    }
-
     const value = {
         joinDate,
         billingDate: membershipClass === 'corporate' ? billingDate : null,
@@ -241,11 +217,6 @@ function normalizeMembershipBody(body, membershipClass) {
         proposer: strOrNull(body.proposer),
         salesCode: strOrNull(body.salesCode),
         followupSalesCode: strOrNull(body.followupSalesCode),
-        mailingSource,
-        mailingAddress: mailingSource === 'other' ? strOrNull(body.mailingAddress) : null,
-        mailingPostcode: mailingSource === 'other' ? strOrNull(body.mailingPostcode) : null,
-        mailingState: mailingSource === 'other' ? strOrNull(body.mailingState) : null,
-        mailingCountryCode: mailingSource === 'other' ? (strOrNull(body.mailingCountryCode) || '').toLowerCase() || null : null,
         remarks: strOrNull(body.remarks),
     };
 
@@ -263,21 +234,89 @@ function normalizeMembershipBody(body, membershipClass) {
             mobile: strOrNull(body.mobile),
             email: strOrNull(body.email),
             industryTypeCode: strOrNull(body.industryTypeCode),
-            address: strOrNull(body.address),
-            postcode: strOrNull(body.postcode),
-            state: strOrNull(body.state),
-            countryCode: (strOrNull(body.countryCode) || '').toLowerCase() || null,
         });
     } else {
         Object.assign(value, {
             corporateName: null, registrationNo: null, taxNo: null,
             contactPerson: null, contactDesignation: null,
             phone: null, fax: null, mobile: null, email: null,
-            industryTypeCode: null, address: null, postcode: null, state: null, countryCode: null,
+            industryTypeCode: null,
         });
     }
 
     return { value };
+}
+
+// The typed address book sent by the forms: an array of rows, at most one per
+// addressType. Returns { value: [...] } or { error }. An absent/empty array is
+// valid (the owner simply has no addresses on file).
+function normalizeAddresses(raw) {
+    if (raw === undefined || raw === null) return { value: [] };
+    if (!Array.isArray(raw)) return { error: 'Addresses must be a list.' };
+    const seen = new Set();
+    const value = [];
+    for (const row of raw) {
+        const addressType = strOrNull(row && row.addressType);
+        const address = strOrNull(row && row.address);
+        // A row with no street line is treated as an intentionally empty entry.
+        if (!address) continue;
+        if (!addressType || !ADDRESS_TYPE_KEYS.includes(addressType)) {
+            return { error: 'Each address needs a valid type (residential, mailing, company or other).' };
+        }
+        if (seen.has(addressType)) {
+            const label = ADDRESS_TYPES.find((t) => t.key === addressType).label;
+            return { error: `Only one ${label} address is allowed.` };
+        }
+        seen.add(addressType);
+        if (address.length > 255) return { error: 'Address must be 255 characters or fewer.' };
+        value.push({
+            addressType,
+            address,
+            city: strOrNull(row.city),
+            postcode: strOrNull(row.postcode),
+            state: strOrNull(row.state),
+            countryCode: (strOrNull(row.countryCode) || '').toLowerCase() || null,
+        });
+    }
+    return { value };
+}
+
+// Replace an owner's address book wholesale inside `transaction` (the forms
+// always send the full set).
+async function replaceAddresses(owner, rows, companyId, stamps, transaction) {
+    await Address.destroy({ where: owner, transaction });
+    if (rows.length) {
+        await Address.bulkCreate(rows.map((r) => ({ ...r, ...owner, companyId, ...stamps })), { transaction });
+    }
+}
+
+// The address books for one membership + its members, keyed for DTO assembly.
+async function loadAddressBooks(membershipId, memberIds) {
+    const rows = await Address.findAll({
+        where: {
+            [Op.or]: [
+                { membershipId },
+                ...(memberIds.length ? [{ memberId: memberIds }] : []),
+            ],
+        },
+        order: [['addressType', 'ASC']],
+    });
+    const toDto = (a) => ({
+        addressType: a.addressType,
+        address: a.address,
+        city: a.city,
+        postcode: a.postcode,
+        state: a.state,
+        countryCode: a.countryCode,
+    });
+    const forMembership = rows.filter((a) => a.membershipId).map(toDto);
+    const byMember = new Map();
+    for (const a of rows) {
+        if (!a.memberId) continue;
+        if (!byMember.has(a.memberId)) byMember.set(a.memberId, []);
+        byMember.get(a.memberId).push(toDto(a));
+    }
+    return { forMembership, byMember };
 }
 
 // Person-profile fields shared by every member kind. Returns { value } or
@@ -291,11 +330,6 @@ function normalizeMemberProfile(body) {
 
     const maritalStatus = strOrNull(body.maritalStatus);
     if (maritalStatus && !MARITAL_STATUS_KEYS.includes(maritalStatus)) return { error: 'Invalid marital status.' };
-
-    const mailingSource = strOrNull(body.mailingSource);
-    if (mailingSource && !MEMBER_MAILING_SOURCE_KEYS.includes(mailingSource)) {
-        return { error: 'Invalid mailing address option.' };
-    }
 
     for (const [label, v] of [['Birth date', body.birthDate], ['Marital date', body.maritalDate], ['Join date', body.joinDate], ['Expiry date', body.expiryDate]]) {
         if (dateOrNull(v) === undefined) return { error: `${label} must be a valid date (YYYY-MM-DD).` };
@@ -337,15 +371,6 @@ function normalizeMemberProfile(body) {
             employerName: strOrNull(body.employerName),
             designation: strOrNull(body.designation),
             industryTypeCode: strOrNull(body.industryTypeCode),
-            residentAddress: strOrNull(body.residentAddress),
-            residentPostcode: strOrNull(body.residentPostcode),
-            residentState: strOrNull(body.residentState),
-            residentCountryCode: (strOrNull(body.residentCountryCode) || '').toLowerCase() || null,
-            mailingSource,
-            mailingAddress: mailingSource === 'other' ? strOrNull(body.mailingAddress) : null,
-            mailingPostcode: mailingSource === 'other' ? strOrNull(body.mailingPostcode) : null,
-            mailingState: mailingSource === 'other' ? strOrNull(body.mailingState) : null,
-            mailingCountryCode: mailingSource === 'other' ? (strOrNull(body.mailingCountryCode) || '').toLowerCase() || null : null,
             joinDate: dateOrNull(body.joinDate),
             expiryDate: dateOrNull(body.expiryDate),
             creditLimit,
@@ -430,8 +455,7 @@ exports.getMeta = async (req, res) => {
             maritalStatuses: MARITAL_STATUSES,
             creditFlags: CREDIT_FLAGS,
             statementModes: STATEMENT_MODES,
-            memberMailingSources: MEMBER_MAILING_SOURCES,
-            membershipMailingSources: MEMBERSHIP_MAILING_SOURCES,
+            addressTypes: ADDRESS_TYPES,
             // 'auto' (system issues on save) | 'manual' | null (no scheme -> manual).
             numberingMode,
         });
@@ -597,10 +621,12 @@ exports.getMembership = async (req, res) => {
         if (!ms) return res.status(404).json({ message: 'Membership not found.' });
 
         const members = await Member.findAll({ where: { membershipId: ms.id }, order: [['memberNo', 'ASC']] });
+        const books = await loadAddressBooks(ms.id, members.map((m) => m.id));
         const canModify = await canModifyRecord(req, ms);
         res.status(200).json(toMembershipDto(ms, {
             canModify,
-            members: members.map((m) => toMemberDto(m)),
+            addresses: books.forMembership,
+            members: members.map((m) => toMemberDto(m, { addresses: books.byMember.get(m.id) || [] })),
         }));
     } catch (error) {
         console.error('Error loading membership:', error);
@@ -651,6 +677,13 @@ exports.createMembership = async (req, res) => {
             profile = parsedProfile.value;
         }
 
+        // 5b. The typed address books: contract addresses for corporate, the
+        // individual member's own addresses nested in the profile payload.
+        const contractAddrs = normalizeAddresses(membershipClass === 'corporate' ? req.body.addresses : []);
+        if (contractAddrs.error) return res.status(400).json({ message: contractAddrs.error });
+        const memberAddrs = normalizeAddresses(membershipClass === 'individual' ? (req.body.member || {}).addresses : []);
+        if (memberAddrs.error) return res.status(400).json({ message: memberAddrs.error });
+
         // 6. The membership number - Numbering Control decides.
         let membershipNo = strOrNull(req.body.membershipNo);
         let issued = null;
@@ -690,6 +723,7 @@ exports.createMembership = async (req, res) => {
                 ...v,
                 ...stamps,
             }, { transaction: t });
+            await replaceAddresses({ membershipId: ms.id }, contractAddrs.value, companyId, stamps, t);
 
             // The individual member is born with the membership; the member number
             // IS the membership number, the person's status mirrors the contract's.
@@ -708,6 +742,7 @@ exports.createMembership = async (req, res) => {
                     joinDate: profile.joinDate || v.joinDate,
                     ...stamps,
                 }, { transaction: t });
+                await replaceAddresses({ memberId: individualMember.id }, memberAddrs.value, companyId, stamps, t);
             }
 
             // Welcome email - only when the membership needs no approval (the
@@ -753,9 +788,14 @@ exports.createMembership = async (req, res) => {
         });
 
         const members = await Member.findAll({ where: { membershipId: created.id }, order: [['memberNo', 'ASC']] });
+        const books = await loadAddressBooks(created.id, members.map((m) => m.id));
         res.status(201).json({
             message: `Membership ${membershipNo} created.`,
-            membership: toMembershipDto(created, { canModify: true, members: members.map((m) => toMemberDto(m)) }),
+            membership: toMembershipDto(created, {
+                canModify: true,
+                addresses: books.forMembership,
+                members: members.map((m) => toMemberDto(m, { addresses: books.byMember.get(m.id) || [] })),
+            }),
         });
     } catch (error) {
         console.error('Error creating membership:', error);
@@ -794,6 +834,13 @@ exports.updateMembership = async (req, res) => {
             if (!fee) return res.status(400).json({ message: 'Membership fee not found.' });
         }
 
+        // Contract addresses (corporate class edits the contract's book).
+        const contractAddrs = normalizeAddresses(ms.membershipClass === 'corporate' ? req.body.addresses : []);
+        if (contractAddrs.error) return res.status(400).json({ message: contractAddrs.error });
+
+        const placement = await getCallerPlacement(req);
+        const stamps = ownershipStamps(req, placement);
+
         await sequelize.transaction(async (t) => {
             Object.assign(ms, v);
             ms.membershipFeeId = membershipFeeId;
@@ -803,6 +850,9 @@ exports.updateMembership = async (req, res) => {
             }
             ms.updatedBy = getUserContext(req).userId;
             await ms.save({ transaction: t });
+            if (ms.membershipClass === 'corporate') {
+                await replaceAddresses({ membershipId: ms.id }, contractAddrs.value, companyId, stamps, t);
+            }
 
             // Individual class: the person's own status follows the contract.
             if (statusChanged && ms.membershipClass === 'individual') {
@@ -814,9 +864,14 @@ exports.updateMembership = async (req, res) => {
         });
 
         const members = await Member.findAll({ where: { membershipId: ms.id }, order: [['memberNo', 'ASC']] });
+        const books = await loadAddressBooks(ms.id, members.map((m) => m.id));
         res.status(200).json({
             message: `Membership ${ms.membershipNo} updated.`,
-            membership: toMembershipDto(ms, { canModify: true, members: members.map((m) => toMemberDto(m)) }),
+            membership: toMembershipDto(ms, {
+                canModify: true,
+                addresses: books.forMembership,
+                members: members.map((m) => toMemberDto(m, { addresses: books.byMember.get(m.id) || [] })),
+            }),
         });
     } catch (error) {
         console.error('Error updating membership:', error);
@@ -872,6 +927,8 @@ exports.createNominee = async (req, res) => {
         const parsedProfile = normalizeMemberProfile(req.body);
         if (parsedProfile.error) return res.status(400).json({ message: parsedProfile.error });
         const profile = parsedProfile.value;
+        const addrs = normalizeAddresses(req.body.addresses);
+        if (addrs.error) return res.status(400).json({ message: addrs.error });
 
         const statusId = strOrNull(req.body.memberStatusId) || ms.membershipStatusId;
         const status = await resolveStatus(companyId, statusId);
@@ -883,21 +940,26 @@ exports.createNominee = async (req, res) => {
         }
 
         const placement = await getCallerPlacement(req);
-        const member = await Member.create({
-            companyId,
-            membershipId: ms.id,
-            memberNo,
-            memberKind: 'nominee',
-            dependentType: null,
-            principalMemberId: null,
-            memberStatusId: status.id,
-            statusDate: todayStr(),
-            ...profile,
-            joinDate: profile.joinDate || todayStr(),
-            ...ownershipStamps(req, placement),
+        const stamps = ownershipStamps(req, placement);
+        const member = await sequelize.transaction(async (t) => {
+            const created = await Member.create({
+                companyId,
+                membershipId: ms.id,
+                memberNo,
+                memberKind: 'nominee',
+                dependentType: null,
+                principalMemberId: null,
+                memberStatusId: status.id,
+                statusDate: todayStr(),
+                ...profile,
+                joinDate: profile.joinDate || todayStr(),
+                ...stamps,
+            }, { transaction: t });
+            await replaceAddresses({ memberId: created.id }, addrs.value, companyId, stamps, t);
+            return created;
         });
 
-        res.status(201).json({ message: `Nominee ${memberNo} added.`, member: toMemberDto(member) });
+        res.status(201).json({ message: `Nominee ${memberNo} added.`, member: toMemberDto(member, { addresses: addrs.value }) });
     } catch (error) {
         console.error('Error creating nominee:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -933,6 +995,8 @@ exports.createDependent = async (req, res) => {
         const profile = parsedProfile.value;
         // Only children/wards age out; a spouse never carries an expiry date.
         if (!EXPIRING_DEPENDENT_TYPES.includes(dependentType)) profile.expiryDate = null;
+        const addrs = normalizeAddresses(req.body.addresses);
+        if (addrs.error) return res.status(400).json({ message: addrs.error });
 
         const statusId = strOrNull(req.body.memberStatusId) || principal.memberStatusId;
         const status = await resolveStatus(companyId, statusId);
@@ -944,21 +1008,26 @@ exports.createDependent = async (req, res) => {
         }
 
         const placement = await getCallerPlacement(req);
-        const member = await Member.create({
-            companyId,
-            membershipId: ms.id,
-            memberNo,
-            memberKind: 'dependent',
-            dependentType,
-            principalMemberId: principal.id,
-            memberStatusId: status.id,
-            statusDate: todayStr(),
-            ...profile,
-            joinDate: profile.joinDate || todayStr(),
-            ...ownershipStamps(req, placement),
+        const stamps = ownershipStamps(req, placement);
+        const member = await sequelize.transaction(async (t) => {
+            const created = await Member.create({
+                companyId,
+                membershipId: ms.id,
+                memberNo,
+                memberKind: 'dependent',
+                dependentType,
+                principalMemberId: principal.id,
+                memberStatusId: status.id,
+                statusDate: todayStr(),
+                ...profile,
+                joinDate: profile.joinDate || todayStr(),
+                ...stamps,
+            }, { transaction: t });
+            await replaceAddresses({ memberId: created.id }, addrs.value, companyId, stamps, t);
+            return created;
         });
 
-        res.status(201).json({ message: `Dependent ${memberNo} added.`, member: toMemberDto(member) });
+        res.status(201).json({ message: `Dependent ${memberNo} added.`, member: toMemberDto(member, { addresses: addrs.value }) });
     } catch (error) {
         console.error('Error creating dependent:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -985,6 +1054,8 @@ exports.updateMember = async (req, res) => {
         const parsedProfile = normalizeMemberProfile(req.body);
         if (parsedProfile.error) return res.status(400).json({ message: parsedProfile.error });
         const profile = parsedProfile.value;
+        const addrs = normalizeAddresses(req.body.addresses);
+        if (addrs.error) return res.status(400).json({ message: addrs.error });
 
         if (member.memberKind === 'dependent') {
             const dependentType = strOrNull(req.body.dependentType) || member.dependentType;
@@ -1000,6 +1071,8 @@ exports.updateMember = async (req, res) => {
             if (!status) return res.status(400).json({ message: 'Member status not found.' });
         }
 
+        const placement = await getCallerPlacement(req);
+        const stamps = ownershipStamps(req, placement);
         await sequelize.transaction(async (t) => {
             Object.assign(member, profile);
             if (statusChanged) {
@@ -1008,6 +1081,7 @@ exports.updateMember = async (req, res) => {
             }
             member.updatedBy = getUserContext(req).userId;
             await member.save({ transaction: t });
+            await replaceAddresses({ memberId: member.id }, addrs.value, companyId, stamps, t);
 
             // Individual class: the contract status follows the person.
             if (statusChanged && member.memberKind === 'individual') {
@@ -1018,7 +1092,7 @@ exports.updateMember = async (req, res) => {
             }
         });
 
-        res.status(200).json({ message: `Member ${member.memberNo} updated.`, member: toMemberDto(member) });
+        res.status(200).json({ message: `Member ${member.memberNo} updated.`, member: toMemberDto(member, { addresses: addrs.value }) });
     } catch (error) {
         console.error('Error updating member:', error);
         res.status(500).json({ message: 'Internal server error' });

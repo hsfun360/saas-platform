@@ -111,18 +111,8 @@ const Membership = sequelize.define('Membership', {
     email: { type: DataTypes.STRING, allowNull: true },
     // Subscriber IndustryType code - value reference.
     industryTypeCode: { type: DataTypes.STRING, allowNull: true },
-    address: { type: DataTypes.STRING, allowNull: true },
-    postcode: { type: DataTypes.STRING, allowNull: true },
-    state: { type: DataTypes.STRING, allowNull: true },
-    // Country.alpha2 value reference.
-    countryCode: { type: DataTypes.STRING(2), allowNull: true },
-
-    // --- Mailing address ('main' = the address above, 'other' = its own set) ---
-    mailingSource: { type: DataTypes.STRING, allowNull: true },
-    mailingAddress: { type: DataTypes.STRING, allowNull: true },
-    mailingPostcode: { type: DataTypes.STRING, allowNull: true },
-    mailingState: { type: DataTypes.STRING, allowNull: true },
-    mailingCountryCode: { type: DataTypes.STRING(2), allowNull: true },
+    // Addresses live in the typed membership."Address" table ('company' +
+    // 'mailing' rows for the contract) since 2026-07-17.
 
     // --- Workflow seam (memberships are effective immediately today) ---
     approvalStatus: {

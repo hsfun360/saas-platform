@@ -255,3 +255,25 @@
   border: 1px solid var(--border);
   flex-shrink: 0;
 }
+
+/* --- Typed address book rows (contract + person forms) --- */
+.ms-addr {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+  background-color: var(--surface-sunken);
+}
+.ms-addr__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-sm);
+}
+.ms-addr__line {
+  grid-column: 1 / -1;
+}
+.ms-addr__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-xs);
+}

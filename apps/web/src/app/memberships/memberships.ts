@@ -2,7 +2,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, debounceTime } from 'rxjs';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MembershipService } from '../services/membership.service';
 import { SalutationService } from '../services/salutation.service';
 import { TitleService } from '../services/title.service';
@@ -15,6 +15,7 @@ import { CanDirective } from '../shared/can.directive';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import {
+  AddressEntry,
   Country,
   Member,
   Membership,
@@ -114,15 +115,7 @@ export class MembershipsComponent implements OnInit {
     mobile: [''],
     email: ['', [Validators.email]],
     industryTypeCode: [''],
-    address: ['', [Validators.maxLength(255)]],
-    postcode: ['', [Validators.maxLength(20)]],
-    state: ['', [Validators.maxLength(100)]],
-    countryCode: [''],
-    mailingSource: ['main'],
-    mailingAddress: ['', [Validators.maxLength(255)]],
-    mailingPostcode: ['', [Validators.maxLength(20)]],
-    mailingState: ['', [Validators.maxLength(100)]],
-    mailingCountryCode: [''],
+    addresses: this.fb.array<FormGroup>([]),
     remarks: ['', [Validators.maxLength(2000)]],
   });
 
@@ -151,15 +144,7 @@ export class MembershipsComponent implements OnInit {
     employerName: ['', [Validators.maxLength(255)]],
     designation: ['', [Validators.maxLength(255)]],
     industryTypeCode: [''],
-    residentAddress: ['', [Validators.maxLength(255)]],
-    residentPostcode: ['', [Validators.maxLength(20)]],
-    residentState: ['', [Validators.maxLength(100)]],
-    residentCountryCode: [''],
-    mailingSource: ['resident'],
-    mailingAddress: ['', [Validators.maxLength(255)]],
-    mailingPostcode: ['', [Validators.maxLength(20)]],
-    mailingState: ['', [Validators.maxLength(100)]],
-    mailingCountryCode: [''],
+    addresses: this.fb.array<FormGroup>([]),
     joinDate: [''],
     expiryDate: [''],
     creditLimit: this.fb.control<number | null>(null),
@@ -365,6 +350,51 @@ export class MembershipsComponent implements OnInit {
     this.load(true);
   }
 
+  // --- Typed address book (shared by the contract + person forms) ---
+
+  get msAddressArray(): FormArray<FormGroup> {
+    return this.membershipForm.controls.addresses as FormArray<FormGroup>;
+  }
+
+  get memberAddressArray(): FormArray<FormGroup> {
+    return this.memberForm.controls.addresses as FormArray<FormGroup>;
+  }
+
+  private buildAddressGroup(v: Partial<AddressEntry> = {}): FormGroup {
+    return this.fb.nonNullable.group({
+      addressType: [v.addressType || 'residential'],
+      address: ['' + (v.address || ''), [Validators.maxLength(255)]],
+      city: [v.city || '', [Validators.maxLength(100)]],
+      postcode: [v.postcode || '', [Validators.maxLength(20)]],
+      state: [v.state || '', [Validators.maxLength(100)]],
+      countryCode: [v.countryCode || ''],
+    });
+  }
+
+  private setAddresses(array: FormArray<FormGroup>, rows: AddressEntry[] | undefined): void {
+    array.clear();
+    for (const r of rows || []) array.push(this.buildAddressGroup(r));
+  }
+
+  // Add a row defaulting to `preferred` (the owner's natural type), falling
+  // back to the first type not already in the book.
+  addAddress(array: FormArray<FormGroup>, preferred: string): void {
+    const used = new Set(array.getRawValue().map((r) => (r as AddressEntry).addressType));
+    const keys = (this.meta()?.addressTypes || []).map((t) => t.key);
+    const type = !used.has(preferred) ? preferred : keys.find((k) => !used.has(k)) || preferred;
+    array.push(this.buildAddressGroup({ addressType: type }));
+    array.markAsDirty();
+  }
+
+  removeAddress(array: FormArray<FormGroup>, index: number): void {
+    array.removeAt(index);
+    array.markAsDirty();
+  }
+
+  addressTypeLabel(key: string): string {
+    return this.meta()?.addressTypes?.find((t) => t.key === key)?.label || key;
+  }
+
   // --- Membership dialog ---
 
   openAdd(): void {
@@ -377,10 +407,10 @@ export class MembershipsComponent implements OnInit {
       certificateNo: '', applicationNo: '', reference: '', proposer: '', salesCode: '', followupSalesCode: '',
       corporateName: '', registrationNo: '', taxNo: '', contactPerson: '', contactDesignation: '',
       phone: '', fax: '', mobile: '', email: '', industryTypeCode: '',
-      address: '', postcode: '', state: '', countryCode: '',
-      mailingSource: 'main', mailingAddress: '', mailingPostcode: '', mailingState: '', mailingCountryCode: '',
       remarks: '',
     });
+    this.setAddresses(this.msAddressArray, []);
+    this.membershipForm.markAsPristine();
     this.resetMemberForm();
     this.membershipOpen.set(true);
   }
@@ -434,17 +464,10 @@ export class MembershipsComponent implements OnInit {
       mobile: ms.mobile || '',
       email: ms.email || '',
       industryTypeCode: ms.industryTypeCode || '',
-      address: ms.address || '',
-      postcode: ms.postcode || '',
-      state: ms.state || '',
-      countryCode: ms.countryCode || '',
-      mailingSource: ms.mailingSource || 'main',
-      mailingAddress: ms.mailingAddress || '',
-      mailingPostcode: ms.mailingPostcode || '',
-      mailingState: ms.mailingState || '',
-      mailingCountryCode: ms.mailingCountryCode || '',
       remarks: ms.remarks || '',
     });
+    this.setAddresses(this.msAddressArray, ms.addresses);
+    this.membershipForm.markAsPristine();
     this.membershipOpen.set(true);
   }
 
@@ -561,6 +584,7 @@ export class MembershipsComponent implements OnInit {
       dependentType: m.dependentType || '',
       memberStatusId: m.memberStatusId,
     });
+    this.setAddresses(this.memberAddressArray, m.addresses);
     this.memberForm.patchValue({
       photoUrl: m.photoUrl || '',
       salutationCode: m.salutationCode || '',
@@ -584,15 +608,6 @@ export class MembershipsComponent implements OnInit {
       employerName: m.employerName || '',
       designation: m.designation || '',
       industryTypeCode: m.industryTypeCode || '',
-      residentAddress: m.residentAddress || '',
-      residentPostcode: m.residentPostcode || '',
-      residentState: m.residentState || '',
-      residentCountryCode: m.residentCountryCode || '',
-      mailingSource: m.mailingSource || 'resident',
-      mailingAddress: m.mailingAddress || '',
-      mailingPostcode: m.mailingPostcode || '',
-      mailingState: m.mailingState || '',
-      mailingCountryCode: m.mailingCountryCode || '',
       joinDate: m.joinDate || '',
       expiryDate: m.expiryDate || '',
       creditLimit: m.creditLimit ?? null,
@@ -650,10 +665,10 @@ export class MembershipsComponent implements OnInit {
       nameOnCard: '', localName: '', gender: '', birthDate: '', identityNo: '',
       nationalityCode: '', raceCode: '', maritalStatus: '', maritalDate: '',
       phone: '', mobile: '', fax: '', email: '', employerName: '', designation: '', industryTypeCode: '',
-      residentAddress: '', residentPostcode: '', residentState: '', residentCountryCode: '',
-      mailingSource: 'resident', mailingAddress: '', mailingPostcode: '', mailingState: '', mailingCountryCode: '',
       joinDate: '', expiryDate: '', creditLimit: null, remarks: '',
     });
+    this.setAddresses(this.memberAddressArray, []);
+    this.memberForm.markAsPristine();
     this.memberMetaForm.reset({ memberNo: '', dependentType: '', memberStatusId: '' });
   }
 
