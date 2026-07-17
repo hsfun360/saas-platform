@@ -113,6 +113,11 @@ textarea[aria-invalid='true'] {
   --brand-disabled: #a5c8fd;   /* brand button, disabled state */
   --accent: #0284c7;           /* non-primary accent (rate %, icons) */
   --surface-selected: #f0f9ff; /* selected/active row highlight */
+  /* Sidebar: an EXPANDED menu group's contained block + its header shape.
+     Deliberately darker than the sidebar surface so the group reads as one
+     card (see dashboard.css "Sub-menu hierarchy"). */
+  --nav-group-surface: #e2e8f0;
+  --nav-group-head-surface: #cbd5e1;
 
   --focus-ring: #1a73e8;
   --overlay: rgba(15, 23, 42, 0.55);
@@ -154,7 +159,12 @@ textarea[aria-invalid='true'] {
 
   --brand-disabled: #2a4a7a;
   --accent: #38bdf8;
-  --surface-selected: #1c2740;
+  --surface-selected: #263f66; /* blue-tinted; must stay visible on the (lighter) nav-group block too */
+  /* Sidebar expanded-group block + header shape. In dark mode the block is
+     LIGHTER than the sidebar (elevation) - darker-than-#1a212e shades are
+     indistinguishable on real monitors. Steps follow the border ramp. */
+  --nav-group-surface: #2b3648;
+  --nav-group-head-surface: #3a4658;
 
   --focus-ring: #60a5fa;
   --overlay: rgba(0, 0, 0, 0.6);

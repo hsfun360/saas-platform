@@ -29,24 +29,20 @@
           </button>
 
           @if (isWorkspaceDropdownOpen) {
-            <div (click)="$event.stopPropagation()"
-                 style="position: absolute; left: 0; top: 100%; margin-top: var(--space-sm); background: #334155; border-radius: 8px; min-width: 260px; padding: var(--space-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000;">
-              <div style="padding: var(--space-sm) var(--space-sm); font-size: var(--font-caption); font-weight: var(--weight-bold); color: #cbd5e1; border-bottom: 1px solid #475569; margin-bottom: var(--space-xs); text-transform: uppercase;">
-                {{ workspaceSwitchLabel() }}
-              </div>
+            <div class="menu-pop menu-pop--left" style="min-width: 260px;" (click)="$event.stopPropagation()">
+              <div class="menu-pop__title">{{ workspaceSwitchLabel() }}</div>
               @for (ws of workspaces(); track ws.companyId) {
-                <button type="button" (click)="switchWorkspace(ws.companyId)"
-                        [disabled]="ws.companyId === currentCompanyId"
-                        [style.opacity]="ws.companyId === currentCompanyId ? '0.6' : '1'"
-                        [style.cursor]="ws.companyId === currentCompanyId ? 'default' : 'pointer'"
-                        style="width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-xs); background: transparent; border: none; color: white; padding: var(--space-sm); border-radius: 6px; text-align: left;">
-                  <span style="font-size: var(--font-body); display: flex; align-items: center; gap: var(--space-xs);">
+                <button type="button" class="menu-pop__item"
+                        style="flex-direction: column; align-items: flex-start; gap: var(--space-xs);"
+                        (click)="switchWorkspace(ws.companyId)"
+                        [disabled]="ws.companyId === currentCompanyId">
+                  <span style="display: flex; align-items: center; gap: var(--space-xs);">
                     {{ ws.companyName }}
                     @if (ws.companyId === currentCompanyId) {
-                      <span class="material-icons" style="font-size: 16px; color: #4ade80;">check</span>
+                      <span class="material-icons menu-pop__check" style="font-size: 16px;">check</span>
                     }
                   </span>
-                  <span style="font-size: var(--font-caption); color: #cbd5e1;">{{ ws.roleName }}</span>
+                  <span class="menu-pop__sub">{{ ws.roleName }}</span>
                 </button>
               }
             </div>
@@ -75,7 +71,9 @@
       </div>
 
       <div class="header-actions" style="display: flex; align-items: center; gap: var(--space-sm); border-left: 1px solid #e2e8f0; padding-left: var(--space-md);">
-        <button class="icon-btn hide-mobile" title="Settings" aria-label="Settings" routerLink="/settings" style="color: white">⚙</button>
+        <!-- Settings deliberately lives ONLY in the avatar menu (with Profile and
+             Sign out) - the header stays uncluttered and mobile always worked
+             that way. Don't re-add a header gear. -->
 
         <!-- Language quick-switch (only when the user has more than one to pick from) -->
         @if (languageOptions.length > 1) {
@@ -88,17 +86,14 @@
             </button>
 
             @if (isLanguageDropdownOpen) {
-              <div class="dropdown-menu dark-google-menu" style="position: absolute; right: 0; top: calc(100% + 12px); background: #334155; border-radius: 8px; min-width: 200px; padding: var(--space-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000;" (click)="$event.stopPropagation()">
-                <div style="padding: var(--space-sm); font-size: var(--font-caption); font-weight: var(--weight-bold); color: #cbd5e1; border-bottom: 1px solid #475569; margin-bottom: var(--space-xs); text-transform: uppercase;">
-                  {{ 'language.switch' | t }}
-                </div>
+              <div class="menu-pop" style="min-width: 200px;" (click)="$event.stopPropagation()">
+                <div class="menu-pop__title">{{ 'language.switch' | t }}</div>
                 @for (l of languageOptions; track l.languageCode) {
-                  <button type="button" (click)="chooseLanguage(l.languageCode)"
-                          style="width: 100%; text-align: left; background: transparent; border: none; padding: var(--space-sm); color: white; cursor: pointer; border-radius: 6px; display: flex; align-items: center; justify-content: space-between;"
-                          onmouseover="this.style.background='#475569'" onmouseout="this.style.background='transparent'">
-                    <span style="font-size: var(--font-body);">{{ l.name }}</span>
+                  <button type="button" class="menu-pop__item" style="justify-content: space-between;"
+                          (click)="chooseLanguage(l.languageCode)">
+                    <span>{{ l.name }}</span>
                     @if (l.languageCode === i18n.lang()) {
-                      <span class="material-icons" style="font-size: 18px; color: #38bdf8;">check</span>
+                      <span class="material-icons menu-pop__check">check</span>
                     }
                   </button>
                 }
@@ -113,15 +108,12 @@
           </button>
 
           @if (isAppsDropdownOpen) {
-            <div class="dropdown-menu dark-google-menu" style="position: absolute; right: 0; top: calc(100% + 12px); background: #334155; border-radius: 8px; min-width: 220px; padding: var(--space-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000;" (click)="$event.stopPropagation()">
-              <div style="padding: var(--space-sm); font-size: var(--font-caption); font-weight: var(--weight-bold); color: #cbd5e1; border-bottom: 1px solid #475569; margin-bottom: var(--space-xs); text-transform: uppercase;">
-                {{ 'nav.yourApps' | t }}
-              </div>
-
+            <div class="menu-pop" (click)="$event.stopPropagation()">
+              <div class="menu-pop__title">{{ 'nav.yourApps' | t }}</div>
               @for (mod of availableModules; track mod.name) {
-                <button type="button" (click)="selectModule(mod.name)" style="width: 100%; text-align: left; background: transparent; border: none; padding: var(--space-sm); color: white; cursor: pointer; border-radius: 6px; transition: background 0.2s; display: flex; align-items: center;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='transparent'">
-                  <span class="material-icons" style="margin-right: var(--space-sm); font-size: 20px; color: #38bdf8;">{{ mod.icon }}</span>
-                  <span style="font-size: var(--font-body);">{{ resolveLabel(mod.name, mod.names) }}</span>
+                <button type="button" class="menu-pop__item" (click)="selectModule(mod.name)">
+                  <span class="material-icons" style="font-size: 20px; color: var(--accent);">{{ mod.icon }}</span>
+                  <span>{{ resolveLabel(mod.name, mod.names) }}</span>
                 </button>
               }
             </div>
@@ -143,41 +135,28 @@
         </button>
 
         @if (isDropdownOpen) {
-          <div class="dropdown-menu" (click)="$event.stopPropagation()"
-               style="position: absolute; right: 0; top: calc(100% + 12px); background: #202124; border-radius: 28px; min-width: 350px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); border: 1px solid #3c4043; z-index: 1000; overflow: hidden; color: #e8eaed; font-family: Roboto, Arial, sans-serif; cursor: default;">
+          <div class="menu-pop menu-pop--account" (click)="$event.stopPropagation()">
 
-            <div style="display: flex; flex-direction: column; align-items: center; padding: var(--space-lg) var(--space-lg) var(--space-md);">
-              <img [src]="profilePictureUrl()" alt="Large Avatar" (error)="onAvatarError()"
-                   style="width: 76px; height: 76px; border-radius: 50%; object-fit: cover; margin-bottom: var(--space-sm); border: 1px solid #3c4043;">
+            <div class="account-card">
+              <img class="account-card__avatar" [src]="profilePictureUrl()" alt="Large Avatar" (error)="onAvatarError()">
+              <div class="account-card__name">Hi, {{ userFullName() }}!</div>
+              <div class="account-card__email">{{ loggedInUser }}</div>
 
-              <div style="font-size: var(--font-h3); font-weight: var(--weight-medium); text-align: center; letter-spacing: 0.25px;">
-                Hi, {{ userFullName() }}!
-              </div>
-
-              <div style="font-size: var(--font-body); color: #9aa0a6; margin-top: var(--space-xs); text-align: center;">
-                {{ loggedInUser }}
-              </div>
-
-              <a routerLink="/profile"
-                 style="margin-top: var(--space-md); padding: var(--space-sm) var(--space-lg); border-radius: 100px; border: 1px solid #5f6368; color: #8ab4f8; font-size: var(--font-body); font-weight: var(--weight-medium); text-decoration: none; cursor: pointer; transition: background 0.2s;"
-                 onmouseover="this.style.background='#303134'" onmouseout="this.style.background='transparent'">
+              <a routerLink="/profile" class="account-pill" style="margin-top: var(--space-md);">
                 Manage your Profile
               </a>
-
-              <a routerLink="/settings"
-                 style="margin-top: var(--space-sm); padding: var(--space-sm) var(--space-lg); border-radius: 100px; border: 1px solid #5f6368; color: #8ab4f8; font-size: var(--font-body); font-weight: var(--weight-medium); text-decoration: none; cursor: pointer; transition: background 0.2s;"
-                 onmouseover="this.style.background='#303134'" onmouseout="this.style.background='transparent'">
+              <a routerLink="/settings" class="account-pill">
                 Settings
               </a>
             </div>
 
-            <div style="height: 1px; background: #3c4043; width: 100%;"></div>
+            <div class="menu-pop__divider"></div>
 
-            <div style="padding: var(--space-md); display: flex; justify-content: center; background: #202124;">
-              <button type="button" (click)="onLogout()"
-                 style="display: flex; align-items: center; justify-content: center; padding: var(--space-sm) 40px; border-radius: 24px; border: 1px solid #5f6368; background: transparent; color: #e8eaed; font-size: var(--font-body); font-weight: var(--weight-medium); cursor: pointer; transition: background 0.2s;"
-                 onmouseover="this.style.background='#303134'" onmouseout="this.style.background='transparent'">
-                <span class="material-icons" style="font-size: 20px; margin-right: var(--space-sm); color: #e8eaed;">logout</span>
+            <div class="account-foot">
+              <button type="button" class="account-pill"
+                      style="margin-top: 0; padding: var(--space-sm) 40px; border-radius: 24px; color: var(--text-primary);"
+                      (click)="onLogout()">
+                <span class="material-icons" style="font-size: 20px;" aria-hidden="true">logout</span>
                 Sign out
               </button>
             </div>
@@ -207,7 +186,7 @@
           <ng-template #navNodes let-nodes>
             @for (node of nodes; track node.menu.id || node.menu.route) {
               @if (node.children.length) {
-                <li class="nav-group">
+                <li class="nav-group" [class.nav-group--open]="!isGroupCollapsed(node.menu.id!)">
                   <button type="button" class="nav-group__header" (click)="toggleGroup(node.menu.id!)"
                           [attr.aria-expanded]="!isGroupCollapsed(node.menu.id!)">
                     <span class="icon material-icons">{{ node.menu.icon || 'folder' }}</span>

@@ -151,6 +151,7 @@ A raw `#hex` / `rgb()` in a component is a bug: it won't flip in dark mode.
 | Group | Tokens | Use for |
 | --- | --- | --- |
 | Surface | `--surface-page` `--surface-card` `--surface-sunken` `--surface-input` `--surface-hover` `--surface-selected` | page bg, cards/dialogs/panels, subtle fills/hover, form inputs, selected/active row |
+| Sidebar groups | `--nav-group-surface` `--nav-group-head-surface` | an expanded menu group's contained block, and the group header's own shape inside it (each a step darker than the sidebar) |
 | Text | `--text-primary` `--text-secondary` `--text-muted` `--text-on-brand` | body, secondary, captions, text on a brand fill |
 | Border | `--border` `--border-strong` | default dividers, input/emphasis borders |
 | Brand | `--brand` `--brand-hover` `--brand-text` `--brand-disabled` | primary button fill, hover, brand text/links, disabled brand button |
