@@ -1,0 +1,62 @@
+<div class="pt-page">
+  <header class="pt-header">
+    <h1>Member Portal</h1>
+    <button type="button" class="btn btn--secondary btn--sm" (click)="signOut()">Sign out</button>
+  </header>
+
+  <main class="pt-main">
+
+    @if (errorMessage()) {
+      <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
+    }
+
+    @if (loading()) {
+      <p class="pt-muted">Loading your memberships…</p>
+    } @else if (cards().length === 0) {
+      <div class="pt-card pt-card--empty">
+        <p>No membership is linked to this account yet.</p>
+        <p class="pt-muted">If you received a registration email, open its link again, or contact your club.</p>
+      </div>
+    } @else {
+      <section aria-label="Your memberships" class="pt-members">
+        @for (c of cards(); track c.memberId) {
+          <div class="pt-card pt-member">
+            <div class="pt-member__head">
+              <div>
+                <div class="pt-member__name">{{ c.memberName }}</div>
+                @if (c.companyName) { <div class="pt-member__club">{{ c.companyName }}</div> }
+              </div>
+              @if (c.statusName) {
+                <span class="pt-status">
+                  <span class="pt-status__dot" [style.background]="c.statusColor || 'var(--text-muted)'" aria-hidden="true"></span>
+                  {{ c.statusName }}
+                </span>
+              }
+            </div>
+            <dl class="pt-member__meta">
+              <div class="meta"><dt>Member no.</dt><dd>{{ c.memberNo }}</dd></div>
+              @if (c.membershipNo && c.membershipNo !== c.memberNo) { <div class="meta"><dt>Membership</dt><dd>{{ c.membershipNo }}</dd></div> }
+              @if (c.membershipTypeName) { <div class="meta"><dt>Type</dt><dd>{{ c.membershipTypeName }}</dd></div> }
+              <div class="meta"><dt>Role</dt><dd>{{ kindLabel(c.memberKind) }}</dd></div>
+              @if (c.joinDate) { <div class="meta"><dt>Joined</dt><dd>{{ c.joinDate }}</dd></div> }
+            </dl>
+          </div>
+        }
+      </section>
+    }
+
+    <section aria-label="Portal services" class="pt-tiles">
+      @for (t of tiles; track t.title) {
+        <div class="pt-card pt-tile">
+          <span class="pt-tile__icon" aria-hidden="true">{{ t.icon }}</span>
+          <div class="pt-tile__body">
+            <div class="pt-tile__title">{{ t.title }}</div>
+            <div class="pt-muted">{{ t.blurb }}</div>
+          </div>
+          <span class="pt-soon">Coming soon</span>
+        </div>
+      }
+    </section>
+
+  </main>
+</div>

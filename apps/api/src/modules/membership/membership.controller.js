@@ -25,6 +25,9 @@ const {
     annotateCanModify,
 } = require('../../platform/serviceContext');
 const { enqueueEmail } = require('../notification/emailOutbox');
+const { signRegistrationToken } = require('./memberPortal.controller');
+
+const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:4200';
 const numberingGateway = require('../../platform/numberingGateway');
 const {
     MEMBER_KINDS,
@@ -650,8 +653,9 @@ exports.createMembership = async (req, res) => {
 
             // The individual member is born with the membership; the member number
             // IS the membership number, the person's status mirrors the contract's.
+            let individualMember = null;
             if (membershipClass === 'individual') {
-                await Member.create({
+                individualMember = await Member.create({
                     companyId,
                     membershipId: ms.id,
                     memberNo: membershipNo,
@@ -677,6 +681,12 @@ exports.createMembership = async (req, res) => {
                 const to = membershipClass === 'individual' ? profile.email : v.email;
                 if (to) {
                     try {
+                        // Portal self-registration link - only when the recipient IS
+                        // the member (individual class; a corporate contact is not a
+                        // member). Signed stateless token, so nothing extra is stored.
+                        const portalRegisterLink = individualMember
+                            ? `${FRONTEND_BASE_URL}/portal/register?token=${signRegistrationToken(individualMember)}`
+                            : null;
                         await enqueueEmail({
                             templateKey: 'membership.welcome',
                             accountId: company ? company.accountId : null,
@@ -691,6 +701,7 @@ exports.createMembership = async (req, res) => {
                                 membershipTypeName: type.category,
                                 companyName: company ? company.name : null,
                                 joinDate: v.joinDate,
+                                portalRegisterLink,
                             },
                         }, t);
                     } catch (err) {

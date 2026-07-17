@@ -240,6 +240,22 @@ Variables passed: `memberName` (person name, or contact person / company name fo
 The enqueue is wrapped in try/catch (a template problem logs and never blocks the creation; safe because `renderEmail`'s reads run off-transaction).
 Because the payload carries `companyId`, the mail goes out via the club's own SMTP when configured.
 
+### Member Portal self-registration (2026-07-17)
+
+The welcome email additionally carries a **portal registration link** - only for the individual class, where the recipient IS the member (a corporate contact is not a member; nominees get a per-member "Invite to portal" action later).
+The link is `{FRONTEND_BASE_URL}/portal/register?token=...` with a **stateless signed RS256 token** (`memberPortal.controller.signRegistrationToken`: purpose `member-portal-register`, memberId + companyId, 30-day expiry - same pattern as workspace activation, so nothing extra is stored; a used link is inert because `Member.userId` is set).
+
+Endpoints (`memberPortal.routes.js`, mounted at `/api/membership/portal` BEFORE the staff auth wall - a portal member has no workspace, so `requireModule`/`requireMenuAction` must not gate these):
+- `GET /register/context?token=` (public) - who/where greeting data for the register page ({memberName, memberNo, email, companyName, alreadyRegistered}).
+- `POST /register` (public; body {token, password}) - provisions the platform User via the **`identityGateway` seam** (`platform/identityGateway.js`; Identity owns the User table, so membership never touches the model): no user with the member's email -> create verified local user + auto-login token; user already exists -> link `Member.userId` WITHOUT touching that account's password (`linked: true`; same trust basis as password reset - control of the mailbox) and route them to normal login.
+- `GET /me` (verifyToken only) - every Member row linked to the caller's userId (one person can hold memberships at several clubs), shaped as portal cards (member no/name/kind, club name via `getCompanyProfile` seam, membership no, type, status name+colour, join date).
+
+Web (both routes OUTSIDE the dashboard shell, lazy):
+- `/portal/register` - public set-password page (greeting card, password + confirm, already-registered and linked-to-existing-account states).
+- `/portal` (authGuard) - the minimal Member Portal home: membership card(s) + coming-soon tiles (golf/facility/dining booking, profile, requests) that future member-facing endpoints will light up.
+
+Gotcha: the `membership.welcome` platform template row was already seeded before the link block existed; seeding never overwrites, so shipping this required a one-off `resetPlatformDefault('membership.welcome')` (any subscriber override created before it would need its own reset).
+
 API (behind `verifyToken` + `requireModule('Membership Management')`):
 - `/api/membership/memberships` (+ `requireMenuAction('/membership/memberships')`): `GET /meta` (vocabularies + numbering mode), `GET /options` (type/status/fee pickers in one call - avoids cross-menu RBAC on the other masters' endpoints), `GET /?q=&class=&status=&limit=&offset=` (SERVER-SIDE search + pagination, 2026-07-17 - slim list rows + aggregate total/class counts, `q` matches membership no / corporate name / individual member name via an EXISTS probe; default page 50, max 200; RBAC row flags computed per page), `POST /` (create; individual requires a nested `member` profile), `GET /:id` (detail + member tree - the Edit/Members dialogs fetch this since the list rows are slim), `PUT /:id` (contract edit; number/class/type immutable), `GET /:id/members/suggest-no`, `POST /:id/members` (nominee, seat-capped), `POST /:id/members/:memberId/dependents`, `PUT /:id/members/:memberId`.
 - `/api/membership/members` (+ `requireMenuAction('/membership/members')`): `GET /meta`, `GET /?q=&kind=&status=&offset=` - flat read-only server-side search across every person (member no / name / IC / email), paged 200 at a time ("Load more").

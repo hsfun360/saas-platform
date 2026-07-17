@@ -165,10 +165,12 @@ module.exports = [
             { name: 'companyName', description: 'The club/company the membership belongs to.' },
             { name: 'joinDate', description: 'The join date (YYYY-MM-DD).' },
             { name: 'email', description: "The recipient's email address." },
+            { name: 'portalRegisterLink', description: 'The Member Portal self-registration link (individual members only; empty otherwise).' },
         ],
         sample: {
             memberName: 'Jane Tan', membershipNo: 'MS-000123', membershipTypeName: 'Golf Individual',
             companyName: 'Acme Golf & Country Club', joinDate: '2026-07-17', email: 'jane@example.com',
+            portalRegisterLink: 'https://app.example.com/portal/register?token=SAMPLE',
         },
         fromName: null,
         subject: 'Welcome to {{companyName}} - membership {{membershipNo}}',
@@ -191,6 +193,17 @@ module.exports = [
                 </tr>
             </table>
             <p>Please quote your membership number in any correspondence with us.</p>
+            {{#if portalRegisterLink}}
+            <div style="text-align: center; margin-top: 24px; padding: 16px; background-color: #f8fafc; border-radius: 8px;">
+                <h3 style="color: #1e293b; margin: 0 0 8px;">Your Member Portal</h3>
+                <p style="margin: 0 0 12px;">Register for the Member Portal to book golf, facilities and dining, keep your profile up to date, and raise requests with us online.</p>
+                ${button('{{portalRegisterLink}}', 'Register for the Member Portal')}
+                <p style="margin: 12px 0 0; font-size: 12px; color: #777;">
+                    If the button doesn't work, copy and paste this link into your browser:<br>
+                    {{portalRegisterLink}}
+                </p>
+            </div>
+            {{/if}}
             <p style="margin-top: 20px; font-size: 12px; color: #777;">
                 If you believe you received this email in error, please contact {{companyName}}.
             </p>

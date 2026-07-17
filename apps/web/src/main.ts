@@ -43,6 +43,11 @@ const routes: Routes = [
   { path: 'reset-password', loadComponent: () => import('./app/reset-password/reset-password').then((m) => m.ResetPasswordComponent) },
   { path: 'register-lead', loadComponent: () => import('./app/register-lead/register-lead').then((m) => m.RegisterLeadComponent) },
   { path: 'setup-password', loadComponent: () => import('./app/setup-password/setup-password').then((m) => m.SetupPasswordComponent) },
+  // Member Portal - the member's own surface, deliberately OUTSIDE the staff
+  // shell (no sidebar/menus/RBAC). Registration is public (signed email-link
+  // token); the portal home needs only a valid session.
+  { path: 'portal/register', loadComponent: () => import('./app/portal/portal-register').then((m) => m.PortalRegisterComponent) },
+  { path: 'portal', loadComponent: () => import('./app/portal/portal-home').then((m) => m.PortalHomeComponent), canActivate: [authGuard] },
   {
     // Shell layout — wraps the whole authenticated tree (top bar + sidebar +
     // <router-outlet>). Children are reached at the root (e.g. /golf, /admin/roles).

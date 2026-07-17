@@ -340,7 +340,14 @@ async function getActiveAccountId(req) {
 async function getActiveCompany(req) {
     const { companyId } = getUserContext(req);
     if (!companyId) return null;
+    return getCompanyProfile(companyId);
+}
 
+// Same value object looked up by id - for flows that carry a companyId but no
+// caller JWT (e.g. the member-portal registration link, whose signed token names
+// the company). WHEN SPLIT: same Control-Plane GET as getActiveCompany.
+async function getCompanyProfile(companyId) {
+    if (!companyId) return null;
     const Company = require('../modules/saas/company.model');
     const company = await Company.findByPk(companyId, { attributes: ['id', 'accountId', 'name'] });
     if (!company) return null;
@@ -437,6 +444,7 @@ module.exports = {
     getUserContext,
     getActiveAccountId,
     getActiveCompany,
+    getCompanyProfile,
     requireModule,
     requireMenuAction,
     getAccessContext,

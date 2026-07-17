@@ -16,9 +16,17 @@ const transactionTypesRoutes = require('./transactionTypes.routes');
 const membershipTaxRoutes = require('./membershipTax.routes');
 const membershipsRoutes = require('./memberships.routes');
 const membersRoutes = require('./members.routes');
+const memberPortalRoutes = require('./memberPortal.routes');
 
 // Liveness probe — unauthenticated, so the gateway/monitoring can check the seam.
 router.get('/health', (req, res) => res.json({ service: 'membership', status: 'ok' }));
+
+// --- Member Portal (the member's own surface, NOT staff) ---
+// Mounted before the staff auth wall: registration is public (the signed
+// registration token is the credential) and /me does its own verifyToken.
+// A portal member holds no workspace, so the module/menu gates below would
+// wrongly reject them.
+router.use('/portal', memberPortalRoutes);
 
 // Everything below requires a valid token and an entitled, active workspace.
 router.use(verifyToken);

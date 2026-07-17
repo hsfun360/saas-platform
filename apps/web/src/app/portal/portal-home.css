@@ -1,0 +1,147 @@
+/* Member Portal home - a standalone member-facing page (no dashboard shell).
+   Mobile-first, all colours from the theme tokens. */
+
+.pt-page {
+  min-height: 100vh;
+  background-color: var(--surface-page);
+}
+
+.pt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background-color: var(--surface-card);
+  border-bottom: 1px solid var(--border);
+}
+
+.pt-header h1 {
+  margin: 0;
+  font-size: var(--font-h2);
+  color: var(--text-primary);
+}
+
+.pt-main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md) var(--space-3xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.pt-card {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: var(--space-md);
+}
+
+.pt-muted {
+  color: var(--text-muted);
+  font-size: var(--font-body-2);
+}
+
+.pt-card--empty { text-align: center; padding: var(--space-xl); }
+
+/* --- Membership cards --- */
+.pt-members { display: flex; flex-direction: column; gap: var(--space-md); }
+
+.pt-member__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.pt-member__name {
+  font-size: var(--font-h3);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.pt-member__club { color: var(--text-secondary); font-size: var(--font-body-2); }
+
+.pt-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  background-color: var(--surface-sunken);
+  border-radius: 12px;
+  padding: var(--space-xs) var(--space-sm);
+  white-space: nowrap;
+}
+
+.pt-status__dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+.pt-member__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-lg);
+  margin: var(--space-md) 0 0;
+}
+
+.pt-member__meta .meta { display: flex; flex-direction: column; gap: 2px; }
+
+.pt-member__meta dt {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.pt-member__meta dd { margin: 0; font-size: var(--font-body-2); color: var(--text-primary); }
+
+/* --- Service tiles --- */
+.pt-tiles {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-md);
+}
+
+@media (min-width: 768px) {
+  .pt-tiles { grid-template-columns: 1fr 1fr; }
+}
+
+.pt-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.pt-tile__icon { font-size: 28px; }
+
+.pt-tile__body { flex: 1; min-width: 0; }
+
+.pt-tile__title { font-weight: var(--weight-semibold); color: var(--text-primary); }
+
+.pt-soon {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  background-color: var(--surface-sunken);
+  border-radius: 12px;
+  padding: var(--space-xs) var(--space-sm);
+  white-space: nowrap;
+}
+
+/* --- Alerts (shared look with the auth screens) --- */
+.alert {
+  padding: var(--space-md);
+  border-radius: 8px;
+  font-size: var(--font-body-2);
+}
+
+.alert-danger {
+  background-color: var(--danger-surface);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
+}
