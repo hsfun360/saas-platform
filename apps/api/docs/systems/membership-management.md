@@ -235,6 +235,17 @@ The domain model (user-defined) splits the CONTRACT from the PEOPLE:
 
 Status sync (individual class): changing the membership status updates the individual member's `memberStatusId` and vice versa, in one transaction.
 
+### Typed address book (2026-07-17 normalization)
+
+`membership."Address"` replaced the four inline address blocks (member resident + mailing, membership company + mailing) and the `mailingSource` columns - the address shape was stamped out 4x across the two tables, the one genuine value-object duplication (a shared Profile table was considered and REJECTED: Membership describes the organization, Member the person; the column overlap was schema-level only, and contacts stay one-value-per-channel columns).
+
+- Columns: id, companyId, `membershipId` XOR `memberId` (real intra-service FKs, cascade with the owner; model-level exactly-one validation), `addressType` (`residential` | `mailing` | `company` | `other` - user vocabulary: "company", not "business"), address (required, 255), `city` (NEW - the old blocks had none), postcode, state, countryCode (alpha2 value ref), RBAC stamps.
+- Unique per (owner, addressType) via two unique indexes (`IDX_Address_Member_Type`, `IDX_Address_Membership_Type`; Postgres NULLS-distinct keeps them from colliding across owner kinds).
+- **Mail resolution rule** (replaces mailingSource, no flag, no duplicated copy): mail goes to the `mailing` row when one exists, else falls back to `residential` (member) / `company` (contract). "Same as home" = simply no mailing row.
+- API: create/update endpoints accept an `addresses` array (contract book on the corporate membership body; person book on the member/profile body), validated by `normalizeAddresses` (one per type) and persisted wholesale by `replaceAddresses` inside the business tx; DTOs return `addresses` on the membership and each member (batch-loaded by `loadAddressBooks`).
+- Web: one `#addressBook` ng-template (type select + address/city/postcode/state/country + add/remove rows) bound to an `addresses` FormArray inside each form, replacing the repeated blocks in both dialogs.
+- Migration `npm run migrate:addresses` (scripts/migrate-addresses.js): creates the table, backfills the old blocks (mailing rows only where `mailingSource='other'`), drops the 18 replaced columns. Run 2026-07-17 before deploying.
+
 ### Welcome email on creation (2026-07-17)
 
 Creating a membership queues a **welcome email** through the notification outbox (`enqueueEmail`, template `membership.welcome`, tenant-overridable) INSIDE the creation transaction - but only when no approval is needed (`approvalStatus === 'approved'`, which is always true today; the future approval workflow creates `pending` memberships, which skip this branch, so the approval transition MUST send it instead).
