@@ -67,6 +67,7 @@ const UnitCourseTeeBoxDistance = require('../modules/golf/unitCourseTeeBoxDistan
 const Course = require('../modules/golf/course.model');
 const CourseTeeTimeSet = require('../modules/golf/courseTeeTimeSet.model');
 const CourseTeeTimeSlot = require('../modules/golf/courseTeeTimeSlot.model');
+const GolfTransactionType = require('../modules/golf/transactionType.model'); // billing-item master (companyId value ref; tax by code via seam; no associations)
 // Shared financial reference (Tax). Header/detail pairs are intra-service, so they
 // DO associate; accountId/countryCode/companyId stay plain UUID/value references.
 // (The template seed layer was removed in the tax refactor - no template models.)
@@ -225,6 +226,7 @@ module.exports = {
     Course,
     CourseTeeTimeSet,
     CourseTeeTimeSlot,
+    GolfTransactionType,
     TaxScheme,
     TaxRate,
     CompanyTaxScheme,

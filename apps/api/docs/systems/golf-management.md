@@ -20,6 +20,8 @@ Hole numbering follows the type (OUT -> 1-9, IN -> 10-18).
 - `golf.UnitCourseTeeBox` + `golf.UnitCourseTeeBoxDistance` - tee boxes of a unit course (colour code, number, description, measurement unit meter/yard) with PER-HOLE distances (the scorecard's yardage rows; OUT/IN totals are computed, never stored). Cascade with the unit course. Difficulty ratings (course/slope) deliberately live at the 18-hole Course level (2.2.4), not here. **Built.**
 - `golf.Course` - the 18-hole course (spec 2.2.4): code/display sequence/description, first nine (OUT|COMPOSITE), second nine (IN|COMPOSITE, must differ from first), optional alternate nine and night nine (must be a floodlit unit course), cross over time, course photo (GCS URL). Column names match the screen labels (user's vocabulary); the legacy zone column is dropped. **Built.**
 - `golf.CourseTeeTimeSet` + `golf.CourseTeeTimeSlot` - per-COURSE tee-off/flight time setups (spec 2.2.5/2.2.6 collapsed: flight time is a property of the course - walking courses take longer intervals, unlit courses a shorter day). Versioned by day scope (all/weekday/weekend - public holidays count as weekend by business rule; classification from Company Weekend Days + Public Holidays, no Date Type master) + effective date (seasonal daylight). Slots generated from the header, individually adjustable, front-desk-only flag per slot. **Built.**
+- `golf.TransactionType` - the golf billing-item catalog, mirroring membership's Transaction Type: code (unique per company) + charge type (fixed vocabulary: `green-fee` / `caddy-fee` / `buggy-fee` / `no-show` / `miscellaneous`) + description + THE tax scheme by code via the tax seam (single source - consuming rows such as green-fee matrices and no-show penalties inherit it, never store their own).
+  Sequelize model name is `GolfTransactionType` (membership already registered `TransactionType` in the global model registry); the table is still `golf."TransactionType"`. **Built.**
 - Planned next (per spec): tee-sheet generation (2.2.10/2.2.11), closure plans, handicap control, min players, penalties, player types.
 - All tables live in the `golf` Postgres schema; references `companyId` and `memberId` by **UUID only**.
 
@@ -32,6 +34,7 @@ Hole numbering follows the type (OUT -> 1-9, IN -> 10-18).
 - `GET /courses` · `POST /courses` · `PATCH /courses/:id` · `POST /courses/photo` - Course Setup; nine references validated against the company's unit courses (type + floodlight rules), photo upload returns a GCS URL.
 - `GET /courses/meta` - day-scope vocabulary for tee-time sets.
 - `GET /courses/:id/tee-time-sets` · `POST /courses/:id/tee-time-sets` · `PATCH /courses/:id/tee-time-sets/:setId` · `PUT /courses/:id/tee-time-sets/:setId/slots` - per-course tee-time sets; unique (course, dayScope, effectiveDate); PUT replaces the slot list atomically.
+- `GET /transaction-types/meta` · `GET /transaction-types/tax-schemes` · `GET /transaction-types` · `POST /transaction-types` · `PUT /transaction-types/:id` · `PATCH /transaction-types/:id` - Transaction Type master file (behind `requireMenuAction('/golf/transaction-types')`); tax scheme must be a company-usable OUTPUT scheme; enable/disable via `isActive`, no hard delete.
 - (Seed already reserves a "Tee Time Setup" menu at `/golf/tee-times`; the Unit Course screen is `/golf/unit-courses`.)
 
 ## Depends on

@@ -126,6 +126,8 @@ const routes: Routes = [
       { path: 'golf/unit-courses', loadComponent: () => import('./app/golf-unit-courses/golf-unit-courses').then((m) => m.GolfUnitCoursesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },
       // Master File Setup → Courses (18-hole pairing of two unit courses).
       { path: 'golf/courses', loadComponent: () => import('./app/golf-courses/golf-courses').then((m) => m.GolfCoursesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },
+      // Master File Setup → Transaction Type (golf billing-item catalog).
+      { path: 'golf/transaction-types', loadComponent: () => import('./app/golf-transaction-types/golf-transaction-types').then((m) => m.GolfTransactionTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },
       { path: 'facility', loadComponent: () => import('./app/systems/system-dashboard').then((m) => m.SystemDashboardComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Facility Management', title: 'Facility Management', icon: 'meeting_room', blurb: 'Facilities, availability and reservations.' } },
 
       // Shown when systemAccessGuard denies a route (no guard on this one).

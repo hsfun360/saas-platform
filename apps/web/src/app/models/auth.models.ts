@@ -945,6 +945,12 @@ export interface GolfCourseMeta {
   dayScopes: MembershipStatusOption[];
 }
 
+// Golf - Transaction Type master record (per company). Same shape as the
+// membership one (the billing-item catalog with THE tax scheme), only the
+// charge-type vocabulary differs (green-fee / caddy-fee / buggy-fee / no-show
+// / miscellaneous).
+export type GolfTransactionType = MembershipTransactionType;
+
 // ISO 4217 currency reference row.
 export interface Currency {
   code: string;          // ISO 4217 alpha-3, e.g. 'MYR'
