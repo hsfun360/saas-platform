@@ -35,6 +35,20 @@ function compile(source) {
     return fn;
 }
 
+// Subjects are a plain-text mail header, not HTML: escaping would show literal
+// "&amp;" in the inbox for values like "Golf & Country Club". Separate cache so
+// the same source string can safely exist in both modes.
+const subjectCompileCache = new Map();
+function compileSubject(source) {
+    const str = source || '';
+    let fn = subjectCompileCache.get(str);
+    if (!fn) {
+        fn = Handlebars.compile(str, { noEscape: true });
+        subjectCompileCache.set(str, fn);
+    }
+    return fn;
+}
+
 // Context every template can rely on regardless of the producer's data.
 function globalContext() {
     return {
@@ -74,7 +88,7 @@ async function renderEmail(templateKey, accountId, data, companyId = null) {
     const brand = buildBrand({ brandColor: tpl.brandColor, includeLogo: tpl.includeLogo, companyLogoUrl });
     const ctx = { ...globalContext(), ...(data || {}), ...brand };
     return {
-        subject: compile(tpl.subject)(ctx).trim(),
+        subject: compileSubject(tpl.subject)(ctx).trim(),
         html: applyBrandToHtml(compile(tpl.bodyHtml)(ctx), brand),
         fromName: tpl.fromName || catalogByKey.get(templateKey)?.fromName || null,
     };
@@ -88,7 +102,7 @@ function renderPreview(subjectSource, bodySource, data, brand = null) {
     const b = brand || buildBrand();
     const ctx = { ...globalContext(), ...(data || {}), ...b };
     return {
-        subject: compile(subjectSource)(ctx).trim(),
+        subject: compileSubject(subjectSource)(ctx).trim(),
         html: applyBrandToHtml(compile(bodySource)(ctx), b),
     };
 }
