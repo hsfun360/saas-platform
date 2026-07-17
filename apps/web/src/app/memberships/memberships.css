@@ -209,3 +209,49 @@
     justify-self: start;
   }
 }
+
+/* --- Member photo (profile form uploader + list avatars) --- */
+.ms-photo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+.ms-photo__img,
+.ms-photo__placeholder {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.ms-photo__img {
+  object-fit: cover;
+}
+.ms-photo__placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--surface-sunken);
+  color: var(--text-muted);
+}
+.ms-photo__placeholder .material-icons {
+  font-size: 36px;
+}
+.ms-photo__file {
+  display: none;
+}
+.ms-photo__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+.ms-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}

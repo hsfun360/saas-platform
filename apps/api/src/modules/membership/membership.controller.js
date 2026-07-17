@@ -26,8 +26,14 @@ const {
 } = require('../../platform/serviceContext');
 const { enqueueEmail } = require('../notification/emailOutbox');
 const { signRegistrationToken } = require('./memberPortal.controller');
+const { Storage } = require('@google-cloud/storage');
 
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:4200';
+
+// Same GCS bucket as the company/platform logo and golf-course photo uploads
+// (default credentials on Cloud Run); the stored value is the public URL.
+const storage = new Storage();
+const bucket = storage.bucket('membership-app-avatars-123');
 const numberingGateway = require('../../platform/numberingGateway');
 const {
     MEMBER_KINDS,
@@ -127,6 +133,7 @@ function toMemberDto(m, extra = {}) {
         joinDate: m.joinDate,
         expiryDate: m.expiryDate,
         creditLimit: m.creditLimit == null ? null : Number(m.creditLimit),
+        photoUrl: m.photoUrl,
         remarks: m.remarks,
         ...extra,
     };
@@ -299,8 +306,16 @@ function normalizeMemberProfile(body) {
         return { error: 'Credit limit must be a non-negative number.' };
     }
 
+    // Photo: the public URL returned by POST /memberships/photo. http(s) only,
+    // so a stored value can never inject markup.
+    const photoUrl = strOrNull(body.photoUrl);
+    if (photoUrl && (photoUrl.length > 500 || !/^https?:\/\//i.test(photoUrl))) {
+        return { error: 'Photo URL must be an http(s) URL.' };
+    }
+
     return {
         value: {
+            photoUrl,
             salutationCode: strOrNull(body.salutationCode),
             titleCode: strOrNull(body.titleCode),
             firstName: strOrNull(body.firstName),
@@ -338,6 +353,31 @@ function normalizeMemberProfile(body) {
         },
     };
 }
+
+// POST /api/membership/memberships/photo (multipart, field "photo")
+// Upload a member photo to GCS and return its public URL; the caller stores the
+// URL on the member via the normal create/update (same shape as the golf-course
+// photo and company/platform logo flows).
+exports.uploadMemberPhoto = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        if (!req.file) return res.status(400).json({ message: 'No image file uploaded.' });
+        if (!/^image\//.test(req.file.mimetype || '')) {
+            return res.status(400).json({ message: 'The file must be an image.' });
+        }
+
+        const fileExtension = req.file.originalname.split('.').pop();
+        const gcsFileName = `member-photo-${companyId}-${Date.now()}.${fileExtension}`;
+        const blob = bucket.file(gcsFileName);
+        await blob.save(req.file.buffer, { resumable: false, contentType: req.file.mimetype });
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+        res.status(200).json({ message: 'Photo uploaded.', url: publicUrl });
+    } catch (error) {
+        console.error('Member photo upload error:', error);
+        res.status(500).json({ message: error.message || 'Failed to upload photo.' });
+    }
+};
 
 // A status the caller references must belong to their company.
 async function resolveStatus(companyId, statusId) {

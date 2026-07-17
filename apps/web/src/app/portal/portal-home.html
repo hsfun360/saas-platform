@@ -22,9 +22,14 @@
         @for (c of cards(); track c.memberId) {
           <div class="pt-card pt-member">
             <div class="pt-member__head">
-              <div>
-                <div class="pt-member__name">{{ c.memberName }}</div>
-                @if (c.companyName) { <div class="pt-member__club">{{ c.companyName }}</div> }
+              <div class="pt-member__id">
+                @if (c.photoUrl) {
+                  <img class="pt-member__photo" [src]="c.photoUrl" alt="" />
+                }
+                <div>
+                  <div class="pt-member__name">{{ c.memberName }}</div>
+                  @if (c.companyName) { <div class="pt-member__club">{{ c.companyName }}</div> }
+                </div>
               </div>
               @if (c.statusName) {
                 <span class="pt-status">

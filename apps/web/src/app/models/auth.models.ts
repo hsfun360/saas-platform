@@ -297,7 +297,15 @@ export interface AccountEmailTemplateDetail {
   description?: string | null;
   variables: EmailTemplateVariable[];
   sample: Record<string, unknown>;
+  // Which scope is being edited: null = subscriber-wide ("All companies"),
+  // a companyId = that one company's own version.
+  scopeCompanyId?: string | null;
+  // The account's companies, for the scope picker.
+  companies?: { id: string; name: string }[];
+  // True when THIS scope has its own row; otherwise the content shown is inherited.
   hasOverride: boolean;
+  // Where the shown content came from when this scope has no row of its own.
+  inheritedFrom?: 'account' | 'platform' | null;
   subject: string;
   bodyHtml: string;
   fromName?: string | null;
@@ -641,6 +649,7 @@ export interface Member {
   principalMemberId?: string | null;   // dependent -> its individual member / nominee
   memberStatusId: string;
   statusDate?: string | null;
+  photoUrl?: string | null;
   salutationCode?: string | null;
   titleCode?: string | null;
   firstName?: string | null;
@@ -800,6 +809,7 @@ export interface MemberSearchRow {
   salutationCode?: string | null;
   firstName?: string | null;
   lastName: string;
+  photoUrl?: string | null;
   localName?: string | null;
   gender?: string | null;
   birthDate?: string | null;

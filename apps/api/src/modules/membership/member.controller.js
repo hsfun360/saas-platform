@@ -83,6 +83,7 @@ exports.listMembers = async (req, res) => {
                 salutationCode: m.salutationCode,
                 firstName: m.firstName,
                 lastName: m.lastName,
+                photoUrl: m.photoUrl,
                 localName: m.localName,
                 gender: m.gender,
                 birthDate: m.birthDate,

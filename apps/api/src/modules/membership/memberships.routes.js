@@ -5,11 +5,16 @@
 // the contract; the flat read-only search lives in members.routes.js.
 
 const express = require('express');
+const multer = require('multer');
 const router = express.Router();
 const controller = require('./membership.controller');
 
+// Member photo uploads: in-memory (Cloud Run has no durable disk), 2 MB cap.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
+
 router.get('/meta', controller.getMeta);
 router.get('/options', controller.getOptions);
+router.post('/photo', upload.single('photo'), controller.uploadMemberPhoto);
 router.get('/', controller.listMemberships);
 router.post('/', controller.createMembership);
 router.get('/:id', controller.getMembership);

@@ -129,6 +129,7 @@ export class MembershipsComponent implements OnInit {
   // --- Person profile form (individual member on create; nominees, dependents,
   // member edits). One instance - the dialogs never open simultaneously. ---
   readonly memberForm = this.fb.nonNullable.group({
+    photoUrl: [''],
     salutationCode: [''],
     titleCode: [''],
     firstName: ['', [Validators.maxLength(255)]],
@@ -561,6 +562,7 @@ export class MembershipsComponent implements OnInit {
       memberStatusId: m.memberStatusId,
     });
     this.memberForm.patchValue({
+      photoUrl: m.photoUrl || '',
       salutationCode: m.salutationCode || '',
       titleCode: m.titleCode || '',
       firstName: m.firstName || '',
@@ -600,6 +602,40 @@ export class MembershipsComponent implements OnInit {
     this.memberMetaForm.markAsPristine();
   }
 
+  // --- Member photo (upload immediately, store the URL in the form) ---
+  readonly photoUploading = signal(false);
+
+  onMemberPhotoSelected(input: HTMLInputElement): void {
+    const file = input.files && input.files[0];
+    input.value = ''; // so picking the same file again re-triggers change
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      this.errorMessage.set('The photo must be an image file.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      this.errorMessage.set('The photo must be 2 MB or smaller.');
+      return;
+    }
+    this.photoUploading.set(true);
+    this.service.uploadMemberPhoto(file).subscribe({
+      next: (res) => {
+        this.photoUploading.set(false);
+        this.memberForm.patchValue({ photoUrl: res.url });
+        this.memberForm.markAsDirty();
+      },
+      error: (err) => {
+        this.photoUploading.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to upload the photo.');
+      },
+    });
+  }
+
+  removeMemberPhoto(): void {
+    this.memberForm.patchValue({ photoUrl: '' });
+    this.memberForm.markAsDirty();
+  }
+
   private startMemberDialog(mode: 'nominee' | 'dependent' | 'edit', member: Member | null, principal: Member | null): void {
     this.clearMessages();
     this.memberDialogMode.set(mode);
@@ -610,7 +646,7 @@ export class MembershipsComponent implements OnInit {
 
   private resetMemberForm(): void {
     this.memberForm.reset({
-      salutationCode: '', titleCode: '', firstName: '', middleName: '', lastName: '',
+      photoUrl: '', salutationCode: '', titleCode: '', firstName: '', middleName: '', lastName: '',
       nameOnCard: '', localName: '', gender: '', birthDate: '', identityNo: '',
       nationalityCode: '', raceCode: '', maritalStatus: '', maritalDate: '',
       phone: '', mobile: '', fax: '', email: '', employerName: '', designation: '', industryTypeCode: '',

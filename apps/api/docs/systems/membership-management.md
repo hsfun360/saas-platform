@@ -228,7 +228,10 @@ The domain model (user-defined) splits the CONTRACT from the PEOPLE:
   Owns the person profile: salutation/title/nationality/race/industry codes (subscriber reference-data value refs), names (first/middle/last, name-on-card, `localName` native script), gender/birth/identity no/marital (+date), contacts, employment, resident + mailing addresses, `joinDate`, per-person `memberStatusId` (+ `statusDate` - the Phase 3 cascade rules depend on each person carrying their own status), nominee `creditLimit`, and `userId` (nullable portal identity link, no FK).
   Unique `(companyId, memberNo)` across all kinds; nominee/dependent numbers default to `<parentNo>-A/B/C...` (server-suggested, editable).
   Intra-service REAL FKs: `Member.membershipId` -> Membership (no cascade delete), `Member.principalMemberId` self-FK.
-  Deliberately NOT stored: raw credit-card numbers (PCI - a payment token comes with payments work); photo/signature wait for Cloud Storage (`photoUrl`/`signatureUrl` later).
+  Deliberately NOT stored: raw credit-card numbers (PCI - a payment token comes with payments work); signature waits for its own flow (`signatureUrl` later).
+  **Member photo (2026-07-17):** `photoUrl` (500) holds the public URL of an image in the shared GCS bucket (`membership-app-avatars-123`, same as company/platform logos and golf-course photos).
+  `POST /api/membership/memberships/photo` (multipart field `photo`, multer in-memory, 2 MB, images only) uploads and returns the URL; the member create/update then stores it via `normalizeMemberProfile` (http(s)-validated, so a stored value can never inject markup).
+  Uploader lives in the shared person-profile form (all member kinds, create + edit); avatars render on the Members flat listing, the member tree dialog, and the portal home card (`/portal/me` ships `photoUrl`).
 
 Status sync (individual class): changing the membership status updates the individual member's `memberStatusId` and vice versa, in one transaction.
 

@@ -72,6 +72,34 @@
   font-size: var(--font-caption);
 }
 
+/* Scope picker: which company's version is being edited (tenant screen only). */
+.et-scope {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+}
+.et-scope > label {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.et-scope select {
+  padding: var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  min-height: 44px;
+  max-width: 100%;
+}
+
 /* Brand settings card */
 .et-brand {
   border: 1px solid var(--border);

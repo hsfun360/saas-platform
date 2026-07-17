@@ -153,6 +153,7 @@ exports.getMe = async (req, res) => {
                 memberNo: m.memberNo,
                 memberName: memberDisplayName(m),
                 memberKind: m.memberKind,
+                photoUrl: m.photoUrl,
                 companyName: company ? company.name : null,
                 membershipNo: membership ? membership.membershipNo : null,
                 membershipTypeName: type ? type.category : null,

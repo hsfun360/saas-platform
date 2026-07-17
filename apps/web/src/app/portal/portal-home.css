@@ -55,6 +55,22 @@
   gap: var(--space-sm);
 }
 
+.pt-member__id {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.pt-member__photo {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
 .pt-member__name {
   font-size: var(--font-h3);
   font-weight: var(--weight-semibold);

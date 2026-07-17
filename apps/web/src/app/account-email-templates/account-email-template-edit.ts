@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnInit, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -39,6 +39,17 @@ export class AccountEmailTemplateEditComponent implements OnInit {
   readonly description = signal<string | null>(null);
   readonly variables = signal<EmailTemplateVariable[]>([]);
   readonly hasOverride = signal(false);
+
+  // --- Scope (which company's version is being edited) ---
+  // null = the subscriber-wide row ("All companies"); a companyId = that club's own
+  // version, which wins over the shared one at send time.
+  readonly scopeCompanyId = signal<string | null>(null);
+  readonly companies = signal<{ id: string; name: string }[]>([]);
+  readonly inheritedFrom = signal<'account' | 'platform' | null>(null);
+  readonly scopeName = computed(() => {
+    const id = this.scopeCompanyId();
+    return id ? (this.companies().find((c) => c.id === id)?.name ?? 'this company') : 'All companies';
+  });
 
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
@@ -91,11 +102,17 @@ export class AccountEmailTemplateEditComponent implements OnInit {
     });
   }
 
+  // Switch which company's version is being edited; reloads that scope's content.
+  changeScope(companyId: string): void {
+    this.scopeCompanyId.set(companyId || null);
+    this.load(this.key());
+  }
+
   private load(key: string): void {
     this.key.set(key);
     this.loading.set(true);
     this.clearMessages();
-    this.service.get(key).subscribe({
+    this.service.get(key, this.scopeCompanyId()).subscribe({
       next: (t) => {
         this.apply(t);
         this.loading.set(false);
@@ -113,6 +130,9 @@ export class AccountEmailTemplateEditComponent implements OnInit {
     this.description.set(t.description ?? null);
     this.variables.set(t.variables || []);
     this.hasOverride.set(t.hasOverride);
+    this.companies.set(t.companies ?? []);
+    this.scopeCompanyId.set(t.scopeCompanyId ?? null);
+    this.inheritedFrom.set(t.inheritedFrom ?? null);
     this.companyLogoUrl.set(t.companyLogoUrl ?? null);
     this.form.setValue({
       subject: t.subject,
@@ -127,7 +147,7 @@ export class AccountEmailTemplateEditComponent implements OnInit {
   private refreshPreview(): void {
     const { subject, bodyHtml, brandColor, includeLogo } = this.form.getRawValue();
     if (!subject && !bodyHtml) return;
-    this.service.preview(this.key(), subject, bodyHtml, { brandColor, includeLogo }).subscribe({
+    this.service.preview(this.key(), subject, bodyHtml, { brandColor, includeLogo, companyId: this.scopeCompanyId() }).subscribe({
       next: (p) => {
         this.previewError.set('');
         this.previewSubject.set(p.subject);
@@ -148,6 +168,7 @@ export class AccountEmailTemplateEditComponent implements OnInit {
     this.saving.set(true);
     this.service
       .save(this.key(), {
+        companyId: this.scopeCompanyId(),
         subject: v.subject.trim(),
         bodyHtml: v.bodyHtml,
         fromName: v.fromName.trim() || null,
@@ -158,6 +179,7 @@ export class AccountEmailTemplateEditComponent implements OnInit {
       .subscribe({
         next: (res) => {
           this.hasOverride.set(true);
+          this.inheritedFrom.set(null); // this scope now has its own row
           this.successMessage.set(res.message || 'Saved.');
           this.saving.set(false);
         },
@@ -170,12 +192,17 @@ export class AccountEmailTemplateEditComponent implements OnInit {
 
   revert(): void {
     this.clearMessages();
-    if (!confirm('Revert to the platform default? Your customised version will be removed.')) return;
+    // Wording states the concrete outcome: a company scope falls back to the shared
+    // version, the shared scope falls back to the platform default.
+    const msg = this.scopeCompanyId()
+      ? `Remove ${this.scopeName()}'s own version? It will then use the shared "All companies" version.`
+      : 'Remove the shared version? All companies without their own version will use the platform default.';
+    if (!confirm(msg)) return;
     this.reverting.set(true);
-    this.service.revert(this.key()).subscribe({
+    this.service.revert(this.key(), this.scopeCompanyId()).subscribe({
       next: () => {
         this.reverting.set(false);
-        this.load(this.key()); // reload the platform default as the starting point
+        this.load(this.key()); // reload whatever this scope now inherits
       },
       error: (err) => {
         this.errorMessage.set(err.error?.message || 'Failed to revert.');
@@ -193,7 +220,7 @@ export class AccountEmailTemplateEditComponent implements OnInit {
     }
     const v = this.form.getRawValue();
     this.testing.set(true);
-    this.service.sendTest(this.key(), to, v.subject, v.bodyHtml, v.fromName.trim() || null, { brandColor: v.brandColor, includeLogo: v.includeLogo }).subscribe({
+    this.service.sendTest(this.key(), to, v.subject, v.bodyHtml, v.fromName.trim() || null, { brandColor: v.brandColor, includeLogo: v.includeLogo, companyId: this.scopeCompanyId() }).subscribe({
       next: (res) => {
         this.successMessage.set(res.message || `Test queued to ${to}.`);
         this.testing.set(false);

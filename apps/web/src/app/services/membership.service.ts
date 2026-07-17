@@ -52,6 +52,14 @@ export class MembershipService {
     return this.http.put<{ message: string; membership: Membership }>(`${this.base}/${id}`, payload);
   }
 
+  // Upload a member photo; the returned public URL is stored on the member via
+  // the normal create/update (same shape as the golf-course photo flow).
+  uploadMemberPhoto(file: File): Observable<{ message: string; url: string }> {
+    const form = new FormData();
+    form.append('photo', file);
+    return this.http.post<{ message: string; url: string }>(`${this.base}/photo`, form);
+  }
+
   suggestMemberNo(membershipId: string, parentNo: string): Observable<{ memberNo: string }> {
     const params = new HttpParams().set('parentNo', parentNo);
     return this.http.get<{ memberNo: string }>(`${this.base}/${membershipId}/members/suggest-no`, { params });

@@ -112,6 +112,10 @@ const Member = sequelize.define('Member', {
     expiryDate: { type: DataTypes.DATEONLY, allowNull: true },
     creditLimit: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
 
+    // Member photo - the public URL of an image in the shared GCS bucket
+    // (uploaded via POST /memberships/photo; the row stores only the URL).
+    photoUrl: { type: DataTypes.STRING(500), allowNull: true },
+
     // Future member-portal identity link (Identity seam, no FK).
     userId: { type: DataTypes.UUID, allowNull: true },
 

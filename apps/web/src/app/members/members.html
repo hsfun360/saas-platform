@@ -76,7 +76,12 @@
         <div class="data-card">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ m.memberNo }} — {{ memberName(m) }}</div>
+              <div class="data-card__title" style="display: flex; align-items: center; gap: var(--space-sm);">
+                @if (m.photoUrl) {
+                  <img class="ms-avatar" [src]="m.photoUrl" alt="" />
+                }
+                <span>{{ m.memberNo }} — {{ memberName(m) }}</span>
+              </div>
               <div class="data-card__subline">
                 <span class="ms-class-chip" [class.ms-class-chip--dep]="m.memberKind === 'dependent'">
                   {{ m.memberKind === 'dependent' ? dependentLabel(m.dependentType) : kindLabel(m.memberKind) }}

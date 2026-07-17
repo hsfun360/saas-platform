@@ -28,6 +28,7 @@ export interface PortalMembershipCard {
   memberNo: string;
   memberName: string;
   memberKind: string;
+  photoUrl?: string | null;
   companyName: string | null;
   membershipNo: string | null;
   membershipTypeName: string | null;

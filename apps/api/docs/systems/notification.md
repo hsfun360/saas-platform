@@ -21,11 +21,23 @@ handling, using the transactional **outbox** pattern.
 Email content is data-driven, not hardcoded. See the `email-templating-engine`
 memory for the full map. In short:
 
-- `EmailTemplate` (`modules/notification/emailTemplate.model.js`): platform
-  defaults (`accountId = null`) plus optional per-subscriber overrides. Handlebars
+- `EmailTemplate` (`modules/notification/emailTemplate.model.js`): Handlebars
   `subject` + `bodyHtml`, plus per-template brand settings `brandColor` +
   `includeLogo` (see **Email branding** below). Seeded on API boot from
-  `email-templates.catalog.js`.
+  `email-templates.catalog.js`. Rows resolve as a **three-level cascade**:
+
+  | accountId | companyId | Row |
+  | --- | --- | --- |
+  | NULL | NULL | the platform default for that key |
+  | set | NULL | the subscriber-wide override (all their companies) |
+  | set | set | that ONE company's override (**wins**) |
+
+  `resolveTemplate(templateKey, accountId, companyId)` walks company -> subscriber
+  -> platform, skipping rows that are disabled, and only honours overrides when the
+  platform default is `tenantOverridable`.
+  This is what lets two clubs on one subscription (e.g. KL G&CC and Tropicana G&CR)
+  each send the same email type with their **own content and their own brand colour**.
+  A subscriber that wants one version everywhere just keeps the subscriber-wide row.
 - `enqueueEmail({ templateKey, accountId, companyId, to, data }, tx)`
   (`emailOutbox.js`) renders the effective template **at enqueue time** and writes
   an `OutboxMessage` of type `EmailQueued` whose payload holds the finished

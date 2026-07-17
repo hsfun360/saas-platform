@@ -13,17 +13,35 @@
       @if (hasOverride()) {
         <span class="badge" style="background:var(--success-surface); color:var(--success-text);">Custom</span>
       } @else {
-        <span class="badge" style="background:var(--chip-off-surface); color:var(--text-secondary);">Platform default</span>
+        <span class="badge" style="background:var(--chip-off-surface); color:var(--text-secondary);">Inherited</span>
       }
     </div>
     @if (description()) {
       <p style="color: var(--text-muted); font-size: var(--font-body-2); margin: var(--space-xs) 0 var(--space-md);">{{ description() }}</p>
     }
 
+    <!-- ============ SCOPE: which company's version is being edited ============ -->
+    <div class="et-scope">
+      <label for="et-scope">Editing version for</label>
+      <select id="et-scope" [value]="scopeCompanyId() ?? ''" (change)="changeScope($any($event.target).value)">
+        <option value="">All companies (shared)</option>
+        @for (c of companies(); track c.id) {
+          <option [value]="c.id">{{ c.name }}</option>
+        }
+      </select>
+      <span class="et-hint">A company's own version overrides the shared one for that company only.</span>
+    </div>
+
     @if (!hasOverride()) {
       <div class="flash" style="background:var(--info-surface); border:1px solid var(--info-border); color:var(--info-text);" role="status">
         <span class="flash-icon">ℹ️</span>
-        <span>You're viewing the platform default. Edit and <strong>Save</strong> to create your organisation's own version.</span>
+        @if (inheritedFrom() === 'account') {
+          <span><strong>{{ scopeName() }}</strong> currently uses the shared <strong>All companies</strong> version. Edit and <strong>Save</strong> to give it its own version.</span>
+        } @else if (scopeCompanyId()) {
+          <span><strong>{{ scopeName() }}</strong> currently uses the platform default. Edit and <strong>Save</strong> to give it its own version.</span>
+        } @else {
+          <span>You're viewing the platform default. Edit and <strong>Save</strong> to create a shared version for all your companies.</span>
+        }
       </div>
     }
 
@@ -115,7 +133,13 @@
           </button>
           @if (hasOverride()) {
             <button type="button" class="btn btn--danger" (click)="revert()" [disabled]="reverting()">
-              {{ reverting() ? 'Reverting…' : 'Revert to platform default' }}
+              @if (reverting()) {
+                Removing…
+              } @else if (scopeCompanyId()) {
+                Remove {{ scopeName() }}'s version
+              } @else {
+                Remove shared version
+              }
             </button>
           }
         </div>

@@ -60,11 +60,24 @@ function globalContext() {
 
 // The effective template for a key: an active subscriber override (only when the
 // platform default permits overrides) wins; otherwise the platform default row.
-async function resolveTemplate(templateKey, accountId) {
+// Three-level cascade: the sending COMPANY's own row wins, then the subscriber-wide
+// row, then the platform default. Overrides only count when the platform default
+// permits them, and a disabled row at one level falls through to the next. This is
+// what lets two clubs on one subscription each have their own content + brand.
+async function resolveTemplate(templateKey, accountId, companyId = null) {
     const platform = await EmailTemplate.findOne({ where: { accountId: null, templateKey } });
     if (accountId && platform && platform.tenantOverridable) {
-        const override = await EmailTemplate.findOne({ where: { accountId, templateKey, isActive: true } });
-        if (override) return override;
+        if (companyId) {
+            const forCompany = await EmailTemplate.findOne({
+                where: { accountId, companyId, templateKey, isActive: true },
+            });
+            if (forCompany) return forCompany;
+        }
+        // companyId: null is significant — it must NOT match a company row.
+        const forAccount = await EmailTemplate.findOne({
+            where: { accountId, companyId: null, templateKey, isActive: true },
+        });
+        if (forAccount) return forAccount;
     }
     return platform;
 }
@@ -74,7 +87,7 @@ async function resolveTemplate(templateKey, accountId) {
 // `companyId` (when the producer sends on behalf of a company) resolves that
 // company's brand into {{brandColor}} / {{{brandHeaderHtml}}}.
 async function renderEmail(templateKey, accountId, data, companyId = null) {
-    const tpl = await resolveTemplate(templateKey, accountId);
+    const tpl = await resolveTemplate(templateKey, accountId, companyId);
     if (!tpl) throw new Error(`No email template registered for key "${templateKey}"`);
     if (tpl.isActive === false) return null;
 

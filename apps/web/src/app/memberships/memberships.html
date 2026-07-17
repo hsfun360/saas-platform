@@ -132,6 +132,31 @@
   <!-- ============ Person profile fields (shared by both dialogs) ============ -->
   <ng-template #profileFields>
     <div [formGroup]="memberForm">
+      <h3 class="dlg-section">Photo</h3>
+      <div class="ms-photo">
+        @if (memberValue().photoUrl) {
+          <img class="ms-photo__img" [src]="memberValue().photoUrl" alt="Member photo" />
+        } @else {
+          <span class="ms-photo__placeholder" aria-hidden="true">
+            <span class="material-icons">person</span>
+          </span>
+        }
+        <div class="ms-photo__actions">
+          <input #memberPhotoFile type="file" accept="image/*" class="ms-photo__file"
+                 (change)="onMemberPhotoSelected(memberPhotoFile)" aria-label="Choose member photo" />
+          <button type="button" class="btn btn--secondary btn--sm" [disabled]="photoUploading()"
+                  (click)="memberPhotoFile.click()">
+            {{ photoUploading() ? 'Uploading…' : (memberValue().photoUrl ? 'Change photo' : 'Upload photo') }}
+          </button>
+          @if (memberValue().photoUrl) {
+            <button type="button" class="btn btn--danger btn--sm" [disabled]="photoUploading()" (click)="removeMemberPhoto()">
+              Remove
+            </button>
+          }
+          <span class="cell-subtle">JPG/PNG, up to 2 MB.</span>
+        </div>
+      </div>
+
       <h3 class="dlg-section">Identity</h3>
       <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
         <div class="form-group">
@@ -658,6 +683,9 @@
             <div class="mem-row">
               <div class="mem-row__main">
                 <div class="mem-row__name">
+                  @if (group.principal.photoUrl) {
+                    <img class="ms-avatar" [src]="group.principal.photoUrl" alt="" />
+                  }
                   <span class="ms-class-chip">{{ kindLabel(group.principal.memberKind) }}</span>
                   {{ memberName(group.principal) }}
                 </div>
@@ -679,6 +707,9 @@
               <div class="mem-row mem-row--dep">
                 <div class="mem-row__main">
                   <div class="mem-row__name">
+                    @if (d.photoUrl) {
+                      <img class="ms-avatar" [src]="d.photoUrl" alt="" />
+                    }
                     <span class="ms-class-chip ms-class-chip--dep">{{ dependentLabel(d.dependentType) }}</span>
                     {{ memberName(d) }}
                   </div>
