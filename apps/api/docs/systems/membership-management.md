@@ -232,6 +232,14 @@ The domain model (user-defined) splits the CONTRACT from the PEOPLE:
 
 Status sync (individual class): changing the membership status updates the individual member's `memberStatusId` and vice versa, in one transaction.
 
+### Welcome email on creation (2026-07-17)
+
+Creating a membership queues a **welcome email** through the notification outbox (`enqueueEmail`, template `membership.welcome`, tenant-overridable) INSIDE the creation transaction - but only when no approval is needed (`approvalStatus === 'approved'`, which is always true today; the future approval workflow creates `pending` memberships, which skip this branch, so the approval transition MUST send it instead).
+Recipient: individual class -> the member profile's email; corporate class -> the corporate contact email; no email on file -> silently skipped.
+Variables passed: `memberName` (person name, or contact person / company name for corporate), `membershipNo`, `membershipTypeName` (the type's category label), `companyName` + `accountId` via the `getActiveCompany` seam (serviceContext), `joinDate`.
+The enqueue is wrapped in try/catch (a template problem logs and never blocks the creation; safe because `renderEmail`'s reads run off-transaction).
+Because the payload carries `companyId`, the mail goes out via the club's own SMTP when configured.
+
 API (behind `verifyToken` + `requireModule('Membership Management')`):
 - `/api/membership/memberships` (+ `requireMenuAction('/membership/memberships')`): `GET /meta` (vocabularies + numbering mode), `GET /options` (type/status/fee pickers in one call - avoids cross-menu RBAC on the other masters' endpoints), `GET /?q=&class=&status=&limit=&offset=` (SERVER-SIDE search + pagination, 2026-07-17 - slim list rows + aggregate total/class counts, `q` matches membership no / corporate name / individual member name via an EXISTS probe; default page 50, max 200; RBAC row flags computed per page), `POST /` (create; individual requires a nested `member` profile), `GET /:id` (detail + member tree - the Edit/Members dialogs fetch this since the list rows are slim), `PUT /:id` (contract edit; number/class/type immutable), `GET /:id/members/suggest-no`, `POST /:id/members` (nominee, seat-capped), `POST /:id/members/:memberId/dependents`, `PUT /:id/members/:memberId`.
 - `/api/membership/members` (+ `requireMenuAction('/membership/members')`): `GET /meta`, `GET /?q=&kind=&status=&offset=` - flat read-only server-side search across every person (member no / name / IC / email), paged 200 at a time ("Load more").

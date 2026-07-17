@@ -328,6 +328,25 @@ async function getActiveAccountId(req) {
     return current ? current.accountId : null;
 }
 
+// --- WHICH company is the caller's workspace -------------------------------
+// The caller's active company as a value object: its id, owning accountId and
+// display name. Product services need this when they act "as the company"
+// (e.g. naming it in an outgoing email) but must never query Company directly.
+//
+// IN-PROCESS IMPLEMENTATION (monolith): looks the company up (lazy require).
+// WHEN SPLIT: GET {control-plane}/api/admin/companies/<companyId>
+//   -> { id, accountId, name }.
+// Returns null when there is no active workspace.
+async function getActiveCompany(req) {
+    const { companyId } = getUserContext(req);
+    if (!companyId) return null;
+
+    const Company = require('../modules/saas/company.model');
+    const company = await Company.findByPk(companyId, { attributes: ['id', 'accountId', 'name'] });
+    if (!company) return null;
+    return { id: company.id, accountId: company.accountId || null, name: company.name };
+}
+
 // --- WHO is the platform (the invoice issuer) -----------------------------
 // The platform's own "company of record" singleton: its billing country + default
 // tax scheme (anchors the platform's own tax) and its issuer identity (invoice
@@ -417,6 +436,7 @@ module.exports = {
     verifyToken,        // re-exported so services import auth from one seam
     getUserContext,
     getActiveAccountId,
+    getActiveCompany,
     requireModule,
     requireMenuAction,
     getAccessContext,

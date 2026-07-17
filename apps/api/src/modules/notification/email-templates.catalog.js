@@ -154,6 +154,49 @@ module.exports = [
         `),
     },
     {
+        key: 'membership.welcome',
+        name: 'Membership welcome',
+        description: 'Sent to the new member (or corporate contact) when a membership is created and needs no approval.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'memberName', description: "The member's name (corporate: the contact person or company name)." },
+            { name: 'membershipNo', description: 'The membership number issued.' },
+            { name: 'membershipTypeName', description: 'The Membership Type, e.g. Golf Individual.' },
+            { name: 'companyName', description: 'The club/company the membership belongs to.' },
+            { name: 'joinDate', description: 'The join date (YYYY-MM-DD).' },
+            { name: 'email', description: "The recipient's email address." },
+        ],
+        sample: {
+            memberName: 'Jane Tan', membershipNo: 'MS-000123', membershipTypeName: 'Golf Individual',
+            companyName: 'Acme Golf & Country Club', joinDate: '2026-07-17', email: 'jane@example.com',
+        },
+        fromName: null,
+        subject: 'Welcome to {{companyName}} - membership {{membershipNo}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Welcome{{#if memberName}}, {{memberName}}{{/if}}!</h2>
+            <p>We are delighted to welcome you as a member of <strong>{{companyName}}</strong>.</p>
+            <p>Your membership is now active. Here are your details:</p>
+            <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                <tr>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #eee; color: #64748b;">Membership no.</td>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #eee;"><strong>{{membershipNo}}</strong></td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #eee; color: #64748b;">Membership type</td>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #eee;">{{membershipTypeName}}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #eee; color: #64748b;">Join date</td>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #eee;">{{joinDate}}</td>
+                </tr>
+            </table>
+            <p>Please quote your membership number in any correspondence with us.</p>
+            <p style="margin-top: 20px; font-size: 12px; color: #777;">
+                If you believe you received this email in error, please contact {{companyName}}.
+            </p>
+        `),
+    },
+    {
         key: 'profile.updated',
         name: 'Profile updated security alert',
         description: 'Sent to a user when their profile information changes (security notice).',

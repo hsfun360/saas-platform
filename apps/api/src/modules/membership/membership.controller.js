@@ -20,9 +20,11 @@ const MembershipFee = require('./membershipFee.model');
 const {
     getUserContext,
     getCallerPlacement,
+    getActiveCompany,
     canModifyRecord,
     annotateCanModify,
 } = require('../../platform/serviceContext');
+const { enqueueEmail } = require('../notification/emailOutbox');
 const numberingGateway = require('../../platform/numberingGateway');
 const {
     MEMBER_KINDS,
@@ -626,6 +628,9 @@ exports.createMembership = async (req, res) => {
         const placement = await getCallerPlacement(req);
         const stamps = ownershipStamps(req, placement);
         const callerId = getUserContext(req).userId;
+        // The club identity for the welcome email (name + owning accountId for
+        // the subscriber's template override), read through the seam.
+        const company = await getActiveCompany(req);
 
         const created = await sequelize.transaction(async (t) => {
             const ms = await Membership.create({
@@ -659,6 +664,39 @@ exports.createMembership = async (req, res) => {
                     joinDate: profile.joinDate || v.joinDate,
                     ...stamps,
                 }, { transaction: t });
+            }
+
+            // Welcome email - only when the membership needs no approval (the
+            // approval seam is always 'approved' today; a future approval workflow
+            // must send this at approval time instead, since pending creates skip
+            // this branch). Recipient: the individual member's email, else the
+            // corporate contact email; nobody on file -> no email. Non-critical:
+            // a template problem must not block the creation (renderEmail's reads
+            // run off-transaction, so a caught failure cannot poison this tx).
+            if (ms.approvalStatus === 'approved') {
+                const to = membershipClass === 'individual' ? profile.email : v.email;
+                if (to) {
+                    try {
+                        await enqueueEmail({
+                            templateKey: 'membership.welcome',
+                            accountId: company ? company.accountId : null,
+                            companyId,
+                            to,
+                            data: {
+                                email: to,
+                                memberName: membershipClass === 'individual'
+                                    ? [profile.firstName, profile.lastName].filter(Boolean).join(' ')
+                                    : (v.contactPerson || v.corporateName),
+                                membershipNo,
+                                membershipTypeName: type.category,
+                                companyName: company ? company.name : null,
+                                joinDate: v.joinDate,
+                            },
+                        }, t);
+                    } catch (err) {
+                        console.error(`Welcome email for membership ${membershipNo} not queued:`, err.message);
+                    }
+                }
             }
             return ms;
         });

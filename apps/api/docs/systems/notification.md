@@ -32,6 +32,10 @@ memory for the full map. In short:
   `{ to, from, subject, html }` plus `accountId` and `companyId`.
 - The worker's `EmailQueued` branch just dispatches that payload, so template logic
   never lives in the worker.
+- **Subjects compile with Handlebars `noEscape`** (separate compile cache from
+  bodies): a subject is a plain-text mail header, so HTML-escaping it would show a
+  literal `&amp;` in the inbox for values like "Golf & Country Club".
+  Bodies keep the default auto-escaping (XSS safety).
 
 ## Email editor (WYSIWYG + variables)
 Both template surfaces are edited in the browser, not as raw HTML.
@@ -109,8 +113,8 @@ producer (has companyId)
   goes FAILED, and the error is surfaced on the company's SMTP screen (`lastError`).
 - **Platform/security emails always use the platform mailer.** Sign-up activation,
   password reset, and reset-success carry no `companyId`, so they never touch a
-  tenant server. Only tenant-context email (collaborator invitations today) uses
-  company SMTP.
+  tenant server. Only tenant-context email (collaborator invitations and the
+  membership welcome email today) uses company SMTP.
 
 ### Configuration UI + API (Tenant Admin, per company)
 - UI: Companies screen, per-company **"Email (SMTP)"** button opens
