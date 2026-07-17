@@ -27,29 +27,37 @@
     </div>
   }
 
-  <!-- Count line -->
+  <!-- Count line (server aggregates - the list below is one page of the total) -->
   <div style="margin-bottom: var(--space-md);">
     <span class="cell-subtle">
-      @if (memberships().length > 0) {
-        {{ memberships().length }} memberships — {{ individualCount() }} individual, {{ corporateCount() }} corporate
+      @if (totalKnown() > 0) {
+        {{ totalKnown() }} memberships — {{ individualCount() }} individual, {{ corporateCount() }} corporate
       } @else {
         No memberships yet — use "New membership" to create the first one.
       }
     </span>
   </div>
 
-  <!-- Class filter chips -->
-  @if (!loading() && memberships().length > 0) {
-    <div class="ms-filter" role="group" aria-label="Filter by class">
-      <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="classFilter() === ''" (click)="classFilter.set('')">All</button>
-      <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="classFilter() === 'individual'" (click)="classFilter.set('individual')">Individual</button>
-      <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="classFilter() === 'corporate'" (click)="classFilter.set('corporate')">Corporate</button>
+  <!-- Filters: class chips + status select (all applied SERVER-side) -->
+  @if (totalKnown() > 0 || search() || statusFilter()) {
+    <div class="ms-toolbar">
+      <div class="ms-filter" role="group" aria-label="Filter by class">
+        <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="classFilter() === ''" (click)="setClassFilter('')">All</button>
+        <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="classFilter() === 'individual'" (click)="setClassFilter('individual')">Individual</button>
+        <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="classFilter() === 'corporate'" (click)="setClassFilter('corporate')">Corporate</button>
+      </div>
+      <select #msStatusSel class="ms-status-select" [value]="statusFilter()" (change)="setStatusFilter(msStatusSel.value)" aria-label="Filter by status">
+        <option value="">All statuses</option>
+        @for (s of options()?.statuses; track s.id) {
+          <option [value]="s.id">{{ s.membershipStatus }}</option>
+        }
+      </select>
     </div>
 
     <div class="saas-search">
       <span class="saas-search__icon" aria-hidden="true">🔍</span>
-      <input #msSearchBox type="search" [value]="search()" (input)="search.set(msSearchBox.value)"
-             placeholder="Search by number, name, type or status…" aria-label="Search memberships" class="saas-search__input">
+      <input #msSearchBox type="search" [value]="search()" (input)="onSearchInput(msSearchBox.value)"
+             placeholder="Search by number or name…" aria-label="Search memberships" class="saas-search__input">
       @if (search()) {
         <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
       }
@@ -58,17 +66,17 @@
 
   @if (loading()) {
     <div class="loading-state"><div class="spinner large"></div><p>Loading memberships…</p></div>
-  } @else if (memberships().length === 0) {
+  } @else if (totalKnown() === 0) {
     <div class="empty-state"><span class="empty-icon">📭</span><p>No memberships yet. Use "New membership" — an individual membership creates its member automatically; a corporate membership takes nominees.</p></div>
-  } @else if (filtered().length === 0) {
+  } @else if (rows().length === 0) {
     <div class="empty-state">
       <span class="empty-icon">🔍</span>
       <p>No memberships match your filter.</p>
-      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch(); classFilter.set('')">Clear filters</button>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearFilters()">Clear filters</button>
     </div>
   } @else {
     <div class="data-list">
-      @for (ms of filtered(); track ms.id) {
+      @for (ms of rows(); track ms.id) {
         <div class="data-card">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
@@ -94,11 +102,23 @@
             <div class="data-row__actions">
               <button type="button" class="btn btn--secondary btn--sm" (click)="openMembers(ms)">Members</button>
               @if (ms.canModify !== false) {
-                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(ms)">Edit</button>
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(ms)" [disabled]="editLoadingId() === ms.id">
+                  {{ editLoadingId() === ms.id ? 'Loading…' : 'Edit' }}
+                </button>
               }
             </div>
           </div>
         </div>
+      }
+    </div>
+
+    <!-- Pagination footer: honest count + Load more -->
+    <div class="ms-pager">
+      <span class="cell-subtle">Showing {{ rows().length }} of {{ total() }}</span>
+      @if (hasMore()) {
+        <button type="button" class="btn btn--secondary btn--sm" (click)="loadMore()" [disabled]="loadingMore()">
+          {{ loadingMore() ? 'Loading…' : 'Load more' }}
+        </button>
       }
     </div>
   }
@@ -612,7 +632,7 @@
 
   <!-- ============ Members dialog (the people under one membership) ============ -->
   @if (membersOpen() && !memberDialogMode()) {
-    <app-dialog [title]="'Members — ' + (activeMembership()?.membershipNo || '')" [busy]="membersLoading()"
+    <app-dialog [title]="'Members — ' + membersTitleNo()" [busy]="membersLoading()"
                 (close)="closeMembers()">
       @if (membersLoading()) {
         <div class="loading-state"><div class="spinner large"></div><p>Loading members…</p></div>

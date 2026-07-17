@@ -34,8 +34,9 @@ exports.getMeta = async (req, res) => {
     }
 };
 
-// GET /api/membership/members?q=&kind= - search by member no / name / IC /
-// email, newest first, capped at 200 rows (type to narrow).
+// GET /api/membership/members?q=&kind=&status=&offset= - server-side search by
+// member no / name / IC / email, newest first, one page at a time ("Load more"
+// pages through offset; type to narrow).
 exports.listMembers = async (req, res) => {
     try {
         const { companyId } = getUserContext(req);
@@ -44,6 +45,8 @@ exports.listMembers = async (req, res) => {
         const where = { companyId };
         const kind = typeof req.query.kind === 'string' ? req.query.kind.trim() : '';
         if (kind && MEMBER_KIND_KEYS.includes(kind)) where.memberKind = kind;
+        const statusId = typeof req.query.status === 'string' ? req.query.status.trim() : '';
+        if (statusId) where.memberStatusId = statusId;
 
         const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
         if (q) {
@@ -58,16 +61,19 @@ exports.listMembers = async (req, res) => {
             ];
         }
 
+        const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
         const { rows, count } = await Member.findAndCountAll({
             where,
             include: [{ model: Membership, as: 'Membership', attributes: ['id', 'membershipNo', 'membershipClass', 'corporateName'] }],
             order: [['createdAt', 'DESC']],
             limit: SEARCH_LIMIT,
+            offset,
         });
 
         res.status(200).json({
             total: count,
             limit: SEARCH_LIMIT,
+            offset,
             members: rows.map((m) => ({
                 id: m.id,
                 memberNo: m.memberNo,

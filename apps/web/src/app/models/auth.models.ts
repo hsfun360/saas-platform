@@ -733,6 +733,30 @@ export interface Membership {
   members?: Member[];
 }
 
+// Slim listing row (server-side paginated) - the card fields only; the full
+// contract loads via GET /:id when a dialog opens.
+export interface MembershipListRow {
+  id: string;
+  canModify?: boolean;
+  membershipNo: string;
+  membershipClass: string;
+  membershipTypeId: string;
+  membershipStatusId: string;
+  joinDate: string;
+  displayName?: string | null;
+  nomineeCount: number;
+  dependentCount: number;
+}
+
+// One page of the memberships listing + the overall class split for the header.
+export interface MembershipListResult {
+  total: number;
+  limit: number;
+  offset: number;
+  counts: { individual: number; corporate: number };
+  memberships: MembershipListRow[];
+}
+
 // Vocabularies + the active company's numbering mode for the membership form.
 export interface MembershipMeta {
   memberKinds: MembershipStatusOption[];
@@ -793,6 +817,7 @@ export interface MemberSearchRow {
 export interface MemberSearchResult {
   total: number;
   limit: number;
+  offset: number;
   members: MemberSearchRow[];
 }
 

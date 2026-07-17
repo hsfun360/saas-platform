@@ -446,33 +446,96 @@ exports.getOptions = async (req, res) => {
 // ---------------------------------------------------------------------------
 // Memberships
 
-// GET /api/membership/memberships - the active company's memberships, with the
-// display name (individual member / corporate name) and member counts.
+// Slim row for the listing - the card needs identity + lookups + counts only;
+// the full contract loads via GET /:id when a dialog opens. Keeps a page of 50
+// rows a few KB instead of shipping every contract field for every record.
+function toMembershipListDto(ms, extra = {}) {
+    return {
+        id: ms.id,
+        membershipNo: ms.membershipNo,
+        membershipClass: ms.membershipClass,
+        membershipTypeId: ms.membershipTypeId,
+        membershipStatusId: ms.membershipStatusId,
+        joinDate: ms.joinDate,
+        ...extra,
+    };
+}
+
+const LIST_LIMIT_DEFAULT = 50;
+const LIST_LIMIT_MAX = 200;
+
+// GET /api/membership/memberships?q=&class=&status=&limit=&offset= -
+// SERVER-SIDE search + pagination (a club can hold tens of thousands of
+// memberships - the browser never receives more than one page). `q` matches the
+// membership number, the corporate name, or the individual member's name; the
+// counts line comes from aggregates, and RBAC row flags are computed for the
+// returned page only.
 exports.listMemberships = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
-        const rows = await Membership.findAll({
-            where: { companyId },
-            include: [{ model: Member, as: 'Members', attributes: ['id', 'memberKind', 'firstName', 'lastName', 'memberNo'] }],
-            order: [['membershipNo', 'ASC']],
-        });
-        const flags = await annotateCanModify(req, rows);
+        const where = { companyId };
+        const cls = str(req.query.class);
+        if (MEMBERSHIP_CLASS_KEYS.includes(cls)) where.membershipClass = cls;
+        const statusId = strOrNull(req.query.status);
+        if (statusId) where.membershipStatusId = statusId;
 
-        res.status(200).json(rows.map((ms, i) => {
-            const members = ms.Members || [];
-            const principal = members.find((m) => m.memberKind === 'individual');
-            const displayName = ms.membershipClass === 'corporate'
-                ? ms.corporateName
-                : (principal ? [principal.firstName, principal.lastName].filter(Boolean).join(' ') : null);
-            return toMembershipDto(ms, {
-                canModify: flags[i],
-                displayName,
-                nomineeCount: members.filter((m) => m.memberKind === 'nominee').length,
-                dependentCount: members.filter((m) => m.memberKind === 'dependent').length,
-            });
-        }));
+        const q = str(req.query.q);
+        if (q) {
+            const like = { [Op.iLike]: `%${q}%` };
+            // Individual memberships are found by their PERSON's name too - via an
+            // EXISTS probe on the member table (value escaped, trigram-indexable).
+            const esc = sequelize.escape(`%${q}%`);
+            where[Op.or] = [
+                { membershipNo: like },
+                { corporateName: like },
+                sequelize.literal(
+                    `EXISTS (SELECT 1 FROM membership."Member" mm WHERE mm."membershipId" = "Membership"."id" AND mm."memberKind" = 'individual' ` +
+                    `AND (mm."firstName" ILIKE ${esc} OR mm."lastName" ILIKE ${esc} OR (coalesce(mm."firstName", '') || ' ' || mm."lastName") ILIKE ${esc}))`,
+                ),
+            ];
+        }
+
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || LIST_LIMIT_DEFAULT, 1), LIST_LIMIT_MAX);
+        const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+        const [total, classCounts, rows] = await Promise.all([
+            Membership.count({ where }),
+            // Overall class split for the header line - independent of filters.
+            Membership.count({ where: { companyId }, group: ['membershipClass'] }),
+            Membership.findAll({
+                where,
+                include: [{ model: Member, as: 'Members', attributes: ['id', 'memberKind', 'firstName', 'lastName'] }],
+                order: [['membershipNo', 'ASC']],
+                limit,
+                offset,
+            }),
+        ]);
+
+        const counts = { individual: 0, corporate: 0 };
+        for (const c of classCounts) counts[c.membershipClass] = Number(c.count);
+
+        const flags = await annotateCanModify(req, rows);
+        res.status(200).json({
+            total,
+            limit,
+            offset,
+            counts,
+            memberships: rows.map((ms, i) => {
+                const members = ms.Members || [];
+                const principal = members.find((m) => m.memberKind === 'individual');
+                const displayName = ms.membershipClass === 'corporate'
+                    ? ms.corporateName
+                    : (principal ? [principal.firstName, principal.lastName].filter(Boolean).join(' ') : null);
+                return toMembershipListDto(ms, {
+                    canModify: flags[i],
+                    displayName,
+                    nomineeCount: members.filter((m) => m.memberKind === 'nominee').length,
+                    dependentCount: members.filter((m) => m.memberKind === 'dependent').length,
+                });
+            }),
+        });
     } catch (error) {
         console.error('Error listing memberships:', error);
         res.status(500).json({ message: 'Internal server error' });

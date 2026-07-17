@@ -23,10 +23,14 @@ export class MembersComponent implements OnInit {
   readonly limit = signal(200);
   readonly meta = signal<MembersMeta | null>(null);
   readonly loading = signal(false);
+  readonly loadingMore = signal(false);
   readonly searched = signal(false);
   readonly search = signal('');
   readonly kindFilter = signal('');
+  readonly statusFilter = signal('');
   readonly errorMessage = signal('');
+
+  readonly hasMore = () => this.rows().length < this.total();
 
   // Server-side search (the list is capped), debounced while typing.
   private readonly query$ = new Subject<void>();
@@ -50,21 +54,35 @@ export class MembersComponent implements OnInit {
     this.load();
   }
 
-  load(): void {
-    this.loading.set(true);
-    this.service.searchMembers(this.search().trim(), this.kindFilter()).subscribe({
+  setStatus(statusId: string): void {
+    this.statusFilter.set(statusId);
+    this.load();
+  }
+
+  // reset=true replaces the list (new search/filter); reset=false appends the
+  // next page ("Load more").
+  load(reset = true): void {
+    const offset = reset ? 0 : this.rows().length;
+    if (reset) this.loading.set(true); else this.loadingMore.set(true);
+    this.service.searchMembers(this.search().trim(), this.kindFilter(), this.statusFilter(), offset).subscribe({
       next: (res) => {
-        this.rows.set(res.members);
+        this.rows.set(reset ? res.members : [...this.rows(), ...res.members]);
         this.total.set(res.total);
         this.limit.set(res.limit);
         this.loading.set(false);
+        this.loadingMore.set(false);
         this.searched.set(true);
       },
       error: (err) => {
         this.loading.set(false);
+        this.loadingMore.set(false);
         this.errorMessage.set(err.error?.message || 'Failed to search members.');
       },
     });
+  }
+
+  loadMore(): void {
+    if (!this.loadingMore() && this.hasMore()) this.load(false);
   }
 
   clearSearch(): void {

@@ -19,12 +19,20 @@
     </div>
   }
 
-  <!-- Kind filter chips -->
-  <div class="ms-filter" role="group" aria-label="Filter by member kind">
-    <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="kindFilter() === ''" (click)="setKind('')">All</button>
-    @for (k of meta()?.memberKinds; track k.key) {
-      <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="kindFilter() === k.key" (click)="setKind(k.key)">{{ k.label }}</button>
-    }
+  <!-- Kind filter chips + status filter (applied server-side) -->
+  <div class="ms-toolbar">
+    <div class="ms-filter" role="group" aria-label="Filter by member kind">
+      <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="kindFilter() === ''" (click)="setKind('')">All</button>
+      @for (k of meta()?.memberKinds; track k.key) {
+        <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="kindFilter() === k.key" (click)="setKind(k.key)">{{ k.label }}</button>
+      }
+    </div>
+    <select #memStatusSel class="ms-status-select" [value]="statusFilter()" (change)="setStatus(memStatusSel.value)" aria-label="Filter by status">
+      <option value="">All statuses</option>
+      @for (s of meta()?.statuses; track s.id) {
+        <option [value]="s.id">{{ s.membershipStatus }}</option>
+      }
+    </select>
   </div>
 
   <!-- Server-side search (the result list is capped) -->
@@ -41,8 +49,8 @@
   @if (searched() && !loading()) {
     <div style="margin-bottom: var(--space-md);">
       <span class="cell-subtle">
-        @if (total() > limit()) {
-          Showing the first {{ limit() }} of {{ total() }} members — type to narrow the search.
+        @if (total() > rows().length) {
+          Showing {{ rows().length }} of {{ total() }} members — type to narrow, or load more below.
         } @else {
           {{ total() }} member(s) found.
         }
@@ -55,9 +63,9 @@
   } @else if (rows().length === 0) {
     <div class="empty-state">
       <span class="empty-icon">📭</span>
-      @if (search() || kindFilter()) {
+      @if (search() || kindFilter() || statusFilter()) {
         <p>No members match your search.</p>
-        <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch(); setKind('')">Clear search</button>
+        <button type="button" class="btn btn--secondary btn--sm" (click)="statusFilter.set(''); kindFilter.set(''); clearSearch()">Clear search</button>
       } @else {
         <p>No members yet. Members appear here once memberships are created on the Memberships screen.</p>
       }
@@ -93,6 +101,16 @@
             </div>
           </div>
         </div>
+      }
+    </div>
+
+    <!-- Pagination footer -->
+    <div class="ms-pager">
+      <span class="cell-subtle">Showing {{ rows().length }} of {{ total() }}</span>
+      @if (hasMore()) {
+        <button type="button" class="btn btn--secondary btn--sm" (click)="loadMore()" [disabled]="loadingMore()">
+          {{ loadingMore() ? 'Loading…' : 'Load more' }}
+        </button>
       }
     </div>
   }

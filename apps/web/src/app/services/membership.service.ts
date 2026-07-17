@@ -7,6 +7,7 @@ import {
   MemberSearchResult,
   MembersMeta,
   Membership,
+  MembershipListResult,
   MembershipMeta,
   MembershipOptions,
 } from '../models/auth.models';
@@ -28,8 +29,15 @@ export class MembershipService {
     return this.http.get<MembershipOptions>(`${this.base}/options`);
   }
 
-  list(): Observable<Membership[]> {
-    return this.http.get<Membership[]>(this.base);
+  // Server-side search + pagination (a club can hold tens of thousands of
+  // memberships; the browser only ever receives one page).
+  list(opts: { q?: string; class?: string; status?: string; offset?: number } = {}): Observable<MembershipListResult> {
+    let params = new HttpParams();
+    if (opts.q) params = params.set('q', opts.q);
+    if (opts.class) params = params.set('class', opts.class);
+    if (opts.status) params = params.set('status', opts.status);
+    if (opts.offset) params = params.set('offset', String(opts.offset));
+    return this.http.get<MembershipListResult>(this.base, { params });
   }
 
   get(id: string): Observable<Membership> {
@@ -74,10 +82,12 @@ export class MembershipService {
     return this.http.get<MembersMeta>(`${this.membersBase}/meta`);
   }
 
-  searchMembers(q: string, kind: string): Observable<MemberSearchResult> {
+  searchMembers(q: string, kind: string, status = '', offset = 0): Observable<MemberSearchResult> {
     let params = new HttpParams();
     if (q) params = params.set('q', q);
     if (kind) params = params.set('kind', kind);
+    if (status) params = params.set('status', status);
+    if (offset) params = params.set('offset', String(offset));
     return this.http.get<MemberSearchResult>(this.membersBase, { params });
   }
 }

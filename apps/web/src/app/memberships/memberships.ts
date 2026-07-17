@@ -1,6 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Subject, debounceTime } from 'rxjs';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MembershipService } from '../services/membership.service';
 import { SalutationService } from '../services/salutation.service';
@@ -17,6 +18,7 @@ import {
   Country,
   Member,
   Membership,
+  MembershipListRow,
   MembershipMeta,
   MembershipOptions,
   MembershipStatusOption,
@@ -44,10 +46,17 @@ export class MembershipsComponent implements OnInit {
   private readonly countryService = inject(CountryService);
   private readonly fb = inject(FormBuilder);
 
-  readonly memberships = signal<Membership[]>([]);
+  // Server-side paginated listing: `rows` holds only the loaded pages; `total`
+  // and the class split come from server aggregates.
+  readonly rows = signal<MembershipListRow[]>([]);
+  readonly total = signal(0);
+  readonly counts = signal<{ individual: number; corporate: number }>({ individual: 0, corporate: 0 });
   readonly meta = signal<MembershipMeta | null>(null);
   readonly options = signal<MembershipOptions | null>(null);
   readonly loading = signal(false);
+  readonly loadingMore = signal(false);
+  // Row whose full record is being fetched for the Edit dialog.
+  readonly editLoadingId = signal<string | null>(null);
 
   // Reference-data pickers (subscriber lists + countries).
   readonly salutations = signal<{ salutationCode: string; description?: string | null }[]>([]);
@@ -59,8 +68,16 @@ export class MembershipsComponent implements OnInit {
 
   readonly search = signal('');
   readonly classFilter = signal(''); // '' | 'individual' | 'corporate'
+  readonly statusFilter = signal(''); // MembershipStatus id or ''
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
+
+  // Debounced server-side search (the list is paginated - never filter client-side).
+  private readonly query$ = new Subject<void>();
+
+  constructor() {
+    this.query$.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => this.load(true));
+  }
 
   // --- Membership dialog (add + edit share the form) ---
   readonly membershipOpen = signal(false);
@@ -172,23 +189,10 @@ export class MembershipsComponent implements OnInit {
   readonly editMember = signal<Member | null>(null);
   readonly dependentPrincipal = signal<Member | null>(null);
 
-  readonly filtered = computed(() => {
-    const q = this.search().trim().toLowerCase();
-    const cls = this.classFilter();
-    let list = [...this.memberships()].sort((a, b) => a.membershipNo.localeCompare(b.membershipNo));
-    if (cls) list = list.filter((m) => m.membershipClass === cls);
-    if (!q) return list;
-    return list.filter(
-      (m) =>
-        m.membershipNo.toLowerCase().includes(q) ||
-        (m.displayName || '').toLowerCase().includes(q) ||
-        this.typeCategory(m.membershipTypeId).toLowerCase().includes(q) ||
-        this.statusName(m.membershipStatusId).toLowerCase().includes(q),
-    );
-  });
-
-  readonly individualCount = computed(() => this.memberships().filter((m) => m.membershipClass === 'individual').length);
-  readonly corporateCount = computed(() => this.memberships().filter((m) => m.membershipClass === 'corporate').length);
+  readonly individualCount = computed(() => this.counts().individual);
+  readonly corporateCount = computed(() => this.counts().corporate);
+  readonly totalKnown = computed(() => this.counts().individual + this.counts().corporate);
+  readonly hasMore = computed(() => this.rows().length < this.total());
 
   // The type picked in the (add) membership dialog decides the class + defaults.
   readonly selectedType = computed(() => {
@@ -315,18 +319,49 @@ export class MembershipsComponent implements OnInit {
     return list?.find((o) => o.key === key)?.label || key;
   }
 
-  load(): void {
-    this.loading.set(true);
-    this.service.list().subscribe({
-      next: (data) => {
-        this.memberships.set(data);
+  // reset=true replaces the list (new search/filter); reset=false appends the
+  // next page ("Load more").
+  load(reset = true): void {
+    const offset = reset ? 0 : this.rows().length;
+    if (reset) this.loading.set(true); else this.loadingMore.set(true);
+    this.service.list({
+      q: this.search().trim(),
+      class: this.classFilter(),
+      status: this.statusFilter(),
+      offset,
+    }).subscribe({
+      next: (res) => {
+        this.rows.set(reset ? res.memberships : [...this.rows(), ...res.memberships]);
+        this.total.set(res.total);
+        this.counts.set(res.counts);
         this.loading.set(false);
+        this.loadingMore.set(false);
       },
       error: (err) => {
         this.loading.set(false);
+        this.loadingMore.set(false);
         this.errorMessage.set(err.error?.message || 'Failed to load memberships.');
       },
     });
+  }
+
+  loadMore(): void {
+    if (!this.loadingMore() && this.hasMore()) this.load(false);
+  }
+
+  onSearchInput(value: string): void {
+    this.search.set(value);
+    this.query$.next();
+  }
+
+  setClassFilter(cls: string): void {
+    this.classFilter.set(cls);
+    this.load(true);
+  }
+
+  setStatusFilter(statusId: string): void {
+    this.statusFilter.set(statusId);
+    this.load(true);
   }
 
   // --- Membership dialog ---
@@ -349,9 +384,23 @@ export class MembershipsComponent implements OnInit {
     this.membershipOpen.set(true);
   }
 
-  openEdit(ms: Membership): void {
+  // The list row is slim - fetch the full contract before opening the dialog.
+  openEdit(row: MembershipListRow): void {
     this.clearMessages();
-    // The list DTO already carries every contract field; no extra fetch needed.
+    this.editLoadingId.set(row.id);
+    this.service.get(row.id).subscribe({
+      next: (full) => {
+        this.editLoadingId.set(null);
+        this.populateEditForm(full);
+      },
+      error: (err) => {
+        this.editLoadingId.set(null);
+        this.errorMessage.set(err.error?.message || 'Failed to load the membership.');
+      },
+    });
+  }
+
+  private populateEditForm(ms: Membership): void {
     this.editMembership.set(ms);
     this.membershipForm.reset({
       membershipTypeId: ms.membershipTypeId,
@@ -446,9 +495,15 @@ export class MembershipsComponent implements OnInit {
 
   // --- Members dialog ---
 
-  openMembers(ms: Membership): void {
+  // Number shown in the dialog title while the full record loads.
+  readonly membersTitleNo = signal('');
+  private membersId = '';
+
+  openMembers(row: MembershipListRow): void {
     this.clearMessages();
-    this.activeMembership.set(ms);
+    this.membersTitleNo.set(row.membershipNo);
+    this.membersId = row.id;
+    this.activeMembership.set(null);
     this.membersOpen.set(true);
     this.reloadActiveMembership();
   }
@@ -456,13 +511,13 @@ export class MembershipsComponent implements OnInit {
   closeMembers(): void {
     this.membersOpen.set(false);
     this.activeMembership.set(null);
+    this.membersId = '';
   }
 
   private reloadActiveMembership(): void {
-    const ms = this.activeMembership();
-    if (!ms) return;
+    if (!this.membersId) return;
     this.membersLoading.set(true);
-    this.service.get(ms.id).subscribe({
+    this.service.get(this.membersId).subscribe({
       next: (full) => {
         this.activeMembership.set(full);
         this.membersLoading.set(false);
@@ -626,6 +681,14 @@ export class MembershipsComponent implements OnInit {
 
   clearSearch(): void {
     this.search.set('');
+    this.load(true);
+  }
+
+  clearFilters(): void {
+    this.search.set('');
+    this.classFilter.set('');
+    this.statusFilter.set('');
+    this.load(true);
   }
 
   private today(): string {
