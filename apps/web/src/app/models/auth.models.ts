@@ -690,6 +690,7 @@ export interface Membership {
   statusDate?: string | null;
   membershipFeeId?: string | null;
   joinDate: string;
+  expiryDate?: string | null;          // term contracts; null = lifetime
   billingDate?: string | null;         // corporate
   creditFlag?: string | null;          // 'personal' | 'combined' (individual class)
   creditLimit?: number | null;
@@ -736,6 +737,7 @@ export interface MembershipListRow {
   membershipTypeId: string;
   membershipStatusId: string;
   joinDate: string;
+  expiryDate?: string | null;
   displayName?: string | null;
   nomineeCount: number;
   dependentCount: number;
@@ -785,6 +787,8 @@ export interface MembershipOptions {
     nomineeCategoryId?: string | null;
     defaultMembershipStatusId?: string | null;
     defaultMembershipFeeId?: string | null;
+    isTermMembership?: boolean;
+    termMonths?: number | null;
     creditLimit?: number | null;
     childAgeFrom?: number | null;
     childAgeTo?: number | null;

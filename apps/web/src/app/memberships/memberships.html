@@ -87,6 +87,9 @@
               </div>
               <dl class="data-card__meta">
                 <div class="meta"><dt>Joined</dt><dd>{{ ms.joinDate }}</dd></div>
+                @if (ms.expiryDate) {
+                  <div class="meta"><dt>Expires</dt><dd>{{ ms.expiryDate }}</dd></div>
+                }
                 @if (ms.membershipClass === 'corporate') {
                   <div class="meta"><dt>Nominees</dt><dd>{{ ms.nomineeCount }}</dd></div>
                 }
@@ -442,6 +445,13 @@
                    [attr.aria-invalid]="showError(membershipForm.controls.joinDate)" aria-describedby="msJoinDateErr" />
             @if (showError(membershipForm.controls.joinDate)) {
               <p id="msJoinDateErr" class="field-error" role="alert">Join date is required.</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="msExpiryDate">Expiry date</label>
+            <input id="msExpiryDate" type="date" formControlName="expiryDate" />
+            @if (!editMembership() && selectedType()?.isTermMembership && selectedType()?.termMonths) {
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Pre-filled from the {{ selectedType()?.termMonths }}-month term — adjust if needed; empty means no expiry.</p>
             }
           </div>
           @if (dialogClass() === 'corporate') {

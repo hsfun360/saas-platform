@@ -59,6 +59,15 @@ const Membership = sequelize.define('Membership', {
         type: DataTypes.DATEONLY,
         allowNull: false,
     },
+    // When the contract ends (term memberships; NULL = lifetime / no expiry).
+    // Defaulted on create from the type's termMonths as joinDate + termMonths
+    // minus one day (runs THROUGH the day before the anniversary), editable.
+    // Nothing flips the status automatically yet - the future expiry/renewal
+    // cycle consumes this date.
+    expiryDate: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+    },
     // Corporate: day of the billing cycle.
     billingDate: {
         type: DataTypes.DATEONLY,

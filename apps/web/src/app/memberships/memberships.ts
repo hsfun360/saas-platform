@@ -78,6 +78,37 @@ export class MembershipsComponent implements OnInit {
 
   constructor() {
     this.query$.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => this.load(true));
+    // Term membership: pre-fill the contract expiry whenever the type or join
+    // date changes on CREATE. A value the user typed themself is left alone.
+    this.membershipForm.controls.membershipTypeId.valueChanges
+      .pipe(takeUntilDestroyed()).subscribe(() => this.autoFillExpiry());
+    this.membershipForm.controls.joinDate.valueChanges
+      .pipe(takeUntilDestroyed()).subscribe(() => this.autoFillExpiry());
+  }
+
+  // The last value THIS code wrote into the expiry field - so we only ever
+  // overwrite our own suggestion, never a staff-entered date.
+  private expiryAutoValue = '';
+
+  private autoFillExpiry(): void {
+    if (this.editMembership()) return; // create only; edits are fully manual
+    const ctrl = this.membershipForm.controls.expiryDate;
+    const current = ctrl.value;
+    if (current && current !== this.expiryAutoValue) return;
+    // Read the type via the CONTROL's value, not the msValue()/selectedType()
+    // signal - a child control's valueChanges fires before the parent form's,
+    // so the signal is still one change behind inside this handler.
+    const typeId = this.membershipForm.controls.membershipTypeId.value;
+    const t = this.options()?.types.find((x) => x.id === typeId) || null;
+    const join = this.membershipForm.controls.joinDate.value;
+    if (!t?.isTermMembership || !t.termMonths || !join) {
+      if (current && current === this.expiryAutoValue) ctrl.setValue('');
+      this.expiryAutoValue = '';
+      return;
+    }
+    const suggested = computeTermExpiry(join, t.termMonths);
+    this.expiryAutoValue = suggested;
+    ctrl.setValue(suggested);
   }
 
   // --- Membership dialog (add + edit share the form) ---
@@ -90,6 +121,7 @@ export class MembershipsComponent implements OnInit {
     membershipStatusId: [''],
     membershipFeeId: [''],
     joinDate: ['', [Validators.required]],
+    expiryDate: [''],
     billingDate: [''],
     creditFlag: [''],
     creditLimit: this.fb.control<number | null>(null),
@@ -412,7 +444,7 @@ export class MembershipsComponent implements OnInit {
     this.editMembership.set(null);
     this.membershipForm.reset({
       membershipTypeId: '', membershipNo: '', membershipStatusId: '', membershipFeeId: '',
-      joinDate: this.today(), billingDate: '', creditFlag: '', creditLimit: null, terms: null,
+      joinDate: this.today(), expiryDate: '', billingDate: '', creditFlag: '', creditLimit: null, terms: null,
       statementMode: '', sendReminders: false, chargeInterest: false, monthlyFee: false, yearlyFee: false,
       certificateNo: '', applicationNo: '', reference: '', proposer: '', salesCode: '', followupSalesCode: '',
       corporateName: '', registrationNo: '', taxNo: '', contactPerson: '', contactDesignation: '',
@@ -449,6 +481,7 @@ export class MembershipsComponent implements OnInit {
       membershipStatusId: ms.membershipStatusId,
       membershipFeeId: ms.membershipFeeId || '',
       joinDate: ms.joinDate,
+      expiryDate: ms.expiryDate || '',
       billingDate: ms.billingDate || '',
       creditFlag: ms.creditFlag || '',
       creditLimit: ms.creditLimit ?? null,
@@ -762,4 +795,16 @@ export class MembershipsComponent implements OnInit {
     this.successMessage.set('');
     this.errorMessage.set('');
   }
+}
+
+// joinDate + termMonths, minus one day (the term runs THROUGH the day before
+// the anniversary). Month-end clamped; mirrors the server's defaultTermExpiry.
+function computeTermExpiry(joinDateStr: string, termMonths: number): string {
+  const [y, m, d] = joinDateStr.split('-').map(Number);
+  const idx = (m - 1) + termMonths;
+  const targetYear = y + Math.floor(idx / 12);
+  const targetMonth = idx % 12;
+  const daysInTarget = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+  const anniversary = Date.UTC(targetYear, targetMonth, Math.min(d, daysInTarget));
+  return new Date(anniversary - 86400000).toISOString().slice(0, 10);
 }

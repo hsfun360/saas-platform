@@ -86,6 +86,20 @@ function todayStr() {
     return new Date().toISOString().slice(0, 10);
 }
 
+// joinDate + termMonths, minus one day - the term runs THROUGH the day before
+// the anniversary (user-chosen convention). Month-end is clamped, so
+// 2026-01-31 + 1 month lands on 2026-02-28 (not Mar 2), then minus one day.
+function defaultTermExpiry(joinDateStr, termMonths) {
+    const [y, m, d] = joinDateStr.split('-').map(Number);
+    const targetMonthIndex = (m - 1) + termMonths;
+    const targetYear = y + Math.floor(targetMonthIndex / 12);
+    const targetMonth = targetMonthIndex % 12; // 0-based
+    const daysInTarget = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+    const anniversary = Date.UTC(targetYear, targetMonth, Math.min(d, daysInTarget));
+    const expiry = new Date(anniversary - 24 * 60 * 60 * 1000);
+    return expiry.toISOString().slice(0, 10);
+}
+
 // ---------------------------------------------------------------------------
 // DTOs
 
@@ -140,6 +154,7 @@ function toMembershipDto(ms, extra = {}) {
         statusDate: ms.statusDate,
         membershipFeeId: ms.membershipFeeId,
         joinDate: ms.joinDate,
+        expiryDate: ms.expiryDate,
         billingDate: ms.billingDate,
         creditFlag: ms.creditFlag,
         creditLimit: ms.creditLimit == null ? null : Number(ms.creditLimit),
@@ -181,6 +196,10 @@ function normalizeMembershipBody(body, membershipClass) {
     if (joinDate === undefined) return { error: 'Join date must be a valid date (YYYY-MM-DD).' };
     if (!joinDate) return { error: 'Join date is required.' };
 
+    const expiryDate = dateOrNull(body.expiryDate);
+    if (expiryDate === undefined) return { error: 'Expiry date must be a valid date (YYYY-MM-DD).' };
+    if (expiryDate && expiryDate <= joinDate) return { error: 'Expiry date must be after the join date.' };
+
     const billingDate = dateOrNull(body.billingDate);
     if (billingDate === undefined) return { error: 'Billing date must be a valid date (YYYY-MM-DD).' };
 
@@ -202,6 +221,7 @@ function normalizeMembershipBody(body, membershipClass) {
 
     const value = {
         joinDate,
+        expiryDate,
         billingDate: membershipClass === 'corporate' ? billingDate : null,
         creditFlag: membershipClass === 'individual' ? creditFlag : null,
         creditLimit,
@@ -489,6 +509,8 @@ exports.getOptions = async (req, res) => {
                 nomineeCategoryId: t.nomineeCategoryId,
                 defaultMembershipStatusId: t.defaultMembershipStatusId,
                 defaultMembershipFeeId: t.defaultMembershipFeeId,
+                isTermMembership: t.isTermMembership,
+                termMonths: t.termMonths,
                 creditLimit: t.creditLimit == null ? null : Number(t.creditLimit),
                 childAgeFrom: t.childAgeFrom,
                 childAgeTo: t.childAgeTo,
@@ -526,6 +548,7 @@ function toMembershipListDto(ms, extra = {}) {
         membershipTypeId: ms.membershipTypeId,
         membershipStatusId: ms.membershipStatusId,
         joinDate: ms.joinDate,
+        expiryDate: ms.expiryDate,
         ...extra,
     };
 }
@@ -668,6 +691,11 @@ exports.createMembership = async (req, res) => {
             if (!fee) return res.status(400).json({ message: 'Membership fee not found.' });
         }
         if (v.creditLimit === null && type.creditLimit != null) v.creditLimit = Number(type.creditLimit);
+        // Term membership: default the contract expiry from the type's term when
+        // the caller sent none (the form pre-fills the same value, editable).
+        if (!v.expiryDate && type.isTermMembership && type.termMonths) {
+            v.expiryDate = defaultTermExpiry(v.joinDate, type.termMonths);
+        }
 
         // 5. The individual profile (individual class only).
         let profile = null;
