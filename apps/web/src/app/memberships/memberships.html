@@ -131,7 +131,8 @@
 
   <!-- ============ Typed address book (contract + person forms) ============ -->
   <ng-template #addressBook let-array="array" let-prefix="prefix" let-preferred="preferred">
-    <h3 class="dlg-section">Addresses</h3>
+    <details class="dlg-sec" open>
+    <summary><h3 class="dlg-section">Addresses</h3></summary>
     <p class="cell-subtle" style="margin-top: 0;">Mail goes to the Mailing address when one exists, otherwise to the {{ preferred === 'company' ? 'Company' : 'Residential' }} address.</p>
     @for (g of array.controls; track g; let i = $index) {
       <div class="ms-addr" [formGroup]="g">
@@ -178,12 +179,14 @@
       </div>
     }
     <button type="button" class="btn btn--secondary btn--sm" (click)="addAddress(array, preferred)">Add address</button>
+    </details>
   </ng-template>
 
   <!-- ============ Person profile fields (shared by both dialogs) ============ -->
   <ng-template #profileFields>
     <div [formGroup]="memberForm">
-      <h3 class="dlg-section">Photo</h3>
+      <details class="dlg-sec" open>
+      <summary><h3 class="dlg-section">Photo</h3></summary>
       <div class="ms-photo">
         @if (memberValue().photoUrl) {
           <img class="ms-photo__img" [src]="memberValue().photoUrl" alt="Member photo" />
@@ -207,8 +210,10 @@
           <span class="cell-subtle">JPG/PNG, up to 2 MB.</span>
         </div>
       </div>
+      </details>
 
-      <h3 class="dlg-section">Identity</h3>
+      <details class="dlg-sec" open>
+      <summary><h3 class="dlg-section">Identity</h3></summary>
       <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
         <div class="form-group">
           <label for="mSalutation">Salutation</label>
@@ -253,8 +258,10 @@
           <input id="mLocalName" type="text" formControlName="localName" autocomplete="off" maxlength="255" />
         </div>
       </div>
+      </details>
 
-      <h3 class="dlg-section">Personal</h3>
+      <details class="dlg-sec" open>
+      <summary><h3 class="dlg-section">Personal</h3></summary>
       <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
         <div class="form-group">
           <label for="mGender">Gender</label>
@@ -307,8 +314,10 @@
           </div>
         }
       </div>
+      </details>
 
-      <h3 class="dlg-section">Contact</h3>
+      <details class="dlg-sec" open>
+      <summary><h3 class="dlg-section">Contact</h3></summary>
       <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
         <div class="form-group">
           <label for="mPhone">Phone</label>
@@ -331,8 +340,10 @@
           }
         </div>
       </div>
+      </details>
 
-      <h3 class="dlg-section">Employment</h3>
+      <details class="dlg-sec" open>
+      <summary><h3 class="dlg-section">Employment</h3></summary>
       <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
         <div class="form-group">
           <label for="mEmployer">Employer / company</label>
@@ -352,16 +363,19 @@
           </select>
         </div>
       </div>
+      </details>
 
       <ng-container [ngTemplateOutlet]="addressBook" [ngTemplateOutletContext]="{ array: memberAddressArray, prefix: 'mAddr', preferred: 'residential' }"></ng-container>
 
-      <h3 class="dlg-section">Notes</h3>
+      <details class="dlg-sec" open>
+      <summary><h3 class="dlg-section">Notes</h3></summary>
       <div class="form-row">
         <div class="form-group">
           <label for="mRemarks">Remarks</label>
           <textarea id="mRemarks" formControlName="remarks" rows="2" wrap="off" maxlength="2000"></textarea>
         </div>
       </div>
+      </details>
     </div>
   </ng-template>
 
@@ -374,7 +388,8 @@
                 (close)="closeMembership()">
       <form id="membershipForm" [formGroup]="membershipForm" (ngSubmit)="onSaveMembership()" class="saas-form" style="padding: 0;">
 
-        <h3 class="dlg-section">Contract</h3>
+        <details class="dlg-sec" open>
+        <summary><h3 class="dlg-section">Contract</h3></summary>
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="msType">Membership type <span class="required">*</span></label>
@@ -436,9 +451,11 @@
             </div>
           }
         </div>
+        </details>
 
         @if (dialogClass()) {
-          <h3 class="dlg-section">Credit &amp; billing</h3>
+          <details class="dlg-sec" open>
+          <summary><h3 class="dlg-section">Credit &amp; billing</h3></summary>
           <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
             @if (dialogClass() === 'individual') {
               <div class="form-group">
@@ -475,8 +492,10 @@
             <label class="ms-flag"><input type="checkbox" formControlName="monthlyFee" /> Monthly fee</label>
             <label class="ms-flag"><input type="checkbox" formControlName="yearlyFee" /> Yearly fee</label>
           </div>
+          </details>
 
-          <h3 class="dlg-section">References</h3>
+          <details class="dlg-sec" open>
+          <summary><h3 class="dlg-section">References</h3></summary>
           <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
             <div class="form-group">
               <label for="msCertificate">Certificate no.</label>
@@ -503,10 +522,12 @@
               <input id="msFollowupSales" type="text" formControlName="followupSalesCode" autocomplete="off" maxlength="255" />
             </div>
           </div>
+          </details>
         }
 
         @if (dialogClass() === 'corporate') {
-          <h3 class="dlg-section">Company profile</h3>
+          <details class="dlg-sec" open>
+          <summary><h3 class="dlg-section">Company profile</h3></summary>
           <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
             <div class="form-group" style="grid-column: 1 / -1;">
               <label for="msCorpName">Company name <span class="required">*</span></label>
@@ -554,15 +575,18 @@
               </select>
             </div>
           </div>
+          </details>
           <ng-container [ngTemplateOutlet]="addressBook" [ngTemplateOutletContext]="{ array: msAddressArray, prefix: 'msAddr', preferred: 'company' }"></ng-container>
 
-          <h3 class="dlg-section">Notes</h3>
+          <details class="dlg-sec" open>
+          <summary><h3 class="dlg-section">Notes</h3></summary>
           <div class="form-row">
             <div class="form-group">
               <label for="msRemarks">Remarks</label>
               <textarea id="msRemarks" formControlName="remarks" rows="2" wrap="off" maxlength="2000"></textarea>
             </div>
           </div>
+          </details>
         }
 
         <!-- Individual class on create: the member profile is captured here and
@@ -578,13 +602,15 @@
           <p class="cell-subtle" style="margin-top: var(--space-md);">Select a membership type to continue — the type decides whether this is an individual or a corporate membership.</p>
         }
         @if (editMembership() && dialogClass() === 'individual') {
-          <h3 class="dlg-section">Notes</h3>
+          <details class="dlg-sec" open>
+          <summary><h3 class="dlg-section">Notes</h3></summary>
           <div class="form-row">
             <div class="form-group">
               <label for="msRemarks2">Remarks</label>
               <textarea id="msRemarks2" formControlName="remarks" rows="2" wrap="off" maxlength="2000"></textarea>
             </div>
           </div>
+          </details>
         }
       </form>
 
@@ -687,7 +713,8 @@
                 discardMessage="You have unsaved changes to this member. Leaving now will discard them."
                 (close)="closeMemberDialog()">
       <form id="memberDlgForm" [formGroup]="memberMetaForm" (ngSubmit)="onSaveMember()" class="saas-form" style="padding: 0;">
-        <h3 class="dlg-section">Member</h3>
+        <details class="dlg-sec" open>
+        <summary><h3 class="dlg-section">Member</h3></summary>
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="memNo">Member number <span class="required">*</span></label>
@@ -746,6 +773,7 @@
             }
           </div>
         </div>
+        </details>
 
         <ng-container [ngTemplateOutlet]="profileFields"></ng-container>
       </form>

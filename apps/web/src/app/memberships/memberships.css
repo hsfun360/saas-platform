@@ -277,3 +277,47 @@
   justify-content: flex-end;
   margin-top: var(--space-xs);
 }
+
+/* --- Collapsible dialog sections (native details/summary) --- */
+.dlg-sec {
+  margin-top: var(--space-lg);
+}
+.dlg-sec:first-child,
+.dlg-sec:first-of-type {
+  margin-top: 0;
+}
+.dlg-sec > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  cursor: pointer;
+  list-style: none;
+  min-height: 44px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-sm);
+}
+.dlg-sec > summary::-webkit-details-marker {
+  display: none;
+}
+.dlg-sec > summary::before {
+  content: 'expand_more';
+  font-family: 'Material Icons';
+  font-size: 20px;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+.dlg-sec:not([open]) > summary::before {
+  transform: rotate(-90deg);
+}
+/* The heading keeps its look but the summary row owns the divider/spacing. */
+.dlg-sec > summary .dlg-section {
+  margin: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+  flex: 1;
+}
+.dlg-sec > summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

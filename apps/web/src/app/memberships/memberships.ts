@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, debounceTime } from 'rxjs';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -395,6 +395,16 @@ export class MembershipsComponent implements OnInit {
     return this.meta()?.addressTypes?.find((t) => t.key === key)?.label || key;
   }
 
+  // A rejected save must never hide its errors inside a collapsed section -
+  // expand every section before the field errors render.
+  private readonly host = inject(ElementRef<HTMLElement>);
+
+  private expandAllSections(): void {
+    this.host.nativeElement.querySelectorAll('details.dlg-sec:not([open])').forEach((d: Element) => {
+      (d as HTMLDetailsElement).open = true;
+    });
+  }
+
   // --- Membership dialog ---
 
   openAdd(): void {
@@ -485,6 +495,7 @@ export class MembershipsComponent implements OnInit {
     if (invalidContract || invalidPerson) {
       this.membershipForm.markAllAsTouched();
       if (!editing && isIndividual) this.memberForm.markAllAsTouched();
+      this.expandAllSections();
       return;
     }
     if (!editing && !this.dialogClass()) {
@@ -687,6 +698,7 @@ export class MembershipsComponent implements OnInit {
     if (this.memberForm.invalid || this.memberMetaForm.controls.memberNo.invalid) {
       this.memberForm.markAllAsTouched();
       this.memberMetaForm.markAllAsTouched();
+      this.expandAllSections();
       return;
     }
     const meta = this.memberMetaForm.getRawValue();
