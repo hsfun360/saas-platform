@@ -235,6 +235,14 @@ The domain model (user-defined) splits the CONTRACT from the PEOPLE:
 
 Status sync (individual class): changing the membership status updates the individual member's `memberStatusId` and vice versa, in one transaction.
 
+### Contract expiry date (2026-07-18)
+
+`Membership.expiryDate` (DATEONLY, NULL = lifetime/no expiry) - the per-contract end date term memberships need (`termMonths` on the type is only the template; renewals, mid-term migrations and fixed horizons like KLGCC's "valid until 2087" are contract facts).
+Defaulting (user-chosen convention): on CREATE, when none is sent and the type `isTermMembership` with `termMonths`, the server sets join + termMonths **minus one day** - the term runs THROUGH the day before the anniversary - with month-end clamped (`defaultTermExpiry`; 2026-01-31 + 1 month -> 2026-02-27).
+The dialog pre-fills the same value into an editable Expiry date field (recomputes when type/join changes, but never clobbers a staff-entered date; the frontend reads the type via the control's value, NOT the msValue() signal - a child control's valueChanges fires before the parent form's, so the signal is stale inside the handler).
+Validation: expiry must be after join. The listing card shows "Expires". `Member.expiryDate` stays dependent-only (a different fact).
+NOT yet built: nothing flips the status automatically - the future expiry/renewal cycle consumes this date (the Expired status now has its driver-to-be).
+
 ### Typed address book (2026-07-17 normalization)
 
 `membership."Address"` replaced the four inline address blocks (member resident + mailing, membership company + mailing) and the `mailingSource` columns - the address shape was stamped out 4x across the two tables, the one genuine value-object duplication (a shared Profile table was considered and REJECTED: Membership describes the organization, Member the person; the column overlap was schema-level only, and contacts stay one-value-per-channel columns).
