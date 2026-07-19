@@ -237,7 +237,10 @@ Status sync (individual class): changing the membership status updates the indiv
 
 ### Contract expiry date (2026-07-18)
 
-`Membership.expiryDate` (DATEONLY, NULL = lifetime/no expiry) - the per-contract end date term memberships need (`termMonths` on the type is only the template; renewals, mid-term migrations and fixed horizons like KLGCC's "valid until 2087" are contract facts).
+`Membership.expiryDate` (DATEONLY, NULL = lifetime/no expiry) - the per-contract end date term memberships need (`termMonths` on the type is only the template; renewals and mid-term migrations are contract facts).
+Scope decision (user, 2026-07-19): the expiry date is strictly a TERM-membership fact.
+Lifetime memberships never carry one in-system - fixed-horizon cases like KLGCC's "valid until 2087" are handled by the club OFF system and must never be a consideration in this software.
+The dialog therefore shows the Expiry field only for term types (the edit-mode "record already carries a date" fallback is purely a data-integrity guard, not a lifetime-with-horizon feature).
 Defaulting (user-chosen convention): on CREATE, when none is sent and the type `isTermMembership` with `termMonths`, the server sets join + termMonths **minus one day** - the term runs THROUGH the day before the anniversary - with month-end clamped (`defaultTermExpiry`; 2026-01-31 + 1 month -> 2026-02-27).
 The dialog pre-fills the same value into an editable Expiry date field (recomputes when type/join changes, but never clobbers a staff-entered date; the frontend reads the type via the control's value, NOT the msValue() signal - a child control's valueChanges fires before the parent form's, so the signal is stale inside the handler).
 Validation: expiry must be after join. The listing card shows "Expires". `Member.expiryDate` stays dependent-only (a different fact).
