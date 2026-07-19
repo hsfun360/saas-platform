@@ -206,7 +206,7 @@ exports.upsertOverride = async (req, res) => {
         });
         await row.update({ subject, bodyHtml, fromName, isActive, brandColor, includeLogo });
         res.status(200).json({
-            message: scope.company ? `Saved for ${scope.company.name}.` : 'Saved for all companies.',
+            message: scope.company ? `Template saved for ${scope.company.name}.` : 'Template saved for all companies.',
         });
     } catch (error) {
         console.error('Error saving account email template:', error);
@@ -229,8 +229,8 @@ exports.removeOverride = async (req, res) => {
         });
         res.status(200).json({
             message: scope.company
-                ? `${scope.company.name} now uses the shared version.`
-                : 'Reverted to the platform default.',
+                ? `${scope.company.name}'s version removed. It now uses the shared version.`
+                : 'Shared version removed. Companies now use the platform default.',
         });
     } catch (error) {
         console.error('Error removing account email template:', error);

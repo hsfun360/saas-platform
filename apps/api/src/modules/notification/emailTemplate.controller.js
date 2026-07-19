@@ -127,7 +127,7 @@ exports.resetPlatformTemplate = async (req, res) => {
         const meta = catalogByKey.get(req.params.key);
         if (!meta) return res.status(404).json({ message: 'Unknown template.' });
         const row = await resetPlatformDefault(req.params.key);
-        res.status(200).json({ message: 'Template reset to default.', template: present(row, meta) });
+        res.status(200).json({ message: 'Template reset to the platform default.', template: present(row, meta) });
     } catch (error) {
         console.error('Error resetting email template:', error);
         res.status(500).json({ message: 'Internal server error' });

@@ -2,6 +2,7 @@ const { sequelize } = require('../../platform/db');
 const User = require('./user.model');
 const OutboxMessage = require('../../platform/outboxMessage.model');
 const { enqueueEmail } = require('../notification/emailOutbox');
+const { resolveIdentityScope } = require('../../platform/identityScope');
 const { v4: uuidv4 } = require('uuid'); // Ensure you have 'uuid' installed (npm install uuid)
 
 /**
@@ -13,27 +14,29 @@ async function updateProfileWithOutbox(userEmail, profileData) {
     const transaction = await sequelize.transaction();
 
     try {
-        // 2. Update the User Profile
-        const [updatedRows] = await User.update(
-            { 
-                full_name: profileData.fullName, 
-                phone: profileData.phone, 
-                bio: profileData.bio 
-            },
-            { 
-                where: { email: userEmail },
-                transaction // 👈 CRITICAL: Bind this query to the transaction
-            }
-        );
-
-        if (updatedRows === 0) {
+        // 2. Load + update the User Profile (load first so we can brand the alert).
+        const user = await User.findOne({ where: { email: userEmail }, transaction });
+        if (!user) {
             throw new Error("USER_NOT_FOUND");
         }
+        user.full_name = profileData.fullName;
+        user.phone = profileData.phone;
+        user.bio = profileData.bio;
+        await user.save({ transaction });
 
         // 3. Queue the security-alert email, rendered from its template, in the
-        // SAME transaction (atomic with the profile update).
+        // SAME transaction (atomic with the profile update). Branded for the user's
+        // resolved scope, but sent via the platform mailer (a security email).
+        const scope = await resolveIdentityScope(user);
         await enqueueEmail(
-            { templateKey: 'profile.updated', to: userEmail, data: { email: userEmail } },
+            {
+                templateKey: 'profile.updated',
+                accountId: scope.accountId,
+                companyId: scope.companyId,
+                to: userEmail,
+                data: { email: userEmail },
+                forcePlatformSender: true,
+            },
             transaction,
         );
 

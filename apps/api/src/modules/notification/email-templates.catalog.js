@@ -56,7 +56,7 @@ module.exports = [
         key: 'password.reset',
         name: 'Password reset request',
         description: 'Sent when a user requests a password reset link.',
-        tenantOverridable: false,
+        tenantOverridable: true,
         variables: [
             { name: 'email', description: "The recipient's email address." },
             { name: 'resetLink', description: 'The one-time password-reset link (expires in 1 hour).' },
@@ -80,7 +80,7 @@ module.exports = [
         key: 'password.reset.success',
         name: 'Password changed confirmation',
         description: 'Sent after a password is successfully changed (security notice).',
-        tenantOverridable: false,
+        tenantOverridable: true,
         variables: [
             { name: 'email', description: "The recipient's email address." },
         ],
@@ -213,7 +213,7 @@ module.exports = [
         key: 'profile.updated',
         name: 'Profile updated security alert',
         description: 'Sent to a user when their profile information changes (security notice).',
-        tenantOverridable: false,
+        tenantOverridable: true,
         variables: [
             { name: 'email', description: "The recipient's email address." },
         ],

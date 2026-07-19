@@ -2,7 +2,11 @@
 const User = require('./user.model'); // <--- ADD THIS LINE
 const OutboxMessage = require('../../platform/outboxMessage.model');
 const { enqueueEmail } = require('../notification/emailOutbox');
+const { resolveIdentityScope } = require('../../platform/identityScope');
 const RegistrationLead = require('../saas/registrationLead.model');
+
+// Base URL for links in outgoing emails (reset, etc.). Falls back to local dev.
+const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:4200';
 const Account = require('../saas/account.model');
 const Company = require('../saas/company.model');
 const CompanyUser = require('../saas/companyUser.model');
@@ -961,11 +965,22 @@ exports.forgotPassword = async (req, res) => {
         user.resetPasswordExpires = tokenExpiry;
         await user.save({ transaction });
 
-        // 6. Generate the reset link (This points back to a new page we will build in Angular!)
-        const resetLink = `http://localhost:4200/reset-password?token=${resetToken}`;
+        // 6. Generate the reset link (uses the deployed frontend URL, not localhost).
+        const resetLink = `${FRONTEND_BASE_URL}/reset-password?token=${resetToken}`;
 
-        // 7. Create the Outbox Message to trigger your email worker
-        await enqueueEmail({ templateKey: 'password.reset', to: user.email, data: { email: user.email, resetLink } }, transaction);
+        // 7. Queue the reset email, BRANDED for the user's resolved scope (their club
+        // when unambiguous, else the subscriber-wide or platform default) but always
+        // DELIVERED via the platform mailer - a password reset must not depend on a
+        // tenant SMTP being healthy.
+        const scope = await resolveIdentityScope(user);
+        await enqueueEmail({
+            templateKey: 'password.reset',
+            accountId: scope.accountId,
+            companyId: scope.companyId,
+            to: user.email,
+            data: { email: user.email, resetLink },
+            forcePlatformSender: true,
+        }, transaction);
 
         // 8. Commit the transaction
         await transaction.commit();
@@ -1015,8 +1030,17 @@ exports.resetPassword = async (req, res) => {
         user.resetPasswordExpires = null;
         await user.save({ transaction });
 
-        // 👇 4. ADDED: Queue the success-confirmation email (rendered from template)
-        await enqueueEmail({ templateKey: 'password.reset.success', to: user.email, data: { email: user.email } }, transaction);
+        // 4. Queue the success-confirmation email, branded for the user's resolved
+        //    scope but sent via the platform mailer (a security notice).
+        const scope = await resolveIdentityScope(user);
+        await enqueueEmail({
+            templateKey: 'password.reset.success',
+            accountId: scope.accountId,
+            companyId: scope.companyId,
+            to: user.email,
+            data: { email: user.email },
+            forcePlatformSender: true,
+        }, transaction);
 
         // 5. Commit both the password change and the email trigger
         await transaction.commit();

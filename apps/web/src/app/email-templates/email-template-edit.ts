@@ -179,7 +179,7 @@ export class EmailTemplateEditComponent implements OnInit {
     this.service.reset(this.key()).subscribe({
       next: (res) => {
         this.apply(res.template);
-        this.successMessage.set(res.message || 'Template reset to default.');
+        this.successMessage.set(res.message || 'Template reset to the platform default.');
         this.resetting.set(false);
         this.refreshPreview();
       },
@@ -201,7 +201,7 @@ export class EmailTemplateEditComponent implements OnInit {
     this.testing.set(true);
     this.service.sendTest(this.key(), to, v.subject, v.bodyHtml, v.fromName.trim() || null, { brandColor: v.brandColor, includeLogo: v.includeLogo }).subscribe({
       next: (res) => {
-        this.successMessage.set(res.message || `Test queued to ${to}.`);
+        this.successMessage.set(res.message || `Test email queued to ${to}. It should arrive shortly.`);
         this.testing.set(false);
       },
       error: (err) => {

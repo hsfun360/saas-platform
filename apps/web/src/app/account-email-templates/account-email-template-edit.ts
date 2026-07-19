@@ -180,7 +180,7 @@ export class AccountEmailTemplateEditComponent implements OnInit {
         next: (res) => {
           this.hasOverride.set(true);
           this.inheritedFrom.set(null); // this scope now has its own row
-          this.successMessage.set(res.message || 'Saved.');
+          this.successMessage.set(res.message || 'Template saved.');
           this.saving.set(false);
         },
         error: (err) => {
@@ -200,9 +200,10 @@ export class AccountEmailTemplateEditComponent implements OnInit {
     if (!confirm(msg)) return;
     this.reverting.set(true);
     this.service.revert(this.key(), this.scopeCompanyId()).subscribe({
-      next: () => {
+      next: (res) => {
         this.reverting.set(false);
-        this.load(this.key()); // reload whatever this scope now inherits
+        this.load(this.key()); // reload whatever this scope now inherits (clears messages)
+        this.successMessage.set(res.message || 'Version removed.'); // set AFTER load's clear
       },
       error: (err) => {
         this.errorMessage.set(err.error?.message || 'Failed to revert.');
@@ -222,7 +223,7 @@ export class AccountEmailTemplateEditComponent implements OnInit {
     this.testing.set(true);
     this.service.sendTest(this.key(), to, v.subject, v.bodyHtml, v.fromName.trim() || null, { brandColor: v.brandColor, includeLogo: v.includeLogo, companyId: this.scopeCompanyId() }).subscribe({
       next: (res) => {
-        this.successMessage.set(res.message || `Test queued to ${to}.`);
+        this.successMessage.set(res.message || `Test email queued to ${to}. It should arrive shortly.`);
         this.testing.set(false);
       },
       error: (err) => {

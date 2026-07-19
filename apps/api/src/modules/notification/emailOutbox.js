@@ -16,9 +16,13 @@ const { fromHeader } = require('./mailer');
 // Never let a template lookup/render abort the caller's business transaction is
 // the caller's decision — this throws on a missing template so producers can
 // choose to swallow it if email is non-critical.
-async function enqueueEmail({ templateKey, accountId = null, companyId = null, to, data = {} }, transaction) {
-    // companyId drives BOTH the branding (header/colour, resolved now) and the
-    // worker's SMTP selection (stored in the payload below).
+// `companyId` drives BOTH the branding (header/colour/logo, resolved now) and the
+// worker's SMTP selection. `forcePlatformSender` decouples them: the email is still
+// BRANDED for that company, but it is DELIVERED via the platform mailer (the payload
+// companyId is nulled). Use it for security/account emails (password reset, reset
+// confirmation, profile-change alert) whose delivery must not depend on a tenant's
+// SMTP being configured or healthy.
+async function enqueueEmail({ templateKey, accountId = null, companyId = null, to, data = {}, forcePlatformSender = false }, transaction) {
     const rendered = await renderEmail(templateKey, accountId, data, companyId);
     if (!rendered) return false; // email type disabled
 
@@ -31,7 +35,7 @@ async function enqueueEmail({ templateKey, accountId = null, companyId = null, t
                 accountId: accountId || null,
                 // When set (and the company has active SMTP), the worker sends via
                 // that company's own server instead of the platform mailer.
-                companyId: companyId || null,
+                companyId: forcePlatformSender ? null : (companyId || null),
                 to,
                 from: fromHeader(rendered.fromName),
                 subject: rendered.subject,

@@ -66,6 +66,37 @@ After a web deploy, `GET /tinymce/tinymce.min.js` must return 200, or the editor
 ## Email branding (header band + logo + button colour)
 Emails carry a brand: a coloured header band, the sending company's logo, and brand-coloured call-to-action buttons.
 
+### The rules (the decisions)
+These are the agreed rules; the subsections below are how they are implemented.
+
+1. **Brand lives on the TEMPLATE, per scope - never on the company.** The accent
+   colour + include-logo flag are `EmailTemplate` columns, resolved through the
+   cascade. (A per-company `Company.brandColor` approach was tried and deliberately
+   reverted - a company has one logo, but each template can want its own colour.)
+2. **The cascade decides whose brand wins:** company override -> subscriber-wide
+   override -> platform default. Two clubs on one subscription each get their own
+   colour + content; a subscriber that wants one look everywhere keeps only the
+   subscriber-wide row.
+3. **The logo is ALWAYS the sending company's `Company.logo`** - never uploaded or
+   stored per template, and shown only when `includeLogo` is ticked. (A transparent
+   PNG blends into the band; a white-background image keeps its white - that lives in
+   the image file, not the HTML.)
+4. **Branding is applied automatically at render, not baked into the body.** So it
+   works on any body - old, customised, or default - with **no "reset to default"**.
+   The output is one clean card: the colour header band (with centred logo) on top,
+   and CTA buttons recoloured to the brand.
+5. **Only brand when a colour is actually set.** No colour configured = platform-
+   neutral (no band, buttons untouched). The default `#2563eb` exists only so a
+   `{{brandColor}}` reference never renders empty.
+6. **Colour must be hex; logo URL must be `http(s)`.** Validated server-side so
+   neither can inject markup/CSS.
+7. **Security / account emails resolve their brand from the IDENTITY, and always
+   send via the platform mailer.** `password.reset`, `password.reset.success`, and
+   `profile.updated` have no `companyId` to hand in, so the producer derives a scope
+   from the user (see below) - degrading to platform-neutral when ambiguous - and
+   passes `forcePlatformSender: true` so delivery never depends on a tenant SMTP.
+   (Product emails like `membership.welcome` / invitations DO use the company SMTP.)
+
 ### Where it is configured
 Brand settings live **on the email template** (not on the company), edited from a **Brand settings** card at the top of each editor screen.
 
@@ -84,6 +115,27 @@ This is deliberate: bodies do **not** need to reference any brand variable, so b
 - `brandColor` comes from the effective template row; the logo is fetched from `Company.logo` for the send's `companyId`, and only when `includeLogo` is on.
 - Colour is validated as hex and the logo URL as `http(s)` only, so neither can inject markup/CSS.
 - A transparent-background logo blends into the band; a logo saved with a white background keeps that white, because that lives in the image file, not in the HTML.
+
+### Security / account emails: scope resolved from the identity
+`password.reset`, `password.reset.success`, and `profile.updated` are now
+tenant-overridable too, but they are triggered by an **email address alone** (or a
+context we don't brand from), so there is no `companyId` to hand in. The producer
+resolves one via `platform/identityScope.resolveIdentityScope(user)` -> `{ accountId,
+companyId }`, which the cascade then uses:
+1. the user's last-used workspace (`User.lastWorkspaceId`), when it's a real company;
+2. else the single company they belong to (staff `CompanyUser` **or** member link);
+3. else, if all their companies share one account, that account (subscriber-wide);
+4. else the platform default.
+Identity is global but membership is many, and a reset is about the login, not one
+club - so anything ambiguous (spans accounts, or unknown) degrades to the platform
+default rather than guessing.
+
+**These stay on the platform mailer even when branded.** `enqueueEmail(..., {
+forcePlatformSender: true })` brands the email for the resolved company (colour /
+logo / copy) but nulls the payload `companyId` so the worker does NOT route through a
+tenant SMTP - a password reset must not fail because a club's mail server is
+misconfigured. (Product emails like `membership.welcome` / invitations still use the
+company SMTP.)
 
 ### Live preview + test send
 Both editors send the current (unsaved) `brandColor` + `includeLogo` on every **preview** and **test-send** request, so what the author sees and tests matches what will be stored.
