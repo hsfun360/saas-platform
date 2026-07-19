@@ -218,6 +218,20 @@ export class MembershipsComponent implements OnInit {
     return this.options()?.types.find((t) => t.id === id) || null;
   });
 
+  // Expiry date is a term-membership field. Create: only when the picked type
+  // is a term type. Edit: the type is immutable, so show it when that type is
+  // term - or when the record already carries a date (keeps a manually-dated
+  // contract editable).
+  readonly showExpiryField = computed(() => {
+    const editing = this.editMembership();
+    if (editing) {
+      const t = this.options()?.types.find((x) => x.id === editing.membershipTypeId);
+      return !!t?.isTermMembership || !!editing.expiryDate;
+    }
+    const t = this.selectedType();
+    return !!(t?.isTermMembership && t.termMonths);
+  });
+
   // Add mode: the picked type's class. Edit mode: the record's class.
   readonly dialogClass = computed(() => {
     const editing = this.editMembership();
