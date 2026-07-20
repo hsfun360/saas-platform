@@ -1,0 +1,198 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🏛️</span>
+      <div>
+        <h1>Club Specification</h1>
+        <p class="saas-subtitle">What kind of club this is — the membership screens show only the fields that apply.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading club specification…</p></div>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="save()" class="saas-form cs-form">
+
+      <!-- Club type -->
+      <fieldset class="cs-fieldset">
+        <legend>Club type</legend>
+        <div class="cs-options" role="radiogroup" aria-label="Club type">
+          @for (t of clubTypes(); track t.key) {
+            <label class="cs-option" [class.cs-option--active]="formValue().clubType === t.key">
+              <input type="radio" formControlName="clubType" [value]="t.key" />
+              <span class="cs-option__text">
+                <span class="cs-option__title">{{ t.label }}</span>
+                <span class="cs-option__hint">{{ clubTypeHints[t.key] }}</span>
+              </span>
+            </label>
+          }
+        </div>
+      </fieldset>
+
+      <!-- Admission model -->
+      <fieldset class="cs-fieldset">
+        <legend>Admission</legend>
+        <label class="cs-option" [class.cs-option--active]="formValue().isCommittee">
+          <input type="checkbox" formControlName="isCommittee" />
+          <span class="cs-option__text">
+            <span class="cs-option__title">Committee club</span>
+            <span class="cs-option__hint">
+              Members are proposed and vouched in (proposal → interview → provision).
+              Membership entry shows the Proposer field and hides the salesperson pickers.
+              Leave off for a commercial pay-to-join club.
+            </span>
+          </span>
+        </label>
+      </fieldset>
+
+      <!-- Sales channels (commercial clubs only) -->
+      @if (!formValue().isCommittee) {
+        <fieldset class="cs-fieldset">
+          <legend>Sales channels</legend>
+          <p class="cs-fieldset__hint">Who sells memberships for this club. Only the enabled kinds appear on the Sales Agents screen and in the entry pickers.</p>
+          <label class="cs-option" [class.cs-option--active]="formValue().salesAgencyEnabled">
+            <input type="checkbox" formControlName="salesAgencyEnabled" />
+            <span class="cs-option__text">
+              <span class="cs-option__title">Sales agencies</span>
+              <span class="cs-option__hint">Outsourced agency companies and their staff.</span>
+            </span>
+          </label>
+          <label class="cs-option" [class.cs-option--active]="formValue().salesExternalEnabled">
+            <input type="checkbox" formControlName="salesExternalEnabled" />
+            <span class="cs-option__text">
+              <span class="cs-option__title">External individuals</span>
+              <span class="cs-option__hint">Freelance salespeople outside the company.</span>
+            </span>
+          </label>
+          <label class="cs-option" [class.cs-option--active]="formValue().salesInternalEnabled">
+            <input type="checkbox" formControlName="salesInternalEnabled" />
+            <span class="cs-option__text">
+              <span class="cs-option__title">Internal sales staff</span>
+              <span class="cs-option__hint">Salespeople employed directly by the club.</span>
+            </span>
+          </label>
+        </fieldset>
+      }
+
+      <!-- Membership number -->
+      <fieldset class="cs-fieldset">
+        <legend>Membership number</legend>
+        <label class="cs-option" [class.cs-option--active]="formValue().isMembershipAutoNumber">
+          <input type="checkbox" formControlName="isMembershipAutoNumber" />
+          <span class="cs-option__text">
+            <span class="cs-option__title">Auto-generate membership numbers</span>
+            <span class="cs-option__hint">
+              The system issues the next number on save.
+              When off, staff key the number in (e.g. from a pre-printed card) and only uniqueness is checked.
+            </span>
+          </span>
+        </label>
+        @if (formValue().isMembershipAutoNumber) {
+          <div class="cs-numbering">
+            @if (numbering()?.scheme; as s) {
+              <div class="nb-preview cs-numbering__preview">
+                <span class="nb-preview__label">Next number will look like</span>
+                <span class="nb-preview__value">{{ s.nextPreview || '—' }}</span>
+                <span class="nb-hint">Resets {{ resetRuleLabel(s.resetRule) }}</span>
+              </div>
+            }
+            <button type="button" class="btn btn--secondary" (click)="openConfig()">Configure format…</button>
+          </div>
+        }
+      </fieldset>
+
+      <div class="cs-actions">
+        <button type="submit" class="btn btn--primary" [disabled]="saving() || !form.dirty">
+          {{ saving() ? 'Saving…' : 'Save club specification' }}
+        </button>
+      </div>
+    </form>
+  }
+
+  <!-- ============ Configure numbering format dialog ============ -->
+  @if (configOpen()) {
+    <app-dialog #dlg title="Membership number format" [busy]="configSaving()" [dirty]="configForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to the number format. Leaving now will discard them."
+                (close)="configOpen.set(false)">
+      <form id="csConfigForm" [formGroup]="configForm" (ngSubmit)="saveConfig()" class="saas-form" style="padding: 0;">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="csPrefix">Prefix</label>
+            <input id="csPrefix" type="text" formControlName="prefix" placeholder="e.g. M" maxlength="20" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="csReset">Reset sequence</label>
+            <select id="csReset" formControlName="resetRule">
+              @for (r of resetRules(); track r.key) {
+                <option [value]="r.key">{{ r.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="csFormat">Format <span class="required">*</span></label>
+            <input id="csFormat" type="text" formControlName="format" placeholder="{PREFIX}{SEQ}" maxlength="60" autocomplete="off"
+                   [attr.aria-invalid]="showError(configForm.controls.format)" aria-describedby="csFormatErr" />
+            @if (showError(configForm.controls.format)) {
+              <p id="csFormatErr" class="field-error" role="alert">A format is required (use 60 characters or fewer).</p>
+            }
+            <div class="nb-tokens">
+              <span class="nb-tokens__label">Insert:</span>
+              @for (t of tokens(); track t.token) {
+                <button type="button" class="nb-token" (click)="insertToken(t.token)" [title]="t.label">{{ t.token }}</button>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="csPad">Sequence digits</label>
+            <input id="csPad" type="number" inputmode="numeric" formControlName="seqPadLength" min="0" max="12" step="1" />
+          </div>
+          <div class="form-group">
+            <label for="csStart">Starting number</label>
+            <input id="csStart" type="number" inputmode="numeric" formControlName="startingNumber" min="1" step="1" />
+          </div>
+        </div>
+
+        <div class="nb-preview">
+          <span class="nb-preview__label">Next number will look like</span>
+          <span class="nb-preview__value">{{ configPreview() }}</span>
+          @if ((configForm.controls.format.value || '').includes('{TYPE}')) {
+            <span class="nb-hint">The type token is shown as a sample (ORD); the member's actual type code is used at creation.</span>
+          }
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="configSaving()">Cancel</button>
+        <button type="submit" form="csConfigForm" class="btn btn--primary" [disabled]="configSaving()">
+          {{ configSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

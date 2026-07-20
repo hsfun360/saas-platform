@@ -14,6 +14,7 @@ const {
 const { enqueueEmail } = require('../notification/emailOutbox');
 const { AGENT_KINDS, AGENT_KIND_KEYS } = require('./salesAgent.constants');
 const { signAgentRegistrationToken } = require('./agentPortal.controller');
+const { getSettings, enabledAgentKinds } = require('./membershipSetting.service');
 
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:4200';
 
@@ -112,14 +113,21 @@ exports.getMeta = async (req, res) => {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
-        const agencies = await SalesAgency.findAll({
-            where: { companyId },
-            attributes: ['id', 'agencyCode', 'agencyName', 'isActive'],
-            order: [['agencyCode', 'ASC']],
-        });
+        const [agencies, settings] = await Promise.all([
+            SalesAgency.findAll({
+                where: { companyId },
+                attributes: ['id', 'agencyCode', 'agencyName', 'isActive'],
+                order: [['agencyCode', 'ASC']],
+            }),
+            getSettings(companyId),
+        ]);
+        // Club Specification narrows the offered kinds; existing rows of a
+        // now-disabled kind still list/edit fine - only NEW picks are limited.
+        const kindKeys = enabledAgentKinds(settings);
         res.status(200).json({
-            agentKinds: AGENT_KINDS,
+            agentKinds: AGENT_KINDS.filter((k) => kindKeys.includes(k.key)),
             agencies: agencies.map((a) => ({ id: a.id, agencyCode: a.agencyCode, agencyName: a.agencyName, isActive: a.isActive })),
+            settings,
         });
     } catch (error) {
         console.error('Error loading sales agent meta:', error);

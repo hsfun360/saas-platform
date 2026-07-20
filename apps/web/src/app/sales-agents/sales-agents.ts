@@ -93,7 +93,12 @@ export class SalesAgentsComponent implements OnInit {
   }
 
   kindLabel(key: string): string {
-    return this.meta()?.agentKinds.find((k) => k.key === key)?.label || key;
+    // Meta ships only the kinds the Club Specification enables; existing rows
+    // of a since-disabled kind still need their label.
+    const fallback: Record<string, string> = {
+      'agency-staff': 'Agency staff', external: 'External individual', internal: 'Internal sales staff',
+    };
+    return this.meta()?.agentKinds.find((k) => k.key === key)?.label || fallback[key] || key;
   }
 
   agencyName(id: string | null | undefined): string {
@@ -103,8 +108,12 @@ export class SalesAgentsComponent implements OnInit {
   openAdd(): void {
     this.clearMessages();
     this.editRow.set(null);
+    // Default to the first kind the Club Specification enables ('internal'
+    // when everything is on, since it lists last but internal is the common case).
+    const kinds = this.meta()?.agentKinds || [];
+    const defaultKind = kinds.some((k) => k.key === 'internal') ? 'internal' : (kinds[0]?.key || 'internal');
     this.form.reset({
-      agentCode: '', name: '', agentKind: 'internal', salesAgencyId: '',
+      agentCode: '', name: '', agentKind: defaultKind, salesAgencyId: '',
       identityNo: '', phone: '', mobile: '', email: '', joinedDate: '', leftDate: '', remarks: '',
     });
     this.dialogOpen.set(true);

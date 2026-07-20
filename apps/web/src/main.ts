@@ -116,6 +116,8 @@ const routes: Routes = [
 
       // Core product systems — landing dashboards (own components as built).
       { path: 'membership', loadComponent: () => import('./app/systems/system-dashboard').then((m) => m.SystemDashboardComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management', title: 'Membership Management', icon: 'card_membership', blurb: 'Members, tiers, dues and standing.' } },
+      // Club Specification (SRS 2.1.1) - the per-company membership system master.
+      { path: 'membership/settings', loadComponent: () => import('./app/club-specification/club-specification').then((m) => m.ClubSpecificationComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       // Master File Setup → Membership Status (per-company master file).
       { path: 'membership/statuses', loadComponent: () => import('./app/membership-statuses/membership-statuses').then((m) => m.MembershipStatusesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/fees', loadComponent: () => import('./app/membership-fees/membership-fees').then((m) => m.MembershipFeesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },

@@ -8,7 +8,7 @@ import { MembershipFeeService } from '../services/membership-fee.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { MoneyInputDirective } from '../shared/money-input.directive';
-import { Currency, MembershipType, MembershipStatus, MembershipFee, MembershipStatusOption, TaxSchemeRef, TransactionTypePickerRow } from '../models/auth.models';
+import { ClubSettings, Currency, MembershipType, MembershipStatus, MembershipFee, MembershipStatusOption, TaxSchemeRef, TransactionTypePickerRow } from '../models/auth.models';
 
 // Editable joining-fee row (amounts kept as strings for the inputs). The
 // transaction type comes from the Transaction Type master and carries the tax.
@@ -75,6 +75,8 @@ export class MembershipTypesComponent implements OnInit {
   // Standing charges - auto-seeded one row per active Membership Status.
   readonly standingRows = signal<StandingRow[]>([]);
   readonly frequencies = signal<MembershipStatusOption[]>([]);
+  // Club Specification (SRS 2.1.1): only a golf club deals in golfing rights.
+  readonly clubSettings = signal<ClubSettings | null>(null);
   readonly monthNames = MONTH_NAMES;
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);
@@ -193,8 +195,14 @@ export class MembershipTypesComponent implements OnInit {
   }
 
   // Golf settings (dependent golfing, play times) show only when golfing access is on.
+  // Golfing rights exist only for a golf club (Club Specification gate).
+  showGolf(): boolean {
+    const s = this.clubSettings();
+    return !s || s.clubType === 'golf';
+  }
+
   isGolfAllowed(): boolean {
-    return this.form.controls.isGolfAllow.value;
+    return this.showGolf() && this.form.controls.isGolfAllow.value;
   }
 
   isTerm(): boolean {
@@ -238,6 +246,7 @@ export class MembershipTypesComponent implements OnInit {
       next: (m) => {
         this.classes.set(m.classes);
         this.frequencies.set(m.frequencies || []);
+        this.clubSettings.set(m.settings ?? null);
       },
       error: () => {},
     });

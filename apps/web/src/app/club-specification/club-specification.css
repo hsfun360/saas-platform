@@ -1,0 +1,112 @@
+/* Club Specification - one card of grouped option rows. All colours come from
+   the theme tokens so the screen works in light and dark. */
+
+.cs-form {
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.cs-fieldset {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-md);
+  background: var(--surface-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.cs-fieldset legend {
+  font-size: var(--font-h3);
+  font-weight: var(--weight-semibold, 600);
+  color: var(--text-primary);
+  padding: 0 var(--space-xs);
+}
+
+.cs-fieldset__hint {
+  margin: 0;
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+.cs-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* One selectable option row: control + title + consequence caption. */
+.cs-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--surface-input);
+  min-height: 44px;
+}
+
+.cs-option:hover {
+  background: var(--surface-hover);
+}
+
+.cs-option--active {
+  border-color: var(--brand);
+  background: var(--surface-selected);
+}
+
+.cs-option input[type='radio'],
+.cs-option input[type='checkbox'] {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+  flex-shrink: 0;
+}
+
+.cs-option__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cs-option__title {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold, 600);
+  color: var(--text-primary);
+}
+
+.cs-option__hint {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+/* The numbering summary + configure button under the auto toggle. */
+.cs-numbering {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding-left: var(--space-md);
+}
+
+.cs-numbering__preview {
+  flex: 1 1 240px;
+  margin: 0;
+}
+
+.cs-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 767px) {
+  .cs-actions .btn {
+    width: 100%;
+  }
+}

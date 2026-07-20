@@ -635,6 +635,50 @@ export interface MembershipType {
 export interface MembershipTypeMeta {
   classes: MembershipStatusOption[];
   frequencies: MembershipStatusOption[];
+  settings?: ClubSettings | null;
+}
+
+// --- Club Specification (SRS 2.1.1 - membership system master) ---
+
+// The per-company singleton declaring what kind of club this is; entry screens
+// gate their fields with it. Committee clubs always report all sales flags false.
+export interface ClubSettings {
+  clubType: 'golf' | 'leisure' | 'others';
+  isCommittee: boolean;
+  salesAgencyEnabled: boolean;
+  salesExternalEnabled: boolean;
+  salesInternalEnabled: boolean;
+}
+
+// Membership numbering as surfaced on the Club Specification screen. The
+// source of truth is Numbering Control's scheme (via the gateway seam).
+export interface NumberingSchemeConfig {
+  mode: 'auto' | 'manual';
+  prefix: string | null;
+  format: string | null;
+  seqPadLength: number;
+  startingNumber: number;
+  currentNumber: number;
+  resetRule: string;
+  isActive: boolean;
+  nextPreview: string | null;
+}
+
+export interface ClubNumbering {
+  isMembershipAutoNumber: boolean;
+  scheme: NumberingSchemeConfig | null;
+}
+
+export interface ClubSpecification {
+  settings: ClubSettings;
+  numbering: ClubNumbering;
+  meta?: {
+    clubTypes: MembershipStatusOption[];
+    numbering: {
+      resetRules: MembershipStatusOption[];
+      tokens: { token: string; label: string }[];
+    };
+  };
 }
 
 // --- Membership / Member CRM (SRS 2.3) ---
@@ -796,6 +840,7 @@ export interface MembershipOptions {
   statuses: { id: string; membershipStatus: string; statusClass: string; statusColor?: string | null }[];
   fees: { id: string; membershipFeeCode: string; description?: string | null; amount: number }[];
   agents: { id: string; agentCode: string; name: string }[];
+  settings?: ClubSettings | null;
 }
 
 // --- Sales Management (SRS 2.2) ---
@@ -843,6 +888,7 @@ export interface SalesAgent {
 export interface SalesAgentMeta {
   agentKinds: MembershipStatusOption[];
   agencies: { id: string; agencyCode: string; agencyName: string; isActive: boolean }[];
+  settings?: ClubSettings | null;
 }
 
 // Flat member-search row (the read-only Members screen).

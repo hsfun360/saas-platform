@@ -521,28 +521,33 @@
               <label for="msReference">Reference</label>
               <input id="msReference" type="text" formControlName="reference" autocomplete="off" maxlength="255" />
             </div>
-            <div class="form-group">
-              <label for="msProposer">Proposer</label>
-              <input id="msProposer" type="text" formControlName="proposer" autocomplete="off" maxlength="255" />
-            </div>
-            <div class="form-group">
-              <label for="msSales">Sales agent (closed the sale)</label>
-              <select id="msSales" formControlName="salesAgentId">
-                <option value="">—</option>
-                @for (a of options()?.agents; track a.id) {
-                  <option [value]="a.id">{{ a.agentCode }} — {{ a.name }}</option>
-                }
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="msFollowupSales">Follow-up sales agent</label>
-              <select id="msFollowupSales" formControlName="followupSalesAgentId">
-                <option value="">—</option>
-                @for (a of options()?.agents; track a.id) {
-                  <option [value]="a.id">{{ a.agentCode }} — {{ a.name }}</option>
-                }
-              </select>
-            </div>
+            @if (showProposer()) {
+              <!-- Committee club: members are vouched in, not sold. -->
+              <div class="form-group">
+                <label for="msProposer">Proposer</label>
+                <input id="msProposer" type="text" formControlName="proposer" autocomplete="off" maxlength="255" />
+              </div>
+            }
+            @if (showSalesPickers()) {
+              <div class="form-group">
+                <label for="msSales">Sales agent (closed the sale)</label>
+                <select id="msSales" formControlName="salesAgentId">
+                  <option value="">—</option>
+                  @for (a of options()?.agents; track a.id) {
+                    <option [value]="a.id">{{ a.agentCode }} — {{ a.name }}</option>
+                  }
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="msFollowupSales">Follow-up sales agent</label>
+                <select id="msFollowupSales" formControlName="followupSalesAgentId">
+                  <option value="">—</option>
+                  @for (a of options()?.agents; track a.id) {
+                    <option [value]="a.id">{{ a.agentCode }} — {{ a.name }}</option>
+                  }
+                </select>
+              </div>
+            }
           </div>
           </details>
         }

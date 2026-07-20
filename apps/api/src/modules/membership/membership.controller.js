@@ -54,6 +54,7 @@ const {
 const Address = require('./address.model');
 const SalesAgent = require('./salesAgent.model');
 const { MEMBERSHIP_CLASS_KEYS } = require('./membershipType.constants');
+const { getSettings, enabledAgentKinds } = require('./membershipSetting.service');
 
 const NUMBERING_PURPOSE = 'membership';
 
@@ -514,12 +515,16 @@ exports.getOptions = async (req, res) => {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
+        // Club Specification decides which pickers apply and which agent kinds
+        // are sellable at all (committee club -> none).
+        const settings = await getSettings(companyId);
+        const agentKinds = enabledAgentKinds(settings);
         const [types, statuses, fees, agents] = await Promise.all([
             MembershipType.findAll({ where: { companyId, isActive: true }, order: [['category', 'ASC']] }),
             MembershipStatus.findAll({ where: { companyId, isActive: true }, order: [['membershipStatus', 'ASC']] }),
             MembershipFee.findAll({ where: { companyId, isActive: true }, order: [['membershipFeeCode', 'ASC']] }),
-            SalesAgent.findAll({
-                where: { companyId, isActive: true },
+            agentKinds.length === 0 ? [] : SalesAgent.findAll({
+                where: { companyId, isActive: true, agentKind: { [Op.in]: agentKinds } },
                 attributes: ['id', 'agentCode', 'name'],
                 order: [['agentCode', 'ASC']],
             }),
@@ -555,7 +560,11 @@ exports.getOptions = async (req, res) => {
             })),
             // The Salesperson pickers on the dialog (avoids cross-menu RBAC on
             // the sales-agents endpoints, same reasoning as the other pickers).
+            // Already filtered to the club's enabled sales channels.
             agents: agents.map((a) => ({ id: a.id, agentCode: a.agentCode, name: a.name })),
+            // Club Specification - the dialog gates Proposer vs the sales
+            // pickers (committee vs commercial) with this.
+            settings,
         });
     } catch (error) {
         console.error('Error loading membership options:', error);

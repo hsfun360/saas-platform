@@ -1,11 +1,11 @@
 const NumberingScheme = require('./numberingScheme.model');
 const { previewNext } = require('./numberingGenerator');
+const { normalizeConfig } = require('./numberingScheme.service');
 const {
     NUMBERING_MODES,
     RESET_RULES,
     NUMBERING_PURPOSES,
     FORMAT_TOKENS,
-    NUMBERING_MODE_KEYS,
     RESET_RULE_KEYS,
     NUMBERING_PURPOSE_KEYS,
 } = require('./numberingScheme.constants');
@@ -36,46 +36,18 @@ function toDto(row) {
     return dto;
 }
 
-// Validate + normalise the config fields shared by create/update. Returns
-// { value } or { error }.
+// Validate + normalise the config fields shared by create/update - the field
+// rules live in numberingScheme.service so the gateway path can't drift.
 function normalizeBody(body, { forCreate } = {}) {
-    const value = {};
+    const parsed = normalizeConfig(body);
+    if (parsed.error) return parsed;
 
     if (forCreate) {
         const purpose = String(body.purpose || '').trim();
         if (!NUMBERING_PURPOSE_KEYS.includes(purpose)) return { error: 'Invalid numbering purpose.' };
-        value.purpose = purpose;
+        parsed.value.purpose = purpose;
     }
-
-    if (body.mode !== undefined) {
-        const mode = String(body.mode || '').trim();
-        if (!NUMBERING_MODE_KEYS.includes(mode)) return { error: 'Invalid mode.' };
-        value.mode = mode;
-    }
-    if (body.prefix !== undefined) {
-        value.prefix = typeof body.prefix === 'string' ? body.prefix.trim() || null : null;
-    }
-    if (body.format !== undefined) {
-        value.format = typeof body.format === 'string' && body.format.trim() ? body.format.trim() : '{PREFIX}{SEQ}';
-    }
-    if (body.seqPadLength !== undefined) {
-        const n = Number(body.seqPadLength);
-        if (!Number.isInteger(n) || n < 0 || n > 12) return { error: 'Sequence padding must be a whole number from 0 to 12.' };
-        value.seqPadLength = n;
-    }
-    if (body.startingNumber !== undefined) {
-        const n = Number(body.startingNumber);
-        if (!Number.isInteger(n) || n < 1) return { error: 'Starting number must be a whole number of at least 1.' };
-        value.startingNumber = n;
-    }
-    if (body.resetRule !== undefined) {
-        const resetRule = String(body.resetRule || '').trim();
-        if (!RESET_RULE_KEYS.includes(resetRule)) return { error: 'Invalid reset rule.' };
-        value.resetRule = resetRule;
-    }
-    if (typeof body.isActive === 'boolean') value.isActive = body.isActive;
-
-    return { value };
+    return parsed;
 }
 
 // GET /auth/company/numbering-schemes/meta

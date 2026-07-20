@@ -302,7 +302,16 @@ async function validateRefs(companyId, v, selfId) {
 
 // GET /api/membership/types/meta - the membership class options for the dropdown.
 exports.getMeta = async (req, res) => {
-    res.status(200).json({ classes: MEMBERSHIP_CLASSES, frequencies: STANDING_FREQUENCIES });
+    try {
+        // Club Specification: only a golf club sees the Golfing-allowed gates.
+        const { getSettings } = require('./membershipSetting.service');
+        const companyId = companyIdOf(req);
+        const settings = companyId ? await getSettings(companyId) : null;
+        res.status(200).json({ classes: MEMBERSHIP_CLASSES, frequencies: STANDING_FREQUENCIES, settings });
+    } catch (error) {
+        console.error('Error loading membership type meta:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 };
 
 // GET /api/membership/types/currencies - the subscriber's currency set for the

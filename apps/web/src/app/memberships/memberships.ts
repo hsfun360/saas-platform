@@ -212,6 +212,18 @@ export class MembershipsComponent implements OnInit {
   readonly totalKnown = computed(() => this.counts().individual + this.counts().corporate);
   readonly hasMore = computed(() => this.rows().length < this.total());
 
+  // Club Specification gates (SRS 2.1.1): committee clubs propose members in,
+  // commercial clubs sell them. Null settings (pre-settings API) shows all.
+  readonly clubSettings = computed(() => this.options()?.settings ?? null);
+  readonly showProposer = computed(() => {
+    const s = this.clubSettings();
+    return s ? s.isCommittee : true;
+  });
+  readonly showSalesPickers = computed(() => {
+    const s = this.clubSettings();
+    return s ? !s.isCommittee && (s.salesAgencyEnabled || s.salesExternalEnabled || s.salesInternalEnabled) : true;
+  });
+
   // The type picked in the (add) membership dialog decides the class + defaults.
   readonly selectedType = computed(() => {
     const id = this.msValue().membershipTypeId;

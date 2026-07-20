@@ -175,7 +175,9 @@
         <fieldset class="mt-fieldset">
           <legend>Default rights</legend>
           <div class="mt-rights">
-            <label class="mt-check"><input type="checkbox" formControlName="isGolfAllow" /><span>Golfing access</span></label>
+            @if (showGolf()) {
+              <label class="mt-check"><input type="checkbox" formControlName="isGolfAllow" /><span>Golfing access</span></label>
+            }
             @if (isGolfAllowed()) {
               <label class="mt-check"><input type="checkbox" formControlName="dependentGolfingAllow" /><span>Dependent golfing allow</span></label>
             }

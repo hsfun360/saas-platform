@@ -47,4 +47,67 @@ async function issueNumber(req, purpose, opts = {}) {
     return result; // null | { number, seq }
 }
 
-module.exports = { getMode, issueNumber };
+// ---------------------------------------------------------------------------
+// Scheme CONFIG access - for product settings screens that surface numbering
+// as part of their own setup (Membership's Club Specification). The scheme
+// stays Control-Plane owned; this is the same seam, wider: read the config,
+// write the config, preview a draft. The running counter is never writable.
+
+function toSchemeDto(row) {
+    if (!row) return null;
+    const service = require('../modules/saas/numberingScheme.service');
+    return {
+        mode: row.mode,
+        prefix: row.prefix,
+        format: row.format,
+        seqPadLength: row.seqPadLength,
+        startingNumber: row.startingNumber,
+        currentNumber: row.currentNumber,
+        resetRule: row.resetRule,
+        isActive: row.isActive,
+        nextPreview: row.mode === 'auto' ? service.previewNext(row).number : null,
+    };
+}
+
+// The owner's vocabularies (reset rules, format tokens) for settings screens.
+function numberingMeta() {
+    const { RESET_RULES, FORMAT_TOKENS } = require('../modules/saas/numberingScheme.constants');
+    return { resetRules: RESET_RULES, tokens: FORMAT_TOKENS };
+}
+
+// The full scheme config for a purpose in the caller's active company, or null.
+async function getScheme(req, purpose) {
+    const { companyId } = getUserContext(req);
+    if (!companyId) return null;
+    const service = require('../modules/saas/numberingScheme.service');
+    return toSchemeDto(await service.getScheme(companyId, purpose));
+}
+
+// Create-or-update the scheme config (validated by the owner's rules).
+// Returns { scheme } or { error } for a 400.
+async function saveScheme(req, purpose, body) {
+    const { companyId } = getUserContext(req);
+    if (!companyId) return { error: 'Select a workspace first.' };
+    const service = require('../modules/saas/numberingScheme.service');
+    const parsed = service.normalizeConfig(body);
+    if (parsed.error) return parsed;
+    const row = await service.upsertScheme(companyId, purpose, parsed.value);
+    return { scheme: toSchemeDto(row) };
+}
+
+// Render the next number for an UNSAVED draft config (screen previews).
+function previewScheme(draft, opts = {}) {
+    const service = require('../modules/saas/numberingScheme.service');
+    const { RESET_RULE_KEYS } = require('../modules/saas/numberingScheme.constants');
+    return service.previewNext({
+        prefix: typeof draft.prefix === 'string' ? draft.prefix : '',
+        format: typeof draft.format === 'string' && draft.format.trim() ? draft.format : '{PREFIX}{SEQ}',
+        seqPadLength: Number.isInteger(Number(draft.seqPadLength)) ? Number(draft.seqPadLength) : 5,
+        startingNumber: Number.isInteger(Number(draft.startingNumber)) ? Number(draft.startingNumber) : 1,
+        currentNumber: Number.isInteger(Number(draft.currentNumber)) ? Number(draft.currentNumber) : 0,
+        resetRule: RESET_RULE_KEYS.includes(draft.resetRule) ? draft.resetRule : 'never',
+        currentPeriod: null,
+    }, { typeCode: typeof opts.typeCode === 'string' ? opts.typeCode : undefined });
+}
+
+module.exports = { getMode, issueNumber, numberingMeta, getScheme, saveScheme, previewScheme };
