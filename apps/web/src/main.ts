@@ -48,6 +48,10 @@ const routes: Routes = [
   // token); the portal home needs only a valid session.
   { path: 'portal/register', loadComponent: () => import('./app/portal/portal-register').then((m) => m.PortalRegisterComponent) },
   { path: 'portal', loadComponent: () => import('./app/portal/portal-home').then((m) => m.PortalHomeComponent), canActivate: [authGuard] },
+  // Sales Agent portal - same shape as the member portal (public registration
+  // via invite token; the home lists every engagement of the login, cross-club).
+  { path: 'agent/register', loadComponent: () => import('./app/agent-portal/agent-register').then((m) => m.AgentRegisterComponent) },
+  { path: 'agent', loadComponent: () => import('./app/agent-portal/agent-home').then((m) => m.AgentHomeComponent), canActivate: [authGuard] },
   {
     // Shell layout — wraps the whole authenticated tree (top bar + sidebar +
     // <router-outlet>). Children are reached at the root (e.g. /golf, /admin/roles).
@@ -121,6 +125,8 @@ const routes: Routes = [
       // corporate, nominees/dependents managed inside) and the flat member search.
       { path: 'membership/memberships', loadComponent: () => import('./app/memberships/memberships').then((m) => m.MembershipsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/members', loadComponent: () => import('./app/members/members').then((m) => m.MembersComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/sales-agencies', loadComponent: () => import('./app/sales-agencies/sales-agencies').then((m) => m.SalesAgenciesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/sales-agents', loadComponent: () => import('./app/sales-agents/sales-agents').then((m) => m.SalesAgentsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'golf', loadComponent: () => import('./app/systems/system-dashboard').then((m) => m.SystemDashboardComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management', title: 'Golf Management', icon: 'sports_golf', blurb: 'Tee sheet, bookings and competitions.' } },
       // Master File Setup → Unit Courses (per-company 9-hole building blocks).
       { path: 'golf/unit-courses', loadComponent: () => import('./app/golf-unit-courses/golf-unit-courses').then((m) => m.GolfUnitCoursesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },

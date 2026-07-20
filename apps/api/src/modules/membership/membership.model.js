@@ -104,9 +104,14 @@ const Membership = sequelize.define('Membership', {
     applicationNo: { type: DataTypes.STRING, allowNull: true },
     reference: { type: DataTypes.STRING, allowNull: true },
     proposer: { type: DataTypes.STRING, allowNull: true },
-    // Free text until Sales Management (SRS 2.2) is built.
-    salesCode: { type: DataTypes.STRING, allowNull: true },
-    followupSalesCode: { type: DataTypes.STRING, allowNull: true },
+    // Sales Management (SRS 2.2) references - plain UUIDs into SalesAgent,
+    // app-validated like type/status/fee (no DB FK so an agent can be disabled
+    // without a hard constraint). salesAgentId = the agent who CLOSED the sale
+    // (fixed at joining; the future commission driver); followupSalesAgentId =
+    // the agent currently SERVICING the member (mutable; what the follow-up
+    // transfer function reassigns).
+    salesAgentId: { type: DataTypes.UUID, allowNull: true },
+    followupSalesAgentId: { type: DataTypes.UUID, allowNull: true },
 
     // --- Corporate profile (corporate class only) ---
     corporateName: { type: DataTypes.STRING, allowNull: true },

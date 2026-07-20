@@ -704,8 +704,8 @@ export interface Membership {
   applicationNo?: string | null;
   reference?: string | null;
   proposer?: string | null;
-  salesCode?: string | null;
-  followupSalesCode?: string | null;
+  salesAgentId?: string | null;         // the agent who closed the sale
+  followupSalesAgentId?: string | null; // the agent servicing the member
   corporateName?: string | null;       // corporate profile
   registrationNo?: string | null;
   taxNo?: string | null;
@@ -795,6 +795,46 @@ export interface MembershipOptions {
   }[];
   statuses: { id: string; membershipStatus: string; statusClass: string; statusColor?: string | null }[];
   fees: { id: string; membershipFeeCode: string; description?: string | null; amount: number }[];
+  agents: { id: string; agentCode: string; name: string }[];
+}
+
+// --- Sales Management (SRS 2.2) ---
+
+export interface SalesAgency {
+  id: string;
+  canModify?: boolean;
+  agencyCode: string;
+  agencyName: string;
+  registrationNo?: string | null;
+  contactPerson?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  email?: string | null;
+  isActive: boolean;
+  agentCount?: number;
+}
+
+export interface SalesAgent {
+  id: string;
+  canModify?: boolean;
+  agentCode: string;
+  name: string;
+  agentKind: string;                    // 'agency-staff' | 'external' | 'internal'
+  salesAgencyId?: string | null;
+  identityNo?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  email: string;
+  joinedDate?: string | null;
+  leftDate?: string | null;
+  isActive: boolean;
+  portalLinked: boolean;
+  remarks?: string | null;
+}
+
+export interface SalesAgentMeta {
+  agentKinds: MembershipStatusOption[];
+  agencies: { id: string; agencyCode: string; agencyName: string; isActive: boolean }[];
 }
 
 // Flat member-search row (the read-only Members screen).

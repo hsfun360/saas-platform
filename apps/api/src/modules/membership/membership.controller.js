@@ -52,6 +52,7 @@ const {
     ADDRESS_TYPE_KEYS,
 } = require('./member.constants');
 const Address = require('./address.model');
+const SalesAgent = require('./salesAgent.model');
 const { MEMBERSHIP_CLASS_KEYS } = require('./membershipType.constants');
 
 const NUMBERING_PURPOSE = 'membership';
@@ -168,8 +169,8 @@ function toMembershipDto(ms, extra = {}) {
         applicationNo: ms.applicationNo,
         reference: ms.reference,
         proposer: ms.proposer,
-        salesCode: ms.salesCode,
-        followupSalesCode: ms.followupSalesCode,
+        salesAgentId: ms.salesAgentId,
+        followupSalesAgentId: ms.followupSalesAgentId,
         corporateName: ms.corporateName,
         registrationNo: ms.registrationNo,
         taxNo: ms.taxNo,
@@ -235,8 +236,8 @@ function normalizeMembershipBody(body, membershipClass) {
         applicationNo: strOrNull(body.applicationNo),
         reference: strOrNull(body.reference),
         proposer: strOrNull(body.proposer),
-        salesCode: strOrNull(body.salesCode),
-        followupSalesCode: strOrNull(body.followupSalesCode),
+        salesAgentId: strOrNull(body.salesAgentId),
+        followupSalesAgentId: strOrNull(body.followupSalesAgentId),
         remarks: strOrNull(body.remarks),
     };
 
@@ -424,6 +425,18 @@ exports.uploadMemberPhoto = async (req, res) => {
     }
 };
 
+// Any referenced sales agents must belong to the company. Mutates nothing;
+// returns an error string or null.
+async function validateSalesAgents(companyId, v) {
+    const ids = [v.salesAgentId, v.followupSalesAgentId].filter(Boolean);
+    if (!ids.length) return null;
+    const rows = await SalesAgent.findAll({ where: { id: [...new Set(ids)], companyId }, attributes: ['id'] });
+    const found = new Set(rows.map((r) => r.id));
+    if (v.salesAgentId && !found.has(v.salesAgentId)) return 'Sales agent not found.';
+    if (v.followupSalesAgentId && !found.has(v.followupSalesAgentId)) return 'Follow-up sales agent not found.';
+    return null;
+}
+
 // A status the caller references must belong to their company.
 async function resolveStatus(companyId, statusId) {
     if (!statusId) return null;
@@ -493,10 +506,15 @@ exports.getOptions = async (req, res) => {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
-        const [types, statuses, fees] = await Promise.all([
+        const [types, statuses, fees, agents] = await Promise.all([
             MembershipType.findAll({ where: { companyId, isActive: true }, order: [['category', 'ASC']] }),
             MembershipStatus.findAll({ where: { companyId, isActive: true }, order: [['membershipStatus', 'ASC']] }),
             MembershipFee.findAll({ where: { companyId, isActive: true }, order: [['membershipFeeCode', 'ASC']] }),
+            SalesAgent.findAll({
+                where: { companyId, isActive: true },
+                attributes: ['id', 'agentCode', 'name'],
+                order: [['agentCode', 'ASC']],
+            }),
         ]);
 
         res.status(200).json({
@@ -527,6 +545,9 @@ exports.getOptions = async (req, res) => {
                 description: f.description,
                 amount: Number(f.amount),
             })),
+            // The Salesperson pickers on the dialog (avoids cross-menu RBAC on
+            // the sales-agents endpoints, same reasoning as the other pickers).
+            agents: agents.map((a) => ({ id: a.id, agentCode: a.agentCode, name: a.name })),
         });
     } catch (error) {
         console.error('Error loading membership options:', error);
@@ -691,6 +712,8 @@ exports.createMembership = async (req, res) => {
             if (!fee) return res.status(400).json({ message: 'Membership fee not found.' });
         }
         if (v.creditLimit === null && type.creditLimit != null) v.creditLimit = Number(type.creditLimit);
+        const agentErr = await validateSalesAgents(companyId, v);
+        if (agentErr) return res.status(400).json({ message: agentErr });
         // Term membership: default the contract expiry from the type's term when
         // the caller sent none (the form pre-fills the same value, editable).
         if (!v.expiryDate && type.isTermMembership && type.termMonths) {
@@ -861,6 +884,9 @@ exports.updateMembership = async (req, res) => {
             const fee = await MembershipFee.findOne({ where: { id: membershipFeeId, companyId }, attributes: ['id'] });
             if (!fee) return res.status(400).json({ message: 'Membership fee not found.' });
         }
+
+        const agentErr = await validateSalesAgents(companyId, v);
+        if (agentErr) return res.status(400).json({ message: agentErr });
 
         // Contract addresses (corporate class edits the contract's book).
         const contractAddrs = normalizeAddresses(ms.membershipClass === 'corporate' ? req.body.addresses : []);

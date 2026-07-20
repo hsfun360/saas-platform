@@ -526,12 +526,22 @@
               <input id="msProposer" type="text" formControlName="proposer" autocomplete="off" maxlength="255" />
             </div>
             <div class="form-group">
-              <label for="msSales">Salesperson code</label>
-              <input id="msSales" type="text" formControlName="salesCode" autocomplete="off" maxlength="255" />
+              <label for="msSales">Sales agent (closed the sale)</label>
+              <select id="msSales" formControlName="salesAgentId">
+                <option value="">—</option>
+                @for (a of options()?.agents; track a.id) {
+                  <option [value]="a.id">{{ a.agentCode }} — {{ a.name }}</option>
+                }
+              </select>
             </div>
             <div class="form-group">
-              <label for="msFollowupSales">Follow-up salesperson</label>
-              <input id="msFollowupSales" type="text" formControlName="followupSalesCode" autocomplete="off" maxlength="255" />
+              <label for="msFollowupSales">Follow-up sales agent</label>
+              <select id="msFollowupSales" formControlName="followupSalesAgentId">
+                <option value="">—</option>
+                @for (a of options()?.agents; track a.id) {
+                  <option [value]="a.id">{{ a.agentCode }} — {{ a.name }}</option>
+                }
+              </select>
             </div>
           </div>
           </details>

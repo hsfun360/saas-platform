@@ -210,6 +210,42 @@ module.exports = [
         `),
     },
     {
+        key: 'sales-agent.invite',
+        name: 'Sales agent login invitation',
+        description: 'Sent to a sales agent (agency staff, external individual or internal sales staff) to register their portal login.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'agentName', description: "The agent's name." },
+            { name: 'agentCode', description: 'The agent code at this club.' },
+            { name: 'companyName', description: 'The club/company inviting the agent.' },
+            { name: 'agencyName', description: 'The agency the agent belongs to (agency staff only; empty otherwise).' },
+            { name: 'portalRegisterLink', description: 'The agent portal self-registration link.' },
+            { name: 'email', description: "The recipient's email address." },
+        ],
+        sample: {
+            agentName: 'Amir Rahman', agentCode: 'AGT-001', companyName: 'Acme Fitness Club',
+            agencyName: 'Prime Leads Agency', portalRegisterLink: 'https://app.example.com/agent/register?token=SAMPLE',
+            email: 'amir@example.com',
+        },
+        fromName: null,
+        subject: '{{companyName}} - your sales agent account',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Welcome aboard{{#if agentName}}, {{agentName}}{{/if}}!</h2>
+            <p><strong>{{companyName}}</strong> has registered you as a sales agent{{#if agencyName}} under <strong>{{agencyName}}</strong>{{/if}} (agent code <strong>{{agentCode}}</strong>).</p>
+            <div style="text-align: center; margin-top: 24px; padding: 16px; background-color: #f8fafc; border-radius: 8px;">
+                <p style="margin: 0 0 12px;">Register for the Agent Portal to manage your engagements online.</p>
+                ${button('{{portalRegisterLink}}', 'Register for the Agent Portal')}
+                <p style="margin: 12px 0 0; font-size: 12px; color: #777;">
+                    If the button doesn't work, copy and paste this link into your browser:<br>
+                    {{portalRegisterLink}}
+                </p>
+            </div>
+            <p style="margin-top: 20px; font-size: 12px; color: #777;">
+                If you believe you received this email in error, please contact {{companyName}}.
+            </p>
+        `),
+    },
+    {
         key: 'profile.updated',
         name: 'Profile updated security alert',
         description: 'Sent to a user when their profile information changes (security notice).',

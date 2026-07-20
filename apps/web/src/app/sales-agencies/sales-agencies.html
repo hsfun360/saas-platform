@@ -1,0 +1,146 @@
+<div class="saas-container">
+
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon">🏢</span>
+      <div>
+        <h1>Sales Agencies</h1>
+        <p class="saas-subtitle">Outsourced agency companies promoting your memberships — their staff are added as Sales Agents.</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <div class="saas-search">
+    <span class="saas-search__icon" aria-hidden="true">🔍</span>
+    <input #agencySearch type="search" [value]="search()" (input)="search.set(agencySearch.value)"
+           placeholder="Search by code, name, contact…" aria-label="Search agencies" class="saas-search__input">
+    @if (search()) {
+      <button type="button" class="saas-search__clear" (click)="search.set('')" aria-label="Clear search">✕</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading agencies…</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">{{ search() ? '🔎' : '📭' }}</span>
+      @if (search()) {
+        <p>No agencies match "{{ search() }}".</p>
+        <button type="button" class="btn btn--secondary btn--sm" (click)="search.set('')">Clear search</button>
+      } @else {
+        <p>No agencies yet. Use "New agency" to engage your first one.</p>
+      }
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (r of filtered(); track r.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ r.agencyCode }} — {{ r.agencyName }}</div>
+              <div class="data-card__subline">
+                @if (r.registrationNo) { <span class="data-card__reg">({{ r.registrationNo }})</span> }
+                @if (r.contactPerson) { <span class="data-card__reg">{{ r.contactPerson }}</span> }
+              </div>
+              <dl class="data-card__meta">
+                @if (r.email) { <div class="meta"><dt>Email</dt><dd>{{ r.email }}</dd></div> }
+                @if (r.mobile) { <div class="meta"><dt>Mobile</dt><dd>{{ r.mobile }}</dd></div> }
+                <div class="meta"><dt>Agents</dt><dd>{{ r.agentCount || 0 }}</dd></div>
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              <span class="status-chip" [class.status-chip--on]="r.isActive" [class.status-chip--off]="!r.isActive">
+                {{ r.isActive ? 'Active' : 'Disabled' }}
+              </span>
+            </div>
+            @if (r.canModify !== false) {
+              <div class="data-row__actions">
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(r)">Edit</button>
+                <button *appCan="'edit'" type="button" class="btn btn--sm"
+                        [class.btn--danger]="r.isActive" [class.btn--success]="!r.isActive" (click)="toggleActive(r)">
+                  {{ r.isActive ? 'Disable' : 'Enable' }}
+                </button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New agency">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New agency</span>
+  </button>
+
+  @if (dialogOpen()) {
+    <app-dialog #dlg [title]="editRow() ? 'Edit agency' : 'New agency'" [busy]="saving()"
+                [dirty]="form.dirty" (close)="close()">
+      <form id="agencyForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="agCode">Agency code <span class="required">*</span></label>
+            <input id="agCode" type="text" formControlName="agencyCode" autocomplete="off" maxlength="30"
+                   [attr.aria-invalid]="showError(form.controls.agencyCode)" aria-describedby="agCodeErr" />
+            @if (showError(form.controls.agencyCode)) {
+              <p id="agCodeErr" class="field-error" role="alert">Agency code is required.</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="agName">Agency name <span class="required">*</span></label>
+            <input id="agName" type="text" formControlName="agencyName" autocomplete="off" maxlength="255"
+                   [attr.aria-invalid]="showError(form.controls.agencyName)" aria-describedby="agNameErr" />
+            @if (showError(form.controls.agencyName)) {
+              <p id="agNameErr" class="field-error" role="alert">Agency name is required.</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="agRegNo">Registration no.</label>
+            <input id="agRegNo" type="text" formControlName="registrationNo" autocomplete="off" maxlength="100" />
+          </div>
+          <div class="form-group">
+            <label for="agContact">Contact person</label>
+            <input id="agContact" type="text" formControlName="contactPerson" autocomplete="off" maxlength="255" />
+          </div>
+          <div class="form-group">
+            <label for="agPhone">Phone</label>
+            <app-phone-input formControlName="phone" inputId="agPhone" placeholder="Optional"></app-phone-input>
+          </div>
+          <div class="form-group">
+            <label for="agMobile">Mobile</label>
+            <app-phone-input formControlName="mobile" inputId="agMobile" placeholder="Optional"></app-phone-input>
+          </div>
+          <div class="form-group">
+            <label for="agEmail">Email</label>
+            <input id="agEmail" type="email" inputmode="email" formControlName="email" autocomplete="off" maxlength="255"
+                   [attr.aria-invalid]="showError(form.controls.email)" aria-describedby="agEmailErr" />
+            @if (showError(form.controls.email)) {
+              <p id="agEmailErr" class="field-error" role="alert">Enter a valid email address.</p>
+            }
+          </div>
+        </div>
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="agencyForm" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

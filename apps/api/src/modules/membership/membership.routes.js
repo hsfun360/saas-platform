@@ -17,6 +17,9 @@ const membershipTaxRoutes = require('./membershipTax.routes');
 const membershipsRoutes = require('./memberships.routes');
 const membersRoutes = require('./members.routes');
 const memberPortalRoutes = require('./memberPortal.routes');
+const agentPortalRoutes = require('./agentPortal.routes');
+const salesAgenciesRoutes = require('./salesAgencies.routes');
+const salesAgentsRoutes = require('./salesAgents.routes');
 
 // Liveness probe — unauthenticated, so the gateway/monitoring can check the seam.
 router.get('/health', (req, res) => res.json({ service: 'membership', status: 'ok' }));
@@ -27,6 +30,8 @@ router.get('/health', (req, res) => res.json({ service: 'membership', status: 'o
 // A portal member holds no workspace, so the module/menu gates below would
 // wrongly reject them.
 router.use('/portal', memberPortalRoutes);
+// The Sales Agent portal follows the same rules (public register + own /me).
+router.use('/agent-portal', agentPortalRoutes);
 
 // Everything below requires a valid token and an entitled, active workspace.
 router.use(verifyToken);
@@ -40,6 +45,10 @@ router.use('/statuses', requireMenuAction('/membership/statuses'), membershipSta
 router.use('/fees', requireMenuAction('/membership/fees'), membershipFeeRoutes);
 router.use('/types', requireMenuAction('/membership/types'), membershipTypeRoutes);
 router.use('/transaction-types', requireMenuAction('/membership/transaction-types'), transactionTypesRoutes);
+
+// --- Sales Management (SRS 2.2) ---
+router.use('/sales-agencies', requireMenuAction('/membership/sales-agencies'), salesAgenciesRoutes);
+router.use('/sales-agents', requireMenuAction('/membership/sales-agents'), salesAgentsRoutes);
 
 // --- Membership / Member CRM (SRS 2.3) ---
 // Memberships own all member CRUD (nominees/dependents are managed from that

@@ -55,6 +55,9 @@ const TransactionType = require('../modules/membership/transactionType.model'); 
 const Membership = require('../modules/membership/membership.model');
 const Member = require('../modules/membership/member.model');
 const Address = require('../modules/membership/address.model');
+// Sales Management (SRS 2.2): agency companies and their/independent agents.
+const SalesAgency = require('../modules/membership/salesAgency.model');
+const SalesAgent = require('../modules/membership/salesAgent.model');
 // Product tier (Golf Management). Same golden rules - master files reference
 // companyId by plain UUID (no cross-service FK). Intra-service parent-child
 // links (unit course -> holes) DO use real associations.
@@ -152,6 +155,10 @@ Membership.hasMany(Address, { foreignKey: 'membershipId', as: 'Addresses', onDel
 Address.belongsTo(Membership, { foreignKey: 'membershipId', as: 'Membership' });
 Member.hasMany(Address, { foreignKey: 'memberId', as: 'Addresses', onDelete: 'CASCADE' });
 Address.belongsTo(Member, { foreignKey: 'memberId', as: 'Member' });
+// Agency -> its staff agents (intra-service FK; no cascade - agencies are
+// disabled, never deleted, and an agent must never vanish silently).
+SalesAgency.hasMany(SalesAgent, { foreignKey: 'salesAgencyId', as: 'Agents' });
+SalesAgent.belongsTo(SalesAgency, { foreignKey: 'salesAgencyId', as: 'Agency' });
 
 // 8e. Golf master-file header/detail pairs (both sides owned by the golf
 // service, so real intra-service FKs with cascade).
@@ -219,6 +226,8 @@ module.exports = {
     Membership,
     Member,
     Address,
+    SalesAgency,
+    SalesAgent,
     UnitCourse,
     UnitCourseHole,
     UnitCourseTeeBox,

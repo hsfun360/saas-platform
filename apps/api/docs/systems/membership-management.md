@@ -81,6 +81,24 @@ system master (2.1.1, global params/default codes - maps to a per-company Member
 
 **§2.2 Sales Management (销售管理):** agent type, income scale, fee scale, market source, sales location masters; salesperson maintenance; prospect management (personal + corporate) with follow-up expiry/warning, sales history, remarks; member follow-up (salesperson) transfer.
 
+### Club types (user domain context, 2026-07-20)
+
+Two admission models exist; both are configuration of ONE product, never separate products:
+- **Committee club** (Royal Selangor GC, Royal Lake Club): proposal -> interview -> provision -> full member, with Proposer AND Seconder vouching; a temporary "Committee membership" type held only while serving a committee position. Maps to the `approvalStatus` workflow seam + provisional statuses + Phase 3 category conversion. No sales agents. (Gap noted: we carry `proposer` but no `seconder` yet - committee-club track.)
+- **Commercial club** (KLGCC, Tropicana, fitness clubs): pay-to-join; **Sales Agents** are the acquisition channel - §2.2 is their feature. Proposer/Seconder unused.
+
+### Built: Sales Agent module (§2.2 phase 1, 2026-07-20)
+
+Three-tier sales channel (user's model, for fitness/commercial clubs): **Sales Agency** (outsourced agency company; 1..n per club), **agency staff**, **external individual** (freelancer), **internal sales staff**.
+
+- `membership."SalesAgency"` - id, companyId, agencyCode (unique/company), agencyName, registrationNo, contactPerson, phone/mobile/email, isActive (disable-only), RBAC stamps.
+- `membership."SalesAgent"` - ONE table for every salesperson: id, companyId, agentCode (unique/company), name, `agentKind` (FIXED vocabulary `agency-staff` | `external` | `internal` - structural, so not a user-editable master; the spec's "agent type" collapses into it), `salesAgencyId` (required for agency-staff, real intra-service FK, no cascade), identityNo, phone/mobile, email (REQUIRED - the invite target), joinedDate/leftDate, isActive, **userId** (Identity seam - the login link), remarks, RBAC stamps, index on userId.
+- **Login for all kinds** (user requirement): staff sends "Invite to login" (`POST /sales-agents/:id/invite`) -> `sales-agent.invite` email template (tenant-overridable) with a stateless RS256 link (purpose `sales-agent-register`, 30d) -> `/agent/register` sets a password -> `provisionPortalUser` find-or-creates the platform User and stamps `SalesAgent.userId` (an existing account, e.g. internal staff, is linked WITHOUT touching its password).
+- **Cross-club by design** (user requirement): an agency/freelancer serving many clubs - across companies AND subscriber accounts - is a SalesAgent row per club, all linked to ONE User by email; `GET /agent-portal/me` returns every engagement of the login, so `/agent` (outside the staff shell) lists them all. Master data itself stays per-club (no shared agency registry - tenant isolation; identity joins only at the person level).
+- Membership linkage: free-text `salesCode`/`followupSalesCode` REPLACED by `salesAgentId` (closed the sale, future commission driver) + `followupSalesAgentId` (currently servicing; the transfer function reassigns) - plain UUIDs validated in the app; the dialog picks from `GET /memberships/options` `agents`. Old columns dropped 2026-07-20.
+- API: `/api/membership/sales-agencies` + `/sales-agents` behind `requireMenuAction` (routes `/membership/sales-agencies`, `/membership/sales-agents` - DB menus added by the user); `/api/membership/agent-portal/*` mounted BEFORE the staff auth wall (register public, /me verifyToken-only).
+- NOT in this phase: commission scales (income/fee scale - needs AR), market source, sales location, prospect pipeline, follow-up transfer function.
+
 **§2.3 Membership Management (会籍管理):** member/membership CRM for five member kinds - individual, corporate, nominee (corporate seat), spouse, child - with per-member: dependents, misc attributes, per-member standing-charge overrides (additional/exception on top of the type's standing charges), article subscription, hobbies, vehicle passes; ID (member no.) conversion, category conversion, status conversion (immediate) + scheduled status-conversion plan, membership transfer (with cascade rules driven by status class + system-master default statuses); member surveys.
 
 **§2.4 Children management:** generate expiring child members, convert child -> full member, converted-children history.
