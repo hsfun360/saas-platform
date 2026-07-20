@@ -178,7 +178,7 @@ producer (has companyId)
 - **Platform/security emails always use the platform mailer.** Sign-up activation,
   password reset, and reset-success carry no `companyId`, so they never touch a
   tenant server. Only tenant-context email (collaborator invitations and the
-  membership welcome email today) uses company SMTP.
+  membership welcome + sales-agent login invitation emails today) uses company SMTP.
 
 ### Configuration UI + API (Tenant Admin, per company)
 - UI: Companies screen, per-company **"Email (SMTP)"** button opens
