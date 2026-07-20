@@ -159,6 +159,9 @@ Address.belongsTo(Member, { foreignKey: 'memberId', as: 'Member' });
 // disabled, never deleted, and an agent must never vanish silently).
 SalesAgency.hasMany(SalesAgent, { foreignKey: 'salesAgencyId', as: 'Agents' });
 SalesAgent.belongsTo(SalesAgency, { foreignKey: 'salesAgencyId', as: 'Agency' });
+// Agency office address lives in the typed address book ('company' row).
+SalesAgency.hasMany(Address, { foreignKey: 'salesAgencyId', as: 'Addresses', onDelete: 'CASCADE' });
+Address.belongsTo(SalesAgency, { foreignKey: 'salesAgencyId', as: 'SalesAgency' });
 
 // 8e. Golf master-file header/detail pairs (both sides owned by the golf
 // service, so real intra-service FKs with cascade).

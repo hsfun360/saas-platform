@@ -92,6 +92,8 @@
     <app-dialog #dlg [title]="editRow() ? 'Edit agency' : 'New agency'" [busy]="saving()"
                 [dirty]="form.dirty" (close)="close()">
       <form id="agencyForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+        <details class="dlg-sec" open>
+        <summary><h3 class="dlg-section">Agency</h3></summary>
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="agCode">Agency code <span class="required">*</span></label>
@@ -113,17 +115,42 @@
             <label for="agRegNo">Registration no.</label>
             <input id="agRegNo" type="text" formControlName="registrationNo" autocomplete="off" maxlength="100" />
           </div>
+        </div>
+        <div formGroupName="address" style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label for="agAddrLine">Address</label>
+            <input id="agAddrLine" type="text" formControlName="address" autocomplete="off" maxlength="255" />
+          </div>
+          <div class="form-group">
+            <label for="agAddrCity">City</label>
+            <input id="agAddrCity" type="text" formControlName="city" autocomplete="off" maxlength="100" />
+          </div>
+          <div class="form-group">
+            <label for="agAddrPostcode">Postcode</label>
+            <input id="agAddrPostcode" type="text" formControlName="postcode" autocomplete="off" maxlength="20" />
+          </div>
+          <div class="form-group">
+            <label for="agAddrState">State</label>
+            <input id="agAddrState" type="text" formControlName="state" autocomplete="off" maxlength="100" />
+          </div>
+          <div class="form-group">
+            <label for="agAddrCountry">Country</label>
+            <select id="agAddrCountry" formControlName="countryCode">
+              <option value="">—</option>
+              @for (c of countries(); track c.alpha2) {
+                <option [value]="c.alpha2">@if (c.flagEmoji) {{{ c.flagEmoji }} }{{ c.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        </details>
+
+        <details class="dlg-sec" open>
+        <summary><h3 class="dlg-section">Contact</h3></summary>
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="agContact">Contact person</label>
             <input id="agContact" type="text" formControlName="contactPerson" autocomplete="off" maxlength="255" />
-          </div>
-          <div class="form-group">
-            <label for="agPhone">Phone</label>
-            <app-phone-input formControlName="phone" inputId="agPhone" placeholder="Optional"></app-phone-input>
-          </div>
-          <div class="form-group">
-            <label for="agMobile">Mobile</label>
-            <app-phone-input formControlName="mobile" inputId="agMobile" placeholder="Optional"></app-phone-input>
           </div>
           <div class="form-group">
             <label for="agEmail">Email</label>
@@ -133,7 +160,16 @@
               <p id="agEmailErr" class="field-error" role="alert">Enter a valid email address.</p>
             }
           </div>
+          <div class="form-group">
+            <label for="agPhone">Phone</label>
+            <app-phone-input formControlName="phone" inputId="agPhone" placeholder="Optional"></app-phone-input>
+          </div>
+          <div class="form-group">
+            <label for="agMobile">Mobile</label>
+            <app-phone-input formControlName="mobile" inputId="agMobile" placeholder="Optional"></app-phone-input>
+          </div>
         </div>
+        </details>
       </form>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>

@@ -2,7 +2,8 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SalesService } from '../services/sales.service';
-import { SalesAgency } from '../models/auth.models';
+import { CountryService } from '../services/country.service';
+import { Country, SalesAgency } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
@@ -19,7 +20,10 @@ import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 })
 export class SalesAgenciesComponent implements OnInit {
   private readonly service = inject(SalesService);
+  private readonly countryService = inject(CountryService);
   private readonly fb = inject(FormBuilder);
+
+  readonly countries = signal<Country[]>([]);
 
   readonly rows = signal<SalesAgency[]>([]);
   readonly loading = signal(false);
@@ -39,6 +43,14 @@ export class SalesAgenciesComponent implements OnInit {
     phone: [''],
     mobile: [''],
     email: ['', [Validators.email]],
+    // The single office address; an empty street line means "no address".
+    address: this.fb.nonNullable.group({
+      address: ['', [Validators.maxLength(255)]],
+      city: ['', [Validators.maxLength(100)]],
+      postcode: ['', [Validators.maxLength(20)]],
+      state: ['', [Validators.maxLength(100)]],
+      countryCode: [''],
+    }),
   });
 
   readonly filtered = computed(() => {
@@ -51,6 +63,7 @@ export class SalesAgenciesComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.countryService.listActive().subscribe({ next: (l) => this.countries.set(l), error: () => {} });
     this.load();
   }
 
@@ -76,7 +89,10 @@ export class SalesAgenciesComponent implements OnInit {
   openAdd(): void {
     this.clearMessages();
     this.editRow.set(null);
-    this.form.reset({ agencyCode: '', agencyName: '', registrationNo: '', contactPerson: '', phone: '', mobile: '', email: '' });
+    this.form.reset({
+      agencyCode: '', agencyName: '', registrationNo: '', contactPerson: '', phone: '', mobile: '', email: '',
+      address: { address: '', city: '', postcode: '', state: '', countryCode: '' },
+    });
     this.dialogOpen.set(true);
   }
 
@@ -91,6 +107,13 @@ export class SalesAgenciesComponent implements OnInit {
       phone: row.phone || '',
       mobile: row.mobile || '',
       email: row.email || '',
+      address: {
+        address: row.address?.address || '',
+        city: row.address?.city || '',
+        postcode: row.address?.postcode || '',
+        state: row.address?.state || '',
+        countryCode: row.address?.countryCode || '',
+      },
     });
     this.dialogOpen.set(true);
   }

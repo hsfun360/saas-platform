@@ -812,6 +812,14 @@ export interface SalesAgency {
   email?: string | null;
   isActive: boolean;
   agentCount?: number;
+  // The agency's single office address (a 'company' row in the address book).
+  address?: {
+    address: string;
+    city?: string | null;
+    postcode?: string | null;
+    state?: string | null;
+    countryCode?: string | null;
+  } | null;
 }
 
 export interface SalesAgent {

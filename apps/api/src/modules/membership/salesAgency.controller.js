@@ -4,6 +4,7 @@
 
 const SalesAgency = require('./salesAgency.model');
 const SalesAgent = require('./salesAgent.model');
+const Address = require('./address.model');
 const {
     getUserContext,
     getCallerPlacement,
@@ -39,6 +40,42 @@ function toDto(a, extra = {}) {
     };
 }
 
+function addressToDto(row) {
+    if (!row) return null;
+    return { address: row.address, city: row.city, postcode: row.postcode, state: row.state, countryCode: row.countryCode };
+}
+
+// The agency's single office address (a 'company' row in the typed address
+// book). An empty street line means "no address" - the row is removed.
+function normalizeAddress(raw) {
+    if (!raw || typeof raw !== 'object') return { value: null };
+    const line = str(raw.address);
+    if (!line) return { value: null };
+    if (line.length > 255) return { error: 'Address must be 255 characters or fewer.' };
+    return {
+        value: {
+            address: line,
+            city: strOrNull(raw.city),
+            postcode: strOrNull(raw.postcode),
+            state: strOrNull(raw.state),
+            countryCode: (strOrNull(raw.countryCode) || '').toLowerCase() || null,
+        },
+    };
+}
+
+async function replaceAgencyAddress(agency, value, stamps) {
+    await Address.destroy({ where: { salesAgencyId: agency.id } });
+    if (value) {
+        await Address.create({
+            ...value,
+            addressType: 'company',
+            salesAgencyId: agency.id,
+            companyId: agency.companyId,
+            ...stamps,
+        });
+    }
+}
+
 function normalizeBody(body) {
     const agencyCode = str(body.agencyCode);
     if (!agencyCode) return { error: 'Agency code is required.' };
@@ -67,15 +104,20 @@ exports.list = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
         const rows = await SalesAgency.findAll({ where: { companyId }, order: [['agencyCode', 'ASC']] });
-        const counts = await SalesAgent.count({
-            where: { companyId, salesAgencyId: rows.map((r) => r.id) },
-            group: ['salesAgencyId'],
-        });
+        const [counts, addresses] = await Promise.all([
+            SalesAgent.count({
+                where: { companyId, salesAgencyId: rows.map((r) => r.id) },
+                group: ['salesAgencyId'],
+            }),
+            Address.findAll({ where: { salesAgencyId: rows.map((r) => r.id) } }),
+        ]);
         const countByAgency = new Map(counts.map((c) => [c.salesAgencyId, Number(c.count)]));
+        const addressByAgency = new Map(addresses.map((a) => [a.salesAgencyId, a]));
         const flags = await annotateCanModify(req, rows);
         res.status(200).json(rows.map((r, i) => toDto(r, {
             canModify: flags[i],
             agentCount: countByAgency.get(r.id) || 0,
+            address: addressToDto(addressByAgency.get(r.id)),
         })));
     } catch (error) {
         console.error('Error listing sales agencies:', error);
@@ -92,20 +134,18 @@ exports.create = async (req, res) => {
         const parsed = normalizeBody(req.body);
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         const v = parsed.value;
+        const parsedAddr = normalizeAddress(req.body.address);
+        if (parsedAddr.error) return res.status(400).json({ message: parsedAddr.error });
 
         const existing = await SalesAgency.findOne({ where: { companyId, agencyCode: v.agencyCode } });
         if (existing) return res.status(409).json({ message: `Agency '${v.agencyCode}' already exists.` });
 
         const placement = await getCallerPlacement(req);
         const callerId = getUserContext(req).userId;
-        const row = await SalesAgency.create({
-            companyId,
-            ...v,
-            createdBy: callerId,
-            createdByDepartmentId: placement.departmentId,
-            updatedBy: callerId,
-        });
-        res.status(201).json({ message: `Agency '${row.agencyCode}' created.`, agency: toDto(row, { canModify: true, agentCount: 0 }) });
+        const stamps = { createdBy: callerId, createdByDepartmentId: placement.departmentId, updatedBy: callerId };
+        const row = await SalesAgency.create({ companyId, ...v, ...stamps });
+        await replaceAgencyAddress(row, parsedAddr.value, stamps);
+        res.status(201).json({ message: `Agency '${row.agencyCode}' created.`, agency: toDto(row, { canModify: true, agentCount: 0, address: parsedAddr.value }) });
     } catch (error) {
         console.error('Error creating sales agency:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -127,16 +167,25 @@ exports.update = async (req, res) => {
         const parsed = normalizeBody(req.body);
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         const v = parsed.value;
+        const parsedAddr = normalizeAddress(req.body.address);
+        if (parsedAddr.error) return res.status(400).json({ message: parsedAddr.error });
 
         if (v.agencyCode !== row.agencyCode) {
             const clash = await SalesAgency.findOne({ where: { companyId, agencyCode: v.agencyCode } });
             if (clash) return res.status(409).json({ message: `Agency '${v.agencyCode}' already exists.` });
         }
 
+        const placement = await getCallerPlacement(req);
+        const callerId = getUserContext(req).userId;
         Object.assign(row, v);
-        row.updatedBy = getUserContext(req).userId;
+        row.updatedBy = callerId;
         await row.save();
-        res.status(200).json({ message: `Agency '${row.agencyCode}' updated.`, agency: toDto(row, { canModify: true }) });
+        await replaceAgencyAddress(row, parsedAddr.value, {
+            createdBy: callerId,
+            createdByDepartmentId: placement.departmentId,
+            updatedBy: callerId,
+        });
+        res.status(200).json({ message: `Agency '${row.agencyCode}' updated.`, agency: toDto(row, { canModify: true, address: parsedAddr.value }) });
     } catch (error) {
         console.error('Error updating sales agency:', error);
         res.status(500).json({ message: 'Internal server error' });

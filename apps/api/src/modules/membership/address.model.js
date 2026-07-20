@@ -11,8 +11,9 @@ const { MEMBERSHIP_SCHEMA } = require('../../platform/schemas');
 // 'mailing' row when one exists, else falls back to 'residential' (member) /
 // 'company' (contract). "Same as home" is simply the absence of a mailing row.
 //
-// Exactly one of membershipId / memberId is set (model-level validation; both
-// are real intra-service FKs wired in associations.js, cascade with the owner).
+// Exactly one of membershipId / memberId / salesAgencyId is set (model-level
+// validation; all are real intra-service FKs wired in associations.js, cascade
+// with the owner). A Sales Agency carries its office address as a 'company' row.
 const Address = sequelize.define('Address', {
     id: {
         type: DataTypes.UUID,
@@ -25,6 +26,7 @@ const Address = sequelize.define('Address', {
     },
     membershipId: { type: DataTypes.UUID, allowNull: true },
     memberId: { type: DataTypes.UUID, allowNull: true },
+    salesAgencyId: { type: DataTypes.UUID, allowNull: true },
     // 'residential' | 'mailing' | 'company' | 'other' (ADDRESS_TYPES).
     addressType: {
         type: DataTypes.STRING(20),
@@ -47,16 +49,18 @@ const Address = sequelize.define('Address', {
     timestamps: true,
     validate: {
         exactlyOneOwner() {
-            if (!!this.membershipId === !!this.memberId) {
-                throw new Error('An address belongs to exactly one owner: a membership OR a member.');
+            const owners = [this.membershipId, this.memberId, this.salesAgencyId].filter(Boolean).length;
+            if (owners !== 1) {
+                throw new Error('An address belongs to exactly one owner: a membership, a member OR a sales agency.');
             }
         },
     },
     indexes: [
         // One address per type per owner. Postgres treats NULLs as distinct, so
-        // the two indexes never collide across owner kinds.
+        // the indexes never collide across owner kinds.
         { name: 'IDX_Address_Member_Type', fields: ['memberId', 'addressType'], unique: true },
         { name: 'IDX_Address_Membership_Type', fields: ['membershipId', 'addressType'], unique: true },
+        { name: 'IDX_Address_SalesAgency_Type', fields: ['salesAgencyId', 'addressType'], unique: true },
     ],
 });
 
