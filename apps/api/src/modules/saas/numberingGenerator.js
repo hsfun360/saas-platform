@@ -47,13 +47,21 @@ function previewNext(scheme, opts = {}) {
     return { seq, number: renderNumber(scheme, seq, { typeCode, date }) };
 }
 
-// Issue the next number, advancing the counter ATOMICALLY (row lock inside the
-// caller's transaction). Returns:
+// Issue the next number, advancing the counter ATOMICALLY (SELECT ... FOR
+// UPDATE row lock). Returns:
 //   null                      - no scheme configured for (company, purpose)
 //   { manual: true, scheme }  - scheme is manual (caller collects the number)
 //   { number, seq }           - the generated number
-async function issue(NumberingScheme, sequelize, { companyId, purpose, typeCode, date } = {}) {
-    return sequelize.transaction(async (t) => {
+//
+// GAPLESS RULE: pass the caller's BUSINESS transaction as `transaction`. The
+// counter then commits/rolls back WITH the record that consumes the number, so
+// a failed create rewinds the counter and the number is never burned. The row
+// lock is held until that transaction ends, briefly serialising creates per
+// (company, purpose) - the standard gapless-numbering trade-off. Without
+// `transaction` the issue commits on its own (a failure AFTER it burns the
+// number - only acceptable for callers that cannot supply a transaction).
+async function issue(NumberingScheme, sequelize, { companyId, purpose, typeCode, date, transaction } = {}) {
+    const run = async (t) => {
         const scheme = await NumberingScheme.findOne({
             where: { companyId, purpose },
             lock: t.LOCK.UPDATE,
@@ -73,7 +81,9 @@ async function issue(NumberingScheme, sequelize, { companyId, purpose, typeCode,
         await scheme.save({ transaction: t });
 
         return { number: renderNumber(scheme, seq, { typeCode, date: d }), seq };
-    });
+    };
+    if (transaction) return run(transaction);
+    return sequelize.transaction(run);
 }
 
 module.exports = { periodTag, renderNumber, peekNextSeq, previewNext, issue };

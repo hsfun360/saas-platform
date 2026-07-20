@@ -457,11 +457,19 @@ async function suggestChildNo(companyId, parentNo) {
     return `${parentNo}-${existing.length + 1}`;
 }
 
-async function memberNoInUse(companyId, memberNo, excludeId = null) {
+async function memberNoInUse(companyId, memberNo, excludeId = null, transaction = null) {
     const where = { companyId, memberNo };
     if (excludeId) where.id = { [Op.ne]: excludeId };
-    const clash = await Member.findOne({ where, attributes: ['id'] });
+    const clash = await Member.findOne({ where, attributes: ['id'], transaction });
     return !!clash;
+}
+
+// Throwable that the create transaction maps to an HTTP response - thrown
+// INSIDE the tx so the rollback also rewinds the numbering counter.
+function httpError(status, message) {
+    const err = new Error(message);
+    err.httpStatus = status;
+    return err;
 }
 
 function ownershipStamps(req, placement) {
@@ -735,21 +743,21 @@ exports.createMembership = async (req, res) => {
         const memberAddrs = normalizeAddresses(membershipClass === 'individual' ? (req.body.member || {}).addresses : []);
         if (memberAddrs.error) return res.status(400).json({ message: memberAddrs.error });
 
-        // 6. The membership number - Numbering Control decides.
+        // 6. The membership number - Numbering Control decides. Manual mode is
+        // validated here (a rejection burns nothing); AUTO mode issues INSIDE
+        // the creation transaction below, so a failed create rolls the counter
+        // back with everything else and the number is never burned (gapless).
         let membershipNo = strOrNull(req.body.membershipNo);
-        let issued = null;
         const mode = await numberingGateway.getMode(req, NUMBERING_PURPOSE);
-        if (mode === 'auto') {
-            issued = await numberingGateway.issueNumber(req, NUMBERING_PURPOSE, { typeCode: type.category });
-            if (issued && issued.number) membershipNo = issued.number;
-        }
-        if (!membershipNo) {
-            return res.status(400).json({ message: 'Membership number is required (no auto-numbering scheme is active).' });
-        }
-        const clash = await Membership.findOne({ where: { companyId, membershipNo }, attributes: ['id'] });
-        if (clash) return res.status(409).json({ message: `Membership number '${membershipNo}' is already in use.` });
-        if (await memberNoInUse(companyId, membershipNo)) {
-            return res.status(409).json({ message: `Member number '${membershipNo}' is already in use.` });
+        if (mode !== 'auto') {
+            if (!membershipNo) {
+                return res.status(400).json({ message: 'Membership number is required (no auto-numbering scheme is active).' });
+            }
+            const clash = await Membership.findOne({ where: { companyId, membershipNo }, attributes: ['id'] });
+            if (clash) return res.status(409).json({ message: `Membership number '${membershipNo}' is already in use.` });
+            if (await memberNoInUse(companyId, membershipNo)) {
+                return res.status(409).json({ message: `Member number '${membershipNo}' is already in use.` });
+            }
         }
 
         const placement = await getCallerPlacement(req);
@@ -759,7 +767,31 @@ exports.createMembership = async (req, res) => {
         // the subscriber's template override), read through the seam.
         const company = await getActiveCompany(req);
 
-        const created = await sequelize.transaction(async (t) => {
+        let created;
+        try {
+            created = await sequelize.transaction(async (t) => {
+            // AUTO numbering issues here, INSIDE the business transaction: the
+            // scheme row stays locked until commit/rollback, so concurrent
+            // creates serialise briefly (no duplicates) and a failed create
+            // rewinds the counter with everything else (no skipped numbers).
+            if (mode === 'auto') {
+                const issued = await numberingGateway.issueNumber(req, NUMBERING_PURPOSE, {
+                    typeCode: type.category,
+                    transaction: t,
+                });
+                if (issued && issued.number) membershipNo = issued.number;
+                if (!membershipNo) {
+                    throw httpError(400, 'Membership number is required (no auto-numbering scheme is active).');
+                }
+                // Friendly guard for the sequence colliding with a legacy
+                // manually-keyed number: thrown -> rollback -> counter rewound.
+                const clash = await Membership.findOne({ where: { companyId, membershipNo }, attributes: ['id'], transaction: t });
+                if (clash) throw httpError(409, `Membership number '${membershipNo}' is already in use.`);
+                if (await memberNoInUse(companyId, membershipNo, null, t)) {
+                    throw httpError(409, `Member number '${membershipNo}' is already in use.`);
+                }
+            }
+
             const ms = await Membership.create({
                 companyId,
                 membershipNo,
@@ -836,7 +868,13 @@ exports.createMembership = async (req, res) => {
                 }
             }
             return ms;
-        });
+            });
+        } catch (err) {
+            // In-tx business rejections (issued number clashes a legacy manual
+            // number, ...) - the rollback has already rewound the counter.
+            if (err && err.httpStatus) return res.status(err.httpStatus).json({ message: err.message });
+            throw err;
+        }
 
         const members = await Member.findAll({ where: { membershipId: created.id }, order: [['memberNo', 'ASC']] });
         const books = await loadAddressBooks(created.id, members.map((m) => m.id));
