@@ -1041,6 +1041,41 @@ export interface CourseTeeTimeSet {
 
 export interface GolfCourseMeta {
   dayScopes: MembershipStatusOption[];
+  nineScopes: MembershipStatusOption[];
+}
+
+// Golf - a course closure plan (spec 2.2.8): the rule header. Over a date
+// period, on the matching day types, part or all of the course closes for a
+// daily time window (both times null = whole day).
+export interface CourseClosurePlan {
+  id: string;
+  courseId: string;
+  description: string;
+  dayScope: string; // 'all' | 'weekday' | 'weekend'
+  nineScope: string; // 'first-nine' | 'second-nine' | 'all'
+  dateFrom: string; // 'YYYY-MM-DD'
+  dateTo: string;
+  startTime?: string | null; // 'HH:MM:SS'
+  endTime?: string | null;
+  isActive?: boolean;
+  Days?: CourseClosureDay[];
+}
+
+// Golf - one concrete closure day of a plan (generated, then hand-adjusted).
+export interface CourseClosureDay {
+  id?: string;
+  closureDate: string; // 'YYYY-MM-DD'
+  nineScope: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  isActive?: boolean;
+}
+
+// A generated (not yet saved) closure day, with the server's classification of
+// the date so the review grid can explain WHY the day was included.
+export interface CourseClosureDayPreview extends CourseClosureDay {
+  dayType?: 'weekday' | 'weekend';
+  isHoliday?: boolean;
 }
 
 // Golf - Transaction Type master record (per company). Same shape as the

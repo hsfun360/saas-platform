@@ -174,3 +174,114 @@
   height: 18px;
   accent-color: var(--brand);
 }
+
+/* Closure day editor - date | scope | from | until | on-checkbox | remove.
+   Wide grid scrolls horizontally on narrow screens; the 4px padding + negative
+   margin keeps the focus ring unclipped inside the scroll container. */
+.cc-day-scroll {
+  overflow-x: auto;
+  padding: 4px;
+  margin: -4px -4px var(--space-sm);
+}
+
+.cc-day-head,
+.cc-day-row {
+  display: grid;
+  grid-template-columns: 150px 140px 110px 110px 44px 36px;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.cc-day-head {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.cc-day-row {
+  margin-bottom: var(--space-xs);
+}
+
+.cc-day-row--off > .cc-day-date {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.cc-day-date {
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  white-space: nowrap;
+}
+
+.cc-day-tag {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px var(--space-xs);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+}
+
+/* Same shared input standard as the other grid editors (base + focus). */
+.cc-day-row input[type='time'],
+.cc-day-row select {
+  min-height: 40px;
+  padding: var(--space-xs);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.cc-day-row input[type='time']:focus,
+.cc-day-row select:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  background: var(--surface-card);
+}
+
+.cc-day-on {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 40px;
+  cursor: pointer;
+}
+
+.cc-day-on input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+}
+
+.cc-day-remove {
+  min-height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-body);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.cc-day-remove:hover {
+  color: var(--danger-text);
+  background: var(--surface-hover);
+}
+
+.cc-day-remove:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}

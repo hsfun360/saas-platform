@@ -105,6 +105,7 @@
             </div>
             <div class="data-row__actions">
               <button type="button" class="btn btn--secondary btn--sm" (click)="openTeeTimes(c)">Tee times</button>
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openClosures(c)">Closures</button>
               <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">Edit</button>
               @if (c.isActive === false) {
                 <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(c)"
@@ -447,6 +448,203 @@
             <button type="button" class="btn btn--secondary" (click)="backToList()" [disabled]="ttSlotsSaving()">Back to list</button>
             <button type="button" class="btn btn--primary" (click)="onSaveSlots()" [disabled]="ttSlotsSaving()">
               {{ ttSlotsSaving() ? 'Saving…' : 'Save ' + slotRows().length + ' flights' }}
+            </button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Closures dialog: ONE dialog, three views ============ -->
+  <!-- Same single-instance pattern as the tee-times dialog: list of plans ->
+       plan form / generated-day editor, switched inside one open dialog. -->
+  @if (ccOpen()) {
+    <app-dialog #ccDlg [title]="ccTitle()" [busy]="ccBusy()" [dirty]="ccDirty()"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved closure changes. Leaving now will discard them."
+                (close)="closeClosures()">
+      <div class="saas-form" style="padding: 0;">
+        @switch (ccMode()) {
+
+          @case ('list') {
+            @if (ccLoading()) {
+              <div class="loading-state"><div class="spinner"></div><p>Loading closure plans…</p></div>
+            } @else if (ccPlans().length === 0) {
+              <div class="empty-state">
+                <span class="empty-icon">🚧</span>
+                <p>No closure plans yet. A plan closes part or all of the course over a date period — e.g. greens maintenance every weekday morning, or a whole-course tournament weekend.</p>
+              </div>
+            } @else {
+              @for (p of ccPlans(); track p.id) {
+                <div class="tt-set">
+                  <div class="tt-set__head">
+                    <div class="tt-set__title">
+                      {{ p.description }}
+                      @if (p.isActive === false) {
+                        <span class="badge badge-inactive">Disabled</span>
+                      } @else {
+                        <span class="badge badge-active">Active</span>
+                      }
+                    </div>
+                    <div class="tt-set__meta">
+                      {{ p.dateFrom }} → {{ p.dateTo }} · {{ scopeLabel(p.dayScope) }} ·
+                      {{ nineScopeLabel(p.nineScope) }} · {{ closureWindow(p.startTime, p.endTime) }} ·
+                      {{ dayCount(p) }} day{{ dayCount(p) === 1 ? '' : 's' }}
+                    </div>
+                  </div>
+                  <div class="tt-set__actions">
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="openDays(p)">Closure days ({{ dayCount(p) }})</button>
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="openPlanForm(p)">Edit</button>
+                    @if (p.isActive === false) {
+                      <button type="button" class="btn btn--success btn--sm" (click)="togglePlanActive(p)" [disabled]="ccTogglingId() === p.id">
+                        {{ ccTogglingId() === p.id ? 'Saving…' : 'Enable' }}
+                      </button>
+                    } @else {
+                      <button type="button" class="btn btn--danger btn--sm" (click)="togglePlanActive(p)" [disabled]="ccTogglingId() === p.id">
+                        {{ ccTogglingId() === p.id ? 'Saving…' : 'Disable' }}
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            }
+            @if (!ccLoading()) {
+              <button type="button" class="btn btn--secondary" (click)="openPlanForm()">
+                <span class="material-icons" aria-hidden="true">add</span>
+                <span>Add closure plan</span>
+              </button>
+            }
+          }
+
+          @case ('form') {
+            <form id="ccPlanForm" [formGroup]="ccForm" (ngSubmit)="onSavePlan()">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="ccDesc">Description <span class="required">*</span></label>
+                  <input id="ccDesc" type="text" formControlName="description" placeholder="e.g. Greens maintenance" maxlength="255"
+                         [attr.aria-invalid]="showError(ccForm.controls.description)" aria-describedby="ccDescErr" />
+                  @if (showError(ccForm.controls.description)) {
+                    <p id="ccDescErr" class="field-error" role="alert">Description is required.</p>
+                  }
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label for="ccScope">Day scope <span class="required">*</span></label>
+                  <select id="ccScope" formControlName="dayScope" aria-describedby="ccScopeHint">
+                    @for (sc of dayScopes(); track sc.key) {
+                      <option [value]="sc.key">{{ sc.label }}</option>
+                    }
+                  </select>
+                  <p id="ccScopeHint" class="gc-hint">Public holidays count as weekends.</p>
+                </div>
+                <div class="form-group">
+                  <label for="ccNine">Scope <span class="required">*</span></label>
+                  <select id="ccNine" formControlName="nineScope">
+                    @for (sc of nineScopes(); track sc.key) {
+                      <option [value]="sc.key">{{ sc.label }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label for="ccFrom">Start date <span class="required">*</span></label>
+                  <input id="ccFrom" type="date" formControlName="dateFrom"
+                         [attr.aria-invalid]="showError(ccForm.controls.dateFrom)" aria-describedby="ccFromErr" />
+                  @if (showError(ccForm.controls.dateFrom)) {
+                    <p id="ccFromErr" class="field-error" role="alert">Start date is required.</p>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="ccTo">End date <span class="required">*</span></label>
+                  <input id="ccTo" type="date" formControlName="dateTo"
+                         [attr.aria-invalid]="showError(ccForm.controls.dateTo)" aria-describedby="ccToErr" />
+                  @if (showError(ccForm.controls.dateTo)) {
+                    <p id="ccToErr" class="field-error" role="alert">End date is required.</p>
+                  }
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label for="ccStart">Closed from</label>
+                  <input id="ccStart" type="time" formControlName="startTime" aria-describedby="ccTimeHint" />
+                </div>
+                <div class="form-group">
+                  <label for="ccEnd">Closed until</label>
+                  <input id="ccEnd" type="time" formControlName="endTime" />
+                </div>
+              </div>
+              <p id="ccTimeHint" class="gc-hint">Leave both times empty to close for the whole day.</p>
+            </form>
+          }
+
+          @case ('days') {
+            @if (dayRows().length === 0) {
+              <div class="empty-state">
+                <span class="empty-icon">🚧</span>
+                <p>No closure days yet — generate them from this plan's period and day scope, then adjust or except individual days as needed.</p>
+              </div>
+            } @else {
+              <div class="cc-day-scroll">
+                <div class="cc-day-head" aria-hidden="true">
+                  <span>Date</span><span>Scope</span><span>From</span><span>Until</span><span>On</span><span></span>
+                </div>
+                @for (row of dayRows(); track row.closureDate; let i = $index) {
+                  <div class="cc-day-row" [class.cc-day-row--off]="!row.isActive">
+                    <span class="cc-day-date">
+                      {{ row.closureDate }}
+                      @if (row.isHoliday) {
+                        <span class="cc-day-tag">Holiday</span>
+                      } @else if (row.dayType === 'weekend') {
+                        <span class="cc-day-tag">Weekend</span>
+                      }
+                    </span>
+                    <select [value]="row.nineScope" (change)="updateDay(i, 'nineScope', $any($event.target).value)"
+                            [attr.aria-label]="row.closureDate + ' scope'">
+                      @for (sc of nineScopes(); track sc.key) {
+                        <option [value]="sc.key" [selected]="sc.key === row.nineScope">{{ sc.label }}</option>
+                      }
+                    </select>
+                    <input type="time" [value]="row.startTime"
+                           (input)="updateDay(i, 'startTime', $any($event.target).value)"
+                           [attr.aria-label]="row.closureDate + ' closed from'" />
+                    <input type="time" [value]="row.endTime"
+                           (input)="updateDay(i, 'endTime', $any($event.target).value)"
+                           [attr.aria-label]="row.closureDate + ' closed until'" />
+                    <label class="cc-day-on">
+                      <input type="checkbox" [checked]="row.isActive" (change)="toggleDayActive(i)"
+                             [attr.aria-label]="row.closureDate + ' closure applies'" />
+                    </label>
+                    <button type="button" class="cc-day-remove" (click)="removeDay(i)"
+                            [attr.aria-label]="'Remove ' + row.closureDate">✕</button>
+                  </div>
+                }
+              </div>
+            }
+            <button type="button" class="btn btn--secondary" (click)="generateDays()" [disabled]="ccGenerating()">
+              <span class="material-icons" aria-hidden="true">event_busy</span>
+              <span>{{ ccGenerating() ? 'Generating…' : (dayRows().length ? 'Regenerate days' : 'Generate days') + ' (' + scopeLabel(ccDayPlan()?.dayScope || 'all') + ', ' + (ccDayPlan()?.dateFrom || '') + ' → ' + (ccDayPlan()?.dateTo || '') + ')' }}</span>
+            </button>
+          }
+        }
+      </div>
+
+      <ng-container dialogFooter>
+        @switch (ccMode()) {
+          @case ('list') {
+            <button type="button" class="btn btn--secondary" (click)="ccDlg.requestClose()">Close</button>
+          }
+          @case ('form') {
+            <button type="button" class="btn btn--secondary" (click)="ccBackToList()" [disabled]="ccSaving()">Back to list</button>
+            <button type="submit" form="ccPlanForm" class="btn btn--primary" [disabled]="ccSaving()">
+              {{ ccSaving() ? 'Saving…' : 'Save' }}
+            </button>
+          }
+          @case ('days') {
+            <button type="button" class="btn btn--secondary" (click)="ccBackToList()" [disabled]="ccDaysSaving()">Back to list</button>
+            <button type="button" class="btn btn--primary" (click)="onSaveDays()" [disabled]="ccDaysSaving()">
+              {{ ccDaysSaving() ? 'Saving…' : 'Save ' + dayRows().length + ' days' }}
             </button>
           }
         }

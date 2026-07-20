@@ -71,6 +71,8 @@ const Course = require('../modules/golf/course.model');
 const CourseTeeTimeSet = require('../modules/golf/courseTeeTimeSet.model');
 const CourseTeeTimeSlot = require('../modules/golf/courseTeeTimeSlot.model');
 const GolfTransactionType = require('../modules/golf/transactionType.model'); // billing-item master (companyId value ref; tax by code via seam; no associations)
+const CourseClosurePlan = require('../modules/golf/courseClosurePlan.model');
+const CourseClosureDay = require('../modules/golf/courseClosureDay.model');
 // Shared financial reference (Tax). Header/detail pairs are intra-service, so they
 // DO associate; accountId/countryCode/companyId stay plain UUID/value references.
 // (The template seed layer was removed in the tax refactor - no template models.)
@@ -179,6 +181,11 @@ Course.hasMany(CourseTeeTimeSet, { foreignKey: 'courseId', as: 'TeeTimeSets', on
 CourseTeeTimeSet.belongsTo(Course, { foreignKey: 'courseId', as: 'Course' });
 CourseTeeTimeSet.hasMany(CourseTeeTimeSlot, { foreignKey: 'teeTimeSetId', as: 'Slots', onDelete: 'CASCADE' });
 CourseTeeTimeSlot.belongsTo(CourseTeeTimeSet, { foreignKey: 'teeTimeSetId', as: 'TeeTimeSet' });
+// Course -> its closure plans -> generated per-day closure rows (spec 2.2.8).
+Course.hasMany(CourseClosurePlan, { foreignKey: 'courseId', as: 'ClosurePlans', onDelete: 'CASCADE' });
+CourseClosurePlan.belongsTo(Course, { foreignKey: 'courseId', as: 'Course' });
+CourseClosurePlan.hasMany(CourseClosureDay, { foreignKey: 'closurePlanId', as: 'Days', onDelete: 'CASCADE' });
+CourseClosureDay.belongsTo(CourseClosurePlan, { foreignKey: 'closurePlanId', as: 'ClosurePlan' });
 
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).
@@ -239,6 +246,8 @@ module.exports = {
     CourseTeeTimeSet,
     CourseTeeTimeSlot,
     GolfTransactionType,
+    CourseClosurePlan,
+    CourseClosureDay,
     TaxScheme,
     TaxRate,
     CompanyTaxScheme,
