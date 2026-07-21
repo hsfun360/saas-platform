@@ -1,9 +1,14 @@
 <div class="screen-pad" style="max-width: 1100px;">
-  <h1 style="color: var(--text-primary); margin: 0 0 var(--space-xs); font-size: var(--font-h1); font-weight: var(--weight-bold);">Items</h1>
-  <p style="color: var(--text-muted); font-size: var(--font-body-2); margin: 0 0 var(--space-lg);">
-    Sample CRUD list. Pick an item to view and edit it, or add a new one. Rename the
-    <code>Item</code> model and swap <code>ItemsService</code> for real HTTP to go live.
-  </p>
+  <header style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-lg);">
+    <span class="saas-icon material-icons" aria-hidden="true">inventory_2</span>
+    <div>
+      <h1 style="color: var(--text-primary); margin: 0; font-size: var(--font-h1); font-weight: var(--weight-bold);">Items</h1>
+      <p style="color: var(--text-muted); font-size: var(--font-body-2); margin: 2px 0 0;">
+        Sample CRUD list. Pick an item to view and edit it, or add a new one. Rename the
+        <code>Item</code> model and swap <code>ItemsService</code> for real HTTP to go live.
+      </p>
+    </div>
+  </header>
 
   @if (successMessage()) {
     <div role="status" aria-live="polite" style="margin: var(--space-md) 0; padding: var(--space-sm) var(--space-md); background: var(--success-surface); color: var(--success-text); border-radius: 6px; border: 1px solid var(--success-border); font-size: var(--font-body-2);">

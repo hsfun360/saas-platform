@@ -1,8 +1,13 @@
 <div class="screen-pad" style="max-width: 800px;">
-  <h2 style="color: var(--text-primary); margin-top: 0; font-size: var(--font-h1);">Role Management</h2>
-  <p style="color: var(--text-muted); font-size: var(--font-body-2); margin-top: 0;">
-    A role is a named set of menu permissions. Assign roles to users per company under User Management.
-  </p>
+  <header style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-md);">
+    <span class="saas-icon material-icons" aria-hidden="true">admin_panel_settings</span>
+    <div>
+      <h2 style="color: var(--text-primary); margin: 0; font-size: var(--font-h1);">Role Management</h2>
+      <p style="color: var(--text-muted); font-size: var(--font-body-2); margin: 2px 0 0;">
+        A role is a named set of menu permissions. Assign roles to users per company under User Management.
+      </p>
+    </div>
+  </header>
 
   @if (successMessage()) {
     <div role="status" aria-live="polite" style="margin-bottom: var(--space-md); padding: var(--space-sm); background: var(--success-surface); color: var(--success-text); border-radius: 6px; border: 1px solid var(--success-border);">

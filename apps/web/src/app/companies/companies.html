@@ -1,10 +1,13 @@
 <section class="screen-pad" style="max-width: 1140px; margin: 0 auto;">
 
-  <header style="margin-bottom: var(--space-lg);">
-    <h1 style="margin: 0 0 var(--space-xs); font-size: var(--font-h1); font-weight: var(--weight-bold); color: var(--text-primary);">Companies</h1>
-    <p style="margin: 0; color: var(--text-muted); font-size: var(--font-body-2);">
-      Create the business entities under your subscription and choose the modules each one needs.
-    </p>
+  <header style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-lg);">
+    <span class="saas-icon material-icons" aria-hidden="true">business</span>
+    <div>
+      <h1 style="margin: 0; font-size: var(--font-h1); font-weight: var(--weight-bold); color: var(--text-primary);">Companies</h1>
+      <p style="margin: 2px 0 0; color: var(--text-muted); font-size: var(--font-body-2);">
+        Create the business entities under your subscription and choose the modules each one needs.
+      </p>
+    </div>
   </header>
 
   @if (successMessage()) {
