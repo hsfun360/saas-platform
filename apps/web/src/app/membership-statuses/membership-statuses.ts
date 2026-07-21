@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MembershipStatusService } from '../services/membership-status.service';
@@ -16,7 +17,7 @@ import { MembershipStatus, MembershipStatusOption, MembershipStatusCopySource } 
 @Component({
   selector: 'app-membership-statuses',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent, CanDirective],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective],
   templateUrl: './membership-statuses.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-statuses.css'],
 })

@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AdminService } from '../services/admin.service';
@@ -10,7 +11,7 @@ import { Role, UserSummary } from '../models/auth.models';
 @Component({
   selector: 'app-system-setup',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule],
   templateUrl: './system-setup.html',
   styleUrl: './system-setup.css',
 })

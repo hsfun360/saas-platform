@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { PlatformProfileService } from '../services/platform-profile.service';
@@ -21,7 +22,7 @@ import { PlatformProfile, PlatformChargeQuote, Country, Currency, TaxScheme } fr
 @Component({
   selector: 'app-platform-profile',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, PhoneInputComponent, MoneyInputDirective],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, PhoneInputComponent, MoneyInputDirective],
   templateUrl: './platform-profile.html',
   styleUrls: ['../system-setup/system-setup.css', './platform-profile.css'],
 })

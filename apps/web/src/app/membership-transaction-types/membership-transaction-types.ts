@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TransactionTypeService } from '../services/transaction-type.service';
@@ -13,7 +14,7 @@ import { MembershipTransactionType, MembershipStatusOption, TaxSchemeRef } from 
 @Component({
   selector: 'app-membership-transaction-types',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent, CanDirective],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective],
   templateUrl: './membership-transaction-types.html',
   // membership-types.css supplies the shared .mt-chip pill.
   styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css'],

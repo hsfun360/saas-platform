@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, FormControl, FormRecord, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TaxSchemeService } from '../services/tax-scheme.service';
@@ -18,7 +19,7 @@ import { CompanyTaxAdoption } from '../models/auth.models';
 @Component({
   selector: 'app-company-tax',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './company-tax.html',
   styleUrls: ['../system-setup/system-setup.css', './company-tax.css'],
 })

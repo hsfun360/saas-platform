@@ -6,8 +6,8 @@
       <span class="saas-icon material-icons" aria-hidden="true">percent</span>
       <div>
         @if (isPlatform()) {
-          <h1>Platform Tax</h1>
-          <p class="saas-subtitle">Platform-owned tax schemes (e.g. tax on Subscription Fee), defined per country.</p>
+          <h1>{{ 'Platform Tax' | screenTitle }}</h1>
+          <p class="saas-subtitle">{{ 'Platform-owned tax schemes (e.g. tax on Subscription Fee), defined per country.' | screenSubtitle }}</p>
         } @else {
           <h1>Tax Setup</h1>
           <p class="saas-subtitle">Tax schemes for your subscription — defined per country, consumed by each company in that country.</p>

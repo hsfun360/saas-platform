@@ -5,7 +5,7 @@
     <div class="saas-header-left">
       <span class="saas-icon material-icons" aria-hidden="true">event</span>
       <div>
-        <h1>Public Holidays</h1>
+        <h1>{{ 'Public Holidays' | screenTitle }}</h1>
         <p class="saas-subtitle">
           @if (singleCountry(); as sc) {
             Your subscription's public holiday calendar for {{ sc.flagEmoji }} {{ sc.name }} — shared by all companies and used across systems.

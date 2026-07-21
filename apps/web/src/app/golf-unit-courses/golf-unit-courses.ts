@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -62,7 +63,7 @@ const SEQ_OPTIONS = [1, 2, 3, 4, 5];
 @Component({
   selector: 'app-golf-unit-courses',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './golf-unit-courses.html',
   styleUrls: ['../system-setup/system-setup.css', './golf-unit-courses.css'],
 })

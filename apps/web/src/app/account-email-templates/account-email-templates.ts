@@ -1,4 +1,5 @@
 import { Component, Injector, OnInit, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AccountEmailTemplateService } from '../services/account-email-template.service';
@@ -10,7 +11,7 @@ import { AccountEmailTemplateSummary } from '../models/auth.models';
 @Component({
   selector: 'app-account-email-templates',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, RouterModule],
   templateUrl: './account-email-templates.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

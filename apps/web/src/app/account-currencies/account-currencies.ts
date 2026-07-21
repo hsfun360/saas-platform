@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { CurrencyService } from '../services/currency.service';
 import { Currency } from '../models/auth.models';
@@ -10,7 +11,7 @@ import { Currency } from '../models/auth.models';
 @Component({
   selector: 'app-account-currencies',
   standalone: true,
-  imports: [CommonModule],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule],
   templateUrl: './account-currencies.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

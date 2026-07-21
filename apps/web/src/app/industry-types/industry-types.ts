@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -13,7 +14,7 @@ import { IndustryType } from '../models/auth.models';
 @Component({
   selector: 'app-industry-types',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './industry-types.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

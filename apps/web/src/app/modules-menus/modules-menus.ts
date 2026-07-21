@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -57,7 +58,7 @@ type TranslationGroup = FormGroup<{
   selector: 'app-modules-menus',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle],
+  imports: [ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle],
   templateUrl: './modules-menus.html',
   styleUrls: ['./modules-menus.css'],
 })

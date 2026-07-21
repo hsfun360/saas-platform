@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { GolfCourseService } from '../services/golf-course.service';
@@ -67,7 +68,7 @@ function toHHMM(minutes: number): string {
 @Component({
   selector: 'app-golf-courses',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './golf-courses.html',
   styleUrls: ['../system-setup/system-setup.css', './golf-courses.css'],
 })

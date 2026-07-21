@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SalesService } from '../services/sales.service';
@@ -14,7 +15,7 @@ import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 @Component({
   selector: 'app-sales-agencies',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent],
   templateUrl: './sales-agencies.html',
   styleUrls: ['../system-setup/system-setup.css', '../memberships/memberships.css'],
 })

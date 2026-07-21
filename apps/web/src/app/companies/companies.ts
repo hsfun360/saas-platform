@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../auth.service';
 import { CountryService } from '../services/country.service';
@@ -17,7 +18,7 @@ import { COUNTRY_TIMEZONES, FALLBACK_COUNTRIES } from '../shared/countries';
   selector: 'app-companies',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, DialogComponent, PhoneInputComponent, CompanySmtpDialogComponent, CompanyWeekendDialogComponent, TimezoneLabelPipe],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, ReactiveFormsModule, DialogComponent, PhoneInputComponent, CompanySmtpDialogComponent, CompanyWeekendDialogComponent, TimezoneLabelPipe],
   templateUrl: './companies.html',
   styleUrls: ['./companies.css'],
 })

@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -32,7 +33,7 @@ function round2(n: number): number {
 @Component({
   selector: 'app-membership-fees',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective],
   templateUrl: './membership-fees.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-fees.css'],
 })

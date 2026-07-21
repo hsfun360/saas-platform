@@ -1,4 +1,5 @@
 import { Component, ElementRef, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { Subject, debounceTime } from 'rxjs';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -33,7 +34,7 @@ import {
 @Component({
   selector: 'app-memberships',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, MoneyInputDirective],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, MoneyInputDirective],
   templateUrl: './memberships.html',
   styleUrls: ['../system-setup/system-setup.css', './memberships.css'],
 })

@@ -1,4 +1,5 @@
 import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -17,7 +18,7 @@ import { TaxScheme, TaxRate, TaxOption, Country, TaxTemplateOption } from '../mo
 @Component({
   selector: 'app-tax-schemes',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './tax-schemes.html',
   styleUrls: ['../system-setup/system-setup.css', './tax-schemes.css'],
 })

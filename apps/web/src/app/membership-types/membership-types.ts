@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -43,7 +44,7 @@ const MONTH_NAMES = [
 @Component({
   selector: 'app-membership-types',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective],
   templateUrl: './membership-types.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-types.css'],
 })

@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { GolfTransactionTypeService } from '../services/golf-transaction-type.service';
@@ -14,7 +15,7 @@ import { GolfTransactionType, MembershipStatusOption, TaxSchemeRef } from '../mo
 @Component({
   selector: 'app-golf-transaction-types',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent, CanDirective],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective],
   templateUrl: './golf-transaction-types.html',
   // membership-types.css supplies the shared .mt-chip pill.
   styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css'],

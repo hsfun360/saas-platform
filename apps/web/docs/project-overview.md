@@ -207,6 +207,22 @@ Do not add an icon dependency; pick a name from the Material Icons set instead.
 - **Sidebar module/menu icons** are Material Icons names stored in the DB (`Menu.icon`).
 - Keep one concept = one icon app-wide (e.g. every transaction-type master uses `receipt_long`, both email-template screens use `mail`).
 
+#### Screen header title/subtitle - menu-driven and translated
+
+The screen header's title and subtitle come from the **granted Menu record**, not from a hardcoded string, so the header always matches what the user clicked in the sidebar - in the active language.
+Subscribers maintain the per-language texts in Modules & Menus (the Translations block: `Menu.names` / `Menu.descriptions`); toggling the header Language control re-renders titles immediately.
+
+- Wrap the header texts in the shared pipes, passing the hardcoded English as the fallback:
+  `<h1>{{ 'Memberships' | screenTitle }}</h1>` and
+  `<p class="saas-subtitle">{{ 'Individual and corporate...' | screenSubtitle }}</p>`
+  (pipes in `i18n/screen-title.pipe.ts`, resolution in `i18n/screen-title.service.ts`).
+- Resolution chain: `menu.names[lang]` -> `menu.name` -> the fallback argument (same for descriptions).
+  Screens that aren't menu-backed (the hardcoded SaaS Administration set, samples) just show the fallback.
+- Route -> menu matching mirrors `PermissionsService`/`HelpService` (exact, then drop trailing segments), and menus come from the login's localStorage cache - a menu rename shows after the next login, like the sidebar.
+- The service also keeps **`document.title`** (the browser tab) in step with the resolved menu name.
+- Dynamic subtitles (e.g. Public Holidays' per-country line) and dictionary-translated screens (Account Languages' `| t` keys) stay as they are - don't double-translate.
+- New screens MUST use the pipes in their header; every existing listing screen already does.
+
 #### Permission-gated actions (RBAC) - FAB / Edit / Delete buttons
 
 Access is three questions, and the UI reflects two of them per screen (the backend stays the only authoritative gate - see `apps/api/docs/systems/system-administration.md`):

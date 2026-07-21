@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AdminService } from '../services/admin.service';
@@ -18,7 +19,7 @@ import { UserSummary } from '../models/auth.models';
 @Component({
   selector: 'app-platform-users',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent],
   templateUrl: './platform-users.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

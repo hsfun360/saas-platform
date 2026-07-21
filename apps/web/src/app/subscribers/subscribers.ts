@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import {
   AbstractControl,
@@ -35,7 +36,7 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
 @Component({
   selector: 'app-subscribers',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent],
   templateUrl: './subscribers.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
