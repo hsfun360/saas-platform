@@ -273,6 +273,8 @@ function mapMenuItem(m, fullAccess = false) {
         id: m.id,
         name: m.name,
         names: m.names || {},                                   // localized menu names
+        description: m.description || null,                     // screen one-liner (header subtitle)
+        descriptions: m.descriptions || {},                     // localized descriptions
         route: m.route,
         icon: m.icon,
         moduleName: m.Module ? m.Module.name : 'Core Club Management',
