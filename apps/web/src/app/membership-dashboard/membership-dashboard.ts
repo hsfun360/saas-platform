@@ -90,7 +90,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, DashChartComponent],
   templateUrl: './membership-dashboard.html',
-  styleUrl: './membership-dashboard.css',
+  styleUrls: ['../system-setup/system-setup.css', './membership-dashboard.css'],
 })
 export class MembershipDashboardComponent implements OnInit {
   private readonly api = inject(MembershipDashboardService);
