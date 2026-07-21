@@ -12,14 +12,21 @@
   }
 }
 
+.tenant-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
 .tenant-header h1 {
-  margin: 0 0 var(--space-xs);
+  margin: 0;
   font-size: var(--font-h1);
   color: var(--text-primary);
 }
 
 .tenant-header p {
-  margin: 0 0 var(--space-lg);
+  margin: 2px 0 0;
   color: var(--text-muted);
   font-size: var(--font-body-2);
 }

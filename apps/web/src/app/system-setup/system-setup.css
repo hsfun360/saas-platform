@@ -37,10 +37,8 @@
   gap: var(--space-md);
 }
 
-.saas-icon {
-  font-size: 40px;
-  line-height: 1;
-}
+/* .saas-icon (the header icon tile) is defined globally in styles.css -
+   do not redefine it here, a component copy would override the shared one. */
 
 .saas-header h1 {
   margin: 0;

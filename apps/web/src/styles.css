@@ -97,6 +97,7 @@ textarea[aria-invalid='true'] {
   --brand: #2563eb;          /* primary button fill */
   --brand-hover: #1d4ed8;
   --brand-text: #1d4ed8;     /* brand-coloured text/links (AA on light) */
+  --brand-surface: #dbeafe;  /* soft brand-tinted fill (screen-header icon tiles) */
 
   --danger-text: #b91c1c;
   --danger-border: #fecaca;
@@ -144,6 +145,7 @@ textarea[aria-invalid='true'] {
   --brand: #3b82f6;
   --brand-hover: #60a5fa;
   --brand-text: #7fb0ff;     /* brand text/links on dark (AA) */
+  --brand-surface: #223a5e;  /* soft brand-tinted fill (screen-header icon tiles) */
 
   --danger-text: #f87171;
   --danger-border: #7f1d1d;
@@ -650,6 +652,25 @@ body {
   .screen-pad {
     padding: var(--space-md) 0;
   }
+}
+
+/* Screen-header icon tile: a Material Icons ligature (font already loaded
+   app-wide in index.html - zero extra dependencies) inside a soft
+   brand-tinted rounded square. Replaces the old raw-emoji headers, whose
+   artwork differed per OS and could not follow the theme tokens.
+   Usage: <span class="saas-icon material-icons" aria-hidden="true">badge</span> */
+.saas-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: 14px;
+  background: var(--brand-surface);
+  color: var(--brand-text);
+  font-size: 28px;
+  line-height: 1;
 }
 
 /* ============================================================== */

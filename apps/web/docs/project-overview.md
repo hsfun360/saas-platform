@@ -195,6 +195,18 @@ Rules:
 - The auth screens (login / reset / forgot / system-setup) keep their own scoped
   `.btn-primary` (single-dash) for their centred-card layout - don't confuse the two.
 
+#### Icons - one system, no icon libraries
+
+All icons come from the **Material Icons ligature font**, loaded once from Google Fonts in `index.html`.
+There is deliberately NO icon component library (no ng-icons, no Lucide, no Angular Material) - the font is already paid for on every page load, adds zero JS to the bundle, and recolours with the theme tokens.
+Do not add an icon dependency; pick a name from the Material Icons set instead.
+
+- **Screen headers** use the shared **`.saas-icon`** tile (global in `styles.css`): `<span class="saas-icon material-icons" aria-hidden="true">badge</span>` - a 52px brand-tinted rounded square (`--brand-surface` fill, `--brand-text` glyph, AA in both themes).
+  Never use a raw emoji as a screen icon: emoji artwork differs per OS and cannot follow the theme.
+- **Buttons and inline icons** use a plain `<span class="material-icons">` (see Icon-in-button above).
+- **Sidebar module/menu icons** are Material Icons names stored in the DB (`Menu.icon`).
+- Keep one concept = one icon app-wide (e.g. every transaction-type master uses `receipt_long`, both email-template screens use `mail`).
+
 #### Permission-gated actions (RBAC) - FAB / Edit / Delete buttons
 
 Access is three questions, and the UI reflects two of them per screen (the backend stays the only authoritative gate - see `apps/api/docs/systems/system-administration.md`):
