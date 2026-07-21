@@ -1,0 +1,365 @@
+/* Membership Dashboard - analytics screen.
+   All chrome colours come from the semantic theme tokens; the chart canvas
+   colours live in membership-dashboard.ts (canvas cannot read CSS vars). */
+
+/* --- Toolbar (period presets + selects) --- */
+.md-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.md-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.md-chip {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: var(--font-body-2);
+  cursor: pointer;
+}
+
+.md-chip--on {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--text-on-brand);
+}
+
+.md-custom-range {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.md-custom-range input {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: 16px;
+}
+
+.md-range-label {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: var(--weight-bold);
+}
+
+.md-selects {
+  display: flex;
+  gap: var(--space-sm);
+  margin-left: auto;
+}
+
+.md-selects select {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: 16px;
+}
+
+/* --- KPI row --- */
+.md-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.md-kpi {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-card);
+  text-align: left;
+}
+
+.md-kpi--click {
+  cursor: pointer;
+  font: inherit;
+}
+
+.md-kpi--click:hover {
+  background: var(--surface-hover);
+}
+
+.md-kpi__label {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.md-kpi__value {
+  font-size: var(--font-h1);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+}
+
+.md-kpi__value--good { color: var(--success-text); }
+.md-kpi__value--bad { color: var(--danger-text); }
+
+.md-kpi__hint {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+
+/* --- Chart grid & cards --- */
+.md-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-md);
+}
+
+.md-card {
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-card);
+  min-width: 0;
+}
+
+.md-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.md-card__head h2 {
+  margin: 0;
+  font-size: var(--font-h3);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.md-card__note {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+
+.md-empty {
+  color: var(--text-muted);
+  font-size: var(--font-body-2);
+  padding: var(--space-lg) 0;
+  text-align: center;
+}
+
+/* --- Segmented toggle (Memberships / Members) --- */
+.md-seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.md-seg__btn {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-md);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--font-body-2);
+  cursor: pointer;
+}
+
+.md-seg__btn--on {
+  background: var(--brand);
+  color: var(--text-on-brand);
+}
+
+/* --- Agent leaderboard --- */
+.md-lb {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.md-lb__channel + .md-lb__channel {
+  border-top: 1px solid var(--border);
+}
+
+.md-lb__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.md-lb__expand {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.md-lb__expand:hover { background: var(--surface-hover); }
+
+.md-lb__spacer {
+  flex: 0 0 auto;
+  width: 44px;
+}
+
+.md-lb__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.md-lb__main:hover { background: var(--surface-hover); }
+
+.md-lb__main--static { cursor: default; }
+.md-lb__main--static:hover { background: transparent; }
+
+.md-lb__icon {
+  color: var(--accent);
+  font-size: 20px;
+}
+
+.md-lb__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.md-lb__code {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.md-lb__count {
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.md-lb__row--muted .md-lb__name,
+.md-lb__row--muted .md-lb__count {
+  color: var(--text-muted);
+}
+
+.md-lb__agents {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--space-xs) 44px;
+}
+
+/* --- Drill panel --- */
+.md-drill {
+  margin-top: var(--space-md);
+}
+
+.md-drill__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
+}
+
+.md-drill__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 16px;
+  background: var(--surface-selected);
+  color: var(--brand-text);
+  font-size: var(--font-body-2);
+  border: 1px solid var(--border);
+}
+
+.md-drill__chip button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: var(--font-body-2);
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.md-drill__count {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-sm);
+}
+
+/* Status dot + text (same idiom as the Memberships screen). */
+.md-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-caption);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.md-status__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+/* --- Tablet (2 columns) --- */
+@media (min-width: 768px) {
+  .md-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .md-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .md-card--wide { grid-column: span 2; }
+}
+
+/* --- Desktop --- */
+@media (min-width: 1024px) {
+  .md-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+/* --- Mobile --- */
+@media (max-width: 767px) {
+  .md-selects {
+    margin-left: 0;
+    width: 100%;
+  }
+  .md-selects select { flex: 1; min-width: 0; }
+}

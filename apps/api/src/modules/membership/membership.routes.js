@@ -21,6 +21,7 @@ const agentPortalRoutes = require('./agentPortal.routes');
 const salesAgenciesRoutes = require('./salesAgencies.routes');
 const salesAgentsRoutes = require('./salesAgents.routes');
 const membershipSettingsRoutes = require('./membershipSettings.routes');
+const dashboardRoutes = require('./dashboard.routes');
 
 // Liveness probe — unauthenticated, so the gateway/monitoring can check the seam.
 router.get('/health', (req, res) => res.json({ service: 'membership', status: 'ok' }));
@@ -40,6 +41,9 @@ router.use(requireModule('Membership Management'));
 
 // --- Club Specification (SRS 2.1.1 - the membership system master) ---
 router.use('/settings', requireMenuAction('/membership/settings'), membershipSettingsRoutes);
+
+// --- Dashboard (analytics over the membership base, read-only) ---
+router.use('/dashboard', requireMenuAction('/membership/dashboard'), dashboardRoutes);
 
 // --- Master File Setup ---
 // requireMenuAction adds per-action RBAC on top of the entitlement: the caller's

@@ -1,0 +1,314 @@
+<div class="saas-container md-root">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">insights</span>
+      <div>
+        <h1>{{ 'Membership Dashboard' | screenTitle }}</h1>
+        <p class="saas-subtitle">{{ 'Movement, demographics and sales performance across the membership base — click any chart to see the records behind it.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- GLOBAL FILTERS -->
+  <div class="md-toolbar">
+    <div class="md-filter" role="group" aria-label="Period">
+      <button type="button" class="md-chip" [class.md-chip--on]="periodPreset() === 'thisMonth'" (click)="setPreset('thisMonth')">This month</button>
+      <button type="button" class="md-chip" [class.md-chip--on]="periodPreset() === 'thisYear'" (click)="setPreset('thisYear')">This year</button>
+      <button type="button" class="md-chip" [class.md-chip--on]="periodPreset() === 'last12'" (click)="setPreset('last12')">Last 12 months</button>
+      <button type="button" class="md-chip" [class.md-chip--on]="periodPreset() === 'custom'" (click)="setPreset('custom')">Custom</button>
+    </div>
+    @if (periodPreset() === 'custom') {
+      <div class="md-custom-range">
+        <label for="mdFrom" class="md-range-label">From</label>
+        <input id="mdFrom" type="date" [value]="customFrom()" (change)="setCustomFrom(mdFromEl.value)" #mdFromEl>
+        <label for="mdTo" class="md-range-label">To</label>
+        <input id="mdTo" type="date" [value]="customTo()" (change)="setCustomTo(mdToEl.value)" #mdToEl>
+      </div>
+    }
+    <div class="md-selects">
+      <select #classSel [value]="classFilter()" (change)="setClass(classSel.value)" aria-label="Filter by membership class">
+        <option value="">All classes</option>
+        <option value="individual">Individual</option>
+        <option value="corporate">Corporate</option>
+      </select>
+      <select #kindSel [value]="kindFilter()" (change)="setKind(kindSel.value)" aria-label="Filter people charts by member kind">
+        <option value="">All people</option>
+        <option value="individual">Individual members</option>
+        <option value="nominee">Nominees</option>
+        <option value="dependent">Dependents</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- KPI ROW -->
+  @if (summary(); as s) {
+    <div class="md-kpis">
+      <div class="md-kpi">
+        <span class="md-kpi__label">Memberships</span>
+        <span class="md-kpi__value">{{ s.totalMemberships }}</span>
+      </div>
+      <div class="md-kpi">
+        <span class="md-kpi__label">Active</span>
+        <span class="md-kpi__value">{{ s.activeMemberships }}</span>
+      </div>
+      <button type="button" class="md-kpi md-kpi--click" (click)="drillNewJoins()">
+        <span class="md-kpi__label">New joins</span>
+        <span class="md-kpi__value md-kpi__value--good">{{ s.newJoins }}</span>
+        <span class="md-kpi__hint">in period · view list</span>
+      </button>
+      <button type="button" class="md-kpi md-kpi--click" (click)="drillExpired()">
+        <span class="md-kpi__label">Expired</span>
+        <span class="md-kpi__value md-kpi__value--bad">{{ s.expired }}</span>
+        <span class="md-kpi__hint">in period · view list</span>
+      </button>
+      <div class="md-kpi">
+        <span class="md-kpi__label">Net movement</span>
+        <span class="md-kpi__value" [class.md-kpi__value--good]="s.netMovement > 0" [class.md-kpi__value--bad]="s.netMovement < 0">{{ s.netMovement > 0 ? '+' : '' }}{{ s.netMovement }}</span>
+      </div>
+      <div class="md-kpi">
+        <span class="md-kpi__label">Members (people)</span>
+        <span class="md-kpi__value">{{ s.totalMembers }}</span>
+      </div>
+    </div>
+  }
+
+  <!-- CHARTS -->
+  <div class="md-grid">
+
+    <!-- Movement -->
+    <section class="md-card md-card--wide" aria-label="Membership movement">
+      <div class="md-card__head">
+        <h2>Membership movement</h2>
+        <span class="md-card__note">new joins vs contractual expiries, monthly</span>
+      </div>
+      @if (movement().length) {
+        <app-dash-chart [options]="movementOptions()" [height]="280" (chartClick)="onMovementClick($event)"></app-dash-chart>
+      } @else {
+        <p class="md-empty">No movement in this period.</p>
+      }
+    </section>
+
+    <!-- Status -->
+    <section class="md-card" aria-label="Status breakdown">
+      <div class="md-card__head">
+        <h2>Status</h2>
+        <div class="md-seg" role="group" aria-label="Status of what">
+          <button type="button" class="md-seg__btn" [class.md-seg__btn--on]="statusMode() === 'membership'" (click)="setStatusMode('membership')">Memberships</button>
+          <button type="button" class="md-seg__btn" [class.md-seg__btn--on]="statusMode() === 'member'" (click)="setStatusMode('member')">Members</button>
+        </div>
+      </div>
+      <app-dash-chart [options]="statusDonutOptions()" [height]="260" (chartClick)="onStatusClick($event)"></app-dash-chart>
+    </section>
+
+    <!-- Type -->
+    <section class="md-card" aria-label="Membership type breakdown">
+      <div class="md-card__head">
+        <h2>Membership type</h2>
+        <span class="md-card__note">contracts per type</span>
+      </div>
+      @if (typeBuckets().length) {
+        <app-dash-chart [options]="typeOptions()" [height]="chartHeight(typeBuckets())" (chartClick)="onTypeClick($event)"></app-dash-chart>
+      } @else {
+        <p class="md-empty">No memberships yet.</p>
+      }
+    </section>
+
+    <!-- Age -->
+    <section class="md-card" aria-label="Age distribution">
+      <div class="md-card__head">
+        <h2>Age</h2>
+        <span class="md-card__note">members by age band</span>
+      </div>
+      @if (ageBuckets().length) {
+        <app-dash-chart [options]="ageOptions()" [height]="chartHeight(ageBuckets())" (chartClick)="onAgeClick($event)"></app-dash-chart>
+      } @else {
+        <p class="md-empty">No members yet.</p>
+      }
+    </section>
+
+    <!-- Country -->
+    <section class="md-card" aria-label="Country breakdown">
+      <div class="md-card__head">
+        <h2>Country</h2>
+        <span class="md-card__note">members by residential country</span>
+      </div>
+      @if (countryBuckets().length) {
+        <app-dash-chart [options]="countryOptions()" [height]="chartHeight(countryBuckets())" (chartClick)="onCountryClick($event)"></app-dash-chart>
+      } @else {
+        <p class="md-empty">No members yet.</p>
+      }
+    </section>
+
+    <!-- Nationality -->
+    <section class="md-card" aria-label="Nationality breakdown">
+      <div class="md-card__head">
+        <h2>Nationality</h2>
+        <span class="md-card__note">members by nationality</span>
+      </div>
+      @if (nationalityBuckets().length) {
+        <app-dash-chart [options]="nationalityOptions()" [height]="chartHeight(nationalityBuckets())" (chartClick)="onNationalityClick($event)"></app-dash-chart>
+      } @else {
+        <p class="md-empty">No members yet.</p>
+      }
+    </section>
+
+    <!-- Agent performance -->
+    <section class="md-card md-card--wide" aria-label="Sales performance">
+      <div class="md-card__head">
+        <h2>Sales performance</h2>
+        <span class="md-card__note">memberships closed in period, by channel — click a row for the list</span>
+      </div>
+      @if (agentChannels().length === 0 && (agentPerf()?.unattributed ?? 0) === 0) {
+        <p class="md-empty">No memberships were closed in this period.</p>
+      }
+      <ul class="md-lb">
+        @for (ch of agentChannels(); track ch.key) {
+          <li class="md-lb__channel">
+            <div class="md-lb__row">
+              <button type="button" class="md-lb__expand" (click)="toggleChannel(ch.key)"
+                      [attr.aria-expanded]="expandedChannels().has(ch.key)"
+                      [attr.aria-label]="'Toggle agents of ' + ch.label">
+                <span class="material-icons" aria-hidden="true">{{ expandedChannels().has(ch.key) ? 'expand_less' : 'expand_more' }}</span>
+              </button>
+              <button type="button" class="md-lb__main" (click)="drillChannel(ch)">
+                <span class="material-icons md-lb__icon" aria-hidden="true">{{ ch.icon }}</span>
+                <span class="md-lb__name">{{ ch.label }}</span>
+                <span class="md-lb__count">{{ ch.count }}</span>
+              </button>
+            </div>
+            @if (expandedChannels().has(ch.key)) {
+              <ul class="md-lb__agents">
+                @for (a of ch.rows; track a.agentId) {
+                  <li>
+                    <button type="button" class="md-lb__main md-lb__main--agent" (click)="drillAgent(a, $event)">
+                      <span class="md-lb__name">{{ a.name }} <span class="md-lb__code">({{ a.agentCode }})</span></span>
+                      <span class="md-lb__count">{{ a.count }}</span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </li>
+        }
+        @if ((agentPerf()?.unattributed ?? 0) > 0) {
+          <li class="md-lb__channel">
+            <div class="md-lb__row md-lb__row--muted">
+              <span class="md-lb__spacer" aria-hidden="true"></span>
+              <div class="md-lb__main md-lb__main--static">
+                <span class="material-icons md-lb__icon" aria-hidden="true">help_outline</span>
+                <span class="md-lb__name">No agent recorded</span>
+                <span class="md-lb__count">{{ agentPerf()?.unattributed }}</span>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+  </div>
+
+  <!-- DRILL-DOWN PANEL -->
+  @if (drillOpen()) {
+    <section id="md-drill" class="md-card md-drill" aria-label="Drill-down records">
+      <div class="md-card__head">
+        <h2>Records behind the numbers</h2>
+        <button type="button" class="btn btn--secondary btn--sm" (click)="closeDrill()">
+          <span class="material-icons" aria-hidden="true">close</span> Close
+        </button>
+      </div>
+
+      <!-- Active filter chips (removable; filters combine) -->
+      <div class="md-drill__chips" role="group" aria-label="Active drill filters">
+        @for (chip of drillChips(); track chip.key) {
+          <span class="md-drill__chip">
+            {{ chip.label }}
+            <button type="button" (click)="removeChip(chip.key)" [attr.aria-label]="'Remove filter ' + chip.label">✕</button>
+          </span>
+        }
+        <div class="md-seg" role="group" aria-label="Show as">
+          <button type="button" class="md-seg__btn" [class.md-seg__btn--on]="drillEntity() === 'memberships'" (click)="setDrillEntity('memberships')">Memberships</button>
+          <button type="button" class="md-seg__btn" [class.md-seg__btn--on]="drillEntity() === 'members'" (click)="setDrillEntity('members')">Members</button>
+        </div>
+      </div>
+
+      @if (!drillLoading() || drillRows().length) {
+        <p class="md-drill__count" aria-live="polite">
+          {{ drillTotal() }} {{ drillEntity() === 'memberships' ? 'membership(s)' : 'member(s)' }} match.
+        </p>
+      }
+
+      <div class="data-list">
+        @if (drillEntity() === 'memberships') {
+          @for (row of drillRows(); track row.id) {
+            @if (membershipRow(row); as m) {
+              <div class="data-card">
+                <div class="data-row data-row--with-badge">
+                  <div class="data-row__main">
+                    <div class="data-card__title">{{ m.membershipNo }}@if (m.corporateName) { <span class="data-card__reg">· {{ m.corporateName }}</span> }</div>
+                    <div class="data-card__subline">
+                      <span class="data-card__reg">{{ m.membershipClass === 'corporate' ? 'Corporate' : 'Individual' }} · {{ typeName(m.membershipTypeId) }}</span>
+                    </div>
+                    <dl class="data-card__meta">
+                      <div class="meta"><dt>Joined</dt><dd>{{ m.joinDate || '—' }}</dd></div>
+                      <div class="meta"><dt>Expiry</dt><dd>{{ m.expiryDate || '—' }}</dd></div>
+                      @if (m.salesAgentId) {
+                        <div class="meta"><dt>Agent</dt><dd>{{ agentName(m.salesAgentId) }}</dd></div>
+                      }
+                    </dl>
+                  </div>
+                  <span class="data-row__badge md-status">
+                    <span class="md-status__dot" [style.background]="statusColor(m.membershipStatusId) || 'var(--text-muted)'" aria-hidden="true"></span>
+                    {{ statusName(m.membershipStatusId) }}
+                  </span>
+                </div>
+              </div>
+            }
+          }
+        } @else {
+          @for (row of drillRows(); track row.id) {
+            @if (memberRow(row); as m) {
+              <div class="data-card">
+                <div class="data-row data-row--with-badge">
+                  <div class="data-row__main">
+                    <div class="data-card__title">{{ m.memberNo }} <span class="data-card__reg">· {{ memberDisplayName(m) }}</span></div>
+                    <div class="data-card__subline">
+                      <span class="data-card__reg">{{ m.memberKind }} @if (m.membershipNo) { · {{ m.membershipNo }} } @if (m.corporateName) { · {{ m.corporateName }} }</span>
+                    </div>
+                    <dl class="data-card__meta">
+                      @if (m.birthDate) { <div class="meta"><dt>Born</dt><dd>{{ m.birthDate }}</dd></div> }
+                      @if (m.nationalityCode) { <div class="meta"><dt>Nationality</dt><dd>{{ m.nationalityCode }}</dd></div> }
+                      <div class="meta"><dt>Joined</dt><dd>{{ m.joinDate || '—' }}</dd></div>
+                    </dl>
+                  </div>
+                  <span class="data-row__badge md-status">
+                    <span class="md-status__dot" [style.background]="statusColor(m.memberStatusId) || 'var(--text-muted)'" aria-hidden="true"></span>
+                    {{ statusName(m.memberStatusId) }}
+                  </span>
+                </div>
+              </div>
+            }
+          }
+        }
+      </div>
+
+      @if (drillLoading()) {
+        <p class="md-empty">Loading…</p>
+      } @else if (drillRows().length < drillTotal()) {
+        <button type="button" class="btn btn--secondary" (click)="loadMoreDrill()">
+          Load {{ drillTotal() - drillRows().length > 50 ? 50 : drillTotal() - drillRows().length }} more
+        </button>
+      } @else if (drillRows().length === 0) {
+        <p class="md-empty">No records match this combination of filters.</p>
+      }
+    </section>
+  }
+</div>
