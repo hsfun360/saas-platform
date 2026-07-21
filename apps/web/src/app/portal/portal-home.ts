@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { LocalDatePipe } from '../shared/local-date.pipe';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { PortalService, PortalMembershipCard } from '../services/portal.service';
@@ -11,7 +12,7 @@ import { PortalService, PortalMembershipCard } from '../services/portal.service'
 @Component({
   selector: 'app-portal-home',
   standalone: true,
-  imports: [CommonModule],
+  imports: [LocalDatePipe, CommonModule],
   templateUrl: './portal-home.html',
   styleUrls: ['./portal-home.css'],
 })

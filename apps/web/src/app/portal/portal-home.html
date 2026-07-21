@@ -43,7 +43,7 @@
               @if (c.membershipNo && c.membershipNo !== c.memberNo) { <div class="meta"><dt>Membership</dt><dd>{{ c.membershipNo }}</dd></div> }
               @if (c.membershipTypeName) { <div class="meta"><dt>Type</dt><dd>{{ c.membershipTypeName }}</dd></div> }
               <div class="meta"><dt>Role</dt><dd>{{ kindLabel(c.memberKind) }}</dd></div>
-              @if (c.joinDate) { <div class="meta"><dt>Joined</dt><dd>{{ c.joinDate }}</dd></div> }
+              @if (c.joinDate) { <div class="meta"><dt>Joined</dt><dd>{{ c.joinDate | localDate }}</dd></div> }
             </dl>
           </div>
         }

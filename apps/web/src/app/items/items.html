@@ -124,7 +124,7 @@
           </h2>
           @if (!isCreating() && selectedItem()) {
             <p style="color: var(--text-muted); font-size: var(--font-caption); margin-top: 0;">
-              Last updated {{ selectedItem()?.updatedAt | date: 'medium' }}
+              Last updated {{ selectedItem()?.updatedAt | localDate:'datetime' }}
             </p>
           }
 

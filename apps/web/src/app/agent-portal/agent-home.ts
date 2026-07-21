@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { LocalDatePipe } from '../shared/local-date.pipe';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { SalesService, AgentEngagement } from '../services/sales.service';
@@ -11,7 +12,7 @@ import { SalesService, AgentEngagement } from '../services/sales.service';
 @Component({
   selector: 'app-agent-home',
   standalone: true,
-  imports: [CommonModule],
+  imports: [LocalDatePipe, CommonModule],
   templateUrl: './agent-home.html',
   styleUrls: ['../portal/portal-home.css'],
 })

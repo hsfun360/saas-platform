@@ -1,4 +1,5 @@
 import { Component, ElementRef, OnInit, computed, inject, signal } from '@angular/core';
+import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { Subject, debounceTime } from 'rxjs';
@@ -34,7 +35,7 @@ import {
 @Component({
   selector: 'app-memberships',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, MoneyInputDirective],
+  imports: [LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, MoneyInputDirective],
   templateUrl: './memberships.html',
   styleUrls: ['../system-setup/system-setup.css', './memberships.css'],
 })

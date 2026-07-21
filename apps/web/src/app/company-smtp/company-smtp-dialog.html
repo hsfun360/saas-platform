@@ -21,7 +21,7 @@
     }
     @if (configured() && lastVerifiedAt() && !lastError()) {
       <div class="smtp-status" style="background:var(--info-surface); color:var(--info-text);">
-        ✅ Last verified {{ lastVerifiedAt() | date:'medium' }}
+        ✅ Last verified {{ lastVerifiedAt() | localDate:'datetime' }}
       </div>
     }
 

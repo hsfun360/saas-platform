@@ -593,7 +593,7 @@
                 @for (row of dayRows(); track row.closureDate; let i = $index) {
                   <div class="cc-day-row" [class.cc-day-row--off]="!row.isActive">
                     <span class="cc-day-date">
-                      {{ row.closureDate }}
+                      {{ row.closureDate | localDate }}
                       @if (row.isHoliday) {
                         <span class="cc-day-tag">Holiday</span>
                       } @else if (row.dayType === 'weekend') {

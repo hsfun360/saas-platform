@@ -69,7 +69,7 @@
               <dl class="data-card__meta">
                 <div class="meta"><dt>Email</dt><dd>{{ r.email }}</dd></div>
                 @if (r.mobile) { <div class="meta"><dt>Mobile</dt><dd>{{ r.mobile }}</dd></div> }
-                @if (r.joinedDate) { <div class="meta"><dt>Joined</dt><dd>{{ r.joinedDate }}</dd></div> }
+                @if (r.joinedDate) { <div class="meta"><dt>Joined</dt><dd>{{ r.joinedDate | localDate }}</dd></div> }
                 <div class="meta"><dt>Portal</dt><dd>{{ r.portalLinked ? 'Linked' : 'Not registered' }}</dd></div>
               </dl>
             </div>

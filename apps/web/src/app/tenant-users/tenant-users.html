@@ -84,7 +84,7 @@
               <td>{{ inv.email }}</td>
               <td>{{ inv.companyName }}</td>
               <td>{{ inv.roleName || '—' }}</td>
-              <td>{{ inv.expiresAt ? (inv.expiresAt | date:'mediumDate') : '—' }}</td>
+              <td>{{ inv.expiresAt ? (inv.expiresAt | localDate) : '—' }}</td>
               <td class="actions-cell">
                 <button type="button" class="btn btn--danger btn--sm" [disabled]="isPending('inv:' + inv.id)" (click)="onRevokeInvite(inv.id)">Revoke</button>
               </td>

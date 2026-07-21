@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { DashChartComponent, DashChartClick, DashChartOption } from './dash-chart';
 import {
@@ -87,7 +88,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
   selector: 'app-membership-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, DashChartComponent],
+  imports: [LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, DashChartComponent],
   templateUrl: './membership-dashboard.html',
   styleUrl: './membership-dashboard.css',
 })

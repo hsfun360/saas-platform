@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { LocalDatePipe } from '../shared/local-date.pipe';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ItemsService } from './items.service';
@@ -21,7 +21,7 @@ import { ScrollReturnService } from '../services/scroll-return.service';
   selector: 'app-items',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [LocalDatePipe, ReactiveFormsModule],
   templateUrl: './items.html',
   styleUrls: ['./items.css'],
 })

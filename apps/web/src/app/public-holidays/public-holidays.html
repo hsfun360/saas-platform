@@ -100,7 +100,7 @@
             <div class="data-row__main">
               <div class="data-card__title">{{ h.description }}</div>
               <div class="data-card__subline">
-                <span class="data-card__reg">{{ h.holidayDate | date:'EEE, d MMM y' }}</span>
+                <span class="data-card__reg">{{ h.holidayDate | localDate:'weekday' }}</span>
                 @if (showCardCountry(h)) {
                   <span class="data-card__reg">{{ countryFlag(h.countryCode) }} {{ countryName(h.countryCode) }}</span>
                 }

@@ -94,8 +94,8 @@
                 @if (m.identityNo) { <div class="meta"><dt>ID</dt><dd>{{ m.identityNo }}</dd></div> }
                 @if (m.email) { <div class="meta"><dt>Email</dt><dd>{{ m.email }}</dd></div> }
                 @if (m.mobile) { <div class="meta"><dt>Mobile</dt><dd>{{ m.mobile }}</dd></div> }
-                @if (m.joinDate) { <div class="meta"><dt>Joined</dt><dd>{{ m.joinDate }}</dd></div> }
-                @if (m.expiryDate) { <div class="meta"><dt>Expires</dt><dd>{{ m.expiryDate }}</dd></div> }
+                @if (m.joinDate) { <div class="meta"><dt>Joined</dt><dd>{{ m.joinDate | localDate }}</dd></div> }
+                @if (m.expiryDate) { <div class="meta"><dt>Expires</dt><dd>{{ m.expiryDate | localDate }}</dd></div> }
               </dl>
             </div>
             <div class="data-row__badge">

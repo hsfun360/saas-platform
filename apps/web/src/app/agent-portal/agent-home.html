@@ -37,7 +37,7 @@
               <div class="meta"><dt>Agent code</dt><dd>{{ e.agentCode }}</dd></div>
               <div class="meta"><dt>Kind</dt><dd>{{ e.agentKindLabel }}</dd></div>
               @if (e.agencyName) { <div class="meta"><dt>Agency</dt><dd>{{ e.agencyName }}</dd></div> }
-              @if (e.joinedDate) { <div class="meta"><dt>Since</dt><dd>{{ e.joinedDate }}</dd></div> }
+              @if (e.joinedDate) { <div class="meta"><dt>Since</dt><dd>{{ e.joinedDate | localDate }}</dd></div> }
             </dl>
           </div>
         }

@@ -258,8 +258,8 @@
                       <span class="data-card__reg">{{ m.membershipClass === 'corporate' ? 'Corporate' : 'Individual' }} · {{ typeName(m.membershipTypeId) }}</span>
                     </div>
                     <dl class="data-card__meta">
-                      <div class="meta"><dt>Joined</dt><dd>{{ m.joinDate || '—' }}</dd></div>
-                      <div class="meta"><dt>Expiry</dt><dd>{{ m.expiryDate || '—' }}</dd></div>
+                      <div class="meta"><dt>Joined</dt><dd>{{ (m.joinDate | localDate) || '—' }}</dd></div>
+                      <div class="meta"><dt>Expiry</dt><dd>{{ (m.expiryDate | localDate) || '—' }}</dd></div>
                       @if (m.salesAgentId) {
                         <div class="meta"><dt>Agent</dt><dd>{{ agentName(m.salesAgentId) }}</dd></div>
                       }
@@ -284,9 +284,9 @@
                       <span class="data-card__reg">{{ m.memberKind }} @if (m.membershipNo) { · {{ m.membershipNo }} } @if (m.corporateName) { · {{ m.corporateName }} }</span>
                     </div>
                     <dl class="data-card__meta">
-                      @if (m.birthDate) { <div class="meta"><dt>Born</dt><dd>{{ m.birthDate }}</dd></div> }
+                      @if (m.birthDate) { <div class="meta"><dt>Born</dt><dd>{{ m.birthDate | localDate }}</dd></div> }
                       @if (m.nationalityCode) { <div class="meta"><dt>Nationality</dt><dd>{{ m.nationalityCode }}</dd></div> }
-                      <div class="meta"><dt>Joined</dt><dd>{{ m.joinDate || '—' }}</dd></div>
+                      <div class="meta"><dt>Joined</dt><dd>{{ (m.joinDate | localDate) || '—' }}</dd></div>
                     </dl>
                   </div>
                   <span class="data-row__badge md-status">

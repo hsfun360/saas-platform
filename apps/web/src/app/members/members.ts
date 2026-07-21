@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { Subject, debounceTime } from 'rxjs';
@@ -12,7 +13,7 @@ import { MemberSearchRow, MembersMeta } from '../models/auth.models';
 @Component({
   selector: 'app-members',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule],
+  imports: [LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule],
   templateUrl: './members.html',
   styleUrls: ['../system-setup/system-setup.css', '../memberships/memberships.css'],
 })

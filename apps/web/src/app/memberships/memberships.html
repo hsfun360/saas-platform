@@ -86,9 +86,9 @@
                 <span class="data-card__reg">{{ typeCategory(ms.membershipTypeId) }}</span>
               </div>
               <dl class="data-card__meta">
-                <div class="meta"><dt>Joined</dt><dd>{{ ms.joinDate }}</dd></div>
+                <div class="meta"><dt>Joined</dt><dd>{{ ms.joinDate | localDate }}</dd></div>
                 @if (ms.expiryDate) {
-                  <div class="meta"><dt>Expires</dt><dd>{{ ms.expiryDate }}</dd></div>
+                  <div class="meta"><dt>Expires</dt><dd>{{ ms.expiryDate | localDate }}</dd></div>
                 }
                 @if (ms.membershipClass === 'corporate') {
                   <div class="meta"><dt>Nominees</dt><dd>{{ ms.nomineeCount }}</dd></div>
@@ -714,7 +714,7 @@
                       <span class="ms-status__dot" [style.background]="statusColor(d.memberStatusId)" aria-hidden="true"></span>
                       {{ statusName(d.memberStatusId) }}
                     </span>
-                    @if (d.expiryDate) { <span class="cell-subtle">expires {{ d.expiryDate }}</span> }
+                    @if (d.expiryDate) { <span class="cell-subtle">expires {{ d.expiryDate | localDate }}</span> }
                   </div>
                 </div>
                 <div class="mem-row__actions">

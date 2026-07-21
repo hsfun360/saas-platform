@@ -77,7 +77,7 @@
               <!-- Line 3: rollup metadata. -->
               <dl class="data-card__meta">
                 <div class="meta"><dt>Companies</dt><dd>{{ sub.Companies?.length || 0 }}</dd></div>
-                <div class="meta"><dt>Created</dt><dd>{{ sub.createdAt | date:'mediumDate' }}</dd></div>
+                <div class="meta"><dt>Created</dt><dd>{{ sub.createdAt | localDate }}</dd></div>
               </dl>
             </div>
             <div class="data-row__badge">

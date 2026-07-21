@@ -75,6 +75,10 @@ Template-driven forms have no reliable central dirty/validity signal, which is e
   The field always displays `0.00`-style values (seeded, and re-formatted on blur - never while typing) while the form value stays a plain number.
   With `formControlName` the directive is the ControlValueAccessor; for row inputs kept outside a FormGroup, bind `appMoney [moneyValue]="row.amount"` and keep the existing `(input)` handler.
   Reference: `membership-fees` (both modes: the fee Amount control + the installment stage rows).
+- **Dates display in the DEVICE's regional format** via the shared `localDate` pipe (`shared/local-date.pipe.ts`): `{{ row.joinDate | localDate }}`, with `:'datetime'` for timestamps and `:'weekday'` where the day name matters.
+  It wraps `Intl.DateTimeFormat` with the locale left to the browser/OS (no locale data in the bundle), follows the device's 12/24-hour clock, and parses date-only `YYYY-MM-DD` strings as LOCAL dates (avoiding the UTC off-by-one-day trap).
+  Never use Angular's `| date` (it formats en-US for everyone via the compile-time `LOCALE_ID`) and never render a raw ISO string.
+  `<input type="date">` fields already localize natively - keep the model value ISO.
 - **Accessibility:** render each control's error in a `role="alert"` element linked via `aria-describedby`, set `[attr.aria-invalid]` once the control is touched, and reveal errors only after touch or submit (a small `showError(control)` helper).
 
 **Canonical reference:** `platform-users` (`platform-users.ts` / `platform-users.html`) - two typed `FormGroup`s, control validators, `<app-phone-input>` via `formControlName`, inline `role="alert"` errors, correct HTML5 types, and the dialog `[dirty]` guard.

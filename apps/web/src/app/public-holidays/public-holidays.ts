@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -16,7 +17,7 @@ import { HolidayCountry, PublicHoliday } from '../models/auth.models';
 @Component({
   selector: 'app-public-holidays',
   standalone: true,
-  imports: [ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [LocalDatePipe, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './public-holidays.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

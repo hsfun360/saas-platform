@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, output, signal } from '@angular/core';
+import { LocalDatePipe } from '../shared/local-date.pipe';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DialogComponent } from '../shared/dialog/dialog';
@@ -12,7 +13,7 @@ import { CompanyEntity, CompanySmtp } from '../models/auth.models';
   selector: 'app-company-smtp-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [LocalDatePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './company-smtp-dialog.html',
   styles: [`
     .smtp-field { display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md); }

@@ -31,7 +31,7 @@
   <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-md);">
     <span class="cell-subtle">
       @if (lastSynced()) {
-        Last synced {{ lastSynced() | date:'medium' }} · {{ countries().length }} countries, {{ activeCount() }} active
+        Last synced {{ lastSynced() | localDate:'datetime' }} · {{ countries().length }} countries, {{ activeCount() }} active
       } @else {
         Not synced yet — click "Sync now" to load countries from world_countries.
       }
