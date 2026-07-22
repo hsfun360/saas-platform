@@ -6,6 +6,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { NumberingService } from '../services/numbering.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { NumberingScheme, NumberingToken, MembershipStatusOption } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // System Setup → Numbering Control. Per-company document numbering (Membership No.
 // now). `mode` decides auto-generate vs manual entry; for auto, the format tokens
@@ -14,7 +15,7 @@ import { NumberingScheme, NumberingToken, MembershipStatusOption } from '../mode
 @Component({
   selector: 'app-numbering',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './numbering.html',
   styleUrls: ['../system-setup/system-setup.css', './numbering.css'],
 })

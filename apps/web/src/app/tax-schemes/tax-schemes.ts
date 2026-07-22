@@ -9,6 +9,7 @@ import { CountryService } from '../services/country.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { TaxScheme, TaxRate, TaxOption, Country, TaxTemplateOption } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // System Setup → Tax Setup (subscriber-owned catalog).
 // Master–detail: the scheme list is the master; the selected scheme (its header +
@@ -18,7 +19,7 @@ import { TaxScheme, TaxRate, TaxOption, Country, TaxTemplateOption } from '../mo
 @Component({
   selector: 'app-tax-schemes',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './tax-schemes.html',
   styleUrls: ['../system-setup/system-setup.css', './tax-schemes.css'],
 })

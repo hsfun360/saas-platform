@@ -9,6 +9,7 @@ import { TaxSchemeService } from '../services/tax-scheme.service';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import { PlatformProfile, PlatformChargeQuote, Country, Currency, TaxScheme } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // SaaS Administration → Platform Profile: the platform's own "company of record" (a
 // singleton). Its identity is the invoice header the platform issues to subscribers,
@@ -22,7 +23,7 @@ import { PlatformProfile, PlatformChargeQuote, Country, Currency, TaxScheme } fr
 @Component({
   selector: 'app-platform-profile',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, PhoneInputComponent, MoneyInputDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, PhoneInputComponent, MoneyInputDirective],
   templateUrl: './platform-profile.html',
   styleUrls: ['../system-setup/system-setup.css', './platform-profile.css'],
 })

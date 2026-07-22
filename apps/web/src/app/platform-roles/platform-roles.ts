@@ -5,6 +5,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { AdminService } from '../services/admin.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Role, AdminMenu } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Platform (system-level) Roles — split out of the old System Setup tab strip
 // into its own screen. Lists system roles with search and creates them (FAB →
@@ -16,7 +17,7 @@ import { Role, AdminMenu } from '../models/auth.models';
 @Component({
   selector: 'app-platform-roles',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './platform-roles.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

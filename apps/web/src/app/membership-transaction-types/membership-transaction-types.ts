@@ -6,6 +6,7 @@ import { TransactionTypeService } from '../services/transaction-type.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { MembershipTransactionType, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Membership Management → Master File Setup → Transaction Type.
 // Per-company billing-item catalog: code + charge type (fixed vocabulary) +
@@ -14,7 +15,7 @@ import { MembershipTransactionType, MembershipStatusOption, TaxSchemeRef } from 
 @Component({
   selector: 'app-membership-transaction-types',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective],
   templateUrl: './membership-transaction-types.html',
   // membership-types.css supplies the shared .mt-chip pill.
   styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css'],

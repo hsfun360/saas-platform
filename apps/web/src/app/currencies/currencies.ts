@@ -5,6 +5,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { CurrencyService } from '../services/currency.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Currency } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // System Admin: maintain the ISO 4217 currency reference table - load the bundled
 // defaults, add currencies manually, edit them, and enable/disable or delete them.
@@ -16,7 +17,7 @@ import { Currency } from '../models/auth.models';
 @Component({
   selector: 'app-currencies',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './currencies.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

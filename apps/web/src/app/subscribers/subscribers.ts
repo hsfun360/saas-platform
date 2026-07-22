@@ -15,6 +15,7 @@ import { CurrencyService } from '../services/currency.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { SubscriptionInfo, AdminModule, TenantUser, Language, Currency } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Group-level cross-field validator for the create form: password and
 // confirmPassword must match. Sets a `passwordMismatch` error on the group so
@@ -37,7 +38,7 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
 @Component({
   selector: 'app-subscribers',
   standalone: true,
-  imports: [LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent],
+  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent],
   templateUrl: './subscribers.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

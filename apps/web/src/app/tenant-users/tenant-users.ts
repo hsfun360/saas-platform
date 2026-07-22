@@ -9,6 +9,7 @@ import { PositionService } from '../services/position.service';
 import { AccountCompany, AccountPerson, AccountPendingInvite, Department, Position, Role } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Person-centric User Management: each person is shown with the companies they
 // belong to and their role in each, with inline add-to-company / change-role /
@@ -25,7 +26,7 @@ import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 @Component({
   selector: 'app-tenant-users',
   standalone: true,
-  imports: [LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent],
+  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent],
   templateUrl: './tenant-users.html',
   styleUrl: './tenant-users.css',
 })

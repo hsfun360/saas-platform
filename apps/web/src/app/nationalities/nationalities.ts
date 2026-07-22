@@ -6,6 +6,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { NationalityService } from '../services/nationality.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Nationality } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // System Setup → Nationalities. Subscriber-owned reference data: one nationality
 // list per Account (e.g. MAS - Malaysian), shared by every company and consumed
@@ -15,7 +16,7 @@ import { Nationality } from '../models/auth.models';
 @Component({
   selector: 'app-nationalities',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './nationalities.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

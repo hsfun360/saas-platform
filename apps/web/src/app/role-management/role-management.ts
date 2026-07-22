@@ -5,6 +5,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { AuthService } from '../auth.service';
 import { MenuItem, Role, RoleDataScope, RoleMenuPermission } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // The action flags of one selected (View-granted) menu. A menu present in the
 // selection map = View; the flags refine Create/Edit/Delete. New grants start
@@ -65,7 +66,7 @@ interface PermModuleView {
 @Component({
   selector: 'app-role-management',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './role-management.html',
   styleUrls: ['./role-management.css'],
 })

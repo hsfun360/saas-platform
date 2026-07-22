@@ -15,6 +15,7 @@ import { CountryService } from '../services/country.service';
 import { LanguageService } from '../services/language.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Country, Language } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // One translation row = a small typed FormGroup. `languageCode` and `label` are
 // carried alongside the editable `name` so we can render the row's label and read
@@ -36,7 +37,7 @@ type TranslationGroup = FormGroup<{
 @Component({
   selector: 'app-countries',
   standalone: true,
-  imports: [LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './countries.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

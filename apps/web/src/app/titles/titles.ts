@@ -7,6 +7,7 @@ import { TitleService } from '../services/title.service';
 import { CountryService } from '../services/country.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Country, Title } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // System Setup → Titles. Subscriber-owned reference data: honorifics (Datuk, Tan
 // Sri, Sir, Prof...), one list per Account, shared by every company and consumed
@@ -15,7 +16,7 @@ import { Country, Title } from '../models/auth.models';
 @Component({
   selector: 'app-titles',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './titles.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

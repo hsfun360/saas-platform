@@ -6,6 +6,7 @@ import { MembershipStatusService } from '../services/membership-status.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { MembershipStatus, MembershipStatusOption, MembershipStatusCopySource } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Membership Management → Master File Setup → Membership Status.
 // Per-company master file: company-defined status codes with a lifecycle class,
@@ -17,7 +18,7 @@ import { MembershipStatus, MembershipStatusOption, MembershipStatusCopySource } 
 @Component({
   selector: 'app-membership-statuses',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective],
   templateUrl: './membership-statuses.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-statuses.css'],
 })

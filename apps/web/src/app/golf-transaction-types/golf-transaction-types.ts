@@ -6,6 +6,7 @@ import { GolfTransactionTypeService } from '../services/golf-transaction-type.se
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { GolfTransactionType, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Golf Management → Master File Setup → Transaction Type.
 // Per-company billing-item catalog: code + charge type (fixed vocabulary:
@@ -15,7 +16,7 @@ import { GolfTransactionType, MembershipStatusOption, TaxSchemeRef } from '../mo
 @Component({
   selector: 'app-golf-transaction-types',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective],
   templateUrl: './golf-transaction-types.html',
   // membership-types.css supplies the shared .mt-chip pill.
   styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css'],

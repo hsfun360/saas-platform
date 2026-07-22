@@ -6,6 +6,7 @@ import { Subject, debounceTime } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MembershipService } from '../services/membership.service';
 import { MemberSearchRow, MembersMeta } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Membership Management → Members - the flat, read-only search across every
 // person the company knows: individual members, nominees and dependents.
@@ -13,7 +14,7 @@ import { MemberSearchRow, MembersMeta } from '../models/auth.models';
 @Component({
   selector: 'app-members',
   standalone: true,
-  imports: [LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule],
+  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule],
   templateUrl: './members.html',
   styleUrls: ['../system-setup/system-setup.css', '../memberships/memberships.css'],
 })

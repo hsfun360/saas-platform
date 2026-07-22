@@ -6,6 +6,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { SalutationService } from '../services/salutation.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Salutation } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // System Setup → Salutations. Subscriber-owned reference data: one salutation
 // list per Account (Mr/Mrs/Datuk/... - locale aware), shared by every company and
@@ -14,7 +15,7 @@ import { Salutation } from '../models/auth.models';
 @Component({
   selector: 'app-salutations',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './salutations.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

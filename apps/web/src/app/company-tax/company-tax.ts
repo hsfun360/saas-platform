@@ -5,6 +5,7 @@ import { AbstractControl, FormBuilder, FormControl, FormRecord, ReactiveFormsMod
 import { TaxSchemeService } from '../services/tax-scheme.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CompanyTaxAdoption } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // System Setup → Company Tax (per active company / workspace).
 // The subscriber defines the tax catalog once (Tax Setup); here a Tenant Admin, in a
@@ -19,7 +20,7 @@ import { CompanyTaxAdoption } from '../models/auth.models';
 @Component({
   selector: 'app-company-tax',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './company-tax.html',
   styleUrls: ['../system-setup/system-setup.css', './company-tax.css'],
 })

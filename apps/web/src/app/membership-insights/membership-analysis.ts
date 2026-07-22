@@ -14,6 +14,7 @@ import {
 import { ThemeService } from '../services/theme.service';
 import { CountryService } from '../services/country.service';
 import { NationalityService } from '../services/nationality.service';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Business Insights → Membership Analysis: movement + demographics of the
 // membership base. Sales/agent analytics live on the sibling Agent Performance
@@ -22,7 +23,7 @@ import { NationalityService } from '../services/nationality.service';
   selector: 'app-membership-analysis',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, DashChartComponent, InsightDrillComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, DashChartComponent, InsightDrillComponent],
   templateUrl: './membership-analysis.html',
   styleUrls: ['../system-setup/system-setup.css', './insights.css'],
 })

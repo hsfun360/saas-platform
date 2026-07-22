@@ -5,13 +5,14 @@ import { RouterModule } from '@angular/router';
 import { AccountEmailTemplateService } from '../services/account-email-template.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { AccountEmailTemplateSummary } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Tenant Admin: the platform emails this subscriber may customise. Each row shows
 // whether they currently use their own version or the platform default.
 @Component({
   selector: 'app-account-email-templates',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, RouterModule],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, RouterModule],
   templateUrl: './account-email-templates.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

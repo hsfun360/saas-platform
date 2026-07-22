@@ -26,6 +26,7 @@ import {
   MembershipOptions,
   MembershipStatusOption,
 } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Membership Management → Memberships (SRS 2.3 Phase 1).
 // The contract list: individual memberships (one auto-created Member) and
@@ -35,7 +36,7 @@ import {
 @Component({
   selector: 'app-memberships',
   standalone: true,
-  imports: [LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, MoneyInputDirective],
+  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, MoneyInputDirective],
   templateUrl: './memberships.html',
   styleUrls: ['../system-setup/system-setup.css', './memberships.css'],
 })

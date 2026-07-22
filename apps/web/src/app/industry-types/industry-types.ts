@@ -6,6 +6,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { IndustryTypeService } from '../services/industry-type.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { IndustryType } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // System Setup → Industry Types. Subscriber-owned reference data: one industry
 // taxonomy per Account, shared by every company in the subscription and consumed
@@ -14,7 +15,7 @@ import { IndustryType } from '../models/auth.models';
 @Component({
   selector: 'app-industry-types',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './industry-types.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

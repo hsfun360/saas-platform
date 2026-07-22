@@ -5,13 +5,14 @@ import { RouterModule } from '@angular/router';
 import { EmailTemplateService } from '../services/email-template.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { EmailTemplateSummary } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // System Admin: the platform email templates. A fixed catalogue (no create /
 // delete) — each row opens the editor. Reuses the shared admin-screen styles.
 @Component({
   selector: 'app-email-templates',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, RouterModule],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, RouterModule],
   templateUrl: './email-templates.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

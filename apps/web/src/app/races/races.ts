@@ -6,6 +6,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { RaceService } from '../services/race.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Race } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // System Setup → Races. Subscriber-owned reference data: one race/ethnicity list
 // per Account (e.g. MAL - Malay), shared by every company and consumed by
@@ -14,7 +15,7 @@ import { Race } from '../models/auth.models';
 @Component({
   selector: 'app-races',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './races.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

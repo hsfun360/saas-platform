@@ -10,6 +10,7 @@ import {
   MembershipDashboardService,
 } from '../services/membership-dashboard.service';
 import { ThemeService } from '../services/theme.service';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // A sales channel row in the leaderboard: Internal staff, External agents, or
 // one card per Agency (the agency's own staff roll up under it).
@@ -38,7 +39,7 @@ const CHANNEL_SERIES = [
   selector: 'app-agent-performance',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, DashChartComponent, InsightDrillComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, DashChartComponent, InsightDrillComponent],
   templateUrl: './agent-performance.html',
   styleUrls: ['../system-setup/system-setup.css', './insights.css', './agent-performance.css'],
 })

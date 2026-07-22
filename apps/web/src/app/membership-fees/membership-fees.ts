@@ -8,6 +8,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import { MembershipFee, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 interface StageRow {
   stageNo: number;
@@ -33,7 +34,7 @@ function round2(n: number): number {
 @Component({
   selector: 'app-membership-fees',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective],
   templateUrl: './membership-fees.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-fees.css'],
 })

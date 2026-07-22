@@ -7,6 +7,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { PublicHolidayService } from '../services/public-holiday.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { HolidayCountry, PublicHoliday } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // System Setup → Public Holidays. Subscriber-owned reference data, scoped by
 // country: the Tenant Admin maintains one holiday calendar per country their
@@ -17,7 +18,7 @@ import { HolidayCountry, PublicHoliday } from '../models/auth.models';
 @Component({
   selector: 'app-public-holidays',
   standalone: true,
-  imports: [LocalDatePipe, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './public-holidays.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

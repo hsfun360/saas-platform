@@ -6,6 +6,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ClubSpecificationService } from '../services/club-specification.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { ClubNumbering, ClubSpecification, MembershipStatusOption } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Membership Management → Club Specification (SRS 2.1.1 - the membership
 // system master). A per-company singleton the club sets once: club type,
@@ -17,7 +18,7 @@ import { ClubNumbering, ClubSpecification, MembershipStatusOption } from '../mod
 @Component({
   selector: 'app-club-specification',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './club-specification.html',
   styleUrls: ['../system-setup/system-setup.css', '../numbering/numbering.css', './club-specification.css'],
 })

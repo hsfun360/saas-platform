@@ -24,6 +24,7 @@ import { LanguageService } from '../services/language.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { AdminMenu, AdminModule, Language } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // A node in the module's menu tree (adjacency list). `children` are the menus
 // whose parentId is this menu, ordered by sequence. Held as plain objects whose
@@ -58,7 +59,7 @@ type TranslationGroup = FormGroup<{
   selector: 'app-modules-menus',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle],
+  imports: [FavStarComponent, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle],
   templateUrl: './modules-menus.html',
   styleUrls: ['./modules-menus.css'],
 })

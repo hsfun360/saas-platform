@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AdminService } from '../services/admin.service';
 import { Role, UserSummary } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Assign Role — the last of the old System Setup tabs, now its own single-purpose
 // screen (Roles and Users were split into /admin/system-roles and
@@ -11,7 +12,7 @@ import { Role, UserSummary } from '../models/auth.models';
 @Component({
   selector: 'app-system-setup',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule],
   templateUrl: './system-setup.html',
   styleUrl: './system-setup.css',
 })

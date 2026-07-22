@@ -5,6 +5,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { LanguageService } from '../services/language.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Language } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // System Admin: maintain the language reference table - load a bundled default
 // set, add languages manually, rename them, and enable/disable or delete them.
@@ -17,7 +18,7 @@ import { Language } from '../models/auth.models';
 @Component({
   selector: 'app-languages',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './languages.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

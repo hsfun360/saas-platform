@@ -1,0 +1,47 @@
+/* My Dashboard - page-specific bits; the launchpad primitives (sd-*) come from
+   systems/system-dashboard.css via styleUrls. */
+
+/* A favorite tile = navigation link + an unpin star side by side. */
+.hm-tile {
+  padding: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+.hm-tile__link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  color: var(--text-primary);
+  text-decoration: none;
+  border-radius: 12px 0 0 12px;
+}
+
+.hm-tile__link:hover {
+  background: var(--surface-hover);
+}
+
+.hm-tile__unpin {
+  flex: 0 0 auto;
+  width: 44px;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 0 12px 12px 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hm-tile__unpin:hover {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.hm-tile__unpin .material-icons {
+  font-size: 20px;
+}

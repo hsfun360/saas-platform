@@ -6,6 +6,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { DepartmentService } from '../services/department.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Department } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // System Setup → Departments. Subscriber-owned reference data: one department
 // list per Account, shared by every company; assigned to users per company in
@@ -15,7 +16,7 @@ import { Department } from '../models/auth.models';
 @Component({
   selector: 'app-departments',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './departments.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

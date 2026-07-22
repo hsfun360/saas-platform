@@ -175,8 +175,11 @@
         <ul style="list-style: none; padding: 0; margin: 0;">
 
           <li style="margin-bottom: var(--space-xs);">
-            <a [routerLink]="systemDashboardRoute" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
-              <span class="icon material-icons">dashboard</span>
+            <!-- My Dashboard: the user's PERSONAL page (/home) - the same page
+                 whichever system is active (module orientation lives on each
+                 system's landing instead). -->
+            <a routerLink="/home" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+              <span class="icon material-icons">space_dashboard</span>
               <span class="label">{{ 'nav.dashboard' | t }}</span>
             </a>
           </li>
@@ -272,8 +275,8 @@
 
   <!-- Bottom navigation: primary destinations on mobile, hidden on desktop -->
   <nav class="bottom-nav">
-    <a class="bottom-nav-item" [routerLink]="systemDashboardRoute" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-      <span class="material-icons">dashboard</span>
+    <a class="bottom-nav-item" routerLink="/home" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <span class="material-icons">space_dashboard</span>
       <span class="bottom-nav-label">{{ 'nav.dashboard' | t }}</span>
     </a>
     @for (menu of primaryDestinations.slice(0, 3); track menu.route) {

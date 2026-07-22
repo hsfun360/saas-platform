@@ -8,6 +8,7 @@ import { Country, SalesAgency } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Membership Management → Sales Agencies (SRS 2.2). The outsourced agency
 // companies a club engages to promote its memberships; their staff are Sales
@@ -15,7 +16,7 @@ import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 @Component({
   selector: 'app-sales-agencies',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent],
   templateUrl: './sales-agencies.html',
   styleUrls: ['../system-setup/system-setup.css', '../memberships/memberships.css'],
 })

@@ -3,6 +3,7 @@ import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { CurrencyService } from '../services/currency.service';
 import { Currency } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Tenant Admin self-service: choose which of the platform's currencies the
 // subscriber (account) uses, and set the default among them. Companies under the
@@ -11,7 +12,7 @@ import { Currency } from '../models/auth.models';
 @Component({
   selector: 'app-account-currencies',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule],
   templateUrl: './account-currencies.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

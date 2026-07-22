@@ -6,6 +6,7 @@ import { AdminService } from '../services/admin.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { UserSummary } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Platform Users — split out of the old System Setup tab strip into its own
 // screen. Lists local platform users with search and creates them (FAB →
@@ -19,7 +20,7 @@ import { UserSummary } from '../models/auth.models';
 @Component({
   selector: 'app-platform-users',
   standalone: true,
-  imports: [ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent],
   templateUrl: './platform-users.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
