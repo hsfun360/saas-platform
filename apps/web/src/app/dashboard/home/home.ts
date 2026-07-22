@@ -1,5 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import {
+  CdkDropList,
+  CdkDrag,
+  CdkDragHandle,
+  CdkDragDrop,
+  moveItemInArray,
+} from '@angular/cdk/drag-drop';
 import { MenuItem } from '../../models/auth.models';
 import { I18nService } from '../../i18n/i18n.service';
 import { HelpService } from '../../services/help.service';
@@ -30,7 +37,7 @@ interface FavoriteGroup {
   selector: 'app-home',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DialogComponent],
+  imports: [RouterLink, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle],
   templateUrl: './home.html',
   // system-setup.css supplies the shared .saas-container/.saas-header chrome;
   // system-dashboard.css the launchpad primitives (both component-scoped).
@@ -135,37 +142,62 @@ export class HomeComponent {
     this.favorites.toggle(route);
   }
 
-  // --- Manage dialog (reorder / remove) -------------------------------------
+  // --- Manage dialog (Menu-setup look: collapsible module blocks, drag to ---
+  // --- sort within a module, remove) ----------------------------------------
   readonly manageOpen = signal(false);
-  readonly manageList = signal<MenuItem[]>([]);
+  readonly manageGroups = signal<FavoriteGroup[]>([]);
+  readonly manageCollapsed = signal<Set<string>>(new Set());
   private manageOriginalIds: string[] = [];
 
+  private flattenManaged(): string[] {
+    return this.manageGroups().flatMap((g) => g.tiles.map((m) => m.id as string));
+  }
+
   readonly manageDirty = computed(() => {
-    const ids = this.manageList().map((m) => m.id);
-    return JSON.stringify(ids) !== JSON.stringify(this.manageOriginalIds);
+    // Depend on the groups signal; tiles arrays are replaced on every change.
+    this.manageGroups();
+    return JSON.stringify(this.flattenManaged()) !== JSON.stringify(this.manageOriginalIds);
   });
 
   openManage(): void {
-    const list = this.favorites.list(this.grantedMenus());
-    this.manageList.set(list);
-    this.manageOriginalIds = list.map((m) => m.id as string);
+    // Working copy of the current groups (fresh arrays so drag never mutates
+    // what the page behind the dialog is rendering).
+    const groups = this.favoriteGroups().map((g) => ({ ...g, tiles: [...g.tiles] }));
+    this.manageGroups.set(groups);
+    this.manageCollapsed.set(new Set());
+    this.manageOriginalIds = groups.flatMap((g) => g.tiles.map((m) => m.id as string));
     this.manageOpen.set(true);
   }
 
-  moveManaged(index: number, delta: number): void {
-    const list = [...this.manageList()];
-    const target = index + delta;
-    if (target < 0 || target >= list.length) return;
-    [list[index], list[target]] = [list[target], list[index]];
-    this.manageList.set(list);
+  toggleManageGroup(moduleName: string): void {
+    const next = new Set(this.manageCollapsed());
+    if (next.has(moduleName)) next.delete(moduleName);
+    else next.add(moduleName);
+    this.manageCollapsed.set(next);
   }
 
-  removeManaged(index: number): void {
-    this.manageList.set(this.manageList().filter((_, i) => i !== index));
+  isManageCollapsed(moduleName: string): boolean {
+    return this.manageCollapsed().has(moduleName);
+  }
+
+  // Drag lands within its own module's list (lists are not connected).
+  dropManaged(event: CdkDragDrop<MenuItem[]>, group: FavoriteGroup): void {
+    if (event.previousIndex === event.currentIndex) return;
+    moveItemInArray(group.tiles, event.previousIndex, event.currentIndex);
+    this.manageGroups.set(this.manageGroups().map((g) => (g === group ? { ...g, tiles: [...g.tiles] } : g)));
+  }
+
+  removeManaged(group: FavoriteGroup, index: number): void {
+    const tiles = group.tiles.filter((_, i) => i !== index);
+    this.manageGroups.set(
+      this.manageGroups()
+        .map((g) => (g === group ? { ...g, tiles } : g))
+        .filter((g) => g.tiles.length > 0),
+    );
   }
 
   saveManage(): void {
-    this.favorites.reorder(this.manageList().map((m) => m.id as string));
+    this.favorites.reorder(this.flattenManaged());
     this.manageOpen.set(false);
   }
 }

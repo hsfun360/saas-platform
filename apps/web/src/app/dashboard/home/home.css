@@ -36,97 +36,173 @@
   color: var(--brand-text);
 }
 
-/* --- Manage dialog rows --- */
-.hm-mg {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
+/* --- Manage dialog (Menu-setup look: collapsible module blocks + drag rows,
+   mirroring modules-menus' mm-* visual language) --- */
 .hm-mg__hint {
   margin: 0 0 var(--space-sm);
   font-size: var(--font-body-2);
   color: var(--text-secondary);
 }
 
-.hm-mg__row {
+.hm-mg-group {
+  margin-bottom: var(--space-sm);
+}
+
+.hm-mg-group__head {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-xs) 0;
-  border-bottom: 1px solid var(--border);
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  min-width: 0;
 }
 
-.hm-mg__row:last-child {
-  border-bottom: none;
-}
-
-.hm-mg__icon {
+.hm-mg-group__icon {
+  font-size: 18px;
   color: var(--brand-text);
-  font-size: 20px;
-  flex: 0 0 auto;
+  flex-shrink: 0;
 }
 
-.hm-mg__text {
+.hm-mg-group__name {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.hm-mg__name {
-  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.hm-mg__mod {
-  font-size: var(--font-caption);
-  color: var(--text-muted);
-}
-
-.hm-mg__actions {
-  display: flex;
-  gap: var(--space-xs);
-  flex: 0 0 auto;
-}
-
-.hm-mg__btn {
-  width: 44px;
-  height: 44px;
+/* Count chip - tells what's inside while collapsed (same as mm-count). */
+.hm-mg-count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
   background: var(--surface-card);
+  border: 1px solid var(--border);
+  font-size: var(--font-caption);
   color: var(--text-secondary);
-  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.hm-mg__btn:hover:not(:disabled) {
+.hm-mg-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.hm-mg-caret:hover {
   background: var(--surface-hover);
 }
 
-.hm-mg__btn:disabled {
-  opacity: 0.4;
-  cursor: default;
+.hm-mg-caret .material-icons {
+  font-size: 20px;
 }
 
-.hm-mg__btn--danger {
-  color: var(--danger-text);
+/* The module's rows sit indented under the header, like a menu group. */
+.hm-mg-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: var(--space-xs) 0 0 18px;
+  padding-left: var(--space-sm);
+  border-left: 2px solid var(--border);
+  min-height: 40px;
 }
 
-.hm-mg__btn .material-icons {
+.hm-mg-node {
+  min-width: 0;
+}
+
+.hm-mg-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+  min-width: 0;
+}
+
+.hm-mg-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.hm-mg-grip:active {
+  cursor: grabbing;
+}
+
+.hm-mg-row__icon {
   font-size: 18px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.hm-mg-row__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.hm-mg-row__name {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.hm-mg-row__route {
+  color: var(--text-muted);
+  font-size: var(--font-body-2);
 }
 
 .hm-mg__empty {
   padding: var(--space-md) 0;
   font-size: var(--font-body-2);
   color: var(--text-muted);
+}
+
+/* Drag affordances (same values as modules-menus). */
+.cdk-drag-preview {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  border-radius: 8px;
+  background: var(--surface-card);
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.4;
+}
+
+.cdk-drag-animating {
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.hm-mg-list.cdk-drop-list-dragging .hm-mg-node:not(.cdk-drag-placeholder) {
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
 }
 
 /* A favorite tile = navigation link + an unpin star side by side. */
