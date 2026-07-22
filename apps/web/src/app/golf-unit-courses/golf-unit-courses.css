@@ -78,10 +78,7 @@
 .uc-hole-row input:focus,
 .uc-hole-row select:focus,
 .uc-tee-dist-grid input:focus {
-  outline: none;
-  border-color: var(--brand);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-  background: var(--surface-card);
+  background: var(--surface-card); /* border/glow from the global field-focus rule */
 }
 
 .uc-hole-num {

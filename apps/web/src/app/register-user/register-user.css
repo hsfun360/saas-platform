@@ -52,12 +52,6 @@ label {
   color: var(--text-primary);
 }
 
-.form-control:focus {
-  outline: none;
-  border-color: var(--brand);
-  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
-}
-
 .form-control[aria-invalid='true'] {
   border-color: var(--danger-text);
 }

@@ -48,11 +48,6 @@ label {
   color: var(--text-primary);
 }
 
-.form-control:focus {
-  outline: none;
-  border-color: var(--brand);
-}
-
 /* Password Input & Toggle */
 .password-wrapper {
   position: relative;

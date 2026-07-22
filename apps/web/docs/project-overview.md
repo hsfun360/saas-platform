@@ -626,6 +626,21 @@ Reference implementation: `items.ts` / `items.html` / `items.css` (`.it-search*`
 `.it-fab`, `filteredItems` computed, the `search_off` empty state), routed as `items`
 and `items/:id`.
 
+#### Content width - ONE cap for every listing screen (1140px)
+
+Every listing/CRUD screen caps its content column at **`max-width: 1140px; margin: 0 auto`** - on the wrapper (`class="screen-pad" style="max-width: 1140px; margin: 0 auto;"`) or baked into the screen's container class (`.saas-container`, `.tenant-container`).
+One number, no per-screen taste: cards on User Management must be exactly as wide as cards on Positions or Departments, or the app reads as inconsistent when hopping between screens.
+Do NOT invent another cap (800/900/1100/1200px listing wrappers have all been migrated to 1140).
+Deliberate exceptions - and the only ones: dedicated single-form/settings screens where long text lines hurt readability (Profile 600, Settings 650, Club Specification 760), the auth screens' centred cards, and the member/agent portals (their own surface).
+
+#### Field focus highlight - ON the field, never a floating ring
+
+When a form field (input / select / textarea) receives focus, the highlight sits **on the field itself**: the border turns `--brand` and a soft `--focus-glow` halo hugs that border.
+The offset `:focus-visible` outline (2px ring floating 2px OUTSIDE the border) is for **buttons, links, cards and upload tiles only** - on a field it reads as a misaligned box and is the inconsistency this standard kills.
+This is enforced by ONE global element-level rule in `styles.css` (`input:not([type='checkbox']):not([type='radio']):focus, select:focus, textarea:focus`), which covers every field wherever it lives - `.form-group` fields, search boxes, dialog rows, inline-styled inputs.
+Do NOT write a per-screen `:focus` rule for fields: no per-screen copies of border/glow (they drift - three different blues were found when this was unified), and never a raw rgba glow colour - the tokens are `--focus-glow` (field halo) and `--focus-ring` (offset ring for non-fields).
+A screen may add only screen-specific *extras* on focus (e.g. golf hole-grid rows set a background), with a comment pointing at the global rule.
+
 #### Screen wrapper padding - no double gutter on mobile
 
 The shell's `.content-area` already adds a ~16px gutter on mobile (`var(--space-md)`),
