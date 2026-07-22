@@ -1,6 +1,47 @@
 /* My Dashboard - page-specific bits; the launchpad primitives (sd-*) come from
    systems/system-dashboard.css via styleUrls. */
 
+/* My Approvals banner - the personal workflow inbox entry point. */
+.hm-approvals {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  margin-bottom: var(--space-lg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-card);
+  text-decoration: none;
+  color: var(--text-primary);
+  min-height: 44px;
+}
+.hm-approvals:hover { background: var(--surface-hover); }
+
+.hm-approvals__icon {
+  color: var(--brand-text);
+  background: var(--brand-surface, var(--surface-selected));
+  border-radius: 10px;
+  padding: var(--space-sm);
+}
+
+.hm-approvals__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.hm-approvals__title {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold, 600);
+}
+
+.hm-approvals__sub {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
 /* Section head with the Manage button beside the title. */
 .hm-section-head {
   display: flex;

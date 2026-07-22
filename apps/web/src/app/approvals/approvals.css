@@ -1,0 +1,19 @@
+/* My Approvals - inbox-specific chrome on top of the shared system-setup.css.
+   All colours from the theme tokens (3 appearance modes). */
+
+/* Overdue chip: same shape as .status-chip, danger colouring from tokens. */
+.ap-chip--overdue {
+  background: var(--danger-surface);
+  color: var(--danger-text);
+}
+
+.ap-dlg-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}

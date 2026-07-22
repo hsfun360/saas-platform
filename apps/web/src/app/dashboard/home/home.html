@@ -21,6 +21,22 @@
     }
   </section>
 
+  <!-- MY APPROVALS (pending workflow tasks assigned to me) -->
+  @if (pendingApprovals() > 0) {
+    <section aria-label="My approvals">
+      <a class="hm-approvals" routerLink="/approvals">
+        <span class="material-icons hm-approvals__icon" aria-hidden="true">fact_check</span>
+        <span class="hm-approvals__text">
+          <span class="hm-approvals__title">
+            {{ pendingApprovals() }} approval{{ pendingApprovals() === 1 ? '' : 's' }} waiting for you
+          </span>
+          <span class="hm-approvals__sub">Open My Approvals to decide.</span>
+        </span>
+        <span class="material-icons" aria-hidden="true">chevron_right</span>
+      </a>
+    </section>
+  }
+
   <!-- QUICK ACCESS (starred screens, grouped by module) -->
   <section aria-label="Quick access">
     <div class="hm-section-head">

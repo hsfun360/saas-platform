@@ -1,0 +1,124 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">fact_check</span>
+      <div>
+        <h1>{{ 'My Approvals' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Documents waiting for your decision. Approve to move them to the next step, or reject with a reason.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading your approvals…</p></div>
+  } @else if (tasks().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🎉</span>
+      <p>You're all caught up - nothing is waiting for your approval.</p>
+    </div>
+  } @else {
+    <div style="margin-bottom: var(--space-md);">
+      <span class="cell-subtle">{{ tasks().length }} waiting for you</span>
+    </div>
+    <div class="data-list">
+      @for (t of tasks(); track t.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ t.entityLabel || t.entityType }}</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">{{ t.purposeName }}</span>
+                <span class="data-card__reg">Step {{ t.stepNo }}: {{ t.stepName }}</span>
+              </div>
+              <dl class="data-card__meta">
+                @if (t.submittedBy) {
+                  <div class="meta"><dt>Submitted by</dt><dd>{{ t.submittedBy }}</dd></div>
+                }
+                <div class="meta"><dt>Submitted</dt><dd>{{ t.submittedAt | localDate:'datetime' }}</dd></div>
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              @if (isOverdue(t)) {
+                <span class="status-chip ap-chip--overdue">Overdue</span>
+              } @else {
+                <span class="status-chip status-chip--on">Pending</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--success btn--sm" (click)="openDecision(t, 'approve')">
+                <span class="material-icons" aria-hidden="true">check</span> Approve
+              </button>
+              <button type="button" class="btn btn--danger btn--sm" (click)="openDecision(t, 'reject')">
+                <span class="material-icons" aria-hidden="true">close</span> Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ============ Decision dialog ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg [title]="dialogTitle()" [busy]="acting()" [dirty]="form.dirty"
+                discardTitle="Discard your decision?"
+                discardMessage="Your comment has not been submitted and will be lost if you leave."
+                (close)="closeDialog()">
+      @if (activeTask(); as t) {
+        <div class="ap-dlg-summary">
+          <span class="data-card__reg">{{ t.purposeName }}</span>
+          <span class="data-card__reg">Step {{ t.stepNo }}: {{ t.stepName }}</span>
+          @if (t.submittedBy) {
+            <span class="data-card__reg">Submitted by {{ t.submittedBy }}</span>
+          }
+        </div>
+      }
+      <form id="approvalDecisionForm" [formGroup]="form" (ngSubmit)="onConfirm()" class="saas-form" style="padding: 0;">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="apComment">
+              Comment @if (decision() === 'reject') { <span class="required">*</span> }
+            </label>
+            <textarea id="apComment" formControlName="comment" rows="2" wrap="off"
+                      [placeholder]="decision() === 'reject' ? 'Why is this rejected? The submitter sees this.' : 'Optional remark for the approval history'"
+                      [attr.aria-invalid]="showError(form.controls.comment)" aria-describedby="apCommentErr"></textarea>
+            @if (showError(form.controls.comment)) {
+              <p id="apCommentErr" class="field-error" role="alert">A comment is required when rejecting - the submitter needs to know why.</p>
+            }
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="acting()">Cancel</button>
+        @if (decision() === 'approve') {
+          <button type="submit" form="approvalDecisionForm" class="btn btn--success" [disabled]="acting()">
+            {{ acting() ? 'Saving…' : 'Approve' }}
+          </button>
+        } @else {
+          <button type="submit" form="approvalDecisionForm" class="btn btn--danger" [disabled]="acting()">
+            {{ acting() ? 'Saving…' : 'Reject' }}
+          </button>
+        }
+      </ng-container>
+    </app-dialog>
+  }
+</div>

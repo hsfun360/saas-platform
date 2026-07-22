@@ -1,0 +1,181 @@
+/* Workflow Setup - designer-specific chrome on top of the shared
+   system-setup.css. All colours from the theme tokens (3 appearance modes). */
+
+.wf-hint {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+
+/* --- Steps list inside the definition view --- */
+.wf-steps-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: var(--space-lg) 0 var(--space-sm);
+}
+
+.wf-steps-title {
+  margin: 0;
+  font-size: var(--font-h3);
+  font-weight: var(--weight-semibold, 600);
+  color: var(--text-primary);
+}
+
+.wf-steps-empty {
+  margin: 0;
+  padding: var(--space-md);
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: var(--font-body-2);
+}
+
+.wf-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.wf-step {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.wf-step__grip {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: grab;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+.wf-step__grip:active { cursor: grabbing; }
+
+.wf-step__no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--brand-surface, var(--surface-selected));
+  color: var(--brand-text);
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-bold, 700);
+  flex-shrink: 0;
+}
+
+.wf-step__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wf-step__name {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold, 600);
+  color: var(--text-primary);
+}
+
+.wf-step__sub {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.wf-step__actions {
+  display: flex;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+/* Mobile: actions drop below, full width, left-justified (house standard). */
+@media (max-width: 767px) {
+  .wf-step {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "grip no text"
+      "actions actions actions";
+  }
+  .wf-step__grip { grid-area: grip; }
+  .wf-step__no { grid-area: no; }
+  .wf-step__text { grid-area: text; }
+  .wf-step__actions { grid-area: actions; justify-self: start; }
+}
+
+.cdk-drag-preview.wf-step {
+  box-shadow: 0 6px 18px var(--shadow, rgba(0, 0, 0, 0.2));
+}
+.cdk-drag-placeholder { opacity: 0.35; }
+
+/* --- Step view --- */
+.wf-check__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  min-height: 44px;
+  cursor: pointer;
+}
+.wf-check__label input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+}
+
+/* --- Preview view --- */
+.wf-preview {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.wf-preview__step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.wf-preview__people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.wf-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-sm);
+  border-radius: 12px;
+  background: var(--surface-selected);
+  color: var(--text-primary);
+  font-size: var(--font-caption);
+}
+
+.wf-preview__nobody {
+  margin-top: var(--space-xs);
+  font-size: var(--font-body-2);
+  color: var(--danger-text);
+}

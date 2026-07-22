@@ -63,6 +63,9 @@ const routes: Routes = [
       { path: 'home', loadComponent: () => import('./app/dashboard/home/home').then((m) => m.HomeComponent) },
       { path: 'profile', loadComponent: () => import('./app/dashboard/profile/profile').then((m) => m.ProfileComponent) },
       { path: 'settings', loadComponent: () => import('./app/dashboard/settings/settings').then((m) => m.SettingsComponent) },
+      // My Approvals — the caller's personal workflow inbox. Person-scoped like
+      // /home (assignee-only, enforced server-side), so no systemModule guard.
+      { path: 'approvals', loadComponent: () => import('./app/approvals/approvals').then((m) => m.ApprovalsComponent) },
 
       // Sample CRUD master–detail screen. Both paths point at the same component;
       // the :id segment ('new' = create) is the single source of truth for the
@@ -89,6 +92,7 @@ const routes: Routes = [
       { path: 'admin/numbering', loadComponent: () => import('./app/numbering/numbering').then((m) => m.NumberingComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/titles', loadComponent: () => import('./app/titles/titles').then((m) => m.TitlesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/public-holidays', loadComponent: () => import('./app/public-holidays/public-holidays').then((m) => m.PublicHolidaysComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/workflows', loadComponent: () => import('./app/workflow-setup/workflow-setup').then((m) => m.WorkflowSetupComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/account-email-templates', loadComponent: () => import('./app/account-email-templates/account-email-templates').then((m) => m.AccountEmailTemplatesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/account-email-templates/:key', loadComponent: () => import('./app/account-email-templates/account-email-template-edit').then((m) => m.AccountEmailTemplateEditComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       // Tax Setup — subscriber-owned tax-scheme catalog (master–detail; :id opens a scheme).

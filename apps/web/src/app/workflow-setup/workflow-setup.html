@@ -1,0 +1,402 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">approval</span>
+      <div>
+        <h1>{{ 'Workflow Setup' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Approval chains for your documents - who approves, in what order, and when. Documents without an active chain are approved automatically.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Live filter -->
+  @if (!loading() && definitions().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #wfSearchBox type="search" [value]="search()" (input)="search.set(wfSearchBox.value)"
+             placeholder="Search workflows…" aria-label="Search workflows" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading workflows…</p></div>
+  } @else if (definitions().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🪃</span>
+      <p>No approval workflows yet. Use "New workflow" to route a document type (e.g. membership applications) through an approval chain.</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No workflows match "{{ search() }}".</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (d of filtered(); track d.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ d.name }}</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">{{ purposeName(d.purpose) }}</span>
+                <span class="data-card__reg">{{ scopeName(d) }}</span>
+                <span class="data-card__reg">v{{ d.version }}</span>
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Steps</dt><dd>{{ d.steps.length }}</dd></div>
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              @if (d.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openPreview(d)">
+                <span class="material-icons" aria-hidden="true">visibility</span> Preview
+              </button>
+              <ng-container *appCan="'edit'">
+                <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(d)">Edit</button>
+                @if (d.isActive === false) {
+                  <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(d)" [disabled]="togglingId() === d.id">
+                    {{ togglingId() === d.id ? 'Saving…' : 'Enable' }}
+                  </button>
+                } @else {
+                  <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(d)" [disabled]="togglingId() === d.id">
+                    {{ togglingId() === d.id ? 'Saving…' : 'Disable' }}
+                  </button>
+                }
+              </ng-container>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New workflow FAB -->
+  <ng-container *appCan="'create'">
+    <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New approval workflow">
+      <span class="material-icons" aria-hidden="true">add</span>
+      <span>New workflow</span>
+    </button>
+  </ng-container>
+
+  <!-- ============ Single dialog: definition / step / preview ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg [title]="dialogTitle()" [busy]="saving()" [dirty]="dialogDirty()"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this approval workflow. Leaving now will discard them."
+                (close)="closeDialog()">
+      @switch (dialogMode()) {
+
+        <!-- ================= DEFINITION VIEW ================= -->
+        @case ('definition') {
+          <form id="workflowForm" [formGroup]="form" (ngSubmit)="onSaveDefinition()" class="saas-form" style="padding: 0;">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="wfPurpose">Document type <span class="required">*</span></label>
+                <select id="wfPurpose" formControlName="purpose"
+                        [attr.aria-invalid]="showError(form.controls.purpose)" aria-describedby="wfPurposeErr">
+                  <option value="" disabled>Select a document type…</option>
+                  @for (p of meta()?.purposes; track p.key) {
+                    <option [value]="p.key">{{ p.name }}</option>
+                  }
+                </select>
+                @if (showError(form.controls.purpose)) {
+                  <p id="wfPurposeErr" class="field-error" role="alert">Document type is required.</p>
+                }
+                @if (editId()) {
+                  <p class="wf-hint">The document type is fixed once the workflow exists.</p>
+                }
+              </div>
+              <div class="form-group">
+                <label for="wfCompany">Applies to</label>
+                <select id="wfCompany" formControlName="companyId">
+                  <option value="">All companies</option>
+                  @for (c of meta()?.companies; track c.id) {
+                    <option [value]="c.id">{{ c.name }} only</option>
+                  }
+                </select>
+                <p class="wf-hint">A company-specific workflow overrides the all-companies one for that company.</p>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="wfName">Workflow name <span class="required">*</span></label>
+                <input id="wfName" type="text" formControlName="name" placeholder="e.g. Membership application approval"
+                       autocomplete="off" maxlength="255"
+                       [attr.aria-invalid]="showError(form.controls.name)" aria-describedby="wfNameErr" />
+                @if (showError(form.controls.name)) {
+                  <p id="wfNameErr" class="field-error" role="alert">Workflow name is required.</p>
+                }
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="wfDesc">Description</label>
+                <textarea id="wfDesc" formControlName="description" rows="2" wrap="off"
+                          placeholder="What this chain is for (optional)"></textarea>
+              </div>
+            </div>
+          </form>
+
+          <!-- Steps (ordered, drag to reorder) -->
+          <div class="wf-steps-head">
+            <h3 class="wf-steps-title">Approval steps</h3>
+            <button type="button" class="btn btn--secondary btn--sm" (click)="openAddStep()">
+              <span class="material-icons" aria-hidden="true">add</span> Add step
+            </button>
+          </div>
+          @if (steps().length === 0) {
+            <p class="wf-steps-empty">No steps yet. A workflow needs at least one approval step.</p>
+          } @else {
+            <div class="wf-step-list" cdkDropList [cdkDropListData]="steps()" (cdkDropListDropped)="dropStep($event)">
+              @for (s of steps(); track $index; let i = $index) {
+                <div cdkDrag class="wf-step">
+                  <button type="button" cdkDragHandle class="wf-step__grip" [attr.aria-label]="'Reorder step ' + s.name">
+                    <span class="material-icons" aria-hidden="true">drag_indicator</span>
+                  </button>
+                  <span class="wf-step__no" aria-hidden="true">{{ i + 1 }}</span>
+                  <div class="wf-step__text">
+                    <span class="wf-step__name">{{ s.name }}</span>
+                    <span class="wf-step__sub">
+                      {{ approverSummary(s) }} · {{ quorumLabel(s) }}
+                      @if (s.condition) { · Only when {{ conditionLabel(s.condition) }} }
+                      @if (s.slaHours) { · Remind after {{ s.slaHours }}h }
+                    </span>
+                  </div>
+                  <div class="wf-step__actions">
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="openEditStep(i)">Edit</button>
+                    <button type="button" class="btn btn--danger btn--sm" (click)="removeStep(i)"
+                            [attr.aria-label]="'Remove step ' + s.name">
+                      <span class="material-icons" aria-hidden="true">close</span>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        }
+
+        <!-- ================= STEP VIEW ================= -->
+        @case ('step') {
+          <form id="workflowStepForm" [formGroup]="stepForm" (ngSubmit)="saveStep()" class="saas-form" style="padding: 0;">
+            @if (stepError()) {
+              <div class="flash flash-error" role="alert">
+                <span class="flash-icon">❌</span><span>{{ stepError() }}</span>
+              </div>
+            }
+            <div class="form-row">
+              <div class="form-group">
+                <label for="wsName">Step name <span class="required">*</span></label>
+                <input id="wsName" type="text" formControlName="name" placeholder="e.g. Membership Manager approval"
+                       autocomplete="off" maxlength="255"
+                       [attr.aria-invalid]="showError(stepForm.controls.name)" aria-describedby="wsNameErr" />
+                @if (showError(stepForm.controls.name)) {
+                  <p id="wsNameErr" class="field-error" role="alert">Step name is required.</p>
+                }
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="wsApproverType">Who approves <span class="required">*</span></label>
+                <select id="wsApproverType" formControlName="approverType">
+                  <option value="role">Anyone holding a role</option>
+                  <option value="department-position">A department (optionally one position)</option>
+                  <option value="user">A specific person</option>
+                </select>
+              </div>
+              @switch (stepForm.controls.approverType.value) {
+                @case ('role') {
+                  <div class="form-group">
+                    <label for="wsRole">Role <span class="required">*</span></label>
+                    <select id="wsRole" formControlName="approverRoleId">
+                      <option value="" disabled>Select a role…</option>
+                      @for (r of meta()?.roles; track r.id) {
+                        <option [value]="r.id">{{ r.name }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+                @case ('user') {
+                  <div class="form-group">
+                    <label for="wsUser">Person <span class="required">*</span></label>
+                    <select id="wsUser" formControlName="approverUserId">
+                      <option value="" disabled>Select a person…</option>
+                      @for (u of meta()?.users; track u.id) {
+                        <option [value]="u.id">{{ u.name }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+              }
+            </div>
+            @if (stepForm.controls.approverType.value === 'department-position') {
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="wsDept">Department <span class="required">*</span></label>
+                  <select id="wsDept" formControlName="approverDepartmentId">
+                    <option value="" disabled>Select a department…</option>
+                    @for (d of meta()?.departments; track d.id) {
+                      <option [value]="d.id">{{ d.name }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="wsPos">Position</label>
+                  <select id="wsPos" formControlName="approverPositionId">
+                    <option value="">Any position</option>
+                    @for (p of meta()?.positions; track p.id) {
+                      <option [value]="p.id">{{ p.name }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+            }
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="wsMode">When several people are assigned</label>
+                <select id="wsMode" formControlName="approvalMode">
+                  <option value="any">First decision counts</option>
+                  <option value="all">All must approve</option>
+                  <option value="count">A number of approvals is enough</option>
+                </select>
+              </div>
+              @if (stepForm.controls.approvalMode.value === 'count') {
+                <div class="form-group">
+                  <label for="wsCount">Approvals needed <span class="required">*</span></label>
+                  <input id="wsCount" type="number" inputmode="numeric" min="1" step="1" formControlName="requiredApprovals" />
+                </div>
+              }
+            </div>
+
+            <div class="form-row">
+              <div class="form-group wf-check">
+                <label class="wf-check__label" for="wsHasCond">
+                  <input id="wsHasCond" type="checkbox" formControlName="hasCondition" />
+                  Only run this step under a condition
+                </label>
+              </div>
+            </div>
+            @if (stepForm.controls.hasCondition.value) {
+              <div class="form-row wf-cond-row">
+                <div class="form-group">
+                  <label for="wsCondField">Field</label>
+                  <select id="wsCondField" formControlName="conditionField">
+                    @for (f of selectedPurpose()?.contextFields; track f.name) {
+                      <option [value]="f.name">{{ f.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="wsCondOp">Operator</label>
+                  <select id="wsCondOp" formControlName="conditionOp">
+                    @for (op of meta()?.conditionOps; track op) {
+                      <option [value]="op">{{ opLabel(op) }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="wsCondValue">Value</label>
+                  <input id="wsCondValue" type="text" formControlName="conditionValue"
+                         [placeholder]="stepForm.controls.conditionOp.value === 'in' ? 'Comma-separated values, e.g. corporate, individual' : 'e.g. 5000'" />
+                  <p class="wf-hint">When the condition is not met, the step is skipped.</p>
+                </div>
+              </div>
+            }
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="wsSla">Reminder after (hours)</label>
+                <input id="wsSla" type="number" inputmode="numeric" min="1" step="1" formControlName="slaHours"
+                       placeholder="No reminder" />
+                <p class="wf-hint">Approvers who have not decided get one reminder email after this many hours.</p>
+              </div>
+            </div>
+          </form>
+        }
+
+        <!-- ================= PREVIEW VIEW ================= -->
+        @case ('preview') {
+          @if (previewLoading()) {
+            <div class="loading-state"><div class="spinner large"></div><p>Resolving approvers…</p></div>
+          } @else if (preview(); as p) {
+            <p class="wf-hint">Who would receive each step if a document were submitted in your active company today (v{{ p.version }}).</p>
+            @if (p.steps.length === 0) {
+              <p class="wf-steps-empty">No step resolves in your active company - check the approver rules, or that people hold the picked roles/departments here.</p>
+            }
+            <ol class="wf-preview">
+              @for (s of p.steps; track s.stepNo) {
+                <li class="wf-preview__step">
+                  <span class="wf-step__no" aria-hidden="true">{{ s.stepNo }}</span>
+                  <div class="wf-step__text">
+                    <span class="wf-step__name">{{ s.name }}</span>
+                    <span class="wf-step__sub">{{ quorumLabel(s) }}</span>
+                    @if (s.approvers.length > 0) {
+                      <span class="wf-preview__people">
+                        @for (a of s.approvers; track a) {
+                          <span class="wf-chip">{{ a }}</span>
+                        }
+                      </span>
+                    } @else {
+                      <span class="wf-preview__nobody">Nobody matches this rule in your active company - this step would be skipped.</span>
+                    }
+                  </div>
+                </li>
+              }
+            </ol>
+          }
+        }
+      }
+
+      <ng-container dialogFooter>
+        @switch (dialogMode()) {
+          @case ('definition') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="workflowForm" class="btn btn--primary" [disabled]="saving()">
+              {{ saving() ? 'Saving…' : 'Save' }}
+            </button>
+          }
+          @case ('step') {
+            <button type="button" class="btn btn--secondary" (click)="backToDefinition()">Back</button>
+            <button type="submit" form="workflowStepForm" class="btn btn--primary">
+              {{ editingStepIndex() === null ? 'Add step' : 'Update step' }}
+            </button>
+          }
+          @case ('preview') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Close</button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+</div>

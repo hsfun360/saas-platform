@@ -12,6 +12,7 @@ import { I18nService } from '../../i18n/i18n.service';
 import { HelpService } from '../../services/help.service';
 import { RecentScreensService } from '../../services/recent-screens.service';
 import { FavoritesService } from '../../services/favorites.service';
+import { WorkflowService } from '../../services/workflow.service';
 import { DialogComponent } from '../../shared/dialog/dialog';
 
 // One Quick-access group: a module and the user's starred screens inside it.
@@ -48,9 +49,18 @@ export class HomeComponent {
   private readonly help = inject(HelpService);
   private readonly recents = inject(RecentScreensService);
   private readonly favorites = inject(FavoritesService);
+  private readonly workflow = inject(WorkflowService);
+
+  // My Approvals inbox badge (person-scoped, so it belongs on this page).
+  // Silently 0 on error - the tile simply stays hidden.
+  readonly pendingApprovals = signal(0);
 
   constructor() {
     this.favorites.ensureLoaded();
+    this.workflow.countMyTasks().subscribe({
+      next: (r) => this.pendingApprovals.set(r.count),
+      error: () => this.pendingApprovals.set(0),
+    });
   }
 
   // --- Who/where (greeting) -------------------------------------------------
