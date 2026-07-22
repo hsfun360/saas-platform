@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { ActiveSystemService } from '../services/active-system.service';
 
 // Placeholder shown (inside the dashboard shell) for any menu whose route has no
 // component built yet — instead of silently bouncing to Home. Wired as the shell's
@@ -27,15 +26,14 @@ import { ActiveSystemService } from '../services/active-system.service';
       </p>
 
       <button type="button" class="btn btn--primary" (click)="goToDashboard()">
-        <span class="material-icons" aria-hidden="true">dashboard</span>
-        Back to dashboard
+        <span class="material-icons" aria-hidden="true">space_dashboard</span>
+        Back to My Dashboard
       </button>
     </div>
   `,
 })
 export class UnderConstructionComponent {
   private readonly router = inject(Router);
-  private readonly activeSystem = inject(ActiveSystemService);
 
   // The route the user tried to open (shown for context).
   get path(): string {
@@ -50,9 +48,11 @@ export class UnderConstructionComponent {
     return seg.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
-  // Return to the CURRENT system's dashboard (kept in sync by the shell), not the
-  // generic /home — consistent with the per-system dashboard model.
+  // Return to My Dashboard (/home) - the user's personal page, always valid,
+  // matching the sidebar's "My Dashboard" item (user decision 2026-07-22; the
+  // old per-system dashboardRoute could itself point at an unbuilt route,
+  // bouncing the user straight back here).
   goToDashboard(): void {
-    this.router.navigateByUrl(this.activeSystem.dashboardRoute());
+    this.router.navigateByUrl('/home');
   }
 }
