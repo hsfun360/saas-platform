@@ -1,0 +1,102 @@
+@if (open()) {
+  <section class="md-card md-drill" aria-label="Drill-down records">
+    <div class="md-drill__head">
+      <h2>Records behind the numbers</h2>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="close()">
+        <span class="material-icons" aria-hidden="true">close</span> Close
+      </button>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="flash flash-error" role="alert" aria-live="assertive">
+        <span class="flash-icon">❌</span>
+        <span>{{ errorMessage() }}</span>
+        <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      </div>
+    }
+
+    <!-- Active filter chips (removable; filters combine) -->
+    <div class="md-drill__chips" role="group" aria-label="Active drill filters">
+      @for (chip of chips(); track chip.key) {
+        <span class="md-drill__chip">
+          {{ chip.label }}
+          <button type="button" (click)="removeChip(chip.key)" [attr.aria-label]="'Remove filter ' + chip.label">✕</button>
+        </span>
+      }
+      <div class="md-seg" role="group" aria-label="Show as">
+        <button type="button" class="md-seg__btn" [class.md-seg__btn--on]="entity() === 'memberships'" (click)="setEntity('memberships')">Memberships</button>
+        <button type="button" class="md-seg__btn" [class.md-seg__btn--on]="entity() === 'members'" (click)="setEntity('members')">Members</button>
+      </div>
+    </div>
+
+    @if (!loading() || rows().length) {
+      <p class="md-drill__count" aria-live="polite">
+        {{ total() }} {{ entity() === 'memberships' ? 'membership(s)' : 'member(s)' }} match.
+      </p>
+    }
+
+    <div class="data-list">
+      @if (entity() === 'memberships') {
+        @for (row of rows(); track row.id) {
+          @if (membershipRow(row); as m) {
+            <div class="data-card">
+              <div class="data-row data-row--with-badge">
+                <div class="data-row__main">
+                  <div class="data-card__title">{{ m.membershipNo }}@if (m.corporateName) { <span class="data-card__reg">· {{ m.corporateName }}</span> }</div>
+                  <div class="data-card__subline">
+                    <span class="data-card__reg">{{ m.membershipClass === 'corporate' ? 'Corporate' : 'Individual' }} · {{ typeName(m.membershipTypeId) }}</span>
+                  </div>
+                  <dl class="data-card__meta">
+                    <div class="meta"><dt>Joined</dt><dd>{{ m.joinDate || '—' }}</dd></div>
+                    <div class="meta"><dt>Expiry</dt><dd>{{ m.expiryDate || '—' }}</dd></div>
+                    @if (m.salesAgentId) {
+                      <div class="meta"><dt>Agent</dt><dd>{{ agentName(m.salesAgentId) }}</dd></div>
+                    }
+                  </dl>
+                </div>
+                <span class="data-row__badge md-status">
+                  <span class="md-status__dot" [style.background]="statusColor(m.membershipStatusId) || 'var(--text-muted)'" aria-hidden="true"></span>
+                  {{ statusName(m.membershipStatusId) }}
+                </span>
+              </div>
+            </div>
+          }
+        }
+      } @else {
+        @for (row of rows(); track row.id) {
+          @if (memberRow(row); as m) {
+            <div class="data-card">
+              <div class="data-row data-row--with-badge">
+                <div class="data-row__main">
+                  <div class="data-card__title">{{ m.memberNo }} <span class="data-card__reg">· {{ memberDisplayName(m) }}</span></div>
+                  <div class="data-card__subline">
+                    <span class="data-card__reg">{{ m.memberKind }} @if (m.membershipNo) { · {{ m.membershipNo }} } @if (m.corporateName) { · {{ m.corporateName }} }</span>
+                  </div>
+                  <dl class="data-card__meta">
+                    @if (m.birthDate) { <div class="meta"><dt>Born</dt><dd>{{ m.birthDate }}</dd></div> }
+                    @if (m.nationalityCode) { <div class="meta"><dt>Nationality</dt><dd>{{ m.nationalityCode }}</dd></div> }
+                    <div class="meta"><dt>Joined</dt><dd>{{ m.joinDate || '—' }}</dd></div>
+                  </dl>
+                </div>
+                <span class="data-row__badge md-status">
+                  <span class="md-status__dot" [style.background]="statusColor(m.memberStatusId) || 'var(--text-muted)'" aria-hidden="true"></span>
+                  {{ statusName(m.memberStatusId) }}
+                </span>
+              </div>
+            </div>
+          }
+        }
+      }
+    </div>
+
+    @if (loading()) {
+      <p class="md-empty">Loading…</p>
+    } @else if (rows().length < total()) {
+      <button type="button" class="btn btn--secondary" (click)="loadMore()">
+        Load {{ total() - rows().length > 50 ? 50 : total() - rows().length }} more
+      </button>
+    } @else if (rows().length === 0) {
+      <p class="md-empty">No records match this combination of filters.</p>
+    }
+  </section>
+}

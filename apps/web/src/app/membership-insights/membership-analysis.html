@@ -1,0 +1,168 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">insights</span>
+      <div>
+        <h1>{{ 'Membership Analysis' | screenTitle }}</h1>
+        <p class="saas-subtitle">{{ 'Movement and demographics across the membership base — click any chart to see the records behind it.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- GLOBAL FILTERS -->
+  <div class="md-toolbar">
+    <div class="md-filter" role="group" aria-label="Period">
+      <button type="button" class="md-chip" [class.md-chip--on]="periodPreset() === 'thisMonth'" (click)="setPreset('thisMonth')">This month</button>
+      <button type="button" class="md-chip" [class.md-chip--on]="periodPreset() === 'thisYear'" (click)="setPreset('thisYear')">This year</button>
+      <button type="button" class="md-chip" [class.md-chip--on]="periodPreset() === 'last12'" (click)="setPreset('last12')">Last 12 months</button>
+      <button type="button" class="md-chip" [class.md-chip--on]="periodPreset() === 'custom'" (click)="setPreset('custom')">Custom</button>
+    </div>
+    @if (periodPreset() === 'custom') {
+      <div class="md-custom-range">
+        <label for="maFrom" class="md-range-label">From</label>
+        <input id="maFrom" type="date" [value]="customFrom()" (change)="setCustomFrom(maFromEl.value)" #maFromEl>
+        <label for="maTo" class="md-range-label">To</label>
+        <input id="maTo" type="date" [value]="customTo()" (change)="setCustomTo(maToEl.value)" #maToEl>
+      </div>
+    }
+    <div class="md-selects">
+      <select #classSel [value]="classFilter()" (change)="setClass(classSel.value)" aria-label="Filter by membership class">
+        <option value="">All classes</option>
+        <option value="individual">Individual</option>
+        <option value="corporate">Corporate</option>
+      </select>
+      <select #kindSel [value]="kindFilter()" (change)="setKind(kindSel.value)" aria-label="Filter people charts by member kind">
+        <option value="">All people</option>
+        <option value="individual">Individual members</option>
+        <option value="nominee">Nominees</option>
+        <option value="dependent">Dependents</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- KPI ROW -->
+  @if (summary(); as s) {
+    <div class="md-kpis">
+      <div class="md-kpi">
+        <span class="md-kpi__label">Memberships</span>
+        <span class="md-kpi__value">{{ s.totalMemberships }}</span>
+      </div>
+      <div class="md-kpi">
+        <span class="md-kpi__label">Active</span>
+        <span class="md-kpi__value">{{ s.activeMemberships }}</span>
+      </div>
+      <button type="button" class="md-kpi md-kpi--click" (click)="drillNewJoins()">
+        <span class="md-kpi__label">New joins</span>
+        <span class="md-kpi__value md-kpi__value--good">{{ s.newJoins }}</span>
+        <span class="md-kpi__hint">in period · view list</span>
+      </button>
+      <button type="button" class="md-kpi md-kpi--click" (click)="drillExpired()">
+        <span class="md-kpi__label">Expired</span>
+        <span class="md-kpi__value md-kpi__value--bad">{{ s.expired }}</span>
+        <span class="md-kpi__hint">in period · view list</span>
+      </button>
+      <div class="md-kpi">
+        <span class="md-kpi__label">Net movement</span>
+        <span class="md-kpi__value" [class.md-kpi__value--good]="s.netMovement > 0" [class.md-kpi__value--bad]="s.netMovement < 0">{{ s.netMovement > 0 ? '+' : '' }}{{ s.netMovement }}</span>
+      </div>
+      <div class="md-kpi">
+        <span class="md-kpi__label">Members (people)</span>
+        <span class="md-kpi__value">{{ s.totalMembers }}</span>
+      </div>
+    </div>
+  }
+
+  <!-- CHARTS -->
+  <div class="md-grid">
+
+    <!-- Movement -->
+    <section class="md-card md-card--wide" aria-label="Membership movement">
+      <div class="md-card__head">
+        <h2>Membership movement</h2>
+        <span class="md-card__note">new joins vs contractual expiries, monthly</span>
+      </div>
+      @if (movement().length) {
+        <app-dash-chart [options]="movementOptions()" [height]="280" (chartClick)="onMovementClick($event)"></app-dash-chart>
+      } @else {
+        <p class="md-empty">No movement in this period.</p>
+      }
+    </section>
+
+    <!-- Status -->
+    <section class="md-card" aria-label="Status breakdown">
+      <div class="md-card__head">
+        <h2>Status</h2>
+        <div class="md-seg" role="group" aria-label="Status of what">
+          <button type="button" class="md-seg__btn" [class.md-seg__btn--on]="statusMode() === 'membership'" (click)="setStatusMode('membership')">Memberships</button>
+          <button type="button" class="md-seg__btn" [class.md-seg__btn--on]="statusMode() === 'member'" (click)="setStatusMode('member')">Members</button>
+        </div>
+      </div>
+      <app-dash-chart [options]="statusDonutOptions()" [height]="260" (chartClick)="onStatusClick($event)"></app-dash-chart>
+    </section>
+
+    <!-- Type -->
+    <section class="md-card" aria-label="Membership type breakdown">
+      <div class="md-card__head">
+        <h2>Membership type</h2>
+        <span class="md-card__note">contracts per type</span>
+      </div>
+      @if (typeBuckets().length) {
+        <app-dash-chart [options]="typeOptions()" [height]="chartHeight(typeBuckets())" (chartClick)="onTypeClick($event)"></app-dash-chart>
+      } @else {
+        <p class="md-empty">No memberships yet.</p>
+      }
+    </section>
+
+    <!-- Age -->
+    <section class="md-card" aria-label="Age distribution">
+      <div class="md-card__head">
+        <h2>Age</h2>
+        <span class="md-card__note">members by age band</span>
+      </div>
+      @if (ageBuckets().length) {
+        <app-dash-chart [options]="ageOptions()" [height]="chartHeight(ageBuckets())" (chartClick)="onAgeClick($event)"></app-dash-chart>
+      } @else {
+        <p class="md-empty">No members yet.</p>
+      }
+    </section>
+
+    <!-- Country -->
+    <section class="md-card" aria-label="Country breakdown">
+      <div class="md-card__head">
+        <h2>Country</h2>
+        <span class="md-card__note">members by residential country</span>
+      </div>
+      @if (countryBuckets().length) {
+        <app-dash-chart [options]="countryOptions()" [height]="chartHeight(countryBuckets())" (chartClick)="onCountryClick($event)"></app-dash-chart>
+      } @else {
+        <p class="md-empty">No members yet.</p>
+      }
+    </section>
+
+    <!-- Nationality -->
+    <section class="md-card" aria-label="Nationality breakdown">
+      <div class="md-card__head">
+        <h2>Nationality</h2>
+        <span class="md-card__note">members by nationality</span>
+      </div>
+      @if (nationalityBuckets().length) {
+        <app-dash-chart [options]="nationalityOptions()" [height]="chartHeight(nationalityBuckets())" (chartClick)="onNationalityClick($event)"></app-dash-chart>
+      } @else {
+        <p class="md-empty">No members yet.</p>
+      }
+    </section>
+  </div>
+
+  <!-- DRILL-DOWN PANEL -->
+  <app-insight-drill [meta]="meta()" [classFilter]="classFilter()"></app-insight-drill>
+</div>

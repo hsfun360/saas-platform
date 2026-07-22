@@ -1,6 +1,6 @@
-/* Membership Dashboard - analytics screen.
-   All chrome colours come from the semantic theme tokens; the chart canvas
-   colours live in membership-dashboard.ts (canvas cannot read CSS vars). */
+/* Business Insights - styles shared by the two analysis screens (and the
+   drill panel). All chrome colours come from the semantic theme tokens; the
+   chart canvas colours live in insight-theme.ts (canvas cannot read CSS vars). */
 
 /* --- Toolbar (period presets + selects) --- */
 .md-toolbar {
@@ -190,142 +190,6 @@
   color: var(--text-on-brand);
 }
 
-/* --- Agent leaderboard --- */
-.md-lb {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.md-lb__channel + .md-lb__channel {
-  border-top: 1px solid var(--border);
-}
-
-.md-lb__row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-}
-
-.md-lb__expand {
-  flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-radius: 8px;
-}
-
-.md-lb__expand:hover { background: var(--surface-hover); }
-
-.md-lb__spacer {
-  flex: 0 0 auto;
-  width: 44px;
-}
-
-.md-lb__main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  min-height: 44px;
-  padding: var(--space-xs) var(--space-sm);
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: var(--font-body);
-  text-align: left;
-  cursor: pointer;
-  border-radius: 8px;
-}
-
-.md-lb__main:hover { background: var(--surface-hover); }
-
-.md-lb__main--static { cursor: default; }
-.md-lb__main--static:hover { background: transparent; }
-
-.md-lb__icon {
-  color: var(--accent);
-  font-size: 20px;
-}
-
-.md-lb__name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.md-lb__code {
-  color: var(--text-muted);
-  font-size: var(--font-caption);
-}
-
-.md-lb__count {
-  font-weight: var(--weight-bold);
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-.md-lb__row--muted .md-lb__name,
-.md-lb__row--muted .md-lb__count {
-  color: var(--text-muted);
-}
-
-.md-lb__agents {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 var(--space-xs) 44px;
-}
-
-/* --- Drill panel --- */
-.md-drill {
-  margin-top: var(--space-md);
-}
-
-.md-drill__chips {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-xs);
-  margin-bottom: var(--space-sm);
-}
-
-.md-drill__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: 16px;
-  background: var(--surface-selected);
-  color: var(--brand-text);
-  font-size: var(--font-body-2);
-  border: 1px solid var(--border);
-}
-
-.md-drill__chip button {
-  border: none;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font-size: var(--font-body-2);
-  min-width: 24px;
-  min-height: 24px;
-}
-
-.md-drill__count {
-  font-size: var(--font-body-2);
-  color: var(--text-secondary);
-  margin: 0 0 var(--space-sm);
-}
-
 /* Status dot + text (same idiom as the Memberships screen). */
 .md-status {
   display: inline-flex;
@@ -353,6 +217,7 @@
 /* --- Desktop --- */
 @media (min-width: 1024px) {
   .md-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .md-kpis--five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
 /* --- Mobile --- */

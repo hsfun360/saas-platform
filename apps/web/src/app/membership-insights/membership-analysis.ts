@@ -1,17 +1,13 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { LocalDatePipe } from '../shared/local-date.pipe';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { DashChartComponent, DashChartClick, DashChartOption } from './dash-chart';
+import { InsightDrillComponent } from './insight-drill';
+import { CHART_THEME, ChartInk, PeriodPreset, axisCommon, computePeriod, monthBounds, monthLabel } from './insight-theme';
 import {
-  AgentPerfResult,
-  AgentPerfRow,
   BreakdownBucket,
   BreakdownDimension,
   DashboardMeta,
   DashboardSummary,
-  DrillMemberRow,
-  DrillMembershipRow,
-  DrillResult,
   MembershipDashboardService,
   MovementMonth,
 } from '../services/membership-dashboard.service';
@@ -19,84 +15,24 @@ import { ThemeService } from '../services/theme.service';
 import { CountryService } from '../services/country.service';
 import { NationalityService } from '../services/nationality.service';
 
-// Chart ink & series colors. ECharts paints to <canvas>, which cannot resolve
-// CSS custom properties, so the theme pair is carried here instead of in
-// styles.css - both modes from the validated dataviz reference palette
-// (adjacent-pair CVD-safe order), switched on ThemeService.resolved().
-interface ChartInk {
-  ink: string;
-  inkSecondary: string;
-  muted: string;
-  grid: string;
-  axis: string;
-  series: string[];
-  joins: string;
-  expiries: string;
-}
-
-const CHART_THEME: Record<'light' | 'dark', ChartInk> = {
-  light: {
-    ink: '#0b0b0b',
-    inkSecondary: '#52514e',
-    muted: '#898781',
-    grid: '#e1e0d9',
-    axis: '#c3c2b7',
-    series: ['#2a78d6', '#008300', '#e87ba4', '#eda100', '#1baf7a', '#eb6834', '#4a3aa7', '#e34948'],
-    joins: '#2a78d6',
-    expiries: '#e34948',
-  },
-  dark: {
-    ink: '#ffffff',
-    inkSecondary: '#c3c2b7',
-    muted: '#898781',
-    grid: '#2c2c2a',
-    axis: '#383835',
-    series: ['#3987e5', '#008300', '#d55181', '#c98500', '#199e70', '#d95926', '#9085e9', '#e66767'],
-    joins: '#3987e5',
-    expiries: '#e66767',
-  },
-};
-
-type PeriodPreset = 'thisMonth' | 'thisYear' | 'last12' | 'custom';
-
-// One active drill filter (a chip). `params` go straight onto the /drill query;
-// chips with the same key replace each other (re-clicking a segment of the same
-// chart swaps the filter, clicking another chart narrows).
-interface DrillChip {
-  key: string;
-  label: string;
-  params: Record<string, string>;
-  entity: 'memberships' | 'members';
-}
-
-interface AgentChannel {
-  key: string;
-  label: string;
-  icon: string;
-  count: number;
-  params: Record<string, string>;
-  rows: AgentPerfRow[];
-}
-
-function dateOnly(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
+// Business Insights → Membership Analysis: movement + demographics of the
+// membership base. Sales/agent analytics live on the sibling Agent Performance
+// screen (user decision 2026-07-22 - split for load + RBAC granularity).
 @Component({
-  selector: 'app-membership-dashboard',
+  selector: 'app-membership-analysis',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, DashChartComponent],
-  templateUrl: './membership-dashboard.html',
-  styleUrls: ['../system-setup/system-setup.css', './membership-dashboard.css'],
+  imports: [ScreenTitlePipe, ScreenSubtitlePipe, DashChartComponent, InsightDrillComponent],
+  templateUrl: './membership-analysis.html',
+  styleUrls: ['../system-setup/system-setup.css', './insights.css'],
 })
-export class MembershipDashboardComponent implements OnInit {
+export class MembershipAnalysisComponent implements OnInit {
   private readonly api = inject(MembershipDashboardService);
   private readonly theme = inject(ThemeService);
   private readonly countryService = inject(CountryService);
   private readonly nationalityService = inject(NationalityService);
+
+  private readonly drill = viewChild.required(InsightDrillComponent);
 
   readonly errorMessage = signal('');
   readonly loading = signal(false);
@@ -109,28 +45,7 @@ export class MembershipDashboardComponent implements OnInit {
   readonly kindFilter = signal('');
   readonly statusMode = signal<'membership' | 'member'>('membership');
 
-  readonly period = computed<{ from: string; to: string }>(() => {
-    const today = new Date();
-    const to = dateOnly(today);
-    switch (this.periodPreset()) {
-      case 'thisMonth':
-        return { from: to.slice(0, 8) + '01', to };
-      case 'thisYear':
-        return { from: to.slice(0, 5) + '01-01', to };
-      case 'custom': {
-        const from = this.customFrom();
-        const t = this.customTo();
-        if (from && t) return { from, to: t };
-        return { from: to.slice(0, 5) + '01-01', to };
-      }
-      default: {
-        const d = new Date(today);
-        d.setFullYear(d.getFullYear() - 1);
-        d.setDate(d.getDate() + 1);
-        return { from: dateOnly(d), to };
-      }
-    }
-  });
+  readonly period = computed(() => computePeriod(this.periodPreset(), this.customFrom(), this.customTo()));
 
   // --- Data -----------------------------------------------------------------
   readonly meta = signal<DashboardMeta | null>(null);
@@ -142,27 +57,14 @@ export class MembershipDashboardComponent implements OnInit {
   readonly ageBuckets = signal<BreakdownBucket[]>([]);
   readonly countryBuckets = signal<BreakdownBucket[]>([]);
   readonly nationalityBuckets = signal<BreakdownBucket[]>([]);
-  readonly agentPerf = signal<AgentPerfResult | null>(null);
 
   private readonly countryNames = signal<Map<string, string>>(new Map());
   private readonly nationalityNames = signal<Map<string, string>>(new Map());
 
   // --- Label lookups --------------------------------------------------------
   private readonly statusById = computed(() => {
-    const m = new Map<string, { name: string; color: string | null; statusClass: string }>();
-    for (const s of this.meta()?.statuses ?? []) {
-      m.set(s.id, { name: s.membershipStatus, color: s.statusColor ?? null, statusClass: s.statusClass });
-    }
-    return m;
-  });
-  private readonly typeById = computed(() => {
-    const m = new Map<string, string>();
-    for (const t of this.meta()?.types ?? []) m.set(t.id, t.category);
-    return m;
-  });
-  private readonly agentById = computed(() => {
-    const m = new Map<string, string>();
-    for (const a of this.meta()?.agents ?? []) m.set(a.id, a.name);
+    const m = new Map<string, { name: string; color: string | null }>();
+    for (const s of this.meta()?.statuses ?? []) m.set(s.id, { name: s.membershipStatus, color: s.statusColor ?? null });
     return m;
   });
 
@@ -176,11 +78,7 @@ export class MembershipDashboardComponent implements OnInit {
   }
   typeName(id: string | null): string {
     if (!id) return 'Unknown';
-    return this.typeById().get(id) ?? 'Unknown';
-  }
-  agentName(id: string | null): string {
-    if (!id) return 'No agent recorded';
-    return this.agentById().get(id) ?? 'Unknown agent';
+    return this.meta()?.types.find((t) => t.id === id)?.category ?? 'Unknown';
   }
   private ageBandLabel(key: string): string {
     if (key === 'unknown') return 'Unknown';
@@ -195,16 +93,11 @@ export class MembershipDashboardComponent implements OnInit {
     return this.nationalityNames().get(key) ?? key;
   }
 
-  memberDisplayName(row: DrillMemberRow): string {
-    const name = [row.firstName, row.lastName].filter(Boolean).join(' ');
-    return row.localName ? `${name} (${row.localName})` : name;
-  }
-
   // --- Lifecycle ------------------------------------------------------------
   ngOnInit(): void {
     this.api.meta().subscribe({
       next: (m) => this.meta.set(m),
-      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to load the dashboard.'),
+      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to load the analysis.'),
     });
     this.countryService.listActive().subscribe({
       next: (list) => this.countryNames.set(new Map(list.map((c) => [c.alpha2.toUpperCase(), `${c.flagEmoji ?? ''} ${c.name}`.trim()]))),
@@ -228,15 +121,14 @@ export class MembershipDashboardComponent implements OnInit {
   private reloadAll(): void {
     this.loading.set(true);
     const p = this.periodParams();
-    let pending = 4;
+    let pending = 3;
     const done = () => { if (--pending === 0) this.loading.set(false); };
     const fail = (err: { error?: { message?: string } }) => {
-      this.errorMessage.set(err.error?.message || 'Failed to load the dashboard.');
+      this.errorMessage.set(err.error?.message || 'Failed to load the analysis.');
       done();
     };
     this.api.summary(p).subscribe({ next: (s) => { this.summary.set(s); done(); }, error: fail });
     this.api.movement(p).subscribe({ next: (r) => { this.movement.set(r.months); done(); }, error: fail });
-    this.api.agents(p).subscribe({ next: (r) => { this.agentPerf.set(r); done(); }, error: fail });
     this.reloadBreakdowns(done);
   }
 
@@ -259,7 +151,7 @@ export class MembershipDashboardComponent implements OnInit {
       this.api.breakdown(dim, params).subscribe({
         next: (r) => { sink(r.buckets); if (--pending === 0 && done) done(); },
         error: (err) => {
-          this.errorMessage.set(err.error?.message || 'Failed to load the dashboard.');
+          this.errorMessage.set(err.error?.message || 'Failed to load the analysis.');
           if (--pending === 0 && done) done();
         },
       });
@@ -296,15 +188,6 @@ export class MembershipDashboardComponent implements OnInit {
     return CHART_THEME[this.theme.resolved()];
   }
 
-  private axisCommon(ink: ChartInk) {
-    return {
-      axisLine: { lineStyle: { color: ink.axis } },
-      axisTick: { show: false },
-      axisLabel: { color: ink.muted, fontSize: 11 },
-      splitLine: { lineStyle: { color: ink.grid } },
-    };
-  }
-
   readonly movementOptions = computed<DashChartOption>(() => {
     const ink = this.chartInk();
     const months = this.movement();
@@ -315,11 +198,11 @@ export class MembershipDashboardComponent implements OnInit {
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
       xAxis: {
         type: 'category',
-        data: months.map((m) => this.monthLabel(m.month)),
-        ...this.axisCommon(ink),
+        data: months.map((m) => monthLabel(m.month)),
+        ...axisCommon(ink),
         splitLine: { show: false },
       },
-      yAxis: { type: 'value', minInterval: 1, ...this.axisCommon(ink), axisLine: { show: false } },
+      yAxis: { type: 'value', minInterval: 1, ...axisCommon(ink), axisLine: { show: false } },
       series: [
         {
           name: 'Joins',
@@ -377,11 +260,11 @@ export class MembershipDashboardComponent implements OnInit {
       animation: false,
       grid: { left: 8, right: 40, top: 8, bottom: 8, containLabel: true },
       tooltip: { trigger: 'item' },
-      xAxis: { type: 'value', minInterval: 1, ...this.axisCommon(ink), axisLine: { show: false }, axisLabel: { show: false }, splitLine: { show: false } },
+      xAxis: { type: 'value', minInterval: 1, ...axisCommon(ink), axisLine: { show: false }, axisLabel: { show: false }, splitLine: { show: false } },
       yAxis: {
         type: 'category',
         data: rows.map((b) => labelFn(b.key)),
-        ...this.axisCommon(ink),
+        ...axisCommon(ink),
         axisLabel: { color: ink.inkSecondary, fontSize: 12 },
         splitLine: { show: false },
       },
@@ -410,147 +293,22 @@ export class MembershipDashboardComponent implements OnInit {
     return Math.max(160, Math.min(400, 40 + buckets.length * 34));
   }
 
-  private monthLabel(ym: string): string {
-    const m = parseInt(ym.slice(5, 7), 10);
-    return `${MONTHS[m - 1]} ${ym.slice(2, 4)}`;
-  }
-
-  // --- Agent leaderboard ----------------------------------------------------
-  readonly expandedChannels = signal<Set<string>>(new Set());
-
-  readonly agentChannels = computed<AgentChannel[]>(() => {
-    const perf = this.agentPerf();
-    if (!perf) return [];
-    const channels = new Map<string, AgentChannel>();
-    for (const row of perf.agents) {
-      let key: string;
-      let label: string;
-      let icon: string;
-      let params: Record<string, string>;
-      if (row.agencyId) {
-        key = `agency:${row.agencyId}`;
-        label = row.agencyName ?? 'Agency';
-        icon = 'storefront';
-        params = { agencyId: row.agencyId };
-      } else if (row.agentKind === 'internal') {
-        key = 'internal';
-        label = 'Staff (Internal)';
-        icon = 'badge';
-        params = { agentKind: 'internal' };
-      } else {
-        key = 'external';
-        label = 'Agents (External)';
-        icon = 'person_pin';
-        params = { agentKind: 'external' };
-      }
-      let ch = channels.get(key);
-      if (!ch) {
-        ch = { key, label, icon, count: 0, params, rows: [] };
-        channels.set(key, ch);
-      }
-      ch.count += row.count;
-      ch.rows.push(row);
-    }
-    return [...channels.values()].sort((a, b) => b.count - a.count);
-  });
-
-  toggleChannel(key: string): void {
-    const next = new Set(this.expandedChannels());
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    this.expandedChannels.set(next);
-  }
-
-  // --- Drill-down -----------------------------------------------------------
-  readonly drillChips = signal<DrillChip[]>([]);
-  readonly drillEntity = signal<'memberships' | 'members'>('memberships');
-  readonly drillRows = signal<(DrillMembershipRow | DrillMemberRow)[]>([]);
-  readonly drillTotal = signal(0);
-  readonly drillLoading = signal(false);
-  readonly drillOpen = signal(false);
-
-  membershipRow(row: DrillMembershipRow | DrillMemberRow): DrillMembershipRow {
-    return row as DrillMembershipRow;
-  }
-  memberRow(row: DrillMembershipRow | DrillMemberRow): DrillMemberRow {
-    return row as DrillMemberRow;
-  }
-
-  private addDrill(chip: DrillChip): void {
-    const chips = this.drillChips().filter((c) => c.key !== chip.key);
-    chips.push(chip);
-    this.drillChips.set(chips);
-    this.drillEntity.set(chip.entity);
-    this.drillOpen.set(true);
-    this.fetchDrill(0);
-    // Bring the panel into view - it lives below the charts.
-    setTimeout(() => document.getElementById('md-drill')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
-  }
-
-  removeChip(key: string): void {
-    const chips = this.drillChips().filter((c) => c.key !== key);
-    this.drillChips.set(chips);
-    if (chips.length === 0) this.closeDrill();
-    else this.fetchDrill(0);
-  }
-
-  closeDrill(): void {
-    this.drillOpen.set(false);
-    this.drillChips.set([]);
-    this.drillRows.set([]);
-    this.drillTotal.set(0);
-  }
-
-  setDrillEntity(entity: 'memberships' | 'members'): void {
-    if (this.drillEntity() === entity) return;
-    this.drillEntity.set(entity);
-    this.fetchDrill(0);
-  }
-
-  private drillParams(): Record<string, string> {
-    const params: Record<string, string> = { entity: this.drillEntity() };
-    if (this.classFilter()) params['class'] = this.classFilter();
-    for (const chip of this.drillChips()) Object.assign(params, chip.params);
-    return params;
-  }
-
-  private fetchDrill(offset: number): void {
-    this.drillLoading.set(true);
-    this.api.drill(this.drillParams(), offset).subscribe({
-      next: (r: DrillResult) => {
-        this.drillRows.set(offset === 0 ? r.rows : [...this.drillRows(), ...r.rows]);
-        this.drillTotal.set(r.total);
-        this.drillLoading.set(false);
-      },
-      error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to load the drill-down list.');
-        this.drillLoading.set(false);
-      },
-    });
-  }
-
-  loadMoreDrill(): void {
-    this.fetchDrill(this.drillRows().length);
-  }
-
   // --- Chart click handlers (each opens/narrows the drill) ------------------
   onMovementClick(e: DashChartClick): void {
     const month = this.movement()[e.dataIndex];
     if (!month) return;
-    const from = `${month.month}-01`;
-    const lastDay = new Date(parseInt(month.month.slice(0, 4), 10), parseInt(month.month.slice(5, 7), 10), 0).getDate();
-    const to = `${month.month}-${String(lastDay).padStart(2, '0')}`;
+    const { from, to } = monthBounds(month.month);
     if (e.seriesName === 'Expiries') {
-      this.addDrill({
+      this.drill().addFilter({
         key: 'movement',
-        label: `Expired in ${this.monthLabel(month.month)}`,
+        label: `Expired in ${monthLabel(month.month)}`,
         params: { expiredFrom: from, expiredTo: to },
         entity: 'memberships',
       });
     } else {
-      this.addDrill({
+      this.drill().addFilter({
         key: 'movement',
-        label: `Joined in ${this.monthLabel(month.month)}`,
+        label: `Joined in ${monthLabel(month.month)}`,
         params: { joinedFrom: from, joinedTo: to },
         entity: 'memberships',
       });
@@ -563,14 +321,14 @@ export class MembershipDashboardComponent implements OnInit {
     const bucket = buckets[e.dataIndex];
     if (!bucket || bucket.key === 'unknown') return;
     if (mode === 'membership') {
-      this.addDrill({
+      this.drill().addFilter({
         key: 'status',
         label: `Status: ${this.statusName(bucket.key)}`,
         params: { statusId: bucket.key },
         entity: 'memberships',
       });
     } else {
-      this.addDrill({
+      this.drill().addFilter({
         key: 'memberStatus',
         label: `Member status: ${this.statusName(bucket.key)}`,
         params: { memberStatusId: bucket.key },
@@ -582,7 +340,7 @@ export class MembershipDashboardComponent implements OnInit {
   onTypeClick(e: DashChartClick): void {
     const bucket = [...this.typeBuckets()].reverse()[e.dataIndex];
     if (!bucket || bucket.key === 'unknown') return;
-    this.addDrill({
+    this.drill().addFilter({
       key: 'type',
       label: `Type: ${this.typeName(bucket.key)}`,
       params: { typeId: bucket.key },
@@ -593,7 +351,7 @@ export class MembershipDashboardComponent implements OnInit {
   onAgeClick(e: DashChartClick): void {
     const bucket = [...this.orderedAgeBuckets()].reverse()[e.dataIndex];
     if (!bucket) return;
-    this.addDrill({
+    this.drill().addFilter({
       key: 'ageBand',
       label: `Age: ${this.ageBandLabel(bucket.key)}`,
       params: { ageBand: bucket.key },
@@ -604,7 +362,7 @@ export class MembershipDashboardComponent implements OnInit {
   onCountryClick(e: DashChartClick): void {
     const bucket = [...this.countryBuckets()].reverse()[e.dataIndex];
     if (!bucket) return;
-    this.addDrill({
+    this.drill().addFilter({
       key: 'country',
       label: `Country: ${this.countryLabel(bucket.key)}`,
       params: { countryCode: bucket.key },
@@ -615,7 +373,7 @@ export class MembershipDashboardComponent implements OnInit {
   onNationalityClick(e: DashChartClick): void {
     const bucket = [...this.nationalityBuckets()].reverse()[e.dataIndex];
     if (!bucket) return;
-    this.addDrill({
+    this.drill().addFilter({
       key: 'nationality',
       label: `Nationality: ${this.nationalityLabel(bucket.key)}`,
       params: { nationality: bucket.key },
@@ -623,30 +381,9 @@ export class MembershipDashboardComponent implements OnInit {
     });
   }
 
-  drillChannel(channel: AgentChannel): void {
-    const { from, to } = this.period();
-    this.addDrill({
-      key: 'agent',
-      label: `${channel.label} · joined ${from} to ${to}`,
-      params: { ...channel.params, joinedFrom: from, joinedTo: to },
-      entity: 'memberships',
-    });
-  }
-
-  drillAgent(row: AgentPerfRow, event: Event): void {
-    event.stopPropagation();
-    const { from, to } = this.period();
-    this.addDrill({
-      key: 'agent',
-      label: `Agent: ${row.name} · joined ${from} to ${to}`,
-      params: { agentId: row.agentId, joinedFrom: from, joinedTo: to },
-      entity: 'memberships',
-    });
-  }
-
   drillNewJoins(): void {
     const { from, to } = this.period();
-    this.addDrill({
+    this.drill().addFilter({
       key: 'movement',
       label: `Joined ${from} to ${to}`,
       params: { joinedFrom: from, joinedTo: to },
@@ -656,7 +393,7 @@ export class MembershipDashboardComponent implements OnInit {
 
   drillExpired(): void {
     const { from, to } = this.period();
-    this.addDrill({
+    this.drill().addFilter({
       key: 'movement',
       label: `Expired ${from} to ${to}`,
       params: { expiredFrom: from, expiredTo: to },

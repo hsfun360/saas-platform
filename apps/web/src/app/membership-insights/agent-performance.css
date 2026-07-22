@@ -1,0 +1,96 @@
+/* Agent Performance - leaderboard styles (shared toolbar/kpi/card primitives
+   come from insights.css). */
+
+.md-lb {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.md-lb__channel + .md-lb__channel {
+  border-top: 1px solid var(--border);
+}
+
+.md-lb__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.md-lb__expand {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.md-lb__expand:hover { background: var(--surface-hover); }
+
+.md-lb__spacer {
+  flex: 0 0 auto;
+  width: 44px;
+}
+
+.md-lb__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.md-lb__main:hover { background: var(--surface-hover); }
+
+.md-lb__main--static { cursor: default; }
+.md-lb__main--static:hover { background: transparent; }
+
+.md-lb__icon {
+  color: var(--accent);
+  font-size: 20px;
+}
+
+.md-lb__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.md-lb__code {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+.md-lb__count {
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.md-lb__row--muted .md-lb__name,
+.md-lb__row--muted .md-lb__count {
+  color: var(--text-muted);
+}
+
+.md-lb__agents {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--space-xs) 44px;
+}

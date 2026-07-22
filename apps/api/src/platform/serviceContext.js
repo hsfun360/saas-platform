@@ -142,6 +142,65 @@ function requireMenuAction(menuRoute) {
     };
 }
 
+// A screen-agnostic variant for endpoints SHARED by several screens (e.g. the
+// Business Insights drill list, reachable from both analysis pages): the caller
+// passes if ANY of the given menu routes grants them the action. Same
+// permissive defaults as requireMenuAction - admins bypass, and routes not in
+// the catalogue enforce nothing (so if none of the menus exist, allow).
+function requireAnyMenuAction(menuRoutes) {
+    return async (req, res, next) => {
+        try {
+            const { userId, companyId, isSystemAdmin } = getUserContext(req);
+            if (isSystemAdmin) return next();
+            if (!userId || !companyId) {
+                return res.status(403).json({ message: 'No active workspace selected.' });
+            }
+
+            const CompanyUser = require('../modules/saas/companyUser.model');
+            const Role = require('../modules/saas/role.model');
+            const Menu = require('../modules/saas/menu.model');
+            const RoleMenu = require('../modules/saas/roleMenu.model');
+            const { Op } = require('sequelize');
+
+            const membership = await CompanyUser.findOne({
+                where: { userId, companyId },
+                attributes: ['roleId'],
+            });
+            if (!membership || !membership.roleId) {
+                return res.status(403).json({ message: 'You have no role in this workspace.' });
+            }
+            const role = await Role.findByPk(membership.roleId, { attributes: ['id', 'name'] });
+            if (!role) {
+                return res.status(403).json({ message: 'You have no role in this workspace.' });
+            }
+            if (role.name === 'Tenant Admin') return next();
+
+            const menus = await Menu.findAll({
+                where: { route: { [Op.in]: menuRoutes } },
+                attributes: ['id', 'name'],
+            });
+            if (menus.length === 0) return next(); // none in the catalogue -> nothing to enforce
+
+            const grants = await RoleMenu.findAll({
+                where: { roleId: role.id, menuId: { [Op.in]: menus.map((m) => m.id) } },
+            });
+            const action = ACTION_BY_METHOD[req.method] || 'edit';
+            const allowed = grants.some((grant) =>
+                action === 'view' ? true :
+                action === 'create' ? grant.canCreate !== false :
+                action === 'edit' ? grant.canEdit !== false :
+                grant.canDelete !== false);
+            if (!allowed) {
+                return res.status(403).json({ message: `Your role has no access to ${menus.map((m) => m.name).join(' / ')}.` });
+            }
+            return next();
+        } catch (err) {
+            console.error('requireAnyMenuAction permission check failed:', err);
+            return res.status(500).json({ message: 'Permission check failed.' });
+        }
+    };
+}
+
 // --- WHOSE records they may touch (RBAC data scope, Phase 3) ---------------
 // Row-level authorization: a role's `dataScope` ('own' | 'department' | 'all')
 // bounds Edit/Delete to records the caller owns, records of juniors in their
@@ -447,6 +506,7 @@ module.exports = {
     getCompanyProfile,
     requireModule,
     requireMenuAction,
+    requireAnyMenuAction,
     getAccessContext,
     getCallerPlacement,
     canModifyRecord,

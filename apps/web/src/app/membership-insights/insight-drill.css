@@ -1,0 +1,58 @@
+/* Drill panel-specific styles (the shared card/seg/status/empty primitives
+   come from insights.css, included in this component's styleUrls). */
+
+.md-drill {
+  margin-top: var(--space-md);
+}
+
+.md-drill__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.md-drill__head h2 {
+  margin: 0;
+  font-size: var(--font-h3);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.md-drill__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
+}
+
+.md-drill__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 16px;
+  background: var(--surface-selected);
+  color: var(--brand-text);
+  font-size: var(--font-body-2);
+  border: 1px solid var(--border);
+}
+
+.md-drill__chip button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: var(--font-body-2);
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.md-drill__count {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-sm);
+}

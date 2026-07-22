@@ -42,8 +42,9 @@ router.use(requireModule('Membership Management'));
 // --- Club Specification (SRS 2.1.1 - the membership system master) ---
 router.use('/settings', requireMenuAction('/membership/settings'), membershipSettingsRoutes);
 
-// --- Dashboard (analytics over the membership base, read-only) ---
-router.use('/dashboard', requireMenuAction('/membership/dashboard'), dashboardRoutes);
+// --- Business Insights (analytics, read-only; RBAC is per-endpoint inside,
+// gated to the two insight screens' menu routes) ---
+router.use('/dashboard', dashboardRoutes);
 
 // --- Master File Setup ---
 // requireMenuAction adds per-action RBAC on top of the entitlement: the caller's

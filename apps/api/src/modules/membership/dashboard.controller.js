@@ -317,6 +317,8 @@ exports.getBreakdown = async (req, res) => {
 // the period per closing agent (salesAgentId - fixed at joining, the
 // commission driver). The web folds the flat rows into the three-tier channel
 // view (Internal / External / per-Agency). `unattributed` = no agent recorded.
+// `months` = the same closings as a monthly series per channel (the Agent
+// Performance screen's trend chart), empty months filled server-side.
 exports.getAgentPerformance = async (req, res) => {
     try {
         const { companyId } = getUserContext(req);
@@ -326,6 +328,36 @@ exports.getAgentPerformance = async (req, res) => {
 
         const where = { companyId, joinDate: { [Op.between]: [from, to] } };
         if (membershipClass) where.membershipClass = membershipClass;
+
+        const classSql = membershipClass ? 'AND ms."membershipClass" = :membershipClass' : '';
+        const monthlyRows = await sequelize.query(
+            `SELECT to_char(date_trunc('month', ms."joinDate"), 'YYYY-MM') AS month,
+                    CASE WHEN sa."id" IS NULL THEN 'none'
+                         WHEN sa."agentKind" = 'internal' THEN 'internal'
+                         WHEN sa."agentKind" = 'external' THEN 'external'
+                         ELSE 'agency' END AS channel,
+                    COUNT(*)::int AS count
+             FROM membership."Membership" ms
+             LEFT JOIN membership."SalesAgent" sa ON sa."id" = ms."salesAgentId"
+             WHERE ms."companyId" = :companyId AND ms."joinDate" BETWEEN :from AND :to ${classSql}
+             GROUP BY 1, 2`,
+            { replacements: { companyId, from, to, membershipClass }, type: sequelize.QueryTypes.SELECT }
+        );
+        const monthMap = new Map();
+        for (const r of monthlyRows) {
+            const entry = monthMap.get(r.month) || { internal: 0, external: 0, agency: 0, none: 0 };
+            entry[r.channel] = r.count;
+            monthMap.set(r.month, entry);
+        }
+        const months = [];
+        const cursor = new Date(`${from.slice(0, 7)}-01T00:00:00Z`);
+        const end = new Date(`${to.slice(0, 7)}-01T00:00:00Z`);
+        while (cursor <= end) {
+            const key = cursor.toISOString().slice(0, 7);
+            const entry = monthMap.get(key) || { internal: 0, external: 0, agency: 0, none: 0 };
+            months.push({ month: key, ...entry });
+            cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+        }
 
         const grouped = await Membership.findAll({
             where,
@@ -362,7 +394,7 @@ exports.getAgentPerformance = async (req, res) => {
         }
         rows.sort((a, b) => b.count - a.count);
 
-        res.status(200).json({ from, to, agents: rows, unattributed });
+        res.status(200).json({ from, to, agents: rows, unattributed, months });
     } catch (error) {
         console.error('Error loading dashboard agent performance:', error);
         res.status(500).json({ message: 'Internal server error' });

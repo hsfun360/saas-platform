@@ -1,0 +1,148 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">leaderboard</span>
+      <div>
+        <h1>{{ 'Agent Performance' | screenTitle }}</h1>
+        <p class="saas-subtitle">{{ 'Memberships closed per sales channel and agent — click any number for the deals behind it.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- GLOBAL FILTERS -->
+  <div class="md-toolbar">
+    <div class="md-filter" role="group" aria-label="Period">
+      <button type="button" class="md-chip" [class.md-chip--on]="periodPreset() === 'thisMonth'" (click)="setPreset('thisMonth')">This month</button>
+      <button type="button" class="md-chip" [class.md-chip--on]="periodPreset() === 'thisYear'" (click)="setPreset('thisYear')">This year</button>
+      <button type="button" class="md-chip" [class.md-chip--on]="periodPreset() === 'last12'" (click)="setPreset('last12')">Last 12 months</button>
+      <button type="button" class="md-chip" [class.md-chip--on]="periodPreset() === 'custom'" (click)="setPreset('custom')">Custom</button>
+    </div>
+    @if (periodPreset() === 'custom') {
+      <div class="md-custom-range">
+        <label for="apFrom" class="md-range-label">From</label>
+        <input id="apFrom" type="date" [value]="customFrom()" (change)="setCustomFrom(apFromEl.value)" #apFromEl>
+        <label for="apTo" class="md-range-label">To</label>
+        <input id="apTo" type="date" [value]="customTo()" (change)="setCustomTo(apToEl.value)" #apToEl>
+      </div>
+    }
+    <div class="md-selects">
+      <select #classSel [value]="classFilter()" (change)="setClass(classSel.value)" aria-label="Filter by membership class">
+        <option value="">All classes</option>
+        <option value="individual">Individual</option>
+        <option value="corporate">Corporate</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- KPI ROW -->
+  @if (perf(); as p) {
+    <div class="md-kpis md-kpis--five">
+      <button type="button" class="md-kpi md-kpi--click" (click)="drillAllClosed()">
+        <span class="md-kpi__label">Closed in period</span>
+        <span class="md-kpi__value">{{ totals().closed }}</span>
+        <span class="md-kpi__hint">view list</span>
+      </button>
+      <button type="button" class="md-kpi md-kpi--click" (click)="drillKind('internal', 'Staff (Internal)')">
+        <span class="md-kpi__label">Internal staff</span>
+        <span class="md-kpi__value">{{ totals().internal }}</span>
+        <span class="md-kpi__hint">view list</span>
+      </button>
+      <button type="button" class="md-kpi md-kpi--click" (click)="drillKind('external', 'Agents (External)')">
+        <span class="md-kpi__label">External agents</span>
+        <span class="md-kpi__value">{{ totals().external }}</span>
+        <span class="md-kpi__hint">view list</span>
+      </button>
+      <button type="button" class="md-kpi md-kpi--click" (click)="drillKind('agency-staff', 'Agencies')">
+        <span class="md-kpi__label">Agencies</span>
+        <span class="md-kpi__value">{{ totals().agency }}</span>
+        <span class="md-kpi__hint">view list</span>
+      </button>
+      <div class="md-kpi">
+        <span class="md-kpi__label">No agent recorded</span>
+        <span class="md-kpi__value">{{ totals().unattributed }}</span>
+      </div>
+    </div>
+  }
+
+  <div class="md-grid">
+
+    <!-- Monthly trend by channel -->
+    <section class="md-card md-card--wide" aria-label="Monthly closings by channel">
+      <div class="md-card__head">
+        <h2>Closings by channel</h2>
+        <span class="md-card__note">memberships closed per month, stacked by sales channel</span>
+      </div>
+      @if (hasTrendData()) {
+        <app-dash-chart [options]="trendOptions()" [height]="280" (chartClick)="onTrendClick($event)"></app-dash-chart>
+      } @else {
+        <p class="md-empty">No memberships were closed in this period.</p>
+      }
+    </section>
+
+    <!-- Leaderboard -->
+    <section class="md-card md-card--wide" aria-label="Channel and agent leaderboard">
+      <div class="md-card__head">
+        <h2>Leaderboard</h2>
+        <span class="md-card__note">by channel — expand for the agents inside, click a row for the list</span>
+      </div>
+      @if (channels().length === 0 && totals().unattributed === 0) {
+        <p class="md-empty">No memberships were closed in this period.</p>
+      }
+      <ul class="md-lb">
+        @for (ch of channels(); track ch.key) {
+          <li class="md-lb__channel">
+            <div class="md-lb__row">
+              <button type="button" class="md-lb__expand" (click)="toggleChannel(ch.key)"
+                      [attr.aria-expanded]="expandedChannels().has(ch.key)"
+                      [attr.aria-label]="'Toggle agents of ' + ch.label">
+                <span class="material-icons" aria-hidden="true">{{ expandedChannels().has(ch.key) ? 'expand_less' : 'expand_more' }}</span>
+              </button>
+              <button type="button" class="md-lb__main" (click)="drillChannel(ch)">
+                <span class="material-icons md-lb__icon" aria-hidden="true">{{ ch.icon }}</span>
+                <span class="md-lb__name">{{ ch.label }}</span>
+                <span class="md-lb__count">{{ ch.count }}</span>
+              </button>
+            </div>
+            @if (expandedChannels().has(ch.key)) {
+              <ul class="md-lb__agents">
+                @for (a of ch.rows; track a.agentId) {
+                  <li>
+                    <button type="button" class="md-lb__main md-lb__main--agent" (click)="drillAgent(a, $event)">
+                      <span class="md-lb__name">{{ a.name }} <span class="md-lb__code">({{ a.agentCode }})</span></span>
+                      <span class="md-lb__count">{{ a.count }}</span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </li>
+        }
+        @if (totals().unattributed > 0) {
+          <li class="md-lb__channel">
+            <div class="md-lb__row md-lb__row--muted">
+              <span class="md-lb__spacer" aria-hidden="true"></span>
+              <div class="md-lb__main md-lb__main--static">
+                <span class="material-icons md-lb__icon" aria-hidden="true">help_outline</span>
+                <span class="md-lb__name">No agent recorded</span>
+                <span class="md-lb__count">{{ totals().unattributed }}</span>
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+  </div>
+
+  <!-- DRILL-DOWN PANEL -->
+  <app-insight-drill [meta]="meta()" [classFilter]="classFilter()"></app-insight-drill>
+</div>

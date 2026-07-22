@@ -83,11 +83,21 @@ export interface AgentPerfRow {
   count: number;
 }
 
+// Monthly closings split by channel (the Agent Performance trend chart).
+export interface AgentChannelMonth {
+  month: string; // 'YYYY-MM'
+  internal: number;
+  external: number;
+  agency: number;
+  none: number;
+}
+
 export interface AgentPerfResult {
   from: string;
   to: string;
   agents: AgentPerfRow[];
   unattributed: number;
+  months: AgentChannelMonth[];
 }
 
 export interface DrillMembershipRow {
