@@ -17,5 +17,6 @@ Each builds from its app subfolder (`docker build ... apps/web` / `apps/api`).
 ## Documentation
 
 - General working conventions (writing, git, decisions, testing) - [`docs/working-conventions.md`](docs/working-conventions.md)
+- Data model map (entities, schemas, ERDs; refreshed via the `data-model` skill) - [`docs/data-model.md`](docs/data-model.md)
 
 @docs/working-conventions.md
