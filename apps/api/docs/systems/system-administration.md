@@ -12,7 +12,8 @@ for every other service.
 ## Owns (data)
 `Account`, `Company`, `CompanyUser` (membership + role assignment), `Module`,
 `Menu`, `CompanyModule` (subscriptions), `Role`, `RoleMenu` (permissions),
-`Invitation`, `RegistrationLead`.
+`Invitation`, `RegistrationLead`, `UserFavorite` (a user's starred screens for
+My Dashboard's Quick access - see "User favorites" below).
 
 **Subscriber-owned shared reference data** (one list per Account, maintained by the
 Tenant Admin, consumed by the product systems by value reference - never a
@@ -139,6 +140,25 @@ enforcement.
 - Modules & Menus maintenance (the product catalog every core system registers in).
 - Roles + role↔menu permissions; tenant user management; collaborator invitations;
   company profile + module subscriptions.
+- User favorites (self-service): `GET`/`PUT /api/auth/my/favorites` (see below).
+
+## User favorites (My Dashboard Quick access, 2026-07-22)
+`UserFavorite` stores the screens a user pinned via the bookmark star beside
+every screen title, so Quick access follows the user across devices (same
+reasoning as `User.lastWorkspaceId` - never localStorage for durable personal
+state).
+- One row per starred screen: `userId` + `companyId` + `menuId` (unique) +
+  `sequence` (the user's own sort order). Favorites are per WORKSPACE - the
+  same person's list differs per company. All references are plain UUIDs, no
+  DB FKs, per the golden rules. Menu IDS are stored (not routes) so a route or
+  label rename in Modules & Menus cannot break a favorite.
+- `GET /api/auth/my/favorites` returns the ordered `menuIds`;
+  `PUT` replaces the WHOLE ordered list (star toggle and reorder both go
+  through it - same PUT-replace pattern as `CompanyWeekendDay`). Unknown menu
+  ids are dropped server-side; the client additionally renders only ids present
+  in the login's granted-menu cache, so a revoked screen vanishes silently.
+- The web side (`FavoritesService`) toggles optimistically with rollback and
+  performed a one-time migration from the earlier localStorage list.
 
 ## Provides to other services (the authorization contract)
 - **Module subscription check** - "is company X subscribed to module Y?" Backs
@@ -146,6 +166,11 @@ enforcement.
   `GET /api/admin/entitlements?companyId=&module=` (or a signed claim).
 - **Menu-action check** - "may user X's role create/edit/delete on screen Y?"
   Backs `requireMenuAction()` (role -> `RoleMenu` grant flags by `Menu.route`).
+  `requireAnyMenuAction(routes[])` is the variant for endpoints SHARED by
+  several screens (e.g. the Business Insights meta/drill endpoints, reachable
+  from both analysis pages): the caller passes if ANY of the given menu routes
+  grants the action, with the same permissive defaults (admin bypass; menus not
+  in the catalogue enforce nothing).
 - **Data-scope context** - a user's role `dataScope` + department + position
   rank in the active company. Backs `getAccessContext()` /
   `canModifyRecord()` / `annotateCanModify()` for row-level authorization.

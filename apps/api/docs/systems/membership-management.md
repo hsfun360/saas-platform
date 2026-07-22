@@ -336,3 +336,24 @@ Cascade vocabulary decision pending user confirmation: cascades follow `systemCo
 - Which of these are truly tenant-scoped vs. shared platform reference data (Nationality clearly leans platform; Race/Salutation lean locale-curated).
 - Whether Membership Fee is a simple lookup or a richer pricing rule (proration, tax, currency) - may outgrow a plain master file.
 - Default seed sets per file, and whether any are locale-dependent (Salutation, Race).
+
+## Built: Business Insights (analytics, 2026-07-22)
+
+Two read-only analytics screens over the membership base, user-grouped under a "Business Insights" menu group (chosen over Power BI embedding: native charts inherit RBAC/i18n/theming and avoid the Azure/Fabric capacity cost).
+Split into two screens deliberately: lighter page load, and per-screen RBAC so agent/commission analytics can be granted separately from membership demographics.
+
+- `/membership/membership-analysis` - KPI row (total/active/new joins/expired/net/people), monthly movement chart (joins vs contractual expiries), status donut (membership OR member status, coloured by `MembershipStatus.statusColor`), and type / age-band / residential-country / nationality bars.
+- `/membership/agent-performance` - channel KPI row, monthly closings stacked by channel (internal | external | agency | unattributed), and a channel -> agent leaderboard.
+
+API base `/api/membership/dashboard` (`dashboard.controller.js` + `dashboard.routes.js`): `meta`, `summary`, `movement`, `breakdown?dimension=`, `agents`, `drill`.
+No new tables - live company-scoped `GROUP BY` over the CRM base.
+RBAC is per endpoint: summary/movement/breakdown require the membership-analysis menu, agents requires agent-performance, and meta + drill pass with EITHER grant via the `requireAnyMenuAction(routes[])` seam added to `platform/serviceContext.js`.
+
+Semantics decided with the user:
+- "Expired" movement counts `Membership.expiryDate` in the period (contractual - nothing flips status automatically yet), not status changes.
+- The Active KPI counts status classes `active` + `active-absent`.
+- People dimensions count ALL member kinds, with a member-kind filter; country is the residential `Address.countryCode`, UPPER-normalised (stored case varies).
+- Agent performance groups the CLOSING `salesAgentId` (fixed at joining, the commission driver) into the three-tier channel view; `agencyName` is the SalesAgency name column (not `name`), and the type display column is `category`.
+
+Every number drills: `drill` returns the records behind any segment with COMBINABLE filters (status/type/agent/agency/kind/age band/country/nationality/join- and expiry-ranges), paged, as memberships or members.
+The web drill panel (`app/membership-insights/insight-drill.ts`) shows removable cross-filter chips and is shared by both screens; charts are ECharts (lazy chunk) via the shared `dash-chart.ts` wrapper with a light/dark palette in `insight-theme.ts`.
