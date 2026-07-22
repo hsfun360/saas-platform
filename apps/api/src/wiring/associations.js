@@ -40,6 +40,7 @@ const Title = require('../modules/saas/title.model'); // subscriber-owned refere
 const PublicHoliday = require('../modules/saas/publicHoliday.model'); // subscriber-owned reference data, scoped by country (accountId + countryCode value refs; no associations)
 const CompanyWeekendDay = require('../modules/saas/companyWeekendDay.model'); // company-level weekend/rest-day set (companyId value ref; no associations)
 const NumberingScheme = require('../modules/saas/numberingScheme.model'); // per-company document numbering config (companyId value ref; no associations)
+const UserFavorite = require('../modules/saas/userFavorite.model'); // My Dashboard starred screens per user+workspace (userId/companyId/menuId value refs; no associations)
 // Product tier (Membership Management). Master files reference companyId by plain
 // UUID (no cross-service FK), per the golden rules. Intra-service parent-child
 // links (fee -> stages, type -> fee lines) DO use real associations - that
@@ -226,6 +227,7 @@ module.exports = {
     PublicHoliday,
     CompanyWeekendDay,
     NumberingScheme,
+    UserFavorite,
     MembershipStatus,
     MembershipFee,
     MembershipFeeScheme,

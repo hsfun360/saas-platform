@@ -65,6 +65,10 @@ export class FavStarComponent {
   private readonly router = inject(Router);
   private readonly favorites = inject(FavoritesService);
 
+  constructor() {
+    this.favorites.ensureLoaded();
+  }
+
   // Resolve the screen's granted menu route once - the component lives inside
   // the screen's template, so it is recreated on every navigation.
   readonly menuRoute = computed<string | null>(() => {

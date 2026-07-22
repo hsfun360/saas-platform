@@ -30,6 +30,7 @@ const positionController = require('../saas/position.controller');
 const publicHolidayController = require('../saas/publicHoliday.controller');
 const weekendDayController = require('../saas/companyWeekendDay.controller');
 const numberingSchemeController = require('../saas/numberingScheme.controller');
+const userFavoriteController = require('../saas/userFavorite.controller');
 const { hasTenantAdminRole } = require('../saas/tenant');
 
 // Test Route to verify that the auth routes are working
@@ -289,6 +290,10 @@ router.patch('/account/salutations/:id', authenticateToken, requireTenant, requi
 // --- SUBSCRIBER NATIONALITIES (Tenant Admin self-service) ---
 // Subscriber-owned nationality list, each entry optionally anchored to a platform
 // Country (alpha-2); shared account-wide and consumed via /api/nationalities.
+// --- My Dashboard favorites (self-service; any authenticated workspace user) ---
+router.get('/my/favorites', authenticateToken, userFavoriteController.listMyFavorites);
+router.put('/my/favorites', authenticateToken, userFavoriteController.replaceMyFavorites);
+
 router.get('/account/nationalities', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.listNationalities);
 router.post('/account/nationalities', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.createNationality);
 router.patch('/account/nationalities/:id', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.updateNationality);

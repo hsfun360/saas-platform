@@ -21,28 +21,45 @@
     }
   </section>
 
-  <!-- QUICK ACCESS (starred screens) -->
+  <!-- QUICK ACCESS (starred screens, grouped by module) -->
   <section aria-label="Quick access">
-    <h2 class="sd-section-title">Quick access</h2>
-    @if (quickAccess().length) {
-      <div class="sd-tiles grid-3">
-        @for (m of quickAccess(); track m.route) {
-          <div class="sd-tile hm-tile">
-            <a class="hm-tile__link" [routerLink]="m.route">
-              <span class="sd-tile__icon material-icons" aria-hidden="true">{{ m.icon || 'article' }}</span>
-              <span class="sd-tile__text">
-                <span class="sd-tile__name">{{ label(m) }}</span>
-                <span class="sd-tile__desc">{{ moduleLabel(m) }}</span>
-              </span>
-            </a>
-            <button type="button" class="hm-tile__unpin" (click)="unpin(m.route)"
-                    [attr.aria-label]="'Remove ' + label(m) + ' from quick access'"
-                    title="Remove from My Dashboard">
-              <span class="material-icons" aria-hidden="true">star</span>
-            </button>
+    <div class="hm-section-head">
+      <h2 class="sd-section-title">Quick access</h2>
+      @if (hasFavorites()) {
+        <button type="button" class="btn btn--secondary btn--sm" (click)="openManage()">
+          <span class="material-icons" aria-hidden="true">tune</span> Manage
+        </button>
+      }
+    </div>
+    @if (hasFavorites()) {
+      @for (g of favoriteGroups(); track g.moduleName) {
+        <div class="hm-group">
+          <h3 class="hm-group__title">
+            <span class="material-icons" aria-hidden="true">{{ g.moduleIcon }}</span>
+            {{ g.moduleLabel }}
+          </h3>
+          <div class="sd-tiles grid-3">
+            @for (m of g.tiles; track m.route) {
+              <div class="sd-tile hm-tile">
+                <a class="hm-tile__link" [routerLink]="m.route">
+                  <span class="sd-tile__icon material-icons" aria-hidden="true">{{ m.icon || 'article' }}</span>
+                  <span class="sd-tile__text">
+                    <span class="sd-tile__name">{{ label(m) }}</span>
+                    @if (description(m)) {
+                      <span class="sd-tile__desc">{{ description(m) }}</span>
+                    }
+                  </span>
+                </a>
+                <button type="button" class="hm-tile__unpin" (click)="unpin(m.route)"
+                        [attr.aria-label]="'Remove ' + label(m) + ' from quick access'"
+                        title="Remove from My Dashboard">
+                  <span class="material-icons" aria-hidden="true">star</span>
+                </button>
+              </div>
+            }
           </div>
-        }
-      </div>
+        </div>
+      }
     } @else {
       <div class="sd-empty">
         <span class="material-icons" aria-hidden="true">star_border</span>
@@ -83,5 +100,45 @@
         </div>
       </div>
     </section>
+  }
+
+  <!-- MANAGE QUICK ACCESS DIALOG -->
+  @if (manageOpen()) {
+    <app-dialog #dlg title="Manage quick access" [dirty]="manageDirty()" (close)="manageOpen.set(false)"
+                discardTitle="Discard your changes?"
+                discardMessage="The new order has not been saved and will be lost if you leave.">
+      <p class="hm-mg__hint">Reorder your pinned screens or remove them. On My Dashboard they display grouped by system, in this order.</p>
+      <ul class="hm-mg" aria-label="Pinned screens">
+        @for (m of manageList(); track m.id; let i = $index; let isFirst = $first; let isLast = $last) {
+          <li class="hm-mg__row">
+            <span class="material-icons hm-mg__icon" aria-hidden="true">{{ m.icon || 'article' }}</span>
+            <span class="hm-mg__text">
+              <span class="hm-mg__name">{{ label(m) }}</span>
+              <span class="hm-mg__mod">{{ moduleLabel(m) }}</span>
+            </span>
+            <span class="hm-mg__actions">
+              <button type="button" class="hm-mg__btn" [disabled]="isFirst" (click)="moveManaged(i, -1)"
+                      [attr.aria-label]="'Move ' + label(m) + ' up'">
+                <span class="material-icons" aria-hidden="true">arrow_upward</span>
+              </button>
+              <button type="button" class="hm-mg__btn" [disabled]="isLast" (click)="moveManaged(i, 1)"
+                      [attr.aria-label]="'Move ' + label(m) + ' down'">
+                <span class="material-icons" aria-hidden="true">arrow_downward</span>
+              </button>
+              <button type="button" class="hm-mg__btn hm-mg__btn--danger" (click)="removeManaged(i)"
+                      [attr.aria-label]="'Remove ' + label(m) + ' from quick access'">
+                <span class="material-icons" aria-hidden="true">close</span>
+              </button>
+            </span>
+          </li>
+        } @empty {
+          <li class="hm-mg__empty">All screens removed — Save to clear your quick access, or Cancel to keep it.</li>
+        }
+      </ul>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Cancel</button>
+        <button type="button" class="btn btn--primary" (click)="saveManage()" [disabled]="!manageDirty()">Save</button>
+      </ng-container>
+    </app-dialog>
   }
 </div>
