@@ -266,4 +266,99 @@ module.exports = [
             </p>
         `),
     },
+    {
+        key: 'workflow.task.assigned',
+        name: 'Approval task assigned',
+        description: 'Sent to each approver when a workflow step assigns them a pending approval task.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'assigneeName', description: "The approver's display name." },
+            { name: 'stepName', description: 'The approval step awaiting them (e.g. "Membership Manager approval").' },
+            { name: 'documentLabel', description: 'The document under approval (e.g. "Membership APP-2026-00012").' },
+            { name: 'purposeName', description: 'The document type (e.g. "Membership application").' },
+            { name: 'approvalsLink', description: 'Link to the My Approvals inbox.' },
+        ],
+        sample: {
+            assigneeName: 'Jane Lim',
+            stepName: 'Membership Manager approval',
+            documentLabel: 'Membership APP-2026-00012',
+            purposeName: 'Membership application',
+            approvalsLink: 'https://app.example.com/approvals',
+        },
+        fromName: null,
+        subject: 'Approval needed: {{documentLabel}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Your approval is needed</h2>
+            <p>Hello {{assigneeName}},</p>
+            <p>A {{purposeName}} - <strong>{{documentLabel}}</strong> - is waiting for you at the step <strong>{{stepName}}</strong>.</p>
+            <div style="text-align: center; margin-top: 24px;">
+                ${button('{{approvalsLink}}', 'Open My Approvals')}
+            </div>
+            <p style="margin-top: 20px; font-size: 12px; color: #777;">
+                You are receiving this because an approval workflow step is assigned to you.
+            </p>
+        `),
+    },
+    {
+        key: 'workflow.task.reminder',
+        name: 'Approval task reminder',
+        description: 'Sent once when a pending approval task passes its reminder time (the step SLA hours).',
+        tenantOverridable: true,
+        variables: [
+            { name: 'assigneeName', description: "The approver's display name." },
+            { name: 'stepName', description: 'The approval step still awaiting them.' },
+            { name: 'documentLabel', description: 'The document under approval.' },
+            { name: 'purposeName', description: 'The document type.' },
+            { name: 'approvalsLink', description: 'Link to the My Approvals inbox.' },
+        ],
+        sample: {
+            assigneeName: 'Jane Lim',
+            stepName: 'Membership Manager approval',
+            documentLabel: 'Membership APP-2026-00012',
+            purposeName: 'Membership application',
+            approvalsLink: 'https://app.example.com/approvals',
+        },
+        fromName: null,
+        subject: 'Reminder - approval still needed: {{documentLabel}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">A pending approval needs your attention</h2>
+            <p>Hello {{assigneeName}},</p>
+            <p>The {{purposeName}} <strong>{{documentLabel}}</strong> is still waiting for your decision at the step <strong>{{stepName}}</strong>.</p>
+            <div style="text-align: center; margin-top: 24px;">
+                ${button('{{approvalsLink}}', 'Open My Approvals')}
+            </div>
+        `),
+    },
+    {
+        key: 'workflow.completed',
+        name: 'Approval outcome',
+        description: 'Sent to the submitter when the approval workflow of their document finishes (approved or rejected).',
+        tenantOverridable: true,
+        variables: [
+            { name: 'submitterName', description: "The submitter's display name." },
+            { name: 'documentLabel', description: 'The document that completed approval.' },
+            { name: 'purposeName', description: 'The document type.' },
+            { name: 'outcome', description: "'approved' or 'rejected'." },
+            { name: 'approved', description: 'Boolean convenience flag for {{#if approved}} blocks.' },
+        ],
+        sample: {
+            submitterName: 'Adam Tan',
+            documentLabel: 'Membership APP-2026-00012',
+            purposeName: 'Membership application',
+            outcome: 'approved',
+            approved: true,
+        },
+        fromName: null,
+        subject: '{{documentLabel}} - {{outcome}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">{{#if approved}}Approved{{else}}Not approved{{/if}}</h2>
+            <p>Hello {{submitterName}},</p>
+            <p>The approval for your {{purposeName}} <strong>{{documentLabel}}</strong> has completed: it was <strong>{{outcome}}</strong>.</p>
+            {{#if approved}}
+            <p>No further action is needed from you.</p>
+            {{else}}
+            <p>You can review the approvers' comments on the document's approval history, make the necessary changes and submit it again.</p>
+            {{/if}}
+        `),
+    },
 ];

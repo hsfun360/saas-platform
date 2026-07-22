@@ -53,6 +53,11 @@ const facilityRoutes = require('./modules/facility/facility.routes');
 // Shared financial reference (Tax) - subscriber-owned scheme catalog consumed by
 // the product systems. Its own gateway seam so it can be split out later.
 const taxRoutes = require('./modules/tax/tax.routes');
+// Shared capability (Workflow) - user-definable approval chains consumed by the
+// product systems through platform/workflowGateway.js. Own gateway seam.
+const workflowRoutes = require('./modules/workflow/workflow.routes');
+// Completion-handler registration (producer modules hook onto their purposes).
+require('./wiring/workflowHandlers');
 
 // --- Build the Express application ---
 function createApp() {
@@ -98,6 +103,8 @@ function createApp() {
     app.use('/api/facility', facilityRoutes);
     // Shared financial reference (Tax) - its own seam, consumed by the above.
     app.use('/api/tax', taxRoutes);
+    // Shared capability (Workflow) - approval chains, its own seam.
+    app.use('/api/workflow', workflowRoutes);
 
     // Simple Health Check Route
     app.get('/', (req, res) => {

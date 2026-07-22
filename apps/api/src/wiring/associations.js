@@ -81,6 +81,13 @@ const TaxScheme = require('../modules/tax/taxScheme.model');
 const TaxRate = require('../modules/tax/taxRate.model');
 const CompanyTaxScheme = require('../modules/tax/companyTaxScheme.model');
 const CompanyTaxAccount = require('../modules/tax/companyTaxAccount.model');
+// Shared capability (Workflow). Definition/steps and instance/tasks are
+// intra-service header/detail pairs (real FKs); account/company/role/
+// department/position/user/entity references stay plain UUIDs (no FK).
+const WorkflowDefinition = require('../modules/workflow/workflowDefinition.model');
+const WorkflowStep = require('../modules/workflow/workflowStep.model');
+const WorkflowInstance = require('../modules/workflow/workflowInstance.model');
+const WorkflowTask = require('../modules/workflow/workflowTask.model');
 
 // --- DEFINE SAAS RELATIONSHIPS ---
 
@@ -199,6 +206,14 @@ CompanyTaxScheme.belongsTo(TaxScheme, { foreignKey: 'taxSchemeId', as: 'Scheme' 
 CompanyTaxScheme.hasMany(CompanyTaxAccount, { foreignKey: 'companyTaxSchemeId', as: 'GlOverrides', onDelete: 'CASCADE' });
 CompanyTaxAccount.belongsTo(CompanyTaxScheme, { foreignKey: 'companyTaxSchemeId', as: 'CompanyScheme' });
 
+// 10. Workflow header/detail pairs (wholly inside the Workflow service).
+// Definition -> ordered steps (steps are replaced wholesale on edit).
+WorkflowDefinition.hasMany(WorkflowStep, { foreignKey: 'definitionId', as: 'Steps', onDelete: 'CASCADE' });
+WorkflowStep.belongsTo(WorkflowDefinition, { foreignKey: 'definitionId', as: 'Definition' });
+// Instance -> its task trail (the approval audit; cascades only with the instance).
+WorkflowInstance.hasMany(WorkflowTask, { foreignKey: 'instanceId', as: 'Tasks', onDelete: 'CASCADE' });
+WorkflowTask.belongsTo(WorkflowInstance, { foreignKey: 'instanceId', as: 'Instance' });
+
 module.exports = {
     User,
     OutboxMessage,
@@ -254,4 +269,8 @@ module.exports = {
     TaxRate,
     CompanyTaxScheme,
     CompanyTaxAccount,
+    WorkflowDefinition,
+    WorkflowStep,
+    WorkflowInstance,
+    WorkflowTask,
 };

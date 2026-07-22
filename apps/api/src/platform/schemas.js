@@ -23,10 +23,14 @@ const FACILITY_SCHEMA = 'facility';
 // It owns tax definitions + rate resolution; it is nobody's sub-module, so it lives
 // in its own schema and extracts cleanly like any other product service.
 const TAX_SCHEMA = 'tax';
+// Shared capability like tax: user-definable approval workflows, consumed by the
+// product systems through platform/workflowGateway.js. Own schema, extracts
+// cleanly like any other service.
+const WORKFLOW_SCHEMA = 'workflow';
 
 // Schemas that must exist before `sequelize.sync()` creates the product tables.
 // A service is added here as soon as it defines its first schema-scoped model.
-const PRODUCT_SCHEMAS = [MEMBERSHIP_SCHEMA, GOLF_SCHEMA, TAX_SCHEMA];
+const PRODUCT_SCHEMAS = [MEMBERSHIP_SCHEMA, GOLF_SCHEMA, TAX_SCHEMA, WORKFLOW_SCHEMA];
 
 // Idempotently create every product schema. Runs once at boot, before sync,
 // inside the same advisory-locked block so only one instance does it.
@@ -42,6 +46,7 @@ module.exports = {
     GOLF_SCHEMA,
     FACILITY_SCHEMA,
     TAX_SCHEMA,
+    WORKFLOW_SCHEMA,
     PRODUCT_SCHEMAS,
     ensureProductSchemas,
 };

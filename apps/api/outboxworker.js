@@ -15,3 +15,9 @@ http.createServer((req, res) => res.end('Worker is alive!')).listen(PORT, () => 
 const { startWorker } = require('./src/modules/notification/notification.worker');
 
 startWorker();
+
+// 3. Workflow SLA reminders: scan pending approval tasks past their reminder
+// time every 5 minutes (the scan enqueues to the outbox; the poller above
+// dispatches). Time-driven workflow work lives HERE, never in an API request.
+const { scanSlaReminders } = require('./src/modules/workflow/workflow.reminders');
+setInterval(() => scanSlaReminders().catch((err) => console.error('[WORKFLOW SLA] Unhandled scan error:', err)), 5 * 60 * 1000);

@@ -488,6 +488,80 @@ async function listAccountCurrencies(req) {
     }));
 }
 
+// --- WHO can approve (workflow assignee resolution) ------------------------
+// The Workflow service's approver rules point at Control-Plane org data (roles,
+// departments/positions, company users). It resolves them HERE - never by
+// requiring the saas models - so the org lookup moves with the Control Plane
+// when services split.
+//
+// WHEN SPLIT: GET {control-plane}/api/admin/companies/<companyId>/users?role=...
+// Callers unchanged.
+
+// Resolve a workflow step's approver rule to concrete people in `companyId`:
+// [{ userId, name, email }]. Resolution happens at STEP ACTIVATION (not at
+// definition time) so staff changes are picked up naturally.
+// rule = { approverType, approverRoleId, approverDepartmentId,
+//          approverPositionId, approverUserId } (a WorkflowStep row/snapshot).
+async function resolveApprovers(companyId, rule) {
+    const User = require('../modules/identity/user.model');
+    const CompanyUser = require('../modules/saas/companyUser.model');
+
+    let userIds = [];
+    if (rule.approverType === 'user' && rule.approverUserId) {
+        userIds = [rule.approverUserId];
+    } else if (rule.approverType === 'role' && rule.approverRoleId) {
+        const memberships = await CompanyUser.findAll({
+            where: { companyId, roleId: rule.approverRoleId },
+            attributes: ['userId'],
+        });
+        userIds = memberships.map((m) => m.userId);
+    } else if (rule.approverType === 'department-position' && rule.approverDepartmentId) {
+        const where = { companyId, departmentId: rule.approverDepartmentId };
+        if (rule.approverPositionId) where.positionId = rule.approverPositionId;
+        const memberships = await CompanyUser.findAll({ where, attributes: ['userId'] });
+        userIds = memberships.map((m) => m.userId);
+    }
+    userIds = [...new Set(userIds.filter(Boolean))];
+    if (!userIds.length) return [];
+
+    const users = await User.findAll({ where: { id: userIds }, attributes: ['id', 'full_name', 'email'] });
+    return users.map((u) => ({ userId: u.id, name: u.full_name || u.email, email: u.email }));
+}
+
+// The approver-picker option lists for the workflow designer, scoped to the
+// caller's subscription: account roles, departments, positions, and the users
+// of the ACTIVE company. Returns { roles, departments, positions, users }.
+async function listApproverOptions(req) {
+    const { companyId } = getUserContext(req);
+    const accountId = await getActiveAccountId(req);
+    if (!accountId) return { roles: [], departments: [], positions: [], users: [] };
+
+    const User = require('../modules/identity/user.model');
+    const CompanyUser = require('../modules/saas/companyUser.model');
+    const Role = require('../modules/saas/role.model');
+    const Department = require('../modules/saas/department.model');
+    const Position = require('../modules/saas/position.model');
+
+    const [roles, departments, positions, memberships] = await Promise.all([
+        Role.findAll({ where: { accountId }, attributes: ['id', 'name'], order: [['name', 'ASC']] }),
+        Department.findAll({ where: { accountId, isActive: true }, attributes: ['id', 'departmentCode', 'description'], order: [['departmentCode', 'ASC']] }),
+        Position.findAll({ where: { accountId, isActive: true }, attributes: ['id', 'positionCode', 'description', 'rank'], order: [['rank', 'DESC']] }),
+        companyId ? CompanyUser.findAll({ where: { companyId }, attributes: ['userId'] }) : [],
+    ]);
+
+    const userIds = [...new Set(memberships.map((m) => m.userId).filter(Boolean))];
+    const users = userIds.length
+        ? await User.findAll({ where: { id: userIds }, attributes: ['id', 'full_name', 'email'], order: [['full_name', 'ASC']] })
+        : [];
+
+    return {
+        roles: roles.map((r) => ({ id: r.id, name: r.name })),
+        departments: departments.map((d) => ({ id: d.id, code: d.departmentCode, name: d.description || d.departmentCode })),
+        positions: positions.map((p) => ({ id: p.id, code: p.positionCode, name: p.description || p.positionCode, rank: p.rank })),
+        users: users.map((u) => ({ id: u.id, name: u.full_name || u.email, email: u.email })),
+    };
+}
+
 // --- CALLING another service ---------------------------------------------
 // Resolve the base URL of a peer service. In the monolith this is null (same
 // process / same gateway). When a service is split out, set its env var
@@ -513,6 +587,8 @@ module.exports = {
     annotateCanModify,
     listSubscriptionCompanies,
     listAccountCurrencies,
+    resolveApprovers,
+    listApproverOptions,
     getPlatformProfile,
     internalServiceUrl,
 };
