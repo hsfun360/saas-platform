@@ -75,4 +75,21 @@ export class HelpService {
   loadManual(slug: string) {
     return this.http.get(`/help/${slug}.md`, { responseType: 'text' });
   }
+
+  /**
+   * Does a manual exist for the given route? Same slug resolution as
+   * currentSlug (exact, then drop trailing segments), but for an arbitrary
+   * route - used by the system launchpad to list guides for granted screens.
+   * Returns the manifest slug, or null (also while the manifest is loading).
+   */
+  manualSlugFor(route: string): string | null {
+    const manifest = this.manifest();
+    if (!manifest) return null;
+    const segments = route.split('?')[0].split('#')[0].split('/').filter(Boolean);
+    for (let end = segments.length; end > 0; end--) {
+      const slug = segments.slice(0, end).join('-');
+      if (manifest[slug]) return slug;
+    }
+    return null;
+  }
 }

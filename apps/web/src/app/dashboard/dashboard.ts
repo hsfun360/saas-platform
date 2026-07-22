@@ -5,6 +5,7 @@ import { AuthService } from '../auth.service';
 import { ActiveSystemService } from '../services/active-system.service';
 import { LanguageService } from '../services/language.service';
 import { I18nService } from '../i18n/i18n.service';
+import { RecentScreensService } from '../services/recent-screens.service';
 import { TranslatePipe } from '../i18n/translate.pipe';
 import { HelpButtonComponent } from '../shared/help-button/help-button';
 import { MenuItem, WorkspaceOption, MyInvitation, Language } from '../models/auth.models';
@@ -115,6 +116,9 @@ export class Dashboard implements OnInit {
     private activeSystem: ActiveSystemService,
     private languageService: LanguageService,
     public i18n: I18nService,
+    // Instantiated with the shell so screen visits are tracked from the first
+    // navigation (feeds the launchpad's "continue where you left off" row).
+    _recentScreens: RecentScreensService,
   ) {}
 
   ngOnInit(): void {
