@@ -428,6 +428,10 @@
 /* SIDEBAR */
 .sidebar {
   width: 72px; /* Icons only width */
+  /* NEVER let flex shrink the nav to pay for wide page content - without
+     this a wide screen (/home tiles at 1024px) squeezed the sidebar and
+     truncated labels. Overflow is .content-area's job (min-width: 0). */
+  flex-shrink: 0;
   background: var(--surface-card);
   display: flex;
   flex-direction: column;
@@ -689,6 +693,9 @@
 /* CONTENT AREA */
 .content-area {
   flex-grow: 1;
+  /* min-width: 0 makes THIS column absorb over-wide content (scroll/wrap
+     inside) instead of pushing the flex row wider and squeezing the sidebar. */
+  min-width: 0;
   background-color: var(--surface-page);
   padding: var(--space-lg);
   overflow-y: auto; /* Allow vertical scroll only inside the content area */
