@@ -138,28 +138,30 @@ export class HomeComponent {
     return this.qaCollapsed().has(moduleName);
   }
 
-  // Quick access = starred screens, grouped by module (module order follows
-  // the granted-menu cache, i.e. the platform's module ordering; the user's
-  // starred sequence orders the tiles WITHIN each module).
+  // Quick access = starred screens, grouped by module. BOTH orders are the
+  // user's own saved sequence (one flat server-side list): a module group's
+  // position = the first occurrence of any of its screens in the sequence
+  // (so dragging a group in Manage persists through the same flat list), and
+  // the sequence orders the tiles WITHIN each module.
   readonly favoriteGroups = computed<FavoriteGroup[]>(() => {
     this.i18n.lang(); // re-render labels on language change
-    const menus = this.grantedMenus();
-    const favs = this.favorites.list(menus);
-    const groups = new Map<string, FavoriteGroup>();
-    // Seed group order from the menu cache so modules appear consistently.
-    for (const m of menus) {
-      const key = m.moduleName || '';
-      if (!groups.has(key)) {
-        groups.set(key, {
+    const favs = this.favorites.list(this.grantedMenus());
+    const groups = new Map<string, FavoriteGroup>(); // Map keeps first-occurrence order
+    for (const fav of favs) {
+      const key = fav.moduleName || '';
+      let group = groups.get(key);
+      if (!group) {
+        group = {
           moduleName: key,
-          moduleLabel: this.moduleLabel(m),
-          moduleIcon: m.moduleIcon || 'apps',
+          moduleLabel: this.moduleLabel(fav),
+          moduleIcon: fav.moduleIcon || 'apps',
           tiles: [],
-        });
+        };
+        groups.set(key, group);
       }
+      group.tiles.push(fav);
     }
-    for (const fav of favs) groups.get(fav.moduleName || '')?.tiles.push(fav);
-    return [...groups.values()].filter((g) => g.tiles.length > 0);
+    return [...groups.values()];
   });
 
   readonly hasFavorites = computed(() => this.favoriteGroups().length > 0);
@@ -238,6 +240,15 @@ export class HomeComponent {
     if (event.previousIndex === event.currentIndex) return;
     moveItemInArray(group.tiles, event.previousIndex, event.currentIndex);
     this.manageGroups.set(this.manageGroups().map((g) => (g === group ? { ...g, tiles: [...g.tiles] } : g)));
+  }
+
+  // Drag a whole module group by its header handle - Save persists the new
+  // order through the same flat list (groups flatten top-to-bottom).
+  dropGroup(event: CdkDragDrop<FavoriteGroup[]>): void {
+    if (event.previousIndex === event.currentIndex) return;
+    const groups = [...this.manageGroups()];
+    moveItemInArray(groups, event.previousIndex, event.currentIndex);
+    this.manageGroups.set(groups);
   }
 
   removeManaged(group: FavoriteGroup, index: number): void {

@@ -139,10 +139,14 @@
     <app-dialog #dlg title="Manage quick access" [dirty]="manageDirty()" (close)="manageOpen.set(false)"
                 discardTitle="Discard your changes?"
                 discardMessage="The new order has not been saved and will be lost if you leave.">
-      <p class="hm-mg__hint">Drag a screen to reorder it within its system, or remove it. My Dashboard shows them in this order.</p>
+      <p class="hm-mg__hint">Drag a system block to reorder the systems, drag a screen to reorder it within its system, or remove it. My Dashboard shows them in this order.</p>
+      <div class="hm-mg-groups" cdkDropList [cdkDropListData]="manageGroups()" (cdkDropListDropped)="dropGroup($event)">
       @for (g of manageGroups(); track g.moduleName) {
-        <div class="hm-mg-group">
+        <div class="hm-mg-group" cdkDrag>
           <div class="hm-mg-group__head">
+            <button type="button" cdkDragHandle class="hm-mg-grip" [attr.aria-label]="'Reorder ' + g.moduleLabel">
+              <span class="material-icons" aria-hidden="true">drag_indicator</span>
+            </button>
             <button type="button" class="hm-mg-caret" (click)="toggleManageGroup(g.moduleName)"
                     [attr.aria-expanded]="!isManageCollapsed(g.moduleName)"
                     [attr.aria-label]="(isManageCollapsed(g.moduleName) ? 'Expand ' : 'Collapse ') + g.moduleLabel">
@@ -178,6 +182,7 @@
       } @empty {
         <p class="hm-mg__empty">All screens removed — Save to clear your quick access, or Cancel to keep it.</p>
       }
+      </div>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Cancel</button>
         <button type="button" class="btn btn--primary" (click)="saveManage()" [disabled]="!manageDirty()">Save</button>
