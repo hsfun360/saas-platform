@@ -8,8 +8,6 @@ const adminController = require('./admin.controller');
 const countryController = require('./country.controller');
 const languageController = require('./language.controller');
 const currencyController = require('./currency.controller');
-const accountLanguageController = require('./accountLanguage.controller');
-const accountCurrencyController = require('./accountCurrency.controller');
 const emailTemplateController = require('../notification/emailTemplate.controller');
 const taxController = require('../tax/tax.controller');
 const platformProfileController = require('./platformProfile.controller');
@@ -53,12 +51,11 @@ router.patch('/users/:id', adminController.updateUser);
 router.post('/subscriptions', adminController.createSubscription);
 router.get('/subscriptions', adminController.listSubscriptions);
 router.patch('/subscriptions/:id', adminController.updateSubscription);
-// A subscriber's language selection (subset of active languages + default).
-router.get('/subscriptions/:id/languages', accountLanguageController.getSubscriptionLanguages);
-router.put('/subscriptions/:id/languages', accountLanguageController.updateSubscriptionLanguages);
-// A subscriber's currency selection (subset of active currencies + default).
-router.get('/subscriptions/:id/currencies', accountCurrencyController.getSubscriptionCurrencies);
-router.put('/subscriptions/:id/currencies', accountCurrencyController.updateSubscriptionCurrencies);
+// NOTE (role separation, 2026-07-14): the platform deliberately has NO endpoints
+// to edit a subscriber's language/currency selection. Those are tenant
+// self-service only (/auth/account/languages, /auth/account/currencies) - the
+// control plane manages the contract, never tenant preference data. The one
+// sanctioned exception is Tenant Admin recovery (assign-role below).
 
 // Platform email templates (edit defaults, preview, reset, send test)
 router.get('/email-templates', emailTemplateController.listPlatformTemplates);

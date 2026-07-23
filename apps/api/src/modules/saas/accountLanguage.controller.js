@@ -79,31 +79,8 @@ exports.updateAccountLanguages = async (req, res) => {
     }
 };
 
-// ---- System Admin (Subscriber Management); :id is the Account id ----
-
-// GET /admin/subscriptions/:id/languages
-exports.getSubscriptionLanguages = async (req, res) => {
-    try {
-        const state = await getAccountLanguageState(req.params.id);
-        res.status(200).json(state);
-    } catch (error) {
-        console.error('Error getting subscription languages:', error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-};
-
-// PUT /admin/subscriptions/:id/languages
-exports.updateSubscriptionLanguages = async (req, res) => {
-    try {
-        const result = await applyAccountLanguages(req.params.id, req.body);
-        if (result.error) return res.status(result.error).json({ message: result.message });
-        const state = await getAccountLanguageState(req.params.id);
-        res.status(200).json({ message: 'Languages updated.', ...state });
-    } catch (error) {
-        console.error('Error updating subscription languages:', error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-};
+// NOTE (role separation): there are deliberately NO platform-side handlers for
+// a subscriber's language selection - tenant self-service only (above).
 
 // ---- Per-user preference ----
 

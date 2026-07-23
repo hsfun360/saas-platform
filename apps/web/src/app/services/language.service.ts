@@ -56,21 +56,6 @@ export class LanguageService {
     );
   }
 
-  // --- Subscriber (Account) selection: System Admin, by subscriber (account) id ---
-  getSubscriptionLanguages(accountId: string): Observable<AccountLanguageState> {
-    return this.http.get<AccountLanguageState>(`${this.apiUrl}/admin/subscriptions/${accountId}/languages`);
-  }
-
-  updateSubscriptionLanguages(
-    accountId: string,
-    languageCodes: string[],
-    defaultLanguageCode: string | null,
-  ): Observable<AccountLanguageState & { message: string }> {
-    return this.http.put<AccountLanguageState & { message: string }>(
-      `${this.apiUrl}/admin/subscriptions/${accountId}/languages`, { languageCodes, defaultLanguageCode },
-    );
-  }
-
   // --- Per-user preferred language ---
   getMyLanguage(): Observable<UserLanguageState> {
     return this.http.get<UserLanguageState>(`${this.apiUrl}/auth/me/language`);

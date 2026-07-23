@@ -51,18 +51,4 @@ export class CurrencyService {
     );
   }
 
-  // --- Subscriber (Account) selection: System Admin, by subscriber (account) id ---
-  getSubscriptionCurrencies(accountId: string): Observable<AccountCurrencyState> {
-    return this.http.get<AccountCurrencyState>(`${this.apiUrl}/admin/subscriptions/${accountId}/currencies`);
-  }
-
-  updateSubscriptionCurrencies(
-    accountId: string,
-    currencyCodes: string[],
-    defaultCurrencyCode: string | null,
-  ): Observable<AccountCurrencyState & { message: string }> {
-    return this.http.put<AccountCurrencyState & { message: string }>(
-      `${this.apiUrl}/admin/subscriptions/${accountId}/currencies`, { currencyCodes, defaultCurrencyCode },
-    );
-  }
 }

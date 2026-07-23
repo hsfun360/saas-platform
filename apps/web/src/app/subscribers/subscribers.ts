@@ -10,11 +10,9 @@ import {
   Validators,
 } from '@angular/forms';
 import { AdminService } from '../services/admin.service';
-import { LanguageService } from '../services/language.service';
-import { CurrencyService } from '../services/currency.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
-import { SubscriptionInfo, AdminModule, TenantUser, Language, Currency } from '../models/auth.models';
+import { SubscriptionInfo, AdminModule, TenantUser } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Group-level cross-field validator for the create form: password and
@@ -107,28 +105,6 @@ export class SubscribersComponent implements OnInit {
   companyUsers: TenantUser[] = [];
   readonly companyUsersLoading = signal(false);
   settingAdminUserId: string | null = null;
-
-  // ── Manage subscriber languages (opened from a card's Languages button) ──
-  private readonly languageService = inject(LanguageService);
-  readonly languageDialogOpen = signal(false);
-  readonly languagesLoading = signal(false);
-  readonly savingLanguages = signal(false);
-  languageAccountId: string | null = null;
-  languageSubscriberName = '';
-  languageAvailable: Language[] = [];
-  languageSelected = new Set<string>();
-  languageDefault = '';
-
-  // ── Manage subscriber currencies (opened from a card's Currencies button) ──
-  private readonly currencyService = inject(CurrencyService);
-  readonly currencyDialogOpen = signal(false);
-  readonly currenciesLoading = signal(false);
-  readonly savingCurrencies = signal(false);
-  currencyAccountId: string | null = null;
-  currencySubscriberName = '';
-  currencyAvailable: Currency[] = [];
-  currencySelected = new Set<string>();
-  currencyDefault = '';
 
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
@@ -285,133 +261,10 @@ export class SubscribersComponent implements OnInit {
       });
   }
 
-  // ── Manage subscriber languages ──────────────────────────────
-  manageLanguages(sub: SubscriptionInfo): void {
-    this.clearMessages();
-    this.languageAccountId = sub.id;
-    this.languageSubscriberName = sub.subscriberName || '';
-    this.languageSelected = new Set();
-    this.languageDefault = '';
-    this.languageAvailable = [];
-    this.languageDialogOpen.set(true);
-    this.languagesLoading.set(true);
-    this.languageService.getSubscriptionLanguages(sub.id).subscribe({
-      next: (state) => {
-        this.languageAvailable = state.available;
-        this.languageSelected = new Set(state.selected.map((l) => l.languageCode));
-        this.languageDefault = state.defaultLanguageCode || '';
-        this.languagesLoading.set(false);
-      },
-      error: () => this.languagesLoading.set(false),
-    });
-  }
-
-  toggleLanguage(code: string): void {
-    if (this.languageSelected.has(code)) {
-      this.languageSelected.delete(code);
-      if (this.languageDefault === code) this.languageDefault = '';
-    } else {
-      this.languageSelected.add(code);
-    }
-    if (!this.languageDefault && this.languageSelected.size) {
-      this.languageDefault = [...this.languageSelected][0];
-    }
-  }
-
-  // Selected languages in available-list order (for the default picker).
-  get selectedLanguageList(): Language[] {
-    return this.languageAvailable.filter((l) => this.languageSelected.has(l.languageCode));
-  }
-
-  cancelLanguages(): void {
-    this.languageDialogOpen.set(false);
-    this.languageAccountId = null;
-  }
-
-  saveLanguages(): void {
-    this.clearMessages();
-    if (!this.languageAccountId) return;
-    const codes = this.selectedLanguageList.map((l) => l.languageCode);
-    this.savingLanguages.set(true);
-    this.languageService
-      .updateSubscriptionLanguages(this.languageAccountId, codes, this.languageDefault || null)
-      .subscribe({
-        next: () => {
-          this.successMessage.set(`Languages updated for "${this.languageSubscriberName}".`);
-          this.savingLanguages.set(false);
-          this.languageDialogOpen.set(false);
-          this.languageAccountId = null;
-        },
-        error: (err) => {
-          this.errorMessage.set(err.error?.message || 'Failed to update languages.');
-          this.savingLanguages.set(false);
-        },
-      });
-  }
-
-  // ── Manage subscriber currencies ─────────────────────────────
-  manageCurrencies(sub: SubscriptionInfo): void {
-    this.clearMessages();
-    this.currencyAccountId = sub.id;
-    this.currencySubscriberName = sub.subscriberName || '';
-    this.currencySelected = new Set();
-    this.currencyDefault = '';
-    this.currencyAvailable = [];
-    this.currencyDialogOpen.set(true);
-    this.currenciesLoading.set(true);
-    this.currencyService.getSubscriptionCurrencies(sub.id).subscribe({
-      next: (state) => {
-        this.currencyAvailable = state.available;
-        this.currencySelected = new Set(state.selected.map((c) => c.code));
-        this.currencyDefault = state.defaultCurrencyCode || '';
-        this.currenciesLoading.set(false);
-      },
-      error: () => this.currenciesLoading.set(false),
-    });
-  }
-
-  toggleCurrency(code: string): void {
-    if (this.currencySelected.has(code)) {
-      this.currencySelected.delete(code);
-      if (this.currencyDefault === code) this.currencyDefault = '';
-    } else {
-      this.currencySelected.add(code);
-    }
-    if (!this.currencyDefault && this.currencySelected.size) {
-      this.currencyDefault = [...this.currencySelected][0];
-    }
-  }
-
-  // Selected currencies in available-list order (for the default picker).
-  get selectedCurrencyList(): Currency[] {
-    return this.currencyAvailable.filter((c) => this.currencySelected.has(c.code));
-  }
-
-  cancelCurrencies(): void {
-    this.currencyDialogOpen.set(false);
-    this.currencyAccountId = null;
-  }
-
-  saveCurrencies(): void {
-    this.clearMessages();
-    if (!this.currencyAccountId) return;
-    const codes = this.selectedCurrencyList.map((c) => c.code);
-    this.savingCurrencies.set(true);
-    this.currencyService
-      .updateSubscriptionCurrencies(this.currencyAccountId, codes, this.currencyDefault || null)
-      .subscribe({
-        next: () => {
-          this.successMessage.set(`Currencies updated for "${this.currencySubscriberName}".`);
-          this.savingCurrencies.set(false);
-          this.currencyDialogOpen.set(false);
-          this.currencyAccountId = null;
-        },
-        error: (err) => {
-          this.errorMessage.set(err.error?.message || 'Failed to update currencies.');
-          this.savingCurrencies.set(false);
-        },
-      });
-  }
+  // Subscriber languages / currencies are tenant self-service (Common Setup).
+  // The platform side deliberately has no editor for them - the control plane
+  // manages the contract (plan, status, Tenant Admin recovery), never tenant
+  // preference data.
 
   // ── Manage Tenant Admin ──────────────────────────────────────
   manageAdmin(companyId: string | undefined): void {

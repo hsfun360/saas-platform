@@ -9,6 +9,18 @@ The control plane for the whole SaaS: tenancy, RBAC, subscriptions, provisioning
 It answers "*which company, which user, which role, which modules, what permitted*"
 for every other service.
 
+## Role separation (platform vs tenant) - agreed 2026-07-14
+
+**The platform (System Admin) manages the contract, never tenant data or
+preferences.** Account lifecycle, plan, status, module entitlements - yes.
+Languages, currencies, reference data, business settings - tenant self-service
+only, under `/api/auth/account/*` and the System Setup screens.
+**The one sanctioned exception is Tenant Admin recovery**: assigning/transferring
+a company's Tenant Admin when the existing admin left without a backup
+(Subscribers -> Manage Admin).
+Do not add platform-side editors/endpoints for tenant preference data; the
+subscription language/currency editors were removed under this rule.
+
 ## Owns (data)
 `Account`, `Company`, `CompanyUser` (membership + role assignment), `Module`,
 `Menu`, `CompanyModule` (subscriptions), `Role`, `RoleMenu` (permissions),

@@ -91,14 +91,6 @@
               <button type="button" class="btn btn--secondary btn--sm" (click)="manageAdmin(cid)">
                 {{ managingCompanyId === cid ? 'Close' : 'Manage Admin' }}
               </button>
-              <button type="button" class="btn btn--secondary btn--sm" (click)="manageLanguages(sub)"
-                      [attr.aria-label]="'Languages for ' + sub.subscriberName">
-                Languages
-              </button>
-              <button type="button" class="btn btn--secondary btn--sm" (click)="manageCurrencies(sub)"
-                      [attr.aria-label]="'Currencies for ' + sub.subscriberName">
-                Currencies
-              </button>
             </div>
           </div>
 
@@ -322,89 +314,8 @@
     </app-dialog>
   }
 
-  <!-- ============ Manage subscriber languages dialog ============ -->
-  @if (languageDialogOpen()) {
-    <app-dialog [title]="'Languages — ' + languageSubscriberName" [busy]="savingLanguages()" (close)="cancelLanguages()">
-      @if (languagesLoading()) {
-        <div class="loading-state"><div class="spinner"></div><p>Loading…</p></div>
-      } @else if (languageAvailable.length === 0) {
-        <p class="cell-subtle" style="margin: 0;">No languages available. Add languages under System Administration → Languages first.</p>
-      } @else {
-        <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Choose which languages this subscriber can use, and set their default.</p>
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
-          @for (l of languageAvailable; track l.languageCode) {
-            <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-xs) 0; cursor: pointer;">
-              <input type="checkbox" [checked]="languageSelected.has(l.languageCode)" (change)="toggleLanguage(l.languageCode)" />
-              <span>{{ l.name }} <span class="cell-subtle">({{ l.languageCode | uppercase }})</span></span>
-            </label>
-          }
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="subDefaultLang">Default language</label>
-            @if (selectedLanguageList.length === 0) {
-              <p class="cell-subtle" style="margin: 0;">Select at least one language.</p>
-            } @else {
-              <select id="subDefaultLang" [value]="languageDefault" (change)="languageDefault = $any($event.target).value">
-                @for (l of selectedLanguageList; track l.languageCode) {
-                  <option [value]="l.languageCode">{{ l.name }}</option>
-                }
-              </select>
-            }
-          </div>
-        </div>
-      }
-
-      <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelLanguages()" [disabled]="savingLanguages()">Cancel</button>
-        <button type="button" class="btn btn--primary" (click)="saveLanguages()"
-                [disabled]="savingLanguages() || languagesLoading() || selectedLanguageList.length === 0">
-          {{ savingLanguages() ? 'Saving…' : 'Save' }}
-        </button>
-      </ng-container>
-    </app-dialog>
-  }
-
-  <!-- ============ Manage subscriber currencies dialog ============ -->
-  @if (currencyDialogOpen()) {
-    <app-dialog [title]="'Currencies — ' + currencySubscriberName" [busy]="savingCurrencies()" (close)="cancelCurrencies()">
-      @if (currenciesLoading()) {
-        <div class="loading-state"><div class="spinner"></div><p>Loading…</p></div>
-      } @else if (currencyAvailable.length === 0) {
-        <p class="cell-subtle" style="margin: 0;">No currencies available. Add currencies under System Administration → Currencies first.</p>
-      } @else {
-        <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Choose which currencies this subscriber can use, and set their default.</p>
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md); max-height: 320px; overflow-y: auto;">
-          @for (c of currencyAvailable; track c.code) {
-            <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-xs) 0; cursor: pointer;">
-              <input type="checkbox" [checked]="currencySelected.has(c.code)" (change)="toggleCurrency(c.code)" />
-              <span>{{ c.code }} — {{ c.name }} <span class="cell-subtle">@if (c.symbol) { ({{ c.symbol }}) }</span></span>
-            </label>
-          }
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="subDefaultCur">Default currency</label>
-            @if (selectedCurrencyList.length === 0) {
-              <p class="cell-subtle" style="margin: 0;">Select at least one currency.</p>
-            } @else {
-              <select id="subDefaultCur" [value]="currencyDefault" (change)="currencyDefault = $any($event.target).value">
-                @for (c of selectedCurrencyList; track c.code) {
-                  <option [value]="c.code">{{ c.code }} — {{ c.name }}</option>
-                }
-              </select>
-            }
-          </div>
-        </div>
-      }
-
-      <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelCurrencies()" [disabled]="savingCurrencies()">Cancel</button>
-        <button type="button" class="btn btn--primary" (click)="saveCurrencies()"
-                [disabled]="savingCurrencies() || currenciesLoading() || selectedCurrencyList.length === 0">
-          {{ savingCurrencies() ? 'Saving…' : 'Save' }}
-        </button>
-      </ng-container>
-    </app-dialog>
-  }
+  <!-- Subscriber languages / currencies are TENANT self-service (Common Setup →
+       Language / Currency). The platform side deliberately has no editor here:
+       the control plane manages the contract (plan, status, admin recovery),
+       never tenant preference data. -->
 </div>
