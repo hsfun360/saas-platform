@@ -162,7 +162,7 @@ A raw `#hex` / `rgb()` in a component is a bug: it won't flip in dark mode.
 - Use the tokens for every colour; never hard-code a `#hex`.
 - Compose the shared, already-theme-aware building blocks - the `.btn` system, `<app-dialog>`, the listing-card standard (`.data-card` / `.status-chip`), and the form-field standard (`.saas-form` / `.form-group`) - rather than styling from scratch.
 - If you genuinely need a colour the palette doesn't have, **add a token** (a light value under `:root` **and** a dark value under `:root[data-theme="dark"]`) and reference it - do not hard-code the colour. Keep both values WCAG-AA against their background.
-- The dark header/branded bar and the header dropdowns are intentionally dark in both themes - a small, deliberate exception, not a pattern to copy.
+- The branded header bar is intentionally dark in both themes - the ONE deliberate exception, not a pattern to copy. (Its dropdowns are NOT part of the exception: they use the token-based `.menu-pop` system and follow the theme.)
 - Verify the screen in **all three modes** (System resolves to your OS) before shipping; a third-party widget in an iframe (e.g. TinyMCE) needs its own dark config, it won't inherit the tokens.
 
 Reference: `styles.css` (token definitions), `theme.service.ts`, and the Settings Appearance control (`dashboard/settings`).
@@ -683,16 +683,36 @@ same `@media (max-width: 767px) { padding: var(--space-md) 0 }` into that class 
 Don't re-add horizontal padding on the wrapper for mobile - card/list internal padding
 already keeps text off the edge.
 
+#### Shell anatomy - what lives in the header vs the sidebar
+
+The shell (`dashboard.html`/`.css`) is a branded **app bar** on top, the **sidebar** below-left, and `.content-area` for the routed screen.
+The split is intentional and load-bearing: **header = global chrome (who/where), sidebar = the active module (what system), each screen's own header = what screen.** Nothing module-scoped goes in the app bar.
+
+**Header (app bar)** - deliberately minimal so it survives mobile widths:
+
+- Left: the hamburger (drawer / pin toggle) and the **workspace (company) switcher** - a dropdown when the user belongs to multiple companies, a static company label when single - plus the red MASTER ADMIN chip for system admins.
+- Right: user email/role, the Language quick-switch, the Apps (systems) grid, and the avatar menu (Profile / Settings / Sign out).
+  Settings lives ONLY in the avatar menu - never re-add a separate header gear.
+- Every header dropdown uses the shared token-based **`.menu-pop`** system, so they follow all 3 appearance modes.
+  The bar itself stays branded (blue; red for system admins) in both themes - the one deliberate always-dark surface.
+- The **module title does NOT belong here** (moved to the sidebar 2026-07-23; it used to truncate to "SYSTEM ADM..." on phones). Don't re-add it.
+
+**Sidebar** - everything module-scoped:
+
+- Top: the **`.sidebar-module` banner** - the active system's icon + translated name (same localized `moduleNames` source as the apps switcher) on a `--brand-surface` block, pinned above the scrolling nav.
+  Long names **wrap** to a second line (never clip); the 72px rail shows the icon only (name via `title` tooltip / hover-expand).
+- Then `.sidebar-nav`: the **My Dashboard** link (`/home` - the ONE home page), followed by the active module's **menu tree**: collapsible groups render as contained cards (`--nav-group-surface` / `--nav-group-head-surface`, full-bleed flat-bottom header shapes; light mode steps darker, dark mode steps LIGHTER/elevated).
+- **Widths are fixed by design** - mobile: off-canvas drawer; tablet: 72px icon rail, hover/pin expands to 256px; desktop: persistent 256px.
+  `.sidebar { flex-shrink: 0 }` + `.content-area { min-width: 0 }` guarantee page content can never squeeze the nav (a wide tile grid at 1024px once shaved it to ~193px and truncated every label).
+  The in-flow width is published as **`--content-sidebar`** for the FAB pinning math - if the widths ever change, change them everywhere together.
+  Do NOT make the sidebar width content-driven: it would jitter per module/language and break the published-width consumers.
+- Switching systems in the apps grid swaps the banner + menu tree and lands on `/home`.
+
 #### App bar + mobile drawer layering (z-index & a single header height)
 
 The dashboard shell is a fixed-height **app bar (header)** on top, with a **side nav**
 that becomes an off-canvas **drawer** on mobile (toggled by the hamburger), over a
-dimmed **backdrop**.
-
-The **active MODULE title lives at the top of the sidebar** (`.sidebar-module` - a
-brand-tinted banner above the scrolling nav, icon-only in the 72px rail), NOT in the
-header - the header stays compact (hamburger + workspace switcher + right icons),
-which is what keeps it usable on mobile. Don't re-add a module title to the app bar. Two rules keep them from colliding - both were the cause of a
+dimmed **backdrop**. Two rules keep them from colliding - both were the cause of a
 real bug (the drawer covered the apps switcher / avatar, and dropdowns overlapped the
 header):
 
