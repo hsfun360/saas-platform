@@ -686,7 +686,12 @@ already keeps text off the edge.
 
 The dashboard shell is a fixed-height **app bar (header)** on top, with a **side nav**
 that becomes an off-canvas **drawer** on mobile (toggled by the hamburger), over a
-dimmed **backdrop**. Two rules keep them from colliding - both were the cause of a
+dimmed **backdrop**.
+
+The **active MODULE title lives at the top of the sidebar** (`.sidebar-module` - a
+brand-tinted banner above the scrolling nav, icon-only in the 72px rail), NOT in the
+header - the header stays compact (hamburger + workspace switcher + right icons),
+which is what keeps it usable on mobile. Don't re-add a module title to the app bar. Two rules keep them from colliding - both were the cause of a
 real bug (the drawer covered the apps switcher / avatar, and dropdowns overlapped the
 header):
 

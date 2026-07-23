@@ -5,13 +5,11 @@
     <div class="topbar-left">
       <button class="menu-btn" style="color: white" (click)="toggleSidebar()" aria-label="Toggle navigation menu" [attr.aria-expanded]="isSidebarPinned">☰</button>
       <div class="brand-stack">
+        <!-- The active MODULE title lives at the top of the sidebar (.sidebar-module),
+             not here - keeps the header compact, especially on mobile. -->
         <div class="brand-row">
-          <h2 class="brand-title" style="color: white">
-            {{ activeModule | uppercase }}
-          </h2>
-
           @if (isSystemAdmin) {
-            <span class="hide-mobile" style="background: #ef4444; color: white; padding: var(--space-xs) var(--space-sm); border-radius: 12px; font-size: var(--font-caption); font-weight: var(--weight-bold); margin-left: var(--space-md); border: 1px solid #fca5a5; letter-spacing: 0.5px;">
+            <span class="hide-mobile" style="background: #ef4444; color: white; padding: var(--space-xs) var(--space-sm); border-radius: 12px; font-size: var(--font-caption); font-weight: var(--weight-bold); border: 1px solid #fca5a5; letter-spacing: 0.5px;">
               MASTER ADMIN
             </span>
           }
@@ -171,6 +169,15 @@
   <div class="main-layout">
 
     <aside class="sidebar" [class.pinned]="isSidebarPinned">
+      <!-- Active SYSTEM banner - the module title, moved here from the header.
+           Distinct brand-tinted block so it reads as the section's title, not a
+           menu item; reuses .icon/.label so the icon-only rail and hover/pin
+           expansion behave exactly like the nav items below. Sits OUTSIDE the
+           scrolling nav so it stays pinned when the menu scrolls. -->
+      <div class="sidebar-module" role="heading" aria-level="2" [title]="activeModuleLabel">
+        <span class="icon material-icons" aria-hidden="true">{{ activeModuleIcon }}</span>
+        <span class="label sidebar-module__name">{{ activeModuleLabel }}</span>
+      </div>
       <nav class="sidebar-nav">
         <ul style="list-style: none; padding: 0; margin: 0;">
 

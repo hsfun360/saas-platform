@@ -109,13 +109,6 @@
   background-color: rgba(255, 255, 255, 0.1);
 }
 
-.brand-title {
-  font-size: var(--font-h2);
-  font-weight: var(--weight-regular);
-  margin: 0;
-  letter-spacing: 1px;
-}
-
 .user-email {
   font-size: var(--font-body-2);
   color: #e8eaed;
@@ -482,6 +475,33 @@
 }
 
 /* --- NAVIGATION ITEMS (The Final Gmail Fix) --- */
+/* ── ACTIVE SYSTEM BANNER ─────────────────────────────────────────
+   The module title, moved out of the header. A distinct brand-tinted
+   block pinned at the very top of the sidebar (outside the scrolling
+   nav): tells the user which SYSTEM they are in without spending
+   header space. Reuses .icon/.label so the 72px icon-only rail and
+   the hover/pin label fade behave exactly like nav items. */
+.sidebar-module {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: 48px;
+  background: var(--brand-surface);
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-module .icon {
+  color: var(--brand-text);
+}
+.sidebar-module__name {
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--brand-text);
+  white-space: normal; /* long module names wrap to a 2nd line, never clip */
+  line-height: 1.25;
+  padding-right: var(--space-sm);
+}
+
 .sidebar-nav {
   flex: 1 1 auto;
   min-height: 0;        /* let this flex child shrink below content height… */
@@ -900,16 +920,6 @@
   }
   .menu-btn {
     flex-shrink: 0;
-  }
-
-  /* Module title: smaller on mobile and truncates within the space that's left. */
-  .brand-title {
-    flex: 0 1 auto;
-    min-width: 0;
-    font-size: var(--font-h3);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   /* Cap the switcher company name to the viewport so it truncates and never

@@ -84,6 +84,16 @@ export class Dashboard implements OnInit {
   }
   availableModules: { name: string; icon: string; names?: Record<string, string> }[] = [];
   activeModule = '';
+
+  // The sidebar's active-system banner (.sidebar-module): the module's icon and
+  // its name resolved to the active language, same source as the apps switcher.
+  get activeModuleIcon(): string {
+    return this.availableModules.find((m) => m.name === this.activeModule)?.icon || 'widgets';
+  }
+  get activeModuleLabel(): string {
+    const mod = this.availableModules.find((m) => m.name === this.activeModule);
+    return this.resolveLabel(this.activeModule, mod?.names);
+  }
   isDropdownOpen = false;
   isSidebarPinned = false;
 
