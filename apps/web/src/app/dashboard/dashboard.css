@@ -74,10 +74,57 @@
 .switcher-company {
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 200px;   /* cap on desktop; flex-shrinks below this on mobile */
+  max-width: 340px;   /* roomier since the module title left the bar; flex-shrinks on mobile */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Flat company trigger on the branded bar - no boxed pill. A subtle hover
+   underlay marks it clickable; the --static variant (single-company label)
+   drops the affordance and the caret entirely. White-on-dark literals are
+   fine here: the bar is the one deliberate always-dark surface. */
+.ws-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: transparent;
+  border: none;
+  color: white;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: var(--font-body-2);
+  min-height: 40px;
+}
+.ws-trigger:hover:not(:disabled):not(.ws-trigger--static) {
+  background: rgba(255, 255, 255, 0.12);
+}
+.ws-trigger--static {
+  cursor: default;
+}
+.ws-icon,
+.ws-caret {
+  font-size: 20px;
+}
+.ws-caret {
+  opacity: 0.85;
+}
+/* Company logo chip: a small WHITE rounded tile so arbitrary logos (dark
+   marks, transparent PNGs) stay legible on the dark bar and in the popover. */
+.ws-logo {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 6px;
+  background: #ffffff;
+  object-fit: contain;
+  padding: 2px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+.ws-logo--row {
+  border-color: var(--border);
 }
 
 /* FORCE FLEXBOX TO KEEP ITEMS SIDE-BY-SIDE AND CENTERED */

@@ -39,6 +39,9 @@ export interface WorkspaceOption {
   companyId: string;
   companyName: string;
   roleName: string;
+  // Public URL of Company.logo; null/absent = no logo (UI falls back to the
+  // corporate_fare icon). Optional so caches from older APIs stay valid.
+  logo?: string | null;
 }
 
 // A pending collaborator invitation, as seen by the inviting Tenant Admin.

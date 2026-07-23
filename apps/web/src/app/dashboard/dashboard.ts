@@ -114,6 +114,12 @@ export class Dashboard implements OnInit {
   isWorkspaceDropdownOpen = false;
   switchingWorkspace = signal(false);
 
+  // Active company's logo for the header trigger, resolved from the loaded
+  // workspaces list ('SYSTEM' and logo-less companies -> null -> icon fallback).
+  get activeCompanyLogo(): string | null {
+    return this.workspaces().find((w) => w.companyId === this.currentCompanyId)?.logo || null;
+  }
+
   // Pending collaborator invitations addressed to this user
   myInvitations = signal<MyInvitation[]>([]);
   respondingInvitationId = signal<string | null>(null);

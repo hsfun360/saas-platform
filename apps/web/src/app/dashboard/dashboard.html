@@ -15,42 +15,57 @@
           }
         </div>
 
+        <!-- Company switcher: FLAT on the bar (no boxed pill) - logo-or-icon +
+             name + a single expand_more caret. Single-company users get the
+             same look as a non-interactive label with NO caret. -->
         @if (workspaces().length > 1) {
         <div class="workspace-switcher" style="position: relative;">
-          <button type="button" (click)="toggleWorkspaceDropdown($event)"
+          <button type="button" class="ws-trigger" (click)="toggleWorkspaceDropdown($event)"
                   [disabled]="switchingWorkspace()"
-                  [attr.aria-label]="workspaceSwitchLabel()" aria-haspopup="true" [attr.aria-expanded]="isWorkspaceDropdownOpen"
-                  style="display: flex; align-items: center; gap: var(--space-sm); background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); padding: var(--space-xs) var(--space-sm); border-radius: 8px; cursor: pointer; font-size: var(--font-body-2);">
-            <span class="material-icons" style="font-size: 18px;">corporate_fare</span>
+                  [attr.aria-label]="workspaceSwitchLabel()" aria-haspopup="true" [attr.aria-expanded]="isWorkspaceDropdownOpen">
+            @if (activeCompanyLogo) {
+              <img class="ws-logo" [src]="activeCompanyLogo" alt="">
+            } @else {
+              <span class="material-icons ws-icon" aria-hidden="true">corporate_fare</span>
+            }
             <span class="switcher-company">{{ activeCompanyName }}</span>
-            <span class="material-icons" style="font-size: 18px;">{{ switchingWorkspace() ? 'hourglass_empty' : 'unfold_more' }}</span>
+            <span class="material-icons ws-caret" aria-hidden="true">{{ switchingWorkspace() ? 'hourglass_empty' : 'expand_more' }}</span>
           </button>
 
           @if (isWorkspaceDropdownOpen) {
-            <div class="menu-pop menu-pop--left" style="min-width: 260px;" (click)="$event.stopPropagation()">
+            <div class="menu-pop menu-pop--left" style="min-width: 280px;" (click)="$event.stopPropagation()">
               <div class="menu-pop__title">{{ workspaceSwitchLabel() }}</div>
               @for (ws of workspaces(); track ws.companyId) {
                 <button type="button" class="menu-pop__item"
-                        style="flex-direction: column; align-items: flex-start; gap: var(--space-xs);"
                         (click)="switchWorkspace(ws.companyId)"
                         [disabled]="ws.companyId === currentCompanyId">
-                  <span style="display: flex; align-items: center; gap: var(--space-xs);">
-                    {{ ws.companyName }}
-                    @if (ws.companyId === currentCompanyId) {
-                      <span class="material-icons menu-pop__check" style="font-size: 16px;">check</span>
-                    }
+                  @if (ws.logo) {
+                    <img class="ws-logo ws-logo--row" [src]="ws.logo" alt="">
+                  } @else {
+                    <span class="material-icons" aria-hidden="true" style="font-size: 20px; color: var(--accent);">corporate_fare</span>
+                  }
+                  <span style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0;">
+                    <span style="display: flex; align-items: center; gap: var(--space-xs);">
+                      {{ ws.companyName }}
+                      @if (ws.companyId === currentCompanyId) {
+                        <span class="material-icons menu-pop__check" style="font-size: 16px;">check</span>
+                      }
+                    </span>
+                    <span class="menu-pop__sub">{{ ws.roleName }}</span>
                   </span>
-                  <span class="menu-pop__sub">{{ ws.roleName }}</span>
                 </button>
               }
             </div>
           }
         </div>
         } @else if (activeCompanyName) {
-        <!-- Single workspace: no switcher, but still show which company you're in. -->
-        <div class="workspace-label"
-             style="display: flex; align-items: center; gap: var(--space-sm); color: white; padding: var(--space-xs) var(--space-sm); font-size: var(--font-body-2);">
-          <span class="material-icons" aria-hidden="true" style="font-size: 18px;">corporate_fare</span>
+        <!-- Single workspace: same flat look, not clickable, no caret. -->
+        <div class="ws-trigger ws-trigger--static">
+          @if (activeCompanyLogo) {
+            <img class="ws-logo" [src]="activeCompanyLogo" alt="">
+          } @else {
+            <span class="material-icons ws-icon" aria-hidden="true">corporate_fare</span>
+          }
           <span class="switcher-company">{{ activeCompanyName }}</span>
         </div>
         }
