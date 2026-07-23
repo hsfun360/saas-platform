@@ -850,36 +850,17 @@
 /*  - Mobile   (<768px):    off-canvas drawer + bottom nav (above)*/
 /*  - Tablet   (768-1023px): icon RAIL (72px), hover/pin expands  */
 /*    to 256px — the collapsible middle tier (base rules above).  */
-/*  - Desktop  (>=1024px):  PERSISTENT full sidebar (256px, labels*/
-/*    always shown) + larger content spacing.                     */
+/*  - Desktop  (>=1024px):  starts PINNED (256px); the hamburger  */
+/*    collapses to the rail (Gmail) + larger content spacing.     */
 /* ============================================================== */
 @media (min-width: 1024px) {
-  .sidebar {
-    width: 256px;            /* persistent, always expanded */
-  }
-  .sidebar .label {
-    opacity: 1;              /* labels always visible on desktop */
-  }
-  .sidebar .nav-group__chevron {
-    opacity: 1;              /* section chevrons always visible on desktop */
-  }
-  /* Persistent full sidebar - groups always render as contained blocks. */
-  .sidebar {
-    --subnav-indent: 24px;
-    --group-inset: var(--space-sm);
-    --group-radius: 12px;
-  }
-  /* Persistent sidebar always occupies 256px of flow width. */
-  :host {
-    --content-sidebar: 256px;
-  }
-  /* Already full width — neutralise the rail's hover-overlay + shadow so it
-     stays in flow and pushes content (no overlay on desktop). */
-  .sidebar:not(.pinned):hover {
-    position: static;
-    width: 256px;
-    box-shadow: none;
-  }
+  /* Desktop reuses the tablet rail/pin mechanics UNCHANGED (rail 72px,
+     hover peeks as an overlay, .pinned = 256px in flow). The only desktop
+     difference is the DEFAULT: the shell starts pinned (expanded) at
+     >=1024px - set in dashboard.ts - and the header hamburger collapses
+     it back to the rail, Gmail-style. No width overrides here: forcing
+     256px made the hamburger a dead control on desktop. */
+
   /* Larger content gutter on desktop (the "larger spacing" tier). */
   .content-area {
     padding: var(--space-xl);

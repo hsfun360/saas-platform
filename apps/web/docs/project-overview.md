@@ -76,11 +76,11 @@ the numbers are repeated literally, but always these numbers.
 | --- | --- | --- | --- | --- |
 | **Mobile** | `< 768px` | single column; full-width controls | off-canvas **drawer** (hamburger / "More") + fixed **bottom nav** | tight (`--space-md`), edge-to-edge |
 | **Tablet** | `768-1023px` | 2 columns | **collapsible rail** side nav (72px icons; hover / pin expands to 256px overlay); no bottom nav | comfortable (`--space-lg`) |
-| **Desktop** | `≥ 1024px` | multi-column | **persistent** full side nav (256px, labels always shown); pushes content | generous (`--space-xl`) |
+| **Desktop** | `≥ 1024px` | multi-column | side nav starts **pinned** (256px, pushes content); the hamburger collapses it to the 72px rail (Gmail-style) | generous (`--space-xl`) |
 
 - **Shell** (`dashboard.css`): the three tiers live here - `@media (max-width: 767px)`
   (drawer + bottom nav), the base rules (tablet rail), and `@media (min-width: 1024px)`
-  (persistent full sidebar + `.content-area` `--space-xl`). Every screen inherits
+  (pinned-by-default sidebar + `.content-area` `--space-xl`). Every screen inherits
   this by rendering inside `.content-area`, so screens rarely need their own shell
   media queries.
 - **Grids:** 1 col mobile → 2 col tablet → (optionally) 3 col desktop. Use the
@@ -98,9 +98,9 @@ All UI components you generate MUST follow these patterns:
   (see "Responsive strategy" above for the exact tiers).
 - **Navigation (adaptive - one source of destinations, container changes by width):**
   - Primary destinations: a **bottom navigation bar** on mobile, a **collapsible rail**
-    side nav on tablet, and a **persistent** side nav on desktop.
+    side nav on tablet, and a **pinned-by-default** side nav on desktop (the hamburger collapses it to the rail).
   - Secondary destinations: a **hamburger-toggled drawer** on mobile that becomes the
-    rail/persistent **side nav** on tablet/desktop.
+    rail/pinned **side nav** on tablet/desktop.
   - Bottom nav is for navigation **destinations only** - use in-page buttons / a FAB for actions, never put actions in the bottom bar.
 - **Buttons:** Use the shared `.btn` system (see "Button system" below). Full-width
   primary CTAs on mobile (auto/content width on desktop); every button keeps a ≥ 44px
@@ -702,7 +702,7 @@ The split is intentional and load-bearing: **header = global chrome (who/where),
 - Top: the **`.sidebar-module` banner** - the active system's icon + translated name (same localized `moduleNames` source as the apps switcher) on a `--brand-surface` block, pinned above the scrolling nav.
   Long names **wrap** to a second line (never clip); the 72px rail shows the icon only (name via `title` tooltip / hover-expand).
 - Then `.sidebar-nav`: the **My Dashboard** link (`/home` - the ONE home page), followed by the active module's **menu tree**: collapsible groups render as contained cards (`--nav-group-surface` / `--nav-group-head-surface`, full-bleed flat-bottom header shapes; light mode steps darker, dark mode steps LIGHTER/elevated).
-- **Widths are fixed by design** - mobile: off-canvas drawer; tablet: 72px icon rail, hover/pin expands to 256px; desktop: persistent 256px.
+- **Widths are fixed by design** - mobile: off-canvas drawer; tablet: 72px icon rail, hover/pin expands to 256px; desktop: the same mechanics, just pinned by default (the hamburger collapses to the rail - it is never a dead control).
   `.sidebar { flex-shrink: 0 }` + `.content-area { min-width: 0 }` guarantee page content can never squeeze the nav (a wide tile grid at 1024px once shaved it to ~193px and truncated every label).
   The in-flow width is published as **`--content-sidebar`** for the FAB pinning math - if the widths ever change, change them everywhere together.
   Do NOT make the sidebar width content-driven: it would jitter per module/language and break the published-width consumers.

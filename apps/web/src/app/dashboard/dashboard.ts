@@ -94,7 +94,11 @@ export class Dashboard implements OnInit {
     return this.resolveLabel(this.activeModule, mod?.names);
   }
   isDropdownOpen = false;
-  isSidebarPinned = false;
+  // Desktop (>=1024px) starts EXPANDED (pinned); tablet starts as the icon
+  // rail; mobile treats pinned as "drawer open" so it must start false.
+  // The header hamburger toggles this at every tier - on desktop that is
+  // the Gmail-style collapse-to-rail (the CSS no longer forces 256px).
+  isSidebarPinned = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
 
   // Workspace (company) switching. Async-loaded state is held in signals so the
   // switcher/banner refresh on the HTTP callback (zone-based CD isn't reliable here).
