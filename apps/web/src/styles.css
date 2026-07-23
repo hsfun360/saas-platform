@@ -212,6 +212,10 @@ body {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: var(--space-md);
+  /* Named inline-size container so row layouts can react to the CARD's real
+     width (which depends on the sidebar state, not just the viewport) - see
+     the .data-row--wide-actions @container rule below. */
+  container-type: inline-size;
 }
 
 .data-card__title {
@@ -325,6 +329,24 @@ body {
       "actions  actions";
   }
   .data-row--with-badge .data-row__actions { justify-self: start; }
+}
+
+/* Rows with MANY actions (4+ buttons - e.g. Companies): side-by-side needs
+   ~700px of CARD width, which depends on the sidebar state, not just the
+   viewport (a pinned 256px sidebar at 1024px leaves the info column ~180px
+   and the title wraps mid-word). So this is a CONTAINER query on .data-card
+   (an inline-size container below): when the card is narrower than 720px the
+   actions drop to a full-width row under the content, exactly like the
+   mobile layout. OPT-IN via data-row--wide-actions - rows with 1-2 buttons
+   never need it and keep the standard grid. */
+@container (max-width: 719px) {
+  .data-row--wide-actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "main     badge"
+      "actions  actions";
+  }
+  .data-row--wide-actions .data-row__actions { justify-self: start; }
 }
 
 /* Status chip — the compact overline pill (active / inactive / disabled), pinned

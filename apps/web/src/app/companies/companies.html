@@ -59,7 +59,7 @@
     <ul class="data-list">
       @for (company of filteredCompanies(); track company.id) {
         <li class="data-card">
-          <div class="data-row data-row--with-badge">
+          <div class="data-row data-row--with-badge data-row--wide-actions">
             <div class="data-row__main">
               <div class="data-card__title">{{ company.name }}</div>
               <!-- Registration no. in ( ) then timezone + currency, no captions. -->

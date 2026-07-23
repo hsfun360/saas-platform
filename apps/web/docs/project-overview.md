@@ -350,6 +350,11 @@ The shared implementation is **`.data-row--with-badge`** (compose as
 `system-setup.css`. Reference implementations: `platform-users.html` (Active/Inactive
 chip + SSO brand icon next to the email) and `companies.css` (`.company-summary`).
 
+**Rows with MANY actions (3-4 buttons) additionally compose `.data-row--wide-actions`.**
+Side-by-side needs ~700px of CARD width, which depends on the sidebar state (a pinned 256px sidebar at a 1024px viewport leaves the info column ~180px - titles wrap mid-word), so a viewport media query cannot catch it.
+`.data-card` is an inline-size **container**, and an `@container (max-width: 719px)` rule drops the tagged row's actions to a full-width line below the content (the mobile layout) whenever the card itself is too narrow.
+Rows with 1-2 buttons never need the tag. Reference: `companies.html` (4 action buttons).
+
 #### In-app help (route-keyed user guides)
 
 Screens link to their end-user manual automatically - there is NO per-screen wiring:
