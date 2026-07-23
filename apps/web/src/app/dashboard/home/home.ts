@@ -14,6 +14,7 @@ import { RecentScreensService } from '../../services/recent-screens.service';
 import { FavoritesService } from '../../services/favorites.service';
 import { WorkflowService } from '../../services/workflow.service';
 import { DialogComponent } from '../../shared/dialog/dialog';
+import { identityKey } from '../../shared/user-identity';
 
 // One Quick-access group: a module and the user's starred screens inside it.
 interface FavoriteGroup {
@@ -108,12 +109,14 @@ export class HomeComponent {
     }
   })());
 
+  // Keyed by the JWT identity (see shared/user-identity.ts) so a user switch
+  // in the same browser never reads another person's view preferences.
   private qaHiddenKey(): string {
-    return `homeQuickAccessHidden:${localStorage.getItem('userEmail') || 'anonymous'}`;
+    return `homeQuickAccessHidden:${identityKey() || 'anonymous'}`;
   }
 
   private qaCollapsedKey(): string {
-    return `homeQuickAccessCollapsed:${localStorage.getItem('userEmail') || 'anonymous'}`;
+    return `homeQuickAccessCollapsed:${identityKey() || 'anonymous'}`;
   }
 
   toggleQaHidden(): void {

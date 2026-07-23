@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { MenuItem } from '../models/auth.models';
+import { identityKey } from '../shared/user-identity';
 
 // Starred screens - the user's own picks for My Dashboard's "Quick access",
 // starred via the <app-fav-star> button beside each screen title.
@@ -13,6 +14,14 @@ import { MenuItem } from '../models/auth.models';
 // RBAC-safe by construction: only granted menu routes can be starred, and
 // every read resolves ids against the CURRENT granted-menu cache, so a
 // revoked screen drops out silently.
+//
+// IDENTITY-KEYED CACHE (bug fix 2026-07-23): this is an app-lifetime
+// singleton, but logout -> login and switch-workspace are in-app navigations
+// with no page reload. The in-memory list therefore belongs to ONE
+// (user, workspace) identity - taken from the JWT via identityKey() - and is
+// dropped + refetched the moment a consumer runs under a different identity.
+// Without this, a freshly created user inherited the previous user's Quick
+// access on the same browser (and could persist it into their own account).
 //
 // One-time migration: favorites used to live in localStorage
 // (favoriteScreens:<email> as routes). If the server list is empty and a
@@ -35,7 +44,9 @@ export class FavoritesService {
 
   // Star order = the user's sort order (menu ids, as stored server-side).
   private readonly menuIds = signal<string[]>([]);
-  private loadRequested = false;
+  // Which (user, workspace) identity the in-memory list belongs to.
+  private loadedFor: string | null = null;
+  private loadingFor: string | null = null;
 
   // Routes of the starred menus, for the fav-star buttons.
   readonly routeSet = computed(() => {
@@ -44,29 +55,39 @@ export class FavoritesService {
     return new Set(this.menuIds().map((id) => byId.get(id)).filter((r): r is string => !!r));
   });
 
-  // Fetch once per session; callers (fav-star, My Dashboard) invoke freely.
+  // Fetch for the CURRENT identity; callers (fav-star, My Dashboard) invoke
+  // freely - re-entry is a no-op unless the signed-in identity changed.
   ensureLoaded(): void {
-    if (this.loadRequested) return;
-    this.loadRequested = true;
+    const identity = identityKey();
+    if (!identity) return; // signed out - nothing to load
+    if (this.loadedFor === identity || this.loadingFor === identity) return;
+    // Identity changed (other user / other workspace): drop the stale list
+    // immediately so nothing of the previous session ever renders.
+    this.menuIds.set([]);
+    this.loadedFor = null;
+    this.loadingFor = identity;
     this.http.get<{ menuIds: string[] }>(this.base).subscribe({
       next: (r) => {
+        this.loadingFor = null;
+        if (identityKey() !== identity) return; // user changed mid-flight
         const serverIds = Array.isArray(r.menuIds) ? r.menuIds : [];
         if (serverIds.length === 0) {
           const legacy = this.readLegacy();
           if (legacy.length) {
             this.menuIds.set(legacy);
+            this.loadedFor = identity;
             this.persist(legacy);
             this.clearLegacy();
             return;
           }
         }
         this.menuIds.set(serverIds);
+        this.loadedFor = identity;
       },
       error: () => {
-        // Endpoint unreachable (offline / older API) - fall back to legacy so
-        // the page still works; nothing is written server-side.
-        this.menuIds.set(this.readLegacy());
-        this.loadRequested = false; // allow a retry on the next consumer
+        // Endpoint unreachable - leave the list empty and allow a retry on
+        // the next consumer; never show another identity's data.
+        this.loadingFor = null;
       },
     });
   }
@@ -105,13 +126,15 @@ export class FavoritesService {
   }
 
   private persist(menuIds: string[], rollback?: string[]): void {
+    const identity = identityKey();
     this.http.put<{ menuIds: string[] }>(this.base, { menuIds }).subscribe({
       next: (r) => {
+        if (identityKey() !== identity) return; // user changed mid-flight
         // The server may have dropped stale ids - adopt its validated list.
         if (Array.isArray(r.menuIds)) this.menuIds.set(r.menuIds);
       },
       error: () => {
-        if (rollback) this.menuIds.set(rollback);
+        if (rollback && identityKey() === identity) this.menuIds.set(rollback);
       },
     });
   }

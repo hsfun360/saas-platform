@@ -3,6 +3,7 @@ import { NavigationEnd, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { MenuItem } from '../models/auth.models';
+import { tokenIdentity } from '../shared/user-identity';
 
 // "Continue where you left off" - remembers which GRANTED screens the user
 // actually visited, per user, on this device (localStorage; personal
@@ -21,8 +22,13 @@ interface RecentVisit {
 
 const MAX_ENTRIES = 12;
 
-function storageKey(): string {
-  return `recentScreens:${localStorage.getItem('userEmail') || 'anonymous'}`;
+// Keyed by the JWT's userId (not the loosely-managed 'userEmail' item), so a
+// user switch in the same browser can never read or write another person's
+// history. Not workspace-scoped on purpose: it is the same person, and list()
+// re-validates every route against the CURRENT granted-menu cache anyway.
+function storageKey(): string | null {
+  const identity = tokenIdentity();
+  return identity ? `recentScreens:${identity.userId}` : null;
 }
 
 function grantedMenus(): MenuItem[] {
@@ -61,20 +67,24 @@ export class RecentScreensService {
   }
 
   private record(url: string): void {
+    const key = storageKey();
+    if (!key) return; // signed out - never record
     const route = this.menuRouteFor(url);
     if (!route) return;
     const visits = this.load().filter((v) => v.route !== route);
     visits.unshift({ route, ts: Date.now() });
     try {
-      localStorage.setItem(storageKey(), JSON.stringify(visits.slice(0, MAX_ENTRIES)));
+      localStorage.setItem(key, JSON.stringify(visits.slice(0, MAX_ENTRIES)));
     } catch {
       // Storage full/unavailable - recents are a convenience, never an error.
     }
   }
 
   private load(): RecentVisit[] {
+    const key = storageKey();
+    if (!key) return [];
     try {
-      const raw = JSON.parse(localStorage.getItem(storageKey()) || '[]');
+      const raw = JSON.parse(localStorage.getItem(key) || '[]');
       return Array.isArray(raw) ? raw : [];
     } catch {
       return [];
