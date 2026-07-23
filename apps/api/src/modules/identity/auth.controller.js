@@ -458,7 +458,7 @@ exports.listWorkspaces = async (req, res) => {
                     const role = await Role.findByPk(m.roleId);
                     if (role) roleName = role.name;
                 }
-                byKey.set('SYSTEM', { companyId: 'SYSTEM', companyName: '🛡️ System Administration', roleName });
+                byKey.set('SYSTEM', { companyId: 'SYSTEM', companyName: '🛡️ System Administration', roleName, logo: null });
                 continue;
             }
             const company = await Company.findByPk(m.companyId);
@@ -468,7 +468,7 @@ exports.listWorkspaces = async (req, res) => {
                 const role = await Role.findByPk(m.roleId);
                 if (role) roleName = role.name;
             }
-            byKey.set(company.id, { companyId: company.id, companyName: company.name, roleName });
+            byKey.set(company.id, { companyId: company.id, companyName: company.name, roleName, logo: company.logo || null });
         }
 
         // Subscriber SuperUser: include EVERY company under accounts this user owns,
@@ -478,7 +478,7 @@ exports.listWorkspaces = async (req, res) => {
             const owned = await Company.findAll({ where: { accountId: ownedAccountIds } });
             for (const c of owned) {
                 if (!byKey.has(c.id)) {
-                    byKey.set(c.id, { companyId: c.id, companyName: c.name, roleName: 'Tenant Admin' });
+                    byKey.set(c.id, { companyId: c.id, companyName: c.name, roleName: 'Tenant Admin', logo: c.logo || null });
                 }
             }
         }
