@@ -40,47 +40,63 @@
   <!-- QUICK ACCESS (starred screens, grouped by module) -->
   <section aria-label="Quick access">
     <div class="hm-section-head">
-      <h2 class="sd-section-title">Quick access</h2>
-      @if (hasFavorites()) {
+      <h2 class="sd-section-title">
+        Quick access
+        <button type="button" class="hm-eye" (click)="toggleQaHidden()"
+                [attr.aria-expanded]="!qaHidden()"
+                [attr.aria-label]="qaHidden() ? 'Show quick access' : 'Hide quick access'"
+                [title]="qaHidden() ? 'Show quick access' : 'Hide quick access'">
+          <span class="material-icons" aria-hidden="true">{{ qaHidden() ? 'visibility_off' : 'visibility' }}</span>
+        </button>
+      </h2>
+      @if (hasFavorites() && !qaHidden()) {
         <button type="button" class="btn btn--secondary btn--sm" (click)="openManage()">
           <span class="material-icons" aria-hidden="true">tune</span> Manage
         </button>
       }
     </div>
-    @if (hasFavorites()) {
-      @for (g of favoriteGroups(); track g.moduleName) {
-        <div class="hm-group">
-          <h3 class="hm-group__title">
-            <span class="material-icons" aria-hidden="true">{{ g.moduleIcon }}</span>
-            {{ g.moduleLabel }}
-          </h3>
-          <div class="sd-tiles grid-3">
-            @for (m of g.tiles; track m.route) {
-              <div class="sd-tile hm-tile">
-                <a class="hm-tile__link" [routerLink]="m.route">
-                  <span class="sd-tile__icon material-icons" aria-hidden="true">{{ m.icon || 'article' }}</span>
-                  <span class="sd-tile__text">
-                    <span class="sd-tile__name">{{ label(m) }}</span>
-                    @if (description(m)) {
-                      <span class="sd-tile__desc">{{ description(m) }}</span>
-                    }
-                  </span>
-                </a>
-                <button type="button" class="hm-tile__unpin" (click)="unpin(m.route)"
-                        [attr.aria-label]="'Remove ' + label(m) + ' from quick access'"
-                        title="Remove from My Dashboard">
-                  <span class="material-icons" aria-hidden="true">star</span>
-                </button>
+    @if (!qaHidden()) {
+      @if (hasFavorites()) {
+        @for (g of favoriteGroups(); track g.moduleName) {
+          <div class="hm-group">
+            <button type="button" class="hm-group__title" (click)="toggleQaGroup(g.moduleName)"
+                    [attr.aria-expanded]="!isQaCollapsed(g.moduleName)"
+                    [attr.aria-label]="(isQaCollapsed(g.moduleName) ? 'Expand ' : 'Collapse ') + g.moduleLabel">
+              <span class="material-icons" aria-hidden="true">{{ g.moduleIcon }}</span>
+              <span class="hm-group__name">{{ g.moduleLabel }}</span>
+              <span class="hm-group__count">{{ g.tiles.length }}</span>
+              <span class="material-icons hm-group__caret" aria-hidden="true">{{ isQaCollapsed(g.moduleName) ? 'chevron_right' : 'expand_more' }}</span>
+            </button>
+            @if (!isQaCollapsed(g.moduleName)) {
+              <div class="sd-tiles grid-3">
+                @for (m of g.tiles; track m.route) {
+                  <div class="sd-tile hm-tile">
+                    <a class="hm-tile__link" [routerLink]="m.route">
+                      <span class="sd-tile__icon material-icons" aria-hidden="true">{{ m.icon || 'article' }}</span>
+                      <span class="sd-tile__text">
+                        <span class="sd-tile__name">{{ label(m) }}</span>
+                        @if (description(m)) {
+                          <span class="sd-tile__desc">{{ description(m) }}</span>
+                        }
+                      </span>
+                    </a>
+                    <button type="button" class="hm-tile__unpin" (click)="unpin(m.route)"
+                            [attr.aria-label]="'Remove ' + label(m) + ' from quick access'"
+                            title="Remove from My Dashboard">
+                      <span class="material-icons" aria-hidden="true">star</span>
+                    </button>
+                  </div>
+                }
               </div>
             }
           </div>
+        }
+      } @else {
+        <div class="sd-empty">
+          <span class="material-icons" aria-hidden="true">star_border</span>
+          <p>Nothing pinned yet. Open any screen and click the <strong>star</strong> next to its title to pin it here.</p>
         </div>
       }
-    } @else {
-      <div class="sd-empty">
-        <span class="material-icons" aria-hidden="true">star_border</span>
-        <p>Nothing pinned yet. Open any screen and click the <strong>star</strong> next to its title to pin it here.</p>
-      </div>
     }
   </section>
 

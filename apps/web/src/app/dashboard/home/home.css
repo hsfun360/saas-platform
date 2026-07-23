@@ -55,7 +55,32 @@
   margin-bottom: 0;
 }
 
-/* A module group inside Quick access. */
+/* Eye toggle beside the Quick access title - hides/shows the whole section. */
+.hm-eye {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -12px 0 -12px var(--space-xs);
+  vertical-align: middle;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.hm-eye:hover {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.hm-eye .material-icons {
+  font-size: 20px;
+}
+
+/* A module group inside Quick access - the title row is a collapse toggle. */
 .hm-group {
   margin-bottom: var(--space-md);
 }
@@ -63,18 +88,63 @@
 .hm-group__title {
   display: flex;
   align-items: center;
+  width: 100%;
   gap: var(--space-xs);
   margin: 0 0 var(--space-sm);
+  padding: 0;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
   font-size: var(--font-caption);
   font-weight: var(--weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.hm-group__title:hover {
+  background: var(--surface-hover);
 }
 
 .hm-group__title .material-icons {
   font-size: 16px;
   color: var(--brand-text);
+}
+
+.hm-group__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hm-group__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  font-size: var(--font-caption);
+  color: var(--text-secondary);
+  text-transform: none;
+  letter-spacing: normal;
+  flex-shrink: 0;
+}
+
+.hm-group__caret {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+
+.hm-group__title .hm-group__caret {
+  font-size: 20px;
 }
 
 /* --- Manage dialog (Menu-setup look: collapsible module blocks + drag rows,

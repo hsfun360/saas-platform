@@ -95,6 +95,49 @@ export class HomeComponent {
     }
   })());
 
+  // --- Quick access view state (device-local UI preference, per user) -------
+  // Hidden = the eye toggle collapses the whole section to just its title.
+  readonly qaHidden = signal<boolean>(localStorage.getItem(this.qaHiddenKey()) === '1');
+  // Collapsed module groups within Quick access.
+  readonly qaCollapsed = signal<Set<string>>((() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(this.qaCollapsedKey()) || '[]');
+      return new Set(Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string') : []);
+    } catch {
+      return new Set<string>();
+    }
+  })());
+
+  private qaHiddenKey(): string {
+    return `homeQuickAccessHidden:${localStorage.getItem('userEmail') || 'anonymous'}`;
+  }
+
+  private qaCollapsedKey(): string {
+    return `homeQuickAccessCollapsed:${localStorage.getItem('userEmail') || 'anonymous'}`;
+  }
+
+  toggleQaHidden(): void {
+    const next = !this.qaHidden();
+    this.qaHidden.set(next);
+    try {
+      localStorage.setItem(this.qaHiddenKey(), next ? '1' : '0');
+    } catch { /* view preference only */ }
+  }
+
+  toggleQaGroup(moduleName: string): void {
+    const next = new Set(this.qaCollapsed());
+    if (next.has(moduleName)) next.delete(moduleName);
+    else next.add(moduleName);
+    this.qaCollapsed.set(next);
+    try {
+      localStorage.setItem(this.qaCollapsedKey(), JSON.stringify([...next]));
+    } catch { /* view preference only */ }
+  }
+
+  isQaCollapsed(moduleName: string): boolean {
+    return this.qaCollapsed().has(moduleName);
+  }
+
   // Quick access = starred screens, grouped by module (module order follows
   // the granted-menu cache, i.e. the platform's module ordering; the user's
   // starred sequence orders the tiles WITHIN each module).
