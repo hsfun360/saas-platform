@@ -2,7 +2,6 @@ import { Component, OnInit, computed, signal } from '@angular/core';
 import { RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
-import { ActiveSystemService } from '../services/active-system.service';
 import { LanguageService } from '../services/language.service';
 import { I18nService } from '../i18n/i18n.service';
 import { RecentScreensService } from '../services/recent-screens.service';
@@ -123,7 +122,6 @@ export class Dashboard implements OnInit {
   constructor(
     private router: Router,
     private authService: AuthService,
-    private activeSystem: ActiveSystemService,
     private languageService: LanguageService,
     public i18n: I18nService,
     // Instantiated with the shell so screen visits are tracked from the first
@@ -208,15 +206,9 @@ export class Dashboard implements OnInit {
     });
     this.availableModules = Array.from(moduleMap.entries()).map(([name, v]) => ({ name, icon: v.icon, names: v.names }));
 
-    // Apply Control-Plane landing config (Module.landingRoute) over the defaults.
-    this.allowedMenus.forEach(m => {
-      if (m.moduleName && m.moduleLanding) this.moduleLanding[m.moduleName] = m.moduleLanding;
-    });
-
     // Active system follows the URL (deep link / refresh / back-forward) so the
     // correct sidebar shows on load. We never auto-navigate here — that would
-    // fight a deep link and surprise users on login; entering a system (via the
-    // apps switcher) is what navigates to its dashboard.
+    // fight a deep link and surprise users on login.
     const fallbackModule = this.isSystemAdmin ? 'SaaS Administration' : this.availableModules[0]?.name;
     const initialModule = this.moduleForUrl(this.router.url) || fallbackModule;
     if (initialModule) this.selectModule(initialModule, false);
@@ -329,24 +321,6 @@ export class Dashboard implements OnInit {
     this.isAppsDropdownOpen = next;
   }
 
-  // Per-system landing routes. Seeded with sensible defaults for the known
-  // systems, then OVERRIDDEN by Control-Plane config (Module.landingRoute, carried
-  // on each menu as `moduleLanding`) in ngOnInit. If a system has neither, entering
-  // it falls back to the first menu the role is permitted (permitted-first).
-  private moduleLanding: Record<string, string> = {
-    'SaaS Administration': '/platform',
-    'Membership Management': '/membership',
-    'Golf Management': '/golf',
-    'Facility Management': '/facility',
-  };
-
-  // The active system's dashboard route (its configured landing). Powers the
-  // sidebar / bottom-nav "Dashboard" link, so it always points at THIS system's
-  // dashboard. Falls back to /home for a system without a dedicated dashboard.
-  get systemDashboardRoute(): string {
-    return this.moduleLanding[this.activeModule] || '/home';
-  }
-
   selectModule(moduleName: string, navigate = true): void {
     this.activeModule = moduleName;
     this.displayedMenus = this.allowedMenus.filter(m => m.moduleName === moduleName);
@@ -354,21 +328,16 @@ export class Dashboard implements OnInit {
     // Start with every section collapsed on each (re)load of a module.
     this.collapsedGroups.set(this.collectSectionIds(this.displayedTree));
     this.isAppsDropdownOpen = false;
-    // Publish this system's dashboard so other screens (e.g. Under Construction)
-    // can return to it rather than the generic /home.
-    this.activeSystem.dashboardRoute.set(this.systemDashboardRoute);
-    if (navigate) {
-      const landing = this.moduleLanding[moduleName] || this.displayedMenus[0]?.route;
-      if (landing) this.router.navigate([landing]);
-    }
+    // Switching systems lands on My Dashboard (/home) - the ONE personal home
+    // page. The per-system launchpad landings (SystemDashboardComponent) were
+    // removed 2026-07-23; /home's favorites/recents do their job.
+    if (navigate) this.router.navigate(['/home']);
   }
 
   // Which system does the current URL belong to? Sets the active system on load
-  // so deep links / refresh show the correct sidebar.
+  // so deep links / refresh show the correct sidebar. Resolved purely from the
+  // granted menus' routes (no landing-route table anymore).
   private moduleForUrl(url: string): string | null {
-    for (const [mod, route] of Object.entries(this.moduleLanding)) {
-      if (url.startsWith(route)) return mod;
-    }
     const menu = this.allowedMenus.find(m => m.route && m.route !== '/home' && url.startsWith(m.route));
     return menu?.moduleName || null;
   }

@@ -74,9 +74,11 @@ const routes: Routes = [
       { path: 'items', loadComponent: () => import('./app/items/items').then((m) => m.ItemsComponent) },
       { path: 'items/:id', loadComponent: () => import('./app/items/items').then((m) => m.ItemsComponent) },
 
-      // Platform Administration (Control Plane) — landing + admin screens.
+      // Platform Administration (Control Plane) — admin screens.
       // `data.systemModule` + systemAccessGuard block users without that access.
-      { path: 'platform', loadComponent: () => import('./app/systems/system-dashboard').then((m) => m.SystemDashboardComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', title: 'Platform Administration', icon: 'admin_panel_settings', blurb: 'Subscribers, modules and platform health.' } },
+      // NOTE: there are no per-system landing routes (/platform, /membership,
+      // /golf, /facility) anymore - switching systems lands on /home
+      // (My Dashboard); the launchpad pages were removed 2026-07-23.
       { path: 'admin/roles', loadComponent: () => import('./app/role-management/role-management').then((m) => m.RoleManagementComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/users', loadComponent: () => import('./app/tenant-users/tenant-users').then((m) => m.TenantUsersComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/companies', loadComponent: () => import('./app/companies/companies').then((m) => m.CompaniesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
@@ -118,13 +120,7 @@ const routes: Routes = [
       { path: 'admin/email-templates', loadComponent: () => import('./app/email-templates/email-templates').then((m) => m.EmailTemplatesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/email-templates/:key', loadComponent: () => import('./app/email-templates/email-template-edit').then((m) => m.EmailTemplateEditComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
 
-      // Core product systems — landing dashboards (own components as built).
-      // The '<system>/dashboard' alias serves the same launchpad: the Control
-      // Plane's Module.landingRoute values are configured as '/x/dashboard'
-      // (the sidebar Dashboard link navigates there), while '/x' stays the
-      // bare-url landing.
-      { path: 'membership', loadComponent: () => import('./app/systems/system-dashboard').then((m) => m.SystemDashboardComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management', title: 'Membership Management', icon: 'card_membership', blurb: 'Members, tiers, dues and standing.' } },
-      { path: 'membership/dashboard', loadComponent: () => import('./app/systems/system-dashboard').then((m) => m.SystemDashboardComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management', title: 'Membership Management', icon: 'card_membership', blurb: 'Members, tiers, dues and standing.' } },
+      // Core product systems.
       // Business Insights - the two analytics screens (split 2026-07-22):
       // membership movement/demographics, and sales channel/agent performance.
       { path: 'membership/membership-analysis', loadComponent: () => import('./app/membership-insights/membership-analysis').then((m) => m.MembershipAnalysisComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
@@ -142,17 +138,12 @@ const routes: Routes = [
       { path: 'membership/members', loadComponent: () => import('./app/members/members').then((m) => m.MembersComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/sales-agencies', loadComponent: () => import('./app/sales-agencies/sales-agencies').then((m) => m.SalesAgenciesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/sales-agents', loadComponent: () => import('./app/sales-agents/sales-agents').then((m) => m.SalesAgentsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
-      { path: 'golf', loadComponent: () => import('./app/systems/system-dashboard').then((m) => m.SystemDashboardComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management', title: 'Golf Management', icon: 'sports_golf', blurb: 'Tee sheet, bookings and competitions.' } },
-      { path: 'golf/dashboard', loadComponent: () => import('./app/systems/system-dashboard').then((m) => m.SystemDashboardComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management', title: 'Golf Management', icon: 'sports_golf', blurb: 'Tee sheet, bookings and competitions.' } },
       // Master File Setup → Unit Courses (per-company 9-hole building blocks).
       { path: 'golf/unit-courses', loadComponent: () => import('./app/golf-unit-courses/golf-unit-courses').then((m) => m.GolfUnitCoursesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },
       // Master File Setup → Courses (18-hole pairing of two unit courses).
       { path: 'golf/courses', loadComponent: () => import('./app/golf-courses/golf-courses').then((m) => m.GolfCoursesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },
       // Master File Setup → Transaction Type (golf billing-item catalog).
       { path: 'golf/transaction-types', loadComponent: () => import('./app/golf-transaction-types/golf-transaction-types').then((m) => m.GolfTransactionTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },
-      { path: 'facility', loadComponent: () => import('./app/systems/system-dashboard').then((m) => m.SystemDashboardComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Facility Management', title: 'Facility Management', icon: 'meeting_room', blurb: 'Facilities, availability and reservations.' } },
-      { path: 'facility/dashboard', loadComponent: () => import('./app/systems/system-dashboard').then((m) => m.SystemDashboardComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Facility Management', title: 'Facility Management', icon: 'meeting_room', blurb: 'Facilities, availability and reservations.' } },
-
       // Shown when systemAccessGuard denies a route (no guard on this one).
       { path: 'access-denied', loadComponent: () => import('./app/access-denied/access-denied').then((m) => m.AccessDeniedComponent) },
 

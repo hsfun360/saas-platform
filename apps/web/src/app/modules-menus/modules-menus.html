@@ -275,14 +275,8 @@
                     style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary); font-family: inherit; line-height: 1.4; resize: vertical;"></textarea>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-          <label for="mod-landing" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">
-            Landing route <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional — the system's dashboard, e.g. /golf)</span>
-          </label>
-          <input id="mod-landing" type="text" formControlName="landingRoute" placeholder="e.g. /golf"
-                 style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
-          <span style="font-size: var(--font-caption); color: var(--text-muted);">Where the apps switcher lands when entering this system. Leave blank to land on the first menu the role can access.</span>
-        </div>
+        <!-- No "Landing route" field: switching systems always lands on My
+             Dashboard (/home) since 2026-07-23; Module.landingRoute is dormant. -->
 
         <div style="margin-top: var(--space-md); border-top: 1px solid var(--border); padding-top: var(--space-md);">
           <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Translations</label>

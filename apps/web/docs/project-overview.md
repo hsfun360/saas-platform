@@ -231,12 +231,13 @@ Every menu-backed screen carries a **bookmark star** right after its title so us
 The component resolves the current route against the granted-menu cache and renders NOTHING on non-menu-backed screens (hardcoded admin sets, portals), so only grantable screens can be starred.
 Favorites persist server-side per user + workspace (`UserFavorite` via `GET`/`PUT /api/auth/my/favorites` - see `apps/api/docs/systems/system-administration.md`), toggled optimistically by `FavoritesService`.
 
-#### My Dashboard (/home) vs module landings - the home-page rule
+#### My Dashboard (/home) - the ONE home page
 
 The sidebar/bottom-nav "My Dashboard" item always points at **/home** (`HomeComponent`) - the user's PERSONAL page, identical whichever system is active: greeting, **Quick access** (starred screens, grouped by module, reordered via a Manage dialog with drag-within-module), cross-module "Continue where you left off" (`RecentScreensService`, device-local), and Help & guides (granted screens with published manuals via `HelpService.manualSlugFor`).
 The future workflow "my approvals / my tasks" inbox belongs here (user-scoped).
-Each system's landing (`/x` and the `/x/dashboard` alias that `Module.landingRoute` points at, `SystemDashboardComponent`) shows module orientation only: the header + that module's granted screens as tiles.
-**The rule (agreed 2026-07-22): home/landing pages only render things DERIVED from what the user already has** - menu-driven navigation and caller-scoped data - **never aggregates of business tables.**
+**There are no per-system landing pages anymore** (removed 2026-07-23): switching systems in the apps switcher lands on /home, and the old `/x` + `/x/dashboard` launchpad routes (`SystemDashboardComponent`) are gone - Quick access favorites replaced the per-module tile pages.
+`Module.landingRoute` still exists in the DB/API payload but the web app ignores it (the Modules & Menus dialog no longer edits it); don't re-introduce per-system landings.
+**The rule (agreed 2026-07-22): a home page only renders things DERIVED from what the user already has** - menu-driven navigation and caller-scoped data - **never aggregates of business tables.**
 Business counts/charts go behind their own RBAC-gated screens (e.g. Membership Management's Business Insights pair); role-tailored KPI cards on a home page would require a widget registry keyed to the owning menu's grant.
 
 #### Permission-gated actions (RBAC) - FAB / Edit / Delete buttons

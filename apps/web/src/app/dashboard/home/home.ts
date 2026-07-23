@@ -31,8 +31,8 @@ interface FavoriteGroup {
 //    devices, displayed GROUPED BY MODULE, reordered via the Manage dialog;
 //  - "Continue where you left off" = their own cross-module visit history;
 //  - Help & guides = granted screens with a published manual.
-// Module-scoped orientation (all screens of one system) lives on the module
-// landing (SystemDashboardComponent). The future workflow "my approvals /
+// This is the ONE home page - the per-system launchpad landings were removed
+// 2026-07-23 (switching systems lands here). The future workflow "my approvals /
 // my tasks" inbox belongs HERE - it is user-scoped, like everything else.
 @Component({
   selector: 'app-home',
@@ -41,8 +41,8 @@ interface FavoriteGroup {
   imports: [RouterLink, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle],
   templateUrl: './home.html',
   // system-setup.css supplies the shared .saas-container/.saas-header chrome;
-  // system-dashboard.css the launchpad primitives (both component-scoped).
-  styleUrls: ['../../system-setup/system-setup.css', '../../systems/system-dashboard.css', './home.css'],
+  // launchpad.css the tile/hero primitives (both component-scoped).
+  styleUrls: ['../../system-setup/system-setup.css', './launchpad.css', './home.css'],
 })
 export class HomeComponent {
   private readonly i18n = inject(I18nService);

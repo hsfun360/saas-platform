@@ -17,9 +17,8 @@
   // Localized names of the owning module (DB Module.names), for the apps switcher.
   moduleNames?: Record<string, string>;
   moduleIcon?: string;
-  // The owning system's default landing route (Module.landingRoute), carried on
-  // each menu so the shell can navigate to a system's dashboard when switching.
-  moduleLanding?: string | null;
+  // (The login payload still carries `moduleLanding` for older clients, but the
+  // web app ignores it - switching systems always lands on /home since 2026-07-23.)
   // Adjacency-list nesting: parentId null/absent = top level. A menu with
   // children renders as a collapsible sidebar section. `sequence` orders siblings.
   parentId?: string | null;
@@ -220,7 +219,6 @@ export interface AdminModule {
   names?: Record<string, string>;
   icon?: string;
   description?: string | null;
-  landingRoute?: string | null;
 }
 
 // Request payloads for the Modules & Menus maintenance screen.
@@ -228,7 +226,6 @@ export interface ModuleInput {
   name: string;
   icon?: string;
   description?: string;
-  landingRoute?: string;
   names?: Record<string, string>;
 }
 

@@ -102,7 +102,7 @@ export class ModulesMenusComponent implements OnInit {
     name: ['', [Validators.required, Validators.maxLength(100)]],
     icon: [''],
     description: [''],
-    landingRoute: [''],
+
     translations: this.fb.nonNullable.array<TranslationGroup>([]),
   });
 
@@ -295,7 +295,7 @@ export class ModulesMenusComponent implements OnInit {
     this.clearMessages();
     this.editingModuleId.set(null);
     this.populateTranslations(this.moduleForm.controls.translations, {});
-    this.moduleForm.reset({ name: '', icon: '', description: '', landingRoute: '' });
+    this.moduleForm.reset({ name: '', icon: '', description: '' });
     this.moduleDialogOpen.set(true);
   }
 
@@ -307,7 +307,7 @@ export class ModulesMenusComponent implements OnInit {
       name: m.name,
       icon: m.icon || '',
       description: m.description || '',
-      landingRoute: m.landingRoute || '',
+
     });
     this.moduleDialogOpen.set(true);
   }
@@ -315,7 +315,7 @@ export class ModulesMenusComponent implements OnInit {
   cancelModuleEdit(): void {
     this.moduleDialogOpen.set(false);
     this.editingModuleId.set(null);
-    this.moduleForm.reset({ name: '', icon: '', description: '', landingRoute: '' });
+    this.moduleForm.reset({ name: '', icon: '', description: '' });
   }
 
   saveModule(): void {
@@ -326,9 +326,9 @@ export class ModulesMenusComponent implements OnInit {
       return;
     }
 
-    const { name, icon, description, landingRoute, translations } = this.moduleForm.getRawValue();
+    const { name, icon, description, translations } = this.moduleForm.getRawValue();
     const payload = {
-      name: name.trim(), icon: icon.trim(), description: description.trim(), landingRoute: landingRoute.trim(),
+      name: name.trim(), icon: icon.trim(), description: description.trim(),
       names: this.namesFrom(translations),
     };
     const editingId = this.editingModuleId();

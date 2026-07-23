@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { ActiveSystemService } from '../services/active-system.service';
 
 // Shown (inside the dashboard shell) when a user navigates to a system/area they
 // don't have access to — see access.guard.ts. The backend is still the
@@ -25,16 +24,17 @@ import { ActiveSystemService } from '../services/active-system.service';
 
       <button type="button" class="btn btn--primary" (click)="goToDashboard()">
         <span class="material-icons" aria-hidden="true">dashboard</span>
-        Back to dashboard
+        Back to My Dashboard
       </button>
     </div>
   `,
 })
 export class AccessDeniedComponent {
   private readonly router = inject(Router);
-  private readonly activeSystem = inject(ActiveSystemService);
 
   goToDashboard(): void {
-    this.router.navigateByUrl(this.activeSystem.dashboardRoute());
+    // My Dashboard (/home) is the one home page - the per-system landing
+    // pages (and the ActiveSystemService that tracked them) are gone.
+    this.router.navigateByUrl('/home');
   }
 }
