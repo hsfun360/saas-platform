@@ -233,7 +233,12 @@ Favorites persist server-side per user + workspace (`UserFavorite` via `GET`/`PU
 
 #### My Dashboard (/home) - the ONE home page
 
-The sidebar/bottom-nav "My Dashboard" item always points at **/home** (`HomeComponent`) - the user's PERSONAL page, identical whichever system is active: greeting, **Quick access** (starred screens, grouped by module, reordered via a Manage dialog with drag-within-module), cross-module "Continue where you left off" (`RecentScreensService`, device-local), and Help & guides (granted screens with published manuals via `HelpService.manualSlugFor`).
+The sidebar/bottom-nav "My Dashboard" item always points at **/home** (`HomeComponent`) - the user's PERSONAL page, identical whichever system is active: greeting, **Quick access**, cross-module "Continue where you left off" (`RecentScreensService`, device-local), and Help & guides (granted screens with published manuals via `HelpService.manualSlugFor`).
+Quick access details:
+- Starred screens render grouped by module; BOTH orders come from the user's one flat server-side sequence - a module group's position is the FIRST OCCURRENCE of any of its screens in the sequence, and the sequence orders tiles within each group.
+- The section has an eye hide/show toggle beside its title, and each module group header collapses (icon + name + count chip + chevron); both view states are device-local localStorage per user (the favorites DATA stays server-side).
+- The **Manage** dialog mirrors the Modules & Menus look: collapsible block per module, CDK drag handles reorder screens WITHIN a module (inner lists, not connected) AND whole module blocks via a header handle (outer list); per-row remove; Save flattens blocks top-to-bottom into the one PUT-replaced list, guarded by the unsaved-changes dialog standard.
+- My Dashboard's own user manual is published at `/help/home.md` (slug `home`).
 The future workflow "my approvals / my tasks" inbox belongs here (user-scoped).
 **There are no per-system landing pages anymore** (removed 2026-07-23): switching systems in the apps switcher lands on /home, and the old `/x` + `/x/dashboard` launchpad routes (`SystemDashboardComponent`) are gone - Quick access favorites replaced the per-module tile pages.
 `Module.landingRoute` still exists in the DB/API payload but the web app ignores it (the Modules & Menus dialog no longer edits it); don't re-introduce per-system landings.

@@ -3,6 +3,10 @@
 End-user manuals for the platform's screens, generated with the `/user-manual` skill.
 Each manual is also published as an in-app guide: a static copy lives at `apps/web/public/help/<route-slug>.md` and is listed in `apps/web/public/help/index.json`, which makes the Book icon appear in the header on that screen.
 
+## General (every user)
+
+- [My Dashboard](general/my-dashboard.md) - the personal home page: star-pinned Quick access grouped by system, recent screens, and guides.
+
 ## SaaS Administration
 
 - [Countries](saas-administration/countries.md) - the country reference list behind every country picker.

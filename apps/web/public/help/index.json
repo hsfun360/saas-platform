@@ -1,4 +1,5 @@
 {
+  "home": { "title": "My Dashboard" },
   "admin-companies": { "title": "Companies" },
   "admin-countries": { "title": "Countries" },
   "golf-unit-courses": { "title": "Unit Courses" }
