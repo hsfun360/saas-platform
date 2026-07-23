@@ -492,12 +492,18 @@
 .sidebar-module .icon {
   color: var(--brand-text);
 }
-.sidebar-module__name {
+/* Two-class selector on purpose: it must OUTRANK the generic `.label`
+   rule further down (same 0,1,0 specificity, later in file), whose
+   `white-space: nowrap` + the sidebar's hidden overflow would otherwise
+   CLIP long module names ("MEMBERSHIP MANAG..."). Here the name wraps
+   to a 2nd line instead - the banner grows, the sidebar width stays
+   the fixed 72/256px the whole shell is built around. */
+.sidebar-module .sidebar-module__name {
   font-weight: var(--weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--brand-text);
-  white-space: normal; /* long module names wrap to a 2nd line, never clip */
+  white-space: normal;
   line-height: 1.25;
   padding-right: var(--space-sm);
 }
