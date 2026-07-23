@@ -61,7 +61,6 @@
     <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
       @for (sub of filteredSubscriptions(); track sub.id) {
         @let firstCompany = sub.Companies?.[0];
-        @let cid = firstCompany?.id;
         <div class="data-card">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
@@ -88,20 +87,31 @@
                       [attr.aria-label]="'Edit ' + sub.subscriberName">
                 Edit
               </button>
-              <button type="button" class="btn btn--secondary btn--sm" (click)="manageAdmin(cid)">
-                {{ managingCompanyId === cid ? 'Close' : 'Manage Admin' }}
+              <button type="button" class="btn btn--secondary btn--sm" (click)="manageAdmin(sub)">
+                {{ managingAccountId === sub.id ? 'Close' : 'Manage Admin' }}
               </button>
             </div>
           </div>
 
-          @if (cid && managingCompanyId === cid) {
+          @if (managingAccountId === sub.id) {
             <div class="admin-panel">
+              <div class="admin-panel-title">Set the Tenant Admin for {{ sub.subscriberName }}</div>
+              <!-- Each company has its OWN Tenant Admin - pick which one to recover. -->
+              @if ((sub.Companies?.length || 0) > 1) {
+                <div style="display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-bottom: var(--space-sm);" role="group" [attr.aria-label]="'Choose a company of ' + sub.subscriberName">
+                  @for (c of sub.Companies; track c.id) {
+                    <button type="button" class="btn btn--sm"
+                            [class.btn--primary]="adminCompanyId === c.id"
+                            [class.btn--secondary]="adminCompanyId !== c.id"
+                            (click)="selectAdminCompany(c.id)">{{ c.name }}</button>
+                  }
+                </div>
+              }
               @if (companyUsersLoading()) {
                 <p class="cell-subtle">Loading users…</p>
               } @else if (companyUsers.length === 0) {
-                <p class="cell-subtle">No users in this company.</p>
+                <p class="cell-subtle">No users in this company yet. Users join a company via the tenant's own User Management; once someone is in it, you can make them its Tenant Admin here.</p>
               } @else {
-                <div class="admin-panel-title">Set the Tenant Admin for {{ sub.subscriberName }}</div>
                 @for (cu of companyUsers; track cu.id) {
                   <div class="admin-user-row">
                     <span class="admin-user-info">
@@ -113,7 +123,7 @@
                     } @else {
                       <button type="button" class="btn btn--primary btn--sm"
                               [disabled]="settingAdminUserId === cu.id"
-                              (click)="setTenantAdmin(cid, cu.id)">
+                              (click)="setTenantAdmin(adminCompanyId!, cu.id)">
                         Set as Admin
                       </button>
                     }

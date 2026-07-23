@@ -101,7 +101,13 @@ export class SubscribersComponent implements OnInit {
   readonly statuses = ['ACTIVE', 'SUSPENDED'];
 
   // ── Manage Tenant Admin (expands inside a subscriber card) ───
-  managingCompanyId: string | null = null;
+  // The break-glass exception to platform/tenant role separation: recover a
+  // company's Tenant Admin. Works per COMPANY - a subscriber can have many
+  // companies, each with its own Tenant Admin, so the panel carries a company
+  // picker (it used to hardwire the account's first company, hiding users who
+  // belong only to the others).
+  managingAccountId: string | null = null;
+  adminCompanyId: string | null = null;
   companyUsers: TenantUser[] = [];
   readonly companyUsersLoading = signal(false);
   settingAdminUserId: string | null = null;
@@ -267,18 +273,28 @@ export class SubscribersComponent implements OnInit {
   // preference data.
 
   // ── Manage Tenant Admin ──────────────────────────────────────
-  manageAdmin(companyId: string | undefined): void {
+  manageAdmin(sub: SubscriptionInfo): void {
     this.clearMessages();
-    if (!companyId) {
+    const companies = sub.Companies || [];
+    if (companies.length === 0) {
       this.errorMessage.set('This subscriber has no company to manage.');
       return;
     }
-    if (this.managingCompanyId === companyId) {
-      this.managingCompanyId = null;
+    if (this.managingAccountId === sub.id) {
+      this.managingAccountId = null;
+      this.adminCompanyId = null;
       this.companyUsers = [];
       return;
     }
-    this.managingCompanyId = companyId;
+    this.managingAccountId = sub.id;
+    const first = companies.find((c) => c.isActive !== false) || companies[0];
+    this.selectAdminCompany(first.id);
+  }
+
+  selectAdminCompany(companyId: string): void {
+    if (this.adminCompanyId === companyId && this.companyUsers.length > 0) return;
+    this.adminCompanyId = companyId;
+    this.companyUsers = [];
     this.loadCompanyUsers(companyId);
   }
 

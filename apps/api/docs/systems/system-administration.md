@@ -18,6 +18,12 @@ only, under `/api/auth/account/*` and the System Setup screens.
 **The one sanctioned exception is Tenant Admin recovery**: assigning/transferring
 a company's Tenant Admin when the existing admin left without a backup
 (Subscribers -> Manage Admin).
+Tenant Admin is a PER-COMPANY role (a CompanyUser row's role), so the Manage
+Admin panel carries a company picker across ALL the subscriber's companies -
+it must never assume "the first company" (that hid users who belong only to
+the account's other companies).
+It can only promote users who are already members of the chosen company;
+adding people to a company stays tenant self-service (User Management).
 Do not add platform-side editors/endpoints for tenant preference data; the
 subscription language/currency editors were removed under this rule.
 
