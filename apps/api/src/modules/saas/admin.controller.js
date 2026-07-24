@@ -220,7 +220,7 @@ exports.deleteRole = async (req, res) => {
 exports.listModules = async (req, res) => {
     try {
         const modules = await Module.findAll({
-            attributes: ['id', 'name', 'names', 'icon', 'description', 'landingRoute'],
+            attributes: ['id', 'name', 'names', 'icon', 'description', 'landingRoute', 'isSystem'],
             order: [['name', 'ASC']],
         });
         res.status(200).json(modules);
@@ -286,6 +286,12 @@ exports.updateModule = async (req, res) => {
         if (typeof req.body.name === 'string' && req.body.name.trim()) {
             const name = req.body.name.trim();
             if (name !== module.name) {
+                // A system module's base name is a code-level identifier (the
+                // boot-time isSystem stamp and frontend gating key on it) —
+                // localized display names stay editable, the base name does not.
+                if (module.isSystem) {
+                    return res.status(400).json({ message: "This is a system module - its base name cannot be changed. Edit the translated names instead." });
+                }
                 const dup = await Module.findOne({ where: { name } });
                 if (dup) return res.status(409).json({ message: "A module with that name already exists." });
             }
@@ -315,6 +321,13 @@ exports.deleteModule = async (req, res) => {
         if (!module) {
             await transaction.rollback();
             return res.status(404).json({ message: "Module not found." });
+        }
+
+        // System modules are platform infrastructure (every tenant is entitled
+        // to them by provisioning) - never deletable, like a system Role.
+        if (module.isSystem) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "This is a system module and cannot be deleted." });
         }
 
         const subscribers = await CompanyModule.count({ where: { moduleId: module.id }, transaction });

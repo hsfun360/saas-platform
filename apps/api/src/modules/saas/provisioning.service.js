@@ -20,22 +20,34 @@ const Role = require('./role.model');
 const Module = require('./module.model');
 const OutboxMessage = require('../../platform/outboxMessage.model');
 
-// The tenant-administration module (System Setup screens: users, roles,
-// companies, reference data). A tenant without it is UNMANAGEABLE - its Tenant
-// Admin would have no admin screens - so provisioning always entitles it,
-// whatever the caller selected. It is therefore not a choice to offer.
-const MANDATORY_MODULE_NAME = 'System Administration';
+// System modules (Module.isSystem) are platform infrastructure every tenant
+// needs - the tenant-administration screens (users, roles, companies setup).
+// A tenant without them is UNMANAGEABLE, so provisioning always entitles them,
+// whatever the caller selected, and they are never offered as a choice.
+//
+// The flag itself is stamped at boot (idempotent) by name, so a fresh DB or a
+// pre-flag row self-heals without a manual migration. The NAME is only the
+// bootstrap key; all runtime logic uses the flag.
+const SYSTEM_MODULE_NAMES = ['System Administration'];
+
+async function ensureSystemModules() {
+    const [count] = await Module.update(
+        { isSystem: true },
+        { where: { name: SYSTEM_MODULE_NAMES, isSystem: false } },
+    );
+    if (count > 0) console.log(`Stamped ${count} system module(s) (isSystem=true).`);
+}
 
 // The OPTIONAL product modules a subscriber chooses from (onboarding wizard,
-// System Admin portal). The mandatory admin module is excluded - it is always
-// added by provisionTenant() itself.
+// System Admin portal). System modules are excluded - they are always added by
+// provisionTenant() itself.
 async function listEntitlableModules(transaction) {
-    const modules = await Module.findAll({
+    return Module.findAll({
+        where: { isSystem: false },
         attributes: ['id', 'name', 'icon', 'description'],
         order: [['name', 'ASC']],
         transaction,
     });
-    return modules.filter(m => m.name !== MANDATORY_MODULE_NAME);
 }
 
 // Create a complete tenant inside the caller's transaction. The caller owns the
@@ -76,16 +88,16 @@ async function provisionTenant(
     }, { transaction });
 
     // D. Module entitlements. Only ids that exist are accepted - a bogus id in
-    // the request must not create a dangling entitlement row. The mandatory
-    // admin module is ALWAYS added on top of the selection: without it the
-    // Tenant Admin would have no System Setup screens to manage the tenant.
+    // the request must not create a dangling entitlement row. System modules
+    // are ALWAYS added on top of the selection: without them the Tenant Admin
+    // would have no System Setup screens to manage the tenant.
     const requestedIds = Array.isArray(moduleIds) ? [...new Set(moduleIds)] : [];
     const valid = requestedIds.length > 0
         ? await Module.findAll({ where: { id: requestedIds }, attributes: ['id'], transaction })
         : [];
     const entitledIds = new Set(valid.map(m => m.id));
-    const mandatory = await Module.findOne({ where: { name: MANDATORY_MODULE_NAME }, attributes: ['id'], transaction });
-    if (mandatory) entitledIds.add(mandatory.id);
+    const systemModules = await Module.findAll({ where: { isSystem: true }, attributes: ['id'], transaction });
+    for (const m of systemModules) entitledIds.add(m.id);
     if (entitledIds.size > 0) {
         await CompanyModule.bulkCreate(
             [...entitledIds].map(moduleId => ({ companyId: company.id, moduleId, isActive: true })),
@@ -112,4 +124,4 @@ async function provisionTenant(
     return { account, company, role, companyUser };
 }
 
-module.exports = { provisionTenant, listEntitlableModules };
+module.exports = { provisionTenant, listEntitlableModules, ensureSystemModules };

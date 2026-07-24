@@ -32,6 +32,15 @@ const Module = sequelize.define('Module', {
     landingRoute: {
         type: DataTypes.STRING,
         allowNull: true // the system's default dashboard route, e.g. '/golf'
+    },
+    // System module (like a system Role): platform infrastructure every tenant
+    // needs - always entitled by provisioning, never deletable, base name
+    // locked (code + the mandatory-entitlement lookup key on it). Stamped at
+    // boot by ensureSystemModules(); currently "System Administration".
+    isSystem: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
     }
 });
 

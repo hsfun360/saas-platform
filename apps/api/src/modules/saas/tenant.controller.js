@@ -926,7 +926,7 @@ exports.listAccountUsers = async (req, res) => {
 exports.listAvailableModules = async (req, res) => {
     try {
         const modules = await Module.findAll({
-            attributes: ['id', 'name', 'icon', 'description'],
+            attributes: ['id', 'name', 'icon', 'description', 'isSystem'],
             order: [['name', 'ASC']],
         });
         res.status(200).json(modules);
@@ -987,6 +987,14 @@ exports.createCompany = async (req, res) => {
                 await transaction.rollback();
                 return res.status(400).json({ message: "One or more selected modules do not exist." });
             }
+        }
+
+        // System modules (tenant-administration screens) are mandatory for every
+        // company - add them whatever was selected, mirroring provisionTenant()
+        // and updateCompanyModules().
+        const systemModules = await Module.findAll({ where: { isSystem: true }, attributes: ['id'], transaction });
+        for (const m of systemModules) {
+            if (!selectedModuleIds.includes(m.id)) selectedModuleIds.push(m.id);
         }
 
         const company = await Company.create({
@@ -1086,6 +1094,13 @@ exports.updateCompanyModules = async (req, res) => {
                 await transaction.rollback();
                 return res.status(400).json({ message: "One or more selected modules do not exist." });
             }
+        }
+
+        // System modules (tenant-administration screens) are mandatory for every
+        // company - silently keep them in the set so they can never be unticked.
+        const systemModules = await Module.findAll({ where: { isSystem: true }, attributes: ['id'], transaction });
+        for (const m of systemModules) {
+            if (!desired.includes(m.id)) desired.push(m.id);
         }
 
         const current = await CompanyModule.findAll({ where: { companyId }, attributes: ['moduleId'], transaction });

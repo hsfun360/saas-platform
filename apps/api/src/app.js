@@ -187,6 +187,11 @@ async function initializeDB() {
         await require('./modules/notification/emailTemplate.service').seedPlatformDefaults();
         console.log('Email template defaults ensured.');
 
+        // Stamp the system modules (Module.isSystem) — idempotent, keyed by
+        // name, so the mandatory-entitlement rule survives a fresh DB or a
+        // row created before the flag existed.
+        await require('./modules/saas/provisioning.service').ensureSystemModules();
+
         await seedDatabase();
 
     } catch (error) {
