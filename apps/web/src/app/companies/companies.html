@@ -252,11 +252,15 @@
           } @else {
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-sm); margin-top: var(--space-sm);">
               @for (mod of modules(); track mod.id) {
-                <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
-                  <input type="checkbox" [checked]="isModuleSelected(mod.id)" (change)="toggleModule(mod.id)"
+                <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm); border: 1px solid var(--border); border-radius: 8px;"
+                       [style.cursor]="mod.isSystem ? 'default' : 'pointer'">
+                  <input type="checkbox" [checked]="isModuleSelected(mod.id)" (change)="toggleModule(mod.id)" [disabled]="mod.isSystem"
                          [attr.aria-label]="'Enable module ' + mod.name">
                   <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: var(--brand);">{{ mod.icon || 'widgets' }}</span>
                   <span style="font-size: var(--font-body-2); color: var(--text-primary);">{{ mod.name }}</span>
+                  @if (mod.isSystem) {
+                    <span style="margin-left: auto; font-size: var(--font-overline); text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); white-space: nowrap;">Always on</span>
+                  }
                 </label>
               }
             </div>
@@ -286,11 +290,15 @@
       } @else {
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-sm);">
           @for (mod of modules(); track mod.id) {
-            <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;">
-              <input type="checkbox" [checked]="isEditModuleSelected(mod.id)" (change)="toggleEditModule(mod.id)"
+            <label style="display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm); border: 1px solid var(--border); border-radius: 8px;"
+                   [style.cursor]="mod.isSystem ? 'default' : 'pointer'">
+              <input type="checkbox" [checked]="isEditModuleSelected(mod.id)" (change)="toggleEditModule(mod.id)" [disabled]="mod.isSystem"
                      [attr.aria-label]="'Toggle module ' + mod.name + ' for ' + (editingCompany()?.name || 'company')">
               <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: var(--brand);">{{ mod.icon || 'widgets' }}</span>
               <span style="font-size: var(--font-body-2); color: var(--text-primary);">{{ mod.name }}</span>
+              @if (mod.isSystem) {
+                <span style="margin-left: auto; font-size: var(--font-overline); text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); white-space: nowrap;">Always on</span>
+              }
             </label>
           }
         </div>

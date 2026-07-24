@@ -83,9 +83,10 @@ export class CompaniesComponent implements OnInit {
     );
   });
 
-  // Modules picked for the company being created (set of module ids).
+  // Modules picked for the company being created (set of module ids). System
+  // modules are counted as always-selected (see withSystemModules).
   private readonly selectedModuleIds = signal<ReadonlySet<string>>(new Set());
-  readonly selectedCount = computed(() => this.selectedModuleIds().size);
+  readonly selectedCount = computed(() => this.withSystemModules(this.selectedModuleIds()).size);
 
   // Editing modules on an EXISTING company.
   readonly editingCompanyId = signal<string | null>(null);
@@ -94,7 +95,7 @@ export class CompaniesComponent implements OnInit {
   );
   readonly savingModules = signal(false);
   private readonly editModuleIds = signal<ReadonlySet<string>>(new Set());
-  readonly editCount = computed(() => this.editModuleIds().size);
+  readonly editCount = computed(() => this.withSystemModules(this.editModuleIds()).size);
 
   // Editing the profile / billing details of an EXISTING company.
   readonly editingProfileCompanyId = signal<string | null>(null);
@@ -244,11 +245,26 @@ export class CompaniesComponent implements OnInit {
     });
   }
 
+  // System modules (tenant administration) are mandatory - always selected,
+  // never toggleable. The backend enforces the same rule.
+  private isSystemModule(id: string): boolean {
+    return !!this.modules().find((m) => m.id === id)?.isSystem;
+  }
+
+  private withSystemModules(ids: Iterable<string>): Set<string> {
+    const next = new Set(ids);
+    for (const m of this.modules()) {
+      if (m.isSystem) next.add(m.id);
+    }
+    return next;
+  }
+
   isModuleSelected(id: string): boolean {
-    return this.selectedModuleIds().has(id);
+    return this.selectedModuleIds().has(id) || this.isSystemModule(id);
   }
 
   toggleModule(id: string): void {
+    if (this.isSystemModule(id)) return;
     const next = new Set(this.selectedModuleIds());
     if (next.has(id)) {
       next.delete(id);
@@ -290,7 +306,7 @@ export class CompaniesComponent implements OnInit {
         timezone: v.timezone.trim() || undefined,
         logo: v.logo || undefined,
         defaultCurrencyCode: v.defaultCurrencyCode || undefined,
-        moduleIds: Array.from(this.selectedModuleIds()),
+        moduleIds: Array.from(this.withSystemModules(this.selectedModuleIds())),
       })
       .subscribe({
         next: (res) => {
@@ -322,10 +338,11 @@ export class CompaniesComponent implements OnInit {
   }
 
   isEditModuleSelected(id: string): boolean {
-    return this.editModuleIds().has(id);
+    return this.editModuleIds().has(id) || this.isSystemModule(id);
   }
 
   toggleEditModule(id: string): void {
+    if (this.isSystemModule(id)) return;
     const next = new Set(this.editModuleIds());
     if (next.has(id)) {
       next.delete(id);
@@ -339,7 +356,7 @@ export class CompaniesComponent implements OnInit {
     this.successMessage.set('');
     this.errorMessage.set('');
     this.savingModules.set(true);
-    this.auth.updateCompanyModules(companyId, Array.from(this.editModuleIds())).subscribe({
+    this.auth.updateCompanyModules(companyId, Array.from(this.withSystemModules(this.editModuleIds()))).subscribe({
       next: (res) => {
         this.successMessage.set(res.message || 'Modules updated.');
         this.savingModules.set(false);

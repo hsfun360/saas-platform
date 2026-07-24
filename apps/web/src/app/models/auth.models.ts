@@ -234,6 +234,9 @@ export interface AdminModule {
   names?: Record<string, string>;
   icon?: string;
   description?: string | null;
+  // System module (like a system role): always entitled by provisioning,
+  // never deletable, base name locked. Currently "System Administration".
+  isSystem?: boolean;
 }
 
 // Request payloads for the Modules & Menus maintenance screen.
@@ -1243,6 +1246,8 @@ export interface ModuleOption {
   name: string;
   icon?: string;
   description?: string;
+  // Mandatory platform module (tenant administration) - always on, not a choice.
+  isSystem?: boolean;
 }
 
 // A company (business entity) under the subscriber's account, with its modules.

@@ -98,6 +98,9 @@ export class ModulesMenusComponent implements OnInit {
   readonly savingModule = signal(false);
   readonly deletingModuleId = signal<string | null>(null);
 
+  // True while the module edit dialog is open on a system module (name locked).
+  readonly editingModuleIsSystem = signal(false);
+
   readonly moduleForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
     icon: [''],
@@ -294,6 +297,8 @@ export class ModulesMenusComponent implements OnInit {
   startCreateModule(): void {
     this.clearMessages();
     this.editingModuleId.set(null);
+    this.editingModuleIsSystem.set(false);
+    this.moduleForm.controls.name.enable();
     this.populateTranslations(this.moduleForm.controls.translations, {});
     this.moduleForm.reset({ name: '', icon: '', description: '' });
     this.moduleDialogOpen.set(true);
@@ -309,12 +314,20 @@ export class ModulesMenusComponent implements OnInit {
       description: m.description || '',
 
     });
+    // A system module's base name is a code-level identifier (mandatory-
+    // entitlement stamp + frontend gating key) - locked; translations stay
+    // editable. The backend enforces the same rule.
+    this.editingModuleIsSystem.set(!!m.isSystem);
+    if (m.isSystem) this.moduleForm.controls.name.disable();
+    else this.moduleForm.controls.name.enable();
     this.moduleDialogOpen.set(true);
   }
 
   cancelModuleEdit(): void {
     this.moduleDialogOpen.set(false);
     this.editingModuleId.set(null);
+    this.editingModuleIsSystem.set(false);
+    this.moduleForm.controls.name.enable();
     this.moduleForm.reset({ name: '', icon: '', description: '' });
   }
 

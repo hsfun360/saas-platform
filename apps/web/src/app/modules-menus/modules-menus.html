@@ -73,11 +73,17 @@
                   <span class="material-icons" aria-hidden="true">edit</span>
                   Edit
                 </button>
-                <button type="button" class="btn btn--danger btn--sm" (click)="deleteModule(m)"
-                        [disabled]="deletingModuleId() === m.id" [attr.aria-label]="'Delete module ' + m.name">
-                  <span class="material-icons" aria-hidden="true">delete</span>
-                  {{ deletingModuleId() === m.id ? 'Deleting…' : 'Delete' }}
-                </button>
+                @if (m.isSystem) {
+                  <!-- Mirrors Role Management's protected "System role" row: a
+                       system module is never deletable. -->
+                  <span style="color: var(--text-muted); font-size: var(--font-caption); align-self: center;">System module</span>
+                } @else {
+                  <button type="button" class="btn btn--danger btn--sm" (click)="deleteModule(m)"
+                          [disabled]="deletingModuleId() === m.id" [attr.aria-label]="'Delete module ' + m.name">
+                    <span class="material-icons" aria-hidden="true">delete</span>
+                    {{ deletingModuleId() === m.id ? 'Deleting…' : 'Delete' }}
+                  </button>
+                }
               </span>
             </li>
           }
@@ -254,6 +260,9 @@
           <label for="mod-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Name *</label>
           <input id="mod-name" type="text" formControlName="name" placeholder="e.g. Golf Management"
                  style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
+          @if (editingModuleIsSystem()) {
+            <span style="color: var(--text-muted); font-size: var(--font-caption);">System module - the base name is fixed. Edit the translated names below instead.</span>
+          }
           @if (moduleForm.controls.name.touched && moduleForm.controls.name.invalid) {
             <span role="alert" style="color: var(--danger-text); font-size: var(--font-caption);">A module name is required.</span>
           }
