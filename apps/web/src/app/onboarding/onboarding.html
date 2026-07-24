@@ -60,7 +60,7 @@
               </label>
             }
           </div>
-          <div class="onb-hint">All systems are pre-selected. You can change this any time under Companies.</div>
+          <div class="onb-hint">All systems are pre-selected - you can change this any time under Companies. System administration (users, roles, companies setup) is always included.</div>
         }
       </div>
 
@@ -70,7 +70,7 @@
           <div class="onb-summary-title">This will create:</div>
           <ul>
             <li>Subscription <strong>{{ orgName() }}</strong> with you as its owner</li>
-            <li>Company <strong>{{ effectiveCompanyName() }}</strong> with {{ selectedCount() }} system{{ selectedCount() === 1 ? '' : 's' }} enabled</li>
+            <li>Company <strong>{{ effectiveCompanyName() }}</strong> with {{ selectedCount() }} system{{ selectedCount() === 1 ? '' : 's' }} enabled, plus System Administration</li>
             <li>You as <strong>Tenant Admin</strong> of the new workspace</li>
           </ul>
         </div>
