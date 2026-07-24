@@ -11,6 +11,7 @@
     "migrate:platform-users": "node scripts/backfill-platform-users.js",
     "migrate:company-country": "node scripts/backfill-company-country.js",
     "migrate:addresses": "node scripts/migrate-addresses.js",
+    "migrate:system-admin-module": "node scripts/backfill-system-admin-module.js",
     "dev": "nodemon server.js",
     "test": "node --test"
   },

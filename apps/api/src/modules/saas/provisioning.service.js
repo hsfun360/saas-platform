@@ -20,14 +20,22 @@ const Role = require('./role.model');
 const Module = require('./module.model');
 const OutboxMessage = require('../../platform/outboxMessage.model');
 
-// All product modules a self-service subscriber may entitle themselves to.
-// (The System Admin portal passes an explicit selection instead.)
+// The tenant-administration module (System Setup screens: users, roles,
+// companies, reference data). A tenant without it is UNMANAGEABLE - its Tenant
+// Admin would have no admin screens - so provisioning always entitles it,
+// whatever the caller selected. It is therefore not a choice to offer.
+const MANDATORY_MODULE_NAME = 'System Administration';
+
+// The OPTIONAL product modules a subscriber chooses from (onboarding wizard,
+// System Admin portal). The mandatory admin module is excluded - it is always
+// added by provisionTenant() itself.
 async function listEntitlableModules(transaction) {
-    return Module.findAll({
+    const modules = await Module.findAll({
         attributes: ['id', 'name', 'icon', 'description'],
         order: [['name', 'ASC']],
         transaction,
     });
+    return modules.filter(m => m.name !== MANDATORY_MODULE_NAME);
 }
 
 // Create a complete tenant inside the caller's transaction. The caller owns the
@@ -68,16 +76,21 @@ async function provisionTenant(
     }, { transaction });
 
     // D. Module entitlements. Only ids that exist are accepted - a bogus id in
-    // the request must not create a dangling entitlement row.
+    // the request must not create a dangling entitlement row. The mandatory
+    // admin module is ALWAYS added on top of the selection: without it the
+    // Tenant Admin would have no System Setup screens to manage the tenant.
     const requestedIds = Array.isArray(moduleIds) ? [...new Set(moduleIds)] : [];
-    if (requestedIds.length > 0) {
-        const valid = await Module.findAll({ where: { id: requestedIds }, attributes: ['id'], transaction });
-        if (valid.length > 0) {
-            await CompanyModule.bulkCreate(
-                valid.map(m => ({ companyId: company.id, moduleId: m.id, isActive: true })),
-                { transaction },
-            );
-        }
+    const valid = requestedIds.length > 0
+        ? await Module.findAll({ where: { id: requestedIds }, attributes: ['id'], transaction })
+        : [];
+    const entitledIds = new Set(valid.map(m => m.id));
+    const mandatory = await Module.findOne({ where: { name: MANDATORY_MODULE_NAME }, attributes: ['id'], transaction });
+    if (mandatory) entitledIds.add(mandatory.id);
+    if (entitledIds.size > 0) {
+        await CompanyModule.bulkCreate(
+            [...entitledIds].map(moduleId => ({ companyId: company.id, moduleId, isActive: true })),
+            { transaction },
+        );
     }
 
     // E. Link the owner into the workspace with the Tenant Admin role.
