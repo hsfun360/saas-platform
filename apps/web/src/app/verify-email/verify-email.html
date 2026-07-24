@@ -1,0 +1,26 @@
+<div class="ve-wrapper">
+  <div class="card ve-card">
+
+    @switch (state()) {
+      @case ('verifying') {
+        <span class="material-icons ve-icon ve-icon--spin" aria-hidden="true">hourglass_top</span>
+        <h2>Verifying your email…</h2>
+        <p>One moment while we activate your account.</p>
+      }
+      @case ('success') {
+        <span class="material-icons ve-icon ve-icon--ok" aria-hidden="true">check_circle</span>
+        <h2>Email verified</h2>
+        <p>{{ message() }}</p>
+        <a routerLink="/login" class="ve-cta">Continue to login</a>
+      }
+      @case ('error') {
+        <span class="material-icons ve-icon ve-icon--err" aria-hidden="true">error_outline</span>
+        <h2>Activation problem</h2>
+        <p role="alert">{{ message() }}</p>
+        <a routerLink="/login" class="ve-cta">Go to login</a>
+        <a routerLink="/register-user" class="ve-secondary">Register again</a>
+      }
+    }
+
+  </div>
+</div>

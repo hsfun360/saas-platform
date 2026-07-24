@@ -245,6 +245,16 @@ label {
   font-size: var(--font-body-2);
 }
 
+.login-success {
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--success-border);
+  border-radius: 8px;
+  background: var(--success-surface);
+  color: var(--success-text);
+  font-size: var(--font-body-2);
+}
+
 @keyframes sso-spin { to { transform: rotate(360deg); } }
 @keyframes sso-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sso-pop {

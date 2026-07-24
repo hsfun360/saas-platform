@@ -1,0 +1,94 @@
+<div class="onb-wrapper">
+  <div class="card onb-card">
+
+    <h2>Create your organization</h2>
+    <p class="onb-intro">
+      You're signed in as <strong>{{ userEmail }}</strong>, but you don't belong to a workspace yet.
+      Set up your organization to get started.
+    </p>
+
+    @if (errorMessage()) {
+      <div class="onb-alert" role="alert">{{ errorMessage() }}</div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+
+      <div class="form-group">
+        <label for="onbSubscriber">Organization name</label>
+        <input
+          id="onbSubscriber"
+          type="text"
+          formControlName="subscriberName"
+          placeholder="e.g. Sunrise Golf & Country Club"
+          autocomplete="organization"
+          maxlength="120"
+        >
+        @if (form.controls.subscriberName.touched && form.controls.subscriberName.errors?.['required']) {
+          <div class="onb-field-error" role="alert">The organization name is required.</div>
+        }
+        <div class="onb-hint">Your subscription (billing) name. It covers every company you add later.</div>
+      </div>
+
+      <div class="form-group">
+        <label for="onbCompany">First company name <span class="onb-optional">(optional)</span></label>
+        <input
+          id="onbCompany"
+          type="text"
+          formControlName="companyName"
+          [placeholder]="orgName() || 'Defaults to the organization name'"
+          autocomplete="organization"
+          maxlength="120"
+        >
+        <div class="onb-hint">The business entity you'll operate in first - you can add more companies later.</div>
+      </div>
+
+      <div class="form-group">
+        <span class="onb-label" id="onbModulesLabel">Systems to enable</span>
+        @if (modulesLoading()) {
+          <div class="onb-hint">Loading available systems…</div>
+        } @else {
+          <div class="onb-modules" role="group" aria-labelledby="onbModulesLabel">
+            @for (m of modules(); track m.id) {
+              <label class="onb-module">
+                <input
+                  type="checkbox"
+                  [checked]="isSelected(m.id)"
+                  (change)="toggleModule(m.id)"
+                >
+                <span class="material-icons onb-module-icon" aria-hidden="true">{{ m.icon || 'apps' }}</span>
+                <span class="onb-module-name">{{ m.name }}</span>
+              </label>
+            }
+          </div>
+          <div class="onb-hint">All systems are pre-selected. You can change this any time under Companies.</div>
+        }
+      </div>
+
+      <!-- Show the expected result before it commits (house rule: no dark rooms) -->
+      @if (orgName()) {
+        <div class="onb-summary">
+          <div class="onb-summary-title">This will create:</div>
+          <ul>
+            <li>Subscription <strong>{{ orgName() }}</strong> with you as its owner</li>
+            <li>Company <strong>{{ effectiveCompanyName() }}</strong> with {{ selectedCount() }} system{{ selectedCount() === 1 ? '' : 's' }} enabled</li>
+            <li>You as <strong>Tenant Admin</strong> of the new workspace</li>
+          </ul>
+        </div>
+      }
+
+      <button
+        type="submit"
+        class="onb-submit"
+        [disabled]="submitting() || modulesLoading()"
+      >
+        {{ submitting() ? 'Creating your workspace…' : 'Create workspace' }}
+      </button>
+
+    </form>
+
+    <button type="button" class="onb-signout" (click)="signOut()">
+      Sign in with a different account
+    </button>
+
+  </div>
+</div>

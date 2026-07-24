@@ -1,0 +1,201 @@
+/* Full-screen onboarding wizard (outside the app shell), matching the auth
+   screens' centred-card look (see setup-password.css). All colours from tokens. */
+.onb-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--surface-page);
+  padding: var(--space-lg);
+  box-sizing: border-box;
+}
+
+.onb-card {
+  background: var(--surface-card);
+  padding: var(--space-xl);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05), 0 4px 6px rgba(0, 0, 0, 0.03);
+  width: 100%;
+  max-width: 560px;
+  box-sizing: border-box;
+}
+
+h2 {
+  text-align: center;
+  color: var(--text-primary);
+  margin-top: 0;
+  margin-bottom: var(--space-sm);
+  font-weight: var(--weight-bold);
+}
+
+.onb-intro {
+  text-align: center;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-lg);
+  line-height: 1.5;
+}
+
+.onb-alert {
+  color: var(--danger-text);
+  background-color: var(--danger-surface);
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.form-group {
+  margin-bottom: var(--space-lg);
+}
+
+.form-group label,
+.onb-label {
+  display: block;
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-body-2);
+}
+
+.onb-optional {
+  font-weight: var(--weight-regular, 400);
+  color: var(--text-muted);
+}
+
+.form-group input[type="text"] {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  background-color: var(--surface-input);
+  transition: all 0.2s ease-in-out;
+}
+
+.form-group input[type="text"]:focus {
+  background-color: var(--surface-card); /* border/glow from the global field-focus rule */
+}
+
+.onb-hint {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  margin-top: var(--space-xs);
+  line-height: 1.4;
+}
+
+.onb-field-error {
+  color: var(--danger-text);
+  font-size: var(--font-caption);
+  margin-top: var(--space-xs);
+}
+
+/* System (module) checkboxes */
+.onb-modules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+@media (max-width: 767px) {
+  .onb-modules { grid-template-columns: 1fr; }
+}
+
+.onb-module {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md);
+  min-height: 44px;
+  cursor: pointer;
+  background-color: var(--surface-input);
+}
+
+.onb-module:hover {
+  background-color: var(--surface-hover);
+}
+
+.onb-module input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--brand);
+}
+
+.onb-module-icon {
+  color: var(--brand-text);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.onb-module-name {
+  color: var(--text-primary);
+  font-size: var(--font-body-2);
+  min-width: 0;
+}
+
+/* Expected-result summary (no dark rooms) */
+.onb-summary {
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.onb-summary-title {
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+  font-size: var(--font-body-2);
+  margin-bottom: var(--space-xs);
+}
+
+.onb-summary ul {
+  margin: 0;
+  padding-left: var(--space-lg);
+  color: var(--text-secondary);
+  font-size: var(--font-body-2);
+  line-height: 1.6;
+}
+
+.onb-submit {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-sm);
+  background-color: var(--brand);
+  color: var(--text-on-brand);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: var(--weight-bold);
+  font-size: var(--font-body);
+}
+
+.onb-submit:hover:not(:disabled) {
+  background-color: var(--brand-hover);
+}
+
+.onb-submit:disabled {
+  background-color: var(--brand-disabled);
+  cursor: not-allowed;
+}
+
+.onb-signout {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: var(--space-md);
+  background: none;
+  border: none;
+  color: var(--brand-text);
+  cursor: pointer;
+  font-size: var(--font-body-2);
+  text-align: center;
+}
+
+.onb-signout:hover {
+  text-decoration: underline;
+}

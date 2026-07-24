@@ -9,6 +9,11 @@ export const authGuard: CanActivateFn = () => {
   const token = localStorage.getItem('token');
 
   if (token && !isTokenExpired(token)) {
+    // An onboarding-scoped token (verified user, no workspace yet) must never
+    // enter the shell — send it to the Create-your-organization wizard.
+    if (tokenPurpose(token) === 'onboarding') {
+      return router.parseUrl('/onboarding');
+    }
     return true;
   }
 
@@ -17,12 +22,39 @@ export const authGuard: CanActivateFn = () => {
   return router.parseUrl('/login');
 };
 
-function isTokenExpired(token: string): boolean {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    // `exp` is seconds since epoch. A token with no exp is treated as non-expiring.
-    return typeof payload.exp === 'number' && Date.now() >= payload.exp * 1000;
-  } catch {
-    return true; // malformed token → treat as invalid
+// Gate for the /onboarding wizard: only an onboarding-scoped token belongs
+// there. A full workspace token goes to the app; anything else to login.
+export const onboardingGuard: CanActivateFn = () => {
+  const router = inject(Router);
+  const token = localStorage.getItem('token');
+
+  if (token && !isTokenExpired(token)) {
+    if (tokenPurpose(token) === 'onboarding') {
+      return true;
+    }
+    return router.parseUrl('/home');
   }
+
+  localStorage.removeItem('token');
+  return router.parseUrl('/login');
+};
+
+function decodePayload(token: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(atob(token.split('.')[1])) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function tokenPurpose(token: string): string | null {
+  const payload = decodePayload(token);
+  return payload && typeof payload['purpose'] === 'string' ? (payload['purpose'] as string) : null;
+}
+
+function isTokenExpired(token: string): boolean {
+  const payload = decodePayload(token);
+  if (!payload) return true; // malformed token → treat as invalid
+  // `exp` is seconds since epoch. A token with no exp is treated as non-expiring.
+  return typeof payload['exp'] === 'number' && Date.now() >= (payload['exp'] as number) * 1000;
 }

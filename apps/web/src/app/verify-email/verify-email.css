@@ -1,0 +1,87 @@
+/* Email-verification landing page (outside the app shell), matching the auth
+   screens' centred-card look. All colours from tokens. */
+.ve-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--surface-page);
+  padding: var(--space-lg);
+  box-sizing: border-box;
+}
+
+.ve-card {
+  background: var(--surface-card);
+  padding: var(--space-xl);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05), 0 4px 6px rgba(0, 0, 0, 0.03);
+  width: 100%;
+  max-width: 440px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+h2 {
+  color: var(--text-primary);
+  margin: var(--space-sm) 0;
+  font-weight: var(--weight-bold);
+}
+
+p {
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-lg);
+}
+
+.ve-icon {
+  font-size: 56px;
+}
+
+.ve-icon--ok { color: var(--success-text); }
+.ve-icon--err { color: var(--danger-text); }
+.ve-icon--spin {
+  color: var(--brand-text);
+  animation: ve-spin 1.4s linear infinite;
+}
+
+@keyframes ve-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ve-icon--spin { animation: none; }
+}
+
+.ve-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: var(--brand);
+  color: var(--text-on-brand);
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: var(--weight-bold);
+}
+
+.ve-cta:hover {
+  background-color: var(--brand-hover);
+}
+
+.ve-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: var(--space-sm);
+  color: var(--brand-text);
+  text-decoration: none;
+  font-size: var(--font-body-2);
+}
+
+.ve-secondary:hover {
+  text-decoration: underline;
+}

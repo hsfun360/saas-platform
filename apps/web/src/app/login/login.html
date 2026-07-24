@@ -37,6 +37,10 @@
       <div class="login-error" role="alert" aria-live="assertive">{{ errorMessage }}</div>
     }
 
+    @if (successMessage) {
+      <div class="login-success" role="status" aria-live="polite">{{ successMessage }}</div>
+    }
+
     <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
       
       <div class="form-group">

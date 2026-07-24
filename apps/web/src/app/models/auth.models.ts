@@ -123,6 +123,18 @@ export interface AuthResponse {
   fullName?: string;
   profilePicture?: string;
   clubs?: Workspace[];
+  // Limbo outcome: verified user with no workspace yet. The token is
+  // onboarding-scoped (only valid on /auth/onboarding/*) and the frontend
+  // routes to the Create-your-organization wizard.
+  onboarding?: boolean;
+}
+
+// A product module offered by the onboarding wizard (GET /auth/onboarding/modules).
+export interface OnboardingModule {
+  id: string;
+  name: string;
+  icon?: string;
+  description?: string;
 }
 
 export interface UserProfile {

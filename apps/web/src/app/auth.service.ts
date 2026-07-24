@@ -23,6 +23,7 @@ import {
   CompanyInvitation,
   MyInvitation,
   AccountUsersResponse,
+  OnboardingModule,
 } from './models/auth.models';
 
 @Injectable({
@@ -92,6 +93,22 @@ export class AuthService {
 
   activateAccount(token: string, password: string): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/activate`, { token, password });
+  }
+
+  // Email verification for the self-register flow (the activation link in the
+  // email points at the frontend /verify-email page, which calls this).
+  verifyEmail(token: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/verify-email`, { token });
+  }
+
+  // --- Self-service onboarding (verified user, no workspace yet; uses the
+  // onboarding-scoped token issued by the login limbo outcome) ---
+  getOnboardingModules(): Observable<OnboardingModule[]> {
+    return this.http.get<OnboardingModule[]>(`${this.apiBaseUrl}/auth/onboarding/modules`);
+  }
+
+  provisionOnboarding(data: { subscriberName: string; companyName: string; moduleIds: string[] }): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiBaseUrl}/auth/onboarding/provision`, data);
   }
 
   setEmail(email: string): void {

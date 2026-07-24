@@ -77,6 +77,11 @@ export class LoginComponent implements OnInit {
     this.pendingGoogleToken = null;
     this.availableWorkspaces = [];
 
+    // Arriving from the email-verification redirect (legacy GET verify link).
+    if (new URLSearchParams(window.location.search).get('verified') === 'true') {
+      this.successMessage = 'Email verified successfully! Please log in.';
+    }
+
     // Offer the platform's active languages in the pre-login switcher (falls back
     // to the shipped set already seeded if the public endpoint returns nothing).
     this.languageService.listActivePublic().subscribe({
@@ -242,6 +247,16 @@ export class LoginComponent implements OnInit {
 
   // A helper function to handle both Local and Google API responses
   private handleLoginResponse(res: AuthResponse, method: 'local' | 'google', googleToken?: string, immediate = false): void {
+    if (res.onboarding && res.token) {
+      // LIMBO: verified user with no workspace yet. Store the onboarding-scoped
+      // token and run the Create-your-organization wizard (the guards keep this
+      // token out of the shell, and the API rejects it everywhere else).
+      localStorage.setItem('token', res.token);
+      localStorage.setItem('userEmail', res.email || this.loginForm.value.email);
+      if (res.fullName) localStorage.setItem('userFullName', res.fullName);
+      this.router.navigate(['/onboarding']);
+      return;
+    }
     if (res.clubs) {
       // SCENARIO B: The 206 Multi-Workspace Pause! Show the picker (not the
       // "signing in" state).

@@ -25,7 +25,7 @@ import { IPublicClientApplication, PublicClientApplication, InteractionType } fr
 import { App } from './app/app'; // Make sure this path matches your app.ts location!
 import { LoginComponent } from './app/login/login';
 import { Dashboard } from './app/dashboard/dashboard';
-import { authGuard } from './app/auth.guard';
+import { authGuard, onboardingGuard } from './app/auth.guard';
 import { systemAccessGuard } from './app/access.guard';
 
 // 1. Define Routes
@@ -43,6 +43,12 @@ const routes: Routes = [
   { path: 'reset-password', loadComponent: () => import('./app/reset-password/reset-password').then((m) => m.ResetPasswordComponent) },
   { path: 'register-lead', loadComponent: () => import('./app/register-lead/register-lead').then((m) => m.RegisterLeadComponent) },
   { path: 'setup-password', loadComponent: () => import('./app/setup-password/setup-password').then((m) => m.SetupPasswordComponent) },
+  // Self-register activation email lands here (the email links the FRONTEND,
+  // never the raw API host - see verifyEmailJson on the backend).
+  { path: 'verify-email', loadComponent: () => import('./app/verify-email/verify-email').then((m) => m.VerifyEmailComponent) },
+  // Limbo onboarding: a verified user with no workspace yet creates their
+  // organization here (full-screen, outside the shell; onboarding-scoped token).
+  { path: 'onboarding', loadComponent: () => import('./app/onboarding/onboarding').then((m) => m.OnboardingComponent), canActivate: [onboardingGuard] },
   // Member Portal - the member's own surface, deliberately OUTSIDE the staff
   // shell (no sidebar/menus/RBAC). Registration is public (signed email-link
   // token); the portal home needs only a valid session.
