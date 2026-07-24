@@ -10,6 +10,7 @@ const CompanyModule = require('./companyModule.model');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { sequelize } = require('../../platform/db');
+const { provisionTenant } = require('./provisioning.service');
 
 // Merge a partial localized-names patch (keyed by language code) into an existing
 // map: a non-empty value sets/updates that language, an empty value clears it.
@@ -760,22 +761,6 @@ exports.createSubscription = async (req, res) => {
             return res.status(409).json({ message: "A user with this email already exists." });
         }
 
-        const account = await Account.create({
-            // The request still sends `companyName` (the subscriber's name); the
-            // Account column was renamed to `subscriberName` to avoid confusion.
-            subscriberName: companyName,
-            subscriptionPlan: subscriptionPlan || 'BASIC',
-            status: 'ACTIVE'
-        }, { transaction });
-
-        const company = await Company.create({
-            accountId: account.id,
-            name: companyName,
-            registrationNumber: registrationNumber || null,
-            timezone: timezone || 'Asia/Kuala_Lumpur',
-            isActive: true
-        }, { transaction });
-
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -788,36 +773,21 @@ exports.createSubscription = async (req, res) => {
             authMethod: 'local'
         }, { transaction });
 
-        // Record this user as the subscriber's SuperUser (account owner): they
-        // administer every company under the account, not just this first one.
-        account.ownerUserId = user.id;
-        await account.save({ transaction });
-
-        // The subscriber's first user is the workspace owner: default them to the
-        // account-level "Tenant Admin" role (implicit full access; menus are
-        // computed at login as role menus ∩ company entitlement, so no grants).
-        const tenantAdminRole = await Role.create({
-            accountId: account.id,
-            name: 'Tenant Admin',
-            description: 'Full administrative access to the company workspace.'
-        }, { transaction });
-
-        // Subscribe the company to the SELECTED modules (entitlement only). The
-        // set of modules is chosen per-subscriber (independent of plan).
-        const selectedModuleIds = Array.isArray(moduleIds) ? moduleIds : [];
-        if (selectedModuleIds.length > 0) {
-            await CompanyModule.bulkCreate(
-                selectedModuleIds.map(moduleId => ({ companyId: company.id, moduleId, isActive: true })),
-                { transaction }
-            );
-        }
-
-        await CompanyUser.create({
+        // The request still sends `companyName` (the subscriber's name); it
+        // becomes both Account.subscriberName and the first company's name.
+        // The set of entitled modules is chosen per-subscriber (independent of
+        // plan). provisioning.service.js is the ONE provisioning path shared
+        // with the lead-activation and self-service onboarding flows.
+        const { account, company, role: tenantAdminRole } = await provisionTenant({
             userId: user.id,
-            companyId: company.id,
-            roleId: tenantAdminRole.id,
-            isActive: true
-        }, { transaction });
+            ownerEmail: user.email,
+            subscriberName: companyName,
+            companyName,
+            subscriptionPlan,
+            registrationNumber,
+            timezone,
+            moduleIds,
+        }, transaction);
 
         await transaction.commit();
 

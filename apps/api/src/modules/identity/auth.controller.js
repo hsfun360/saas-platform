@@ -19,6 +19,7 @@ const RoleMenu = require('../saas/roleMenu.model');
 const { isUserSystemAdmin } = require('../saas/systemAdmin');
 const { getOwnedAccountIds, isAccountAdminForCompany } = require('../saas/account');
 const { hasTenantAdminRole } = require('../saas/tenant');
+const { provisionTenant, listEntitlableModules } = require('../saas/provisioning.service');
 
 const crypto = require('crypto'); // Built into Node.js, no npm install needed
 
@@ -60,6 +61,30 @@ const generateToken = (userId, email, companyId=null, companyName=null, isSystem
 };
 
 
+// Limbo state: a VERIFIED user with zero CompanyUser rows is not an error but a
+// pending onboarding. This token proves who they are while carrying no workspace;
+// it is accepted ONLY by the /api/auth/onboarding/* endpoints (authenticateToken
+// and platform/auth.middleware.js both reject purpose 'onboarding'), so it can
+// never enter the app shell or any data API.
+const generateOnboardingToken = (userId, email) => {
+    return jwt.sign(
+        { id: userId, email, purpose: 'onboarding' },
+        getPrivateKey(),
+        { algorithm: 'RS256', expiresIn: '1h' },
+    );
+};
+
+// The shared 200 payload for the limbo outcome. `onboarding: true` is what the
+// frontend branches on (route to the Create-your-organization wizard).
+const buildOnboardingResponse = (user) => ({
+    message: 'No workspace yet - continue to onboarding.',
+    onboarding: true,
+    token: generateOnboardingToken(user.id, user.email),
+    email: user.email,
+    fullName: user.full_name || null,
+    profilePicture: user.profilePicture || null,
+});
+
 const storage = new Storage(); // Use default credentials when on Cloud Run
 const bucket = storage.bucket('membership-app-avatars-123');
 
@@ -96,8 +121,12 @@ exports.registerUser = async (req, res) => {
             verificationToken: verificationToken
         }, { transaction });
 
-        // 6. Create the Activation Link (Pointing to your Cloud Run API)
-        const activationLink = `https://login-api-148523901156.asia-southeast1.run.app/api/auth/verify/${verificationToken}`;
+        // 6. Create the Activation Link. It points at the FRONTEND (like every
+        // other email link - reset, setup-password, portal invites), which then
+        // calls POST /api/auth/verify-email. Never link the raw API host in an
+        // email: it reads as a phishing pattern and got the API domain flagged
+        // by Chrome Safe Browsing ("Dangerous site").
+        const activationLink = `${FRONTEND_BASE_URL}/verify-email?token=${verificationToken}`;
         console.log(`[AUTH CONTROLLER] Activation link for ${email}: ${activationLink}`);
 
         // 7. Queue the Outbox Message
@@ -188,13 +217,26 @@ exports.login = async (req, res) => {
         // Active memberships only (a deactivated one can no longer be entered).
         let workspaces = allMemberships.filter(m => m.isActive);
 
+        // LIMBO: a verified user with NO membership rows at all is not an error -
+        // they are a self-registered user who has not created (or joined) an
+        // organization yet. Hand them an onboarding-scoped token so the frontend
+        // can run the Create-your-organization wizard. Unverified users still
+        // must complete email activation first.
+        if (allMemberships.length === 0) {
+            if (!user.isVerified) {
+                return res.status(403).json({ message: "Please verify your email first - check your inbox for the activation link." });
+            }
+            return res.status(200).json(buildOnboardingResponse(user));
+        }
+
         // If they clicked a workspace on the UI, filter the array
         if (selectedCompanyId) {
             const targetId = selectedCompanyId === 'SYSTEM' ? null : selectedCompanyId;
             workspaces = workspaces.filter(ws => ws.companyId === targetId);
         }
 
-        // SCENARIO A: NO WORKSPACE
+        // SCENARIO A: NO WORKSPACE (memberships exist, but none match the
+        // selection / none survive the active filter).
         if (workspaces.length === 0) {
             return res.status(403).json({ message: "Account has no associated workspaces." });
         }
@@ -554,13 +596,40 @@ exports.verifyEmail = async (req, res) => {
         user.verificationToken = null;
         await user.save();
 
-        // Redirect them back to your Angular login page with a success flag
-        // (Change this to your actual deployed Angular URL later!)
-        res.redirect('http://localhost:4200/login?verified=true'); 
+        // Redirect them back to the Angular login page with a success flag.
+        // (Legacy GET path - old emails still link here; new emails go to the
+        // frontend /verify-email page, which calls verifyEmailJson below.)
+        res.redirect(`${FRONTEND_BASE_URL}/login?verified=true`);
 
     } catch (error) {
         console.error(error);
         res.status(500).send('<h1>Server Error</h1>');
+    }
+};
+
+// POST /api/auth/verify-email  { token } -> JSON, called by the frontend
+// /verify-email page (the activation link in the email points there).
+exports.verifyEmailJson = async (req, res) => {
+    const { token } = req.body || {};
+    if (!token) {
+        return res.status(400).json({ message: 'Activation token is required.' });
+    }
+
+    try {
+        const user = await User.findOne({ where: { verificationToken: token } });
+        if (!user) {
+            // Unknown token: either invalid, or already used (double-click).
+            return res.status(400).json({ message: 'This activation link is invalid or was already used. If you have activated before, just log in.' });
+        }
+
+        user.isVerified = true;
+        user.verificationToken = null;
+        await user.save();
+
+        res.status(200).json({ message: 'Email verified successfully! You can now log in.' });
+    } catch (error) {
+        console.error('Verify email error:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
 };
 
@@ -675,6 +744,12 @@ exports.googleLogin = async (req, res) => {
         // Active memberships only (a deactivated one can no longer be entered).
         let workspaces = allMemberships.filter(m => m.isActive);
 
+        // LIMBO: brand-new (or workspaceless) SSO user - Google already verified
+        // their email, so route them to onboarding instead of a dead-end 403.
+        if (allMemberships.length === 0) {
+            return res.status(200).json(buildOnboardingResponse(user));
+        }
+
         // 3. If they clicked a workspace on the UI, filter the array down to JUST that one!
         if (selectedCompanyId) {
             const targetId = selectedCompanyId === 'SYSTEM' ? null : selectedCompanyId;
@@ -682,7 +757,7 @@ exports.googleLogin = async (req, res) => {
         }
 
         // ==========================================
-        // SCENARIO A: NO WORKSPACE
+        // SCENARIO A: NO WORKSPACE (none match the selection)
         // ==========================================
         if (workspaces.length === 0) {
             return res.status(403).json({ message: "Account has no associated workspaces." });
@@ -895,6 +970,14 @@ exports.microsoftLogin = async (req, res) => {
         if (allMemberships.length > 0 && !allMemberships.some(m => m.isActive)) {
             await transaction.rollback();
             return res.status(403).json({ message: "Your account has been deactivated. Please contact your administrator." });
+        }
+
+        // LIMBO: brand-new (or workspaceless) SSO user - Microsoft already
+        // verified their email, so route them to onboarding instead of minting
+        // a workspace-less shell token.
+        if (allMemberships.length === 0) {
+            await transaction.commit();
+            return res.status(200).json(buildOnboardingResponse(user));
         }
 
         // 3. Generate Token & Commit
@@ -1224,7 +1307,7 @@ exports.registerLead = async (req, res) => {
 
         // 6. Generate the Activation Link
         // In production, replace localhost with your actual Angular domain!
-        const activationLink = `http://localhost:4200/setup-password?token=${registrationToken}`;
+        const activationLink = `${FRONTEND_BASE_URL}/setup-password?token=${registrationToken}`;
 
         // 7. MOCK EMAIL SENDING (Replace this with SendGrid/Mailgun later)
         console.log('\n=============================================');
@@ -1287,20 +1370,7 @@ exports.activateAccount = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // A. Create the Billing Account
-        const account = await Account.create({
-            companyName: companyName,
-            subscriptionPlan: subscriptionPlan || 'BASIC',
-            status: 'ACTIVE'
-        }, { transaction });
-
-        // B. Create the Company / Tenant
-        const company = await Company.create({
-            accountId: account.id,
-            name: companyName,
-        }, { transaction });
-
-        // C. Create the Global User
+        // A. Create the Global User
         const user = await User.create({
             email,
             password: hashedPassword,
@@ -1310,40 +1380,43 @@ exports.activateAccount = async (req, res) => {
             verificationToken: null
         }, { transaction });
 
-        // D. Link the User to the Company as the "owner"
-        await CompanyUser.create({
+        // B. Provision the tenant through the ONE shared path (Account with
+        // ownerUserId, Company, Tenant Admin role, entitlements, CompanyUser,
+        // TenantProvisioned outbox event). Self-service subscribers start
+        // entitled to every product module; they can trim it later.
+        const allModules = await listEntitlableModules(transaction);
+        const { company } = await provisionTenant({
             userId: user.id,
-            companyId: company.id,
-            role: 'owner' // This user is the top-level admin for this tenant
-        }, { transaction });
+            ownerEmail: email,
+            subscriberName: companyName,
+            companyName,
+            subscriptionPlan,
+            moduleIds: allModules.map(m => m.id),
+        }, transaction);
 
-        // E. Close the loop on the Lead Table (Analytics)
+        // C. Close the loop on the Lead Table (Analytics)
         await RegistrationLead.update(
-            { 
-                status: 'PROCESSED', 
-                processedDate: new Date() 
+            {
+                status: 'PROCESSED',
+                processedDate: new Date()
             },
-            { 
+            {
                 where: { email: email, status: 'PENDING' },
-                transaction 
+                transaction
             }
         );
-
-        // F. Fire an Event for other microservices (Optional but highly recommended)
-        await OutboxMessage.create({
-            id: uuidv4(),
-            type: 'TenantProvisioned',
-            payload: { accountId: account.id, companyId: company.id, ownerEmail: email }
-        }, { transaction });
 
         // ==========================================
         // 4. COMMIT EVERYTHING
         // ==========================================
         await transaction.commit();
 
-        // 5. Instantly log them in! 
+        // 5. Instantly log them in!
         // We generate a standard JWT so Angular bypasses the login screen
         const loginToken = generateToken(user.id, user.email, company.id, company.name, false);
+
+        // Remember the new workspace so their first real login resumes into it.
+        await rememberLastWorkspace(user.id, company.id);
 
         res.status(200).json({ 
             message: 'Account activated successfully!',
@@ -1359,6 +1432,88 @@ exports.activateAccount = async (req, res) => {
         }
         console.error('Account Activation Error:', error);
         res.status(500).json({ message: 'Failed to provision the account.' });
+    }
+};
+
+// ==========================================
+// SELF-SERVICE ONBOARDING (limbo -> tenant)
+// ==========================================
+// Both endpoints accept ONLY the onboarding-scoped token (purpose 'onboarding',
+// enforced by authenticateOnboarding in auth.routes.js).
+
+// GET /api/auth/onboarding/modules - the product modules the wizard offers.
+exports.getOnboardingModules = async (req, res) => {
+    try {
+        const modules = await listEntitlableModules();
+        res.status(200).json(modules);
+    } catch (error) {
+        console.error('Onboarding modules error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/auth/onboarding/provision - create the caller's subscriber + first
+// company, then log them straight into the new workspace (full login payload).
+exports.provisionOnboarding = async (req, res) => {
+    const { subscriberName, companyName, moduleIds } = req.body || {};
+    const cleanSubscriber = String(subscriberName || '').trim();
+    const cleanCompany = String(companyName || '').trim() || cleanSubscriber;
+
+    if (!cleanSubscriber) {
+        return res.status(400).json({ message: 'Organization name is required.' });
+    }
+
+    let transaction = null;
+    try {
+        transaction = await sequelize.transaction();
+
+        // Lock the user row so a double-submit cannot provision two tenants.
+        const user = await User.findByPk(req.user.id, { transaction, lock: transaction.LOCK.UPDATE });
+        if (!user || !user.isVerified) {
+            await transaction.rollback();
+            return res.status(403).json({ message: 'Please verify your email first.' });
+        }
+
+        // Only a user with NO workspace at all may self-provision. (Once they
+        // have one - including via an accepted invitation - this endpoint is
+        // closed; new companies are created inside the app instead.)
+        const existingMemberships = await CompanyUser.count({ where: { userId: user.id }, transaction });
+        if (existingMemberships > 0) {
+            await transaction.rollback();
+            return res.status(409).json({ message: 'You already have a workspace. Please log in again.' });
+        }
+
+        const { company, role } = await provisionTenant({
+            userId: user.id,
+            ownerEmail: user.email,
+            subscriberName: cleanSubscriber,
+            companyName: cleanCompany,
+            moduleIds,
+        }, transaction);
+
+        await transaction.commit();
+
+        // Full login payload (mirrors login Scenario C) so the frontend swaps
+        // the onboarding token for a real workspace session in one step.
+        const { roleName, menus } = await buildWorkspaceMenus(role.id, company.id);
+        const loginToken = generateToken(user.id, user.email, company.id, company.name, false);
+        await rememberLastWorkspace(user.id, company.id);
+
+        res.status(201).json({
+            message: 'Workspace created successfully!',
+            token: loginToken,
+            email: user.email,
+            fullName: user.full_name || 'User',
+            profilePicture: user.profilePicture || null,
+            menus,
+            roleName,
+        });
+    } catch (error) {
+        if (transaction && !transaction.finished) {
+            await transaction.rollback();
+        }
+        console.error('Onboarding provision error:', error);
+        res.status(500).json({ message: 'Failed to create your workspace.' });
     }
 };
 

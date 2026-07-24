@@ -20,7 +20,13 @@ exports.verifyToken = (req, res, next) => {
         if (err) {
             return res.status(401).json({ message: "Unauthorized! Token is expired or invalid." });
         }
-        
+
+        // An onboarding-scoped token (verified user, no workspace yet) is only
+        // valid on /api/auth/onboarding/* - never on the general API.
+        if (decoded.purpose === 'onboarding') {
+            return res.status(403).json({ message: "Please finish creating your organization first." });
+        }
+
         // 4. Attach the decoded user data (like email and companyId) to the request
         req.user = decoded;
         next(); // Pass control to the next function (e.g., isSystemAdmin)

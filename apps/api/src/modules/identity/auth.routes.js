@@ -48,6 +48,28 @@ const authenticateToken = (req, res, next) => {
 
     jwt.verify(token, getPublicKey(), { algorithms: ['RS256'] }, (err, user) => {
         if (err) return res.status(403).json({ message: "Invalid or expired token" });
+        // An onboarding-scoped token (verified user, no workspace yet) is only
+        // valid on the /onboarding/* endpoints below - never on the normal API.
+        if (user.purpose === 'onboarding') {
+            return res.status(403).json({ message: "Please finish creating your organization first." });
+        }
+        req.user = user;
+        next();
+    });
+};
+
+// Accepts ONLY the onboarding-scoped token minted by the login limbo outcome.
+const authenticateOnboarding = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.status(401).json({ message: "No token provided" });
+
+    jwt.verify(token, getPublicKey(), { algorithms: ['RS256'] }, (err, user) => {
+        if (err) return res.status(403).json({ message: "Invalid or expired token" });
+        if (user.purpose !== 'onboarding') {
+            return res.status(403).json({ message: "Onboarding is only available before your first workspace exists." });
+        }
         req.user = user;
         next();
     });
@@ -87,6 +109,15 @@ router.post('/reset-password', authController.resetPassword);
 
 // Add this right below your register and login routes
 router.get('/verify/:token', authController.verifyEmail);
+
+// JSON email verification, called by the frontend /verify-email page (the
+// activation link in the email points at the FRONTEND, not this API host).
+router.post('/verify-email', authController.verifyEmailJson);
+
+// --- SELF-SERVICE ONBOARDING (verified user, no workspace yet) ---
+// Guarded by the onboarding-scoped token; closed once the first workspace exists.
+router.get('/onboarding/modules', authenticateOnboarding, authController.getOnboardingModules);
+router.post('/onboarding/provision', authenticateOnboarding, authController.provisionOnboarding);
 
 // 👇 Add your new registration route here
 router.post('/register-lead', authController.registerLead);
