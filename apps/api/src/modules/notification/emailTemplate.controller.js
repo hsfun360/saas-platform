@@ -15,18 +15,21 @@ const {
     GLOBAL_TEMPLATE_VARIABLES,
     renderPreview,
     resetPlatformDefault,
+    platformLogoUrl,
 } = require('./emailTemplate.service');
 const { buildBrand } = require('./emailBrand');
 
-// Platform templates have no sending company, so there is no logo to include in
-// previews here — only the brand colour shows. (The logo is added per company at
-// send time.) Build the preview brand from the editor's current settings.
-function previewBrand(body) {
-    return buildBrand({ brandColor: body.brandColor, includeLogo: !!body.includeLogo, companyLogoUrl: null });
+// A platform template's "sender" is the platform itself, so the logo it can include
+// is the platform's own logo of record (Platform Profile → Logo). Build the preview
+// brand from the editor's current settings against that logo.
+async function previewBrand(body) {
+    const logo = body.includeLogo ? await platformLogoUrl() : null;
+    return buildBrand({ brandColor: body.brandColor, includeLogo: !!body.includeLogo, companyLogoUrl: logo });
 }
 
-// Shape a platform row + its catalogue metadata for the editor.
-function present(row, meta) {
+// Shape a platform row + its catalogue metadata for the editor. `logoUrl` is the
+// platform's own logo (Platform Profile), shown in the Brand card + live preview.
+function present(row, meta, logoUrl = null) {
     return {
         key: row.templateKey,
         name: row.name,
@@ -38,8 +41,8 @@ function present(row, meta) {
         isActive: row.isActive,
         brandColor: row.brandColor,
         includeLogo: row.includeLogo,
-        // Platform editor has no single sending company, so there's no logo to preview.
-        companyLogoUrl: null,
+        // The platform's own logo of record (Platform Profile → Logo).
+        companyLogoUrl: logoUrl,
         variables: meta ? [...meta.variables, ...GLOBAL_TEMPLATE_VARIABLES] : [...GLOBAL_TEMPLATE_VARIABLES],
         sample: meta ? meta.sample : {},
     };
@@ -76,7 +79,7 @@ exports.getPlatformTemplate = async (req, res) => {
         if (!meta) return res.status(404).json({ message: 'Unknown template.' });
         const row = await EmailTemplate.findOne({ where: { accountId: null, templateKey: req.params.key } });
         if (!row) return res.status(404).json({ message: 'Template not found.' });
-        res.status(200).json(present(row, meta));
+        res.status(200).json(present(row, meta, await platformLogoUrl()));
     } catch (error) {
         console.error('Error fetching email template:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -114,7 +117,7 @@ exports.updatePlatformTemplate = async (req, res) => {
         if (typeof req.body.includeLogo === 'boolean') updates.includeLogo = req.body.includeLogo;
 
         await row.update(updates);
-        res.status(200).json({ message: 'Template saved.', template: present(row, meta) });
+        res.status(200).json({ message: 'Template saved.', template: present(row, meta, await platformLogoUrl()) });
     } catch (error) {
         console.error('Error updating email template:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -127,7 +130,7 @@ exports.resetPlatformTemplate = async (req, res) => {
         const meta = catalogByKey.get(req.params.key);
         if (!meta) return res.status(404).json({ message: 'Unknown template.' });
         const row = await resetPlatformDefault(req.params.key);
-        res.status(200).json({ message: 'Template reset to the platform default.', template: present(row, meta) });
+        res.status(200).json({ message: 'Template reset to the platform default.', template: present(row, meta, await platformLogoUrl()) });
     } catch (error) {
         console.error('Error resetting email template:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -141,7 +144,7 @@ exports.previewTemplate = async (req, res) => {
         const meta = catalogByKey.get(req.params.key);
         if (!meta) return res.status(404).json({ message: 'Unknown template.' });
         const data = { ...meta.sample, ...(req.body.data || {}) };
-        const out = renderPreview(req.body.subject || '', req.body.bodyHtml || '', data, previewBrand(req.body));
+        const out = renderPreview(req.body.subject || '', req.body.bodyHtml || '', data, await previewBrand(req.body));
         res.status(200).json(out);
     } catch (e) {
         res.status(400).json({ message: `Template syntax error: ${e.message}` });
@@ -160,7 +163,7 @@ exports.sendTestEmail = async (req, res) => {
         }
         let rendered;
         try {
-            rendered = renderPreview(req.body.subject || '', req.body.bodyHtml || '', { ...meta.sample, ...(req.body.data || {}) }, previewBrand(req.body));
+            rendered = renderPreview(req.body.subject || '', req.body.bodyHtml || '', { ...meta.sample, ...(req.body.data || {}) }, await previewBrand(req.body));
         } catch (e) {
             return res.status(400).json({ message: `Template syntax error: ${e.message}` });
         }

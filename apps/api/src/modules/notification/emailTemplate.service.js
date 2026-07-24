@@ -8,8 +8,17 @@
 const Handlebars = require('handlebars');
 const EmailTemplate = require('./emailTemplate.model');
 const Company = require('../saas/company.model');
+const PlatformProfile = require('../saas/platformProfile.model');
 const catalog = require('./email-templates.catalog');
 const { buildBrand, applyBrandToHtml } = require('./emailBrand');
+
+// The platform's own logo of record (Platform Profile → Logo), used to brand
+// emails the PLATFORM itself sends (no subscriber, no company). Cached-miss safe:
+// returns null when the singleton isn't configured or has no logo.
+async function platformLogoUrl() {
+    const p = await PlatformProfile.findOne({ attributes: ['logo'] });
+    return p ? p.logo : null;
+}
 
 const catalogByKey = new Map(catalog.map((t) => [t.key, t]));
 
@@ -92,11 +101,17 @@ async function renderEmail(templateKey, accountId, data, companyId = null) {
     if (tpl.isActive === false) return null;
 
     // Brand colour + include-logo flag come from the template; the logo itself is
-    // the sending company's (only fetched when the template wants it).
+    // the sender's (only fetched when the template wants it). A company send uses that
+    // company's logo; a pure PLATFORM send (no subscriber, no company) uses the
+    // platform's own logo of record (Platform Profile → Logo).
     let companyLogoUrl = null;
-    if (companyId && tpl.includeLogo) {
-        const company = await Company.findByPk(companyId, { attributes: ['logo'] });
-        companyLogoUrl = company ? company.logo : null;
+    if (tpl.includeLogo) {
+        if (companyId) {
+            const company = await Company.findByPk(companyId, { attributes: ['logo'] });
+            companyLogoUrl = company ? company.logo : null;
+        } else if (!accountId) {
+            companyLogoUrl = await platformLogoUrl();
+        }
     }
     const brand = buildBrand({ brandColor: tpl.brandColor, includeLogo: tpl.includeLogo, companyLogoUrl });
     const ctx = { ...globalContext(), ...(data || {}), ...brand };
@@ -172,6 +187,7 @@ module.exports = {
     resolveTemplate,
     renderEmail,
     renderPreview,
+    platformLogoUrl,
     seedPlatformDefaults,
     resetPlatformDefault,
 };
