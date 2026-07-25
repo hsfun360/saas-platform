@@ -1,31 +1,31 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { AuthService } from '../auth.service';
 import { RouterLink } from '@angular/router';
 
 @Component({
-    selector: 'app-register-user', // <--- ADD THIS LINE to force Classic mode
+    selector: 'app-register-user',
     standalone: true,
     templateUrl: './register-user.html',
     styleUrls: ['./register-user.css'],
-    imports: [ReactiveFormsModule, RouterLink]
+    imports: [ReactiveFormsModule, RouterLink],
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RegisterUserComponent implements OnInit {
-  // 1. We only need ONE form variable here
-  registrationForm!: FormGroup;
-  
-  loading = false;
-  successMessage: string = '';
-  errorMessage: string = '';
-  isRegistering: boolean = false;
+  private readonly fb = inject(FormBuilder);
+  private readonly authService = inject(AuthService);
 
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService
-  ) {}
+  registrationForm!: FormGroup;
+
+  // Signals, not plain fields: the app is ZONELESS, so a field mutated inside
+  // an HTTP subscribe callback never re-renders the view - the error path
+  // (e.g. "User already exists") used to leave the button on "Registering..."
+  // forever even though the API had already answered.
+  readonly isRegistering = signal(false);
+  readonly successMessage = signal('');
+  readonly errorMessage = signal('');
 
   ngOnInit(): void {
-    // 2. Initialize the form
     this.registrationForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]]
@@ -35,28 +35,23 @@ export class RegisterUserComponent implements OnInit {
   get f() { return this.registrationForm.controls; }
 
   onSubmit() {
-    // 3. Check the correct variable
     if (this.registrationForm.valid) {
-      this.isRegistering = true;
-      this.successMessage = '';
-      this.errorMessage = '';
+      this.isRegistering.set(true);
+      this.successMessage.set('');
+      this.errorMessage.set('');
 
-      // 4. Read the values from the correct variable
       const { email, password } = this.registrationForm.value;
 
       this.authService.register(email, password).subscribe({
         next: (response) => {
-          this.isRegistering = false;
+          this.isRegistering.set(false);
           // Display the message from the backend ("Registration successful! Please check your email...")
-          this.successMessage = response.message || 'Registration successful! Please check your email.'; 
-          
-          // 5. Reset the correct variable
-          this.registrationForm.reset(); 
+          this.successMessage.set(response.message || 'Registration successful! Please check your email.');
+          this.registrationForm.reset();
         },
         error: (err) => {
-          this.isRegistering = false;
-          // Extract the error message from the backend if available
-          this.errorMessage = err.error?.message || 'Registration failed. Please try again.';
+          this.isRegistering.set(false);
+          this.errorMessage.set(err.error?.message || 'Registration failed. Please try again.');
           console.error(err);
         }
       });

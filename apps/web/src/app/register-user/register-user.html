@@ -2,19 +2,19 @@
   <div class="register-card">
     <h1 class="register-title">Create an Account</h1>
 
-    @if (successMessage) {
+    @if (successMessage()) {
       <div class="alert alert-success" role="alert">
-        <strong>Success!</strong> {{ successMessage }}
+        <strong>Success!</strong> {{ successMessage() }}
       </div>
     }
 
-    @if (errorMessage) {
+    @if (errorMessage()) {
       <div class="alert alert-danger" role="alert">
-        <strong>Oops!</strong> {{ errorMessage }}
+        <strong>Oops!</strong> {{ errorMessage() }}
       </div>
     }
 
-    @if (!successMessage) {
+    @if (!successMessage()) {
       <form [formGroup]="registrationForm" (ngSubmit)="onSubmit()">
 
         <div class="form-group">
@@ -65,8 +65,8 @@
           }
         </div>
 
-        <button type="submit" class="btn-primary" [disabled]="registrationForm.invalid || isRegistering">
-          {{ isRegistering ? 'Registering...' : 'Register' }}
+        <button type="submit" class="btn-primary" [disabled]="registrationForm.invalid || isRegistering()">
+          {{ isRegistering() ? 'Registering...' : 'Register' }}
         </button>
       </form>
 

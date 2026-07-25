@@ -1,22 +1,28 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-//import { RouterModule } from '@angular/router'; // 👈 Add this so routerLink works
 import { AuthService } from '../auth.service';
-import { RouterLink } from '@angular/router'; // Adjust path if necessary
+import { RouterLink } from '@angular/router';
 
 @Component({
     selector: 'app-forgot-password',
     standalone: true,
     templateUrl: './forgot-password.html',
     styleUrls: ['./forgot-password.css'],
-    imports: [ReactiveFormsModule, RouterLink]
+    imports: [ReactiveFormsModule, RouterLink],
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ForgotPasswordComponent implements OnInit {
-  forgotPasswordForm!: FormGroup;
-  isSubmitting = false;
-  successMessage: string | null = null;
+  private readonly fb = inject(FormBuilder);
+  private readonly authService = inject(AuthService);
 
-  constructor(private fb: FormBuilder, private authService: AuthService) {}
+  forgotPasswordForm!: FormGroup;
+
+  // Signals, not plain fields: the app is ZONELESS, so a field mutated inside
+  // an HTTP subscribe callback never re-renders the view - the button used to
+  // stay on "Sending..." forever even though the API had already answered.
+  readonly isSubmitting = signal(false);
+  readonly successMessage = signal<string | null>(null);
+  readonly errorMessage = signal<string | null>(null);
 
   ngOnInit(): void {
     this.forgotPasswordForm = this.fb.group({
@@ -29,21 +35,21 @@ export class ForgotPasswordComponent implements OnInit {
       return;
     }
 
-    this.isSubmitting = true;
+    this.isSubmitting.set(true);
+    this.errorMessage.set(null);
     const email = this.forgotPasswordForm.value.email;
 
     this.authService.forgotPassword(email).subscribe({
-      next: (response) => {
-        this.isSubmitting = false;
-        // Hide the form and show the success message
-        this.successMessage = 'If an account exists for that email, we have sent a password reset link.';
+      next: () => {
+        this.isSubmitting.set(false);
+        // Hide the form and show the success message. Deliberately the same
+        // whether or not the email exists (no account enumeration).
+        this.successMessage.set('If an account exists for that email, we have sent a password reset link.');
       },
       error: (err) => {
-        this.isSubmitting = false;
-        // For security, it's best practice to show a generic success message even if the email isn't in the DB,
-        // but if your backend throws a 500 server error, you can catch it here.
-        alert('An error occurred. Please try again later.');
-        console.error('Forgot Password Error:', err);
+        this.isSubmitting.set(false);
+        // SSO accounts / server errors surface inline (no alert() popups).
+        this.errorMessage.set(err?.error?.message || 'An error occurred. Please try again later.');
       }
     });
   }
