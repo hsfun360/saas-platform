@@ -21,6 +21,7 @@ const { getOwnedAccountIds, isAccountAdminForCompany } = require('../saas/accoun
 const { hasTenantAdminRole } = require('../saas/tenant');
 const { provisionTenant, listEntitlableModules } = require('../saas/provisioning.service');
 const { isPasswordBreached, BREACHED_PASSWORD_MESSAGE } = require('../../platform/passwordBreach');
+const { isDisposableEmail, DISPOSABLE_EMAIL_MESSAGE } = require('../../platform/disposableEmail');
 
 const crypto = require('crypto'); // Built into Node.js, no npm install needed
 
@@ -189,6 +190,12 @@ exports.registerUser = async (req, res) => {
     // the lead-activation setup-password screen).
     if (!email || !password || String(password).length < 8) {
         return res.status(400).json({ message: 'A valid email and a password of at least 8 characters are required.' });
+    }
+
+    // Low-effort bot signups: refuse disposable/temporary email providers
+    // (bundled blocklist, no network call).
+    if (isDisposableEmail(email)) {
+        return res.status(400).json({ message: DISPOSABLE_EMAIL_MESSAGE });
     }
 
     // Block passwords known from public breaches (HIBP k-anonymity; fail-open).
@@ -1411,6 +1418,12 @@ exports.registerLead = async (req, res) => {
     // 1. Basic Validation
     if (!email || !name || !companyName) {
         return res.status(400).json({ message: 'Email, Name, and Company Name are required.' });
+    }
+
+    // Low-effort bot signups: refuse disposable/temporary email providers
+    // (bundled blocklist, no network call).
+    if (isDisposableEmail(email)) {
+        return res.status(400).json({ message: DISPOSABLE_EMAIL_MESSAGE });
     }
 
     try {

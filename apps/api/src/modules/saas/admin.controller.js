@@ -754,6 +754,79 @@ exports.assignUserToRole = async (req, res) => {
     }
 };
 
+// --- UNVERIFIED REGISTRATIONS (cleanup utility; design agreed 2026-07-27) ---
+// A manual REVIEW page, deliberately not a cron: the platform admin sees every
+// unverified registration and chooses what to delete ("no dark rooms").
+
+// GET /api/admin/unverified-users -> ALL unverified accounts with age + a
+// workspace count (the UI pre-selects >7 days; rows with workspaces are shown
+// but can never be deleted - see the safety net below).
+exports.listUnverifiedUsers = async (req, res) => {
+    try {
+        const users = await User.findAll({
+            where: { isVerified: false },
+            attributes: ['id', 'email', 'authMethod', 'createdAt'],
+            order: [['createdAt', 'ASC']],
+        });
+        const ids = users.map(u => u.id);
+        const links = ids.length
+            ? await CompanyUser.findAll({ where: { userId: ids }, attributes: ['userId'] })
+            : [];
+        const linked = new Set(links.map(l => l.userId));
+        res.status(200).json(users.map(u => ({
+            id: u.id,
+            email: u.email,
+            authMethod: u.authMethod,
+            createdAt: u.createdAt,
+            hasWorkspace: linked.has(u.id),
+        })));
+    } catch (error) {
+        console.error('Error listing unverified users:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/admin/unverified-users/delete { userIds } -> deletes ONLY rows
+// that are (still) unverified AND have zero CompanyUser rows AND are not on
+// the ADMIN_EMAILS allowlist - whatever the selection said. Everything else
+// is reported back as skipped, never silently dropped.
+exports.deleteUnverifiedUsers = async (req, res) => {
+    try {
+        const userIds = Array.isArray(req.body.userIds) ? [...new Set(req.body.userIds)] : [];
+        if (userIds.length === 0) {
+            return res.status(400).json({ message: 'No registrations selected.' });
+        }
+
+        const adminEmails = String(process.env.ADMIN_EMAILS || '')
+            .split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+
+        let deleted = 0;
+        const skipped = [];
+        for (const id of userIds) {
+            const user = await User.findByPk(id);
+            if (!user) { skipped.push({ id, reason: 'not found' }); continue; }
+            if (user.isVerified) { skipped.push({ id, email: user.email, reason: 'already verified' }); continue; }
+            if (adminEmails.includes(String(user.email).toLowerCase())) {
+                skipped.push({ id, email: user.email, reason: 'admin allowlist' }); continue;
+            }
+            const links = await CompanyUser.count({ where: { userId: id } });
+            if (links > 0) { skipped.push({ id, email: user.email, reason: 'has a workspace' }); continue; }
+            await user.destroy();
+            deleted++;
+        }
+
+        console.log(`[CLEANUP] ${deleted} unverified registration(s) deleted by system admin ${req.user.id} (${skipped.length} skipped)`);
+        res.status(200).json({
+            message: `${deleted} registration(s) deleted${skipped.length ? `, ${skipped.length} skipped` : ''}.`,
+            deleted,
+            skipped,
+        });
+    } catch (error) {
+        console.error('Error deleting unverified users:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 // POST /api/admin/users/:userId/mfa/reset - System Admin clears ANY user's MFA
 // (the recovery path for a locked-out Tenant Admin, who no tenant-side admin
 // can reset). Route-guarded to System Admins.
