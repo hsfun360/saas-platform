@@ -68,7 +68,10 @@ export class LoginComponent implements OnInit {
   ngOnInit(): void {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required]]
+      password: ['', [Validators.required]],
+      // "Keep me signed in": 7-day session instead of 24h (backend decides
+      // the actual lifetimes; the flag also survives workspace switching).
+      rememberMe: [false]
     });
 
     // Guarantee that the workspace selection screen is hidden when the page loads
@@ -154,9 +157,9 @@ export class LoginComponent implements OnInit {
     this.errorMessage = null;
     this.successMessage = null;
     
-    const { email, password } = this.loginForm.value;
+    const { email, password, rememberMe } = this.loginForm.value;
 
-    this.authService.login(email, password)
+    this.authService.login(email, password, null, !!rememberMe)
       .pipe(
         finalize(() => {
           // This runs ALWAYS (on success OR error)
@@ -309,8 +312,8 @@ export class LoginComponent implements OnInit {
     
     // Resume the login based on how they started (Email vs Google)
     if (this.pendingLoginMethod === 'local') {
-      const { email, password } = this.loginForm.value;
-      this.authService.login(email, password, companyId).pipe(
+      const { email, password, rememberMe } = this.loginForm.value;
+      this.authService.login(email, password, companyId, !!rememberMe).pipe(
         finalize(() => { this.loading = false; this.cdr.detectChanges(); })
       ).subscribe({
         next: (res) => this.handleLoginResponse(res, 'local'),

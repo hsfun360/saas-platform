@@ -47,7 +47,7 @@
             type="password"
             id="password"
             formControlName="password"
-            placeholder="Create a password (min 6 characters)"
+            placeholder="Create a password (min 8 characters)"
             class="form-control"
             autocomplete="new-password"
             [attr.aria-invalid]="f['password'].touched && f['password'].errors ? 'true' : null"
@@ -59,7 +59,7 @@
                 <span>Password is required.</span>
               }
               @if (f['password'].errors['minlength']) {
-                <span>Password must be at least 6 characters.</span>
+                <span>Password must be at least 8 characters.</span>
               }
             </div>
           }

@@ -62,8 +62,8 @@ export class AuthService {
     return this.http.post<AuthResponse>(`${this.apiBaseUrl}/auth/register-user`, { email, password });
   }
 
-  login(email: string, password: string, selectedCompanyId?: string | null): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.apiBaseUrl}/auth/login`, { email, password, selectedCompanyId });
+  login(email: string, password: string, selectedCompanyId?: string | null, rememberMe = false): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiBaseUrl}/auth/login`, { email, password, selectedCompanyId, rememberMe });
   }
 
   forgotPassword(email: string): Observable<{ message: string }> {

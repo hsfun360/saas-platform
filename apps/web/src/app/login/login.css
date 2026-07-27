@@ -57,20 +57,52 @@ label {
 
 .btn-toggle-password {
   position: absolute;
-  right: 10px;
+  right: 4px;
   background: none;
   border: none;
-  color: var(--brand-text);
-  font-weight: var(--weight-bold);
-  font-size: var(--font-caption);
+  color: var(--text-muted);
   cursor: pointer;
-  padding: 0 var(--space-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* a11y touch target for the icon-only toggle */
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
 }
 
-/* Forgot Password */
+.btn-toggle-password:hover {
+  color: var(--brand-text);
+}
+
+.btn-toggle-password .material-icons {
+  font-size: 22px;
+}
+
+/* Keep-me-signed-in + Forgot Password on one row */
 .forgot-password-row {
-  text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
   margin-bottom: var(--space-lg);
+}
+
+.remember-me {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-body-2);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.remember-me input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+  cursor: pointer;
 }
 
 .forgot-password-link {

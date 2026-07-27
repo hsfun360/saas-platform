@@ -51,6 +51,7 @@
           formControlName="email"
           [placeholder]="'login.emailPlaceholder' | t"
           class="form-control"
+          autocomplete="email"
         >
       </div>
 
@@ -63,14 +64,21 @@
             formControlName="password"
             [placeholder]="'login.passwordPlaceholder' | t"
             class="form-control"
+            autocomplete="current-password"
           >
-          <button type="button" class="btn-toggle-password" (click)="togglePasswordVisibility()">
-            {{ showPassword ? ('login.hide' | t) : ('login.show' | t) }}
+          <button type="button" class="btn-toggle-password" (click)="togglePasswordVisibility()"
+                  [attr.aria-label]="showPassword ? ('login.hide' | t) : ('login.show' | t)"
+                  [attr.aria-pressed]="showPassword">
+            <span class="material-icons" aria-hidden="true">{{ showPassword ? 'visibility_off' : 'visibility' }}</span>
           </button>
         </div>
       </div>
 
       <div class="forgot-password-row">
+        <label class="remember-me">
+          <input type="checkbox" formControlName="rememberMe">
+          <span>{{ 'login.rememberMe' | t }}</span>
+        </label>
         <a routerLink="/forgot-password" class="forgot-password-link">{{ 'login.forgot' | t }}</a>
       </div>
 
