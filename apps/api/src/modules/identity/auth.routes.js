@@ -48,10 +48,29 @@ const authenticateToken = (req, res, next) => {
 
     jwt.verify(token, getPublicKey(), { algorithms: ['RS256'] }, (err, user) => {
         if (err) return res.status(403).json({ message: "Invalid or expired token" });
-        // An onboarding-scoped token (verified user, no workspace yet) is only
-        // valid on the /onboarding/* endpoints below - never on the normal API.
-        if (user.purpose === 'onboarding') {
-            return res.status(403).json({ message: "Please finish creating your organization first." });
+        // Purpose-scoped tokens (onboarding, mfa step-up, forced mfa
+        // enrollment) are only valid on their own endpoints - never here.
+        if (user.purpose) {
+            return res.status(403).json({ message: "Please finish signing in first." });
+        }
+        req.user = user;
+        next();
+    });
+};
+
+// Accepts a FULL session token OR the 'mfa-enroll' token, so both self-service
+// enrollment (Profile -> Security) and the forced admin-enrollment flow reach
+// the same /mfa/setup + /mfa/enable endpoints.
+const authenticateMfaEnrollment = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) return res.status(401).json({ message: "No token provided" });
+
+    jwt.verify(token, getPublicKey(), { algorithms: ['RS256'] }, (err, user) => {
+        if (err) return res.status(403).json({ message: "Invalid or expired token" });
+        if (user.purpose && user.purpose !== 'mfa-enroll') {
+            return res.status(403).json({ message: "Please finish signing in first." });
         }
         req.user = user;
         next();
@@ -137,6 +156,19 @@ router.post('/google/exchange', loginLimiter(), authController.googleExchangeCod
 
 // Route to handle Microsoft SSO
 router.post('/microsoft-login', loginLimiter(), authController.microsoftLogin);
+
+// --- MFA (TOTP) + SESSIONS ---
+// Step-up: exchange the 'mfa' token + a code for the full login payload.
+router.post('/mfa/verify', loginLimiter(), authController.mfaVerify);
+// Enrollment (full session OR the forced 'mfa-enroll' token).
+router.post('/mfa/setup', authenticateMfaEnrollment, authController.mfaSetup);
+router.post('/mfa/enable', authenticateMfaEnrollment, authController.mfaEnable);
+// Status + disable need a full session.
+router.get('/mfa/status', authenticateToken, authController.mfaStatus);
+router.post('/mfa/disable', authenticateToken, authController.mfaDisable);
+// Refresh (httpOnly cookie -> fresh 1h access token) + sign out.
+router.post('/refresh', loginLimiter(), authController.refreshSession);
+router.post('/logout', authController.logout);
 
 // --- Updated Profile Route with Transactional Outbox ---
 router.put('/profile', authenticateToken, async (req, res) => {
@@ -278,6 +310,7 @@ router.delete('/company/roles/:roleId', authenticateToken, requireTenant, requir
 router.get('/company/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listTenantUsers);
 router.post('/company/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createTenantUser);
 router.patch('/company/users/:userId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateTenantUserProfile);
+router.post('/company/users/:userId/mfa/reset', authenticateToken, requireTenant, requireTenantAdmin, tenantController.resetTenantUserMfa);
 router.post('/company/users/assign-role', authenticateToken, requireTenant, requireTenantAdmin, tenantController.assignTenantUserRole);
 router.post('/company/users/revoke', authenticateToken, requireTenant, requireTenantAdmin, tenantController.revokeTenantUser);
 // Account-wide, person-centric view for the redesigned User Management screen.

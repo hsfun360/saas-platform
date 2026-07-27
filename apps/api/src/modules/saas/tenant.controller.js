@@ -731,6 +731,43 @@ exports.revokeTenantUser = async (req, res) => {
 // is managed by this admin AND belongs ONLY to companies in this admin's account -
 // never an external collaborator or system user (editing their global profile
 // would leak across tenants).
+// POST /api/auth/company/users/:userId/mfa/reset - Tenant Admin clears a
+// managed user's MFA (lost phone + used-up recovery codes). The user signs in
+// with password only and is re-prompted to enroll if their role demands it.
+// This is the established "Tenant Admin recovery" exception.
+exports.resetTenantUserMfa = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const accountId = await resolveAccountId(req.user.companyId);
+        if (!accountId) return res.status(404).json({ message: "Your account could not be resolved." });
+        const accountCompanies = await Company.findAll({ where: { accountId }, attributes: ['id'] });
+        const accountCompanyIds = new Set(accountCompanies.map(c => c.id));
+
+        const target = await User.findByPk(userId);
+        if (!target) return res.status(404).json({ message: "User not found." });
+        if (target.id === req.user.id) {
+            return res.status(400).json({ message: "You cannot reset your own two-factor authentication - use a recovery code, or ask another administrator." });
+        }
+
+        const memberships = await CompanyUser.findAll({ where: { userId }, attributes: ['companyId'] });
+        if (!memberships.some(m => accountCompanyIds.has(m.companyId))) {
+            return res.status(403).json({ message: "You don't manage this user." });
+        }
+
+        target.mfaEnabled = false;
+        target.mfaSecret = null;
+        target.mfaEnrolledAt = null;
+        target.mfaRecoveryCodes = null;
+        await target.save();
+        console.log(`[SECURITY] MFA reset for user ${target.id} by tenant admin ${req.user.id}`);
+        res.status(200).json({ message: "Two-factor authentication has been reset for this user." });
+    } catch (error) {
+        console.error("Error resetting user MFA:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 exports.updateTenantUserProfile = async (req, res) => {
     try {
         const { userId } = req.params;

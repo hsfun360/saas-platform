@@ -754,6 +754,29 @@ exports.assignUserToRole = async (req, res) => {
     }
 };
 
+// POST /api/admin/users/:userId/mfa/reset - System Admin clears ANY user's MFA
+// (the recovery path for a locked-out Tenant Admin, who no tenant-side admin
+// can reset). Route-guarded to System Admins.
+exports.resetUserMfa = async (req, res) => {
+    try {
+        const target = await User.findByPk(req.params.userId);
+        if (!target) return res.status(404).json({ message: "User not found." });
+        if (target.id === req.user.id) {
+            return res.status(400).json({ message: "You cannot reset your own two-factor authentication - use a recovery code, or ask another administrator." });
+        }
+        target.mfaEnabled = false;
+        target.mfaSecret = null;
+        target.mfaEnrolledAt = null;
+        target.mfaRecoveryCodes = null;
+        await target.save();
+        console.log(`[SECURITY] MFA reset for user ${target.id} by system admin ${req.user.id}`);
+        res.status(200).json({ message: "Two-factor authentication has been reset for this user." });
+    } catch (error) {
+        console.error("Error resetting user MFA:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // --- 4. PROVISION A SUBSCRIBER (SYSTEM ADMIN PORTAL) ---
 
 // POST /api/admin/subscriptions

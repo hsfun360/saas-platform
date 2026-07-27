@@ -44,6 +44,9 @@ router.delete('/menus/:menuId', adminController.deleteMenu);
 router.get('/users', adminController.listUsers);
 router.post('/users', adminController.createUser);
 router.post('/users/assign-role', adminController.assignUserToRole);
+// MFA recovery for a locked-out user (incl. Tenant Admins, whom no tenant-side
+// admin can reset) - the platform-side arm of the recovery exception.
+router.post('/users/:userId/mfa/reset', adminController.resetUserMfa);
 router.patch('/users/:id/status', adminController.setUserStatus);
 router.patch('/users/:id', adminController.updateUser);
 

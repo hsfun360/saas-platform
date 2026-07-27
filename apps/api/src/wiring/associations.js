@@ -12,6 +12,10 @@
 // Requiring this module is what defines every model + association exactly once.
 
 const User = require('../modules/identity/user.model');
+// Identity-service session store behind the httpOnly refresh cookie. userId /
+// companyId are plain value refs (no FK), so no associations - required here
+// so sync creates the table.
+const RefreshToken = require('../modules/identity/refreshToken.model');
 const OutboxMessage = require('../platform/outboxMessage.model');
 // Notification service tables. EmailTemplate references Account by plain UUID
 // (no FK) to respect the notification-service seam, so it has no associations.
@@ -216,6 +220,7 @@ WorkflowTask.belongsTo(WorkflowInstance, { foreignKey: 'instanceId', as: 'Instan
 
 module.exports = {
     User,
+    RefreshToken,
     OutboxMessage,
     EmailTemplate,
     Account,

@@ -43,11 +43,10 @@ const users = [];
 const findUserByEmail = (email) => users.find(u => u.email === email);
 // --- DUMMY USER DATA END ---
 
-// Updated token generation to include email for better debugging and potential future use.
-// rememberMe ("Keep me signed in" at login) extends the session to 7 days; the flag is
-// carried IN the token so switch-workspace re-issues preserve the lifetime the user chose.
-// 7d is a deliberate ceiling while tokens are bearer JWTs with no revocation - a true
-// 30d+ remember-me needs the refresh-token architecture (planned with MFA).
+// ACCESS tokens are deliberately SHORT (1h): staying signed in is the refresh
+// cookie's job (session.service.js - 24h normally, 30d with "Keep me signed
+// in"), which is server-side and revocable. rememberMe rides in the claim only
+// so re-issues (switch-workspace, refresh) know which horizon the user chose.
 const generateToken = (userId, email, companyId=null, companyName=null, isSystemAdmin=false, rememberMe=false) => {
     // We now include BOTH id and email in the payload
     return jwt.sign(
@@ -62,7 +61,7 @@ const generateToken = (userId, email, companyId=null, companyName=null, isSystem
          getPrivateKey(),
          {
             algorithm: 'RS256',
-            expiresIn: rememberMe ? '7d' : '24h',
+            expiresIn: '1h',
          }
     );
 };
@@ -110,6 +109,72 @@ const buildOnboardingResponse = (user) => ({
     fullName: user.full_name || null,
     profilePicture: user.profilePicture || null,
 });
+
+// ---------------------------------------------------------------------------
+// MFA step-up + refresh sessions (design approved 2026-07-27)
+// ---------------------------------------------------------------------------
+const mfa = require('./mfa.service');
+const sessions = require('./session.service');
+
+// Short-lived, purpose-scoped token that carries the login context ACROSS the
+// MFA step ('mfa' = enter your code; 'mfa-enroll' = admin role must enroll
+// first). Rejected everywhere else, like the onboarding token.
+const generateMfaToken = (user, purpose, ctx) => jwt.sign(
+    {
+        id: user.id,
+        email: user.email,
+        purpose,
+        companyId: ctx.companyId ?? null,
+        companyName: ctx.companyName ?? null,
+        isSystemAdmin: !!ctx.isSystemAdmin,
+        rememberMe: !!ctx.rememberMe,
+    },
+    getPrivateKey(),
+    { algorithm: 'RS256', expiresIn: '10m' },
+);
+
+// The ONE place a real session is granted. Applies the MFA gates, and on pass
+// mints the 1h access token + the refresh cookie, returning the login payload.
+//   - user has MFA on and this call isn't post-verification -> mfa challenge
+//   - admin role (System Admin / Tenant Admin) without MFA -> forced enrollment
+//     (skipped when MFA_ENCRYPTION_KEY isn't configured, so a missing key can
+//     never lock every admin out)
+async function completeLogin(req, res, user, context, { isSystemAdmin = false, rememberMe = false, mfaVerified = false, skipMfaGates = false } = {}) {
+    const ctx = { companyId: context.companyId ?? null, companyName: context.companyName ?? null, isSystemAdmin, rememberMe };
+
+    if (!skipMfaGates && mfa.isMfaConfigured()) {
+        if (user.mfaEnabled && !mfaVerified) {
+            return {
+                message: 'Enter the 6-digit code from your authenticator app.',
+                mfaRequired: true,
+                mfaToken: generateMfaToken(user, 'mfa', ctx),
+                email: user.email,
+            };
+        }
+        if (!user.mfaEnabled && (isSystemAdmin || context.roleName === 'Tenant Admin')) {
+            return {
+                message: 'Administrator accounts require two-factor authentication. Please set it up to continue.',
+                mfaEnrollRequired: true,
+                mfaToken: generateMfaToken(user, 'mfa-enroll', ctx),
+                email: user.email,
+            };
+        }
+    }
+
+    const token = generateToken(user.id, user.email, ctx.companyId, ctx.companyName, isSystemAdmin, rememberMe);
+    await sessions.issueSession(res, { userId: user.id, companyId: ctx.companyId, rememberMe, req });
+    await rememberLastWorkspace(user.id, ctx.companyId);
+
+    return {
+        token,
+        email: user.email,
+        fullName: user.full_name || 'User',
+        profilePicture: user.profilePicture || null,
+        menus: context.menus || [],
+        roleName: context.roleName || 'User',
+        companyName: ctx.companyName,
+    };
+}
 
 const storage = new Storage(); // Use default credentials when on Cloud Run
 const bucket = storage.bucket('membership-app-avatars-123');
@@ -310,9 +375,10 @@ exports.login = async (req, res) => {
         if (workspaces.length > 1) {
             // First, try to skip the picker by resuming the last-used workspace.
             if (!selectedCompanyId) {
-                const resume = await buildResumeLogin(user, workspaces, isSystemAdmin, rememberMe);
-                if (resume) {
-                    return res.status(200).json({ message: "Login successful", ...resume });
+                const resumeCtx = await buildResumeContext(user, workspaces);
+                if (resumeCtx) {
+                    const out = await completeLogin(req, res, user, resumeCtx, { isSystemAdmin, rememberMe });
+                    return res.status(200).json({ message: "Login successful", ...out });
                 }
             }
 
@@ -333,34 +399,14 @@ exports.login = async (req, res) => {
 
         // SCENARIO C: EXACTLY ONE WORKSPACE
         const workspace = workspaces[0];
-        let companyId = null;
-        let companyName = 'SYSTEM ADMINISTRATION'; 
-        
-        if (workspace.companyId !== null) {
-            const company = await Company.findByPk(workspace.companyId);
-            companyId = company.id;
-            companyName = company.name;
+        const context = await resolveWorkspaceContext(user.id, workspace.companyId);
+        if (!context) {
+            return res.status(403).json({ message: "Account has no associated workspaces." });
         }
 
-        // Effective menus = role menus ∩ company entitlement (Tenant Admin = full).
-        const { roleName: assignedRoleName, menus: allowedMenus } =
-            await buildWorkspaceMenus(workspace.roleId, companyId);
-
-        // Generate token and respond
-        const loginToken = generateToken(user.id, user.email, companyId, companyName, isSystemAdmin, rememberMe);
-
-        // Remember this workspace so the next login can skip the picker.
-        await rememberLastWorkspace(user.id, companyId);
-
-        res.status(200).json({
-            message: "Login successful",
-            token: loginToken,
-            email: user.email,
-            fullName: user.full_name || 'User',
-            profilePicture: user.profilePicture || null,
-            menus: allowedMenus,
-            roleName: assignedRoleName
-        });
+        // MFA gate + 1h access token + refresh cookie, all in one place.
+        const out = await completeLogin(req, res, user, context, { isSystemAdmin, rememberMe });
+        res.status(200).json({ message: "Login successful", ...out });
 
     } catch (error) {
         console.error("Standard Login error:", error);
@@ -526,7 +572,7 @@ async function rememberLastWorkspace(userId, companyId) {
 // when the remembered workspace is STILL a valid membership, or null when there's
 // nothing valid to resume (caller then returns the 206 picker). The membership
 // re-check is what makes a revoked workspace fall back to the picker for free.
-async function buildResumeLogin(user, workspaces, isSystemAdmin, rememberMe = false) {
+async function buildResumeContext(user, workspaces) {
     const remembered = user.lastWorkspaceId; // 'SYSTEM', a companyId, or null
     if (!remembered) return null;
 
@@ -534,19 +580,8 @@ async function buildResumeLogin(user, workspaces, isSystemAdmin, rememberMe = fa
     const stillMember = workspaces.some(ws => ws.companyId === rememberedCompanyId);
     if (!stillMember) return null;
 
-    const context = await resolveWorkspaceContext(user.id, rememberedCompanyId);
-    if (!context) return null;
-
-    const token = generateToken(user.id, user.email, context.companyId, context.companyName, isSystemAdmin, rememberMe);
-    return {
-        token,
-        email: user.email,
-        fullName: user.full_name || 'User',
-        profilePicture: user.profilePicture || null,
-        menus: context.menus,
-        roleName: context.roleName,
-        companyName: context.companyName,
-    };
+    // The caller feeds this context into completeLogin (MFA gate + session).
+    return resolveWorkspaceContext(user.id, rememberedCompanyId);
 }
 
 // GET /api/auth/workspaces  -> every company the logged-in user can access,
@@ -625,24 +660,15 @@ exports.switchWorkspace = async (req, res) => {
         }
 
         const isSystemAdmin = await isUserSystemAdmin(user.id, user.email);
-        // Inherit the session lifetime the user chose at login (the rememberMe
-        // claim rides in the token), so switching company never shortens or
-        // silently extends a session.
-        const token = generateToken(user.id, user.email, context.companyId, context.companyName, isSystemAdmin, req.user.rememberMe === true);
+        const rememberMe = req.user.rememberMe === true;
 
-        // Remember it so the next login resumes straight into this workspace.
-        await rememberLastWorkspace(user.id, context.companyId);
-
-        res.status(200).json({
-            message: "Workspace switched successfully",
-            token,
-            email: user.email,
-            fullName: user.full_name || 'User',
-            profilePicture: user.profilePicture || null,
-            menus: context.menus,
-            roleName: context.roleName,
-            companyName: context.companyName,
-        });
+        // Already authenticated (and MFA-verified if applicable) this session -
+        // switching company must not re-challenge, so the gates are skipped.
+        // The refresh session is re-issued scoped to the NEW workspace (the old
+        // family is revoked) with the same rememberMe horizon.
+        await sessions.revokeSession(req, res);
+        const out = await completeLogin(req, res, user, context, { isSystemAdmin, rememberMe, skipMfaGates: true });
+        res.status(200).json({ message: "Workspace switched successfully", ...out });
     } catch (error) {
         console.error("Switch workspace error:", error);
         res.status(500).json({ message: "Internal server error" });
@@ -847,9 +873,10 @@ exports.googleLogin = async (req, res) => {
         if (workspaces.length > 1) {
             // First, try to skip the picker by resuming the last-used workspace.
             if (!selectedCompanyId) {
-                const resume = await buildResumeLogin(user, workspaces, isSystemAdmin);
-                if (resume) {
-                    return res.status(200).json({ message: 'Google login successful', ...resume });
+                const resumeCtx = await buildResumeContext(user, workspaces);
+                if (resumeCtx) {
+                    const out = await completeLogin(req, res, user, resumeCtx, { isSystemAdmin });
+                    return res.status(200).json({ message: 'Google login successful', ...out });
                 }
             }
 
@@ -872,35 +899,14 @@ exports.googleLogin = async (req, res) => {
         // SCENARIO C: EXACTLY ONE WORKSPACE (Or they just selected one!)
         // ==========================================
         const workspace = workspaces[0];
-        
-        let companyId = null;
-        let companyName = 'SYSTEM ADMINISTRATION'; 
-        
-        if (workspace.companyId !== null) {
-            const company = await Company.findByPk(workspace.companyId);
-            companyId = company.id;
-            companyName = company.name;
+        const context = await resolveWorkspaceContext(user.id, workspace.companyId);
+        if (!context) {
+            return res.status(403).json({ message: "Account has no associated workspaces." });
         }
 
-        // Effective menus = role menus ∩ company entitlement (Tenant Admin = full).
-        const { roleName: assignedRoleName, menus: allowedMenus } =
-            await buildWorkspaceMenus(workspace.roleId, companyId);
-
-        const loginToken = generateToken(user.id, user.email, companyId, companyName, isSystemAdmin);
-
-        // Remember this workspace so the next login can skip the picker.
-        await rememberLastWorkspace(user.id, companyId);
-
-        // 5. Send the token and user info back to Angular
-        res.json({
-            message: 'Google login successful',
-            token: loginToken,
-            email: user.email,
-            fullName: user.full_name, // Note: adjust to 'fullName' if your model uses camelCase
-            menus: allowedMenus,
-            roleName: assignedRoleName,
-            profilePicture: user.profilePicture
-        });
+        // MFA gate + 1h access token + refresh cookie, all in one place.
+        const out = await completeLogin(req, res, user, context, { isSystemAdmin });
+        res.json({ message: 'Google login successful', ...out });
 
     } catch (error) {
         // SAFETY CHECK: Only try to rollback if the transaction hasn't been finished yet!
@@ -1058,19 +1064,26 @@ exports.microsoftLogin = async (req, res) => {
             return res.status(200).json(buildOnboardingResponse(user));
         }
 
-        // 3. Generate Token & Commit
+        // 3. Resolve the workspace like the other login paths (last-used when
+        // multiple, the single one otherwise) & commit the user updates first.
         const isSystemAdmin = await isUserSystemAdmin(user.id, user.email);
-        const token = generateToken(user.id, user.email, null, null, isSystemAdmin);
         await transaction.commit();
 
-        // 4. Send back to Angular
-        res.json({
-            message: 'Microsoft login successful',
-            token,
-            email: user.email,
-            fullName: user.full_name,
-            profilePicture: user.profilePicture
-        });
+        const activeWorkspaces = allMemberships.filter(m => m.isActive);
+        let context = null;
+        if (activeWorkspaces.length > 1) {
+            context = await buildResumeContext(user, activeWorkspaces);
+        }
+        if (!context) {
+            context = await resolveWorkspaceContext(user.id, activeWorkspaces[0].companyId);
+        }
+        if (!context) {
+            return res.status(403).json({ message: "Account has no associated workspaces." });
+        }
+
+        // MFA gate + 1h access token + refresh cookie, all in one place.
+        const out = await completeLogin(req, res, user, context, { isSystemAdmin });
+        res.json({ message: 'Microsoft login successful', ...out });
 
     } catch (error) {
         // Safe Rollback: Only rollback if the transaction was actually started and not finished
@@ -1236,6 +1249,10 @@ exports.resetPassword = async (req, res) => {
         user.resetPasswordExpires = null;
         await user.save({ transaction });
 
+        // A password reset invalidates every existing session ("sign out
+        // everywhere") - the whole point when the old password was compromised.
+        await sessions.revokeAllSessions(user.id);
+
         // 4. Queue the success-confirmation email, branded for the user's resolved
         //    scope but sent via the platform mailer (a security notice).
         const scope = await resolveIdentityScope(user);
@@ -1374,7 +1391,12 @@ exports.changePassword = async (req, res) => {
 
         console.log(`[SECURITY] Password changed successfully for User ID: ${userId}`);
 
-        // 6. Send success response back to Angular
+        // 6. A password change signs out every OTHER session; the caller's own
+        // cookie was just superseded too, but their access token stays valid up
+        // to an hour, after which the interceptor sends them to re-login.
+        await sessions.revokeAllSessions(userId);
+
+        // 7. Send success response back to Angular
         res.status(200).json({ message: 'Password updated successfully!' });
 
     } catch (error) {
@@ -1644,26 +1666,247 @@ exports.provisionOnboarding = async (req, res) => {
         await transaction.commit();
 
         // Full login payload (mirrors login Scenario C) so the frontend swaps
-        // the onboarding token for a real workspace session in one step.
+        // the onboarding token for a real workspace session in one step. The
+        // new owner is a Tenant Admin, so the MFA enrollment gate applies here
+        // too - the wizard forwards them to /mfa-setup when it fires.
         const { roleName, menus } = await buildWorkspaceMenus(role.id, company.id);
-        const loginToken = generateToken(user.id, user.email, company.id, company.name, false);
-        await rememberLastWorkspace(user.id, company.id);
+        const out = await completeLogin(req, res, user, {
+            companyId: company.id, companyName: company.name, roleName, menus,
+        }, { isSystemAdmin: false, rememberMe: false });
 
-        res.status(201).json({
-            message: 'Workspace created successfully!',
-            token: loginToken,
-            email: user.email,
-            fullName: user.full_name || 'User',
-            profilePicture: user.profilePicture || null,
-            menus,
-            roleName,
-        });
+        res.status(201).json({ message: 'Workspace created successfully!', ...out });
     } catch (error) {
         if (transaction && !transaction.finished) {
             await transaction.rollback();
         }
         console.error('Onboarding provision error:', error);
         res.status(500).json({ message: 'Failed to create your workspace.' });
+    }
+};
+
+// ==========================================
+// MFA (TOTP) + SESSIONS
+// ==========================================
+
+// POST /api/auth/mfa/verify  { mfaToken, code } - the login step-up. `code` is
+// a 6-digit TOTP or an XXXX-XXXX recovery code. On success: full login payload.
+exports.mfaVerify = async (req, res) => {
+    try {
+        const { mfaToken, code } = req.body || {};
+        if (!mfaToken || !code) {
+            return res.status(400).json({ message: 'Code is required.' });
+        }
+
+        let claims;
+        try {
+            claims = jwt.verify(mfaToken, getPublicKey(), { algorithms: ['RS256'] });
+        } catch (e) {
+            return res.status(401).json({ message: 'Your sign-in expired. Please log in again.' });
+        }
+        if (claims.purpose !== 'mfa') {
+            return res.status(401).json({ message: 'Your sign-in expired. Please log in again.' });
+        }
+
+        const user = await User.findByPk(claims.id);
+        if (!user || !user.mfaEnabled) {
+            return res.status(401).json({ message: 'Your sign-in expired. Please log in again.' });
+        }
+
+        // TOTP first; recovery code as the fallback (single-use).
+        let ok = mfa.verifyTotp(code, user.mfaSecret);
+        if (!ok) {
+            const rec = mfa.consumeRecoveryCode(code, user.mfaRecoveryCodes);
+            if (rec.ok) {
+                ok = true;
+                user.mfaRecoveryCodes = rec.remaining;
+                await user.save();
+            }
+        }
+        if (!ok) {
+            return res.status(401).json({ message: 'That code is not valid. Please try again.' });
+        }
+
+        const context = await resolveWorkspaceContext(user.id, claims.companyId ?? null);
+        if (!context) {
+            return res.status(403).json({ message: 'You no longer have access to that workspace.' });
+        }
+
+        const out = await completeLogin(req, res, user, context, {
+            isSystemAdmin: claims.isSystemAdmin === true,
+            rememberMe: claims.rememberMe === true,
+            mfaVerified: true,
+        });
+        res.status(200).json({ message: 'Login successful', ...out });
+    } catch (error) {
+        console.error('MFA verify error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// GET /api/auth/mfa/status - drives the Profile Security card.
+exports.mfaStatus = async (req, res) => {
+    try {
+        const user = await User.findByPk(req.user.id, {
+            attributes: ['mfaEnabled', 'mfaEnrolledAt', 'mfaRecoveryCodes', 'authMethod'],
+        });
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+        res.status(200).json({
+            available: mfa.isMfaConfigured(),
+            enabled: user.mfaEnabled === true,
+            enrolledAt: user.mfaEnrolledAt,
+            recoveryCodesLeft: Array.isArray(user.mfaRecoveryCodes) ? user.mfaRecoveryCodes.length : 0,
+        });
+    } catch (error) {
+        console.error('MFA status error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/auth/mfa/setup - generate a secret + QR. Accepts a full session OR
+// the 'mfa-enroll' token (forced admin enrollment). Nothing is enabled until
+// the user proves possession via /mfa/enable.
+exports.mfaSetup = async (req, res) => {
+    try {
+        if (!mfa.isMfaConfigured()) {
+            return res.status(503).json({ message: 'Two-factor authentication is not configured on this server.' });
+        }
+        const user = await User.findByPk(req.user.id);
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+        if (user.mfaEnabled) {
+            return res.status(409).json({ message: 'Two-factor authentication is already enabled.' });
+        }
+
+        const secret = mfa.generateSecret();
+        user.mfaSecret = mfa.encryptSecret(secret);
+        await user.save();
+
+        const { otpauthUrl, qrDataUrl } = await mfa.buildEnrollment(user.email, secret);
+        res.status(200).json({ otpauthUrl, qrDataUrl });
+    } catch (error) {
+        console.error('MFA setup error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/auth/mfa/enable  { code } - confirm the code, switch MFA on, hand
+// out the recovery codes ONCE. When called with the 'mfa-enroll' token, the
+// response also completes the login so the user lands straight in the app.
+exports.mfaEnable = async (req, res) => {
+    try {
+        const { code } = req.body || {};
+        const user = await User.findByPk(req.user.id);
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+        if (user.mfaEnabled) {
+            return res.status(409).json({ message: 'Two-factor authentication is already enabled.' });
+        }
+        if (!user.mfaSecret) {
+            return res.status(400).json({ message: 'Run setup first.' });
+        }
+        if (!mfa.verifyTotp(code, user.mfaSecret)) {
+            return res.status(400).json({ message: 'That code is not valid. Check your authenticator app and try again.' });
+        }
+
+        const recoveryCodes = mfa.generateRecoveryCodes();
+        user.mfaEnabled = true;
+        user.mfaEnrolledAt = new Date();
+        user.mfaRecoveryCodes = recoveryCodes.map(mfa.hashRecoveryCode);
+        await user.save();
+
+        const payload = { message: 'Two-factor authentication enabled.', recoveryCodes };
+
+        // Forced-enrollment path: swap the enroll token for a real session.
+        if (req.user.purpose === 'mfa-enroll') {
+            const context = await resolveWorkspaceContext(user.id, req.user.companyId ?? null);
+            if (context) {
+                const out = await completeLogin(req, res, user, context, {
+                    isSystemAdmin: req.user.isSystemAdmin === true,
+                    rememberMe: req.user.rememberMe === true,
+                    mfaVerified: true,
+                });
+                return res.status(200).json({ ...payload, ...out });
+            }
+        }
+        res.status(200).json(payload);
+    } catch (error) {
+        console.error('MFA enable error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/auth/mfa/disable  { code } - requires a current TOTP or recovery
+// code (a stolen session alone must not be able to strip MFA). Admin-role
+// users cannot disable their own MFA - it is mandatory for them.
+exports.mfaDisable = async (req, res) => {
+    try {
+        const { code } = req.body || {};
+        const user = await User.findByPk(req.user.id);
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+        if (!user.mfaEnabled) {
+            return res.status(409).json({ message: 'Two-factor authentication is not enabled.' });
+        }
+
+        const isSystemAdmin = await isUserSystemAdmin(user.id, user.email);
+        const adminRole = isSystemAdmin || (req.user.companyId
+            ? await hasTenantAdminRole(user.id, req.user.companyId)
+            : false);
+        if (adminRole) {
+            return res.status(403).json({ message: 'Two-factor authentication is mandatory for administrator accounts and cannot be disabled.' });
+        }
+
+        let ok = mfa.verifyTotp(code, user.mfaSecret);
+        if (!ok) ok = mfa.consumeRecoveryCode(code, user.mfaRecoveryCodes).ok;
+        if (!ok) {
+            return res.status(400).json({ message: 'That code is not valid.' });
+        }
+
+        user.mfaEnabled = false;
+        user.mfaSecret = null;
+        user.mfaEnrolledAt = null;
+        user.mfaRecoveryCodes = null;
+        await user.save();
+        res.status(200).json({ message: 'Two-factor authentication disabled.' });
+    } catch (error) {
+        console.error('MFA disable error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/auth/refresh - rotate the httpOnly cookie, mint a fresh 1h access
+// token for the SAME workspace. The frontend interceptor calls this on 401.
+exports.refreshSession = async (req, res) => {
+    try {
+        const row = await sessions.rotateSession(req, res);
+        if (!row) {
+            return res.status(401).json({ message: 'Session expired. Please log in again.' });
+        }
+
+        const user = await User.findByPk(row.userId, { attributes: ['id', 'email'] });
+        if (!user) return res.status(401).json({ message: 'Session expired. Please log in again.' });
+
+        let companyName = 'SYSTEM ADMINISTRATION';
+        if (row.companyId) {
+            const company = await Company.findByPk(row.companyId, { attributes: ['name'] });
+            if (!company) return res.status(401).json({ message: 'Session expired. Please log in again.' });
+            companyName = company.name;
+        }
+
+        const isSystemAdmin = await isUserSystemAdmin(user.id, user.email);
+        const token = generateToken(user.id, user.email, row.companyId, companyName, isSystemAdmin, sessions.isRemembered(row));
+        res.status(200).json({ token });
+    } catch (error) {
+        console.error('Refresh error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/auth/logout - revoke the session family + clear the cookie.
+exports.logout = async (req, res) => {
+    try {
+        await sessions.revokeSession(req, res);
+        res.status(200).json({ message: 'Signed out.' });
+    } catch (error) {
+        console.error('Logout error:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
 };
 

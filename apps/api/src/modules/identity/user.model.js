@@ -98,6 +98,29 @@ const User = sequelize.define('User', {
     lastFailedLoginAt: {
         type: DataTypes.DATE,
         allowNull: true,
+    },
+    // --- TOTP MFA (structure approved 2026-07-27) ---
+    // The TOTP secret, AES-256-GCM encrypted with MFA_ENCRYPTION_KEY (see
+    // platform/secretbox.js withKey). Set at setup; the step-up only engages
+    // once mfaEnabled is true (i.e. after the user confirmed a code).
+    mfaSecret: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+    },
+    mfaEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
+    mfaEnrolledAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    // SHA-256 hashes of the one-time recovery codes (raw values shown exactly
+    // once at enrollment); a used code's hash is removed from the array.
+    mfaRecoveryCodes: {
+        type: DataTypes.JSONB,
+        allowNull: true,
     }
 }, {
     tableName: 'User', // Name the table in PostgreSQL 'User'

@@ -81,9 +81,15 @@ function createApp() {
         origin: allowedOrigins,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization'],
+        // The refresh-token cookie is cross-origin (web app and API are
+        // different origins), so credentialed requests must be allowed -
+        // which is also why `origin` can never be '*' again.
+        credentials: true,
     };
 
     app.use(cors(corsOptions));
+    // Refresh-token cookie (path-scoped to /api/auth; see session.service.js).
+    app.use(require('cookie-parser')());
     app.use(express.json());
 
     // Respond with "204 No Content" for favicon requests
