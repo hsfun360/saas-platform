@@ -74,6 +74,17 @@ const FAILED_LOGIN_DELAYS_SECONDS = [0, 0, 0, 1, 5, 30, 60, 300, 900];
 const failedLoginDelaySeconds = (count) =>
     FAILED_LOGIN_DELAYS_SECONDS[Math.min(count, FAILED_LOGIN_DELAYS_SECONDS.length - 1)];
 
+// One-time email tokens (password reset, address verification) are stored as
+// SHA-256 HASHES: the raw value exists only in the email link, so a DB
+// snapshot/backup leak cannot be replayed into working reset links. Redemption
+// hashes the presented value and looks the hash up.
+const hashToken = (raw) => crypto.createHash('sha256').update(String(raw)).digest('hex');
+
+// Reset links live 30 minutes (OWASP range); the anti-flood cooldown re-derives
+// "recently issued" from the expiry, so the two constants travel together.
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
+const RESET_COOLDOWN_MS = 5 * 60 * 1000;
+
 
 // Limbo state: a VERIFIED user with zero CompanyUser rows is not an error but a
 // pending onboarding. This token proves who they are while carrying no workspace;
@@ -129,7 +140,8 @@ exports.registerUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // 4. Generate a random, secure token (e.g., 'a1b2c3d4...')
+        // 4. Generate a random, secure token (e.g., 'a1b2c3d4...'); only its
+        // HASH is stored (the raw value exists solely inside the emailed link).
         const verificationToken = crypto.randomBytes(32).toString('hex');
 
         // 5. Create the user as Unverified
@@ -138,7 +150,7 @@ exports.registerUser = async (req, res) => {
             password: hashedPassword,
             authMethod: 'local',
             isVerified: false,
-            verificationToken: verificationToken
+            verificationToken: hashToken(verificationToken)
         }, { transaction });
 
         // 6. Create the Activation Link. It points at the FRONTEND (like every
@@ -635,7 +647,12 @@ exports.verifyEmail = async (req, res) => {
     const { token } = req.params;
 
     try {
-        const user = await User.findOne({ where: { verificationToken: token } });
+        // Hash lookup (tokens are stored hashed); plain fallback redeems links
+        // issued before the hashing change.
+        let user = await User.findOne({ where: { verificationToken: hashToken(token) } });
+        if (!user) {
+            user = await User.findOne({ where: { verificationToken: token } });
+        }
 
         if (!user) {
             return res.status(400).send('<h1>Invalid or Expired Activation Link</h1>');
@@ -666,7 +683,12 @@ exports.verifyEmailJson = async (req, res) => {
     }
 
     try {
-        const user = await User.findOne({ where: { verificationToken: token } });
+        // Hash lookup (tokens are stored hashed); plain fallback redeems links
+        // issued before the hashing change.
+        let user = await User.findOne({ where: { verificationToken: hashToken(token) } });
+        if (!user) {
+            user = await User.findOne({ where: { verificationToken: token } });
+        }
         if (!user) {
             // Unknown token: either invalid, or already used (double-click).
             return res.status(400).json({ message: 'This activation link is invalid or was already used. If you have activated before, just log in.' });
@@ -1080,33 +1102,53 @@ exports.forgotPassword = async (req, res) => {
             return res.json({ message: 'If an account exists, a reset link has been sent.' });
         }
 
-        // Optional: If they signed up with Google, they shouldn't reset their password here
-        if (user.authMethod === 'google') {
-            await transaction.rollback();
-            return res.status(400).json({ message: 'This account uses Google Login. Please sign in with Google.' });
-        } else if (user.authMethod === 'microsoft') {
-            await transaction.rollback();
-            return res.status(400).json({ message: 'This account uses Microsoft Login. Please sign in with Microsoft.' });
-        }
-
-        // Per-email cooldown (anti email-bombing): if a reset was already issued
-        // in the last 5 minutes, answer the same generic success WITHOUT queueing
-        // another email - the earlier link still works, and the caller learns
-        // nothing. Reset tokens live 60 min, so "issued < 5 min ago" is exactly
-        // "expiry still more than 55 min away". No extra column needed.
-        if (user.resetPasswordExpires && new Date(user.resetPasswordExpires).getTime() > Date.now() + 55 * 60 * 1000) {
+        // Per-email cooldown (anti email-bombing): if a reset OR SSO-notice email
+        // was already issued in the last 5 minutes, answer the same generic
+        // success WITHOUT queueing another one - the earlier email still stands,
+        // and the caller learns nothing. Derived from the expiry timestamp
+        // ("issued < COOLDOWN ago" == "expiry more than TTL-COOLDOWN away"), so
+        // no extra column is needed. Checked BEFORE the SSO branch so SSO
+        // accounts can't be flooded either.
+        if (user.resetPasswordExpires
+            && new Date(user.resetPasswordExpires).getTime() > Date.now() + (RESET_TOKEN_TTL_MS - RESET_COOLDOWN_MS)) {
             await transaction.rollback();
             return res.json({ message: 'If an account exists, a reset link has been sent.' });
         }
 
-        // 3. Generate a secure random token (using the crypto library you already imported)
-        const resetToken = crypto.randomBytes(32).toString('hex');
-        
-        // 4. Set token to expire in 1 hour
-        const tokenExpiry = new Date(Date.now() + 3600000); 
+        // SSO accounts have no password to reset. Answer the SAME generic
+        // success (a 400 here would confirm the account exists AND name its
+        // IdP - an enumeration gift) and put the guidance in the inbox, where
+        // only the owner reads it. The expiry timestamp is still armed so the
+        // cooldown above throttles repeat notices.
+        if (user.authMethod === 'google' || user.authMethod === 'microsoft') {
+            const provider = user.authMethod === 'google' ? 'Google' : 'Microsoft';
+            user.resetPasswordToken = null;
+            user.resetPasswordExpires = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+            await user.save({ transaction });
 
-        // 5. Save the token to the user's database record
-        user.resetPasswordToken = resetToken;
+            const ssoScope = await resolveIdentityScope(user);
+            await enqueueEmail({
+                templateKey: 'password.reset.sso',
+                accountId: ssoScope.accountId,
+                companyId: ssoScope.companyId,
+                to: user.email,
+                data: { email: user.email, provider, loginLink: `${FRONTEND_BASE_URL}/login` },
+                forcePlatformSender: true,
+            }, transaction);
+
+            await transaction.commit();
+            return res.json({ message: 'If an account exists, a reset link has been sent.' });
+        }
+
+        // 3. Generate a secure random token; only its HASH is stored (the raw
+        // value exists solely inside the emailed link - see hashToken).
+        const resetToken = crypto.randomBytes(32).toString('hex');
+
+        // 4. Set token to expire in 30 minutes
+        const tokenExpiry = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+
+        // 5. Save the token HASH to the user's database record
+        user.resetPasswordToken = hashToken(resetToken);
         user.resetPasswordExpires = tokenExpiry;
         await user.save({ transaction });
 
@@ -1156,8 +1198,13 @@ exports.resetPassword = async (req, res) => {
     const transaction = await sequelize.transaction();
 
     try {
-        // 2. Find the user (Notice we pass the transaction here!)
-        const user = await User.findOne({ where: { resetPasswordToken: token }, transaction });
+        // 2. Find the user by the token's HASH (tokens are stored hashed - see
+        // hashToken). The plain-value fallback redeems links issued before the
+        // hashing change; remove it once those have all expired.
+        let user = await User.findOne({ where: { resetPasswordToken: hashToken(token) }, transaction });
+        if (!user) {
+            user = await User.findOne({ where: { resetPasswordToken: token }, transaction });
+        }
 
         if (!user) {
             await transaction.rollback();
