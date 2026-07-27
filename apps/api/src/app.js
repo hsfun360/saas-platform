@@ -63,10 +63,22 @@ require('./wiring/workflowHandlers');
 function createApp() {
     const app = express();
 
-    // CORS Configuration: Allows requests from the Angular frontend.
-    // Note: lock `origin` down to the deployed app URL before production.
+    // Cloud Run sits behind Google's front end, which appends the real client
+    // IP as the LAST X-Forwarded-For entry. Trusting exactly ONE hop makes
+    // req.ip resolve to that entry (earlier entries are client-supplied junk),
+    // which the per-IP rate limiters key on. Do not raise this blindly.
+    app.set('trust proxy', 1);
+
+    // CORS: locked to the deployed frontend (FRONTEND_BASE_URL) plus the local
+    // dev servers. Not real protection against scripts (curl has no origin) -
+    // it stops drive-by abuse from other people's web pages.
+    const allowedOrigins = [
+        process.env.FRONTEND_BASE_URL,
+        'http://localhost:4200',
+        'http://localhost:4300',
+    ].filter(Boolean);
     const corsOptions = {
-        origin: '*', // For development, allow all origins
+        origin: allowedOrigins,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization'],
     };

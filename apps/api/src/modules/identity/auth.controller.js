@@ -25,6 +25,7 @@ const crypto = require('crypto'); // Built into Node.js, no npm install needed
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const { Op } = require('sequelize');
 
 const { getPrivateKey, getPublicKey } = require('../../platform/jwt.keys');
 const { sequelize } = require('../../platform/db');
@@ -41,24 +42,37 @@ const users = [];
 const findUserByEmail = (email) => users.find(u => u.email === email);
 // --- DUMMY USER DATA END ---
 
-// Updated token generation to include email for better debugging and potential future use
-const generateToken = (userId, email, companyId=null, companyName=null, isSystemAdmin=false) => {
+// Updated token generation to include email for better debugging and potential future use.
+// rememberMe ("Keep me signed in" at login) extends the session to 7 days; the flag is
+// carried IN the token so switch-workspace re-issues preserve the lifetime the user chose.
+// 7d is a deliberate ceiling while tokens are bearer JWTs with no revocation - a true
+// 30d+ remember-me needs the refresh-token architecture (planned with MFA).
+const generateToken = (userId, email, companyId=null, companyName=null, isSystemAdmin=false, rememberMe=false) => {
     // We now include BOTH id and email in the payload
     return jwt.sign(
-        { 
-            id: userId, 
+        {
+            id: userId,
             email: email,
             companyId: companyId,
             companyName: companyName,
-            isSystemAdmin: isSystemAdmin
-         }, 
+            isSystemAdmin: isSystemAdmin,
+            rememberMe: !!rememberMe
+         },
          getPrivateKey(),
          {
             algorithm: 'RS256',
-            expiresIn: '24h', // Token expires in 24 hours for better security
+            expiresIn: rememberMe ? '7d' : '24h',
          }
     );
 };
+
+// Capped exponential backoff for consecutive FAILED local-login attempts
+// (index = failures so far). The first three attempts are free (humans typo),
+// then delays grow to a 15-minute ceiling - never a permanent lockout, which
+// would hand attackers a denial-of-service lever against legitimate users.
+const FAILED_LOGIN_DELAYS_SECONDS = [0, 0, 0, 1, 5, 30, 60, 300, 900];
+const failedLoginDelaySeconds = (count) =>
+    FAILED_LOGIN_DELAYS_SECONDS[Math.min(count, FAILED_LOGIN_DELAYS_SECONDS.length - 1)];
 
 
 // Limbo state: a VERIFIED user with zero CompanyUser rows is not an error but a
@@ -93,6 +107,12 @@ const bucket = storage.bucket('membership-app-avatars-123');
 // ----------------------------------------------------
 exports.registerUser = async (req, res) => {
     const { email, password } = req.body;
+
+    // Password floor unified app-wide at 8 characters (NIST minimum; matches
+    // the lead-activation setup-password screen).
+    if (!email || !password || String(password).length < 8) {
+        return res.status(400).json({ message: 'A valid email and a password of at least 8 characters are required.' });
+    }
 
     // 1. Start Transaction
     const transaction = await sequelize.transaction();
@@ -162,8 +182,10 @@ exports.registerUser = async (req, res) => {
 // --- STANDARD EMAIL/PASSWORD LOGIN ---
 exports.login = async (req, res) => {
     try {
-        // 1. Extract credentials and optional workspace selection
+        // 1. Extract credentials, optional workspace selection, and the
+        // "Keep me signed in" choice (24h session vs 7d, see generateToken).
         const { email, password, selectedCompanyId } = req.body;
+        const rememberMe = req.body.rememberMe === true;
 
         if (!email || !password) {
             return res.status(400).json({ message: "Email and password are required" });
@@ -193,10 +215,35 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: "Please use social login for this account." });
         }
 
+        // Capped exponential backoff (see failedLoginDelaySeconds): after a few
+        // consecutive failures the account must cool down before the NEXT
+        // attempt is even checked. Runs before bcrypt so throttled attempts
+        // cost us nothing. Never a permanent lockout.
+        const requiredDelayMs = failedLoginDelaySeconds(user.failedLoginCount || 0) * 1000;
+        if (requiredDelayMs > 0 && user.lastFailedLoginAt) {
+            const waitMs = new Date(user.lastFailedLoginAt).getTime() + requiredDelayMs - Date.now();
+            if (waitMs > 0) {
+                return res.status(429).json({
+                    message: `Too many failed attempts. Please try again in ${Math.ceil(waitMs / 1000)} second(s).`,
+                });
+            }
+        }
+
         // 3. Verify Password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
+            // Count the failure (DB-backed so it holds across instances); the
+            // error message stays generic - no hint which half was wrong.
+            await user.update({
+                failedLoginCount: (user.failedLoginCount || 0) + 1,
+                lastFailedLoginAt: new Date(),
+            });
             return res.status(401).json({ message: "Invalid email or password." });
+        }
+
+        // Success clears the backoff counter.
+        if (user.failedLoginCount) {
+            await user.update({ failedLoginCount: 0, lastFailedLoginAt: null });
         }
 
         // --- MASTER RBAC LOGIN LOGIC ---
@@ -245,7 +292,7 @@ exports.login = async (req, res) => {
         if (workspaces.length > 1) {
             // First, try to skip the picker by resuming the last-used workspace.
             if (!selectedCompanyId) {
-                const resume = await buildResumeLogin(user, workspaces, isSystemAdmin);
+                const resume = await buildResumeLogin(user, workspaces, isSystemAdmin, rememberMe);
                 if (resume) {
                     return res.status(200).json({ message: "Login successful", ...resume });
                 }
@@ -282,7 +329,7 @@ exports.login = async (req, res) => {
             await buildWorkspaceMenus(workspace.roleId, companyId);
 
         // Generate token and respond
-        const loginToken = generateToken(user.id, user.email, companyId, companyName, isSystemAdmin);
+        const loginToken = generateToken(user.id, user.email, companyId, companyName, isSystemAdmin, rememberMe);
 
         // Remember this workspace so the next login can skip the picker.
         await rememberLastWorkspace(user.id, companyId);
@@ -461,7 +508,7 @@ async function rememberLastWorkspace(userId, companyId) {
 // when the remembered workspace is STILL a valid membership, or null when there's
 // nothing valid to resume (caller then returns the 206 picker). The membership
 // re-check is what makes a revoked workspace fall back to the picker for free.
-async function buildResumeLogin(user, workspaces, isSystemAdmin) {
+async function buildResumeLogin(user, workspaces, isSystemAdmin, rememberMe = false) {
     const remembered = user.lastWorkspaceId; // 'SYSTEM', a companyId, or null
     if (!remembered) return null;
 
@@ -472,7 +519,7 @@ async function buildResumeLogin(user, workspaces, isSystemAdmin) {
     const context = await resolveWorkspaceContext(user.id, rememberedCompanyId);
     if (!context) return null;
 
-    const token = generateToken(user.id, user.email, context.companyId, context.companyName, isSystemAdmin);
+    const token = generateToken(user.id, user.email, context.companyId, context.companyName, isSystemAdmin, rememberMe);
     return {
         token,
         email: user.email,
@@ -560,7 +607,10 @@ exports.switchWorkspace = async (req, res) => {
         }
 
         const isSystemAdmin = await isUserSystemAdmin(user.id, user.email);
-        const token = generateToken(user.id, user.email, context.companyId, context.companyName, isSystemAdmin);
+        // Inherit the session lifetime the user chose at login (the rememberMe
+        // claim rides in the token), so switching company never shortens or
+        // silently extends a session.
+        const token = generateToken(user.id, user.email, context.companyId, context.companyName, isSystemAdmin, req.user.rememberMe === true);
 
         // Remember it so the next login resumes straight into this workspace.
         await rememberLastWorkspace(user.id, context.companyId);
@@ -1039,6 +1089,16 @@ exports.forgotPassword = async (req, res) => {
             return res.status(400).json({ message: 'This account uses Microsoft Login. Please sign in with Microsoft.' });
         }
 
+        // Per-email cooldown (anti email-bombing): if a reset was already issued
+        // in the last 5 minutes, answer the same generic success WITHOUT queueing
+        // another email - the earlier link still works, and the caller learns
+        // nothing. Reset tokens live 60 min, so "issued < 5 min ago" is exactly
+        // "expiry still more than 55 min away". No extra column needed.
+        if (user.resetPasswordExpires && new Date(user.resetPasswordExpires).getTime() > Date.now() + 55 * 60 * 1000) {
+            await transaction.rollback();
+            return res.json({ message: 'If an account exists, a reset link has been sent.' });
+        }
+
         // 3. Generate a secure random token (using the crypto library you already imported)
         const resetToken = crypto.randomBytes(32).toString('hex');
         
@@ -1087,6 +1147,9 @@ exports.resetPassword = async (req, res) => {
 
     if (!token || !newPassword) {
         return res.status(400).json({ message: 'Token and new password are required.' });
+    }
+    if (String(newPassword).length < 8) {
+        return res.status(400).json({ message: 'The new password must be at least 8 characters.' });
     }
 
     // 1. Start a transaction
@@ -1215,6 +1278,10 @@ exports.changePassword = async (req, res) => {
         const { currentPassword, newPassword } = req.body;
         const userId = req.user.id; // securely grabbed from the JWT token
 
+        if (!newPassword || String(newPassword).length < 8) {
+            return res.status(400).json({ message: 'The new password must be at least 8 characters.' });
+        }
+
         // 1. Find the user in the database
         const user = await User.findOne({ where: { id: userId } });
         if (!user) {
@@ -1266,6 +1333,18 @@ exports.registerLead = async (req, res) => {
         const existingUser = await User.findOne({ where: { email } });
         if (existingUser) {
             return res.status(400).json({ message: 'An account with this email already exists.' });
+        }
+
+        // Per-email cooldown (anti email-bombing): if this address already got
+        // an activation email in the last 5 minutes, answer the same success
+        // WITHOUT queueing another one. The link in the earlier email still works.
+        const recentLead = await RegistrationLead.findOne({
+            where: { email, createdAt: { [Op.gt]: new Date(Date.now() - 5 * 60 * 1000) } },
+        });
+        if (recentLead) {
+            return res.status(200).json({
+                message: 'Registration successful! Please check your email to activate your account.'
+            });
         }
 
         // 3. SILENT CAPTURE: Extract IP and Geo-location from Cloud Run headers
@@ -1340,6 +1419,9 @@ exports.activateAccount = async (req, res) => {
 
     if (!token || !password) {
         return res.status(400).json({ message: 'Activation token and password are required.' });
+    }
+    if (String(password).length < 8) {
+        return res.status(400).json({ message: 'The password must be at least 8 characters.' });
     }
 
     let transaction = null;

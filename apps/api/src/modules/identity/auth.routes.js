@@ -91,28 +91,32 @@ const upload = multer({
     }
 });
 
+// Per-IP rate limits for every PUBLIC endpoint (the authenticated API needs no
+// blanket limiter - a valid JWT already gates it). See platform/rateLimits.js.
+const { loginLimiter, signupLimiter, tokenLimiter } = require('../../platform/rateLimits');
+
 // Route to register a new user
 // POST: /api/auth/register
-router.post('/register-user', authController.registerUser);
+router.post('/register-user', signupLimiter(), authController.registerUser);
 
 // Route to log in a user and receive a JWT
 // POST: /api/auth/login
-router.post('/login', authController.login);
+router.post('/login', loginLimiter(), authController.login);
 
 // Route to request a password reset link
 // POST: /api/auth/forgot-password
-router.post('/forgot-password', authController.forgotPassword);
+router.post('/forgot-password', signupLimiter(), authController.forgotPassword);
 
 // Route to save the new password using the secure token
 // POST: /api/auth/reset-password
-router.post('/reset-password', authController.resetPassword);
+router.post('/reset-password', tokenLimiter(), authController.resetPassword);
 
 // Add this right below your register and login routes
-router.get('/verify/:token', authController.verifyEmail);
+router.get('/verify/:token', tokenLimiter(), authController.verifyEmail);
 
 // JSON email verification, called by the frontend /verify-email page (the
 // activation link in the email points at the FRONTEND, not this API host).
-router.post('/verify-email', authController.verifyEmailJson);
+router.post('/verify-email', tokenLimiter(), authController.verifyEmailJson);
 
 // --- SELF-SERVICE ONBOARDING (verified user, no workspace yet) ---
 // Guarded by the onboarding-scoped token; closed once the first workspace exists.
@@ -120,19 +124,19 @@ router.get('/onboarding/modules', authenticateOnboarding, authController.getOnbo
 router.post('/onboarding/provision', authenticateOnboarding, authController.provisionOnboarding);
 
 // 👇 Add your new registration route here
-router.post('/register-lead', authController.registerLead);
+router.post('/register-lead', signupLimiter(), authController.registerLead);
 
 // 👇 Add the new activation route
-router.post('/activate', authController.activateAccount);
+router.post('/activate', tokenLimiter(), authController.activateAccount);
 
 // Route to handle Google SSO
-router.post('/google', authController.googleLogin);
+router.post('/google', loginLimiter(), authController.googleLogin);
 
 // Exchange a Google authorization code (in-app redirect flow) for an access token.
-router.post('/google/exchange', authController.googleExchangeCode);
+router.post('/google/exchange', loginLimiter(), authController.googleExchangeCode);
 
 // Route to handle Microsoft SSO
-router.post('/microsoft-login', authController.microsoftLogin);
+router.post('/microsoft-login', loginLimiter(), authController.microsoftLogin);
 
 // --- Updated Profile Route with Transactional Outbox ---
 router.put('/profile', authenticateToken, async (req, res) => {

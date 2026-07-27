@@ -85,6 +85,19 @@ const User = sequelize.define('User', {
     preferredLanguage: {
         type: DataTypes.STRING(10),
         allowNull: true,
+    },
+    // Brute-force throttling (local logins): consecutive failed password
+    // attempts + when the last one happened. Drives a CAPPED exponential
+    // backoff (never a permanent lockout - that would be a DoS lever).
+    // DB-backed so the count holds across Cloud Run instances.
+    failedLoginCount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    },
+    lastFailedLoginAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
     }
 }, {
     tableName: 'User', // Name the table in PostgreSQL 'User'
