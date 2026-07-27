@@ -49,6 +49,11 @@ export class LoginComponent implements OnInit {
   pendingLoginMethod: 'local' | 'google' | null = null;
   pendingGoogleToken: string | null = null;
 
+  // MFA step-up: password/SSO succeeded, now the 6-digit (or recovery) code.
+  isMfaStep = false;
+  pendingMfaToken: string | null = null;
+  mfaCode = '';
+
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
@@ -250,6 +255,23 @@ export class LoginComponent implements OnInit {
 
   // A helper function to handle both Local and Google API responses
   private handleLoginResponse(res: AuthResponse, method: 'local' | 'google', googleToken?: string, immediate = false): void {
+    if (res.mfaEnrollRequired && res.mfaToken) {
+      // Admin role without MFA: enrollment is mandatory. The purpose-scoped
+      // token drives the full-screen /mfa-setup flow (guards keep it there).
+      localStorage.setItem('token', res.mfaToken);
+      localStorage.setItem('userEmail', res.email || this.loginForm.value.email);
+      this.router.navigate(['/mfa-setup']);
+      return;
+    }
+    if (res.mfaRequired && res.mfaToken) {
+      this.ssoInProgress = false;
+      this.isMfaStep = true;
+      this.pendingMfaToken = res.mfaToken;
+      this.mfaCode = '';
+      this.errorMessage = null;
+      this.cdr.detectChanges();
+      return;
+    }
     if (res.onboarding && res.token) {
       // LIMBO: verified user with no workspace yet. Store the onboarding-scoped
       // token and run the Create-your-organization wizard (the guards keep this
@@ -304,6 +326,34 @@ export class LoginComponent implements OnInit {
         setTimeout(() => this.router.navigate(['/home']), 1000);
       }
     }
+  }
+
+  // Submit the MFA code (TOTP or XXXX-XXXX recovery code).
+  submitMfaCode(): void {
+    const code = this.mfaCode.trim();
+    if (!code || !this.pendingMfaToken) return;
+    this.loading = true;
+    this.errorMessage = null;
+    this.authService.mfaVerify(this.pendingMfaToken, code)
+      .pipe(finalize(() => { this.loading = false; this.cdr.detectChanges(); }))
+      .subscribe({
+        next: (res) => {
+          this.isMfaStep = false;
+          this.pendingMfaToken = null;
+          this.handleLoginResponse(res, 'local', undefined, true);
+        },
+        error: (err) => {
+          this.errorMessage = err?.error?.message || 'That code is not valid. Please try again.';
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  cancelMfa(): void {
+    this.isMfaStep = false;
+    this.pendingMfaToken = null;
+    this.mfaCode = '';
+    this.errorMessage = null;
   }
 
   // 👇 The function triggered by your HTML Workspace buttons

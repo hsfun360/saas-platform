@@ -15,6 +15,45 @@
       }
     </div>
   </div>
+} @else if (isMfaStep) {
+  <div class="login-page-container">
+    <div class="login-card">
+      <h2 class="login-title">Two-factor authentication</h2>
+      <p style="color: var(--text-muted); text-align: center; margin-bottom: var(--space-lg);">
+        Enter the 6-digit code from your authenticator app, or one of your recovery codes.
+      </p>
+
+      @if (errorMessage) {
+        <div class="login-error" role="alert" aria-live="assertive">{{ errorMessage }}</div>
+      }
+
+      <div class="form-group">
+        <label for="mfa-code">Verification code</label>
+        <input
+          id="mfa-code"
+          type="text"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          placeholder="123456 or XXXX-XXXX"
+          maxlength="10"
+          [value]="mfaCode"
+          (input)="mfaCode = $any($event.target).value"
+          (keyup.enter)="submitMfaCode()"
+          style="text-align: center; letter-spacing: 0.2em; font-size: var(--font-h3);"
+        >
+      </div>
+      <button type="button" class="btn-primary" (click)="submitMfaCode()" [disabled]="loading || !mfaCode.trim()">
+        {{ loading ? 'Verifying…' : 'Verify' }}
+      </button>
+
+      <div class="back-to-login" style="text-align: center; margin-top: var(--space-md);">
+        <button type="button" (click)="cancelMfa()"
+                style="background: none; border: none; color: var(--brand-text); cursor: pointer; min-height: 44px; font-size: var(--font-body-2);">
+          &larr; Back to login
+        </button>
+      </div>
+    </div>
+  </div>
 } @else {
 <div class="login-page-container">
   <div class="login-card">

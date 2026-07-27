@@ -24,6 +24,9 @@ import {
   MyInvitation,
   AccountUsersResponse,
   OnboardingModule,
+  MfaStatus,
+  MfaSetupResponse,
+  MfaEnableResponse,
 } from './models/auth.models';
 
 @Injectable({
@@ -99,6 +102,37 @@ export class AuthService {
   // email points at the frontend /verify-email page, which calls this).
   verifyEmail(token: string): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/verify-email`, { token });
+  }
+
+  // --- MFA (TOTP) + sessions ---
+  mfaVerify(mfaToken: string, code: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiBaseUrl}/auth/mfa/verify`, { mfaToken, code });
+  }
+
+  getMfaStatus(): Observable<MfaStatus> {
+    return this.http.get<MfaStatus>(`${this.apiBaseUrl}/auth/mfa/status`);
+  }
+
+  mfaSetup(): Observable<MfaSetupResponse> {
+    return this.http.post<MfaSetupResponse>(`${this.apiBaseUrl}/auth/mfa/setup`, {});
+  }
+
+  mfaEnable(code: string): Observable<MfaEnableResponse> {
+    return this.http.post<MfaEnableResponse>(`${this.apiBaseUrl}/auth/mfa/enable`, { code });
+  }
+
+  mfaDisable(code: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/mfa/disable`, { code });
+  }
+
+  // Rotate the httpOnly refresh cookie for a fresh 1h access token.
+  refreshSession(): Observable<{ token: string }> {
+    return this.http.post<{ token: string }>(`${this.apiBaseUrl}/auth/refresh`, {});
+  }
+
+  // Revoke the server-side session (the interceptor clears local state).
+  logout(): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/logout`, {});
   }
 
   // --- Self-service onboarding (verified user, no workspace yet; uses the

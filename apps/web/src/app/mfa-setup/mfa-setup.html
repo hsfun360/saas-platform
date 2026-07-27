@@ -1,0 +1,66 @@
+<div class="mfa-wrapper">
+  <div class="card mfa-card">
+
+    @if (recoveryCodes().length === 0) {
+      <h2>Set up two-factor authentication</h2>
+      <p class="mfa-intro">
+        Administrator accounts require a second factor. Scan the QR code with an
+        authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, …),
+        then enter the 6-digit code it shows for <strong>{{ userEmail }}</strong>.
+      </p>
+
+      @if (errorMessage()) {
+        <div class="mfa-alert" role="alert">{{ errorMessage() }}</div>
+      }
+
+      @if (loading()) {
+        <p class="mfa-hint">Preparing your setup…</p>
+      } @else if (qrDataUrl()) {
+        <div class="mfa-qr">
+          <img [src]="qrDataUrl()" alt="QR code for your authenticator app" width="220" height="220">
+        </div>
+        <p class="mfa-hint">Can't scan? Open your app and add the account manually with the key inside this link:<br>
+          <code class="mfa-code-inline">{{ otpauthUrl() }}</code>
+        </p>
+
+        <div class="form-group">
+          <label for="mfa-setup-code">6-digit code</label>
+          <input
+            id="mfa-setup-code"
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            placeholder="123456"
+            [value]="code()"
+            (input)="onCodeInput($event)"
+            (keyup.enter)="confirm()"
+          >
+        </div>
+        <button type="button" class="mfa-submit" (click)="confirm()" [disabled]="submitting() || code().trim().length < 6">
+          {{ submitting() ? 'Verifying…' : 'Turn on two-factor authentication' }}
+        </button>
+      }
+
+      <button type="button" class="mfa-signout" (click)="signOut()">Sign in with a different account</button>
+
+    } @else {
+      <h2>Save your recovery codes</h2>
+      <p class="mfa-intro">
+        Two-factor authentication is ON. These one-time codes are the ONLY way in if you
+        lose your phone - store them somewhere safe. <strong>They will not be shown again.</strong>
+      </p>
+
+      <div class="mfa-recovery" role="list">
+        @for (c of recoveryCodes(); track c) {
+          <code role="listitem">{{ c }}</code>
+        }
+      </div>
+
+      <button type="button" class="mfa-submit" (click)="continueToApp()">
+        I saved my recovery codes - continue
+      </button>
+    }
+
+  </div>
+</div>

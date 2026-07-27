@@ -48,4 +48,85 @@
       </div>
     </form>
   </div>
+
+  <!-- ============ Security (two-factor authentication) ============ -->
+  @if (mfaStatus(); as mfaS) {
+    @if (mfaS.available) {
+      <div class="card" style="margin-top: var(--space-lg);">
+        <h2 style="margin-top: 0; font-size: var(--font-h2); color: var(--text-primary);">Security</h2>
+
+        @if (mfaError()) {
+          <div class="form-alert form-alert--error" role="alert">{{ mfaError() }}</div>
+        }
+
+        @if (mfaRecoveryCodes().length > 0) {
+          <div class="form-alert form-alert--success" role="status">
+            <strong>Two-factor authentication is ON.</strong> Save these one-time recovery codes now -
+            they are the only way in if you lose your phone, and they will not be shown again.
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); margin: var(--space-md) 0;">
+            @for (c of mfaRecoveryCodes(); track c) {
+              <code style="border: 1px dashed var(--border-strong); border-radius: 8px; padding: var(--space-sm); text-align: center; color: var(--text-primary); background: var(--surface-sunken);">{{ c }}</code>
+            }
+          </div>
+        }
+
+        @switch (mfaMode()) {
+          @case ('idle') {
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap;">
+              <div>
+                <div style="font-weight: var(--weight-semibold); color: var(--text-primary);">Two-factor authentication (authenticator app)</div>
+                <div style="font-size: var(--font-body-2); color: var(--text-muted);">
+                  @if (mfaS.enabled) {
+                    Enabled - a 6-digit code is required at every login. {{ mfaS.recoveryCodesLeft }} recovery codes left.
+                  } @else {
+                    Adds a 6-digit code at login, so a stolen password alone cannot enter your account.
+                  }
+                </div>
+              </div>
+              @if (mfaS.enabled) {
+                <button type="button" class="btn btn--danger" (click)="startMfaDisable()" [disabled]="mfaBusy()">Disable</button>
+              } @else {
+                <button type="button" class="btn btn--success" (click)="startMfaSetup()" [disabled]="mfaBusy()">
+                  {{ mfaBusy() ? 'Preparing…' : 'Enable' }}
+                </button>
+              }
+            </div>
+          }
+          @case ('enrolling') {
+            <p style="color: var(--text-secondary);">Scan this QR code with your authenticator app, then enter the 6-digit code it shows.</p>
+            <div style="display: flex; justify-content: center; margin-bottom: var(--space-md);">
+              <img [src]="mfaQr()" alt="QR code for your authenticator app" width="220" height="220"
+                   style="border: 1px solid var(--border); border-radius: 8px; background: #ffffff;">
+            </div>
+            <div class="form-group">
+              <label for="pf-mfa-code">6-digit code</label>
+              <input id="pf-mfa-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6"
+                     placeholder="123456" [value]="mfaCode()" (input)="onMfaCodeInput($event)">
+            </div>
+            <div class="form-actions" style="display: flex; gap: var(--space-sm);">
+              <button type="button" class="btn btn--secondary" (click)="cancelMfaFlow()" [disabled]="mfaBusy()">Cancel</button>
+              <button type="button" class="btn btn--primary" (click)="confirmMfaEnable()" [disabled]="mfaBusy() || mfaCode().trim().length < 6">
+                {{ mfaBusy() ? 'Verifying…' : 'Turn on' }}
+              </button>
+            </div>
+          }
+          @case ('disabling') {
+            <p style="color: var(--text-secondary);">Enter a current 6-digit code (or a recovery code) to turn two-factor authentication off.</p>
+            <div class="form-group">
+              <label for="pf-mfa-off-code">Code</label>
+              <input id="pf-mfa-off-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10"
+                     placeholder="123456 or XXXX-XXXX" [value]="mfaCode()" (input)="onMfaCodeInput($event)">
+            </div>
+            <div class="form-actions" style="display: flex; gap: var(--space-sm);">
+              <button type="button" class="btn btn--secondary" (click)="cancelMfaFlow()" [disabled]="mfaBusy()">Cancel</button>
+              <button type="button" class="btn btn--danger" (click)="confirmMfaDisable()" [disabled]="mfaBusy() || !mfaCode().trim()">
+                {{ mfaBusy() ? 'Verifying…' : 'Disable two-factor authentication' }}
+              </button>
+            </div>
+          }
+        }
+      </div>
+    }
+  }
 </section>

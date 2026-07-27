@@ -1,0 +1,143 @@
+/* Forced MFA enrollment (outside the shell), matching the auth screens'
+   centred-card look. All colours from tokens. */
+.mfa-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--surface-page);
+  padding: var(--space-lg);
+  box-sizing: border-box;
+}
+
+.mfa-card {
+  background: var(--surface-card);
+  padding: var(--space-xl);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05), 0 4px 6px rgba(0, 0, 0, 0.03);
+  width: 100%;
+  max-width: 480px;
+  box-sizing: border-box;
+}
+
+h2 {
+  text-align: center;
+  color: var(--text-primary);
+  margin-top: 0;
+  margin-bottom: var(--space-sm);
+  font-weight: var(--weight-bold);
+}
+
+.mfa-intro {
+  text-align: center;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-lg);
+}
+
+.mfa-alert {
+  color: var(--danger-text);
+  background-color: var(--danger-surface);
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.mfa-qr {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-md);
+}
+
+.mfa-qr img {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff; /* QR quiet zone must stay white in both themes */
+  max-width: 100%;
+}
+
+.mfa-hint {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  text-align: center;
+  margin-bottom: var(--space-lg);
+  word-break: break-all;
+}
+
+.mfa-code-inline {
+  font-size: var(--font-overline);
+  color: var(--text-secondary);
+}
+
+.form-group {
+  margin-bottom: var(--space-lg);
+}
+
+.form-group label {
+  display: block;
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-body-2);
+}
+
+.form-group input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-size: var(--font-h3);
+  text-align: center;
+  letter-spacing: 0.3em;
+  color: var(--text-primary);
+  background-color: var(--surface-input);
+}
+
+.mfa-recovery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.mfa-recovery code {
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  padding: var(--space-sm);
+  text-align: center;
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  font-size: var(--font-body-2);
+}
+
+.mfa-submit {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-sm);
+  background-color: var(--brand);
+  color: var(--text-on-brand);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: var(--weight-bold);
+  font-size: var(--font-body);
+}
+
+.mfa-submit:hover:not(:disabled) { background-color: var(--brand-hover); }
+.mfa-submit:disabled { background-color: var(--brand-disabled); cursor: not-allowed; }
+
+.mfa-signout {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: var(--space-md);
+  background: none;
+  border: none;
+  color: var(--brand-text);
+  cursor: pointer;
+  font-size: var(--font-body-2);
+}
+
+.mfa-signout:hover { text-decoration: underline; }

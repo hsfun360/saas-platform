@@ -317,6 +317,10 @@ export class Dashboard implements OnInit {
   }
 
   onLogout(): void {
+    // Revoke the server-side session (refresh-token family) BEFORE dropping
+    // local state - a signed-out session must not be refreshable. Local
+    // cleanup proceeds regardless of the call's outcome.
+    this.authService.logout().subscribe({ next: () => {}, error: () => {} });
     localStorage.removeItem('token');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('profilePicture');

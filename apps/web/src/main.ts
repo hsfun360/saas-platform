@@ -25,7 +25,7 @@ import { IPublicClientApplication, PublicClientApplication, InteractionType } fr
 import { App } from './app/app'; // Make sure this path matches your app.ts location!
 import { LoginComponent } from './app/login/login';
 import { Dashboard } from './app/dashboard/dashboard';
-import { authGuard, onboardingGuard } from './app/auth.guard';
+import { authGuard, onboardingGuard, mfaSetupGuard } from './app/auth.guard';
 import { systemAccessGuard } from './app/access.guard';
 
 // 1. Define Routes
@@ -49,6 +49,8 @@ const routes: Routes = [
   // Limbo onboarding: a verified user with no workspace yet creates their
   // organization here (full-screen, outside the shell; onboarding-scoped token).
   { path: 'onboarding', loadComponent: () => import('./app/onboarding/onboarding').then((m) => m.OnboardingComponent), canActivate: [onboardingGuard] },
+  // Forced MFA enrollment for admin roles (full-screen, 'mfa-enroll' token).
+  { path: 'mfa-setup', loadComponent: () => import('./app/mfa-setup/mfa-setup').then((m) => m.MfaSetupComponent), canActivate: [mfaSetupGuard] },
   // Member Portal - the member's own surface, deliberately OUTSIDE the staff
   // shell (no sidebar/menus/RBAC). Registration is public (signed email-link
   // token); the portal home needs only a valid session.

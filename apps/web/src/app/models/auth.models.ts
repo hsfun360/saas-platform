@@ -127,6 +127,31 @@ export interface AuthResponse {
   // onboarding-scoped (only valid on /auth/onboarding/*) and the frontend
   // routes to the Create-your-organization wizard.
   onboarding?: boolean;
+  // MFA step-up: password/SSO succeeded, a TOTP (or recovery) code is needed.
+  mfaRequired?: boolean;
+  // Admin role without MFA: enrollment is mandatory before entering the app.
+  mfaEnrollRequired?: boolean;
+  // Short-lived purpose token carrying the login context across the MFA step.
+  mfaToken?: string;
+  companyName?: string | null;
+}
+
+export interface MfaStatus {
+  available: boolean;
+  enabled: boolean;
+  enrolledAt?: string | null;
+  recoveryCodesLeft: number;
+}
+
+export interface MfaSetupResponse {
+  otpauthUrl: string;
+  qrDataUrl: string;
+}
+
+// /mfa/enable: recovery codes always; plus the full login payload when called
+// with the forced-enrollment token.
+export interface MfaEnableResponse extends AuthResponse {
+  recoveryCodes: string[];
 }
 
 // A product module offered by the onboarding wizard (GET /auth/onboarding/modules).

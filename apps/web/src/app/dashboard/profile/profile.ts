@@ -1,7 +1,8 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { AuthService } from '../../auth.service';
 import { PhoneInputComponent } from '../../shared/phone-input/phone-input';
+import { MfaStatus } from '../../models/auth.models';
 
 @Component({
     selector: 'app-profile',
@@ -26,7 +27,99 @@ export class ProfileComponent implements OnInit {
 
   selectedImagePreview: string | ArrayBuffer | null = null;
 
+  // --- Security (two-factor authentication) - signals so the zoneless view
+  // updates on async results without manual change detection. ---
+  readonly mfaStatus = signal<MfaStatus | null>(null);
+  readonly mfaQr = signal('');
+  readonly mfaOtpauth = signal('');
+  readonly mfaRecoveryCodes = signal<string[]>([]);
+  readonly mfaCode = signal('');
+  readonly mfaBusy = signal(false);
+  readonly mfaError = signal('');
+  readonly mfaMode = signal<'idle' | 'enrolling' | 'disabling'>('idle');
+
+  loadMfaStatus(): void {
+    this.authService.getMfaStatus().subscribe({
+      next: (s) => this.mfaStatus.set(s),
+      error: () => {}, // card simply stays hidden when status can't load
+    });
+  }
+
+  onMfaCodeInput(event: Event): void {
+    this.mfaCode.set((event.target as HTMLInputElement).value);
+  }
+
+  startMfaSetup(): void {
+    this.mfaError.set('');
+    this.mfaBusy.set(true);
+    this.authService.mfaSetup().subscribe({
+      next: (res) => {
+        this.mfaBusy.set(false);
+        this.mfaQr.set(res.qrDataUrl);
+        this.mfaOtpauth.set(res.otpauthUrl);
+        this.mfaCode.set('');
+        this.mfaMode.set('enrolling');
+      },
+      error: (err) => {
+        this.mfaBusy.set(false);
+        this.mfaError.set(err?.error?.message || 'Could not start the setup.');
+      },
+    });
+  }
+
+  confirmMfaEnable(): void {
+    const code = this.mfaCode().trim();
+    if (!code) return;
+    this.mfaError.set('');
+    this.mfaBusy.set(true);
+    this.authService.mfaEnable(code).subscribe({
+      next: (res) => {
+        this.mfaBusy.set(false);
+        this.mfaRecoveryCodes.set(res.recoveryCodes || []);
+        this.mfaMode.set('idle');
+        this.loadMfaStatus();
+      },
+      error: (err) => {
+        this.mfaBusy.set(false);
+        this.mfaError.set(err?.error?.message || 'That code is not valid.');
+      },
+    });
+  }
+
+  startMfaDisable(): void {
+    this.mfaError.set('');
+    this.mfaCode.set('');
+    this.mfaMode.set('disabling');
+  }
+
+  confirmMfaDisable(): void {
+    const code = this.mfaCode().trim();
+    if (!code) return;
+    this.mfaError.set('');
+    this.mfaBusy.set(true);
+    this.authService.mfaDisable(code).subscribe({
+      next: () => {
+        this.mfaBusy.set(false);
+        this.mfaMode.set('idle');
+        this.mfaRecoveryCodes.set([]);
+        this.loadMfaStatus();
+      },
+      error: (err) => {
+        this.mfaBusy.set(false);
+        this.mfaError.set(err?.error?.message || 'That code is not valid.');
+      },
+    });
+  }
+
+  cancelMfaFlow(): void {
+    this.mfaMode.set('idle');
+    this.mfaError.set('');
+    this.mfaCode.set('');
+  }
+
   ngOnInit(): void {
+  this.loadMfaStatus();
+
   // Get the email we stored during login
   const savedEmail = localStorage.getItem('userEmail') || '';
 

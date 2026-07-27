@@ -9,15 +9,40 @@ export const authGuard: CanActivateFn = () => {
   const token = localStorage.getItem('token');
 
   if (token && !isTokenExpired(token)) {
-    // An onboarding-scoped token (verified user, no workspace yet) must never
-    // enter the shell — send it to the Create-your-organization wizard.
-    if (tokenPurpose(token) === 'onboarding') {
+    // Purpose-scoped tokens must never enter the shell — each goes to its own
+    // flow (onboarding wizard / forced MFA enrollment); anything else → login.
+    const purpose = tokenPurpose(token);
+    if (purpose === 'onboarding') {
       return router.parseUrl('/onboarding');
+    }
+    if (purpose === 'mfa-enroll') {
+      return router.parseUrl('/mfa-setup');
+    }
+    if (purpose) {
+      localStorage.removeItem('token');
+      return router.parseUrl('/login');
     }
     return true;
   }
 
   // No token, or expired / malformed — drop it and send to login.
+  localStorage.removeItem('token');
+  return router.parseUrl('/login');
+};
+
+// Gate for the forced-enrollment /mfa-setup page: only the 'mfa-enroll' token
+// belongs there (self-service enrollment lives in Profile → Security instead).
+export const mfaSetupGuard: CanActivateFn = () => {
+  const router = inject(Router);
+  const token = localStorage.getItem('token');
+
+  if (token && !isTokenExpired(token)) {
+    if (tokenPurpose(token) === 'mfa-enroll') {
+      return true;
+    }
+    return router.parseUrl('/home');
+  }
+
   localStorage.removeItem('token');
   return router.parseUrl('/login');
 };
