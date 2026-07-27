@@ -1,0 +1,73 @@
+<section class="screen-pad" style="max-width: 1140px; margin: 0 auto;">
+  <div style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-xs);">
+    <span class="saas-icon material-icons" aria-hidden="true">person_off</span>
+    <div>
+      <h1 style="margin: 0; font-size: var(--font-h1); color: var(--text-primary);">Unverified Registrations</h1>
+      <p class="saas-subtitle" style="margin: 0; color: var(--text-muted);">
+        Accounts that registered but never clicked their activation link. Deleting one frees its email address for a genuine registration.
+      </p>
+    </div>
+  </div>
+
+  @if (resultMessage()) {
+    <div role="status" style="margin: var(--space-md) 0; padding: var(--space-sm) var(--space-md); border: 1px solid var(--success-border); border-radius: 8px; background: var(--success-surface); color: var(--success-text);">
+      {{ resultMessage() }}
+      @for (s of skipped(); track s.id) {
+        <div style="font-size: var(--font-caption);">Skipped {{ s.email || s.id }} - {{ s.reason }}.</div>
+      }
+    </div>
+  }
+  @if (errorMessage()) {
+    <div role="alert" style="margin: var(--space-md) 0; padding: var(--space-sm) var(--space-md); border: 1px solid var(--danger-border); border-radius: 8px; background: var(--danger-surface); color: var(--danger-text);">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  @if (loading()) {
+    <p style="color: var(--text-muted);">Loading registrations…</p>
+  } @else if (rows().length === 0) {
+    <p style="color: var(--text-muted); margin-top: var(--space-lg);">
+      No unverified registrations - nothing to clean up.
+    </p>
+  } @else {
+    <p style="color: var(--text-secondary); font-size: var(--font-body-2); margin: var(--space-md) 0;">
+      {{ rows().length }} unverified registration(s); the {{ staleCount() }} older than 7 days are pre-selected.
+      Accounts linked to a workspace can never be deleted here.
+    </p>
+
+    <div class="data-list">
+      @for (r of rows(); track r.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <label class="data-row__main" style="display: flex; align-items: center; gap: var(--space-md); min-width: 0;"
+                   [style.cursor]="r.hasWorkspace ? 'default' : 'pointer'">
+              <input type="checkbox" style="width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--brand);"
+                     [checked]="isSelected(r.id)" [disabled]="r.hasWorkspace" (change)="toggle(r)"
+                     [attr.aria-label]="'Select ' + r.email + ' for deletion'">
+              <span style="min-width: 0;">
+                <span class="data-card__title" style="display: block; overflow-wrap: anywhere;">{{ r.email }}</span>
+                <span class="data-card__subline" style="display: block;">
+                  Registered {{ r.createdAt | localDate }} · {{ ageDays(r) }} day(s) ago · {{ r.authMethod }}
+                  @if (r.hasWorkspace) { · has a workspace (protected) }
+                </span>
+              </span>
+            </label>
+            <span class="data-row__badge">
+              <span class="status-chip" [class.status-chip--off]="!isStale(r)" [class.status-chip--on]="isStale(r)"
+                    [style.background]="isStale(r) ? 'var(--danger-surface)' : ''" [style.color]="isStale(r) ? 'var(--danger-text)' : ''">
+                {{ isStale(r) ? '> 7 days' : 'recent' }}
+              </span>
+            </span>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div style="margin-top: var(--space-lg);">
+      <button type="button" class="btn btn--danger" (click)="deleteSelected()" [disabled]="deleting() || selectedCount() === 0">
+        <span class="material-icons" aria-hidden="true">delete_forever</span>
+        {{ deleting() ? 'Deleting…' : 'Delete ' + selectedCount() + ' registration(s)' }}
+      </button>
+    </div>
+  }
+</section>

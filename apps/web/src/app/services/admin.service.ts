@@ -18,6 +18,7 @@ import {
   UpdateSubscriptionData,
   SubscriptionInfo,
   TenantUser,
+  UnverifiedUser,
 } from '../models/auth.models';
 
 @Injectable({
@@ -27,6 +28,16 @@ export class AdminService {
   private apiBaseUrl = `${environment.apiUrl}/admin`;
 
   constructor(private http: HttpClient) { }
+
+  // --- Unverified-registrations cleanup utility ---
+  listUnverifiedUsers(): Observable<UnverifiedUser[]> {
+    return this.http.get<UnverifiedUser[]>(`${this.apiBaseUrl}/unverified-users`);
+  }
+
+  deleteUnverifiedUsers(userIds: string[]): Observable<{ message: string; deleted: number; skipped: { id: string; email?: string; reason: string }[] }> {
+    return this.http.post<{ message: string; deleted: number; skipped: { id: string; email?: string; reason: string }[] }>(
+      `${this.apiBaseUrl}/unverified-users/delete`, { userIds });
+  }
 
   getRoles(companyId?: string): Observable<Role[]> {
     const url = companyId

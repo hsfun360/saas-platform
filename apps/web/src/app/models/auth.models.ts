@@ -1265,6 +1265,15 @@ export interface CompanyInfo {
   isActive: boolean;
 }
 
+// An unverified registration row on the platform-admin cleanup utility.
+export interface UnverifiedUser {
+  id: string;
+  email: string;
+  authMethod: string;
+  createdAt: string;
+  hasWorkspace: boolean;
+}
+
 // A module a Tenant Admin can attach to a company (chosen from all system modules).
 export interface ModuleOption {
   id: string;

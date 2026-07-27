@@ -194,6 +194,7 @@ export class Dashboard implements OnInit {
         { id: 'saas-roles', name: 'Roles', route: '/admin/system-roles', icon: 'badge', ...saas, parentId: 'saas-access', sequence: 0 },
         { id: 'saas-users', name: 'Users', route: '/admin/platform-users', icon: 'person', ...saas, parentId: 'saas-access', sequence: 1 },
         { id: 'saas-assign', name: 'Assign Role', route: '/admin/system-setup', icon: 'link', ...saas, parentId: 'saas-access', sequence: 2 },
+        { id: 'saas-unverified', name: 'Unverified Registrations', route: '/admin/unverified-users', icon: 'person_off', ...saas, parentId: 'saas-access', sequence: 3 },
         { id: 'saas-refdata', name: 'Reference data', route: '', icon: 'storage', ...saas, parentId: null, sequence: 2 },
         { id: 'saas-countries', name: 'Countries', route: '/admin/countries', icon: 'public', ...saas, parentId: 'saas-refdata', sequence: 0 },
         { id: 'saas-languages', name: 'Languages', route: '/admin/languages', icon: 'translate', ...saas, parentId: 'saas-refdata', sequence: 1 },
