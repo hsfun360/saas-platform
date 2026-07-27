@@ -20,6 +20,7 @@ const { isUserSystemAdmin } = require('../saas/systemAdmin');
 const { getOwnedAccountIds, isAccountAdminForCompany } = require('../saas/account');
 const { hasTenantAdminRole } = require('../saas/tenant');
 const { provisionTenant, listEntitlableModules } = require('../saas/provisioning.service');
+const { isPasswordBreached, BREACHED_PASSWORD_MESSAGE } = require('../../platform/passwordBreach');
 
 const crypto = require('crypto'); // Built into Node.js, no npm install needed
 
@@ -123,6 +124,11 @@ exports.registerUser = async (req, res) => {
     // the lead-activation setup-password screen).
     if (!email || !password || String(password).length < 8) {
         return res.status(400).json({ message: 'A valid email and a password of at least 8 characters are required.' });
+    }
+
+    // Block passwords known from public breaches (HIBP k-anonymity; fail-open).
+    if (await isPasswordBreached(password)) {
+        return res.status(400).json({ message: BREACHED_PASSWORD_MESSAGE });
     }
 
     // 1. Start Transaction
@@ -1194,6 +1200,11 @@ exports.resetPassword = async (req, res) => {
         return res.status(400).json({ message: 'The new password must be at least 8 characters.' });
     }
 
+    // Block passwords known from public breaches (HIBP k-anonymity; fail-open).
+    if (await isPasswordBreached(newPassword)) {
+        return res.status(400).json({ message: BREACHED_PASSWORD_MESSAGE });
+    }
+
     // 1. Start a transaction
     const transaction = await sequelize.transaction();
 
@@ -1327,6 +1338,11 @@ exports.changePassword = async (req, res) => {
 
         if (!newPassword || String(newPassword).length < 8) {
             return res.status(400).json({ message: 'The new password must be at least 8 characters.' });
+        }
+
+        // Block passwords known from public breaches (HIBP k-anonymity; fail-open).
+        if (await isPasswordBreached(newPassword)) {
+            return res.status(400).json({ message: BREACHED_PASSWORD_MESSAGE });
         }
 
         // 1. Find the user in the database
@@ -1469,6 +1485,11 @@ exports.activateAccount = async (req, res) => {
     }
     if (String(password).length < 8) {
         return res.status(400).json({ message: 'The password must be at least 8 characters.' });
+    }
+
+    // Block passwords known from public breaches (HIBP k-anonymity; fail-open).
+    if (await isPasswordBreached(password)) {
+        return res.status(400).json({ message: BREACHED_PASSWORD_MESSAGE });
     }
 
     let transaction = null;
