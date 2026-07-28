@@ -46,6 +46,17 @@ Implementation lives in `src/modules/identity` (auth.controller.js, mfa.service.
   The delete endpoint independently refuses anything verified, workspace-linked, or on ADMIN_EMAILS, and reports skips with reasons.
 - **Accepted trade-off**: register's "User already exists." message is an enumeration point, kept for UX and mitigated by the rate limit.
 
+## Cloud configuration hardening (2026-07-28)
+
+- **All secrets in Secret Manager**: `DATABASE_URL`, `GOOGLE_CLIENT_SECRET`, `MFA_ENCRYPTION_KEY`, `EMAIL_PASS`, `SMTP_ENCRYPTION_KEY` and the JWT keys are secret-backed env vars on login-api and the worker; no plaintext secrets remain in service config.
+  The dead `JWT_SECRET` was removed, and the worker's missing `SMTP_ENCRYPTION_KEY` (a live per-company-SMTP bug) was fixed in the same pass.
+- **Worker ingress is internal** (it serves no external traffic; health probes bypass ingress).
+- **Container vulnerability scanning** enabled on Artifact Registry (Container Scanning API) - pushed images are scanned automatically.
+- **Dependabot** watches `apps/api` and `apps/web` weekly (grouped PRs against `dev`; Angular excluded - it moves only via `ng update`).
+- **DB transit encryption is BLOCKED SERVER-SIDE**: the external Postgres (self-hosted) runs with `ssl = off`, so the client cannot negotiate TLS.
+  The client is ready - set `DB_SSL=require` (encrypt, self-signed OK) or `DB_SSL=verify` (cert-verified) on the services once the server enables SSL (`postgresql.conf`: `ssl = on` + server cert).
+  Until then, DB traffic is plaintext over the public internet - the top remaining infrastructure risk, together with the DB being publicly reachable at all.
+
 ## Parked (deliberate, with triggers)
 
 - **WAF (Cloud Armor) + external HTTPS load balancer + custom domain**: one pre-launch milestone (the LB is required for all three; the custom domain also retires the run.app Safe Browsing reputation issue).

@@ -1,0 +1,27 @@
+# Scheduled dependency vulnerability scanning (ISO 27001 vulnerability
+# management, quick-win #1 2026-07-28). Weekly PRs against `dev`, grouped so
+# routine bumps arrive as one reviewable PR per app instead of a flood.
+# Reminder: NEVER auto-merge Angular framework bumps - the web app pins
+# Angular via `ng update` only (see apps/web/docs/project-overview.md).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/apps/api"
+    schedule:
+      interval: weekly
+    target-branch: dev
+    groups:
+      api-dependencies:
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: "/apps/web"
+    schedule:
+      interval: weekly
+    target-branch: dev
+    groups:
+      web-dependencies:
+        patterns: ["*"]
+    ignore:
+      # Angular moves ONLY via `npx ng update @angular/core @angular/cli`.
+      - dependency-name: "@angular/*"
+      - dependency-name: "@angular-devkit/*"

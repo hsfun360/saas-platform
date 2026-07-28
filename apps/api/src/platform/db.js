@@ -16,15 +16,19 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
         // during the boot schema sync, 2026-07-16). Probes start after 10s idle.
         keepAlive: true,
         keepAliveInitialDelayMillis: 10000,
-        // Required for deployment platforms like Cloud Run/Render/Heroku that use SSL
-        // --- TEMPORARILY REMOVE OR COMMENT OUT THIS SECTION FOR LOCAL TESTING ---
-        /*
-        ssl: {
-            require: true,
-            rejectUnauthorized: false // Use with caution; may be required by some hosting providers
-        }
-        */
-       // --- TEMPORARILY REMOVE OR COMMENT OUT THIS SECTION FOR LOCAL TESTING ---
+        // TLS to Postgres, controlled by DB_SSL so it is a CONFIG flip, not a
+        // code change, once the server enables SSL (as of 2026-07-28 the
+        // external server has ssl=off, so this defaults to plaintext):
+        //   DB_SSL=require -> encrypted transit, server cert NOT verified
+        //                     (self-signed friendly; stops passive sniffing)
+        //   DB_SSL=verify  -> encrypted + cert chain verified (needs a CA the
+        //                     Node runtime trusts)
+        //   unset/off      -> no TLS (current server capability)
+        ...(process.env.DB_SSL === 'require'
+            ? { ssl: { require: true, rejectUnauthorized: false } }
+            : process.env.DB_SSL === 'verify'
+                ? { ssl: { require: true, rejectUnauthorized: true } }
+                : {}),
     }
 });
 
