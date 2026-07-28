@@ -6,6 +6,13 @@
 ## Purpose
 Authenticates users and mints the platform JWT. Source of truth for *who a user is*.
 
+## Security hardening
+The full catalogue of anti-hacking / anti-spam measures on the Login, Forgot/Reset
+Password and Registration flows (rate limits, backoff, MFA, refresh sessions,
+hashed one-time tokens, HIBP, disposable-email blocklist, cleanup utility, and
+what is deliberately parked) lives in
+[../security-hardening.md](../security-hardening.md).
+
 ## Owns (data)
 - `User` (email, password hash, authMethod local/google/microsoft, profile fields,
   verification + reset tokens).

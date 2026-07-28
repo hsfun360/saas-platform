@@ -9,6 +9,7 @@ here with an `@`-import line.
 - Project overview, workflows & deployment - [`docs/project-overview.md`](docs/project-overview.md)
 - Coding standards, architecture & constraints - [`docs/coding-standards.md`](docs/coding-standards.md)
 - Services catalog & microservices boundaries - [`docs/systems/`](docs/systems/) (per-service "skill" specs; start at the index)
+- Auth security hardening catalogue (login / reset / registration defences) - [`docs/security-hardening.md`](docs/security-hardening.md)
 
 (General working conventions are shared at the monorepo root: [`../../docs/working-conventions.md`](../../docs/working-conventions.md).)
 
