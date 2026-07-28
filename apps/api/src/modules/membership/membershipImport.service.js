@@ -675,6 +675,18 @@ async function migrateOne(req, companyId, msRow, memberRows, lookups, numberingM
             return created;
         };
 
+        // Individual class keeps addresses on the PERSON (manual-entry rule),
+        // but legacy exports often carry them at contract level - fall back to
+        // the membership row's address columns when the person row has none.
+        const individualRow = principals.find((p) => p.data.kind === 'individual');
+        if (cls === 'individual' && individualRow && addressesOf(individualRow.data).length === 0) {
+            const addrKeys = ['resAddress', 'resCity', 'resPostcode', 'resState', 'resCountry',
+                'mailAddress', 'mailCity', 'mailPostcode', 'mailState', 'mailCountry'];
+            const fallback = {};
+            for (const k of addrKeys) fallback[k] = d[k];
+            individualRow.data = { ...individualRow.data, ...fallback };
+        }
+
         for (const r of principals) await createMember(r, r.data.kind, null, membershipNo);
         for (const r of dependents) {
             let principal;
