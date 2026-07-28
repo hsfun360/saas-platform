@@ -19,6 +19,7 @@ import {
   SubscriptionInfo,
   TenantUser,
   UnverifiedUser,
+  AuditLogPage,
 } from '../models/auth.models';
 
 @Injectable({
@@ -28,6 +29,15 @@ export class AdminService {
   private apiBaseUrl = `${environment.apiUrl}/admin`;
 
   constructor(private http: HttpClient) { }
+
+  // --- Audit-trail viewer (read-only) ---
+  listAuditLog(filters: { tableName?: string; recordId?: string; userEmail?: string; from?: string; to?: string; page?: number; limit?: number }): Observable<AuditLogPage> {
+    const params = Object.entries(filters)
+      .filter(([, v]) => v !== undefined && v !== null && v !== '')
+      .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+      .join('&');
+    return this.http.get<AuditLogPage>(`${this.apiBaseUrl}/audit-log${params ? '?' + params : ''}`);
+  }
 
   // --- Unverified-registrations cleanup utility ---
   listUnverifiedUsers(): Observable<UnverifiedUser[]> {

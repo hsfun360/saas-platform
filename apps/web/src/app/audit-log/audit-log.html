@@ -1,0 +1,83 @@
+<section class="screen-pad" style="max-width: 1140px; margin: 0 auto;">
+  <div style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-md);">
+    <span class="saas-icon material-icons" aria-hidden="true">history</span>
+    <div>
+      <h1 style="margin: 0; font-size: var(--font-h1); color: var(--text-primary);">Audit Log</h1>
+      <p class="saas-subtitle" style="margin: 0; color: var(--text-muted);">
+        Who changed what, when - every create, update and delete across the platform. Read-only and append-only.
+      </p>
+    </div>
+  </div>
+
+  <form [formGroup]="filters" (ngSubmit)="applyFilters()" class="al-filters">
+    <div class="al-field"><label for="al-table">Table</label><input id="al-table" type="text" formControlName="tableName" placeholder="e.g. Membership"></div>
+    <div class="al-field"><label for="al-record">Record id</label><input id="al-record" type="text" formControlName="recordId" placeholder="UUID / code"></div>
+    <div class="al-field"><label for="al-user">User email</label><input id="al-user" type="text" formControlName="userEmail" placeholder="contains…"></div>
+    <div class="al-field"><label for="al-from">From</label><input id="al-from" type="date" formControlName="from"></div>
+    <div class="al-field"><label for="al-to">To</label><input id="al-to" type="date" formControlName="to"></div>
+    <div class="al-actions">
+      <button type="submit" class="btn btn--primary" [disabled]="loading()">Apply</button>
+      <button type="button" class="btn btn--secondary" (click)="clearFilters()" [disabled]="loading()">Clear</button>
+    </div>
+  </form>
+
+  @if (errorMessage()) {
+    <div role="alert" style="margin: var(--space-md) 0; padding: var(--space-sm) var(--space-md); border: 1px solid var(--danger-border); border-radius: 8px; background: var(--danger-surface); color: var(--danger-text);">{{ errorMessage() }}</div>
+  }
+
+  @if (loading()) {
+    <p style="color: var(--text-muted);">Loading audit entries…</p>
+  } @else if (rows().length === 0) {
+    <p style="color: var(--text-muted); margin-top: var(--space-lg);">No audit entries match the current filters.</p>
+  } @else {
+    <p style="color: var(--text-secondary); font-size: var(--font-body-2);">{{ total() }} entr{{ total() === 1 ? 'y' : 'ies' }} · page {{ page() }} of {{ totalPages() }}</p>
+
+    <div class="data-list">
+      @for (e of rows(); track e.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <button type="button" class="data-row__main al-row-btn" (click)="toggle(e.id)"
+                    [attr.aria-expanded]="expandedId() === e.id">
+              <span class="data-card__title" style="display: block;">
+                {{ e.tableName }} <span class="data-card__reg" style="font-weight: normal;">· {{ e.recordId }}</span>
+              </span>
+              <span class="data-card__subline" style="display: block;">
+                {{ e.happenedAt | localDate:'datetime' }} · {{ e.userEmail || 'system' }}@if (e.ip) { · {{ e.ip }}}
+              </span>
+            </button>
+            <span class="data-row__badge">
+              <span class="status-chip"
+                    [class.status-chip--on]="e.action === 'create'"
+                    [class.status-chip--off]="e.action === 'update'"
+                    [style.background]="e.action === 'delete' ? 'var(--danger-surface)' : ''"
+                    [style.color]="e.action === 'delete' ? 'var(--danger-text)' : ''">
+                {{ e.action }}
+              </span>
+            </span>
+          </div>
+
+          @if (expandedId() === e.id) {
+            <div class="al-diff">
+              @for (c of changeEntries(e); track c.field) {
+                <div class="al-diff-row">
+                  <span class="al-diff-field">{{ c.field }}</span>
+                  <span class="al-diff-from">{{ c.from }}</span>
+                  <span class="material-icons al-diff-arrow" aria-hidden="true">arrow_forward</span>
+                  <span class="al-diff-to">{{ c.to }}</span>
+                </div>
+              }
+              @if (e.requestId) {
+                <div class="al-diff-meta">request {{ e.requestId }}</div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-lg); align-items: center;">
+      <button type="button" class="btn btn--secondary btn--sm" (click)="load(page() - 1)" [disabled]="loading() || page() <= 1">Previous</button>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="load(page() + 1)" [disabled]="loading() || page() >= totalPages()">Next</button>
+    </div>
+  }
+</section>

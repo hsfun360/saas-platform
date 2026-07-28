@@ -1265,6 +1265,28 @@ export interface CompanyInfo {
   isActive: boolean;
 }
 
+// One append-only audit-trail entry (read-only viewer).
+export interface AuditLogEntry {
+  id: string;
+  happenedAt: string;
+  action: 'create' | 'update' | 'delete';
+  tableName: string;
+  recordId: string;
+  changes: Record<string, { from: unknown; to: unknown }>;
+  userId: string | null;
+  userEmail: string | null;
+  companyId: string | null;
+  ip: string | null;
+  requestId: string | null;
+}
+
+export interface AuditLogPage {
+  rows: AuditLogEntry[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 // An unverified registration row on the platform-admin cleanup utility.
 export interface UnverifiedUser {
   id: string;

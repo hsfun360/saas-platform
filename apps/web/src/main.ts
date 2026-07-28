@@ -120,6 +120,7 @@ const routes: Routes = [
       { path: 'admin/system-roles', loadComponent: () => import('./app/platform-roles/platform-roles').then((m) => m.PlatformRolesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/platform-users', loadComponent: () => import('./app/platform-users/platform-users').then((m) => m.PlatformUsersComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/unverified-users', loadComponent: () => import('./app/unverified-users/unverified-users').then((m) => m.UnverifiedUsersComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/audit-log', loadComponent: () => import('./app/audit-log/audit-log').then((m) => m.AuditLogComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/countries', loadComponent: () => import('./app/countries/countries').then((m) => m.CountriesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/languages', loadComponent: () => import('./app/languages/languages').then((m) => m.LanguagesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/currencies', loadComponent: () => import('./app/currencies/currencies').then((m) => m.CurrenciesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
