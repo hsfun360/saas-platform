@@ -29,6 +29,7 @@
     "cors": "^2.8.5",
     "disposable-email-domains": "^1.0.62",
     "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.6.1",
     "geoip-lite": "^2.0.0",

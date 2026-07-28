@@ -21,6 +21,7 @@ const agentPortalRoutes = require('./agentPortal.routes');
 const salesAgenciesRoutes = require('./salesAgencies.routes');
 const salesAgentsRoutes = require('./salesAgents.routes');
 const membershipSettingsRoutes = require('./membershipSettings.routes');
+const membershipImportsRoutes = require('./membershipImports.routes');
 const dashboardRoutes = require('./dashboard.routes');
 
 // Liveness probe — unauthenticated, so the gateway/monitoring can check the seam.
@@ -58,6 +59,9 @@ router.use('/transaction-types', requireMenuAction('/membership/transaction-type
 // --- Sales Management (SRS 2.2) ---
 router.use('/sales-agencies', requireMenuAction('/membership/sales-agencies'), salesAgenciesRoutes);
 router.use('/sales-agents', requireMenuAction('/membership/sales-agents'), salesAgentsRoutes);
+
+// --- Membership import (Excel -> staging -> selective migration) ---
+router.use('/imports', requireMenuAction('/membership/import'), membershipImportsRoutes);
 
 // --- Membership / Member CRM (SRS 2.3) ---
 // Memberships own all member CRUD (nominees/dependents are managed from that

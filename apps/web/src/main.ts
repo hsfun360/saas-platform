@@ -146,6 +146,9 @@ const routes: Routes = [
       // corporate, nominees/dependents managed inside) and the flat member search.
       { path: 'membership/memberships', loadComponent: () => import('./app/memberships/memberships').then((m) => m.MembershipsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/members', loadComponent: () => import('./app/members/members').then((m) => m.MembersComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      // Membership import (Excel -> staging -> selective migration).
+      { path: 'membership/import', loadComponent: () => import('./app/membership-import/membership-import').then((m) => m.MembershipImportComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/import/:id', loadComponent: () => import('./app/membership-import/membership-import').then((m) => m.MembershipImportComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/sales-agencies', loadComponent: () => import('./app/sales-agencies/sales-agencies').then((m) => m.SalesAgenciesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/sales-agents', loadComponent: () => import('./app/sales-agents/sales-agents').then((m) => m.SalesAgentsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       // Master File Setup → Unit Courses (per-company 9-hole building blocks).

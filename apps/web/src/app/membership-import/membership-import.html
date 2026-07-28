@@ -1,0 +1,227 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">upload_file</span>
+      <div>
+        <h1>{{ 'Membership Import' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Upload memberships and members from Excel, review them in staging, then migrate the ones you select.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (lastResults().length) {
+    <div class="flash flash-error" role="alert">
+      <span class="flash-icon">⚠️</span>
+      <div>
+        <strong>Not migrated:</strong>
+        <ul class="mi-fails">
+          @for (r of lastResults(); track r.membershipNo) {
+            <li>{{ r.membershipNo }} — {{ r.message }}</li>
+          }
+        </ul>
+      </div>
+      <button class="flash-close" (click)="lastResults.set([])" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+  } @else if (!detail()) {
+
+    <!-- ======================= Batch list ======================= -->
+    <div class="mi-toolbar">
+      <button type="button" class="btn btn--secondary" (click)="downloadTemplate()">
+        <span class="material-icons" aria-hidden="true">download</span>
+        <span>Download template</span>
+      </button>
+      <label class="btn btn--primary mi-upload" *appCan="'create'">
+        <span class="material-icons" aria-hidden="true">upload_file</span>
+        <span>{{ uploading() ? 'Uploading…' : 'Upload Excel file' }}</span>
+        <input type="file" accept=".xlsx" (change)="onFilePicked($event)" [disabled]="uploading()" aria-label="Upload Excel file" />
+      </label>
+    </div>
+
+    @if (batches().length === 0) {
+      <div class="empty-state">
+        <span class="empty-icon">📭</span>
+        <p>No imports yet. Download the template, fill the Memberships and Members sheets, then upload the file to stage it here.</p>
+      </div>
+    } @else {
+      <div class="data-list">
+        @for (b of batches(); track b.id) {
+          <div class="data-card">
+            <div class="data-row data-row--with-badge">
+              <div class="data-row__main">
+                <div class="data-card__title">{{ b.fileName || 'import.xlsx' }}</div>
+                <div class="data-card__subline">
+                  <span class="data-card__reg">{{ b.createdAt | localDate:'datetime' }}</span>
+                </div>
+                <dl class="data-card__meta">
+                  <div class="meta"><dt>Memberships</dt><dd>{{ b.totalMemberships }}</dd></div>
+                  <div class="meta"><dt>Members</dt><dd>{{ b.totalMembers }}</dd></div>
+                  <div class="meta"><dt>Valid</dt><dd>{{ b.validMemberships }}</dd></div>
+                  <div class="meta"><dt>Migrated</dt><dd>{{ b.migratedMemberships }} / {{ b.totalMemberships }}</dd></div>
+                </dl>
+              </div>
+              <div class="data-row__badge">
+                @if ((b.migratedMemberships || 0) >= b.totalMemberships && b.totalMemberships > 0) {
+                  <span class="status-chip status-chip--on">Completed</span>
+                } @else if ((b.migratedMemberships || 0) > 0) {
+                  <span class="status-chip status-chip--on">Partial</span>
+                } @else {
+                  <span class="status-chip status-chip--off">Staged</span>
+                }
+              </div>
+              <div class="data-row__actions">
+                <button type="button" class="btn btn--secondary btn--sm" (click)="open(b)">Review</button>
+                <button type="button" class="btn btn--danger btn--sm" *appCan="'delete'"
+                        (click)="deleteBatch(b)" [disabled]="deletingId() === b.id">
+                  {{ deletingId() === b.id ? 'Deleting…' : 'Delete' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+  } @else {
+
+    <!-- ======================= Batch review ======================= -->
+    @if (detail(); as d) {
+      <div class="mi-review-head">
+        <button type="button" class="btn btn--link" (click)="back()">
+          <span class="material-icons" aria-hidden="true">arrow_back</span>
+          <span>All imports</span>
+        </button>
+        <h2 class="mi-file">{{ d.fileName }}</h2>
+        <p class="mi-counts">
+          {{ d.totalMemberships }} membership(s), {{ d.totalMembers }} member(s) in the file.
+          Tick the memberships to migrate — a membership moves together with all its members.
+          Rows with errors cannot be selected.
+        </p>
+      </div>
+
+      @if (selectableGroups().length > 0) {
+        <label class="mi-selectall">
+          <input type="checkbox" [checked]="allSelected()" (change)="toggleAll()" />
+          <span>Select all migratable ({{ selectableGroups().length }})</span>
+        </label>
+      }
+
+      <div class="data-list">
+        @for (g of d.groups; track g.membership.id) {
+          <div class="data-card mi-group"
+               [class.mi-group--invalid]="!g.membership.isValid"
+               [class.mi-group--migrated]="g.membership.migrateStatus === 'migrated'">
+            <div class="mi-group__head">
+              @if (g.membership.migrateStatus === 'migrated') {
+                <span class="material-icons mi-done" aria-hidden="true">check_circle</span>
+              } @else {
+                <input type="checkbox" [checked]="selected().has(g.membership.id)"
+                       [disabled]="!g.membership.isValid"
+                       (change)="toggle(g)"
+                       [attr.aria-label]="'Select membership ' + (g.membership.membershipNo || 'row ' + g.membership.rowNo)" />
+              }
+              <div class="mi-group__title">
+                <span class="data-card__title">
+                  {{ g.membership.membershipNo || '(auto number)' }}
+                  <span class="data-card__reg">· {{ g.membership.data['typeCode'] }} · {{ g.membership.data['membershipClass'] || '' }}</span>
+                </span>
+                <span class="data-card__subline">
+                  <span class="data-card__reg">
+                    {{ g.membership.data['corporateName'] || '' }}
+                    Joined {{ g.membership.data['joinDate'] }} · Excel row {{ g.membership.rowNo }}
+                  </span>
+                </span>
+              </div>
+              <div class="mi-group__badge">
+                @if (g.membership.migrateStatus === 'migrated') {
+                  <span class="status-chip status-chip--on">Migrated</span>
+                } @else if (!g.membership.isValid) {
+                  <span class="status-chip mi-chip-error">{{ groupIssueCount(g) }} error(s)</span>
+                } @else {
+                  <span class="status-chip status-chip--off">Ready</span>
+                }
+              </div>
+            </div>
+
+            @for (i of g.membership.issues; track $index) {
+              <p class="mi-issue" [class.mi-issue--warn]="i.level === 'warning'">
+                <span class="material-icons" aria-hidden="true">{{ i.level === 'warning' ? 'warning' : 'error' }}</span>
+                {{ i.message }}
+              </p>
+            }
+
+            @if (g.members.length) {
+              <ul class="mi-members">
+                @for (m of g.members; track m.id) {
+                  <li>
+                    <span class="mi-member__kind">{{ m.data['kind'] }}</span>
+                    <span class="mi-member__no">{{ m.memberNo || '(derived)' }}</span>
+                    <span class="mi-member__name">{{ memberName(m) }}</span>
+                    @if (m.data['dependentType']) { <span class="data-card__reg">{{ m.data['dependentType'] }}</span> }
+                    <span class="data-card__reg">row {{ m.rowNo }}</span>
+                    @for (i of m.issues; track $index) {
+                      <p class="mi-issue" [class.mi-issue--warn]="i.level === 'warning'">
+                        <span class="material-icons" aria-hidden="true">{{ i.level === 'warning' ? 'warning' : 'error' }}</span>
+                        {{ i.message }}
+                      </p>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+      </div>
+
+      @if (d.orphans.length) {
+        <div class="data-card mi-group mi-group--invalid">
+          <div class="mi-group__head">
+            <span class="material-icons mi-done" aria-hidden="true">help_outline</span>
+            <div class="mi-group__title">
+              <span class="data-card__title">Members with no matching membership</span>
+              <span class="data-card__subline"><span class="data-card__reg">These rows reference a Membership No that is not on the Memberships sheet - they cannot migrate.</span></span>
+            </div>
+          </div>
+          <ul class="mi-members">
+            @for (m of d.orphans; track m.id) {
+              <li>
+                <span class="mi-member__kind">{{ m.data['kind'] }}</span>
+                <span class="mi-member__no">{{ m.memberNo || '—' }}</span>
+                <span class="mi-member__name">{{ memberName(m) }}</span>
+                <span class="data-card__reg">Membership No '{{ m.membershipNo }}' · row {{ m.rowNo }}</span>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+
+      <!-- Migrate bar - the button states the concrete outcome. -->
+      <div class="mi-migratebar" *appCan="'create'">
+        <button type="button" class="btn btn--primary" (click)="migrate()"
+                [disabled]="migrating() || selected().size === 0">
+          {{ migrating() ? 'Migrating…' : 'Migrate ' + selected().size + ' membership(s) / ' + selectedMembers() + ' member(s)' }}
+        </button>
+      </div>
+    }
+  }
+</div>

@@ -931,6 +931,51 @@ export interface SalesAgentMeta {
   settings?: ClubSettings | null;
 }
 
+// --- Membership import (Excel -> staging -> selective migration) ---
+
+export interface ImportIssue {
+  level: 'error' | 'warning';
+  message: string;
+}
+
+// One staged Excel row; `data` holds the parsed columns keyed by field name.
+export interface ImportRow {
+  id: string;
+  rowKind: 'membership' | 'member';
+  rowNo: number;
+  membershipNo?: string | null;
+  memberNo?: string | null;
+  parentMemberNo?: string | null;
+  data: Record<string, string | null>;
+  issues: ImportIssue[];
+  isValid: boolean;
+  migrateStatus: 'pending' | 'migrated' | 'skipped';
+  migratedAt?: string | null;
+}
+
+export interface ImportBatchSummary {
+  id: string;
+  fileName: string | null;
+  totalMemberships: number;
+  totalMembers: number;
+  createdAt: string;
+  validMemberships?: number;
+  migratedMemberships?: number;
+}
+
+// The review payload: rows grouped per membership (contract + its people).
+export interface ImportBatchDetail extends ImportBatchSummary {
+  groups: { membership: ImportRow; members: ImportRow[] }[];
+  orphans: ImportRow[];
+}
+
+export interface ImportMigrateResult {
+  membershipNo: string;
+  ok: boolean;
+  membersCreated?: number;
+  message?: string;
+}
+
 // Flat member-search row (the read-only Members screen).
 export interface MemberSearchRow {
   id: string;

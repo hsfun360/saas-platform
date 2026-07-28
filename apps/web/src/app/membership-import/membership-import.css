@@ -1,0 +1,177 @@
+/* Membership Import - staging review. Composes the shared data-card standard;
+   colours from the theme tokens only. */
+
+.mi-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+/* The upload button is a <label> wrapping a hidden file input. */
+.mi-upload {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.mi-upload input[type='file'] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.mi-fails {
+  margin: var(--space-xs) 0 0;
+  padding-left: var(--space-lg);
+  font-size: var(--font-body-2);
+}
+
+/* --- review --- */
+
+.mi-review-head {
+  margin-bottom: var(--space-md);
+}
+
+.mi-file {
+  margin: var(--space-xs) 0;
+  font-size: var(--font-h2);
+  color: var(--text-primary);
+}
+
+.mi-counts {
+  margin: 0;
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+.mi-selectall {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.mi-selectall input,
+.mi-group__head input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+  flex-shrink: 0;
+}
+
+.mi-group--invalid {
+  border-color: var(--danger-border);
+}
+
+.mi-group--migrated {
+  opacity: 0.75;
+}
+
+.mi-group__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.mi-group__title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mi-group__badge {
+  flex-shrink: 0;
+}
+
+.mi-chip-error {
+  background: var(--danger-surface);
+  color: var(--danger-text);
+}
+
+.mi-done {
+  color: var(--success-text);
+  font-size: 20px;
+}
+
+.mi-issue {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-body-2);
+  color: var(--danger-text);
+}
+
+.mi-issue .material-icons {
+  font-size: 16px;
+}
+
+.mi-issue--warn {
+  color: var(--text-secondary);
+}
+
+/* Member sub-rows inside a membership group card. */
+.mi-members {
+  list-style: none;
+  margin: var(--space-sm) 0 0;
+  padding: 0 0 0 26px; /* aligns under the title, past the checkbox */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.mi-members li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-xs);
+}
+
+.mi-members li .mi-issue {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.mi-member__kind {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--brand-text);
+  background: var(--surface-selected);
+  border-radius: 12px;
+  padding: 2px var(--space-sm);
+}
+
+.mi-member__no {
+  font-family: monospace;
+}
+
+.mi-member__name {
+  font-weight: var(--weight-semibold, 600);
+}
+
+.mi-migratebar {
+  position: sticky;
+  bottom: 0;
+  padding: var(--space-md) 0;
+  background: var(--surface-page);
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 767px) {
+  .mi-migratebar { bottom: var(--bottom-nav-height, 60px); }
+  .mi-migratebar .btn { width: 100%; }
+}
