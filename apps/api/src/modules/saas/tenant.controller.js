@@ -731,6 +731,56 @@ exports.revokeTenantUser = async (req, res) => {
 // is managed by this admin AND belongs ONLY to companies in this admin's account -
 // never an external collaborator or system user (editing their global profile
 // would leak across tenants).
+// GET /api/auth/account/audit-log - the TENANT-SCOPED audit view: "what did my
+// people change?". Scoped to entries whose companyId belongs to a company under
+// the caller's account (= actions taken by their staff in their workspaces).
+// Deliberate exclusions (platform/tenant separation): platform-side entries
+// (companyId null) and the platform-owned User table (identity is shared
+// across tenants; staff facts surface via CompanyUser/Role entries instead).
+exports.listAccountAuditLog = async (req, res) => {
+    try {
+        const { Op } = require('sequelize');
+        const AuditLog = require('../../platform/auditLog.model');
+
+        const accountId = await resolveAccountId(req.user.companyId);
+        if (!accountId) return res.status(404).json({ message: "Your account could not be resolved." });
+        const companies = await Company.findAll({ where: { accountId }, attributes: ['id'] });
+        const companyIds = companies.map(c => c.id);
+        if (companyIds.length === 0) return res.status(200).json({ rows: [], total: 0, page: 1, limit: 50 });
+
+        const where = {
+            companyId: { [Op.in]: companyIds },
+            tableName: { [Op.ne]: 'User' },
+        };
+        if (req.query.tableName) {
+            const t = String(req.query.tableName).trim();
+            if (t === 'User') return res.status(200).json({ rows: [], total: 0, page: 1, limit: 50 });
+            where.tableName = { [Op.and]: [{ [Op.ne]: 'User' }, { [Op.eq]: t }] };
+        }
+        if (req.query.recordId) where.recordId = String(req.query.recordId).trim();
+        if (req.query.userEmail) where.userEmail = { [Op.iLike]: `%${String(req.query.userEmail).trim()}%` };
+        const from = req.query.from ? new Date(req.query.from) : null;
+        const to = req.query.to ? new Date(req.query.to) : null;
+        if (from && !isNaN(from) && to && !isNaN(to)) where.happenedAt = { [Op.between]: [from, to] };
+        else if (from && !isNaN(from)) where.happenedAt = { [Op.gte]: from };
+        else if (to && !isNaN(to)) where.happenedAt = { [Op.lte]: to };
+
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
+        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+
+        const { rows, count } = await AuditLog.findAndCountAll({
+            where,
+            order: [['happenedAt', 'DESC']],
+            limit,
+            offset: (page - 1) * limit,
+        });
+        res.status(200).json({ rows, total: count, page, limit });
+    } catch (error) {
+        console.error('Error listing account audit log:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 // POST /api/auth/company/users/:userId/mfa/reset - Tenant Admin clears a
 // managed user's MFA (lost phone + used-up recovery codes). The user signs in
 // with password only and is re-prompted to enroll if their role demands it.

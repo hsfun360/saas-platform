@@ -315,6 +315,9 @@ router.post('/company/users/assign-role', authenticateToken, requireTenant, requ
 router.post('/company/users/revoke', authenticateToken, requireTenant, requireTenantAdmin, tenantController.revokeTenantUser);
 // Account-wide, person-centric view for the redesigned User Management screen.
 router.get('/account/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listAccountUsers);
+// Tenant-scoped audit view: entries made by the account's staff in the
+// account's workspaces (platform entries + the User table excluded).
+router.get('/account/audit-log', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listAccountAuditLog);
 
 // --- ACCOUNT-LEVEL ROLES & MENU CATALOGUE (RBAC; a Role is a named set of menu
 // permissions, not tied to a company). ---
