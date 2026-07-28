@@ -4,7 +4,11 @@
     <div>
       <h1 style="margin: 0; font-size: var(--font-h1); color: var(--text-primary);">Audit Log</h1>
       <p class="saas-subtitle" style="margin: 0; color: var(--text-muted);">
-        Who changed what, when - every create, update and delete across the platform. Read-only and append-only.
+        @if (isAccountScope) {
+          What your staff changed, when, across your companies - every create, update and delete. Read-only and append-only.
+        } @else {
+          Who changed what, when - every create, update and delete across the platform. Read-only and append-only.
+        }
       </p>
     </div>
   </div>

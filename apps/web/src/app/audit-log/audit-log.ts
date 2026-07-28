@@ -1,11 +1,17 @@
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { AdminService } from '../services/admin.service';
+import { AuthService } from '../auth.service';
 import { AuditLogEntry } from '../models/auth.models';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 
 // Read-only viewer over the append-only audit trail (audit."AuditLog").
 // Filters -> paged list -> expandable field-by-field from/to diff per entry.
+// Two scopes, chosen by route data.auditScope:
+//   - 'platform' (default): every entry (System Admin, /admin/audit-log)
+//   - 'account': the tenant view - "what did my people change?" (Tenant
+//     Admin, /admin/account-audit-log; scoped + User table excluded server-side)
 @Component({
   selector: 'app-audit-log',
   standalone: true,
@@ -16,7 +22,9 @@ import { LocalDatePipe } from '../shared/local-date.pipe';
 })
 export class AuditLogComponent implements OnInit {
   private readonly admin = inject(AdminService);
+  private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
+  readonly isAccountScope = inject(ActivatedRoute).snapshot.data['auditScope'] === 'account';
 
   readonly filters = this.fb.nonNullable.group({
     tableName: [''],
@@ -44,7 +52,7 @@ export class AuditLogComponent implements OnInit {
     this.loading.set(true);
     this.errorMessage.set('');
     const f = this.filters.getRawValue();
-    this.admin.listAuditLog({
+    const filters = {
       tableName: f.tableName.trim(),
       recordId: f.recordId.trim(),
       userEmail: f.userEmail.trim(),
@@ -52,7 +60,11 @@ export class AuditLogComponent implements OnInit {
       to: f.to ? `${f.to}T23:59:59` : '',
       page,
       limit: this.limit,
-    }).subscribe({
+    };
+    const source$ = this.isAccountScope
+      ? this.auth.getAccountAuditLog(filters)
+      : this.admin.listAuditLog(filters);
+    source$.subscribe({
       next: (res) => {
         this.rows.set(res.rows);
         this.total.set(res.total);

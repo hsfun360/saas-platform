@@ -27,6 +27,7 @@ import {
   MfaStatus,
   MfaSetupResponse,
   MfaEnableResponse,
+  AuditLogPage,
 } from './models/auth.models';
 
 @Injectable({
@@ -314,6 +315,16 @@ export class AuthService {
 
   declineInvitation(id: string): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/invitations/${id}/decline`, {});
+  }
+
+  // Tenant-scoped audit view ("what did my people change?") - entries by the
+  // account's staff in the account's workspaces.
+  getAccountAuditLog(filters: { tableName?: string; recordId?: string; userEmail?: string; from?: string; to?: string; page?: number; limit?: number }): Observable<AuditLogPage> {
+    const params = Object.entries(filters)
+      .filter(([, v]) => v !== undefined && v !== null && v !== '')
+      .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+      .join('&');
+    return this.http.get<AuditLogPage>(`${this.apiBaseUrl}/auth/account/audit-log${params ? '?' + params : ''}`);
   }
 
   // --- Workspace switching ---
