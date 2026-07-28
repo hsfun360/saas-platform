@@ -90,6 +90,9 @@ function createApp() {
     app.use(cors(corsOptions));
     // Refresh-token cookie (path-scoped to /api/auth; see session.service.js).
     app.use(require('cookie-parser')());
+    // Audit who-context (verified identity + ip + requestId on AsyncLocalStorage)
+    // so the global audit hooks can attribute every DB change to its request.
+    app.use(require('./platform/auditContext').auditContextMiddleware);
     app.use(express.json());
 
     // Respond with "204 No Content" for favicon requests

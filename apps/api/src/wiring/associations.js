@@ -17,6 +17,14 @@ const User = require('../modules/identity/user.model');
 // so sync creates the table.
 const RefreshToken = require('../modules/identity/refreshToken.model');
 const OutboxMessage = require('../platform/outboxMessage.model');
+// Append-only audit trail (audit schema; written only by the global hooks).
+const AuditLog = require('../platform/auditLog.model');
+const { registerAuditHooks } = require('../platform/auditHooks');
+const { sequelize } = require('../platform/db');
+
+// Every model is loaded by this file, so this is the one safe place to attach
+// the global create/update/delete audit hooks (API and worker alike).
+registerAuditHooks(sequelize);
 // Notification service tables. EmailTemplate references Account by plain UUID
 // (no FK) to respect the notification-service seam, so it has no associations.
 const EmailTemplate = require('../modules/notification/emailTemplate.model');
@@ -221,6 +229,7 @@ WorkflowTask.belongsTo(WorkflowInstance, { foreignKey: 'instanceId', as: 'Instan
 module.exports = {
     User,
     RefreshToken,
+    AuditLog,
     OutboxMessage,
     EmailTemplate,
     Account,

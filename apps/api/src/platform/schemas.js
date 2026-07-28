@@ -27,10 +27,13 @@ const TAX_SCHEMA = 'tax';
 // product systems through platform/workflowGateway.js. Own schema, extracts
 // cleanly like any other service.
 const WORKFLOW_SCHEMA = 'workflow';
+// Append-only audit trail (structure approved 2026-07-28). Its own schema so
+// retention/extraction can be managed independently of business data.
+const AUDIT_SCHEMA = 'audit';
 
 // Schemas that must exist before `sequelize.sync()` creates the product tables.
 // A service is added here as soon as it defines its first schema-scoped model.
-const PRODUCT_SCHEMAS = [MEMBERSHIP_SCHEMA, GOLF_SCHEMA, TAX_SCHEMA, WORKFLOW_SCHEMA];
+const PRODUCT_SCHEMAS = [MEMBERSHIP_SCHEMA, GOLF_SCHEMA, TAX_SCHEMA, WORKFLOW_SCHEMA, AUDIT_SCHEMA];
 
 // Idempotently create every product schema. Runs once at boot, before sync,
 // inside the same advisory-locked block so only one instance does it.
@@ -47,6 +50,7 @@ module.exports = {
     FACILITY_SCHEMA,
     TAX_SCHEMA,
     WORKFLOW_SCHEMA,
+    AUDIT_SCHEMA,
     PRODUCT_SCHEMAS,
     ensureProductSchemas,
 };

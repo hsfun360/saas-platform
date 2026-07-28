@@ -1390,11 +1390,12 @@ exports.changePassword = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedNewPassword = await bcrypt.hash(newPassword, salt);
 
-        // 5. Save the new hashed password to the database
-        await User.update(
-            { password: hashedNewPassword },
-            { where: { id: userId } }
-        );
+        // 5. Save the new hashed password. Instance save (not a bulk update) so
+        // the change lands in the audit trail - bulk updates bypass per-row
+        // hooks, and a password change is exactly the kind of event the trail
+        // must show (value is redacted there, of course).
+        user.password = hashedNewPassword;
+        await user.save();
 
         console.log(`[SECURITY] Password changed successfully for User ID: ${userId}`);
 

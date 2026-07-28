@@ -754,6 +754,39 @@ exports.assignUserToRole = async (req, res) => {
     }
 };
 
+// --- AUDIT LOG (read-only viewer; append-only trail, no write API) ---
+// GET /api/admin/audit-log?tableName=&recordId=&userEmail=&from=&to=&page=&limit=
+exports.listAuditLog = async (req, res) => {
+    try {
+        const { Op } = require('sequelize');
+        const AuditLog = require('../../platform/auditLog.model');
+
+        const where = {};
+        if (req.query.tableName) where.tableName = String(req.query.tableName).trim();
+        if (req.query.recordId) where.recordId = String(req.query.recordId).trim();
+        if (req.query.userEmail) where.userEmail = { [Op.iLike]: `%${String(req.query.userEmail).trim()}%` };
+        const from = req.query.from ? new Date(req.query.from) : null;
+        const to = req.query.to ? new Date(req.query.to) : null;
+        if (from && !isNaN(from) && to && !isNaN(to)) where.happenedAt = { [Op.between]: [from, to] };
+        else if (from && !isNaN(from)) where.happenedAt = { [Op.gte]: from };
+        else if (to && !isNaN(to)) where.happenedAt = { [Op.lte]: to };
+
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
+        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+
+        const { rows, count } = await AuditLog.findAndCountAll({
+            where,
+            order: [['happenedAt', 'DESC']],
+            limit,
+            offset: (page - 1) * limit,
+        });
+        res.status(200).json({ rows, total: count, page, limit });
+    } catch (error) {
+        console.error('Error listing audit log:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 // --- UNVERIFIED REGISTRATIONS (cleanup utility; design agreed 2026-07-27) ---
 // A manual REVIEW page, deliberately not a cron: the platform admin sees every
 // unverified registration and chooses what to delete ("no dark rooms").
