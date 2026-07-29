@@ -1,0 +1,7 @@
+{
+  "/api": {
+    "target": "https://login-api-148523901156.asia-southeast1.run.app",
+    "secure": true,
+    "changeOrigin": true
+  }
+}

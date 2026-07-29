@@ -1,6 +1,8 @@
 export const environment = {
   production: false,
-  // 🔴 IMPORTANT: Replace the URL below with your actual Cloud Run Service URL
-  // Example: 'https://login-api-535235-uc.a.run.app/api'
-  apiUrl: 'https://login-api-148523901156.asia-southeast1.run.app/api'
+  // Same-origin: the app and the API share one host behind the myeasysoft.com
+  // load balancer, which path-routes /api/* to login-api. In production this is
+  // served from the same origin, so a relative base needs no host. For local
+  // `ng serve`, proxy.conf.json forwards /api to the deployed API.
+  apiUrl: '/api'
 };

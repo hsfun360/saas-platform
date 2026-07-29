@@ -19,11 +19,19 @@ const REMEMBERED_TTL_MS = 30 * DAY_MS;  // with it
 
 const hashRt = (raw) => crypto.createHash('sha256').update(String(raw)).digest('hex');
 
+// SameSite policy is env-driven so the same image works before and after the
+// same-origin cutover. Cross-origin (web on run.app, API on a different run.app
+// host) REQUIRES 'none'. Once the app and API share one origin behind the
+// myeasysoft.com load balancer (/api/* path-routed to login-api), set
+// COOKIE_SAMESITE=lax so the refresh cookie is first-party - a strictly
+// stronger CSRF posture. Default stays 'none' to preserve current behaviour.
+const COOKIE_SAMESITE = (process.env.COOKIE_SAMESITE || 'none').toLowerCase();
+
 function cookieOptions(maxAgeMs) {
     return {
         httpOnly: true,
-        secure: true,       // required by SameSite=None; localhost is exempted by browsers
-        sameSite: 'none',   // the web app and the API live on different origins
+        secure: true,       // always: 'none' requires it and 'lax' over HTTPS wants it; localhost is exempted by browsers
+        sameSite: COOKIE_SAMESITE,
         path: COOKIE_PATH,
         maxAge: maxAgeMs,
     };

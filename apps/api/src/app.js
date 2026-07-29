@@ -72,8 +72,15 @@ function createApp() {
     // CORS: locked to the deployed frontend (FRONTEND_BASE_URL) plus the local
     // dev servers. Not real protection against scripts (curl has no origin) -
     // it stops drive-by abuse from other people's web pages.
+    //
+    // The production domain is listed explicitly so cross-origin requests keep
+    // working during the domain cutover (before the app is served same-origin
+    // behind the load balancer). Once same-origin, the app's own requests carry
+    // no cross-origin preflight anyway; these entries are then belt-and-braces.
     const allowedOrigins = [
         process.env.FRONTEND_BASE_URL,
+        'https://www.myeasysoft.com',
+        'https://myeasysoft.com',
         'http://localhost:4200',
         'http://localhost:4300',
     ].filter(Boolean);

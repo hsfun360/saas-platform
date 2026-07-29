@@ -78,7 +78,8 @@
               "buildTarget": "Login:build:production"
             },
             "development": {
-              "buildTarget": "Login:build:development"
+              "buildTarget": "Login:build:development",
+              "proxyConfig": "proxy.conf.json"
             }
           },
           "defaultConfiguration": "development"
