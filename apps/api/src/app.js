@@ -93,7 +93,10 @@ function createApp() {
     // Audit who-context (verified identity + ip + requestId on AsyncLocalStorage)
     // so the global audit hooks can attribute every DB change to its request.
     app.use(require('./platform/auditContext').auditContextMiddleware);
-    app.use(express.json());
+    // Explicit JSON body cap (matches the express default, stated on purpose):
+    // no JSON endpoint needs more; file uploads (avatars, membership import
+    // Excel) go through multer with their own limits, not this parser.
+    app.use(express.json({ limit: '100kb' }));
 
     // Respond with "204 No Content" for favicon requests
     app.get('/favicon.ico', (req, res) => res.status(204).end());

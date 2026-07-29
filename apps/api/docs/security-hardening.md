@@ -57,6 +57,18 @@ Implementation lives in `src/modules/identity` (auth.controller.js, mfa.service.
   The client is ready - set `DB_SSL=require` (encrypt, self-signed OK) or `DB_SSL=verify` (cert-verified) on the services once the server enables SSL (`postgresql.conf`: `ssl = on` + server cert).
   Until then, DB traffic is plaintext over the public internet - the top remaining infrastructure risk, together with the DB being publicly reachable at all.
 
+## Request validation layer (Zod at the boundary, 2026-07-29)
+
+- **The seam is `src/platform/validate.js`**: a `validate({ body, query, params })` Express middleware plus the shared field vocabulary (`fields.email`, `fields.newPassword`, `fields.token`, `fields.uuid`, ...).
+  It parses the request part, rejects with `400 { message, details }` (first issue in `message`, raw payload never echoed), and REPLACES the part with the parsed result - trimmed, typed, unknown keys stripped - so controllers and Sequelize only ever see the declared shape.
+- **Rules of the layer**: Zod only at system boundaries; no internal function wrapping; validate once, trust afterward.
+  Angular form validators remain UX-only; DB constraints remain the final integrity net.
+- **Coverage**: the full unauthenticated auth surface (`auth.schemas.js` - register/login/forgot/reset/verify/lead/activate/SSO/MFA/onboarding), the session-holder password+MFA endpoints, and the public portal registration endpoints (`membership/portal.schemas.js`).
+  The portal endpoints also gained the rate limiters the standing rule requires.
+- **Body cap**: `express.json({ limit: '100kb' })` is now explicit in `app.js`; uploads go through multer with their own limits.
+- **Standing rule**: every NEW endpoint that reads a body/query/params mounts `validate()` with a schema, exactly like the rate-limiter rule above.
+  Remaining rollout (top-down by sensitivity): admin/tenant CRUD bodies, then product-module endpoints.
+
 ## Parked (deliberate, with triggers)
 
 - **WAF (Cloud Armor) + external HTTPS load balancer + custom domain**: one pre-launch milestone (the LB is required for all three; the custom domain also retires the run.app Safe Browsing reputation issue).

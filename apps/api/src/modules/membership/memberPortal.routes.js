@@ -10,9 +10,14 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../../platform/serviceContext');
 const controller = require('./memberPortal.controller');
+// Public endpoints: rate-limited (standing rule from platform/rateLimits.js)
+// and shape-validated (platform/validate.js) before the controller runs.
+const { tokenLimiter, signupLimiter } = require('../../platform/rateLimits');
+const { validate } = require('../../platform/validate');
+const schemas = require('./portal.schemas');
 
-router.get('/register/context', controller.getRegistrationContext);
-router.post('/register', controller.register);
+router.get('/register/context', tokenLimiter(), validate(schemas.registrationContext), controller.getRegistrationContext);
+router.post('/register', signupLimiter(), validate(schemas.register), controller.register);
 router.get('/me', verifyToken, controller.getMe);
 
 module.exports = router;

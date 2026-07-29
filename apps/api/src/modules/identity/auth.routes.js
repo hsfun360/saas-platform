@@ -113,59 +113,64 @@ const upload = multer({
 // Per-IP rate limits for every PUBLIC endpoint (the authenticated API needs no
 // blanket limiter - a valid JWT already gates it). See platform/rateLimits.js.
 const { loginLimiter, signupLimiter, tokenLimiter } = require('../../platform/rateLimits');
+// Request-shape validation at the boundary (platform/validate.js): every
+// public endpoint validates BEFORE its controller runs; the limiter still
+// runs first so malformed floods are throttled, not just rejected.
+const { validate, z, fields } = require('../../platform/validate');
+const schemas = require('./auth.schemas');
 
 // Route to register a new user
 // POST: /api/auth/register
-router.post('/register-user', signupLimiter(), authController.registerUser);
+router.post('/register-user', signupLimiter(), validate(schemas.registerUser), authController.registerUser);
 
 // Route to log in a user and receive a JWT
 // POST: /api/auth/login
-router.post('/login', loginLimiter(), authController.login);
+router.post('/login', loginLimiter(), validate(schemas.login), authController.login);
 
 // Route to request a password reset link
 // POST: /api/auth/forgot-password
-router.post('/forgot-password', signupLimiter(), authController.forgotPassword);
+router.post('/forgot-password', signupLimiter(), validate(schemas.forgotPassword), authController.forgotPassword);
 
 // Route to save the new password using the secure token
 // POST: /api/auth/reset-password
-router.post('/reset-password', tokenLimiter(), authController.resetPassword);
+router.post('/reset-password', tokenLimiter(), validate(schemas.resetPassword), authController.resetPassword);
 
 // Add this right below your register and login routes
-router.get('/verify/:token', tokenLimiter(), authController.verifyEmail);
+router.get('/verify/:token', tokenLimiter(), validate({ params: z.object({ token: fields.token }) }), authController.verifyEmail);
 
 // JSON email verification, called by the frontend /verify-email page (the
 // activation link in the email points at the FRONTEND, not this API host).
-router.post('/verify-email', tokenLimiter(), authController.verifyEmailJson);
+router.post('/verify-email', tokenLimiter(), validate(schemas.verifyEmail), authController.verifyEmailJson);
 
 // --- SELF-SERVICE ONBOARDING (verified user, no workspace yet) ---
 // Guarded by the onboarding-scoped token; closed once the first workspace exists.
 router.get('/onboarding/modules', authenticateOnboarding, authController.getOnboardingModules);
-router.post('/onboarding/provision', authenticateOnboarding, authController.provisionOnboarding);
+router.post('/onboarding/provision', authenticateOnboarding, validate(schemas.provisionOnboarding), authController.provisionOnboarding);
 
 // 👇 Add your new registration route here
-router.post('/register-lead', signupLimiter(), authController.registerLead);
+router.post('/register-lead', signupLimiter(), validate(schemas.registerLead), authController.registerLead);
 
 // 👇 Add the new activation route
-router.post('/activate', tokenLimiter(), authController.activateAccount);
+router.post('/activate', tokenLimiter(), validate(schemas.activateAccount), authController.activateAccount);
 
 // Route to handle Google SSO
-router.post('/google', loginLimiter(), authController.googleLogin);
+router.post('/google', loginLimiter(), validate(schemas.googleLogin), authController.googleLogin);
 
 // Exchange a Google authorization code (in-app redirect flow) for an access token.
-router.post('/google/exchange', loginLimiter(), authController.googleExchangeCode);
+router.post('/google/exchange', loginLimiter(), validate(schemas.googleExchangeCode), authController.googleExchangeCode);
 
 // Route to handle Microsoft SSO
-router.post('/microsoft-login', loginLimiter(), authController.microsoftLogin);
+router.post('/microsoft-login', loginLimiter(), validate(schemas.microsoftLogin), authController.microsoftLogin);
 
 // --- MFA (TOTP) + SESSIONS ---
 // Step-up: exchange the 'mfa' token + a code for the full login payload.
-router.post('/mfa/verify', loginLimiter(), authController.mfaVerify);
+router.post('/mfa/verify', loginLimiter(), validate(schemas.mfaVerify), authController.mfaVerify);
 // Enrollment (full session OR the forced 'mfa-enroll' token).
 router.post('/mfa/setup', authenticateMfaEnrollment, authController.mfaSetup);
-router.post('/mfa/enable', authenticateMfaEnrollment, authController.mfaEnable);
+router.post('/mfa/enable', authenticateMfaEnrollment, validate(schemas.mfaCode), authController.mfaEnable);
 // Status + disable need a full session.
 router.get('/mfa/status', authenticateToken, authController.mfaStatus);
-router.post('/mfa/disable', authenticateToken, authController.mfaDisable);
+router.post('/mfa/disable', authenticateToken, validate(schemas.mfaCode), authController.mfaDisable);
 // Refresh (httpOnly cookie -> fresh 1h access token) + sign out.
 router.post('/refresh', loginLimiter(), authController.refreshSession);
 router.post('/logout', authController.logout);
@@ -254,7 +259,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
 router.post('/upload-avatar', authenticateToken, upload.single('avatar'), authController.uploadAvatar);
 
 // Route to handle password changes (Requires user to be logged in!)
-router.post('/change-password', authenticateToken, authController.changePassword);
+router.post('/change-password', authenticateToken, validate(schemas.changePassword), authController.changePassword);
 
 // Guard for standard SaaS features (Requires a Company)
 const requireTenant = (req, res, next) => {
