@@ -34,6 +34,7 @@ plain env vars `DATABASE_URL`, `ADMIN_EMAILS` (and a no-op `JWT_SECRET`).
 | `ADMIN_EMAILS` | ✅ required | Break-glass System Admin allowlist + seed owner (comma-separated). |
 | `FRONTEND_BASE_URL` | ⚠️ recommended | Base URL used in invitation / reset emails. |
 | `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` | ✅ required (secret) | RS256 keys, now in **Secret Manager** (secrets `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY`), injected as env vars via `--update-secrets` (see below). NO longer baked into the image (`keys/` is `.dockerignore`d). `src/platform/jwt.keys.js` reads them from `process.env` first, falling back to a local `keys/` file for dev only. |
+| `GOOGLE_CLIENT_SECRET` | ✅ required (secret) | OAuth client secret for the Google sign-in code exchange (`/api/auth/google/exchange`). Secret Manager secret `GOOGLE_CLIENT_SECRET`, attached via `--update-secrets GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest` (same pattern as the JWT keys - persists across deploys). Client ID is public and hardcoded as a fallback in `auth.controller.js`. Redirect URIs (`<origin>/login` per frontend host) must be authorized on the OAuth client in the Google Cloud console. |
 | `PORT` | auto | Cloud Run sets it; `server.js` reads `process.env.PORT`. |
 | `RUN_SEED` | 🚫 never in prod | Gates the destructive wipe+reseed. Fresh/dev DB only, ad-hoc. |
 | ~~`JWT_SECRET`~~ | ❌ unused | Not referenced anywhere (app is RS256, not HMAC). Harmless but drop it. |
