@@ -18,12 +18,17 @@ Single production environment on Google Cloud Run behind Cloud Armor WAF and an 
 
 ## 2. Target URLs
 
-Production domain: `myeasysoft.com` (final host split - `www.` for the app and `api.` for the API, or single-host path routing - is decided in the edge milestone; vendor will receive final URLs before the window).
+Production domain (single-host, same-origin, live 2026-07-29):
 
-Current direct service URLs (superseded by the domain at test time):
+- Web app: `https://www.myeasysoft.com` (apex `https://myeasysoft.com` redirects/serves the same app)
+- API: `https://www.myeasysoft.com/api` (path-routed to the API behind the same load balancer and Cloud Armor WAF)
 
-- Web: `https://login-web-148523901156.asia-southeast1.run.app`
-- API: `https://login-api-148523901156.asia-southeast1.run.app`
+All traffic terminates on a global external HTTPS load balancer with Cloud Armor WAF (SQLi enforced; XSS monitored) in front of both backends. HTTP redirects to HTTPS.
+
+Direct Cloud Run URLs (origin servers behind the load balancer; **out of scope** as test targets - test via the domain so the WAF and LB are exercised):
+
+- `https://login-web-148523901156.asia-southeast1.run.app`
+- `https://login-api-148523901156.asia-southeast1.run.app`
 
 ## 3. Test type and scope
 
@@ -50,15 +55,26 @@ Out of scope:
 
 ## 4. Test accounts and tenants
 
-Provided before the window, in **two** dedicated test tenants (Tenant A and Tenant B), each with:
+Two dedicated test tenants are provisioned by the idempotent script
+[`apps/api/scripts/seed-pentest-tenants.js`](../../apps/api/scripts/seed-pentest-tenants.js)
+(re-run any time to reset; `--remove` to tear down).
+All addresses use `@example.com` (RFC 2606, never a real mailbox); passwords are
+generated at seed time, printed once, and delivered to the vendor through the
+secure channel below - never committed.
 
-- Tenant Admin (MFA enrolled)
-- Staff user with a deliberately narrow role (single module, own-records data scope)
-- Staff user with department-level data scope
-- Portal member account + a fresh member-registration invite link
-- Sales-agent account + a fresh agent invite link
+Provisioned now (verified 2026-07-29):
 
-Plus one platform-level System Admin account (MFA enrolled) for testing the platform/tenant boundary from above, and one verified user with no workspace (onboarding limbo state).
+| Tenant | Company | Accounts |
+| --- | --- | --- |
+| Pentest Alpha Club | Alpha Golf & Country Club | `pentest-a-admin` (Tenant Admin), `pentest-a-officer` (Membership Officer, data scope **own**, view-only), `pentest-a-supervisor` (Membership Supervisor, data scope **department**) |
+| Pentest Bravo Club | Bravo Leisure Club | `pentest-b-admin`, `pentest-b-officer`, `pentest-b-supervisor` (same role matrix) |
+
+Plus `pentest-limbo@example.com` - a verified user with **no workspace**, for the onboarding-limbo state.
+
+- Tenant Admins are **not** pre-enrolled in MFA: the platform forces admin MFA enrollment at first login, which is itself in scope to test.
+- Both tenants carry the same role matrix so **cross-tenant isolation** can be probed from equivalent positions (e.g. can Alpha's Officer reach Bravo's data), and both staff roles sit in the same department with different `Position.rank` so **data-scope** (own vs department) is testable.
+
+To be added before the window (need product records set up first): a **portal member** + fresh registration link and a **sales-agent** + invite link (member/agent portals). A platform-level **System Admin** for testing the platform/tenant boundary from above is an existing SSO admin account, not seeded here.
 
 ## 5. Rules of engagement
 
