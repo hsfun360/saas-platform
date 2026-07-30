@@ -116,6 +116,7 @@ const buildOnboardingResponse = (user) => ({
 // ---------------------------------------------------------------------------
 const mfa = require('./mfa.service');
 const sessions = require('./session.service');
+const trustedDevices = require('./trustedDevice.service');
 
 // Short-lived, purpose-scoped token that carries the login context ACROSS the
 // MFA step ('mfa' = enter your code; 'mfa-enroll' = admin role must enroll
@@ -144,7 +145,9 @@ async function completeLogin(req, res, user, context, { isSystemAdmin = false, r
     const ctx = { companyId: context.companyId ?? null, companyName: context.companyName ?? null, isSystemAdmin, rememberMe };
 
     if (!skipMfaGates && mfa.isMfaConfigured()) {
-        if (user.mfaEnabled && !mfaVerified) {
+        // A live trusted-device cookie ("don't ask again on this device")
+        // stands in for the code - the password/SSO step above already ran.
+        if (user.mfaEnabled && !mfaVerified && !(await trustedDevices.hasValidTrust(req, user.id))) {
             return {
                 message: 'Enter the 6-digit code from your authenticator app.',
                 mfaRequired: true,
@@ -1258,7 +1261,10 @@ exports.resetPassword = async (req, res) => {
 
         // A password reset invalidates every existing session ("sign out
         // everywhere") - the whole point when the old password was compromised.
+        // Device trust goes too: a trusted browser + the (possibly stolen)
+        // password must not skip the MFA step after a reset.
         await sessions.revokeAllSessions(user.id);
+        await trustedDevices.revokeAllTrust(user.id);
 
         // 4. Queue the success-confirmation email, branded for the user's resolved
         //    scope but sent via the platform mailer (a security notice).
@@ -1402,7 +1408,9 @@ exports.changePassword = async (req, res) => {
         // 6. A password change signs out every OTHER session; the caller's own
         // cookie was just superseded too, but their access token stays valid up
         // to an hour, after which the interceptor sends them to re-login.
+        // Trusted devices are revoked for the same reason as sessions.
         await sessions.revokeAllSessions(userId);
+        await trustedDevices.revokeAllTrust(userId);
 
         // 7. Send success response back to Angular
         res.status(200).json({ message: 'Password updated successfully!' });
@@ -1702,11 +1710,13 @@ exports.provisionOnboarding = async (req, res) => {
 // MFA (TOTP) + SESSIONS
 // ==========================================
 
-// POST /api/auth/mfa/verify  { mfaToken, code } - the login step-up. `code` is
-// a 6-digit TOTP or an XXXX-XXXX recovery code. On success: full login payload.
+// POST /api/auth/mfa/verify  { mfaToken, code, rememberDevice? } - the login
+// step-up. `code` is a 6-digit TOTP or an XXXX-XXXX recovery code. On success:
+// full login payload; with rememberDevice, this browser also gets a 30-day
+// trusted-device cookie so later logins skip the code step.
 exports.mfaVerify = async (req, res) => {
     try {
-        const { mfaToken, code } = req.body || {};
+        const { mfaToken, code, rememberDevice } = req.body || {};
         if (!mfaToken || !code) {
             return res.status(400).json({ message: 'Code is required.' });
         }
@@ -1743,6 +1753,10 @@ exports.mfaVerify = async (req, res) => {
         const context = await resolveWorkspaceContext(user.id, claims.companyId ?? null);
         if (!context) {
             return res.status(403).json({ message: 'You no longer have access to that workspace.' });
+        }
+
+        if (rememberDevice === true) {
+            await trustedDevices.issueTrust(res, { userId: user.id, req });
         }
 
         const out = await completeLogin(req, res, user, context, {
@@ -1878,6 +1892,8 @@ exports.mfaDisable = async (req, res) => {
         user.mfaEnrolledAt = null;
         user.mfaRecoveryCodes = null;
         await user.save();
+        // No factor left to have proven - device trust falls with it.
+        await trustedDevices.revokeAllTrust(user.id);
         res.status(200).json({ message: 'Two-factor authentication disabled.' });
     } catch (error) {
         console.error('MFA disable error:', error);

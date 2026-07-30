@@ -22,6 +22,7 @@ const { isAccountOwner } = require('./account');
 const CompanySmtpConfig = require('./companySmtpConfig.model');
 const secretbox = require('../../platform/secretbox');
 const companyMailer = require('../notification/companyMailer');
+const trustedDevices = require('../identity/trustedDevice.service');
 
 // Resolve the Account a Tenant Admin belongs to. The JWT only carries the
 // caller's active companyId, so we derive the accountId from that company.
@@ -810,6 +811,9 @@ exports.resetTenantUserMfa = async (req, res) => {
         target.mfaEnrolledAt = null;
         target.mfaRecoveryCodes = null;
         await target.save();
+        // The reset means the factor can't be presumed intact - device trust
+        // derived from it is revoked with it.
+        await trustedDevices.revokeAllTrust(target.id);
         console.log(`[SECURITY] MFA reset for user ${target.id} by tenant admin ${req.user.id}`);
         res.status(200).json({ message: "Two-factor authentication has been reset for this user." });
     } catch (error) {

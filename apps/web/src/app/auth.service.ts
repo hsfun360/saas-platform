@@ -106,8 +106,10 @@ export class AuthService {
   }
 
   // --- MFA (TOTP) + sessions ---
-  mfaVerify(mfaToken: string, code: string): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.apiBaseUrl}/auth/mfa/verify`, { mfaToken, code });
+  // rememberDevice = "Don't ask again on this device for 30 days" (the server
+  // sets an httpOnly trusted-device cookie so later logins skip the code step).
+  mfaVerify(mfaToken: string, code: string, rememberDevice = false): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiBaseUrl}/auth/mfa/verify`, { mfaToken, code, rememberDevice });
   }
 
   getMfaStatus(): Observable<MfaStatus> {

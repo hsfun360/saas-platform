@@ -53,6 +53,8 @@ export class LoginComponent implements OnInit {
   isMfaStep = false;
   pendingMfaToken: string | null = null;
   mfaCode = '';
+  // "Don't ask again on this device for 30 days" (trusted-device cookie).
+  mfaRememberDevice = true;
 
   constructor(
     private fb: FormBuilder,
@@ -334,7 +336,7 @@ export class LoginComponent implements OnInit {
     if (!code || !this.pendingMfaToken) return;
     this.loading = true;
     this.errorMessage = null;
-    this.authService.mfaVerify(this.pendingMfaToken, code)
+    this.authService.mfaVerify(this.pendingMfaToken, code, this.mfaRememberDevice)
       .pipe(finalize(() => { this.loading = false; this.cdr.detectChanges(); }))
       .subscribe({
         next: (res) => {

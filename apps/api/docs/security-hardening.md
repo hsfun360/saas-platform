@@ -15,6 +15,9 @@ Implementation lives in `src/modules/identity` (auth.controller.js, mfa.service.
   MANDATORY for System Admin and Tenant Admin roles (forced enrollment at login; self-disable refused); opt-in for everyone else via Profile -> Security.
   The TOTP secret is AES-256-GCM encrypted under its own `MFA_ENCRYPTION_KEY`.
   Recovery path: Tenant Admin resets a managed user's MFA; System Admin resets anyone's (never their own).
+- **Trusted devices ("don't ask again on this device")**: passing the MFA code with the checkbox ticked sets a second httpOnly cookie (`td`, 30 days, path `/api/auth`) whose SHA-256 is stored in the `TrustedDevice` table; later logins from that browser skip only the code step (`trustedDevice.service.js`).
+  The cookie is NOT an authenticator - the password/SSO factor is still required every login - so it deliberately survives sign-out.
+  Trust is never extended by use, and is revoked server-side on MFA disable, admin MFA reset, password change, and password reset (same events that revoke sessions).
 - **Short access tokens + revocable sessions**: access JWTs live 1 hour; staying signed in is a rotating httpOnly refresh cookie (`RefreshToken` table, hashed, SameSite=None, path-scoped to `/api/auth`).
   "Keep me signed in" = 30 days, otherwise 24 hours.
   Replaying a rotated-out refresh token is treated as theft and revokes the whole session family.

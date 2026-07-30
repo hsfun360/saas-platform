@@ -42,6 +42,12 @@
           style="text-align: center; letter-spacing: 0.2em; font-size: var(--font-h3);"
         >
       </div>
+
+      <label class="remember-me" style="margin-bottom: var(--space-md);">
+        <input type="checkbox" [checked]="mfaRememberDevice" (change)="mfaRememberDevice = $any($event.target).checked">
+        <span>Don't ask again on this device for 30 days</span>
+      </label>
+
       <button type="button" class="btn-primary" (click)="submitMfaCode()" [disabled]="loading || !mfaCode.trim()">
         {{ loading ? 'Verifying…' : 'Verify' }}
       </button>

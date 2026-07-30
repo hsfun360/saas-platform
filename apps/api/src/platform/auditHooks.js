@@ -21,7 +21,7 @@ const AuditLog = require('./auditLog.model');
 const { currentAuditContext } = require('./auditContext');
 
 // Tables that never enter the trail: queue/session churn + the trail itself.
-const EXCLUDED_TABLES = new Set(['AuditLog', 'OutboxMessage', 'RefreshToken', 'SchemaMeta']);
+const EXCLUDED_TABLES = new Set(['AuditLog', 'OutboxMessage', 'RefreshToken', 'TrustedDevice', 'SchemaMeta']);
 
 // Fields whose changes are operational churn, not business changes. An update
 // touching ONLY these fields writes nothing.

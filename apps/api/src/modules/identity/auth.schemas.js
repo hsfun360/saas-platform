@@ -86,6 +86,8 @@ const mfaVerify = {
     body: z.object({
         mfaToken: fields.token,
         code: fields.otpCode,
+        // "Don't ask again on this device for 30 days" (trusted-device cookie).
+        rememberDevice: z.boolean().optional(),
     }),
 };
 
