@@ -69,6 +69,17 @@ curl -s -o /dev/null -w "%{http_code}" https://www.myeasysoft.com/api/   # API r
 ```
 Then a real login on the domain: confirm the `rt` cookie is set first-party on `www.myeasysoft.com` with `SameSite=Lax`, and that refresh/logout work.
 
+## Gotchas (learned building this)
+
+- **Serverless NEG backend services must use protocol `HTTP`, not `HTTPS`.** Creating a backend service with `--protocol=HTTPS` sets `portName: https`, and `add-backend` then fails with `Invalid value for field 'resource.portName': 'https'. Port name is not supported for a backend service with Serverless network endpoint groups.` The LB->Cloud Run hop is Google-managed and secure regardless; the client->LB leg is HTTPS via the cert. Fix: export the backend service, set `protocol: HTTP` + `portName: http`, import, then `add-backend`. Both `be-login-web` and `be-login-api` run protocol HTTP.
+- A backend service with **no backends** returns `503` at the edge even though TLS and the URL map are fine - check `backend-services describe ... --format='value(backends)'` first when you see 503.
+- `/api/` (bare) is **not** a route on login-api (routes are `/api/auth`, `/api/admin`, ...); test path routing with a real endpoint like `/api/auth/debug-test`.
+
+## Status
+
+- Certificate ACTIVE and cutover deployed 2026-07-29: `login-web-00147-swv` (relative `/api`) + `login-api-00225-jw9` (`FRONTEND_BASE_URL=https://www.myeasysoft.com`, `COOKIE_SAMESITE=lax`).
+- Verified: `https://www.myeasysoft.com` serves the app (200), same-origin `/api/*` reaches the API (200), the SPA calls `/api` on its own origin with no console/CORS errors, and the login page renders. A full interactive login (SSO) is the remaining manual smoke check.
+
 ## Rollback
 
 - App-level: redeploy the previous `login-web` revision (absolute API URL) and remove `COOKIE_SAMESITE` (reverts to `none`); the run.app URLs keep working independently of the LB.
