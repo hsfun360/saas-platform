@@ -15,8 +15,8 @@ A staging project (`my-easy-software-staging`) exists but is not provisioned yet
 | Artifact Registry | `asia-southeast3-docker.pkg.dev/my-easy-software-dev/login-apps` (`login-api`, `login-web`) |
 | Web | Cloud Run `login-web` - https://login-web-855636431759.asia-southeast3.run.app |
 | API | Cloud Run `login-api` - https://login-api-855636431759.asia-southeast3.run.app |
-| Database | Cloud SQL `login-db-dev`, PostgreSQL 18, `db-g1-small`, zonal, database `platformDB` (renamed from `loginDB` 2026-07-31 via `ALTER DATABASE`), user `postgres` |
-| DB connectivity | Cloud Run connector (`--add-cloudsql-instances`), unix socket; `DATABASE_URL` uses `?host=/cloudsql/my-easy-software-dev:asia-southeast3:login-db-dev` (Sequelize v6 honours the `host` query param for socket paths) |
+| Database | Cloud SQL `platform-db-dev`, PostgreSQL 18, `db-g1-small`, zonal, database `platformDB`, user `postgres` (instance cloned from `login-db-dev` + old instance deleted, and database renamed from `loginDB`, both 2026-07-31) |
+| DB connectivity | Cloud Run connector (`--add-cloudsql-instances`), unix socket; `DATABASE_URL` uses `?host=/cloudsql/my-easy-software-dev:asia-southeast3:platform-db-dev` (Sequelize v6 honours the `host` query param for socket paths) |
 | Secrets (Secret Manager) | `DATABASE_URL`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `SMTP_ENCRYPTION_KEY` - all dev-only values, generated fresh (prod keys are never shared with dev) |
 | Worker | NOT deployed (no email sending in dev yet; outbox rows just accumulate) |
 | Google/Microsoft SSO | NOT configured (needs an OAuth client under the myeasysoft.com identity; email/password login works) |
@@ -67,7 +67,7 @@ Current env wiring (already attached, listed for reference):
 
 `scripts/` is excluded from the image by `.dockerignore`, so DB scripts cannot run as a container command directly.
 The pattern used instead: Cloud Run Job `seed-users` runs the api image with `--command node --args="-e,eval(process.env.SEED_CODE)"` and the script body in a `SEED_CODE` env var (set via `--env-vars-file`).
-The job has the Cloud SQL connector and the `DATABASE_URL` secret attached.
+The job has the Cloud SQL connector (`platform-db-dev`) and the `DATABASE_URL` secret attached.
 It currently holds an idempotent snippet that (re)creates the verified dev admin `admin@myeasysoft.com` with System Admin membership and prints a fresh random password ONCE to the job logs.
 Re-run it to rotate/recover the dev admin password:
 
@@ -78,7 +78,7 @@ gcloud logging read "resource.type=cloud_run_job AND resource.labels.job_name=se
 
 ## Backups
 
-Cloud SQL automated backups are NOT yet enabled on `login-db-dev` (dev data is disposable seed data).
+Cloud SQL automated backups are NOT yet enabled on `platform-db-dev` (dev data is disposable seed data).
 Enable them (or extend the pg_dump job pattern) before any data worth keeping lands in dev, and definitely for staging/prod instances.
 
 ## Still to do for the environment split
