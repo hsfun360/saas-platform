@@ -112,7 +112,7 @@ const upload = multer({
 
 // Per-IP rate limits for every PUBLIC endpoint (the authenticated API needs no
 // blanket limiter - a valid JWT already gates it). See platform/rateLimits.js.
-const { loginLimiter, signupLimiter, tokenLimiter } = require('../../platform/rateLimits');
+const { loginLimiter, signupLimiter, tokenLimiter, publicConfigLimiter } = require('../../platform/rateLimits');
 // Request-shape validation at the boundary (platform/validate.js): every
 // public endpoint validates BEFORE its controller runs; the limiter still
 // runs first so malformed floods are throttled, not just rejected.
@@ -152,6 +152,10 @@ router.post('/register-lead', signupLimiter(), validate(schemas.registerLead), a
 
 // 👇 Add the new activation route
 router.post('/activate', tokenLimiter(), validate(schemas.activateAccount), authController.activateAccount);
+
+// Public per-environment SSO config for the login screen (Google client id +
+// Microsoft button toggle). Read-only, no input to validate.
+router.get('/sso-config', publicConfigLimiter(), authController.ssoConfig);
 
 // Route to handle Google SSO
 router.post('/google', loginLimiter(), validate(schemas.googleLogin), authController.googleLogin);

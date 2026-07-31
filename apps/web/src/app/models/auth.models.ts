@@ -136,6 +136,14 @@ export interface AuthResponse {
   companyName?: string | null;
 }
 
+// Per-environment SSO wiring served by GET /api/auth/sso-config: the Google
+// OAuth client the login screen must use (matches the secret the API holds),
+// and whether the Microsoft button is offered in this environment.
+export interface SsoConfig {
+  googleClientId: string;
+  microsoftEnabled: boolean;
+}
+
 export interface MfaStatus {
   available: boolean;
   enabled: boolean;

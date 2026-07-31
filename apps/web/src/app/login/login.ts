@@ -7,7 +7,7 @@ import { LanguageService } from '../services/language.service';
 import { I18nService } from '../i18n/i18n.service';
 import { TranslatePipe } from '../i18n/translate.pipe';
 import { SHIPPED_UI_LANGUAGES } from '../i18n/ui-languages';
-import { AuthResponse, Workspace, Language } from '../models/auth.models';
+import { AuthResponse, Workspace, Language, SsoConfig } from '../models/auth.models';
 import { finalize } from 'rxjs';
 
 declare var google: {
@@ -19,6 +19,10 @@ declare var google: {
     };
   };
 };
+
+// Legacy prod Google OAuth client - the fallback when /api/auth/sso-config is
+// unreachable, mirroring the API's own fallback so the pair stays consistent.
+const DEFAULT_GOOGLE_CLIENT_ID = '148523901156-uc6a3f7q2le2fsqbm5idc0ai27vebe69.apps.googleusercontent.com';
 
 @Component({
     selector: 'app-login',
@@ -43,6 +47,16 @@ export class LoginComponent implements OnInit {
   // True while completing an SSO redirect (Google), so the template shows a
   // "Signing you in…" state instead of the login form.
   ssoInProgress = false;
+
+  // Per-environment SSO wiring (null until /auth/sso-config answers; the
+  // fallbacks keep both buttons functional if it never does).
+  ssoConfig: SsoConfig | null = null;
+
+  // Microsoft stays visible unless the environment explicitly disables it, so
+  // environments without the endpoint (or before it answers) behave as before.
+  get microsoftEnabled(): boolean {
+    return this.ssoConfig?.microsoftEnabled !== false;
+  }
 
   isWorkspaceSelection = false;
   availableWorkspaces: Workspace[] = [];
@@ -97,6 +111,12 @@ export class LoginComponent implements OnInit {
     this.languageService.listActivePublic().subscribe({
       next: (list) => { if (list?.length) this.loginLanguages = list; },
       error: () => {}, // keep the shipped fallback
+    });
+
+    // Per-environment SSO wiring (Google client id + Microsoft toggle).
+    this.authService.getSsoConfig().subscribe({
+      next: (cfg) => { this.ssoConfig = cfg; this.cdr.detectChanges(); },
+      error: () => {}, // keep the built-in fallbacks
     });
 
     // Returning from the Google redirect (?code=… in the query): show the
@@ -193,7 +213,7 @@ export class LoginComponent implements OnInit {
     const state = Math.random().toString(36).slice(2);
     sessionStorage.setItem('googleOauthState', state);
     const client = google.accounts.oauth2.initCodeClient({
-      client_id: '148523901156-uc6a3f7q2le2fsqbm5idc0ai27vebe69.apps.googleusercontent.com',
+      client_id: this.ssoConfig?.googleClientId || DEFAULT_GOOGLE_CLIENT_ID,
       scope: 'email profile openid',
       ux_mode: 'redirect',
       redirect_uri: window.location.origin + '/login',

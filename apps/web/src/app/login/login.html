@@ -146,15 +146,17 @@
           {{ 'login.continueGoogle' | t }}
         </button>
         
-        <button type="button" class="btn-sso btn-microsoft" (click)="loginWithMicrosoft()">
-          <svg class="sso-icon" viewBox="0 0 21 21" width="20px" height="20px">
-            <path fill="#f35325" d="M1 1h9v9H1z"/>
-            <path fill="#81bc06" d="M11 1h9v9h-9z"/>
-            <path fill="#05a6f0" d="M1 11h9v9H1z"/>
-            <path fill="#ffba08" d="M11 11h9v9h-9z"/>
-          </svg>
-          {{ 'login.continueMicrosoft' | t }}
-        </button>
+        @if (microsoftEnabled) {
+          <button type="button" class="btn-sso btn-microsoft" (click)="loginWithMicrosoft()">
+            <svg class="sso-icon" viewBox="0 0 21 21" width="20px" height="20px">
+              <path fill="#f35325" d="M1 1h9v9H1z"/>
+              <path fill="#81bc06" d="M11 1h9v9h-9z"/>
+              <path fill="#05a6f0" d="M1 11h9v9H1z"/>
+              <path fill="#ffba08" d="M11 11h9v9h-9z"/>
+            </svg>
+            {{ 'login.continueMicrosoft' | t }}
+          </button>
+        }
       </div>
 
       <div class="register-row">

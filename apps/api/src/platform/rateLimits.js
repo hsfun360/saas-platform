@@ -45,4 +45,9 @@ const signupLimiter = () => perIp(60 * 60 * 1000, 5);
 // small burst room for double-clicks and retries. 20 / hour / IP / endpoint.
 const tokenLimiter = () => perIp(60 * 60 * 1000, 20);
 
-module.exports = { loginLimiter, signupLimiter, tokenLimiter };
+// Public read-only config (no secrets, no writes, fetched on every login-page
+// visit): roomy so a testing session behind one NAT never trips it, still a
+// ceiling against scripted hammering. 100 / 15 min / IP / endpoint.
+const publicConfigLimiter = () => perIp(15 * 60 * 1000, 100);
+
+module.exports = { loginLimiter, signupLimiter, tokenLimiter, publicConfigLimiter };

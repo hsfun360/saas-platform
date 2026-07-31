@@ -962,6 +962,20 @@ exports.googleExchangeCode = async (req, res) => {
     }
 };
 
+// GET /api/auth/sso-config   Public, read-only.
+// Per-environment SSO wiring for the login screen: the Google OAuth client the
+// SPA must start the redirect flow with (it has to match the client whose
+// secret THIS api uses in the code exchange above), and whether the Microsoft
+// button is offered at all. Keeps client ids out of the web bundle so ONE web
+// image serves every environment; the hardcoded id is the legacy prod client,
+// kept as the fallback so environments without the env vars behave as before.
+exports.ssoConfig = (req, res) => {
+    res.status(200).json({
+        googleClientId: process.env.GOOGLE_CLIENT_ID || '148523901156-uc6a3f7q2le2fsqbm5idc0ai27vebe69.apps.googleusercontent.com',
+        microsoftEnabled: process.env.MICROSOFT_SSO_ENABLED !== 'false',
+    });
+};
+
 exports.microsoftLogin = async (req, res) => {
     const { accessToken } = req.body;
 

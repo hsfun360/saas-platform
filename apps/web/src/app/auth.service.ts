@@ -28,6 +28,7 @@ import {
   MfaSetupResponse,
   MfaEnableResponse,
   AuditLogPage,
+  SsoConfig,
 } from './models/auth.models';
 
 @Injectable({
@@ -85,6 +86,13 @@ export class AuthService {
   // Exchange a Google authorization code (in-app redirect flow) for an access token.
   exchangeGoogleCode(code: string, redirectUri: string): Observable<{ accessToken: string }> {
     return this.http.post<{ accessToken: string }>(`${this.apiBaseUrl}/auth/google/exchange`, { code, redirectUri });
+  }
+
+  // Per-environment SSO wiring for the login screen (Google client id +
+  // Microsoft button toggle). Public endpoint; callers keep a fallback so a
+  // failed fetch never blocks login.
+  getSsoConfig(): Observable<SsoConfig> {
+    return this.http.get<SsoConfig>(`${this.apiBaseUrl}/auth/sso-config`);
   }
 
   microsoftLogin(accessToken: string): Observable<AuthResponse> {
