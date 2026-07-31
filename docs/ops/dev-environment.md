@@ -64,6 +64,22 @@ Current env wiring (already attached, listed for reference):
 - `RUN_SEED` must NEVER stay set on the service: it wipes and reseeds on every cold start.
   It was used once on the first deploy and then removed.
 
+## Data provenance (full copy from the old environment, 2026-07-31)
+
+`platformDB` is a FULL COPY of the old environment's `loginDB` (the external Windows Postgres), taken 2026-07-31.
+That brought over the real platform catalogue (5 modules, 41 menus), all subscribers/companies/users (old dev/test data - the old environment was also dev), and every product schema (`membership`, `golf`, `tax`, `workflow`, `audit`).
+The earlier demo-seeder content was discarded in the process.
+
+How it was done (repeatable for staging, and the rehearsal for the future prod migration):
+
+1. A `postgres:18-alpine` client-tools image lives at `.../login-apps/pg-tools:18` (Cloud Run cannot pull Docker Hub directly).
+2. A one-off Cloud Run Job ran `pg_dump -Fc` against the old server (publicly reachable) into `/tmp`, then DROPPED and RE-CREATED `platformDB` (restore into a PRISTINE database - do NOT use `pg_restore --clean` into a live one, dependency-order drops fail), then `pg_restore --no-owner --no-acl`.
+3. Source/target URLs were passed as Secret Manager refs (`SRC_DATABASE_URL` staged temporarily, deleted after; target = the standard `DATABASE_URL`).
+4. The job and the source-URL secret were deleted afterwards; the `pg-tools:18` image was kept.
+5. `seed-users` was re-run afterwards to recreate the dev admin (the restore replaces ALL rows, including it), and `platform-api` was redeployed to reset connection pools.
+
+Gotcha: most tables are SINGULAR (`public."User"`, `public."Account"`); only a few are plural (`Modules`, `Menus`, `Roles`, `RoleMenus`). Check names before writing verification queries.
+
 ## One-off DB scripts (seed-users job)
 
 `scripts/` is excluded from the image by `.dockerignore`, so DB scripts cannot run as a container command directly.
