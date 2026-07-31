@@ -24,5 +24,10 @@ COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist/Login/browser /usr/share/nginx/html
 
 ENV PORT=8080
+# Upstream for the nginx /api reverse proxy (see nginx.conf). Default points at
+# the production API; dev/staging deploys override with their own API host via
+# --set-env-vars API_HOST=... In prod the LB answers /api first, so the default
+# is only a bypass-the-LB fallback.
+ENV API_HOST=login-api-148523901156.asia-southeast1.run.app
 EXPOSE 8080
 # (Default nginx entrypoint handles envsubst + launches nginx.)
