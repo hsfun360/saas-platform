@@ -15,7 +15,7 @@ A staging project (`my-easy-software-staging`) exists but is not provisioned yet
 | Artifact Registry | `asia-southeast3-docker.pkg.dev/my-easy-software-dev/login-apps` (`login-api`, `login-web`) |
 | Web | Cloud Run `login-web` - https://login-web-855636431759.asia-southeast3.run.app |
 | API | Cloud Run `login-api` - https://login-api-855636431759.asia-southeast3.run.app |
-| Database | Cloud SQL `login-db-dev`, PostgreSQL 18, `db-g1-small`, zonal, database `loginDB`, user `postgres` |
+| Database | Cloud SQL `login-db-dev`, PostgreSQL 18, `db-g1-small`, zonal, database `platformDB` (renamed from `loginDB` 2026-07-31 via `ALTER DATABASE`), user `postgres` |
 | DB connectivity | Cloud Run connector (`--add-cloudsql-instances`), unix socket; `DATABASE_URL` uses `?host=/cloudsql/my-easy-software-dev:asia-southeast3:login-db-dev` (Sequelize v6 honours the `host` query param for socket paths) |
 | Secrets (Secret Manager) | `DATABASE_URL`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `SMTP_ENCRYPTION_KEY` - all dev-only values, generated fresh (prod keys are never shared with dev) |
 | Worker | NOT deployed (no email sending in dev yet; outbox rows just accumulate) |
