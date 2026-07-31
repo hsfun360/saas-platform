@@ -19,7 +19,7 @@ A staging project (`my-easy-software-staging`) exists but is not provisioned yet
 | DB connectivity | Cloud Run connector (`--add-cloudsql-instances`), unix socket; `DATABASE_URL` uses `?host=/cloudsql/my-easy-software-dev:asia-southeast3:platform-db-dev` (Sequelize v6 honours the `host` query param for socket paths) |
 | Secrets (Secret Manager) | `DATABASE_URL`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `SMTP_ENCRYPTION_KEY` - all dev-only values, generated fresh (prod keys are never shared with dev) |
 | Worker | NOT deployed (no email sending in dev yet; outbox rows just accumulate) |
-| Google/Microsoft SSO | NOT configured (needs an OAuth client under the myeasysoft.com identity; email/password login works) |
+| Google/Microsoft SSO | Seam READY (2026-07-31): the login screen reads `GET /api/auth/sso-config` - `GOOGLE_CLIENT_ID` env (fallback = legacy prod client) and `MICROSOFT_SSO_ENABLED` (`false` on dev `platform-api`, so the Microsoft button is hidden). Google sign-in still needs an OAuth client created under the myeasysoft.com identity in the dev project (Console step, cannot be done via gcloud) + `GOOGLE_CLIENT_ID` env and `GOOGLE_CLIENT_SECRET` secret on `platform-api`. Authorized origin = the platform-web URL, redirect URI = that URL + `/login`. Microsoft deferred until it is a verified prod path |
 
 ## Same-origin /api without a load balancer
 
