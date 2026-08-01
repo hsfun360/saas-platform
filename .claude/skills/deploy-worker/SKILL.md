@@ -29,16 +29,32 @@ Known-good config: project `membership-project-199610`, region `asia-southeast1`
 | `EMAIL_PASS` | ✅ | Gmail **App Password** (not the account password - Gmail SMTP requires an app password). |
 | ~~`JWT_SECRET`~~ | ❌ | Unused; drop it. |
 
-## ⚠️ The thing that makes or breaks a Cloud Run worker
+## Two worker modes (WORKER_MODE env)
+
+**`drain` (scale-to-zero - the DEV environment runs this; ~zero idle cost).**
+No background loop: `POST /drain` claims and sends everything pending, then
+returns. Triggered by (a) the api's best-effort post-commit ping
+(`src/platform/outboxWorkerPing.js`, enabled by setting `OUTBOX_WORKER_URL` on
+the API service - seconds-fast delivery) and (b) a Cloud Scheduler sweep every
+5 min (`POST /drain?sweep=1`, which also runs the workflow SLA scan) as the
+delivery guarantee. Deploy with `--min-instances 0 --cpu-throttling
+--no-allow-unauthenticated --update-env-vars WORKER_MODE=drain`, grant the
+API's runtime SA `roles/run.invoker` on the worker, and create the scheduler
+job with OIDC auth (audience = the worker URL). Reference setup:
+`docs/ops/dev-environment.md`. Note: Cloud Scheduler is not offered in every
+region (e.g. not `asia-southeast3`) - the job can live in any region.
+
+**`poll` (default - the legacy always-on loop; what OLD prod still runs).**
 A poller has **no incoming HTTP traffic**, so by default Cloud Run **scales it to
 zero** and **throttles CPU** outside requests - the background loop stops and emails
-quietly stop sending. You MUST deploy it with:
+quietly stop sending. In poll mode you MUST deploy with:
 - **`--min-instances=1`** - keep one instance always running (never scale to zero).
 - **`--no-cpu-throttling`** - CPU always allocated, so the `setInterval` poll keeps
   running between (non-existent) requests.
+This bills a full instance 24/7 - prefer drain mode for new environments.
 
-The worker doesn't serve real traffic, so it can also be locked down:
-`--no-allow-unauthenticated --ingress=internal` (optional hardening).
+Either mode, the worker doesn't serve real user traffic, so it can be locked down:
+`--no-allow-unauthenticated` (required for drain mode's IAM auth to mean anything).
 
 ## Deploy (every release)
 ```powershell
