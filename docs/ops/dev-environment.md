@@ -132,7 +132,7 @@ Verified 2026-08-01: browser login as staging admin, full catalogue present (5 m
 
 ## Still to do for the environment split
 
-- CI/CD: GitHub Actions with Workload Identity Federation - build once into the dev registry, deploy the same image digest dev -> staging -> prod with approval gates (staging already pulls from the dev registry, so promotion = a deploy with the same digest).
+- CI/CD: DONE 2026-08-01 - see [`cicd.md`](cicd.md) (push to `dev` -> build + deploy dev; manual "Promote to staging" redeploys the same digests).
 - Cloud SQL automated backups for staging (and dev if its data stops being disposable).
 - Prod project + Cloud SQL, LB + Cloud Armor + myeasysoft.com cutover (region decision at that point: asia-southeast1, or asia-southeast4 if Cloud Run is available there by then).
 - Staging Google OAuth client when SSO testing on staging is needed.
