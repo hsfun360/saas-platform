@@ -10,6 +10,7 @@ const { v4: uuidv4 } = require('uuid');
 const OutboxMessage = require('../../platform/outboxMessage.model');
 const { renderEmail } = require('./emailTemplate.service');
 const { fromHeader } = require('./mailer');
+const { pingOutboxWorker } = require('../../platform/outboxWorkerPing');
 
 // Enqueue a templated email as part of `transaction`. Returns false when the
 // template is disabled (no email sent); true when a message was queued.
@@ -44,6 +45,9 @@ async function enqueueEmail({ templateKey, accountId = null, companyId = null, t
         },
         { transaction },
     );
+    // Wake the drain-mode worker (after commit, so the row is visible to it).
+    // No-op without OUTBOX_WORKER_URL; the scheduler sweep is the guarantee.
+    pingOutboxWorker(transaction);
     return true;
 }
 

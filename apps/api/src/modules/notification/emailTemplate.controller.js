@@ -8,6 +8,7 @@
 const { v4: uuidv4 } = require('uuid');
 const EmailTemplate = require('./emailTemplate.model');
 const OutboxMessage = require('../../platform/outboxMessage.model');
+const { pingOutboxWorker } = require('../../platform/outboxWorkerPing');
 const { fromHeader } = require('./mailer');
 const {
     catalog,
@@ -179,6 +180,7 @@ exports.sendTestEmail = async (req, res) => {
                 html: rendered.html,
             },
         });
+        pingOutboxWorker();
         res.status(202).json({ message: `Test email queued to ${to}. It should arrive shortly.` });
     } catch (error) {
         console.error('Error sending test email:', error);

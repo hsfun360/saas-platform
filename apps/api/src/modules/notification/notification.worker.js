@@ -185,6 +185,9 @@ async function sendAccountActivationEmail(toEmail, companyName, activationLink) 
 }
 
 // 6. The Polling Logic
+// Claims up to one batch of pending messages and processes them. Returns the
+// number of messages CLAIMED (0 = queue empty), so drainOutbox() can loop
+// until the table runs dry.
 async function processOutboxSafely() {
     // 1. Start a transaction to hold the locks
     const transaction = await sequelize.transaction();
@@ -203,7 +206,7 @@ async function processOutboxSafely() {
 
         if (pendingMessages.length === 0) {
             await transaction.commit(); // Nothing to do, release transaction
-            return;
+            return 0;
         }
 
         console.log(`[OUTBOX WORKER] Safely claimed ${pendingMessages.length} messages.`);
@@ -290,14 +293,33 @@ async function processOutboxSafely() {
 
         // 4. Commit to save changes and release the row locks
         await transaction.commit();
+        return pendingMessages.length;
 
     } catch (error) {
         await transaction.rollback();
         console.error('[OUTBOX WORKER] Database error during polling:', error);
+        return 0;
     }
 }
 
-// --- Worker Initialization ---
+// Drain the outbox completely: keep claiming batches until a pass claims
+// nothing. Safe to run concurrently (FOR UPDATE SKIP LOCKED means overlapping
+// drains skip each other's rows), and bounded even when messages keep failing
+// (each failure increments retryCount; at 5 the message goes FAILED and stops
+// being claimed). Returns the total number of messages processed. This is the
+// scale-to-zero entry point - triggered by the api's post-commit ping and the
+// Cloud Scheduler sweep instead of an always-on poll loop.
+async function drainOutbox() {
+    let total = 0;
+    for (;;) {
+        const claimed = await processOutboxSafely();
+        if (claimed === 0) break;
+        total += claimed;
+    }
+    return total;
+}
+
+// --- Worker Initialization (poll mode - the legacy always-on loop) ---
 async function startWorker() {
     try {
         // The worker must establish its own database connection
@@ -313,4 +335,4 @@ async function startWorker() {
     }
 }
 
-module.exports = { startWorker, processOutboxSafely };
+module.exports = { startWorker, processOutboxSafely, drainOutbox };

@@ -18,6 +18,7 @@ const { v4: uuidv4 } = require('uuid');
 const Company = require('./company.model');
 const EmailTemplate = require('../notification/emailTemplate.model');
 const OutboxMessage = require('../../platform/outboxMessage.model');
+const { pingOutboxWorker } = require('../../platform/outboxWorkerPing');
 const { fromHeader } = require('../notification/mailer');
 const { catalogByKey, GLOBAL_TEMPLATE_VARIABLES, renderPreview } = require('../notification/emailTemplate.service');
 const { buildBrand } = require('../notification/emailBrand');
@@ -309,6 +310,7 @@ exports.sendTest = async (req, res) => {
                 html: rendered.html,
             },
         });
+        pingOutboxWorker();
         res.status(202).json({ message: `Test email queued to ${to}. It should arrive shortly.` });
     } catch (error) {
         console.error('Error sending account test email:', error);
