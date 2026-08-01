@@ -98,6 +98,19 @@ gcloud logging read "resource.type=cloud_run_job AND resource.labels.job_name=se
 Cloud SQL automated backups are NOT yet enabled on `platform-db-dev` (dev data is disposable seed data).
 Enable them (or extend the pg_dump job pattern) before any data worth keeping lands in dev, and definitely for staging/prod instances.
 
+## Old environment decommissioned (2026-08-01)
+
+The old environment in `membership-project-199610` (asia-southeast1) was decommissioned after dev became fully self-sufficient.
+A FINAL `pg_dump` was taken first (`gs://membership-project-199610-db-backups/daily/loginDB-20260801-192525.dump`).
+
+Deleted: Cloud Run services `login-web` / `login-api` / `login-api-outboxworker`, the `db-backup` job + `db-backup-nightly` scheduler, and the whole edge (forwarding rules, HTTP/HTTPS proxies, URL maps, backend services, NEGs, managed cert, Cloud Armor policy `waf-myeasysoft`, static IP `136.68.18.10` released).
+`myeasysoft.com` is therefore DARK until the future prod environment gets its own LB (it will get a NEW IP - the GoDaddy A record must be updated at that cutover).
+
+Kept in the old project (cheap, irreplaceable or harmless): the GCS backup bucket `membership-project-199610-db-backups` (365-day monthly retention), Secret Manager secrets, the Artifact Registry images, the monitoring alert policy (now inert), and the old Google OAuth client.
+The project itself stays alive as the container for these.
+
+Outside GCP, still the user's to do: shut down the external Windows Postgres server (`20.212.81.135` - nothing references it anymore), and optionally remove the dead GoDaddy A record until prod cutover.
+
 ## Still to do for the environment split
 
 - Provision `my-easy-software-staging` (same recipe, UAT values).
