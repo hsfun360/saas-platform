@@ -1,0 +1,80 @@
+# Build once, deploy to DEV.
+#
+# Push to `dev` touching app code -> build both images into the DEV project's
+# Artifact Registry (the single registry for every environment), then deploy
+# them to the dev Cloud Run services BY DIGEST. Staging later receives the
+# exact same digests via promote-staging.yml - never a rebuild.
+#
+# Auth is keyless: Workload Identity Federation (pool `github`, provider
+# `github-oidc` in my-easy-software-dev) impersonating github-deployer@.
+# Env vars / secrets / flags on the Cloud Run services persist across
+# image-only deploys, so this workflow only ever changes the image.
+
+name: Deploy to dev
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "apps/**"
+      - ".github/workflows/deploy-dev.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+env:
+  REGISTRY: asia-southeast3-docker.pkg.dev/my-easy-software-dev/login-apps
+  REGION: asia-southeast3
+  DEV_PROJECT: my-easy-software-dev
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/855636431759/locations/global/workloadIdentityPools/github/providers/github-oidc
+          service_account: github-deployer@my-easy-software-dev.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure docker for Artifact Registry
+        run: gcloud auth configure-docker asia-southeast3-docker.pkg.dev --quiet
+
+      - name: Build and push platform-api
+        run: |
+          docker build -t "$REGISTRY/platform-api:$GITHUB_SHA" -t "$REGISTRY/platform-api:latest" apps/api
+          docker push "$REGISTRY/platform-api:$GITHUB_SHA"
+          docker push "$REGISTRY/platform-api:latest"
+          echo "API_DIGEST=$(gcloud artifacts docker images describe "$REGISTRY/platform-api:$GITHUB_SHA" --format='value(image_summary.digest)')" >> "$GITHUB_ENV"
+
+      - name: Build and push platform-web
+        run: |
+          docker build -t "$REGISTRY/platform-web:$GITHUB_SHA" -t "$REGISTRY/platform-web:latest" apps/web
+          docker push "$REGISTRY/platform-web:$GITHUB_SHA"
+          docker push "$REGISTRY/platform-web:latest"
+          echo "WEB_DIGEST=$(gcloud artifacts docker images describe "$REGISTRY/platform-web:$GITHUB_SHA" --format='value(image_summary.digest)')" >> "$GITHUB_ENV"
+
+      # Worker BEFORE api (standing convention: outbox/template changes must be
+      # live in the sender before producers start writing them).
+      - name: Deploy worker (dev)
+        run: gcloud run deploy platform-api-outboxworker --image "$REGISTRY/platform-api@$API_DIGEST" --region "$REGION" --project "$DEV_PROJECT" --quiet
+
+      - name: Deploy api (dev)
+        run: gcloud run deploy platform-api --image "$REGISTRY/platform-api@$API_DIGEST" --region "$REGION" --project "$DEV_PROJECT" --quiet
+
+      - name: Deploy web (dev)
+        run: gcloud run deploy platform-web --image "$REGISTRY/platform-web@$WEB_DIGEST" --region "$REGION" --project "$DEV_PROJECT" --quiet
+
+      - name: Smoke check
+        run: |
+          curl -fsS "https://platform-api-855636431759.asia-southeast3.run.app/" | grep -q "Login API is running"
+          curl -fsS "https://platform-web-855636431759.asia-southeast3.run.app/api/auth/sso-config" | grep -q googleClientId
+          echo "dev smoke checks passed"

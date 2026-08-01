@@ -1,0 +1,64 @@
+# Promote DEV -> STAGING.
+#
+# Manual trigger (the approval gate): reads the image digests the dev services
+# are CURRENTLY serving and deploys those exact digests to the staging
+# services. No rebuild, no registry copy - staging pulls from the dev
+# project's registry by design, so what was verified on dev is byte-for-byte
+# what staging runs.
+
+name: Promote to staging
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: promote-staging
+  cancel-in-progress: false
+
+env:
+  REGION: asia-southeast3
+  DEV_PROJECT: my-easy-software-dev
+  STAGING_PROJECT: my-easy-software-staging
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/855636431759/locations/global/workloadIdentityPools/github/providers/github-oidc
+          service_account: github-deployer@my-easy-software-dev.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Read the digests dev is serving
+        run: |
+          API_IMG=$(gcloud run services describe platform-api --region "$REGION" --project "$DEV_PROJECT" --format='value(spec.template.spec.containers[0].image)')
+          WEB_IMG=$(gcloud run services describe platform-web --region "$REGION" --project "$DEV_PROJECT" --format='value(spec.template.spec.containers[0].image)')
+          # Resolve tags to digests so the promotion is immutable even if the
+          # dev service was last deployed by tag (e.g. a manual :latest deploy).
+          case "$API_IMG" in *@sha256:*) ;; *) API_IMG="${API_IMG%%:*}@$(gcloud artifacts docker images describe "$API_IMG" --format='value(image_summary.digest)')";; esac
+          case "$WEB_IMG" in *@sha256:*) ;; *) WEB_IMG="${WEB_IMG%%:*}@$(gcloud artifacts docker images describe "$WEB_IMG" --format='value(image_summary.digest)')";; esac
+          echo "API_IMG=$API_IMG" >> "$GITHUB_ENV"
+          echo "WEB_IMG=$WEB_IMG" >> "$GITHUB_ENV"
+          echo "Promoting api: $API_IMG"
+          echo "Promoting web: $WEB_IMG"
+
+      - name: Deploy worker (staging)
+        run: gcloud run deploy platform-api-outboxworker --image "$API_IMG" --region "$REGION" --project "$STAGING_PROJECT" --quiet
+
+      - name: Deploy api (staging)
+        run: gcloud run deploy platform-api --image "$API_IMG" --region "$REGION" --project "$STAGING_PROJECT" --quiet
+
+      - name: Deploy web (staging)
+        run: gcloud run deploy platform-web --image "$WEB_IMG" --region "$REGION" --project "$STAGING_PROJECT" --quiet
+
+      - name: Smoke check
+        run: |
+          curl -fsS "https://platform-api-640963543517.asia-southeast3.run.app/" | grep -q "Login API is running"
+          curl -fsS "https://platform-web-640963543517.asia-southeast3.run.app/api/auth/sso-config" | grep -q googleClientId
+          echo "staging smoke checks passed"
