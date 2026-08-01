@@ -1,4 +1,4 @@
-# Dev Environment (my-easy-software-dev)
+# Dev & Staging Environments (my-easy-software-dev / my-easy-software-staging)
 
 The development environment is fully separated from the old `membership-project-199610` project.
 It lives in its own GCP project under the myeasysoft.com organization, in region `asia-southeast3` (Bangkok).
@@ -111,9 +111,28 @@ The project itself stays alive as the container for these.
 
 Outside GCP, still the user's to do: shut down the external Windows Postgres server (`20.212.81.135` - nothing references it anymore), and optionally remove the dead GoDaddy A record until prod cutover.
 
+## Staging environment (my-easy-software-staging, provisioned 2026-08-01)
+
+Same recipe as dev, in project `my-easy-software-staging` (number `640963543517`), region `asia-southeast3`.
+Differences from dev are deliberate and few:
+
+| Piece | Value |
+| --- | --- |
+| Web | Cloud Run `platform-web` - https://platform-web-640963543517.asia-southeast3.run.app |
+| API | Cloud Run `platform-api` - https://platform-api-640963543517.asia-southeast3.run.app |
+| Worker | `platform-api-outboxworker`, drain mode, scale-to-zero, `outbox-sweep` scheduler (asia-southeast1) - identical wiring to dev |
+| Images | **Pulled from the DEV project's registry** (`asia-southeast3-docker.pkg.dev/my-easy-software-dev/login-apps/...`); staging's Cloud Run service agent has `artifactregistry.reader` on that repo. This is the build-once-promote seam for the future CI/CD pipeline - staging has NO registry of its own |
+| Database | Cloud SQL `platform-db-staging` (PG18, db-g1-small, zonal), database `platformDB`, seeded 2026-08-01 as a COPY OF DEV (db-copy job pattern with BOTH Cloud SQL connectors attached; the temporary cross-project `cloudsql.client` grant and `SRC_DATABASE_URL` secret were removed after) |
+| Secrets | Own `DATABASE_URL` + FRESH JWT keypair; `SMTP_ENCRYPTION_KEY` and `EMAIL_PASS` copied from dev (the SMTP key MUST match wherever the data came from) |
+| Admin | `admin@myeasysoft.com` via the staging `seed-users` job (its own password, printed once to job logs - same rotate/recover procedure as dev) |
+| SSO | Google NOT configured yet (needs a staging OAuth client + `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, same steps as dev); Microsoft hidden (`MICROSOFT_SSO_ENABLED=false`) |
+| Org policy | Same project-level `allUsers` exception as dev |
+
+Verified 2026-08-01: browser login as staging admin, full catalogue present (5 modules / 41 menus / 24 users), forgot-password email delivered in 4s via ping-driven drain, sweep firing.
+
 ## Still to do for the environment split
 
-- Provision `my-easy-software-staging` (same recipe, UAT values).
-- CI/CD: GitHub Actions with Workload Identity Federation - build once, deploy the same image digest dev -> staging -> prod with approval gates.
-- Prod project + Cloud SQL in `asia-southeast1`, LB + Cloud Armor + myeasysoft.com, then migrate off the old project and the external Windows Postgres host.
-- Deploy the outbox worker to dev when email testing is needed (needs SMTP creds), and a dev OAuth client if SSO must be tested.
+- CI/CD: GitHub Actions with Workload Identity Federation - build once into the dev registry, deploy the same image digest dev -> staging -> prod with approval gates (staging already pulls from the dev registry, so promotion = a deploy with the same digest).
+- Cloud SQL automated backups for staging (and dev if its data stops being disposable).
+- Prod project + Cloud SQL, LB + Cloud Armor + myeasysoft.com cutover (region decision at that point: asia-southeast1, or asia-southeast4 if Cloud Run is available there by then).
+- Staging Google OAuth client when SSO testing on staging is needed.
