@@ -95,8 +95,9 @@ gcloud logging read "resource.type=cloud_run_job AND resource.labels.job_name=se
 
 ## Backups
 
-Cloud SQL automated backups are NOT yet enabled on `platform-db-dev` (dev data is disposable seed data).
-Enable them (or extend the pg_dump job pattern) before any data worth keeping lands in dev, and definitely for staging/prod instances.
+Cloud SQL automated backups + point-in-time recovery are ENABLED on BOTH `platform-db-dev` and `platform-db-staging` (2026-08-02): nightly window 19:00 UTC (03:00 MYT), 7 retained backups, 7 days of transaction logs (PITR), plus an initial on-demand backup each.
+Restore: `gcloud sql backups list --instance=<inst>` then `gcloud sql backups restore <id> --restore-instance=<inst>`, or clone-to-a-point-in-time for PITR.
+These are instance-bound (deleted with the instance) - for prod, ADD the pg_dump-to-GCS job pattern (`infra/db-backup/`) on top for long retention, per the old environment's design.
 
 ## Old environment decommissioned (2026-08-01)
 
@@ -133,6 +134,6 @@ Verified 2026-08-01: browser login as staging admin, full catalogue present (5 m
 ## Still to do for the environment split
 
 - CI/CD: DONE 2026-08-01 - see [`cicd.md`](cicd.md) (push to `dev` -> build + deploy dev; manual "Promote to staging" redeploys the same digests).
-- Cloud SQL automated backups for staging (and dev if its data stops being disposable).
+- Cloud SQL automated backups: DONE 2026-08-02 for dev + staging (see Backups section); prod will additionally need the pg_dump-to-GCS long-retention job.
 - Prod project + Cloud SQL, LB + Cloud Armor + myeasysoft.com cutover (region decision at that point: asia-southeast1, or asia-southeast4 if Cloud Run is available there by then).
 - Staging Google OAuth client when SSO testing on staging is needed.
