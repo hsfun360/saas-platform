@@ -46,6 +46,7 @@ export class ClubSpecificationComponent implements OnInit {
   readonly form = this.fb.nonNullable.group({
     clubType: this.fb.nonNullable.control<'golf' | 'leisure' | 'others'>('golf', [Validators.required]),
     isCommittee: [false],
+    creditFacilityEnabled: [true],
     salesAgencyEnabled: [true],
     salesExternalEnabled: [true],
     salesInternalEnabled: [true],
@@ -103,6 +104,7 @@ export class ClubSpecificationComponent implements OnInit {
     this.form.reset({
       clubType: data.settings.clubType,
       isCommittee: data.settings.isCommittee,
+      creditFacilityEnabled: data.settings.creditFacilityEnabled !== false,
       salesAgencyEnabled: data.settings.salesAgencyEnabled,
       salesExternalEnabled: data.settings.salesExternalEnabled,
       salesInternalEnabled: data.settings.salesInternalEnabled,

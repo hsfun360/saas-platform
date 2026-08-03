@@ -693,6 +693,7 @@ export interface MembershipTypeMeta {
 export interface ClubSettings {
   clubType: 'golf' | 'leisure' | 'others';
   isCommittee: boolean;
+  creditFacilityEnabled: boolean;
   salesAgencyEnabled: boolean;
   salesExternalEnabled: boolean;
   salesInternalEnabled: boolean;

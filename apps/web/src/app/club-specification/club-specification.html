@@ -93,6 +93,21 @@
         </fieldset>
       }
 
+      <!-- Credit facility -->
+      <fieldset class="cs-fieldset">
+        <legend>Credit facility</legend>
+        <label class="cs-option" [class.cs-option--active]="formValue().creditFacilityEnabled">
+          <input type="checkbox" formControlName="creditFacilityEnabled" />
+          <span class="cs-option__text">
+            <span class="cs-option__title">Members can charge expenses to their account</span>
+            <span class="cs-option__hint">
+              Membership entry shows the credit terms — credit limit, terms, statement, arrears reminders and late-payment interest.
+              When off those fields are hidden and memberships are saved with a credit limit of 0.
+            </span>
+          </span>
+        </label>
+      </fieldset>
+
       <!-- Membership number -->
       <fieldset class="cs-fieldset">
         <legend>Membership number</legend>

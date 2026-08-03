@@ -10,6 +10,7 @@ const MembershipSetting = require('./membershipSetting.model');
 const SETTING_DEFAULTS = {
     clubType: 'golf',
     isCommittee: false,
+    creditFacilityEnabled: true,
     salesAgencyEnabled: true,
     salesExternalEnabled: true,
     salesInternalEnabled: true,
@@ -19,6 +20,7 @@ function toSettingsDto(row) {
     return {
         clubType: row.clubType,
         isCommittee: row.isCommittee,
+        creditFacilityEnabled: row.creditFacilityEnabled,
         // A committee club has no sales channels, whatever the columns hold.
         salesAgencyEnabled: row.isCommittee ? false : row.salesAgencyEnabled,
         salesExternalEnabled: row.isCommittee ? false : row.salesExternalEnabled,

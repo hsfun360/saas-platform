@@ -54,8 +54,8 @@ exports.getSettings = async (req, res) => {
 };
 
 // PUT /api/membership/settings
-// Body: { clubType, isCommittee, salesAgencyEnabled, salesExternalEnabled,
-//         salesInternalEnabled, isMembershipAutoNumber }
+// Body: { clubType, isCommittee, creditFacilityEnabled, salesAgencyEnabled,
+//         salesExternalEnabled, salesInternalEnabled, isMembershipAutoNumber }
 exports.updateSettings = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
@@ -68,6 +68,9 @@ exports.updateSettings = async (req, res) => {
         const row = await getSettingsRow(companyId);
         row.clubType = clubType;
         row.isCommittee = isCommittee;
+        // Absent means "leave enabled" (`!== false`), so a client built before
+        // this flag existed cannot silently switch the credit facility off.
+        row.creditFacilityEnabled = req.body.creditFacilityEnabled !== false;
         // Committee clubs have no sales agents - the flags are forced false.
         row.salesAgencyEnabled = !isCommittee && req.body.salesAgencyEnabled === true;
         row.salesExternalEnabled = !isCommittee && req.body.salesExternalEnabled === true;

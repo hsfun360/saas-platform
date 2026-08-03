@@ -191,6 +191,19 @@ function toMembershipDto(ms, extra = {}) {
 // ---------------------------------------------------------------------------
 // Validation / normalisation
 
+// Club Specification gate: a club without a credit facility stores no credit
+// terms. The dialog hides the fields, and the server forces them off whatever
+// the client sent, so a stale form cannot smuggle values in. The credit limit
+// is stored as 0 (nothing chargeable), not NULL (not specified).
+function forceCreditTermsOff(value) {
+    value.creditFlag = null;
+    value.creditLimit = 0;
+    value.terms = null;
+    value.statementMode = null;
+    value.sendReminders = false;
+    value.chargeInterest = false;
+}
+
 // Contract-level fields shared by create and update. Returns { value } or
 // { error }. Class-conditional fields are nulled for the other class.
 function normalizeMembershipBody(body, membershipClass) {
@@ -728,7 +741,14 @@ exports.createMembership = async (req, res) => {
             const fee = await MembershipFee.findOne({ where: { id: membershipFeeId, companyId }, attributes: ['id'] });
             if (!fee) return res.status(400).json({ message: 'Membership fee not found.' });
         }
-        if (v.creditLimit === null && type.creditLimit != null) v.creditLimit = Number(type.creditLimit);
+        // Club Specification: no credit facility -> credit terms forced off
+        // (credit limit 0) and the type's default credit limit does not apply.
+        const settings = await getSettings(companyId);
+        if (!settings.creditFacilityEnabled) {
+            forceCreditTermsOff(v);
+        } else if (v.creditLimit === null && type.creditLimit != null) {
+            v.creditLimit = Number(type.creditLimit);
+        }
         const agentErr = await validateSalesAgents(companyId, v);
         if (agentErr) return res.status(400).json({ message: agentErr });
         // Term membership: default the contract expiry from the type's term when
@@ -743,6 +763,7 @@ exports.createMembership = async (req, res) => {
             const parsedProfile = normalizeMemberProfile(req.body.member || {});
             if (parsedProfile.error) return res.status(400).json({ message: parsedProfile.error });
             profile = parsedProfile.value;
+            if (!settings.creditFacilityEnabled) profile.creditLimit = 0;
         }
 
         // 5b. The typed address books: contract addresses for corporate, the
@@ -918,6 +939,8 @@ exports.updateMembership = async (req, res) => {
         const parsed = normalizeMembershipBody(req.body, ms.membershipClass);
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         const v = parsed.value;
+        // Club Specification: no credit facility -> credit terms forced off.
+        if (!(await getSettings(companyId)).creditFacilityEnabled) forceCreditTermsOff(v);
 
         const statusId = strOrNull(req.body.membershipStatusId) || ms.membershipStatusId;
         const statusChanged = statusId !== ms.membershipStatusId;
@@ -1028,6 +1051,8 @@ exports.createNominee = async (req, res) => {
         const parsedProfile = normalizeMemberProfile(req.body);
         if (parsedProfile.error) return res.status(400).json({ message: parsedProfile.error });
         const profile = parsedProfile.value;
+        // Club Specification: no credit facility -> no member credit limit.
+        if (!(await getSettings(companyId)).creditFacilityEnabled) profile.creditLimit = 0;
         const addrs = normalizeAddresses(req.body.addresses);
         if (addrs.error) return res.status(400).json({ message: addrs.error });
 
@@ -1094,6 +1119,8 @@ exports.createDependent = async (req, res) => {
         const parsedProfile = normalizeMemberProfile(req.body);
         if (parsedProfile.error) return res.status(400).json({ message: parsedProfile.error });
         const profile = parsedProfile.value;
+        // Club Specification: no credit facility -> no member credit limit.
+        if (!(await getSettings(companyId)).creditFacilityEnabled) profile.creditLimit = 0;
         // Only children/wards age out; a spouse never carries an expiry date.
         if (!EXPIRING_DEPENDENT_TYPES.includes(dependentType)) profile.expiryDate = null;
         const addrs = normalizeAddresses(req.body.addresses);
@@ -1155,6 +1182,8 @@ exports.updateMember = async (req, res) => {
         const parsedProfile = normalizeMemberProfile(req.body);
         if (parsedProfile.error) return res.status(400).json({ message: parsedProfile.error });
         const profile = parsedProfile.value;
+        // Club Specification: no credit facility -> no member credit limit.
+        if (!(await getSettings(companyId)).creditFacilityEnabled) profile.creditLimit = 0;
         const addrs = normalizeAddresses(req.body.addresses);
         if (addrs.error) return res.status(400).json({ message: addrs.error });
 

@@ -40,6 +40,15 @@ const MembershipSetting = sequelize.define('MembershipSetting', {
         allowNull: false,
         defaultValue: false,
     },
+    // Credit facility - can members charge expenses to their account? When
+    // false the membership screens hide every credit term (credit flag, credit
+    // limit, terms, statement, reminders, interest) and the API stores them
+    // switched off with a credit limit of 0.
+    creditFacilityEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
     // Which sales channels the club uses (commercial clubs only). They gate the
     // agent-kind choices and the salesperson pickers on membership entry.
     salesAgencyEnabled: {

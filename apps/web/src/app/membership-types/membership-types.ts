@@ -207,6 +207,13 @@ export class MembershipTypesComponent implements OnInit {
     return this.showGolf() && this.form.controls.isGolfAllow.value;
   }
 
+  // The default credit limit only applies when the club provides a credit
+  // facility (Club Specification gate) - hidden otherwise, like the entry form.
+  showCredit(): boolean {
+    const s = this.clubSettings();
+    return !s || s.creditFacilityEnabled !== false;
+  }
+
   isTerm(): boolean {
     return this.form.controls.isTermMembership.value;
   }

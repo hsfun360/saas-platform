@@ -226,6 +226,12 @@ export class MembershipsComponent implements OnInit {
     const s = this.clubSettings();
     return s ? !s.isCommittee && (s.salesAgencyEnabled || s.salesExternalEnabled || s.salesInternalEnabled) : true;
   });
+  // Credit facility off -> every credit term is hidden (contract dialog and the
+  // nominee credit limit); the server stores them off with a credit limit of 0.
+  readonly showCreditFields = computed(() => {
+    const s = this.clubSettings();
+    return s ? s.creditFacilityEnabled !== false : true;
+  });
 
   // The type picked in the (add) membership dialog decides the class + defaults.
   readonly selectedType = computed(() => {

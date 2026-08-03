@@ -467,40 +467,46 @@
 
         @if (dialogClass()) {
           <details class="dlg-sec" open>
-          <summary><h3 class="dlg-section">Credit &amp; billing</h3></summary>
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-            @if (dialogClass() === 'individual') {
+          <summary><h3 class="dlg-section">{{ showCreditFields() ? 'Credit & billing' : 'Billing' }}</h3></summary>
+          <!-- Credit terms only exist when the club provides a credit facility
+               (Club Specification); without one the server stores credit limit 0. -->
+          @if (showCreditFields()) {
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              @if (dialogClass() === 'individual') {
+                <div class="form-group">
+                  <label for="msCreditFlag">Credit flag</label>
+                  <select id="msCreditFlag" formControlName="creditFlag">
+                    <option value="">—</option>
+                    @for (o of meta()?.creditFlags; track o.key) {
+                      <option [value]="o.key">{{ o.label }}</option>
+                    }
+                  </select>
+                </div>
+              }
               <div class="form-group">
-                <label for="msCreditFlag">Credit flag</label>
-                <select id="msCreditFlag" formControlName="creditFlag">
+                <label for="msCreditLimit">Credit limit</label>
+                <input id="msCreditLimit" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="creditLimit" />
+              </div>
+              <div class="form-group">
+                <label for="msTerms">Terms (days)</label>
+                <input id="msTerms" type="number" inputmode="numeric" min="0" step="1" formControlName="terms" />
+              </div>
+              <div class="form-group">
+                <label for="msStatement">Statement</label>
+                <select id="msStatement" formControlName="statementMode">
                   <option value="">—</option>
-                  @for (o of meta()?.creditFlags; track o.key) {
+                  @for (o of meta()?.statementModes; track o.key) {
                     <option [value]="o.key">{{ o.label }}</option>
                   }
                 </select>
               </div>
-            }
-            <div class="form-group">
-              <label for="msCreditLimit">Credit limit</label>
-              <input id="msCreditLimit" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="creditLimit" />
             </div>
-            <div class="form-group">
-              <label for="msTerms">Terms (days)</label>
-              <input id="msTerms" type="number" inputmode="numeric" min="0" step="1" formControlName="terms" />
-            </div>
-            <div class="form-group">
-              <label for="msStatement">Statement</label>
-              <select id="msStatement" formControlName="statementMode">
-                <option value="">—</option>
-                @for (o of meta()?.statementModes; track o.key) {
-                  <option [value]="o.key">{{ o.label }}</option>
-                }
-              </select>
-            </div>
-          </div>
+          }
           <div class="ms-flags">
-            <label class="ms-flag"><input type="checkbox" formControlName="sendReminders" /> Send arrears reminders</label>
-            <label class="ms-flag"><input type="checkbox" formControlName="chargeInterest" /> Charge late-payment interest</label>
+            @if (showCreditFields()) {
+              <label class="ms-flag"><input type="checkbox" formControlName="sendReminders" /> Send arrears reminders</label>
+              <label class="ms-flag"><input type="checkbox" formControlName="chargeInterest" /> Charge late-payment interest</label>
+            }
             <label class="ms-flag"><input type="checkbox" formControlName="monthlyFee" /> Monthly fee</label>
             <label class="ms-flag"><input type="checkbox" formControlName="yearlyFee" /> Yearly fee</label>
           </div>
@@ -792,7 +798,7 @@
                 <input id="memExpiry" type="date" formControlName="expiryDate" />
               </div>
             }
-            @if (memberDialogMode() === 'nominee' || editMember()?.memberKind === 'nominee') {
+            @if (showCreditFields() && (memberDialogMode() === 'nominee' || editMember()?.memberKind === 'nominee')) {
               <div class="form-group">
                 <label for="memCreditLimit">Credit limit</label>
                 <input id="memCreditLimit" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="creditLimit" />
