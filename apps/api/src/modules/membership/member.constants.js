@@ -59,6 +59,11 @@ const ADDRESS_TYPES = [
     { key: 'other', label: 'Other' },
 ];
 
+// The CONTRACT (corporate membership) book is the company's own addresses -
+// Residential and Other describe people, so the contract offers only these.
+// Person books (individual member, nominees, dependents) keep all four.
+const CONTRACT_ADDRESS_TYPES = ADDRESS_TYPES.filter((t) => ['company', 'mailing'].includes(t.key));
+
 // Workflow seam: memberships are effective immediately today; the planned
 // workflow module will create them 'pending' and flip to 'approved'.
 const APPROVAL_STATUSES = [
@@ -73,6 +78,7 @@ const MARITAL_STATUS_KEYS = MARITAL_STATUSES.map((k) => k.key);
 const CREDIT_FLAG_KEYS = CREDIT_FLAGS.map((k) => k.key);
 const STATEMENT_MODE_KEYS = STATEMENT_MODES.map((k) => k.key);
 const ADDRESS_TYPE_KEYS = ADDRESS_TYPES.map((k) => k.key);
+const CONTRACT_ADDRESS_TYPE_KEYS = CONTRACT_ADDRESS_TYPES.map((k) => k.key);
 const APPROVAL_STATUS_KEYS = APPROVAL_STATUSES.map((k) => k.key);
 
 module.exports = {
@@ -91,6 +97,8 @@ module.exports = {
     STATEMENT_MODE_KEYS,
     ADDRESS_TYPES,
     ADDRESS_TYPE_KEYS,
+    CONTRACT_ADDRESS_TYPES,
+    CONTRACT_ADDRESS_TYPE_KEYS,
     APPROVAL_STATUSES,
     APPROVAL_STATUS_KEYS,
 };

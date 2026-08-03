@@ -50,6 +50,8 @@ const {
     STATEMENT_MODE_KEYS,
     ADDRESS_TYPES,
     ADDRESS_TYPE_KEYS,
+    CONTRACT_ADDRESS_TYPES,
+    CONTRACT_ADDRESS_TYPE_KEYS,
 } = require('./member.constants');
 const Address = require('./address.model');
 const SalesAgent = require('./salesAgent.model');
@@ -284,10 +286,13 @@ function normalizeMembershipBody(body, membershipClass) {
 
 // The typed address book sent by the forms: an array of rows, at most one per
 // addressType. Returns { value: [...] } or { error }. An absent/empty array is
-// valid (the owner simply has no addresses on file).
-function normalizeAddresses(raw) {
+// valid (the owner simply has no addresses on file). `allowedKeys` narrows the
+// vocabulary per book: the corporate CONTRACT book takes Company + Mailing
+// only (Residential/Other describe people), person books take all four.
+function normalizeAddresses(raw, allowedKeys = ADDRESS_TYPE_KEYS) {
     if (raw === undefined || raw === null) return { value: [] };
     if (!Array.isArray(raw)) return { error: 'Addresses must be a list.' };
+    const allowedLabels = ADDRESS_TYPES.filter((t) => allowedKeys.includes(t.key)).map((t) => t.label);
     const seen = new Set();
     const value = [];
     for (const row of raw) {
@@ -295,8 +300,8 @@ function normalizeAddresses(raw) {
         const address = strOrNull(row && row.address);
         // A row with no street line is treated as an intentionally empty entry.
         if (!address) continue;
-        if (!addressType || !ADDRESS_TYPE_KEYS.includes(addressType)) {
-            return { error: 'Each address needs a valid type (residential, mailing, company or other).' };
+        if (!addressType || !allowedKeys.includes(addressType)) {
+            return { error: `Each address needs a valid type (${allowedLabels.join(' or ')}).` };
         }
         if (seen.has(addressType)) {
             const label = ADDRESS_TYPES.find((t) => t.key === addressType).label;
@@ -511,6 +516,9 @@ exports.getMeta = async (req, res) => {
             creditFlags: CREDIT_FLAGS,
             statementModes: STATEMENT_MODES,
             addressTypes: ADDRESS_TYPES,
+            // The corporate CONTRACT book's narrower vocabulary (Company +
+            // Mailing) - person books use the full addressTypes list.
+            contractAddressTypes: CONTRACT_ADDRESS_TYPES,
             // 'auto' (system issues on save) | 'manual' | null (no scheme -> manual).
             numberingMode,
         });
@@ -768,7 +776,7 @@ exports.createMembership = async (req, res) => {
 
         // 5b. The typed address books: contract addresses for corporate, the
         // individual member's own addresses nested in the profile payload.
-        const contractAddrs = normalizeAddresses(membershipClass === 'corporate' ? req.body.addresses : []);
+        const contractAddrs = normalizeAddresses(membershipClass === 'corporate' ? req.body.addresses : [], CONTRACT_ADDRESS_TYPE_KEYS);
         if (contractAddrs.error) return res.status(400).json({ message: contractAddrs.error });
         const memberAddrs = normalizeAddresses(membershipClass === 'individual' ? (req.body.member || {}).addresses : []);
         if (memberAddrs.error) return res.status(400).json({ message: memberAddrs.error });
@@ -959,7 +967,7 @@ exports.updateMembership = async (req, res) => {
         if (agentErr) return res.status(400).json({ message: agentErr });
 
         // Contract addresses (corporate class edits the contract's book).
-        const contractAddrs = normalizeAddresses(ms.membershipClass === 'corporate' ? req.body.addresses : []);
+        const contractAddrs = normalizeAddresses(ms.membershipClass === 'corporate' ? req.body.addresses : [], CONTRACT_ADDRESS_TYPE_KEYS);
         if (contractAddrs.error) return res.status(400).json({ message: contractAddrs.error });
 
         const placement = await getCallerPlacement(req);

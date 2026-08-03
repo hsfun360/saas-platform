@@ -626,10 +626,13 @@ async function migrateOne(req, companyId, msRow, memberRows, lookups, numberingM
             ...stamps,
         }, { transaction: t });
 
-        // Contract addresses (corporate only, mirroring manual entry).
+        // Contract addresses (corporate only, mirroring manual entry). The
+        // contract book takes Company + Mailing only, so the sheet's
+        // residential columns land as the Company address.
         if (cls === 'corporate') {
             for (const a of addressesOf(d)) {
-                await Address.create({ ...a, membershipId: ms.id, companyId, ...stamps }, { transaction: t });
+                const addressType = a.addressType === 'residential' ? 'company' : a.addressType;
+                await Address.create({ ...a, addressType, membershipId: ms.id, companyId, ...stamps }, { transaction: t });
             }
         }
 

@@ -855,6 +855,9 @@ export interface MembershipMeta {
   creditFlags: MembershipStatusOption[];
   statementModes: MembershipStatusOption[];
   addressTypes: MembershipStatusOption[];
+  // The corporate CONTRACT book's narrower vocabulary (Company + Mailing);
+  // absent on an older API -> fall back to addressTypes.
+  contractAddressTypes?: MembershipStatusOption[];
   numberingMode: 'auto' | 'manual' | null;
 }
 

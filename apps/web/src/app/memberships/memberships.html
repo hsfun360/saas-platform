@@ -143,7 +143,7 @@
           <div class="form-group">
             <label [for]="prefix + 'Type' + i">Type</label>
             <select [id]="prefix + 'Type' + i" formControlName="addressType">
-              @for (t of meta()?.addressTypes; track t.key) {
+              @for (t of addressTypeOptions(preferred, g.getRawValue().addressType); track t.key) {
                 <option [value]="t.key">{{ t.label }}</option>
               }
             </select>
@@ -181,7 +181,9 @@
         </div>
       </div>
     }
-    <button type="button" class="btn btn--secondary btn--sm" (click)="addAddress(array, preferred)">Add address</button>
+    @if (canAddAddress(array, preferred)) {
+      <button type="button" class="btn btn--secondary btn--sm" (click)="addAddress(array, preferred)">Add address</button>
+    }
     </details>
   </ng-template>
 

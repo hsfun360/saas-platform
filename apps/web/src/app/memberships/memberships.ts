@@ -443,14 +443,32 @@ export class MembershipsComponent implements OnInit {
     for (const r of rows || []) array.push(this.buildAddressGroup(r));
   }
 
+  // The type choices for one book: the corporate CONTRACT book (preferred
+  // 'company') offers Company + Mailing only - Residential and Other describe
+  // people, not a company. A legacy row of another type (e.g. imported as
+  // Residential) stays selectable so the user can see it and change it.
+  addressTypeOptions(preferred: string, current?: string): MembershipStatusOption[] {
+    const all = this.meta()?.addressTypes || [];
+    if (preferred !== 'company') return all;
+    const contract = this.meta()?.contractAddressTypes || all;
+    return all.filter((t) => t.key === current || contract.some((c) => c.key === t.key));
+  }
+
   // Add a row defaulting to `preferred` (the owner's natural type), falling
   // back to the first type not already in the book.
   addAddress(array: FormArray<FormGroup>, preferred: string): void {
     const used = new Set(array.getRawValue().map((r) => (r as AddressEntry).addressType));
-    const keys = (this.meta()?.addressTypes || []).map((t) => t.key);
+    const keys = this.addressTypeOptions(preferred).map((t) => t.key);
     const type = !used.has(preferred) ? preferred : keys.find((k) => !used.has(k)) || preferred;
     array.push(this.buildAddressGroup({ addressType: type }));
     array.markAsDirty();
+  }
+
+  // Every allowed type already in the book -> another row could only duplicate
+  // one, so the Add button hides (the server rejects duplicate types anyway).
+  canAddAddress(array: FormArray<FormGroup>, preferred: string): boolean {
+    const used = new Set(array.getRawValue().map((r) => (r as AddressEntry).addressType));
+    return this.addressTypeOptions(preferred).some((t) => !used.has(t.key));
   }
 
   removeAddress(array: FormArray<FormGroup>, index: number): void {
