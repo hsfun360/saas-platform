@@ -658,7 +658,14 @@ and `items/:id`.
 Every listing/CRUD screen caps its content column at **`max-width: 1140px; margin: 0 auto`** - on the wrapper (`class="screen-pad" style="max-width: 1140px; margin: 0 auto;"`) or baked into the screen's container class (`.saas-container`, `.tenant-container`).
 One number, no per-screen taste: cards on User Management must be exactly as wide as cards on Positions or Departments, or the app reads as inconsistent when hopping between screens.
 Do NOT invent another cap (800/900/1100/1200px listing wrappers have all been migrated to 1140).
-Deliberate exceptions - and the only ones: dedicated single-form/settings screens where long text lines hurt readability (Profile 600, Settings 650, Club Specification 760), the auth screens' centred cards, and the member/agent portals (their own surface).
+Deliberate exceptions - and the only ones: dedicated single-form/settings screens where long text lines hurt readability (Profile 600, Settings 650), the auth screens' centred cards, and the member/agent portals (their own surface).
+(Club Specification was such an exception at 760 but was standardized to the 1140 cap on 2026-08-03 - module screens follow the one cap; only the personal Profile/Settings pages stay narrow.)
+
+#### Section cards with a header band (grouped settings/options)
+
+When a form/settings screen groups its content into titled sections (Settings, Club Specification), use the shared **section card** - global in `styles.css`, canonical look from the Settings screen:
+`.settings-card` (bordered card) > `.settings-header` (sunken band with `.settings-header__title` + one-line `.settings-header__sub` consequence text; use a `<button class="settings-header settings-header--button">` + `.settings-header__chevron` when the card collapses) > `.settings-body` (padded content).
+Do NOT hand-roll per-screen fieldset/legend section chrome - compose these classes so every screen's section headers read the same.
 
 #### Field focus highlight - ON the field, never a floating ring
 

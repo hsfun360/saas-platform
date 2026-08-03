@@ -33,107 +33,143 @@
     <form [formGroup]="form" (ngSubmit)="save()" class="saas-form cs-form">
 
       <!-- Club type -->
-      <fieldset class="cs-fieldset">
-        <legend>Club type</legend>
-        <div class="cs-options" role="radiogroup" aria-label="Club type">
-          @for (t of clubTypes(); track t.key) {
-            <label class="cs-option" [class.cs-option--active]="formValue().clubType === t.key">
-              <input type="radio" formControlName="clubType" [value]="t.key" />
-              <span class="cs-option__text">
-                <span class="cs-option__title">{{ t.label }}</span>
-                <span class="cs-option__hint">{{ clubTypeHints[t.key] }}</span>
-              </span>
-            </label>
-          }
+      <section class="settings-card">
+        <div class="settings-header">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Club type</span>
+            <span class="settings-header__sub">What kind of club this is — decides which golfing options exist.</span>
+          </span>
         </div>
-      </fieldset>
+        <div class="settings-body">
+          <div class="cs-options" role="radiogroup" aria-label="Club type">
+            @for (t of clubTypes(); track t.key) {
+              <label class="cs-option" [class.cs-option--active]="formValue().clubType === t.key">
+                <input type="radio" formControlName="clubType" [value]="t.key" />
+                <span class="cs-option__text">
+                  <span class="cs-option__title">{{ t.label }}</span>
+                  <span class="cs-option__hint">{{ clubTypeHints[t.key] }}</span>
+                </span>
+              </label>
+            }
+          </div>
+        </div>
+      </section>
 
       <!-- Admission model -->
-      <fieldset class="cs-fieldset">
-        <legend>Admission</legend>
-        <label class="cs-option" [class.cs-option--active]="formValue().isCommittee">
-          <input type="checkbox" formControlName="isCommittee" />
-          <span class="cs-option__text">
-            <span class="cs-option__title">Committee club</span>
-            <span class="cs-option__hint">
-              Members are proposed and vouched in (proposal → interview → provision).
-              Membership entry shows the Proposer field and hides the salesperson pickers.
-              Leave off for a commercial pay-to-join club.
-            </span>
+      <section class="settings-card">
+        <div class="settings-header">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Admission</span>
+            <span class="settings-header__sub">How members join — committee-vouched or commercial pay-to-join.</span>
           </span>
-        </label>
-      </fieldset>
+        </div>
+        <div class="settings-body">
+          <label class="cs-option" [class.cs-option--active]="formValue().isCommittee">
+            <input type="checkbox" formControlName="isCommittee" />
+            <span class="cs-option__text">
+              <span class="cs-option__title">Committee club</span>
+              <span class="cs-option__hint">
+                Members are proposed and vouched in (proposal → interview → provision).
+                Membership entry shows the Proposer field and hides the salesperson pickers.
+                Leave off for a commercial pay-to-join club.
+              </span>
+            </span>
+          </label>
+        </div>
+      </section>
 
       <!-- Sales channels (commercial clubs only) -->
       @if (!formValue().isCommittee) {
-        <fieldset class="cs-fieldset">
-          <legend>Sales channels</legend>
-          <p class="cs-fieldset__hint">Who sells memberships for this club. Only the enabled kinds appear on the Sales Agents screen and in the entry pickers.</p>
-          <label class="cs-option" [class.cs-option--active]="formValue().salesAgencyEnabled">
-            <input type="checkbox" formControlName="salesAgencyEnabled" />
-            <span class="cs-option__text">
-              <span class="cs-option__title">Sales agencies</span>
-              <span class="cs-option__hint">Outsourced agency companies and their staff.</span>
+        <section class="settings-card">
+          <div class="settings-header">
+            <span class="settings-header__text">
+              <span class="settings-header__title">Sales channels</span>
+              <span class="settings-header__sub">Who sells memberships — only the enabled kinds appear on the Sales Agents screen and in the entry pickers.</span>
             </span>
-          </label>
-          <label class="cs-option" [class.cs-option--active]="formValue().salesExternalEnabled">
-            <input type="checkbox" formControlName="salesExternalEnabled" />
-            <span class="cs-option__text">
-              <span class="cs-option__title">External individuals</span>
-              <span class="cs-option__hint">Freelance salespeople outside the company.</span>
-            </span>
-          </label>
-          <label class="cs-option" [class.cs-option--active]="formValue().salesInternalEnabled">
-            <input type="checkbox" formControlName="salesInternalEnabled" />
-            <span class="cs-option__text">
-              <span class="cs-option__title">Internal sales staff</span>
-              <span class="cs-option__hint">Salespeople employed directly by the club.</span>
-            </span>
-          </label>
-        </fieldset>
+          </div>
+          <div class="settings-body">
+            <div class="cs-options">
+              <label class="cs-option" [class.cs-option--active]="formValue().salesAgencyEnabled">
+                <input type="checkbox" formControlName="salesAgencyEnabled" />
+                <span class="cs-option__text">
+                  <span class="cs-option__title">Sales agencies</span>
+                  <span class="cs-option__hint">Outsourced agency companies and their staff.</span>
+                </span>
+              </label>
+              <label class="cs-option" [class.cs-option--active]="formValue().salesExternalEnabled">
+                <input type="checkbox" formControlName="salesExternalEnabled" />
+                <span class="cs-option__text">
+                  <span class="cs-option__title">External individuals</span>
+                  <span class="cs-option__hint">Freelance salespeople outside the company.</span>
+                </span>
+              </label>
+              <label class="cs-option" [class.cs-option--active]="formValue().salesInternalEnabled">
+                <input type="checkbox" formControlName="salesInternalEnabled" />
+                <span class="cs-option__text">
+                  <span class="cs-option__title">Internal sales staff</span>
+                  <span class="cs-option__hint">Salespeople employed directly by the club.</span>
+                </span>
+              </label>
+            </div>
+          </div>
+        </section>
       }
 
       <!-- Credit facility -->
-      <fieldset class="cs-fieldset">
-        <legend>Credit facility</legend>
-        <label class="cs-option" [class.cs-option--active]="formValue().creditFacilityEnabled">
-          <input type="checkbox" formControlName="creditFacilityEnabled" />
-          <span class="cs-option__text">
-            <span class="cs-option__title">Members can charge expenses to their account</span>
-            <span class="cs-option__hint">
-              Membership entry shows the credit terms — credit limit, terms, statement, arrears reminders and late-payment interest.
-              When off those fields are hidden and memberships are saved with a credit limit of 0.
-            </span>
+      <section class="settings-card">
+        <div class="settings-header">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Credit facility</span>
+            <span class="settings-header__sub">Whether members can charge expenses to their account.</span>
           </span>
-        </label>
-      </fieldset>
+        </div>
+        <div class="settings-body">
+          <label class="cs-option" [class.cs-option--active]="formValue().creditFacilityEnabled">
+            <input type="checkbox" formControlName="creditFacilityEnabled" />
+            <span class="cs-option__text">
+              <span class="cs-option__title">Members can charge expenses to their account</span>
+              <span class="cs-option__hint">
+                Membership entry shows the credit terms — credit limit, terms, statement, arrears reminders and late-payment interest.
+                When off those fields are hidden and memberships are saved with a credit limit of 0.
+              </span>
+            </span>
+          </label>
+        </div>
+      </section>
 
       <!-- Membership number -->
-      <fieldset class="cs-fieldset">
-        <legend>Membership number</legend>
-        <label class="cs-option" [class.cs-option--active]="formValue().isMembershipAutoNumber">
-          <input type="checkbox" formControlName="isMembershipAutoNumber" />
-          <span class="cs-option__text">
-            <span class="cs-option__title">Auto-generate membership numbers</span>
-            <span class="cs-option__hint">
-              The system issues the next number on save.
-              When off, staff key the number in (e.g. from a pre-printed card) and only uniqueness is checked.
-            </span>
+      <section class="settings-card">
+        <div class="settings-header">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Membership number</span>
+            <span class="settings-header__sub">How membership numbers are issued on save.</span>
           </span>
-        </label>
-        @if (formValue().isMembershipAutoNumber) {
-          <div class="cs-numbering">
-            @if (numbering()?.scheme; as s) {
-              <div class="nb-preview cs-numbering__preview">
-                <span class="nb-preview__label">Next number will look like</span>
-                <span class="nb-preview__value">{{ s.nextPreview || '—' }}</span>
-                <span class="nb-hint">Resets {{ resetRuleLabel(s.resetRule) }}</span>
-              </div>
-            }
-            <button type="button" class="btn btn--secondary" (click)="openConfig()">Configure format…</button>
-          </div>
-        }
-      </fieldset>
+        </div>
+        <div class="settings-body">
+          <label class="cs-option" [class.cs-option--active]="formValue().isMembershipAutoNumber">
+            <input type="checkbox" formControlName="isMembershipAutoNumber" />
+            <span class="cs-option__text">
+              <span class="cs-option__title">Auto-generate membership numbers</span>
+              <span class="cs-option__hint">
+                The system issues the next number on save.
+                When off, staff key the number in (e.g. from a pre-printed card) and only uniqueness is checked.
+              </span>
+            </span>
+          </label>
+          @if (formValue().isMembershipAutoNumber) {
+            <div class="cs-numbering">
+              @if (numbering()?.scheme; as s) {
+                <div class="nb-preview cs-numbering__preview">
+                  <span class="nb-preview__label">Next number will look like</span>
+                  <span class="nb-preview__value">{{ s.nextPreview || '—' }}</span>
+                  <span class="nb-hint">Resets {{ resetRuleLabel(s.resetRule) }}</span>
+                </div>
+              }
+              <button type="button" class="btn btn--secondary" (click)="openConfig()">Configure format…</button>
+            </div>
+          }
+        </div>
+      </section>
 
       <div class="cs-actions">
         <button type="submit" class="btn btn--primary" [disabled]="saving() || !form.dirty">

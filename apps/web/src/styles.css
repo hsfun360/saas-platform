@@ -711,6 +711,80 @@ textarea:focus {
   line-height: 1;
 }
 
+/* Section card with a header band — THE standard for grouped settings/options
+   on a form or settings screen (canonical look: the Settings screen; also
+   Club Specification). Moved here from dashboard/settings/settings.css so
+   every screen composes ONE definition. Structure:
+     <section class="settings-card">
+       <div class="settings-header">            (or a <button> with
+                                                 .settings-header--button when
+                                                 the card collapses)
+         <span class="settings-header__text">
+           <span class="settings-header__title">Title</span>
+           <span class="settings-header__sub">One-line consequence/subtitle</span>
+         </span>
+       </div>
+       <div class="settings-body">…content…</div>
+     </section> */
+.settings-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Collapsible header rendered as a real <button> (keyboard + aria-expanded). */
+.settings-header--button {
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  min-height: 44px;
+  font: inherit;
+}
+
+.settings-header__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.settings-header__title {
+  font-size: var(--font-h2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.settings-header__sub {
+  font-size: var(--font-body-2);
+  color: var(--text-muted);
+}
+
+.settings-header__chevron {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.settings-header__chevron--open {
+  transform: rotate(90deg);
+}
+
+.settings-body {
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+}
+
 /* ============================================================== */
 /* RESPONSIVE STRATEGY — THREE TIERS (see docs/project-overview.md)*/
 /*   Mobile   < 768px   — single column, drawer + bottom nav       */

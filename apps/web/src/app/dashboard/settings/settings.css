@@ -10,65 +10,9 @@
   gap: var(--space-lg);
 }
 
-/* Bordered card — matches the app-wide card standard. */
-.settings-card {
-  background: var(--surface-card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.settings-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  padding: var(--space-md) var(--space-lg);
-  background: var(--surface-sunken);
-  border-bottom: 1px solid var(--border);
-}
-
-/* Collapsible header rendered as a real <button> (keyboard + aria-expanded). */
-.settings-header--button {
-  width: 100%;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  min-height: 44px;
-  font: inherit;
-}
-
-.settings-header__text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  min-width: 0;
-}
-
-.settings-header__title {
-  font-size: var(--font-h2);
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
-}
-
-.settings-header__sub {
-  font-size: var(--font-body-2);
-  color: var(--text-muted);
-}
-
-.settings-header__chevron {
-  color: var(--text-muted);
-  flex-shrink: 0;
-  transition: transform 0.2s ease;
-}
-
-.settings-header__chevron--open {
-  transform: rotate(90deg);
-}
-
-.settings-body {
-  padding: var(--space-md) var(--space-lg) var(--space-lg);
-}
+/* The section card (.settings-card / .settings-header* / .settings-body) is
+   now defined GLOBALLY in styles.css - it is the app-wide standard for grouped
+   settings/options (used here and on Club Specification). */
 
 /* --- General settings toggle rows --- */
 .setting-item {
