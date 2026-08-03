@@ -36,6 +36,18 @@ export class ClubSpecificationComponent implements OnInit {
   readonly tokens = signal<{ token: string; label: string }[]>([]);
   readonly numbering = signal<ClubNumbering | null>(null);
 
+  // Collapsible section cards (Settings-style chevron headers) - the screen is
+  // long on a phone, so each card folds to its header. All start expanded.
+  readonly collapsedSections = signal<Record<string, boolean>>({});
+
+  toggleSection(id: string): void {
+    this.collapsedSections.update((c) => ({ ...c, [id]: !c[id] }));
+  }
+
+  isExpanded(id: string): boolean {
+    return !this.collapsedSections()[id];
+  }
+
   // Plain-language consequence caption per club type (shown under the radio).
   readonly clubTypeHints: Record<string, string> = {
     golf: 'Golf and facilities. Membership types can grant golfing access.',

@@ -34,36 +34,45 @@
 
       <!-- Club type -->
       <section class="settings-card">
-        <div class="settings-header">
+        <button type="button" class="settings-header settings-header--button"
+                (click)="toggleSection('clubType')" [attr.aria-expanded]="isExpanded('clubType')">
           <span class="settings-header__text">
             <span class="settings-header__title">Club type</span>
             <span class="settings-header__sub">What kind of club this is — decides which golfing options exist.</span>
           </span>
-        </div>
-        <div class="settings-body">
-          <div class="cs-options" role="radiogroup" aria-label="Club type">
-            @for (t of clubTypes(); track t.key) {
-              <label class="cs-option" [class.cs-option--active]="formValue().clubType === t.key">
-                <input type="radio" formControlName="clubType" [value]="t.key" />
-                <span class="cs-option__text">
-                  <span class="cs-option__title">{{ t.label }}</span>
-                  <span class="cs-option__hint">{{ clubTypeHints[t.key] }}</span>
-                </span>
-              </label>
-            }
+          <span class="material-icons settings-header__chevron"
+                [class.settings-header__chevron--open]="isExpanded('clubType')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('clubType')) {
+          <div class="settings-body">
+            <div class="cs-options" role="radiogroup" aria-label="Club type">
+              @for (t of clubTypes(); track t.key) {
+                <label class="cs-option" [class.cs-option--active]="formValue().clubType === t.key">
+                  <input type="radio" formControlName="clubType" [value]="t.key" />
+                  <span class="cs-option__text">
+                    <span class="cs-option__title">{{ t.label }}</span>
+                    <span class="cs-option__hint">{{ clubTypeHints[t.key] }}</span>
+                  </span>
+                </label>
+              }
+            </div>
           </div>
-        </div>
+        }
       </section>
 
       <!-- Admission model -->
       <section class="settings-card">
-        <div class="settings-header">
+        <button type="button" class="settings-header settings-header--button"
+                (click)="toggleSection('admission')" [attr.aria-expanded]="isExpanded('admission')">
           <span class="settings-header__text">
             <span class="settings-header__title">Admission</span>
             <span class="settings-header__sub">How members join — committee-vouched or commercial pay-to-join.</span>
           </span>
-        </div>
-        <div class="settings-body">
+          <span class="material-icons settings-header__chevron"
+                [class.settings-header__chevron--open]="isExpanded('admission')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('admission')) {
+          <div class="settings-body">
           <label class="cs-option" [class.cs-option--active]="formValue().isCommittee">
             <input type="checkbox" formControlName="isCommittee" />
             <span class="cs-option__text">
@@ -75,18 +84,23 @@
               </span>
             </span>
           </label>
-        </div>
+          </div>
+        }
       </section>
 
       <!-- Sales channels (commercial clubs only) -->
       @if (!formValue().isCommittee) {
         <section class="settings-card">
-          <div class="settings-header">
+          <button type="button" class="settings-header settings-header--button"
+                  (click)="toggleSection('sales')" [attr.aria-expanded]="isExpanded('sales')">
             <span class="settings-header__text">
               <span class="settings-header__title">Sales channels</span>
               <span class="settings-header__sub">Who sells memberships — only the enabled kinds appear on the Sales Agents screen and in the entry pickers.</span>
             </span>
-          </div>
+            <span class="material-icons settings-header__chevron"
+                  [class.settings-header__chevron--open]="isExpanded('sales')" aria-hidden="true">chevron_right</span>
+          </button>
+          @if (isExpanded('sales')) {
           <div class="settings-body">
             <div class="cs-options">
               <label class="cs-option" [class.cs-option--active]="formValue().salesAgencyEnabled">
@@ -112,17 +126,22 @@
               </label>
             </div>
           </div>
+          }
         </section>
       }
 
       <!-- Credit facility -->
       <section class="settings-card">
-        <div class="settings-header">
+        <button type="button" class="settings-header settings-header--button"
+                (click)="toggleSection('credit')" [attr.aria-expanded]="isExpanded('credit')">
           <span class="settings-header__text">
             <span class="settings-header__title">Credit facility</span>
             <span class="settings-header__sub">Whether members can charge expenses to their account.</span>
           </span>
-        </div>
+          <span class="material-icons settings-header__chevron"
+                [class.settings-header__chevron--open]="isExpanded('credit')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('credit')) {
         <div class="settings-body">
           <label class="cs-option" [class.cs-option--active]="formValue().creditFacilityEnabled">
             <input type="checkbox" formControlName="creditFacilityEnabled" />
@@ -135,16 +154,21 @@
             </span>
           </label>
         </div>
+        }
       </section>
 
       <!-- Membership number -->
       <section class="settings-card">
-        <div class="settings-header">
+        <button type="button" class="settings-header settings-header--button"
+                (click)="toggleSection('numbering')" [attr.aria-expanded]="isExpanded('numbering')">
           <span class="settings-header__text">
             <span class="settings-header__title">Membership number</span>
             <span class="settings-header__sub">How membership numbers are issued on save.</span>
           </span>
-        </div>
+          <span class="material-icons settings-header__chevron"
+                [class.settings-header__chevron--open]="isExpanded('numbering')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('numbering')) {
         <div class="settings-body">
           <label class="cs-option" [class.cs-option--active]="formValue().isMembershipAutoNumber">
             <input type="checkbox" formControlName="isMembershipAutoNumber" />
@@ -169,6 +193,7 @@
             </div>
           }
         </div>
+        }
       </section>
 
       <div class="cs-actions">
