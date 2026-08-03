@@ -661,11 +661,15 @@ Do NOT invent another cap (800/900/1100/1200px listing wrappers have all been mi
 Deliberate exceptions - and the only ones: dedicated single-form/settings screens where long text lines hurt readability (Profile 600, Settings 650), the auth screens' centred cards, and the member/agent portals (their own surface).
 (Club Specification was such an exception at 760 but was standardized to the 1140 cap on 2026-08-03 - module screens follow the one cap; only the personal Profile/Settings pages stay narrow.)
 
-#### Section cards with a header band (grouped settings/options)
+#### Section cards with a header band (grouped settings/options) - THE standard
 
 When a form/settings screen groups its content into titled sections (Settings, Club Specification), use the shared **section card** - global in `styles.css`, canonical look from the Settings screen:
-`.settings-card` (bordered card) > `.settings-header` (sunken band with `.settings-header__title` + one-line `.settings-header__sub` consequence text; use a `<button class="settings-header settings-header--button">` + `.settings-header__chevron` when the card collapses) > `.settings-body` (padded content).
+`.settings-card` (bordered card) > `.settings-header` (sunken band with `.settings-header__title` + one-line `.settings-header__sub` consequence text) > `.settings-body` (padded content).
+**The header is COLLAPSIBLE by default**: render it as `<button type="button" class="settings-header settings-header--button" [attr.aria-expanded]>` with a `.settings-header__chevron` (rotates via `--open`), and wrap the body in `@if (isExpanded(...))` - sections start expanded, and folding must never lose form state (the reactive `FormGroup` keeps every control value while its DOM is hidden).
+This matters most on mobile, where a multi-section screen is a long single column - each card folds to its header band.
+The screen's content column follows the app-wide **1140px** cap (see "Content width" above) - a grouped-sections screen is NOT a narrow-column exception.
 Do NOT hand-roll per-screen fieldset/legend section chrome - compose these classes so every screen's section headers read the same.
+Reference implementation: `club-specification.html` (`toggleSection`/`isExpanded` signal record) and `dashboard/settings`.
 
 #### Field focus highlight - ON the field, never a floating ring
 
