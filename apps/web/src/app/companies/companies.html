@@ -59,15 +59,15 @@
     <ul class="data-list">
       @for (company of filteredCompanies(); track company.id) {
         <li class="data-card">
-          <div class="data-row data-row--with-badge data-row--wide-actions">
+          <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <div class="data-card__title">{{ company.name }}</div>
-              <!-- Registration no. in ( ) then timezone + currency, no captions. -->
-              <div class="data-card__subline data-card__reg">
-                @if (company.registrationNumber) { <span>({{ company.registrationNumber }})</span> }
-                <span>{{ company.timezone | tzLabel }}</span>
-                @if (company.defaultCurrencyCode) { <span>· {{ company.defaultCurrencyCode }}</span> }
-              </div>
+              <!-- Registration no. in ( ), no captions. -->
+              @if (company.registrationNumber) {
+                <div class="data-card__subline data-card__reg">
+                  <span>({{ company.registrationNumber }})</span>
+                </div>
+              }
 
               <!-- Module count (caption + value), not the full chip list. -->
               <dl class="data-card__meta">
@@ -80,25 +80,27 @@
               {{ company.isActive ? 'Active' : 'Inactive' }}
             </span>
 
-            <!-- Actions: right of the info on desktop, full-width below on mobile.
-                 Edit opens a dialog (below), so they stay visible. -->
+            <!-- Actions: ONE visible primary (Edit details) + the kebab with the
+                 occasional configuration actions. Each opens a dialog (below). -->
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="startEditModules(company)">
-                <span class="material-icons" aria-hidden="true">tune</span>
-                Edit modules
-              </button>
               <button type="button" class="btn btn--secondary btn--sm" (click)="startEditProfile(company)">
                 <span class="material-icons" aria-hidden="true">edit</span>
                 Edit details
               </button>
-              <button type="button" class="btn btn--secondary btn--sm" (click)="smtpCompany.set(company)">
-                <span class="material-icons" aria-hidden="true">mail</span>
-                Email (SMTP)
-              </button>
-              <button type="button" class="btn btn--secondary btn--sm" (click)="weekendCompany.set(company)">
-                <span class="material-icons" aria-hidden="true">weekend</span>
-                Weekend days
-              </button>
+              <app-overflow-menu [label]="'More actions for ' + company.name">
+                <button type="button" appMenuItem (click)="startEditModules(company)">
+                  <span class="material-icons" aria-hidden="true">tune</span>
+                  Edit modules
+                </button>
+                <button type="button" appMenuItem (click)="smtpCompany.set(company)">
+                  <span class="material-icons" aria-hidden="true">mail</span>
+                  Email (SMTP)
+                </button>
+                <button type="button" appMenuItem (click)="weekendCompany.set(company)">
+                  <span class="material-icons" aria-hidden="true">weekend</span>
+                  Weekend days
+                </button>
+              </app-overflow-menu>
             </div>
           </div>
         </li>

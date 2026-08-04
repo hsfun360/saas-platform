@@ -12,6 +12,7 @@ import { CompanyWeekendDialogComponent } from '../company-weekend/company-weeken
 import { TimezoneLabelPipe } from '../shared/timezone-label.pipe';
 import { COUNTRY_TIMEZONES, FALLBACK_COUNTRIES } from '../shared/countries';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
 // Tenant Admin view: create and list companies (business entities) under the
 // subscriber's account, choosing which modules each company needs.
@@ -19,7 +20,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
   selector: 'app-companies',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, ReactiveFormsModule, DialogComponent, PhoneInputComponent, CompanySmtpDialogComponent, CompanyWeekendDialogComponent, TimezoneLabelPipe],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, ReactiveFormsModule, DialogComponent, PhoneInputComponent, CompanySmtpDialogComponent, CompanyWeekendDialogComponent, TimezoneLabelPipe, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './companies.html',
   styleUrls: ['./companies.css'],
 })
