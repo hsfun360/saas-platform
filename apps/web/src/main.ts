@@ -152,6 +152,9 @@ const routes: Routes = [
       // Membership import (Excel -> staging -> selective migration).
       { path: 'membership/import', loadComponent: () => import('./app/membership-import/membership-import').then((m) => m.MembershipImportComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/import/:id', loadComponent: () => import('./app/membership-import/membership-import').then((m) => m.MembershipImportComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      // Membership Type import (same staging pattern, one flat sheet).
+      { path: 'membership/type-import', loadComponent: () => import('./app/membership-type-import/membership-type-import').then((m) => m.MembershipTypeImportComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/type-import/:id', loadComponent: () => import('./app/membership-type-import/membership-type-import').then((m) => m.MembershipTypeImportComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/sales-agencies', loadComponent: () => import('./app/sales-agencies/sales-agencies').then((m) => m.SalesAgenciesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/sales-agents', loadComponent: () => import('./app/sales-agents/sales-agents').then((m) => m.SalesAgentsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       // Master File Setup → Unit Courses (per-company 9-hole building blocks).

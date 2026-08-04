@@ -988,6 +988,38 @@ export interface ImportMigrateResult {
   message?: string;
 }
 
+// --- Membership Type import (same staging pattern, one flat sheet) ---
+
+export interface TypeImportRow {
+  id: string;
+  rowNo: number;
+  category: string | null;
+  data: Record<string, string | null>;
+  issues: ImportIssue[];
+  isValid: boolean;
+  migrateStatus: 'pending' | 'migrated';
+  migratedAt?: string | null;
+}
+
+export interface TypeImportBatchSummary {
+  id: string;
+  fileName: string | null;
+  totalTypes: number;
+  createdAt: string;
+  validTypes?: number;
+  migratedTypes?: number;
+}
+
+export interface TypeImportBatchDetail extends TypeImportBatchSummary {
+  rows: TypeImportRow[];
+}
+
+export interface TypeImportMigrateResult {
+  category: string;
+  ok: boolean;
+  message?: string;
+}
+
 // Flat member-search row (the read-only Members screen).
 export interface MemberSearchRow {
   id: string;

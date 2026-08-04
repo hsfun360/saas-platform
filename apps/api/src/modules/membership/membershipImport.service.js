@@ -725,4 +725,12 @@ module.exports = {
     validateStagedRows,
     migrateOne,
     addressesOf,
+    // Shared Excel plumbing, reused by membershipTypeImport.service.js so the
+    // cell/date/number rules can never drift between the two imports.
+    cellText,
+    parseSheet,
+    asDate,
+    asBool,
+    asNumber,
+    low,
 };
