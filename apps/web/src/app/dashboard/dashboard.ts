@@ -126,7 +126,9 @@ export class Dashboard implements OnInit {
 
   // Header language quick-switch: the languages this user may pick from + a
   // dropdown to switch instantly. Shown only when more than one is available.
-  languageOptions: Language[] = [];
+  // A signal: the list lands async, and a plain array mutated after the first
+  // change-detection pass trips NG0100 under zoneless dev mode.
+  readonly languageOptions = signal<Language[]>([]);
   isLanguageDropdownOpen = false;
 
   constructor(
@@ -369,11 +371,11 @@ export class Dashboard implements OnInit {
   loadLanguageOptions(): void {
     this.languageService.getMyLanguage().subscribe({
       next: (state) => {
-        this.languageOptions = state.options;
+        this.languageOptions.set(state.options);
         this.i18n.setFallback(state.accountDefault); // subscriber's fallback for missing translations
         this.i18n.use(state.effective); // keep the shell in sync with the server's resolution
       },
-      error: () => { this.languageOptions = []; },
+      error: () => { this.languageOptions.set([]); },
     });
   }
 

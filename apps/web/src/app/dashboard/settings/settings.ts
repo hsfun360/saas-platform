@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
 import { AuthService } from '../../auth.service'; // Double check this path!
 import { TitleCasePipe } from '@angular/common'; // Needed for the {{ authMethod | titlecase }}
@@ -39,9 +39,11 @@ export class SettingsComponent implements OnInit {
 
   // Language preference: the languages this user may pick from (their account's
   // set) + their current effective language.
-  languageOptions: Language[] = [];
-  currentLanguage: string = '';
-  languageMessage: string = '';
+  // A signal: the list lands async, and a plain array mutated after the first
+  // change-detection pass trips NG0100 under zoneless dev mode.
+  readonly languageOptions = signal<Language[]>([]);
+  readonly currentLanguage = signal('');
+  readonly languageMessage = signal('');
 
   // 👇 1. Add this variable to track if General Settings is open (default to true)
   isGeneralSettingsExpanded: boolean = true;
@@ -76,8 +78,8 @@ export class SettingsComponent implements OnInit {
     // 4. Load the user's language options + current effective language.
     this.languageService.getMyLanguage().subscribe({
       next: (state) => {
-        this.languageOptions = state.options;
-        this.currentLanguage = state.effective;
+        this.languageOptions.set(state.options);
+        this.currentLanguage.set(state.effective);
         this.i18n.setFallback(state.accountDefault); // subscriber's fallback for missing translations
       },
       error: (err) => console.error('Failed to load language options', err),
@@ -85,14 +87,14 @@ export class SettingsComponent implements OnInit {
   }
 
   onLanguageChange(code: string): void {
-    this.currentLanguage = code;
-    this.languageMessage = '';
+    this.currentLanguage.set(code);
+    this.languageMessage.set('');
     this.languageService.setMyLanguage(code).subscribe({
       next: (state) => {
-        this.currentLanguage = state.effective;
+        this.currentLanguage.set(state.effective);
         this.i18n.use(state.effective); // apply immediately across the app
-        this.languageMessage = this.i18n.translate('language.saved');
-        setTimeout(() => (this.languageMessage = ''), 3000);
+        this.languageMessage.set(this.i18n.translate('language.saved'));
+        setTimeout(() => this.languageMessage.set(''), 3000);
       },
       error: (err) => console.error('Failed to update language', err),
     });

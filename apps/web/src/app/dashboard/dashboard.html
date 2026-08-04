@@ -89,7 +89,7 @@
              that way. Don't re-add a header gear. -->
 
         <!-- Language quick-switch (only when the user has more than one to pick from) -->
-        @if (languageOptions.length > 1) {
+        @if (languageOptions().length > 1) {
           <div style="position: relative; display: flex; align-items: center;">
             <button class="icon-btn" [title]="'language.switch' | t" [attr.aria-label]="'language.switch' | t"
                     aria-haspopup="true" [attr.aria-expanded]="isLanguageDropdownOpen"
@@ -101,7 +101,7 @@
             @if (isLanguageDropdownOpen) {
               <div class="menu-pop" style="min-width: 200px;" (click)="$event.stopPropagation()">
                 <div class="menu-pop__title">{{ 'language.switch' | t }}</div>
-                @for (l of languageOptions; track l.languageCode) {
+                @for (l of languageOptions(); track l.languageCode) {
                   <button type="button" class="menu-pop__item" style="justify-content: space-between;"
                           (click)="chooseLanguage(l.languageCode)">
                     <span>{{ l.name }}</span>

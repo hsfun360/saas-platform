@@ -66,7 +66,7 @@
   <!-- Language — shown only when the user actually has a choice. Mirrors the
        header language switcher, which is likewise hidden at <= 1 language, so a
        single-language account never sees an empty/disabled picker. -->
-  @if (languageOptions.length > 1) {
+  @if (languageOptions().length > 1) {
     <div class="settings-card">
       <div class="settings-header">
         <span class="settings-header__text">
@@ -76,14 +76,14 @@
       </div>
       <div class="settings-body">
         <label for="pref-lang" class="field-label">{{ 'language.preferred' | t }}</label>
-        <select id="pref-lang" class="field-control" [value]="currentLanguage"
+        <select id="pref-lang" class="field-control" [value]="currentLanguage()"
                 (change)="onLanguageChange($any($event.target).value)">
-          @for (l of languageOptions; track l.languageCode) {
+          @for (l of languageOptions(); track l.languageCode) {
             <option [value]="l.languageCode">{{ l.name }}</option>
           }
         </select>
-        @if (languageMessage) {
-          <p class="field-success" role="status" aria-live="polite">{{ languageMessage }}</p>
+        @if (languageMessage()) {
+          <p class="field-success" role="status" aria-live="polite">{{ languageMessage() }}</p>
         }
       </div>
     </div>
