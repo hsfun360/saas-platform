@@ -181,7 +181,16 @@ async function completeLogin(req, res, user, context, { isSystemAdmin = false, r
 }
 
 const storage = new Storage(); // Use default credentials when on Cloud Run
-const bucket = storage.bucket('membership-app-avatars-123');
+// Public image uploads (user avatars, company logos) go to the per-environment
+// bucket named by ASSETS_BUCKET (12-factor: config from env, never hardcoded -
+// the old hardcoded avatars bucket died with the old GCP project). Resolved
+// lazily so a missing var fails the one upload request with a clear message
+// instead of crashing the whole API at boot.
+function assetsBucket() {
+    const name = process.env.ASSETS_BUCKET;
+    if (!name) throw new Error('ASSETS_BUCKET env var is not set - cannot store uploads.');
+    return storage.bucket(name);
+}
 
 // ----------------------------------------------------
 // A. Register New User (Local Strategy)
@@ -1317,7 +1326,8 @@ exports.uploadAvatar = async (req, res) => {
         const fileExtension = req.file.originalname.split('.').pop();
         const gcsFileName = `avatar-${userId}-${Date.now()}.${fileExtension}`;
 
-        // 3. Create a reference to the file in your bucket
+        // 3. Create a reference to the file in the per-environment assets bucket
+        const bucket = assetsBucket();
         const blob = bucket.file(gcsFileName);
 
         // 4. Upload to Google Cloud Storage using async/await! (NO MORE STREAMS)
@@ -1364,6 +1374,7 @@ exports.uploadCompanyLogo = async (req, res) => {
         }
         const fileExtension = req.file.originalname.split('.').pop();
         const gcsFileName = `company-logo-${req.user.id}-${Date.now()}.${fileExtension}`;
+        const bucket = assetsBucket();
         const blob = bucket.file(gcsFileName);
         await blob.save(req.file.buffer, { resumable: false, contentType: req.file.mimetype });
         const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
