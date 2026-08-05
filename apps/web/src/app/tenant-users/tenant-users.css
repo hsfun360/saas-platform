@@ -257,21 +257,6 @@
   font-size: var(--font-body-2);
 }
 
-.flash {
-  padding: var(--space-sm) var(--space-md);
-  border-radius: 8px;
-  margin-bottom: var(--space-md);
-  font-size: var(--font-body-2);
-}
-
-.flash-success {
-  background: var(--success-surface);
-  color: var(--success-text);
-  border: 1px solid var(--success-border);
-}
-
-.flash-error {
-  background: var(--danger-surface);
-  color: var(--danger-text);
-  border: 1px solid var(--danger-border);
-}
+/* Flash messages now live as the GLOBAL floating snackbar standard in
+   src/styles.css (.flash*) — the scoped copy here was removed so it can't
+   shadow the global sizing/position. */

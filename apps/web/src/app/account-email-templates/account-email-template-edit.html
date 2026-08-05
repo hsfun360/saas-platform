@@ -33,7 +33,7 @@
     </div>
 
     @if (!hasOverride()) {
-      <div class="flash" style="background:var(--info-surface); border:1px solid var(--info-border); color:var(--info-text);" role="status">
+      <div class="flash flash--static" style="background:var(--info-surface); border:1px solid var(--info-border); color:var(--info-text);" role="status">
         <span class="flash-icon">ℹ️</span>
         @if (inheritedFrom() === 'account') {
           <span><strong>{{ scopeName() }}</strong> currently uses the shared <strong>All companies</strong> version. Edit and <strong>Save</strong> to give it its own version.</span>

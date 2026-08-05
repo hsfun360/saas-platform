@@ -437,25 +437,54 @@ body {
 }
 
 /* ============================================================== */
-/* Flash banner — the ONE inline success/error message shown after */
-/* an action (save, reset, revert, test). Global + theme-aware so  */
-/* every screen matches; do NOT redefine it per screen. Compose:   */
+/* Flash message — the ONE success/error message shown after an    */
+/* action (save, reset, revert, test). A SNACKBAR: floats bottom-  */
+/* center over the content (GCP-style), so the user sees it        */
+/* without scrolling back to the top — screens scroll to the       */
+/* updated record and the confirmation still lands in view.        */
+/* Global + theme-aware; do NOT redefine it per screen. Compose:   */
 /*   <div class="flash flash-success" role="status">               */
 /*     <span class="flash-icon">✅</span><span>{{ msg }}</span>     */
 /*     <button class="flash-close">✕</button></div>                 */
-/* (Still duplicated scoped in system-setup.css / tenant-users.css */
-/* for screens that import them; those copies are now redundant.)  */
+/* PERMANENT in-flow notes (contextual info banners) must NOT      */
+/* float: additionally compose .flash--static to stay in the page  */
+/* flow at the spot they're rendered.                              */
 /* ============================================================== */
 .flash {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-lg);
+  transform: translateX(-50%);
+  z-index: 1300; /* above the dialog overlay (1200) so post-action messages always show */
+  box-sizing: border-box; /* padding+border inside the max-width cap */
+  width: max-content;
+  max-width: min(560px, calc(100vw - 2 * var(--space-md)));
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-md);
   border-radius: 10px;
-  margin-bottom: var(--space-lg);
+  margin: 0;
   font-size: var(--font-body-2);
   font-weight: var(--weight-medium);
+  box-shadow: var(--shadow);
   animation: flashSlideIn 0.25s ease-out;
+}
+@media (max-width: 767px) {
+  /* Clear the fixed mobile bottom nav (same var the FAB uses). */
+  .flash {
+    bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md));
+  }
+}
+/* Opt-out for permanent contextual notes: stays where it is rendered. */
+.flash--static {
+  position: static;
+  transform: none;
+  width: auto;
+  max-width: none;
+  box-shadow: none;
+  margin-bottom: var(--space-lg);
+  animation: none;
 }
 .flash-success {
   background: var(--success-surface);
@@ -484,9 +513,12 @@ body {
 .flash-close:hover {
   opacity: 1;
 }
+/* Slides UP from below (snackbar). Keeps the -50% horizontal centering in
+   both frames — animating `transform` would otherwise cancel it mid-flight.
+   (.flash--static sets animation: none, so this only runs on the snackbar.) */
 @keyframes flashSlideIn {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
 
 /* ============================================================== */

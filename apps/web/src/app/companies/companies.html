@@ -11,16 +11,16 @@
   </header>
 
   @if (successMessage()) {
-    <p role="status" aria-live="polite"
-       style="background: var(--success-surface); color: var(--success-text); border: 1px solid var(--success-border); padding: var(--space-sm) var(--space-md); border-radius: 8px; font-size: var(--font-body-2);">
-      ✅ {{ successMessage() }}
-    </p>
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span><span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
   }
   @if (errorMessage()) {
-    <p role="alert" aria-live="assertive"
-       style="background: var(--danger-surface); color: var(--danger-text); border: 1px solid var(--danger-border); padding: var(--space-sm) var(--space-md); border-radius: 8px; font-size: var(--font-body-2);">
-      ⚠️ {{ errorMessage() }}
-    </p>
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">⚠️</span><span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
   }
 
   <!-- Existing companies -->

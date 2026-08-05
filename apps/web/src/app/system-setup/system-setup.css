@@ -197,53 +197,9 @@
   line-height: 1.5;
 }
 
-/* ── FLASH MESSAGES ──────────────────────────── */
-.flash {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-md) var(--space-md);
-  border-radius: 10px;
-  margin-bottom: var(--space-lg);
-  font-size: var(--font-body-2);
-  font-weight: var(--weight-medium);
-  animation: slideIn 0.25s ease-out;
-}
-
-.flash-success {
-  background: var(--success-surface);
-  border: 1px solid var(--success-border);
-  color: var(--success-text);
-}
-
-.flash-error {
-  background: var(--danger-surface);
-  border: 1px solid var(--danger-border);
-  color: var(--danger-text);
-}
-
-.flash-icon {
-  font-size: 18px;
-}
-
-.flash-close {
-  margin-left: auto;
-  background: none;
-  border: none;
-  font-size: 16px;
-  cursor: pointer;
-  color: inherit;
-  opacity: 0.6;
-}
-
-.flash-close:hover {
-  opacity: 1;
-}
-
-@keyframes slideIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+/* Flash messages now live as the GLOBAL floating snackbar standard in
+   src/styles.css (.flash*) — the scoped copy here was removed so it can't
+   shadow the global animation/position. */
 
 /* Form-field standard (.saas-form / .form-row / .form-group / inputs / .required /
    .field-error) now lives as GLOBAL, theme-aware definitions in src/styles.css —
