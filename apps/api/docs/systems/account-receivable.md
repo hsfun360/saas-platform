@@ -21,6 +21,10 @@ Key rules a maintainer must not break:
 - Hot balances live in `CreditAccount` (pool) and `CreditMemberLimit` (per-person caps, row = capped person only), materialized in the same tx as every posting, pool row locked first.
 - After first provisioning, AR owns the credit terms (the membership screen shows them read-only).
 - Dependents never get debtor rows; their charges resolve to the principal at posting time.
+- Every document table (Ledger, Receipt, Deposit) carries BOTH `docDate` and `trxDate`.
+  `docDate` is the actual occurrence date - it drives aging and `dueDate` and prints on the document.
+  `trxDate` is the accounting-period (GL) date - defaults to `docDate`, but a forgotten last-month document keyed after the period closed keeps last month's `docDate` with a current-month `trxDate`.
+  Aging/statements bucket by `docDate`/`dueDate`; financial-period reporting buckets by `trxDate`.
 
 ## Built so far (slice 1)
 
