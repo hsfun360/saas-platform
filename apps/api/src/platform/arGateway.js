@@ -38,4 +38,14 @@ async function enqueueDebtorProvisioning(payload, transaction) {
     pingOutboxWorker(transaction);
 }
 
-module.exports = { enqueueDebtorProvisioning };
+// ADVISORY credit precheck for producer charges (golf/POS/facility frontend
+// consumption): member standing + credit headroom in one call. Advisory ONLY -
+// the posting transaction re-checks under lock (race-proof), so a stale yes
+// here can still be rejected at posting.
+// WHEN SPLIT: POST {internalServiceUrl('ar')}/internal/authorize
+async function authorizeCharge(params) {
+    const { authorizeCharge: authorize } = require('../modules/ar/arPosting.service');
+    return authorize(params);
+}
+
+module.exports = { enqueueDebtorProvisioning, authorizeCharge };

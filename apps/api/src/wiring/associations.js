@@ -101,6 +101,13 @@ const Debtor = require('../modules/ar/debtor.model');
 const OtherDebtor = require('../modules/ar/otherDebtor.model');
 const CreditAccount = require('../modules/ar/creditAccount.model');
 const CreditMemberLimit = require('../modules/ar/creditMemberLimit.model');
+// AR document ledger (slice 2): open-item documents + money movements +
+// deposits + the allocation web. Polymorphic doc references (docType + docId)
+// and cross-service ids stay plain UUIDs - validated in arPosting.service.
+const Ledger = require('../modules/ar/ledger.model');
+const Receipt = require('../modules/ar/receipt.model');
+const Deposit = require('../modules/ar/deposit.model');
+const Allocation = require('../modules/ar/allocation.model');
 // Shared capability (Workflow). Definition/steps and instance/tasks are
 // intra-service header/detail pairs (real FKs); account/company/role/
 // department/position/user/entity references stay plain UUIDs (no FK).
@@ -299,4 +306,8 @@ module.exports = {
     OtherDebtor,
     CreditAccount,
     CreditMemberLimit,
+    Ledger,
+    Receipt,
+    Deposit,
+    Allocation,
 };

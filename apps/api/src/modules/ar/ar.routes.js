@@ -14,6 +14,7 @@ const router = express.Router();
 const { verifyToken, requireModule, requireMenuAction } = require('../../platform/serviceContext');
 const debtorController = require('./debtor.controller');
 const otherDebtorController = require('./otherDebtor.controller');
+const documentController = require('./arDocument.controller');
 
 // Liveness probe - unauthenticated, so the gateway/monitoring can check the seam.
 router.get('/health', (req, res) => res.json({ service: 'ar', status: 'ok' }));
@@ -31,6 +32,21 @@ router.patch('/debtors/:id', requireMenuAction('/ar/debtors'), debtorController.
 router.get('/other-debtors/:id', requireMenuAction('/ar/debtors'), otherDebtorController.getOtherDebtor);
 router.post('/other-debtors', requireMenuAction('/ar/debtors'), otherDebtorController.createOtherDebtor);
 router.patch('/other-debtors/:id', requireMenuAction('/ar/debtors'), otherDebtorController.updateOtherDebtor);
+
+// --- Debtor account (documents + entry + void) - the listing's detail
+// surface, same menu. POST maps to the menu's Create action, void PATCHes to
+// Edit, per the standard method->action mapping.
+router.get('/debtors/:id/account', requireMenuAction('/ar/debtors'), documentController.getAccount);
+router.get('/debtors/:id/account/meta', requireMenuAction('/ar/debtors'), documentController.getAccountMeta);
+router.get('/documents/:type/:id/allocations', requireMenuAction('/ar/debtors'), documentController.getAllocations);
+router.post('/debtors/:id/ledger', requireMenuAction('/ar/debtors'), documentController.postLedger);
+router.post('/debtors/:id/receipts', requireMenuAction('/ar/debtors'), documentController.postReceipt);
+router.post('/debtors/:id/refunds', requireMenuAction('/ar/debtors'), documentController.postRefund);
+router.post('/debtors/:id/deposits', requireMenuAction('/ar/debtors'), documentController.postDeposit);
+router.post('/deposits/:id/convert', requireMenuAction('/ar/debtors'), documentController.convertDeposit);
+router.patch('/ledger/:id/void', requireMenuAction('/ar/debtors'), documentController.voidLedger);
+router.patch('/receipts/:id/void', requireMenuAction('/ar/debtors'), documentController.voidReceipt);
+router.patch('/deposits/:id/void', requireMenuAction('/ar/debtors'), documentController.voidDeposit);
 
 // Not-yet-built areas of the service 501 rather than 404, so a caller can tell
 // "wrong URL" from "planned but not implemented".

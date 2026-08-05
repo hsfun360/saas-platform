@@ -41,6 +41,15 @@ const TransactionType = sequelize.define('TransactionType', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    // AR: do overdue open items of this billing item attract late-payment
+    // interest? Snapshotted onto ar.Ledger at posting (never retro-changes
+    // history). The "Interest" transaction type itself stays false - no
+    // interest-on-interest compounding.
+    isInterestChargeable: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     isActive: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

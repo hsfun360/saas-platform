@@ -120,4 +120,74 @@ async function searchPartyIds(companyId, q, { limit = 200 } = {}) {
     return { membershipIds: [...membershipIds], memberIds };
 }
 
-module.exports = { lookupPartyDisplay, searchPartyIds };
+// --- Billing-item catalog reads (AR document entry) -----------------------
+// The membership Transaction Type catalog is the SINGLE tax source for AR
+// documents; AR reads it through this seam and snapshots tax at posting.
+
+async function listTransactionTypes(companyId) {
+    const TransactionType = require('../modules/membership/transactionType.model');
+    const rows = await TransactionType.findAll({
+        where: { companyId, isActive: true },
+        order: [['transactionType', 'ASC']],
+        attributes: ['id', 'transactionType', 'chargeType', 'description', 'taxSchemeCode', 'isInterestChargeable'],
+    });
+    return rows.map((r) => r.toJSON());
+}
+
+async function getTransactionType(companyId, id) {
+    const TransactionType = require('../modules/membership/transactionType.model');
+    const row = await TransactionType.findOne({ where: { companyId, id } });
+    return row ? row.toJSON() : null;
+}
+
+// The non-taxable "Deposit Conversion" transaction type every conversion CN
+// posts under (auto-seeded per company on first use; editable like any
+// catalog row afterwards).
+async function ensureDepositConversionType(companyId) {
+    const TransactionType = require('../modules/membership/transactionType.model');
+    const [row] = await TransactionType.findOrCreate({
+        where: { companyId, transactionType: 'DEPCONV' },
+        defaults: {
+            companyId,
+            transactionType: 'DEPCONV',
+            chargeType: 'miscellaneous',
+            description: 'Deposit conversion',
+            taxSchemeCode: null,
+            isInterestChargeable: false,
+            isActive: true,
+        },
+    });
+    return row.toJSON();
+}
+
+// The persons whose consumption can be stamped on a debtor's documents
+// (incurredByMemberId picker + validation):
+//   membership debtor -> every member of the contract (nominees, dependents,
+//                        the individual member);
+//   member debtor     -> the person plus their dependents;
+//   other debtor      -> nobody (charges belong to the entity itself).
+async function listDebtorPersons(companyId, debtorType, sourceId) {
+    if (debtorType === 'other') return [];
+    const Member = require('../modules/membership/member.model');
+    let where = null;
+    if (debtorType === 'membership') {
+        where = { companyId, membershipId: sourceId };
+    } else {
+        where = { companyId, [Op.or]: [{ id: sourceId }, { principalMemberId: sourceId }] };
+    }
+    const rows = await Member.findAll({
+        where,
+        order: [['memberNo', 'ASC']],
+        attributes: ['id', 'memberNo', 'memberKind', 'firstName', 'lastName', 'localName'],
+    });
+    return rows.map((r) => ({ id: r.id, memberNo: r.memberNo, memberKind: r.memberKind, name: personName(r) }));
+}
+
+module.exports = {
+    lookupPartyDisplay,
+    searchPartyIds,
+    listTransactionTypes,
+    getTransactionType,
+    ensureDepositConversionType,
+    listDebtorPersons,
+};

@@ -29,4 +29,51 @@ const DEBTOR_STATUSES = [
 const DEBTOR_TYPE_KEYS = DEBTOR_TYPES.map((t) => t.key);
 const DEBTOR_STATUS_KEYS = DEBTOR_STATUSES.map((s) => s.key);
 
-module.exports = { DEBTOR_TYPES, DEBTOR_STATUSES, DEBTOR_TYPE_KEYS, DEBTOR_STATUS_KEYS };
+// --- Document ledger (slice 2) ---
+
+// Ledger documents (open-item side). mode is FIXED per kind except the
+// invoice void-reversal (an invoice row with mode 'credit' + reversalOfId).
+const LEDGER_DOC_KINDS = [
+    { key: 'invoice', label: 'Invoice', mode: 'debit', numberingPurpose: 'ar-invoice' },
+    { key: 'debit-note', label: 'Debit Note', mode: 'debit', numberingPurpose: 'ar-debit-note' },
+    { key: 'credit-note', label: 'Credit Note', mode: 'credit', numberingPurpose: 'ar-credit-note' },
+];
+
+// Money-movement documents.
+const RECEIPT_DOC_KINDS = [
+    { key: 'receipt', label: 'Official Receipt', mode: 'credit', numberingPurpose: 'ar-receipt' },
+    { key: 'refund', label: 'Refund', mode: 'debit', numberingPurpose: 'ar-refund' },
+];
+
+const DEPOSIT_NUMBERING_PURPOSE = 'ar-deposit';
+
+// Where a ledger document originated.
+const SOURCE_MODULES = ['membership', 'golf', 'pos', 'facility', 'ar'];
+
+// The allocation web's valid (creditDocType -> debitDocType) pairs. There is
+// deliberately NO deposit->ledger pair (deposit-to-outstanding = the CN
+// conversion process).
+const ALLOCATION_PAIRS = [
+    { from: 'receipt', to: 'ledger' },   // payment settles Invoice/DN
+    { from: 'ledger', to: 'ledger' },    // CN / void reversal offsets a debit
+    { from: 'receipt', to: 'deposit' },  // deposit collection
+    { from: 'deposit', to: 'refund' },   // deposit refund
+    { from: 'receipt', to: 'refund' },   // overpayment refund
+];
+
+const LEDGER_DOC_KIND_KEYS = LEDGER_DOC_KINDS.map((k) => k.key);
+const RECEIPT_DOC_KIND_KEYS = RECEIPT_DOC_KINDS.map((k) => k.key);
+
+module.exports = {
+    DEBTOR_TYPES,
+    DEBTOR_STATUSES,
+    DEBTOR_TYPE_KEYS,
+    DEBTOR_STATUS_KEYS,
+    LEDGER_DOC_KINDS,
+    LEDGER_DOC_KIND_KEYS,
+    RECEIPT_DOC_KINDS,
+    RECEIPT_DOC_KIND_KEYS,
+    DEPOSIT_NUMBERING_PURPOSE,
+    SOURCE_MODULES,
+    ALLOCATION_PAIRS,
+};

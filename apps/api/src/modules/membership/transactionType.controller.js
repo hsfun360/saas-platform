@@ -28,6 +28,7 @@ function toDto(t, canModify = true) {
         chargeType: t.chargeType,
         description: t.description,
         taxSchemeCode: t.taxSchemeCode,
+        isInterestChargeable: t.isInterestChargeable === true,
         isActive: t.isActive,
     };
 }
@@ -47,6 +48,8 @@ function normalizeBody(body) {
             chargeType,
             description: typeof body.description === 'string' ? body.description.trim() || null : null,
             taxSchemeCode: str(body.taxSchemeCode) || null,
+            // AR: overdue items of this billing item attract late-payment interest.
+            isInterestChargeable: body.isInterestChargeable === true,
         },
     };
 }
