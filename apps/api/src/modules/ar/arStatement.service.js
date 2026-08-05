@@ -15,15 +15,20 @@ const Debtor = require('./debtor.model');
 const OtherDebtor = require('./otherDebtor.model');
 const Ledger = require('./ledger.model');
 const Receipt = require('./receipt.model');
+const Allocation = require('./allocation.model');
 const Statement = require('./statement.model');
 const StatementLine = require('./statementLine.model');
 const membershipGateway = require('../../platform/membershipGateway');
 const { cents, money } = require('./arPosting.service');
 
-// Signed cents effect of a document on the debtor balance.
+// Signed cents effect of a document on the debtor's AR balance. Deposit money
+// is COLLATERAL, not AR credit: the portion of a receipt allocated to a
+// deposit, and the portion of a refund funded BY a deposit, are excluded
+// (doc.depositC carries those cents).
 function docDelta(doc) {
     if (doc.kind === 'ledger') return doc.mode === 'debit' ? cents(doc.grossAmount) : -cents(doc.grossAmount);
-    return doc.docKind === 'receipt' ? -cents(doc.amount) : cents(doc.amount);
+    const ar = cents(doc.amount) - (doc.depositC || 0);
+    return doc.docKind === 'receipt' ? -ar : ar;
 }
 
 // Generate statements for a company period. Skips debtors that already carry a
@@ -40,21 +45,43 @@ async function generateStatements({ companyId, periodStart, periodEnd, issueDocN
     const blocked = new Set(existing.map((s) => s.debtorId));
 
     // Bulk-load every posted document once, bucket per debtor in memory.
-    const [ledgerRows, receiptRows] = await Promise.all([
+    const [ledgerRows, receiptRows, depositAllocs] = await Promise.all([
         Ledger.findAll({
             where: { companyId, status: { [Op.ne]: 'void' }, reversalOfId: null, docDate: { [Op.lte]: periodEnd } },
         }),
         Receipt.findAll({
             where: { companyId, status: { [Op.ne]: 'void' }, docDate: { [Op.lte]: periodEnd } },
         }),
+        // Deposit-side allocations: receipt->deposit (collection) and
+        // deposit->refund (deposit paid back) - both OUTSIDE the AR balance.
+        Allocation.findAll({
+            where: {
+                companyId,
+                [Op.or]: [
+                    { creditDocType: 'receipt', debitDocType: 'deposit' },
+                    { creditDocType: 'deposit', debitDocType: 'refund' },
+                ],
+            },
+        }),
     ]);
+    // Per-document cents that belong to deposits, not AR.
+    const depositCByDoc = new Map();
+    for (const a of depositAllocs) {
+        const key = a.creditDocType === 'receipt' ? a.creditDocId : a.debitDocId;
+        depositCByDoc.set(key, (depositCByDoc.get(key) || 0) + cents(a.amount));
+    }
     const byDebtor = new Map();
     const push = (debtorId, doc) => {
         if (!byDebtor.has(debtorId)) byDebtor.set(debtorId, []);
         byDebtor.get(debtorId).push(doc);
     };
     for (const r of ledgerRows) push(r.debtorId, { kind: 'ledger', row: r, mode: r.mode, docKind: r.docKind, docDate: r.docDate, grossAmount: r.grossAmount, createdAt: r.createdAt });
-    for (const r of receiptRows) push(r.debtorId, { kind: 'receipt', row: r, mode: r.mode, docKind: r.docKind, docDate: r.docDate, amount: r.amount, createdAt: r.createdAt });
+    for (const r of receiptRows) {
+        push(r.debtorId, {
+            kind: 'receipt', row: r, mode: r.mode, docKind: r.docKind, docDate: r.docDate,
+            amount: r.amount, createdAt: r.createdAt, depositC: depositCByDoc.get(r.id) || 0,
+        });
+    }
 
     // Person-name snapshots for incurredBy lines, resolved per debtor lazily.
     let generated = 0;
@@ -67,6 +94,10 @@ async function generateStatements({ companyId, periodStart, periodEnd, issueDocN
             let openingC = 0;
             const period = [];
             for (const doc of docs) {
+                // A receipt fully consumed by deposit collection (or a refund
+                // fully funded by a deposit) has zero AR effect - it belongs
+                // on a deposit report, not the statement.
+                if (doc.kind === 'receipt' && docDelta(doc) === 0) continue;
                 if (doc.docDate < periodStart) openingC += docDelta(doc);
                 else period.push(doc);
             }
