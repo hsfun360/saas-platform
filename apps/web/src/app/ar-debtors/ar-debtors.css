@@ -1,0 +1,90 @@
+/* Debtor Listing (AR) - screen-local chrome. Composes the shared listing
+   primitives (.data-card / .status-chip / .saas-*) from the global styles;
+   only the filter toolbar, type chip and checkbox rows are screen-specific. */
+
+.ard-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+}
+
+.ard-filter {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.ard-filter__chip {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: var(--font-body-2);
+  cursor: pointer;
+}
+
+.ard-filter__chip--on {
+  background: var(--surface-selected);
+  border-color: var(--brand);
+  color: var(--brand-text);
+  font-weight: var(--weight-semibold);
+}
+
+.ard-status-select {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: var(--font-body-2);
+}
+
+/* Debtor-type chip on cards */
+.ard-type-chip {
+  display: inline-block;
+  padding: 2px var(--space-sm);
+  border-radius: 12px;
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--info-surface);
+  color: var(--info-text);
+}
+
+.ard-type-chip--other {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+
+/* Pagination footer under the list */
+.ard-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+/* Checkbox rows in the dialogs */
+.ard-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  margin-right: var(--space-lg);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.ard-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+}

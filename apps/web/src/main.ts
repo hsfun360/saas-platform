@@ -157,6 +157,9 @@ const routes: Routes = [
       { path: 'membership/type-import/:id', loadComponent: () => import('./app/membership-type-import/membership-type-import').then((m) => m.MembershipTypeImportComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/sales-agencies', loadComponent: () => import('./app/sales-agencies/sales-agencies').then((m) => m.SalesAgenciesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
       { path: 'membership/sales-agents', loadComponent: () => import('./app/sales-agents/sales-agents').then((m) => m.SalesAgentsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      // Account Receivable → Debtor Listing (all three debtor types in one
+      // list; Other Debtors managed from the same screen).
+      { path: 'ar/debtors', loadComponent: () => import('./app/ar-debtors/ar-debtors').then((m) => m.ArDebtorsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
       // Master File Setup → Unit Courses (per-company 9-hole building blocks).
       { path: 'golf/unit-courses', loadComponent: () => import('./app/golf-unit-courses/golf-unit-courses').then((m) => m.GolfUnitCoursesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },
       // Master File Setup → Courses (18-hole pairing of two unit courses).

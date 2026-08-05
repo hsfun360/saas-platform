@@ -1,0 +1,325 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">account_balance</span>
+      <div>
+        <h1>{{ 'Debtor Listing' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Every ledger account in one list — membership, member and other debtors — with credit terms and outstanding.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Filters: debtor-type chips + status select (all applied SERVER-side) -->
+  <div class="ard-toolbar">
+    <div class="ard-filter" role="group" aria-label="Filter by debtor type">
+      <button type="button" class="ard-filter__chip" [class.ard-filter__chip--on]="typeFilter() === ''" (click)="setTypeFilter('')">All</button>
+      @for (t of meta()?.debtorTypes; track t.key) {
+        <button type="button" class="ard-filter__chip" [class.ard-filter__chip--on]="typeFilter() === t.key" (click)="setTypeFilter(t.key)">{{ t.label }}</button>
+      }
+    </div>
+    <select #ardStatusSel class="ard-status-select" [value]="statusFilter()" (change)="setStatusFilter(ardStatusSel.value)" aria-label="Filter by status">
+      <option value="">All statuses</option>
+      @for (s of meta()?.debtorStatuses; track s.key) {
+        <option [value]="s.key">{{ s.label }}</option>
+      }
+    </select>
+    <!-- Producer-side utility: open ledger accounts for memberships/nominees
+         that were active before AR existed (idempotent). -->
+    <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="runBackfill()" [disabled]="backfilling()">
+      <span class="material-icons" aria-hidden="true">sync</span>
+      {{ backfilling() ? 'Provisioning…' : 'Provision from Membership' }}
+    </button>
+  </div>
+
+  <div class="saas-search">
+    <span class="saas-search__icon" aria-hidden="true">🔍</span>
+    <input #ardSearchBox type="search" [value]="search()" (input)="onSearch(ardSearchBox.value)"
+           placeholder="Search by number, name or code…" aria-label="Search debtors" class="saas-search__input">
+    @if (search()) {
+      <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading debtors…</p></div>
+  } @else if (rows().length === 0 && !search() && !typeFilter() && !statusFilter()) {
+    <div class="empty-state">
+      <span class="empty-icon">📭</span>
+      <p>No debtors yet. Ledger accounts open automatically when a membership or nominee activates — use "Provision from Membership" for records that were active before the AR module, or "New Other Debtor" for a city-ledger account.</p>
+    </div>
+  } @else if (rows().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No debtors match your filter.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearFilters()">Clear filters</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (d of rows(); track d.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ d.no || '—' }}@if (d.name) { — {{ d.name }}}</div>
+              <div class="data-card__subline">
+                <span class="ard-type-chip" [class.ard-type-chip--other]="d.debtorType === 'other'">{{ typeLabel(d.debtorType) }}</span>
+                @if (d.sub) { <span class="data-card__reg">{{ d.sub }}</span> }
+                @if (d.chargeInterest) { <span class="data-card__reg">interest</span> }
+                @if (d.sendReminders) { <span class="data-card__reg">reminders</span> }
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Terms</dt><dd>{{ d.terms !== null ? d.terms + ' days' : 'Immediate' }}</dd></div>
+                <div class="meta"><dt>Credit limit</dt><dd>{{ d.creditLimit }}</dd></div>
+                <div class="meta"><dt>Outstanding</dt><dd>{{ d.outstanding }}</dd></div>
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              <span class="status-chip" [class.status-chip--on]="d.status === 'active'" [class.status-chip--off]="d.status !== 'active'">
+                {{ statusLabel(d.status) }}
+              </span>
+            </div>
+            <div class="data-row__actions">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(d)">Edit</button>
+              @if (d.debtorType === 'other') {
+                <app-overflow-menu [label]="'More actions for ' + (d.name || d.no)">
+                  <button *appCan="'edit'" type="button" appMenuItem (click)="openEditOther(d)">
+                    <span class="material-icons" aria-hidden="true">badge</span> Edit profile
+                  </button>
+                  @if (d.status !== 'closed') {
+                    <button *appCan="'edit'" type="button" appMenuItem (click)="toggleOther(d)">
+                      <span class="material-icons" aria-hidden="true">{{ d.status === 'suspended' ? 'check_circle' : 'block' }}</span>
+                      {{ d.status === 'suspended' ? 'Enable' : 'Disable' }}
+                    </button>
+                  }
+                </app-overflow-menu>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Pagination footer: honest count + Load more -->
+    <div class="ard-pager">
+      <span class="cell-subtle">Showing {{ rows().length }} of {{ total() }}</span>
+      @if (hasMore()) {
+        <button type="button" class="btn btn--secondary btn--sm" (click)="loadMore()" [disabled]="loadingMore()">
+          {{ loadingMore() ? 'Loading…' : 'Load more' }}
+        </button>
+      }
+    </div>
+  }
+
+  <!-- New Other Debtor FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAddOther()" aria-label="New Other Debtor">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New Other Debtor</span>
+  </button>
+
+  <!-- ============ Edit ledger account dialog ============ -->
+  @if (editOpen()) {
+    <app-dialog #editDlg [title]="'Edit debtor — ' + (editRow()?.no || '')" [busy]="editSaving()" [dirty]="editForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes. Leaving now will discard them."
+                (close)="closeEdit()">
+      <form id="editDebtorForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
+        <p class="cell-subtle" style="margin-top: 0;">
+          {{ editRow()?.name }} — {{ typeLabel(editRow()?.debtorType || '') }}.
+          Credit terms are maintained here; the party profile stays with its master record.
+        </p>
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="edTerms">Terms (days)</label>
+            <input id="edTerms" type="number" inputmode="numeric" min="0" max="3650" step="1" formControlName="terms" placeholder="Immediate" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="edLimit">Credit limit</label>
+            <input id="edLimit" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="creditLimit" />
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="edStatus">Status</label>
+            <select id="edStatus" formControlName="status">
+              @for (s of meta()?.debtorStatuses; track s.key) {
+                <option [value]="s.key">{{ s.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="ard-check">
+            <input type="checkbox" formControlName="sendReminders" /> Send payment reminders
+          </label>
+          <label class="ard-check">
+            <input type="checkbox" formControlName="chargeInterest" /> Charge late-payment interest
+          </label>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="editDlg.requestClose()" [disabled]="editSaving()">Cancel</button>
+        <button type="submit" form="editDebtorForm" class="btn btn--primary" [disabled]="editSaving()">
+          {{ editSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Other Debtor dialog (create + edit via mode) ============ -->
+  @if (otherOpen()) {
+    <app-dialog #otherDlg [title]="otherMode() === 'create' ? 'New Other Debtor' : 'Edit — ' + otherCode" [busy]="otherSaving()" [dirty]="otherForm.dirty"
+                [discardTitle]="otherMode() === 'create' ? 'Discard this new Other Debtor?' : 'Discard your changes?'"
+                [discardMessage]="otherMode() === 'create' ? 'You have started entering a new Other Debtor. Leaving now will discard it.' : 'You have unsaved changes. Leaving now will discard them.'"
+                (close)="closeOther()">
+      @if (otherLoading()) {
+        <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+      } @else {
+        <form id="otherDebtorForm" [formGroup]="otherForm" (ngSubmit)="onSaveOther()" class="saas-form" style="padding: 0;">
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-group">
+              <label for="odCode">Debtor code @if (otherMode() === 'create' && !autoOtherCode()) { <span class="required">*</span> }</label>
+              @if (otherMode() === 'create') {
+                @if (autoOtherCode()) {
+                  <input id="odCode" type="text" value="Issued automatically" disabled />
+                } @else {
+                  <input id="odCode" type="text" formControlName="code" placeholder="e.g. OD-0001" autocomplete="off" maxlength="30" />
+                }
+              } @else {
+                <input id="odCode" type="text" [value]="otherCode" disabled />
+              }
+            </div>
+            <div class="form-group">
+              <label for="odName">Name <span class="required">*</span></label>
+              <input id="odName" type="text" formControlName="name" autocomplete="off" maxlength="255"
+                     [attr.aria-invalid]="showError(otherForm.controls.name)" aria-describedby="odNameErr" />
+              @if (showError(otherForm.controls.name)) {
+                <p id="odNameErr" class="field-error" role="alert">Name is required.</p>
+              }
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-group">
+              <label for="odReg">Registration no.</label>
+              <input id="odReg" type="text" formControlName="registrationNo" autocomplete="off" maxlength="255" />
+            </div>
+            <div class="form-group">
+              <label for="odTax">Tax no.</label>
+              <input id="odTax" type="text" formControlName="taxNo" autocomplete="off" maxlength="255" />
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-group">
+              <label for="odContact">Contact person</label>
+              <input id="odContact" type="text" formControlName="contactPerson" autocomplete="off" maxlength="255" />
+            </div>
+            <div class="form-group">
+              <label for="odEmail">Email</label>
+              <input id="odEmail" type="email" inputmode="email" formControlName="email" autocomplete="off"
+                     [attr.aria-invalid]="showError(otherForm.controls.email)" aria-describedby="odEmailErr" />
+              @if (showError(otherForm.controls.email)) {
+                <p id="odEmailErr" class="field-error" role="alert">Enter a valid email address.</p>
+              }
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-group">
+              <label for="odPhone">Phone</label>
+              <app-phone-input formControlName="phone" inputId="odPhone" placeholder="Optional"></app-phone-input>
+            </div>
+            <div class="form-group">
+              <label for="odMobile">Mobile</label>
+              <app-phone-input formControlName="mobile" inputId="odMobile" placeholder="Optional"></app-phone-input>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="odAddr1">Address</label>
+              <input id="odAddr1" type="text" formControlName="address1" autocomplete="off" placeholder="Line 1" />
+              <input type="text" formControlName="address2" autocomplete="off" placeholder="Line 2" aria-label="Address line 2" style="margin-top: var(--space-xs);" />
+              <input type="text" formControlName="address3" autocomplete="off" placeholder="Line 3" aria-label="Address line 3" style="margin-top: var(--space-xs);" />
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-group">
+              <label for="odCity">City</label>
+              <input id="odCity" type="text" formControlName="city" autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label for="odState">State</label>
+              <input id="odState" type="text" formControlName="state" autocomplete="off" />
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-group">
+              <label for="odPostcode">Postcode</label>
+              <input id="odPostcode" type="text" formControlName="postcode" autocomplete="off" maxlength="20" />
+            </div>
+            <div class="form-group">
+              <label for="odCountry">Country</label>
+              <select id="odCountry" formControlName="countryCode">
+                <option value="">Not set</option>
+                @for (c of countries(); track c.alpha2) {
+                  <option [value]="c.alpha2">{{ c.flagEmoji }} {{ c.name }}</option>
+                }
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="odRemarks">Remarks</label>
+              <textarea id="odRemarks" formControlName="remarks" rows="2" wrap="off" placeholder="Optional"></textarea>
+            </div>
+          </div>
+
+          @if (otherMode() === 'create') {
+            <p class="cell-subtle">Ledger account — editable later via the debtor's Edit button.</p>
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-group">
+                <label for="odTerms">Terms (days)</label>
+                <input id="odTerms" type="number" inputmode="numeric" min="0" max="3650" step="1" formControlName="terms" placeholder="Immediate" autocomplete="off" />
+              </div>
+              <div class="form-group">
+                <label for="odLimit">Credit limit</label>
+                <input id="odLimit" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="creditLimit" />
+              </div>
+            </div>
+            <div class="form-row">
+              <label class="ard-check">
+                <input type="checkbox" formControlName="sendReminders" /> Send payment reminders
+              </label>
+              <label class="ard-check">
+                <input type="checkbox" formControlName="chargeInterest" /> Charge late-payment interest
+              </label>
+            </div>
+          }
+        </form>
+      }
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="otherDlg.requestClose()" [disabled]="otherSaving()">Cancel</button>
+        <button type="submit" form="otherDebtorForm" class="btn btn--primary" [disabled]="otherSaving() || otherLoading()">
+          {{ otherSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+</div>
