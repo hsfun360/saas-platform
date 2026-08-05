@@ -49,6 +49,17 @@ router.patch('/ledger/:id/void', requireMenuAction('/ar/debtors'), documentContr
 router.patch('/receipts/:id/void', requireMenuAction('/ar/debtors'), documentController.voidReceipt);
 router.patch('/deposits/:id/void', requireMenuAction('/ar/debtors'), documentController.voidDeposit);
 
+// --- Numbering Control (AR-owned document series; split per module 2026-08-05) ---
+const { makeNumberingRouter } = require('../../platform/numberingController');
+router.use(
+    '/numbering-schemes',
+    requireMenuAction('/ar/numbering'),
+    makeNumberingRouter({
+        model: require('./numberingScheme.model'),
+        purposes: require('../../modules/saas/numberingScheme.constants').AR_NUMBERING_PURPOSES,
+    }),
+);
+
 // --- Interest run (its own screen/menu: /ar/interest) ---
 router.get('/interest-generations', requireMenuAction('/ar/interest'), periodicController.list);
 router.post('/interest-generations', requireMenuAction('/ar/interest'), periodicController.generate);

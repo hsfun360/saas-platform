@@ -209,6 +209,31 @@ async function initializeDB() {
             console.log('Database schema synced successfully.');
         }
 
+        // Numbering split migration (2026-08-05): copy schemes from the retired
+        // Control-Plane table into the per-module tables by purpose. Idempotent
+        // (NOT EXISTS on companyId+purpose, counters copied mid-sequence) and
+        // skipped entirely on a fresh DB where the old table never existed.
+        const [[oldNumbering]] = await sequelize.query(
+            `SELECT to_regclass('public."NumberingScheme"') AS t`,
+        );
+        if (oldNumbering && oldNumbering.t) {
+            const copyCols = '"id","companyId","purpose","mode","prefix","format","seqPadLength","startingNumber","currentNumber","resetRule","currentPeriod","isActive","createdAt","updatedAt"';
+            await sequelize.query(
+                `INSERT INTO membership."NumberingScheme" (${copyCols})
+                 SELECT ${copyCols} FROM public."NumberingScheme" o
+                 WHERE o."purpose" NOT LIKE 'ar-%'
+                   AND NOT EXISTS (SELECT 1 FROM membership."NumberingScheme" n
+                                   WHERE n."companyId" = o."companyId" AND n."purpose" = o."purpose")`,
+            );
+            await sequelize.query(
+                `INSERT INTO ar."NumberingScheme" (${copyCols})
+                 SELECT ${copyCols} FROM public."NumberingScheme" o
+                 WHERE o."purpose" LIKE 'ar-%'
+                   AND NOT EXISTS (SELECT 1 FROM ar."NumberingScheme" n
+                                   WHERE n."companyId" = o."companyId" AND n."purpose" = o."purpose")`,
+            );
+        }
+
         // Backfill Company.countryCode from the alpha-2 the Companies picker already
         // stored in the free-text `country`, for rows created before countryCode
         // existed. Idempotent (only fills NULLs matching a 2-letter code), so it is

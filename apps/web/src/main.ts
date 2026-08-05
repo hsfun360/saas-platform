@@ -99,7 +99,10 @@ const routes: Routes = [
       { path: 'admin/salutations', loadComponent: () => import('./app/salutations/salutations').then((m) => m.SalutationsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/nationalities', loadComponent: () => import('./app/nationalities/nationalities').then((m) => m.NationalitiesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/races', loadComponent: () => import('./app/races/races').then((m) => m.RacesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/numbering', loadComponent: () => import('./app/numbering/numbering').then((m) => m.NumberingComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      // Numbering Control - split per owning module 2026-08-05 (one shared
+      // component; the route data picks the module's table + purposes).
+      { path: 'membership/numbering', loadComponent: () => import('./app/numbering/numbering').then((m) => m.NumberingComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management', numberingModule: 'membership' } },
+      { path: 'ar/numbering', loadComponent: () => import('./app/numbering/numbering').then((m) => m.NumberingComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', numberingModule: 'ar' } },
       { path: 'admin/titles', loadComponent: () => import('./app/titles/titles').then((m) => m.TitlesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/public-holidays', loadComponent: () => import('./app/public-holidays/public-holidays').then((m) => m.PublicHolidaysComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
       { path: 'admin/workflows', loadComponent: () => import('./app/workflow-setup/workflow-setup').then((m) => m.WorkflowSetupComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },

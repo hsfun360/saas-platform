@@ -49,6 +49,17 @@ router.use('/settings', requireMenuAction('/membership/settings'), membershipSet
 // gated to the two insight screens' menu routes) ---
 router.use('/dashboard', dashboardRoutes);
 
+// --- Numbering Control (membership-owned series; split per module 2026-08-05) ---
+const { makeNumberingRouter } = require('../../platform/numberingController');
+router.use(
+    '/numbering-schemes',
+    requireMenuAction('/membership/numbering'),
+    makeNumberingRouter({
+        model: require('./numberingScheme.model'),
+        purposes: require('../saas/numberingScheme.constants').MEMBERSHIP_NUMBERING_PURPOSES,
+    }),
+);
+
 // --- Master File Setup ---
 // requireMenuAction adds per-action RBAC on top of the entitlement: the caller's
 // role must hold a grant to the screen (Menu.route), and the HTTP method maps to

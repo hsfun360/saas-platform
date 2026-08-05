@@ -1,14 +1,12 @@
-// Numbering Control - scheme config service (Control-Plane owned).
+// Numbering Control - scheme config service (shared CODE; the DATA is
+// per-module since the 2026-08-05 split - callers pass the owning module's
+// model, resolved by platform/numberingGateway.modelForPurpose or the
+// per-module screen mounts).
 //
 // One place for the validation + persistence rules of a scheme's CONFIG
-// fields, shared by the two maintenance surfaces:
-//   - the Tenant-Admin screen (numberingScheme.controller.js), and
-//   - product settings screens reaching in through platform/numberingGateway.js
-//     (Membership's Club Specification today).
-// The running counter is never touched here - only numberingGenerator.issue
-// advances it, under its row lock.
+// fields, shared by every maintenance surface. The running counter is never
+// touched here - only numberingGenerator.issue advances it, under its row lock.
 
-const NumberingScheme = require('./numberingScheme.model');
 const { previewNext } = require('./numberingGenerator');
 const {
     NUMBERING_MODE_KEYS,
@@ -52,21 +50,21 @@ function normalizeConfig(body) {
     return { value };
 }
 
-async function getScheme(companyId, purpose) {
-    return NumberingScheme.findOne({ where: { companyId, purpose } });
+async function getScheme(model, companyId, purpose) {
+    return model.findOne({ where: { companyId, purpose } });
 }
 
-// Create-or-update the scheme's config for (company, purpose). `config` must
-// already be normalizeConfig output. Returns the row.
-async function upsertScheme(companyId, purpose, config) {
+// Create-or-update the scheme's config for (company, purpose) in the owning
+// module's table. `config` must already be normalizeConfig output.
+async function upsertScheme(model, companyId, purpose, config) {
     if (!NUMBERING_PURPOSE_KEYS.includes(purpose)) throw new Error(`Unknown numbering purpose '${purpose}'`);
-    const existing = await getScheme(companyId, purpose);
+    const existing = await getScheme(model, companyId, purpose);
     if (existing) {
         Object.assign(existing, config);
         await existing.save();
         return existing;
     }
-    return NumberingScheme.create({ companyId, purpose, ...config });
+    return model.create({ companyId, purpose, ...config });
 }
 
 module.exports = { normalizeConfig, getScheme, upsertScheme, previewNext };

@@ -1,17 +1,20 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { NumberingService } from '../services/numbering.service';
+import { NumberingModule, NumberingService } from '../services/numbering.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { NumberingScheme, NumberingToken, MembershipStatusOption } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 
-// System Setup → Numbering Control. Per-company document numbering (Membership No.
-// now). `mode` decides auto-generate vs manual entry; for auto, the format tokens
-// + counter build the number. Live preview mirrors the server generator so the
-// user sees the shape as they type. Reactive Forms + the dialog dirty-guard.
+// Numbering Control - per-company document numbering, ONE screen instance per
+// OWNING MODULE (split 2026-08-05): /membership/numbering and /ar/numbering
+// share this component; the route's `numberingModule` data picks the module's
+// table + purpose list. `mode` decides auto-generate vs manual entry; for
+// auto, the format tokens + counter build the number. Live preview mirrors the
+// server generator. Reactive Forms + the dialog dirty-guard.
 @Component({
   selector: 'app-numbering',
   standalone: true,
@@ -22,6 +25,9 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 export class NumberingComponent implements OnInit {
   private readonly service = inject(NumberingService);
   private readonly fb = inject(FormBuilder);
+  // 'membership' | 'ar' from the route definition.
+  readonly module: NumberingModule =
+    (inject(ActivatedRoute).snapshot.data['numberingModule'] as NumberingModule) || 'membership';
 
   readonly schemes = signal<NumberingScheme[]>([]);
   readonly modes = signal<MembershipStatusOption[]>([]);
@@ -133,7 +139,7 @@ export class NumberingComponent implements OnInit {
   }
 
   loadMeta(): void {
-    this.service.meta().subscribe({
+    this.service.meta(this.module).subscribe({
       next: (m) => {
         this.modes.set(m.modes);
         this.resetRules.set(m.resetRules);
@@ -146,7 +152,7 @@ export class NumberingComponent implements OnInit {
 
   load(): void {
     this.loading.set(true);
-    this.service.list().subscribe({
+    this.service.list(this.module).subscribe({
       next: (data) => {
         this.schemes.set(data);
         this.loading.set(false);
@@ -219,8 +225,8 @@ export class NumberingComponent implements OnInit {
     this.saving.set(true);
     const id = this.editId();
     const req$ = id
-      ? this.service.update(id, payload)
-      : this.service.create({ purpose: v.purpose, ...payload });
+      ? this.service.update(this.module, id, payload)
+      : this.service.create(this.module, { purpose: v.purpose, ...payload });
     req$.subscribe({
       next: () => {
         this.successMessage.set(`${this.purposeLabel(v.purpose)} numbering ${id ? 'updated' : 'created'}.`);
@@ -239,7 +245,7 @@ export class NumberingComponent implements OnInit {
     this.clearMessages();
     const next = !(s.isActive !== false);
     this.togglingId.set(s.id);
-    this.service.update(s.id, { isActive: next }).subscribe({
+    this.service.update(this.module, s.id, { isActive: next }).subscribe({
       next: () => {
         this.successMessage.set(`${this.purposeLabel(s.purpose)} numbering ${next ? 'enabled' : 'disabled'}.`);
         this.togglingId.set(null);

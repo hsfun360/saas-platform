@@ -14,20 +14,26 @@ const RESET_RULES = [
     { key: 'monthly', label: 'Monthly' },
 ];
 
-// What this scheme numbers. One scheme per (company, purpose). Consumed by
-// Membership (membership no.) and the AR document series; without a scheme an
-// AR document number is keyed manually or falls back to a synthetic number.
-const NUMBERING_PURPOSES = [
+// What a scheme numbers. One scheme per (company, purpose). SPLIT PER OWNING
+// MODULE (2026-08-05): each product owns its numbering table (gapless issue
+// locks the counter inside the posting transaction, so the counter must live
+// in the same schema as the documents it numbers - a service-split
+// prerequisite). The gateway routes a purpose to its owner's table.
+const MEMBERSHIP_NUMBERING_PURPOSES = [
     { key: 'membership', label: 'Membership No.' },
-    { key: 'ar-invoice', label: 'AR Invoice No.' },
-    { key: 'ar-debit-note', label: 'AR Debit Note No.' },
-    { key: 'ar-credit-note', label: 'AR Credit Note No.' },
-    { key: 'ar-receipt', label: 'AR Official Receipt No.' },
-    { key: 'ar-refund', label: 'AR Refund No.' },
-    { key: 'ar-deposit', label: 'AR Deposit No.' },
-    { key: 'ar-statement', label: 'AR Statement No.' },
-    { key: 'ar-other-debtor', label: 'AR Other Debtor Code' },
 ];
+const AR_NUMBERING_PURPOSES = [
+    { key: 'ar-invoice', label: 'Invoice No.' },
+    { key: 'ar-debit-note', label: 'Debit Note No.' },
+    { key: 'ar-credit-note', label: 'Credit Note No.' },
+    { key: 'ar-receipt', label: 'Official Receipt No.' },
+    { key: 'ar-refund', label: 'Refund No.' },
+    { key: 'ar-deposit', label: 'Deposit No.' },
+    { key: 'ar-statement', label: 'Statement No.' },
+    { key: 'ar-other-debtor', label: 'Other Debtor Code' },
+];
+// Combined view (gateway validation, legacy meta).
+const NUMBERING_PURPOSES = [...MEMBERSHIP_NUMBERING_PURPOSES, ...AR_NUMBERING_PURPOSES];
 
 // Placeholders allowed in a scheme's `format`. Documented for the screen's help.
 //   {PREFIX} - the scheme's prefix string
@@ -51,6 +57,8 @@ module.exports = {
     NUMBERING_MODES,
     RESET_RULES,
     NUMBERING_PURPOSES,
+    MEMBERSHIP_NUMBERING_PURPOSES,
+    AR_NUMBERING_PURPOSES,
     FORMAT_TOKENS,
     NUMBERING_MODE_KEYS,
     RESET_RULE_KEYS,

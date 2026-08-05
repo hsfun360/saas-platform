@@ -10,13 +10,20 @@
 
 const { getUserContext } = require('./serviceContext');
 
+// The numbering DATA is per-module (split 2026-08-05): a purpose resolves to
+// its OWNER's table, so the gapless counter always lives in the same schema
+// as the documents it numbers. New purposes register here.
+function modelForPurpose(purpose) {
+    if (String(purpose).startsWith('ar-')) return require('../modules/ar/numberingScheme.model');
+    return require('../modules/membership/numberingScheme.model');
+}
+
 // The configured mode for a purpose in the caller's active company:
 // 'auto' | 'manual' | null (no scheme configured -> caller decides its default).
 async function getMode(req, purpose) {
     const { companyId } = getUserContext(req);
     if (!companyId) return null;
-    const NumberingScheme = require('../modules/saas/numberingScheme.model');
-    const scheme = await NumberingScheme.findOne({
+    const scheme = await modelForPurpose(purpose).findOne({
         where: { companyId, purpose, isActive: true },
         attributes: ['mode'],
     });
@@ -35,9 +42,8 @@ async function issueNumber(req, purpose, opts = {}) {
     const { companyId } = getUserContext(req);
     if (!companyId) return null;
     const { sequelize } = require('./db');
-    const NumberingScheme = require('../modules/saas/numberingScheme.model');
     const generator = require('../modules/saas/numberingGenerator');
-    const result = await generator.issue(NumberingScheme, sequelize, {
+    const result = await generator.issue(modelForPurpose(purpose), sequelize, {
         companyId,
         purpose,
         typeCode: opts.typeCode,
@@ -80,7 +86,7 @@ async function getScheme(req, purpose) {
     const { companyId } = getUserContext(req);
     if (!companyId) return null;
     const service = require('../modules/saas/numberingScheme.service');
-    return toSchemeDto(await service.getScheme(companyId, purpose));
+    return toSchemeDto(await service.getScheme(modelForPurpose(purpose), companyId, purpose));
 }
 
 // Create-or-update the scheme config (validated by the owner's rules).
@@ -91,7 +97,7 @@ async function saveScheme(req, purpose, body) {
     const service = require('../modules/saas/numberingScheme.service');
     const parsed = service.normalizeConfig(body);
     if (parsed.error) return parsed;
-    const row = await service.upsertScheme(companyId, purpose, parsed.value);
+    const row = await service.upsertScheme(modelForPurpose(purpose), companyId, purpose, parsed.value);
     return { scheme: toSchemeDto(row) };
 }
 
@@ -110,4 +116,4 @@ function previewScheme(draft, opts = {}) {
     }, { typeCode: typeof opts.typeCode === 'string' ? opts.typeCode : undefined });
 }
 
-module.exports = { getMode, issueNumber, numberingMeta, getScheme, saveScheme, previewScheme };
+module.exports = { getMode, issueNumber, numberingMeta, getScheme, saveScheme, previewScheme, modelForPurpose };

@@ -51,7 +51,13 @@ const Race = require('../modules/saas/race.model'); // subscriber-owned referenc
 const Title = require('../modules/saas/title.model'); // subscriber-owned reference data (accountId + optional Country.alpha2 value refs; no associations)
 const PublicHoliday = require('../modules/saas/publicHoliday.model'); // subscriber-owned reference data, scoped by country (accountId + countryCode value refs; no associations)
 const CompanyWeekendDay = require('../modules/saas/companyWeekendDay.model'); // company-level weekend/rest-day set (companyId value ref; no associations)
-const NumberingScheme = require('../modules/saas/numberingScheme.model'); // per-company document numbering config (companyId value ref; no associations)
+// Numbering Control data split per module 2026-08-05 (gapless counters live
+// beside the documents they number): membership.NumberingScheme +
+// ar.NumberingScheme, both from the shared platform/numberingSchemeDef shape.
+// The old public."NumberingScheme" table stays in the DB as the (already
+// copied) migration source until dropped manually.
+const MembershipNumberingScheme = require('../modules/membership/numberingScheme.model');
+const ArNumberingScheme = require('../modules/ar/numberingScheme.model');
 const UserFavorite = require('../modules/saas/userFavorite.model'); // My Dashboard starred screens per user+workspace (userId/companyId/menuId value refs; no associations)
 // Product tier (Membership Management). Master files reference companyId by plain
 // UUID (no cross-service FK), per the golden rules. Intra-service parent-child
@@ -275,7 +281,8 @@ module.exports = {
     Title,
     PublicHoliday,
     CompanyWeekendDay,
-    NumberingScheme,
+    MembershipNumberingScheme,
+    ArNumberingScheme,
     UserFavorite,
     MembershipStatus,
     MembershipFee,

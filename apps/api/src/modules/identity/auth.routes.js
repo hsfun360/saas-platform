@@ -29,7 +29,6 @@ const departmentController = require('../saas/department.controller');
 const positionController = require('../saas/position.controller');
 const publicHolidayController = require('../saas/publicHoliday.controller');
 const weekendDayController = require('../saas/companyWeekendDay.controller');
-const numberingSchemeController = require('../saas/numberingScheme.controller');
 const userFavoriteController = require('../saas/userFavorite.controller');
 const { hasTenantAdminRole } = require('../saas/tenant');
 
@@ -302,14 +301,8 @@ const requireTenantAdmin = async (req, res, next) => {
 router.get('/company/menus', authenticateToken, requireTenant, requireTenantAdmin, authController.getAvailableMenus);
 router.post('/company/roles', authenticateToken, requireTenant, requireTenantAdmin, authController.createRole);
 
-// --- NUMBERING CONTROL (Tenant Admin, active company) ---
-// Per-company document numbering (Membership No. now). Consumed by products via
-// platform/numberingGateway.js. mode auto|manual drives auto-generate vs manual.
-router.get('/company/numbering-schemes/meta', authenticateToken, requireTenant, requireTenantAdmin, numberingSchemeController.getMeta);
-router.get('/company/numbering-schemes', authenticateToken, requireTenant, requireTenantAdmin, numberingSchemeController.listSchemes);
-router.post('/company/numbering-schemes', authenticateToken, requireTenant, requireTenantAdmin, numberingSchemeController.createScheme);
-router.post('/company/numbering-schemes/preview', authenticateToken, requireTenant, requireTenantAdmin, numberingSchemeController.previewScheme);
-router.patch('/company/numbering-schemes/:id', authenticateToken, requireTenant, requireTenantAdmin, numberingSchemeController.updateScheme);
+// (Numbering Control moved 2026-08-05: per-module tables + screens - see
+// /api/membership/numbering-schemes and /api/ar/numbering-schemes.)
 
 // --- TENANT USER MANAGEMENT (Tenant Admin only) ---
 router.get('/company/roles', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listTenantRoles);
