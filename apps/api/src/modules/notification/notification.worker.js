@@ -265,6 +265,16 @@ async function processOutboxSafely() {
                     await sendCollaboratorInviteEmail(msg.payload.email, msg.payload);
                     console.log(`[OUTBOX WORKER] Collaborator invitation email sent to ${msg.payload.email}`);
                 }
+                else if (msg.type === 'DebtorProvisionRequested') {
+                    // AR ledger-account provisioning (event-carried state from the
+                    // producer via platform/arGateway.js). Idempotent find-or-create,
+                    // so retries/replays are safe. Lazy require keeps the notification
+                    // worker's cross-module surface explicit; when AR splits, this
+                    // message type routes to the AR service's own consumer instead.
+                    const { provisionDebtor } = require('../ar/debtorProvisioning.service');
+                    const debtor = await provisionDebtor(msg.payload);
+                    console.log(`[OUTBOX WORKER] Debtor provisioned (${msg.payload.debtorType}/${msg.payload.sourceId}) -> ${debtor.id}`);
+                }
 
                 // Mark as done
                 // 🟢 SUCCESS: Mark as completed

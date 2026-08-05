@@ -20,6 +20,7 @@ const SalesAgent = require('./salesAgent.model');
 const Address = require('./address.model');
 const MembershipImportBatch = require('./membershipImportBatch.model');
 const MembershipImportRow = require('./membershipImportRow.model');
+const arProvisioning = require('./arProvisioning');
 const {
     DEPENDENT_TYPE_KEYS,
     EXPIRING_DEPENDENT_TYPES,
@@ -626,6 +627,10 @@ async function migrateOne(req, companyId, msRow, memberRows, lookups, numberingM
             ...stamps,
         }, { transaction: t });
 
+        // AR: an imported membership landing in an active status class opens
+        // its contract debtor, same as manual entry (outbox event, idempotent).
+        await arProvisioning.onMembershipStatus(ms, status, t);
+
         // Contract addresses (corporate only, mirroring manual entry). The
         // contract book takes Company + Mailing only, so the sheet's
         // residential columns land as the Company address.
@@ -672,6 +677,9 @@ async function migrateOne(req, companyId, msRow, memberRows, lookups, numberingM
             for (const a of addressesOf(rd)) {
                 await Address.create({ ...a, memberId: created.id, companyId, ...stamps }, { transaction: t });
             }
+            // AR: an active imported nominee gets their personal debtor eagerly,
+            // same as manual entry.
+            await arProvisioning.onMemberStatus(created, ms, memberStatus, t);
             r.__created = created;
             if (rd.memberNo) createdByNo.set(rd.memberNo.toLowerCase(), created);
             createdByNo.set(memberNo.toLowerCase(), created);

@@ -30,10 +30,14 @@ const WORKFLOW_SCHEMA = 'workflow';
 // Append-only audit trail (structure approved 2026-07-28). Its own schema so
 // retention/extraction can be managed independently of business data.
 const AUDIT_SCHEMA = 'audit';
+// Account Receivable - the open-item debtor ledger every product posts charges
+// into (design approved 2026-08-05). Own schema + /api/ar seam like any product
+// service; consumed through platform/arGateway.js.
+const AR_SCHEMA = 'ar';
 
 // Schemas that must exist before `sequelize.sync()` creates the product tables.
 // A service is added here as soon as it defines its first schema-scoped model.
-const PRODUCT_SCHEMAS = [MEMBERSHIP_SCHEMA, GOLF_SCHEMA, TAX_SCHEMA, WORKFLOW_SCHEMA, AUDIT_SCHEMA];
+const PRODUCT_SCHEMAS = [MEMBERSHIP_SCHEMA, GOLF_SCHEMA, TAX_SCHEMA, WORKFLOW_SCHEMA, AUDIT_SCHEMA, AR_SCHEMA];
 
 // Idempotently create every product schema. Runs once at boot, before sync,
 // inside the same advisory-locked block so only one instance does it.
@@ -51,6 +55,7 @@ module.exports = {
     TAX_SCHEMA,
     WORKFLOW_SCHEMA,
     AUDIT_SCHEMA,
+    AR_SCHEMA,
     PRODUCT_SCHEMAS,
     ensureProductSchemas,
 };

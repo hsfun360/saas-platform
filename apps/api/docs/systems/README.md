@@ -24,6 +24,7 @@ service + its own database.
 | Membership Management | `src/modules/membership` | `/api/membership` | [membership-management.md](membership-management.md) |
 | Golf Management | `src/modules/golf` | `/api/golf` | [golf-management.md](golf-management.md) |
 | Facility Management | `src/modules/facility` | `/api/facility` | [facility-management.md](facility-management.md) |
+| Account Receivable | `src/modules/ar` | `/api/ar` | [account-receivable.md](account-receivable.md) |
 
 **Shared capability tier** - owned by no single product, consumed by several. Its own
 schema + gateway, so it splits out like any service.

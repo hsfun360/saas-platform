@@ -8,7 +8,8 @@
 
 const express = require('express');
 const router = express.Router();
-const { verifyToken, requireModule, requireMenuAction } = require('../../platform/serviceContext');
+const { verifyToken, requireModule, requireMenuAction, requireAnyMenuAction } = require('../../platform/serviceContext');
+const membershipController = require('./membership.controller');
 const membershipStatusRoutes = require('./membershipStatus.routes');
 const membershipFeeRoutes = require('./membershipFee.routes');
 const membershipTypeRoutes = require('./membershipType.routes');
@@ -74,6 +75,12 @@ router.use('/members', requireMenuAction('/membership/members'), membersRoutes);
 
 // --- Tax consumption (reads the Tax service via the gateway seam) ---
 router.use('/tax', membershipTaxRoutes);
+
+// --- AR debtor backfill (producer-side utility) ---
+// Enqueues provisioning for every currently-active contract/nominee, for data
+// that predates the AR module. It is an AR-operations task, so it gates on the
+// Debtor Listing screen's grant (cross-module RBAC), not a membership menu.
+router.post('/debtor-backfill', requireAnyMenuAction(['/ar/debtors']), membershipController.debtorBackfill);
 
 // Placeholder for seams not yet implemented.
 router.use((req, res) => res.status(501).json({ message: 'This Membership Management endpoint is not implemented yet.' }));

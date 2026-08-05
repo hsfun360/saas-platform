@@ -56,6 +56,9 @@ const taxRoutes = require('./modules/tax/tax.routes');
 // Shared capability (Workflow) - user-definable approval chains consumed by the
 // product systems through platform/workflowGateway.js. Own gateway seam.
 const workflowRoutes = require('./modules/workflow/workflow.routes');
+// Account Receivable - the open-item debtor ledger every product posts charges
+// into (via platform/arGateway.js). Own gateway seam like any product service.
+const arRoutes = require('./modules/ar/ar.routes');
 // Completion-handler registration (producer modules hook onto their purposes).
 require('./wiring/workflowHandlers');
 
@@ -136,6 +139,8 @@ function createApp() {
     app.use('/api/tax', taxRoutes);
     // Shared capability (Workflow) - approval chains, its own seam.
     app.use('/api/workflow', workflowRoutes);
+    // Account Receivable - the debtor ledger, its own seam.
+    app.use('/api/ar', arRoutes);
 
     // Simple Health Check Route
     app.get('/', (req, res) => {

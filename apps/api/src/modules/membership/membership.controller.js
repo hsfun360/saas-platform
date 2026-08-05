@@ -25,6 +25,7 @@ const {
     annotateCanModify,
 } = require('../../platform/serviceContext');
 const { enqueueEmail } = require('../notification/emailOutbox');
+const arProvisioning = require('./arProvisioning');
 const { signRegistrationToken } = require('./memberPortal.controller');
 const { Storage } = require('@google-cloud/storage');
 
@@ -846,6 +847,10 @@ exports.createMembership = async (req, res) => {
             }, { transaction: t });
             await replaceAddresses({ membershipId: ms.id }, contractAddrs.value, companyId, stamps, t);
 
+            // AR: a membership born into an active status class opens its
+            // contract debtor (outbox event, idempotent).
+            await arProvisioning.onMembershipStatus(ms, status, t);
+
             // The individual member is born with the membership; the member number
             // IS the membership number, the person's status mirrors the contract's.
             let individualMember = null;
@@ -952,9 +957,10 @@ exports.updateMembership = async (req, res) => {
 
         const statusId = strOrNull(req.body.membershipStatusId) || ms.membershipStatusId;
         const statusChanged = statusId !== ms.membershipStatusId;
+        let newStatus = null;
         if (statusChanged) {
-            const status = await resolveStatus(companyId, statusId);
-            if (!status) return res.status(400).json({ message: 'Membership status not found.' });
+            newStatus = await resolveStatus(companyId, statusId);
+            if (!newStatus) return res.status(400).json({ message: 'Membership status not found.' });
         }
 
         let membershipFeeId = strOrNull(req.body.membershipFeeId) || null;
@@ -993,6 +999,10 @@ exports.updateMembership = async (req, res) => {
                     { where: { membershipId: ms.id, memberKind: 'individual' }, transaction: t },
                 );
             }
+
+            // AR: entering an active status class opens the contract debtor
+            // (outbox event, idempotent - re-activations are no-ops).
+            if (statusChanged) await arProvisioning.onMembershipStatus(ms, newStatus, t);
         });
 
         const members = await Member.findAll({ where: { membershipId: ms.id }, order: [['memberNo', 'ASC']] });
@@ -1007,6 +1017,26 @@ exports.updateMembership = async (req, res) => {
         });
     } catch (error) {
         console.error('Error updating membership:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/membership/debtor-backfill - enqueue AR debtor provisioning for
+// every currently-active contract + nominee of the workspace. Idempotent
+// (existing ledger accounts are untouched), so it is safe to re-run; covers
+// data that predates the AR module or arrived through the import screens.
+exports.debtorBackfill = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+
+        const counts = await arProvisioning.backfillCompanyDebtors(companyId, sequelize);
+        res.status(200).json({
+            message: `Debtor provisioning queued for ${counts.memberships} membership(s) and ${counts.nominees} nominee(s).`,
+            ...counts,
+        });
+    } catch (error) {
+        console.error('Error backfilling debtors:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -1090,6 +1120,10 @@ exports.createNominee = async (req, res) => {
                 ...stamps,
             }, { transaction: t });
             await replaceAddresses({ memberId: created.id }, addrs.value, companyId, stamps, t);
+
+            // AR: an active nominee gets their personal debtor EAGERLY (frontend
+            // charges / own subscription always land there).
+            await arProvisioning.onMemberStatus(created, ms, status, t);
             return created;
         });
 
@@ -1204,9 +1238,10 @@ exports.updateMember = async (req, res) => {
 
         const statusId = strOrNull(req.body.memberStatusId) || member.memberStatusId;
         const statusChanged = statusId !== member.memberStatusId;
+        let newStatus = null;
         if (statusChanged) {
-            const status = await resolveStatus(companyId, statusId);
-            if (!status) return res.status(400).json({ message: 'Member status not found.' });
+            newStatus = await resolveStatus(companyId, statusId);
+            if (!newStatus) return res.status(400).json({ message: 'Member status not found.' });
         }
 
         const placement = await getCallerPlacement(req);
@@ -1227,6 +1262,16 @@ exports.updateMember = async (req, res) => {
                 ms.statusDate = todayStr();
                 ms.updatedBy = member.updatedBy;
                 await ms.save({ transaction: t });
+            }
+
+            // AR: activation opens the ledger account (outbox event, idempotent).
+            // Nominee -> their personal debtor; individual -> the contract
+            // debtor (the person and the contract share one account).
+            if (statusChanged) {
+                await arProvisioning.onMemberStatus(member, ms, newStatus, t);
+                if (member.memberKind === 'individual') {
+                    await arProvisioning.onMembershipStatus(ms, newStatus, t);
+                }
             }
         });
 

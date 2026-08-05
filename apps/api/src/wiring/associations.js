@@ -93,6 +93,14 @@ const TaxScheme = require('../modules/tax/taxScheme.model');
 const TaxRate = require('../modules/tax/taxRate.model');
 const CompanyTaxScheme = require('../modules/tax/companyTaxScheme.model');
 const CompanyTaxAccount = require('../modules/tax/companyTaxAccount.model');
+// Account Receivable (design approved 2026-08-05). Debtor references its party
+// master polymorphically (debtorType + sourceId) and CreditAccount /
+// CreditMemberLimit reference debtorId - all validated in the service, no FKs,
+// so no associations; required here so sync creates the tables.
+const Debtor = require('../modules/ar/debtor.model');
+const OtherDebtor = require('../modules/ar/otherDebtor.model');
+const CreditAccount = require('../modules/ar/creditAccount.model');
+const CreditMemberLimit = require('../modules/ar/creditMemberLimit.model');
 // Shared capability (Workflow). Definition/steps and instance/tasks are
 // intra-service header/detail pairs (real FKs); account/company/role/
 // department/position/user/entity references stay plain UUIDs (no FK).
@@ -287,4 +295,8 @@ module.exports = {
     WorkflowStep,
     WorkflowInstance,
     WorkflowTask,
+    Debtor,
+    OtherDebtor,
+    CreditAccount,
+    CreditMemberLimit,
 };
