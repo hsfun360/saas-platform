@@ -1,5 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subject, debounceTime } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -29,7 +30,7 @@ import { Country } from '../models/auth.models';
   standalone: true,
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
-    DialogComponent, CanDirective, MoneyInputDirective, PhoneInputComponent,
+    RouterLink, DialogComponent, CanDirective, MoneyInputDirective, PhoneInputComponent,
     OverflowMenuComponent, MenuItemDirective,
   ],
   templateUrl: './ar-debtors.html',

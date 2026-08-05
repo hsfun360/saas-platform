@@ -1,0 +1,399 @@
+import { Component, computed, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DialogComponent } from '../shared/dialog/dialog';
+import { CanDirective } from '../shared/can.directive';
+import { LocalDatePipe } from '../shared/local-date.pipe';
+import { MoneyInputDirective } from '../shared/money-input.directive';
+import { ArService } from '../services/ar.service';
+import { ArAccount, ArAccountMeta, ArDepositDoc, ArLedgerDoc, ArReceiptDoc } from '../models/ar.models';
+
+// Account Receivable → Debtor Account (the Debtor Listing's detail surface,
+// same '/ar/debtors' menu). Shows the ledger account's balances and its three
+// document books, and hosts every manual document entry:
+// Invoice / Debit Note / Credit Note (one dialog, kind preset), Official
+// Receipt (with optional deposit collection + FIFO), Refund (funded from
+// credit or a deposit), Deposit open / convert-to-CN, and the void flows.
+//
+// docDate = occurrence (drives aging/dueDate); trxDate = accounting period
+// (defaults to docDate; differs when back-keying into a closed GL month).
+@Component({
+  selector: 'app-ar-debtor-account',
+  standalone: true,
+  imports: [
+    CommonModule, ReactiveFormsModule, RouterLink, DialogComponent, CanDirective,
+    LocalDatePipe, MoneyInputDirective,
+  ],
+  templateUrl: './ar-debtor-account.html',
+  styleUrls: ['../system-setup/system-setup.css', './ar-debtor-account.css'],
+})
+export class ArDebtorAccountComponent {
+  private readonly service = inject(ArService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
+
+  readonly account = signal<ArAccount | null>(null);
+  readonly meta = signal<ArAccountMeta | null>(null);
+  readonly loading = signal(false);
+  readonly successMessage = signal('');
+  readonly errorMessage = signal('');
+  debtorId = '';
+
+  // Section fold state (all start expanded).
+  readonly expanded = signal<Record<string, boolean>>({ ledger: true, money: true, deposits: true });
+
+  readonly openDebits = computed(() =>
+    (this.account()?.ledger || []).filter((d) => d.mode === 'debit' && d.status === 'open'));
+  readonly openDeposits = computed(() =>
+    (this.account()?.deposits || []).filter((d) => d.status === 'open'));
+  readonly heldDeposits = computed(() =>
+    this.openDeposits().filter((d) => Number(d.collectedAmount) > Number(d.utilizedAmount)));
+
+  // --- Ledger dialog (Invoice / DN / CN - one dialog, kind preset) ---
+  readonly ledgerOpen = signal(false);
+  readonly ledgerKind = signal<'invoice' | 'debit-note' | 'credit-note'>('invoice');
+  readonly ledgerSaving = signal(false);
+  readonly ledgerForm = this.fb.nonNullable.group({
+    docNo: [''],
+    docDate: ['', [Validators.required]],
+    trxDate: ['', [Validators.required]],
+    transactionTypeId: ['', [Validators.required]],
+    incurredByMemberId: [''],
+    description: [''],
+    amount: [0, [Validators.required, Validators.min(0.01)]],
+    targetLedgerId: [''],
+    fifo: [false],
+  });
+
+  // --- Official Receipt dialog ---
+  readonly receiptOpen = signal(false);
+  readonly receiptSaving = signal(false);
+  readonly receiptForm = this.fb.nonNullable.group({
+    docNo: [''],
+    docDate: ['', [Validators.required]],
+    trxDate: ['', [Validators.required]],
+    amount: [0, [Validators.required, Validators.min(0.01)]],
+    paymentMethod: [''],
+    paymentRef: [''],
+    description: [''],
+    depositId: [''],
+    autoAllocate: [true],
+  });
+
+  // --- Refund dialog ---
+  readonly refundOpen = signal(false);
+  readonly refundSaving = signal(false);
+  readonly refundForm = this.fb.nonNullable.group({
+    docNo: [''],
+    docDate: ['', [Validators.required]],
+    trxDate: ['', [Validators.required]],
+    amount: [0, [Validators.required, Validators.min(0.01)]],
+    paymentMethod: [''],
+    paymentRef: [''],
+    description: [''],
+    fundSource: ['credit'],
+    depositId: [''],
+  });
+
+  // --- Deposit dialog (open a deposit) ---
+  readonly depositOpen = signal(false);
+  readonly depositSaving = signal(false);
+  readonly depositForm = this.fb.nonNullable.group({
+    docNo: [''],
+    docDate: ['', [Validators.required]],
+    trxDate: ['', [Validators.required]],
+    amount: [0, [Validators.required, Validators.min(0.01)]],
+    description: [''],
+  });
+
+  // --- Convert-deposit dialog ---
+  readonly convertOpen = signal(false);
+  readonly convertSaving = signal(false);
+  readonly convertDeposit = signal<ArDepositDoc | null>(null);
+  readonly convertForm = this.fb.nonNullable.group({
+    docDate: ['', [Validators.required]],
+    trxDate: ['', [Validators.required]],
+    amount: [0, [Validators.required, Validators.min(0.01)]],
+  });
+
+  // --- Void confirmation (shared) ---
+  readonly voidOpen = signal(false);
+  readonly voidBusy = signal(false);
+  readonly voidMessage = signal('');
+  private voidAction: (() => void) | null = null;
+
+  constructor() {
+    this.route.paramMap.pipe(takeUntilDestroyed()).subscribe((p) => {
+      const id = p.get('id') || '';
+      if (id && id !== this.debtorId) {
+        this.debtorId = id;
+        this.load();
+      }
+    });
+  }
+
+  showError(control: AbstractControl): boolean {
+    return control.invalid && control.touched;
+  }
+
+  load(): void {
+    this.loading.set(true);
+    this.service.account(this.debtorId).subscribe({
+      next: (a) => { this.account.set(a); this.loading.set(false); },
+      error: (err) => {
+        this.loading.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to load the debtor account.');
+      },
+    });
+    this.service.accountMeta(this.debtorId).subscribe({
+      next: (m) => this.meta.set(m),
+      error: () => { /* pickers degrade */ },
+    });
+  }
+
+  back(): void {
+    this.router.navigate(['/ar/debtors']);
+  }
+
+  toggleSection(key: string): void {
+    this.expanded.update((s) => ({ ...s, [key]: !s[key] }));
+  }
+  isExpanded(key: string): boolean {
+    return this.expanded()[key] !== false;
+  }
+
+  // --- display helpers ---
+  kindLabel(kind: string): string {
+    return kind === 'invoice' ? 'Invoice'
+      : kind === 'debit-note' ? 'Debit Note'
+      : kind === 'credit-note' ? 'Credit Note'
+      : kind === 'receipt' ? 'Official Receipt'
+      : kind === 'refund' ? 'Refund' : kind;
+  }
+  remaining(doc: ArLedgerDoc): string {
+    return (Number(doc.grossAmount) - Number(doc.settledAmount)).toFixed(2);
+  }
+  unallocated(doc: ArReceiptDoc): string {
+    return (Number(doc.amount) - Number(doc.allocatedAmount)).toFixed(2);
+  }
+  held(d: ArDepositDoc): string {
+    return (Number(d.collectedAmount) - Number(d.utilizedAmount)).toFixed(2);
+  }
+  numberingMode(purpose: string): string | null {
+    return this.meta()?.numberingModes?.[purpose] ?? null;
+  }
+
+  private today(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  // --- Ledger documents ---
+  openLedger(kind: 'invoice' | 'debit-note' | 'credit-note'): void {
+    this.clearMessages();
+    this.ledgerKind.set(kind);
+    const t = this.today();
+    this.ledgerForm.reset({
+      docNo: '', docDate: t, trxDate: t, transactionTypeId: '', incurredByMemberId: '',
+      description: '', amount: 0, targetLedgerId: '', fifo: false,
+    });
+    this.ledgerOpen.set(true);
+  }
+  closeLedger(): void { this.ledgerOpen.set(false); }
+  onSaveLedger(): void {
+    this.clearMessages();
+    if (this.ledgerForm.invalid) { this.ledgerForm.markAllAsTouched(); return; }
+    const f = this.ledgerForm.getRawValue();
+    this.ledgerSaving.set(true);
+    this.service.postLedger(this.debtorId, {
+      docKind: this.ledgerKind(),
+      docNo: f.docNo.trim() || null,
+      docDate: f.docDate,
+      trxDate: f.trxDate,
+      transactionTypeId: f.transactionTypeId,
+      incurredByMemberId: f.incurredByMemberId || null,
+      description: f.description.trim() || null,
+      amount: f.amount,
+      targetLedgerId: this.ledgerKind() === 'credit-note' ? (f.targetLedgerId || null) : null,
+      fifo: this.ledgerKind() === 'credit-note' ? f.fifo : false,
+    }).subscribe({
+      next: (res) => { this.successMessage.set(res.message); this.ledgerSaving.set(false); this.ledgerOpen.set(false); this.load(); },
+      error: (err) => { this.errorMessage.set(err.error?.message || 'Failed to post the document.'); this.ledgerSaving.set(false); },
+    });
+  }
+
+  // --- Official Receipt ---
+  openReceipt(depositId = ''): void {
+    this.clearMessages();
+    const t = this.today();
+    this.receiptForm.reset({
+      docNo: '', docDate: t, trxDate: t, amount: 0, paymentMethod: '', paymentRef: '',
+      description: '', depositId, autoAllocate: true,
+    });
+    this.receiptOpen.set(true);
+  }
+  closeReceipt(): void { this.receiptOpen.set(false); }
+  onSaveReceipt(): void {
+    this.clearMessages();
+    if (this.receiptForm.invalid) { this.receiptForm.markAllAsTouched(); return; }
+    const f = this.receiptForm.getRawValue();
+    this.receiptSaving.set(true);
+    this.service.postReceipt(this.debtorId, {
+      docNo: f.docNo.trim() || null,
+      docDate: f.docDate,
+      trxDate: f.trxDate,
+      amount: f.amount,
+      paymentMethod: f.paymentMethod.trim() || null,
+      paymentRef: f.paymentRef.trim() || null,
+      description: f.description.trim() || null,
+      depositId: f.depositId || null,
+      autoAllocate: f.autoAllocate,
+    }).subscribe({
+      next: (res) => { this.successMessage.set(res.message); this.receiptSaving.set(false); this.receiptOpen.set(false); this.load(); },
+      error: (err) => { this.errorMessage.set(err.error?.message || 'Failed to post the receipt.'); this.receiptSaving.set(false); },
+    });
+  }
+
+  // --- Refund ---
+  openRefund(): void {
+    this.clearMessages();
+    const t = this.today();
+    this.refundForm.reset({
+      docNo: '', docDate: t, trxDate: t, amount: 0, paymentMethod: '', paymentRef: '',
+      description: '', fundSource: 'credit', depositId: '',
+    });
+    this.refundOpen.set(true);
+  }
+  closeRefund(): void { this.refundOpen.set(false); }
+  onSaveRefund(): void {
+    this.clearMessages();
+    if (this.refundForm.invalid) { this.refundForm.markAllAsTouched(); return; }
+    const f = this.refundForm.getRawValue();
+    if (f.fundSource === 'deposit' && !f.depositId) {
+      this.errorMessage.set('Select the deposit to refund from.');
+      return;
+    }
+    this.refundSaving.set(true);
+    this.service.postRefund(this.debtorId, {
+      docNo: f.docNo.trim() || null,
+      docDate: f.docDate,
+      trxDate: f.trxDate,
+      amount: f.amount,
+      paymentMethod: f.paymentMethod.trim() || null,
+      paymentRef: f.paymentRef.trim() || null,
+      description: f.description.trim() || null,
+      depositId: f.fundSource === 'deposit' ? f.depositId : null,
+    }).subscribe({
+      next: (res) => { this.successMessage.set(res.message); this.refundSaving.set(false); this.refundOpen.set(false); this.load(); },
+      error: (err) => { this.errorMessage.set(err.error?.message || 'Failed to post the refund.'); this.refundSaving.set(false); },
+    });
+  }
+
+  // --- Deposit ---
+  openDeposit(): void {
+    this.clearMessages();
+    const t = this.today();
+    this.depositForm.reset({ docNo: '', docDate: t, trxDate: t, amount: 0, description: '' });
+    this.depositOpen.set(true);
+  }
+  closeDeposit(): void { this.depositOpen.set(false); }
+  onSaveDeposit(): void {
+    this.clearMessages();
+    if (this.depositForm.invalid) { this.depositForm.markAllAsTouched(); return; }
+    const f = this.depositForm.getRawValue();
+    this.depositSaving.set(true);
+    this.service.postDeposit(this.debtorId, {
+      docNo: f.docNo.trim() || null,
+      docDate: f.docDate,
+      trxDate: f.trxDate,
+      amount: f.amount,
+      description: f.description.trim() || null,
+    }).subscribe({
+      next: (res) => { this.successMessage.set(res.message); this.depositSaving.set(false); this.depositOpen.set(false); this.load(); },
+      error: (err) => { this.errorMessage.set(err.error?.message || 'Failed to open the deposit.'); this.depositSaving.set(false); },
+    });
+  }
+
+  // --- Convert deposit to Credit Note ---
+  openConvert(d: ArDepositDoc): void {
+    this.clearMessages();
+    const t = this.today();
+    this.convertDeposit.set(d);
+    this.convertForm.reset({ docDate: t, trxDate: t, amount: Number(this.held(d)) });
+    this.convertOpen.set(true);
+  }
+  closeConvert(): void { this.convertOpen.set(false); }
+  onSaveConvert(): void {
+    this.clearMessages();
+    const dep = this.convertDeposit();
+    if (!dep) return;
+    if (this.convertForm.invalid) { this.convertForm.markAllAsTouched(); return; }
+    const f = this.convertForm.getRawValue();
+    this.convertSaving.set(true);
+    this.service.convertDeposit(dep.id, { docDate: f.docDate, trxDate: f.trxDate, amount: f.amount }).subscribe({
+      next: (res) => { this.successMessage.set(res.message); this.convertSaving.set(false); this.convertOpen.set(false); this.load(); },
+      error: (err) => { this.errorMessage.set(err.error?.message || 'Failed to convert the deposit.'); this.convertSaving.set(false); },
+    });
+  }
+
+  // --- Voids (shared confirmation dialog) ---
+  askVoidLedger(doc: ArLedgerDoc): void {
+    this.openVoid(
+      doc.mode === 'debit'
+        ? `Void ${this.kindLabel(doc.docKind)} ${doc.docNo}? A credit-mode reversal will be posted against it.`
+        : `Void ${this.kindLabel(doc.docKind)} ${doc.docNo}?`,
+      () => this.service.voidLedger(doc.id).subscribe({
+        next: (res) => this.voidDone(res.message),
+        error: (err) => this.voidFailed(err),
+      }),
+    );
+  }
+  askVoidReceipt(doc: ArReceiptDoc): void {
+    this.openVoid(`Void Official Receipt ${doc.docNo}?`, () => this.service.voidReceipt(doc.id).subscribe({
+      next: (res) => this.voidDone(res.message),
+      error: (err) => this.voidFailed(err),
+    }));
+  }
+  askVoidDeposit(doc: ArDepositDoc): void {
+    this.openVoid(`Void Deposit ${doc.docNo}?`, () => this.service.voidDeposit(doc.id).subscribe({
+      next: (res) => this.voidDone(res.message),
+      error: (err) => this.voidFailed(err),
+    }));
+  }
+  private openVoid(message: string, action: () => void): void {
+    this.clearMessages();
+    this.voidMessage.set(message);
+    this.voidAction = action;
+    this.voidOpen.set(true);
+  }
+  confirmVoid(): void {
+    if (!this.voidAction) return;
+    this.voidBusy.set(true);
+    this.voidAction();
+  }
+  closeVoid(): void {
+    this.voidOpen.set(false);
+    this.voidAction = null;
+  }
+  private voidDone(message: string): void {
+    this.successMessage.set(message);
+    this.voidBusy.set(false);
+    this.voidOpen.set(false);
+    this.voidAction = null;
+    this.load();
+  }
+  private voidFailed(err: { error?: { message?: string } }): void {
+    this.errorMessage.set(err.error?.message || 'Void failed.');
+    this.voidBusy.set(false);
+    this.voidOpen.set(false);
+    this.voidAction = null;
+  }
+
+  private clearMessages(): void {
+    this.successMessage.set('');
+    this.errorMessage.set('');
+  }
+}

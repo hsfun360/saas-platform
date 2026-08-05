@@ -1,0 +1,164 @@
+/* Debtor Account (AR) - the Debtor Listing's detail surface. Composes the
+   shared section-card / status-chip / form primitives; screen-local styles are
+   the balance strip and the compact document rows. */
+
+.ara-back {
+  margin-left: var(--space-sm);
+  padding: 0 var(--space-xs);
+  min-height: 0;
+}
+
+/* Balance strip */
+.ara-balances {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.ara-balance {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-card);
+  min-width: 130px;
+}
+
+.ara-balance__label {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.ara-balance__value {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.ara-balance--cap .ara-balance__label {
+  color: var(--info-text);
+}
+
+/* Entry actions */
+.ara-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+/* Compact document rows */
+.ara-docs {
+  display: flex;
+  flex-direction: column;
+}
+
+.ara-doc {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas: "main amounts actions";
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ara-doc:last-child {
+  border-bottom: none;
+}
+
+.ara-doc__main { grid-area: main; min-width: 0; }
+.ara-doc__amounts {
+  grid-area: amounts;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  justify-self: end;
+  white-space: nowrap;
+}
+.ara-doc__actions {
+  grid-area: actions;
+  display: flex;
+  gap: var(--space-xs);
+  justify-self: end;
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .ara-doc {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "main amounts"
+      "actions actions";
+  }
+  .ara-doc__actions { justify-self: start; }
+}
+
+.ara-doc--void {
+  opacity: 0.55;
+}
+
+.ara-doc__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs) var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+}
+
+.ara-doc__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-md);
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+
+.ara-doc__gross {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+/* Document-kind chip (debit = info tint, credit = success tint) */
+.ara-kind {
+  display: inline-block;
+  padding: 2px var(--space-sm);
+  border-radius: 12px;
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--info-surface);
+  color: var(--info-text);
+  white-space: nowrap;
+}
+
+.ara-kind--credit {
+  background: var(--success-surface);
+  color: var(--success-text);
+}
+
+/* Checkbox rows in the dialogs (same look as the listing screen's) */
+.ard-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  margin-right: var(--space-lg);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.ard-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+}

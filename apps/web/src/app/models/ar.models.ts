@@ -40,6 +40,97 @@ export interface ArDebtorListResult {
   debtors: ArDebtor[];
 }
 
+// --- Debtor account (slice 2: document ledger) ---
+
+export interface ArPerson {
+  id: string;
+  memberNo: string;
+  memberKind: string;
+  name: string;
+}
+
+export interface ArTransactionType {
+  id: string;
+  transactionType: string;
+  chargeType: string;
+  description: string | null;
+  taxSchemeCode: string | null;
+  isInterestChargeable: boolean;
+}
+
+export interface ArLedgerDoc {
+  id: string;
+  docKind: 'invoice' | 'debit-note' | 'credit-note';
+  mode: 'debit' | 'credit';
+  docNo: string;
+  docDate: string;
+  trxDate: string;
+  dueDate: string | null;
+  description: string | null;
+  incurredBy: ArPerson | null;
+  sourceModule: string;
+  sourceRef: string;
+  netAmount: string;
+  taxAmount: string;
+  grossAmount: string;
+  settledAmount: string;
+  status: 'open' | 'settled' | 'void';
+  reversalOfId: string | null;
+}
+
+export interface ArReceiptDoc {
+  id: string;
+  docKind: 'receipt' | 'refund';
+  mode: 'debit' | 'credit';
+  docNo: string;
+  docDate: string;
+  trxDate: string;
+  paymentMethod: string | null;
+  paymentRef: string | null;
+  description: string | null;
+  amount: string;
+  allocatedAmount: string;
+  status: 'open' | 'void';
+}
+
+export interface ArDepositDoc {
+  id: string;
+  docNo: string;
+  docDate: string;
+  trxDate: string;
+  description: string | null;
+  amount: string;
+  collectedAmount: string;
+  utilizedAmount: string;
+  status: 'open' | 'closed' | 'void';
+}
+
+export interface ArAccount {
+  debtor: {
+    id: string;
+    debtorType: string;
+    sourceId: string;
+    no: string | null;
+    name: string | null;
+    terms: number | null;
+    sendReminders: boolean;
+    chargeInterest: boolean;
+    status: string;
+  };
+  balances: { creditLimit: string; outstanding: string };
+  personCaps: Array<{ memberId: string; person: ArPerson | null; personalLimit: string; personalUsed: string }>;
+  ledger: ArLedgerDoc[];
+  receipts: ArReceiptDoc[];
+  deposits: ArDepositDoc[];
+}
+
+export interface ArAccountMeta {
+  transactionTypes: ArTransactionType[];
+  persons: ArPerson[];
+  // purpose -> 'auto' | 'manual' | null
+  numberingModes: Record<string, string | null>;
+}
+
 export interface ArOtherDebtor {
   id: string;
   code: string;

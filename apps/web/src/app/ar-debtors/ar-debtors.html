@@ -96,9 +96,12 @@
               </span>
             </div>
             <div class="data-row__actions">
-              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(d)">Edit</button>
-              @if (d.debtorType === 'other') {
-                <app-overflow-menu [label]="'More actions for ' + (d.name || d.no)">
+              <button type="button" class="btn btn--secondary btn--sm" [routerLink]="['/ar/debtors', d.id]">Account</button>
+              <app-overflow-menu [label]="'More actions for ' + (d.name || d.no)">
+                <button *appCan="'edit'" type="button" appMenuItem (click)="openEdit(d)">
+                  <span class="material-icons" aria-hidden="true">tune</span> Edit terms
+                </button>
+                @if (d.debtorType === 'other') {
                   <button *appCan="'edit'" type="button" appMenuItem (click)="openEditOther(d)">
                     <span class="material-icons" aria-hidden="true">badge</span> Edit profile
                   </button>
@@ -108,8 +111,8 @@
                       {{ d.status === 'suspended' ? 'Enable' : 'Disable' }}
                     </button>
                   }
-                </app-overflow-menu>
-              }
+                }
+              </app-overflow-menu>
             </div>
           </div>
         </div>

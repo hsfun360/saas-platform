@@ -633,6 +633,8 @@ export interface MembershipTransactionType {
   chargeType: string;             // one of TransactionTypeMeta.chargeTypes[].key
   description?: string | null;
   taxSchemeCode?: string | null;
+  // AR: overdue items of this billing item attract late-payment interest.
+  isInterestChargeable?: boolean;
   isActive?: boolean;
 }
 

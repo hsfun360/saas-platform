@@ -2,7 +2,14 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { ArDebtor, ArDebtorListResult, ArDebtorsMeta, ArOtherDebtor } from '../models/ar.models';
+import {
+  ArAccount,
+  ArAccountMeta,
+  ArDebtor,
+  ArDebtorListResult,
+  ArDebtorsMeta,
+  ArOtherDebtor,
+} from '../models/ar.models';
 
 // Account Receivable (slice 1): the shared Debtor Listing (all three debtor
 // types in one query), ledger-account maintenance, and the Other Debtor party
@@ -50,5 +57,47 @@ export class ArService {
     return this.http.post<{ message: string; memberships: number; nominees: number }>(
       `${environment.apiUrl}/membership/debtor-backfill`, {},
     );
+  }
+
+  // --- Debtor account (slice 2: document ledger) ---
+
+  account(debtorId: string): Observable<ArAccount> {
+    return this.http.get<ArAccount>(`${this.base}/debtors/${debtorId}/account`);
+  }
+
+  accountMeta(debtorId: string): Observable<ArAccountMeta> {
+    return this.http.get<ArAccountMeta>(`${this.base}/debtors/${debtorId}/account/meta`);
+  }
+
+  postLedger(debtorId: string, payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string }> {
+    return this.http.post<{ message: string; id: string; docNo: string }>(`${this.base}/debtors/${debtorId}/ledger`, payload);
+  }
+
+  postReceipt(debtorId: string, payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string }> {
+    return this.http.post<{ message: string; id: string; docNo: string }>(`${this.base}/debtors/${debtorId}/receipts`, payload);
+  }
+
+  postRefund(debtorId: string, payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string }> {
+    return this.http.post<{ message: string; id: string; docNo: string }>(`${this.base}/debtors/${debtorId}/refunds`, payload);
+  }
+
+  postDeposit(debtorId: string, payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string }> {
+    return this.http.post<{ message: string; id: string; docNo: string }>(`${this.base}/debtors/${debtorId}/deposits`, payload);
+  }
+
+  convertDeposit(depositId: string, payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string }> {
+    return this.http.post<{ message: string; id: string; docNo: string }>(`${this.base}/deposits/${depositId}/convert`, payload);
+  }
+
+  voidLedger(id: string, payload: Record<string, unknown> = {}): Observable<{ message: string }> {
+    return this.http.patch<{ message: string }>(`${this.base}/ledger/${id}/void`, payload);
+  }
+
+  voidReceipt(id: string): Observable<{ message: string }> {
+    return this.http.patch<{ message: string }>(`${this.base}/receipts/${id}/void`, {});
+  }
+
+  voidDeposit(id: string): Observable<{ message: string }> {
+    return this.http.patch<{ message: string }>(`${this.base}/deposits/${id}/void`, {});
   }
 }

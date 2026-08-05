@@ -160,6 +160,9 @@ const routes: Routes = [
       // Account Receivable → Debtor Listing (all three debtor types in one
       // list; Other Debtors managed from the same screen).
       { path: 'ar/debtors', loadComponent: () => import('./app/ar-debtors/ar-debtors').then((m) => m.ArDebtorsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
+      // Debtor account (documents/receipts/deposits) - the listing's detail
+      // surface; route falls back to the /ar/debtors menu for RBAC/title.
+      { path: 'ar/debtors/:id', loadComponent: () => import('./app/ar-debtor-account/ar-debtor-account').then((m) => m.ArDebtorAccountComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
       // Master File Setup → Unit Courses (per-company 9-hole building blocks).
       { path: 'golf/unit-courses', loadComponent: () => import('./app/golf-unit-courses/golf-unit-courses').then((m) => m.GolfUnitCoursesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },
       // Master File Setup → Courses (18-hole pairing of two unit courses).

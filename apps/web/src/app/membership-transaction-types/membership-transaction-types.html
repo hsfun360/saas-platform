@@ -161,6 +161,15 @@
             <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The single source of tax for this billing item — Joining fees and Standing charges inherit it.</p>
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
+              <input type="checkbox" formControlName="isInterestChargeable" style="width: 18px; height: 18px; accent-color: var(--brand);" />
+              Charge late-payment interest on overdue items
+            </label>
+            <p class="cell-subtle" style="margin: 0;">The AR interest run only considers overdue documents of interest-chargeable billing items.</p>
+          </div>
+        </div>
       </form>
 
       <ng-container dialogFooter>

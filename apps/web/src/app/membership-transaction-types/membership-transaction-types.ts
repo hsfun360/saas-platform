@@ -39,6 +39,8 @@ export class MembershipTransactionTypesComponent implements OnInit {
     chargeType: ['', [Validators.required]],
     description: ['', [Validators.maxLength(255)]],
     taxSchemeCode: [''],
+    // AR: overdue items of this billing item attract late-payment interest.
+    isInterestChargeable: [false],
   });
 
   readonly search = signal('');
@@ -102,7 +104,7 @@ export class MembershipTransactionTypesComponent implements OnInit {
   openAdd(): void {
     this.clearMessages();
     this.editId.set(null);
-    this.form.reset({ transactionType: '', chargeType: '', description: '', taxSchemeCode: '' });
+    this.form.reset({ transactionType: '', chargeType: '', description: '', taxSchemeCode: '', isInterestChargeable: false });
     this.dialogOpen.set(true);
   }
 
@@ -114,6 +116,7 @@ export class MembershipTransactionTypesComponent implements OnInit {
       chargeType: t.chargeType,
       description: t.description || '',
       taxSchemeCode: t.taxSchemeCode || '',
+      isInterestChargeable: t.isInterestChargeable === true,
     });
     this.dialogOpen.set(true);
   }
@@ -134,6 +137,7 @@ export class MembershipTransactionTypesComponent implements OnInit {
       chargeType: v.chargeType,
       description: v.description.trim() || null,
       taxSchemeCode: v.taxSchemeCode || null,
+      isInterestChargeable: v.isInterestChargeable,
     };
 
     this.saving.set(true);
