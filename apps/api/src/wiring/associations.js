@@ -108,6 +108,11 @@ const Ledger = require('../modules/ar/ledger.model');
 const Receipt = require('../modules/ar/receipt.model');
 const Deposit = require('../modules/ar/deposit.model');
 const Allocation = require('../modules/ar/allocation.model');
+// AR periodic processing (slice 3): staged interest run + statement snapshots.
+const InterestGeneration = require('../modules/ar/interestGeneration.model');
+const InterestGenerationDetail = require('../modules/ar/interestGenerationDetail.model');
+const ArStatement = require('../modules/ar/statement.model');
+const ArStatementLine = require('../modules/ar/statementLine.model');
 // Shared capability (Workflow). Definition/steps and instance/tasks are
 // intra-service header/detail pairs (real FKs); account/company/role/
 // department/position/user/entity references stay plain UUIDs (no FK).
@@ -310,4 +315,8 @@ module.exports = {
     Receipt,
     Deposit,
     Allocation,
+    InterestGeneration,
+    InterestGenerationDetail,
+    ArStatement,
+    ArStatementLine,
 };

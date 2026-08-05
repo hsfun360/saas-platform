@@ -15,6 +15,7 @@ const { verifyToken, requireModule, requireMenuAction } = require('../../platfor
 const debtorController = require('./debtor.controller');
 const otherDebtorController = require('./otherDebtor.controller');
 const documentController = require('./arDocument.controller');
+const periodicController = require('./arPeriodic.controller');
 
 // Liveness probe - unauthenticated, so the gateway/monitoring can check the seam.
 router.get('/health', (req, res) => res.json({ service: 'ar', status: 'ok' }));
@@ -47,6 +48,19 @@ router.post('/deposits/:id/convert', requireMenuAction('/ar/debtors'), documentC
 router.patch('/ledger/:id/void', requireMenuAction('/ar/debtors'), documentController.voidLedger);
 router.patch('/receipts/:id/void', requireMenuAction('/ar/debtors'), documentController.voidReceipt);
 router.patch('/deposits/:id/void', requireMenuAction('/ar/debtors'), documentController.voidDeposit);
+
+// --- Interest run (its own screen/menu: /ar/interest) ---
+router.get('/interest-generations', requireMenuAction('/ar/interest'), periodicController.list);
+router.post('/interest-generations', requireMenuAction('/ar/interest'), periodicController.generate);
+router.get('/interest-generations/:id', requireMenuAction('/ar/interest'), periodicController.get);
+router.post('/interest-generations/confirm', requireMenuAction('/ar/interest'), periodicController.confirm);
+router.post('/interest-generations/:id/cancel', requireMenuAction('/ar/interest'), periodicController.cancel);
+
+// --- Statement run (its own screen/menu: /ar/statements) ---
+router.get('/statements', requireMenuAction('/ar/statements'), periodicController.listStatements);
+router.post('/statements', requireMenuAction('/ar/statements'), periodicController.generateStatementsRun);
+router.get('/statements/:id', requireMenuAction('/ar/statements'), periodicController.getStatement);
+router.patch('/statements/:id/void', requireMenuAction('/ar/statements'), periodicController.voidStatement);
 
 // Not-yet-built areas of the service 501 rather than 404, so a caller can tell
 // "wrong URL" from "planned but not implemented".

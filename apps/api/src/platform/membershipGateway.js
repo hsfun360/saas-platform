@@ -183,11 +183,68 @@ async function listDebtorPersons(companyId, debtorType, sourceId) {
     return rows.map((r) => ({ id: r.id, memberNo: r.memberNo, memberKind: r.memberKind, name: personName(r) }));
 }
 
+// The non-compounding "Interest" transaction type the interest run posts its
+// summary Debit Notes under (auto-seeded per company on first run; the club
+// edits tax/description like any catalog row - flipping isInterestChargeable
+// on would deliberately enable interest-on-interest).
+async function ensureInterestType(companyId) {
+    const TransactionType = require('../modules/membership/transactionType.model');
+    const [row] = await TransactionType.findOrCreate({
+        where: { companyId, transactionType: 'INTEREST' },
+        defaults: {
+            companyId,
+            transactionType: 'INTEREST',
+            chargeType: 'miscellaneous',
+            description: 'Late-payment interest',
+            taxSchemeCode: null,
+            isInterestChargeable: false,
+            isActive: true,
+        },
+    });
+    return row.toJSON();
+}
+
+// Billing name + address snapshot for a debtor's statement (frozen onto
+// ar.Statement at generation). Membership debtors bill to the contract's
+// mailing address (fallback: company/residential); member debtors to the
+// person's own mailing address; other debtors carry their address themselves
+// (resolved AR-side, not here).
+async function lookupPartyBilling(companyId, debtorType, sourceId) {
+    const Address = require('../modules/membership/address.model');
+    const display = await lookupPartyDisplay(
+        companyId,
+        debtorType === 'membership' ? { membershipIds: [sourceId] } : { memberIds: [sourceId] },
+    );
+    const d = debtorType === 'membership' ? display.memberships[sourceId] : display.members[sourceId];
+    if (!d) return null;
+
+    const owner = debtorType === 'membership' ? { membershipId: sourceId } : { memberId: sourceId };
+    const rows = await Address.findAll({ where: { companyId, ...owner } });
+    const pick = rows.find((r) => r.addressType === 'mailing')
+        || rows.find((r) => r.addressType === 'company')
+        || rows.find((r) => r.addressType === 'residential')
+        || rows[0]
+        || null;
+    return {
+        name: d.name,
+        no: d.no,
+        address: pick ? {
+            line1: pick.address,
+            city: pick.city,
+            state: pick.state,
+            postcode: pick.postcode,
+            countryCode: pick.countryCode,
+        } : null,
+    };
+}
+
 module.exports = {
     lookupPartyDisplay,
     searchPartyIds,
     listTransactionTypes,
     getTransactionType,
     ensureDepositConversionType,
+    ensureInterestType,
     listDebtorPersons,
+    lookupPartyBilling,
 };
