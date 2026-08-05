@@ -12,6 +12,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 const OutboxMessage = require('./outboxMessage.model');
+const { pingOutboxWorker } = require('./outboxWorkerPing');
 
 // Enqueue a 'DebtorProvisionRequested' event as part of the producer's own
 // `transaction` (event-carried state - AR opens the ledger account from the
@@ -31,6 +32,10 @@ async function enqueueDebtorProvisioning(payload, transaction) {
         },
         { transaction },
     );
+    // Wake the drain-mode worker (after commit) so the ledger account exists
+    // seconds after activation instead of waiting for the 5-minute scheduler
+    // sweep. No-op without OUTBOX_WORKER_URL; the sweep is the guarantee.
+    pingOutboxWorker(transaction);
 }
 
 module.exports = { enqueueDebtorProvisioning };
