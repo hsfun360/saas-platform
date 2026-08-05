@@ -131,6 +131,70 @@ export interface ArAccountMeta {
   numberingModes: Record<string, string | null>;
 }
 
+// --- Periodic processing (slice 3) ---
+
+export interface ArDebtorRef {
+  debtorType: string;
+  no: string | null;
+  name: string | null;
+}
+
+export interface ArInterestGeneration {
+  id: string;
+  debtorId: string;
+  debtor: ArDebtorRef | null;
+  periodMonth: string;
+  cutoffDate: string;
+  interestRate: string;
+  graceDays: number;
+  totalOverdue: string;
+  interestAmount: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
+  postedLedgerId: string | null;
+}
+
+export interface ArInterestDetail {
+  id: string;
+  chargeId: string;
+  docNo: string;
+  docDate: string;
+  dueDate: string;
+  overdueAmount: string;
+  overdueDays: number;
+  interestAmount: string;
+}
+
+export interface ArStatementSummary {
+  id: string;
+  debtorId: string;
+  debtor: ArDebtorRef | null;
+  statementNo: string;
+  statementDate: string;
+  periodStart: string;
+  periodEnd: string;
+  openingBalance: string;
+  closingBalance: string;
+  billName: string;
+  status: 'generated' | 'sent' | 'void';
+}
+
+export interface ArStatementLine {
+  id: string;
+  lineNo: number;
+  txnDate: string;
+  docType: string;
+  docNo: string;
+  description: string | null;
+  incurredByName: string | null;
+  debit: string;
+  credit: string;
+}
+
+export interface ArStatementDetail {
+  statement: ArStatementSummary & { billAddress: Record<string, string | null> | null };
+  lines: ArStatementLine[];
+}
+
 export interface ArOtherDebtor {
   id: string;
   code: string;

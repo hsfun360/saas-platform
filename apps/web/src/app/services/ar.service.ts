@@ -8,7 +8,11 @@ import {
   ArDebtor,
   ArDebtorListResult,
   ArDebtorsMeta,
+  ArInterestDetail,
+  ArInterestGeneration,
   ArOtherDebtor,
+  ArStatementDetail,
+  ArStatementSummary,
 } from '../models/ar.models';
 
 // Account Receivable (slice 1): the shared Debtor Listing (all three debtor
@@ -99,5 +103,55 @@ export class ArService {
 
   voidDeposit(id: string): Observable<{ message: string }> {
     return this.http.patch<{ message: string }>(`${this.base}/deposits/${id}/void`, {});
+  }
+
+  // --- Interest run (slice 3) ---
+
+  generateInterest(payload: { month: string; cutoffDate: string; ratePercent: number; graceDays: number }):
+    Observable<{ message: string; generated: number; skippedExisting: number; totalInterest: string }> {
+    return this.http.post<{ message: string; generated: number; skippedExisting: number; totalInterest: string }>(
+      `${this.base}/interest-generations`, payload,
+    );
+  }
+
+  listInterest(month: string): Observable<{ generations: ArInterestGeneration[] }> {
+    let params = new HttpParams();
+    if (month) params = params.set('month', month);
+    return this.http.get<{ generations: ArInterestGeneration[] }>(`${this.base}/interest-generations`, { params });
+  }
+
+  getInterest(id: string): Observable<{ generation: ArInterestGeneration; details: ArInterestDetail[] }> {
+    return this.http.get<{ generation: ArInterestGeneration; details: ArInterestDetail[] }>(`${this.base}/interest-generations/${id}`);
+  }
+
+  confirmInterest(ids: string[]): Observable<{ message: string; results: Array<{ id: string; ok: boolean; message: string }> }> {
+    return this.http.post<{ message: string; results: Array<{ id: string; ok: boolean; message: string }> }>(
+      `${this.base}/interest-generations/confirm`, { ids },
+    );
+  }
+
+  cancelInterest(id: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.base}/interest-generations/${id}/cancel`, {});
+  }
+
+  // --- Statement run (slice 3) ---
+
+  generateStatements(payload: { periodStart: string; periodEnd: string }):
+    Observable<{ message: string; generated: number; skippedExisting: number }> {
+    return this.http.post<{ message: string; generated: number; skippedExisting: number }>(`${this.base}/statements`, payload);
+  }
+
+  listStatements(month: string): Observable<{ statements: ArStatementSummary[] }> {
+    let params = new HttpParams();
+    if (month) params = params.set('month', month);
+    return this.http.get<{ statements: ArStatementSummary[] }>(`${this.base}/statements`, { params });
+  }
+
+  getStatement(id: string): Observable<ArStatementDetail> {
+    return this.http.get<ArStatementDetail>(`${this.base}/statements/${id}`);
+  }
+
+  voidStatement(id: string): Observable<{ message: string }> {
+    return this.http.patch<{ message: string }>(`${this.base}/statements/${id}/void`, {});
   }
 }

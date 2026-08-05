@@ -1,0 +1,107 @@
+/* Interest Generation (AR) - run form + holding review list. */
+
+.ai-run {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: var(--space-sm);
+  align-items: end;
+}
+
+.ai-run__go {
+  display: flex;
+  align-items: end;
+  padding-bottom: 2px;
+}
+
+@media (max-width: 767px) {
+  .ai-run { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ai-run__go { grid-column: 1 / -1; }
+  .ai-run__go .btn { width: 100%; }
+}
+
+.ai-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: var(--space-md) 0;
+}
+
+.ai-toolbar input[type='month'] {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+}
+
+.ard-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.ard-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+}
+
+/* Pending chip: info tint (distinct from confirmed green / cancelled grey). */
+.ai-status--pending {
+  background: var(--info-surface);
+  color: var(--info-text);
+}
+
+.ai-pick {
+  display: inline-flex;
+  margin-right: var(--space-xs);
+}
+
+.ai-pick input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+}
+
+/* Drill-down table */
+.ai-lines {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ai-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+}
+
+.ai-line:last-child { border-bottom: none; }
+
+.ai-line--head {
+  background: var(--surface-sunken);
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.ai-line--total {
+  background: var(--surface-sunken);
+  font-weight: var(--weight-semibold);
+}
+
+.ai-num { text-align: right; }

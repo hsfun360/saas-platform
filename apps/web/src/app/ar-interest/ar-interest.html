@@ -1,0 +1,162 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">percent</span>
+      <div>
+        <h1>{{ 'Interest Generation' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Generate late-payment interest into a holding list, review each debtor, then confirm to post the Debit Notes.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Run card -->
+  <div class="settings-card" *appCan="'create'">
+    <div class="settings-header">
+      <span class="settings-header__title">Generate a month</span>
+      <span class="settings-header__sub">Only interest-chargeable overdue items on interest-enabled debtors are considered; a month already generated is skipped.</span>
+    </div>
+    <div class="settings-body">
+      <form [formGroup]="runForm" (ngSubmit)="onGenerate()" class="saas-form ai-run" style="padding: 0;">
+        <div class="form-group">
+          <label for="aiMonth">Month <span class="required">*</span></label>
+          <input id="aiMonth" type="month" formControlName="month" #aiMonthInput (change)="onRunMonthChange(aiMonthInput.value)" />
+        </div>
+        <div class="form-group">
+          <label for="aiCutoff">Cutoff date <span class="required">*</span></label>
+          <input id="aiCutoff" type="date" formControlName="cutoffDate" />
+        </div>
+        <div class="form-group">
+          <label for="aiRate">Rate (% flat) <span class="required">*</span></label>
+          <input id="aiRate" type="number" inputmode="decimal" min="0.0001" max="100" step="0.0001" formControlName="ratePercent"
+                 [attr.aria-invalid]="showError(runForm.controls.ratePercent)" />
+        </div>
+        <div class="form-group">
+          <label for="aiGrace">Grace days</label>
+          <input id="aiGrace" type="number" inputmode="numeric" min="0" max="365" step="1" formControlName="graceDays" />
+        </div>
+        <div class="ai-run__go">
+          <button type="submit" class="btn btn--primary" [disabled]="generating()">
+            {{ generating() ? 'Generating…' : 'Generate' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Review list -->
+  <div class="ai-toolbar">
+    <label for="aiFilterMonth" class="cell-subtle">Month</label>
+    <input id="aiFilterMonth" type="month" [value]="month()" #aiFilter (change)="setMonth(aiFilter.value)" />
+    @if (pendingRows().length > 0) {
+      <label class="ard-check" style="margin: 0;">
+        <input type="checkbox" [checked]="allSelected()" (change)="toggleAll()" /> Select all pending
+      </label>
+      <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="onConfirmSelected()"
+              [disabled]="confirming() || selectedCount() === 0">
+        {{ confirming() ? 'Posting…' : 'Post ' + selectedCount() + ' Debit Note(s) — ' + totalSelected() }}
+      </button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+  } @else if (rows().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">📭</span>
+      <p>No interest generations for this month yet. Use "Generate" above — the holding list shows exactly what will be posted before anything commits.</p>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (g of rows(); track g.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">
+                @if (g.status === 'pending') {
+                  <label class="ai-pick">
+                    <input type="checkbox" [checked]="isSelected(g.id)" (change)="toggleSelected(g.id)"
+                           [attr.aria-label]="'Select ' + (g.debtor?.no || 'debtor')" />
+                  </label>
+                }
+                {{ g.debtor?.no || '—' }}@if (g.debtor?.name) { — {{ g.debtor?.name }}}
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Overdue</dt><dd>{{ g.totalOverdue }}</dd></div>
+                <div class="meta"><dt>Interest</dt><dd>{{ g.interestAmount }}</dd></div>
+                <div class="meta"><dt>Rate</dt><dd>{{ g.interestRate }}%</dd></div>
+                <div class="meta"><dt>Cutoff</dt><dd>{{ g.cutoffDate | localDate }}</dd></div>
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              <span class="status-chip"
+                    [class.status-chip--on]="g.status === 'confirmed'"
+                    [class.status-chip--off]="g.status === 'cancelled'"
+                    [class.ai-status--pending]="g.status === 'pending'">{{ g.status }}</span>
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openDetail(g)">Details</button>
+              @if (g.status === 'pending') {
+                <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="onCancel(g)">Cancel</button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ============ Drill-down dialog ============ -->
+  @if (detailOpen()) {
+    <app-dialog #detailDlg [title]="'Interest — ' + (detailGen()?.debtor?.no || '')" [busy]="detailLoading()" (close)="closeDetail()">
+      @if (detailLoading()) {
+        <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+      } @else {
+        <p class="cell-subtle" style="margin-top: 0;">
+          {{ detailGen()?.debtor?.name }} — rate {{ detailGen()?.interestRate }}% flat, cutoff {{ detailGen()?.cutoffDate | localDate }}.
+          Interest = overdue × rate, rounded per line; the posted total equals this drill-down exactly.
+        </p>
+        <div class="ai-lines">
+          <div class="ai-line ai-line--head">
+            <span>Document</span><span>Due</span><span>Days late</span><span class="ai-num">Overdue</span><span class="ai-num">Interest</span>
+          </div>
+          @for (d of details(); track d.id) {
+            <div class="ai-line">
+              <span>{{ d.docNo }}</span>
+              <span>{{ d.dueDate | localDate }}</span>
+              <span>{{ d.overdueDays }}</span>
+              <span class="ai-num">{{ d.overdueAmount }}</span>
+              <span class="ai-num">{{ d.interestAmount }}</span>
+            </div>
+          }
+          <div class="ai-line ai-line--total">
+            <span>Total</span><span></span><span></span>
+            <span class="ai-num">{{ detailGen()?.totalOverdue }}</span>
+            <span class="ai-num">{{ detailGen()?.interestAmount }}</span>
+          </div>
+        </div>
+      }
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="detailDlg.requestClose()">Close</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+</div>

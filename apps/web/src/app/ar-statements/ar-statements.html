@@ -1,0 +1,144 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">receipt_long</span>
+      <div>
+        <h1>{{ 'Statements' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Monthly statement of account per debtor — party details frozen at generation, lines itemized by who incurred them.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Run card -->
+  <div class="settings-card" *appCan="'create'">
+    <div class="settings-header">
+      <span class="settings-header__title">Generate a month</span>
+      <span class="settings-header__sub">One statement per debtor with a balance or activity; debtors already covered for the period are skipped.</span>
+    </div>
+    <div class="settings-body">
+      <form [formGroup]="runForm" (ngSubmit)="onGenerate()" class="saas-form as-run" style="padding: 0;">
+        <div class="form-group">
+          <label for="asMonth">Month <span class="required">*</span></label>
+          <input id="asMonth" type="month" formControlName="month" />
+        </div>
+        <div class="as-run__go">
+          <button type="submit" class="btn btn--primary" [disabled]="generating()">
+            {{ generating() ? 'Generating…' : 'Generate statements' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Listing -->
+  <div class="as-toolbar">
+    <label for="asFilterMonth" class="cell-subtle">Month</label>
+    <input id="asFilterMonth" type="month" [value]="month()" #asFilter (change)="setMonth(asFilter.value)" />
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+  } @else if (rows().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">📭</span>
+      <p>No statements for this month yet. Use "Generate statements" above.</p>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (s of rows(); track s.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ s.statementNo }} — {{ s.billName }}</div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Period</dt><dd>{{ s.periodStart | localDate }} – {{ s.periodEnd | localDate }}</dd></div>
+                <div class="meta"><dt>Opening</dt><dd>{{ s.openingBalance }}</dd></div>
+                <div class="meta"><dt>Closing</dt><dd>{{ s.closingBalance }}</dd></div>
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              <span class="status-chip"
+                    [class.status-chip--on]="s.status !== 'void'"
+                    [class.status-chip--off]="s.status === 'void'">{{ s.status }}</span>
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openView(s)">View</button>
+              @if (s.status !== 'void') {
+                <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="onVoid(s)">Void</button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ============ Statement viewer ============ -->
+  @if (viewOpen()) {
+    <app-dialog #viewDlg [title]="view()?.statement?.statementNo || 'Statement'" [busy]="viewLoading()" (close)="closeView()">
+      @if (viewLoading()) {
+        <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+      } @else if (view(); as v) {
+        <div class="as-head">
+          <div>
+            <strong>{{ v.statement.billName }}</strong>
+            @for (line of addressLines(v); track $index) {
+              <div class="cell-subtle">{{ line }}</div>
+            }
+          </div>
+          <div class="as-head__period">
+            <div class="cell-subtle">Period {{ v.statement.periodStart | localDate }} – {{ v.statement.periodEnd | localDate }}</div>
+            <div class="cell-subtle">Statement date {{ v.statement.statementDate | localDate }}</div>
+          </div>
+        </div>
+        <div class="as-lines">
+          <div class="as-line as-line--head">
+            <span>Date</span><span>Document</span><span>Details</span><span class="as-num">Debit</span><span class="as-num">Credit</span>
+          </div>
+          <div class="as-line as-line--balance">
+            <span></span><span>Opening balance</span><span></span>
+            <span class="as-num" style="grid-column: 4 / 6;">{{ v.statement.openingBalance }}</span>
+          </div>
+          @for (l of v.lines; track l.id) {
+            <div class="as-line">
+              <span>{{ l.txnDate | localDate }}</span>
+              <span>{{ l.docNo }}</span>
+              <span>
+                {{ l.description || l.docType }}
+                @if (l.incurredByName) { <span class="cell-subtle">— {{ l.incurredByName }}</span> }
+              </span>
+              <span class="as-num">{{ l.debit !== '0.00' ? l.debit : '' }}</span>
+              <span class="as-num">{{ l.credit !== '0.00' ? l.credit : '' }}</span>
+            </div>
+          }
+          <div class="as-line as-line--balance">
+            <span></span><span>Closing balance</span><span></span>
+            <span class="as-num" style="grid-column: 4 / 6;">{{ v.statement.closingBalance }}</span>
+          </div>
+        </div>
+      }
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="viewDlg.requestClose()">Close</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+</div>

@@ -1,0 +1,85 @@
+/* Statements (AR) - run form, listing and the frozen-document viewer. */
+
+.as-run {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  align-items: end;
+  max-width: 480px;
+}
+
+.as-run__go {
+  display: flex;
+  align-items: end;
+  padding-bottom: 2px;
+}
+
+@media (max-width: 767px) {
+  .as-run { grid-template-columns: minmax(0, 1fr); max-width: none; }
+  .as-run__go .btn { width: 100%; }
+}
+
+.as-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: var(--space-md) 0;
+}
+
+.as-toolbar input[type='month'] {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+}
+
+/* Viewer */
+.as-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+}
+
+.as-head__period {
+  text-align: right;
+}
+
+.as-lines {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.as-line {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, 1.6fr) minmax(0, 0.8fr) minmax(0, 0.8fr);
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+}
+
+.as-line:last-child { border-bottom: none; }
+
+.as-line--head {
+  background: var(--surface-sunken);
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.as-line--balance {
+  background: var(--surface-sunken);
+  font-weight: var(--weight-semibold);
+}
+
+.as-num { text-align: right; }
