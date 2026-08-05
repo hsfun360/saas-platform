@@ -14,11 +14,19 @@ const RESET_RULES = [
     { key: 'monthly', label: 'Monthly' },
 ];
 
-// What this scheme numbers. One scheme per (company, purpose). Only Membership No.
-// is consumed today; the table is general so prospect / application / etc. can be
-// added later without a rebuild.
+// What this scheme numbers. One scheme per (company, purpose). Consumed by
+// Membership (membership no.) and the AR document series; without a scheme an
+// AR document number is keyed manually or falls back to a synthetic number.
 const NUMBERING_PURPOSES = [
     { key: 'membership', label: 'Membership No.' },
+    { key: 'ar-invoice', label: 'AR Invoice No.' },
+    { key: 'ar-debit-note', label: 'AR Debit Note No.' },
+    { key: 'ar-credit-note', label: 'AR Credit Note No.' },
+    { key: 'ar-receipt', label: 'AR Official Receipt No.' },
+    { key: 'ar-refund', label: 'AR Refund No.' },
+    { key: 'ar-deposit', label: 'AR Deposit No.' },
+    { key: 'ar-statement', label: 'AR Statement No.' },
+    { key: 'ar-other-debtor', label: 'AR Other Debtor Code' },
 ];
 
 // Placeholders allowed in a scheme's `format`. Documented for the screen's help.
