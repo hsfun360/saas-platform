@@ -1,0 +1,47 @@
+/* Billing Schedules (membership fee runs) - run form + listing. */
+
+.mb-run {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: var(--space-sm);
+  align-items: end;
+}
+
+.mb-run__go {
+  display: flex;
+  align-items: end;
+  padding-bottom: 2px;
+}
+
+@media (max-width: 767px) {
+  .mb-run { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .mb-run__go { grid-column: 1 / -1; }
+  .mb-run__go .btn { width: 100%; }
+}
+
+.mb-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: var(--space-md) 0;
+}
+
+.mb-toolbar input[type='month'] {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+}
+
+/* Pending / partially-posted chip: info tint. */
+.mb-status--pending {
+  background: var(--info-surface);
+  color: var(--info-text);
+}
+
+.mb-warning {
+  display: block;
+  font-size: var(--font-caption);
+}

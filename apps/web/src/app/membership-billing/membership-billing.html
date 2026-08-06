@@ -1,0 +1,120 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">request_quote</span>
+      <div>
+        <h1>{{ 'Billing Schedules' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Generate the monthly Membership Fee and Subscription Fee runs, review the items, then post — one Invoice per item.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (warnings().length > 0) {
+    <div class="flash flash-error" role="status">
+      <span class="flash-icon">⚠️</span>
+      <span>
+        Generation warnings:
+        @for (w of warnings(); track $index) { <span class="mb-warning">{{ w }}</span> }
+      </span>
+      <button class="flash-close" (click)="warnings.set([])" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Run card -->
+  <div class="settings-card" *appCan="'create'">
+    <div class="settings-header">
+      <span class="settings-header__title">Generate a month</span>
+      <span class="settings-header__sub">The holding list shows every charge with its debtor routing before anything posts. One schedule per type per month.</span>
+    </div>
+    <div class="settings-body">
+      <form [formGroup]="runForm" (ngSubmit)="onGenerate()" class="saas-form mb-run" style="padding: 0;">
+        <div class="form-group">
+          <label for="mbType">Billing type <span class="required">*</span></label>
+          <select id="mbType" formControlName="billingType">
+            <option value="membership-fee">Membership Fee</option>
+            <option value="subscription-fee">Subscription Fee</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="mbMonth">Month <span class="required">*</span></label>
+          <input id="mbMonth" type="month" formControlName="month" #mbMonthInput (change)="onRunMonthChange(mbMonthInput.value)" />
+        </div>
+        <div class="form-group">
+          <label for="mbDocDate">Document date <span class="required">*</span></label>
+          <input id="mbDocDate" type="date" formControlName="docDate" />
+        </div>
+        <div class="form-group">
+          <label for="mbTrxDate">Transaction date (period) <span class="required">*</span></label>
+          <input id="mbTrxDate" type="date" formControlName="trxDate" />
+        </div>
+        <div class="mb-run__go">
+          <button type="submit" class="btn btn--primary" [disabled]="generating()">
+            {{ generating() ? 'Generating…' : 'Generate' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Listing -->
+  <div class="mb-toolbar">
+    <label for="mbFilterMonth" class="cell-subtle">Month</label>
+    <input id="mbFilterMonth" type="month" [value]="month()" #mbFilter (change)="setMonth(mbFilter.value)" />
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+  } @else if (rows().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">📭</span>
+      <p>No billing schedules for this month yet. Use "Generate" above.</p>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (s of rows(); track s.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ typeLabel(s.billingType) }}</div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Items</dt><dd>{{ s.itemCount }}</dd></div>
+                <div class="meta"><dt>Total (net)</dt><dd>{{ s.totalAmount }}</dd></div>
+                <div class="meta"><dt>Doc date</dt><dd>{{ s.docDate | localDate }}</dd></div>
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              <span class="status-chip"
+                    [class.status-chip--on]="s.status === 'posted'"
+                    [class.status-chip--off]="s.status === 'cancelled'"
+                    [class.mb-status--pending]="s.status === 'pending' || s.status === 'partially-posted'">{{ s.status }}</span>
+            </div>
+            <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" [routerLink]="['/membership/billing', s.id]">Review</button>
+              @if (s.status === 'pending') {
+                <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="onCancel(s)">Cancel</button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+</div>
