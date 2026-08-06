@@ -48,4 +48,53 @@ async function authorizeCharge(params) {
     return authorize(params);
 }
 
-module.exports = { enqueueDebtorProvisioning, authorizeCharge };
+// PRODUCER INVOICE POSTING (fee runs today; golf/POS frontend charges later).
+// The producer sends a FULLY RESOLVED charge - amounts already tax-quoted,
+// incurredBy already resolved - and AR posts it as one Invoice through its
+// engine (balances, personal caps, numbering from the ar-invoice series).
+// Returns { id, docNo } or { error } (no ledger account, closed debtor, ...) -
+// producers record the error on their own staging row, they never throw.
+// `enforceCredit` stays false for billing runs (billing reality is never
+// blocked by the limit); frontend consumption will pass true.
+// WHEN SPLIT: POST {internalServiceUrl('ar')}/internal/charges
+async function postCharge(req, {
+    debtorType, sourceId, docDate, trxDate, transactionTypeId, isInterestChargeable,
+    description, incurredByMemberId, sourceModule, sourceRef, amounts, stamps,
+    enforceCredit = false,
+}) {
+    const { getUserContext } = require('./serviceContext');
+    const { companyId } = getUserContext(req);
+    if (!companyId) return { error: 'No active workspace.' };
+
+    const { sequelize } = require('./db');
+    const Debtor = require('../modules/ar/debtor.model');
+    const posting = require('../modules/ar/arPosting.service');
+    const numberingGateway = require('./numberingGateway');
+
+    const debtor = await Debtor.findOne({ where: { companyId, debtorType, sourceId } });
+    if (!debtor) return { error: 'No ledger account exists for this debtor (run debtor provisioning first).' };
+    if (debtor.status !== 'active') return { error: `Debtor account is ${debtor.status}.` };
+
+    const issueDocNo = async (t) => {
+        const issued = await numberingGateway.issueNumber(req, 'ar-invoice', { transaction: t });
+        if (issued && issued.number) return issued.number;
+        return `INV-${Date.now().toString(36).toUpperCase()}-${String(sourceRef).slice(0, 4).toUpperCase()}`;
+    };
+
+    try {
+        const row = await sequelize.transaction(async (t) => posting.postLedgerDoc({
+            companyId, debtor, docKind: 'invoice', issueDocNo,
+            docDate, trxDate, transactionTypeId,
+            isInterestChargeable: isInterestChargeable === true,
+            description, incurredByMemberId: incurredByMemberId || null,
+            sourceModule, sourceRef,
+            amounts, stamps: stamps || {}, enforceCredit, t,
+        }));
+        return { id: row.id, docNo: row.docNo };
+    } catch (e) {
+        if (e && e.httpStatus) return { error: e.message };
+        throw e;
+    }
+}
+
+module.exports = { enqueueDebtorProvisioning, authorizeCharge, postCharge };

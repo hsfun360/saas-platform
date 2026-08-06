@@ -57,6 +57,22 @@ const Member = sequelize.define('Member', {
         type: DataTypes.UUID,
         allowNull: false,
     },
+    // Nominee kind only (AR charge-routing design 2026-08-05): per-seat
+    // Membership Type override - null = the contract's type. Drives the
+    // EFFECTIVE type: subscription standing charges and the isGolfAllow gate
+    // (driving scenario: leisure corporate, one nominee upgraded to a
+    // golf-allowed type).
+    membershipTypeId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    // Nominee kind only: who bears this nominee's subscription -
+    // 'company' | 'self'; null = follow the contract's
+    // nomineeSubscriptionBorneByCompany default.
+    subscriptionBorneBy: {
+        type: DataTypes.STRING(10),
+        allowNull: true,
+    },
     statusDate: {
         type: DataTypes.DATEONLY,
         allowNull: true,

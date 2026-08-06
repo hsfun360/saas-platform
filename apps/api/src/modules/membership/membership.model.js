@@ -98,6 +98,10 @@ const Membership = sequelize.define('Membership', {
     chargeInterest: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     monthlyFee: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     yearlyFee: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    // Corporate class: the CONTRACT-LEVEL default for "the company bears the
+    // nominees' subscription fees" (AR charge-routing design 2026-08-05). A
+    // nominee's own subscriptionBorneBy overrides this per person.
+    nomineeSubscriptionBorneByCompany: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 
     // --- Document references ---
     certificateNo: { type: DataTypes.STRING, allowNull: true },

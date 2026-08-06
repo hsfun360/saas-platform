@@ -77,6 +77,10 @@ const Address = require('../modules/membership/address.model');
 // Sales Management (SRS 2.2): agency companies and their/independent agents.
 const SalesAgency = require('../modules/membership/salesAgency.model');
 const SalesAgent = require('../modules/membership/salesAgent.model');
+// Fee runs (approved 2026-08-06): staged billing schedules posting Invoices
+// into AR via arGateway. Intra-service parent-child kept as value refs.
+const BillingSchedule = require('../modules/membership/billingSchedule.model');
+const BillingScheduleItem = require('../modules/membership/billingScheduleItem.model');
 // Product tier (Golf Management). Same golden rules - master files reference
 // companyId by plain UUID (no cross-service FK). Intra-service parent-child
 // links (unit course -> holes) DO use real associations.
@@ -296,6 +300,8 @@ module.exports = {
     Address,
     SalesAgency,
     SalesAgent,
+    BillingSchedule,
+    BillingScheduleItem,
     UnitCourse,
     UnitCourseHole,
     UnitCourseTeeBox,

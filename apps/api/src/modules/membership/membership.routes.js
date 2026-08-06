@@ -87,6 +87,17 @@ router.use('/members', requireMenuAction('/membership/members'), membersRoutes);
 // --- Tax consumption (reads the Tax service via the gateway seam) ---
 router.use('/tax', membershipTaxRoutes);
 
+// --- Billing Schedules (fee runs: membership fee + subscription) ---
+// Producer-owned staged runs posting Invoices into AR; menu granted to
+// Finance via cross-module RBAC.
+const billingController = require('./billing.controller');
+router.post('/billing-schedules', requireMenuAction('/membership/billing'), billingController.generate);
+router.get('/billing-schedules', requireMenuAction('/membership/billing'), billingController.list);
+router.get('/billing-schedules/:id', requireMenuAction('/membership/billing'), billingController.get);
+router.post('/billing-schedules/:id/post', requireMenuAction('/membership/billing'), billingController.post);
+router.post('/billing-schedules/:id/cancel', requireMenuAction('/membership/billing'), billingController.cancel);
+router.patch('/billing-schedule-items/:id', requireMenuAction('/membership/billing'), billingController.setItemStatus);
+
 // --- AR debtor backfill (producer-side utility) ---
 // Enqueues provisioning for every currently-active contract/nominee, for data
 // that predates the AR module. It is an AR-operations task, so it gates on the
