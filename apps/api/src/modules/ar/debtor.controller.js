@@ -216,5 +216,28 @@ exports.updateDebtor = async (req, res) => {
     }
 };
 
+// POST /api/ar/reconcile { fix? } - the drift detector: verifies every
+// materialized balance against the documents/allocations. Report-only unless
+// fix=true (which repairs the counters to the computed truth). Also runs
+// nightly (report-only) from the worker sweep.
+exports.reconcile = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const { reconcileCompany } = require('./arReconciliation.service');
+        const result = await reconcileCompany(companyId, { fix: req.body && req.body.fix === true });
+        const n = result.discrepancies.length;
+        res.status(200).json({
+            message: n === 0
+                ? 'All balances reconcile - no drift.'
+                : `${n} discrepancy(ies) ${result.discrepancies.some((d) => d.fixed) ? 'repaired' : 'found'}.`,
+            ...result,
+        });
+    } catch (err) {
+        console.error('Error reconciling AR:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 module.exports.SEARCH_LIMIT = SEARCH_LIMIT;
 module.exports.OTHER_DEBTOR_NUMBERING_PURPOSE = OTHER_DEBTOR_NUMBERING_PURPOSE;

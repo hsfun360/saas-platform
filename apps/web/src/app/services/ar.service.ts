@@ -105,6 +105,20 @@ export class ArService {
     return this.http.patch<{ message: string }>(`${this.base}/deposits/${id}/void`, {});
   }
 
+  // Reconciliation: verify every materialized balance against the documents;
+  // fix=true repairs drifted counters to the computed truth.
+  reconcile(fix: boolean): Observable<{
+    message: string;
+    checked: Record<string, number>;
+    discrepancies: Array<{ type: string; ref: string; field: string; expected: string; actual: string; fixed: boolean }>;
+  }> {
+    return this.http.post<{
+      message: string;
+      checked: Record<string, number>;
+      discrepancies: Array<{ type: string; ref: string; field: string; expected: string; actual: string; fixed: boolean }>;
+    }>(`${this.base}/reconcile`, { fix });
+  }
+
   // --- Interest run (slice 3) ---
 
   generateInterest(payload: { month: string; cutoffDate: string; ratePercent: number; graceDays: number }):

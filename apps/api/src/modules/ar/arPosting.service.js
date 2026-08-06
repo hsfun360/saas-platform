@@ -395,6 +395,22 @@ async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxD
     if (stamps.updatedBy) row.updatedBy = stamps.updatedBy;
     await row.save({ transaction: t });
     await bumpOutstanding(pool, cents(row.grossAmount), t);
+
+    // A deposit-conversion CN (sourceModule 'ar', sourceRef = the Deposit id)
+    // bumped utilizedAmount as a PROCESS, not an allocation - voiding it must
+    // give the deposit its money back (and reopen a closed deposit).
+    if (row.docKind === 'credit-note' && row.sourceModule === 'ar') {
+        const Deposit = require('./deposit.model');
+        const deposit = await Deposit.findOne({ where: { id: row.sourceRef, companyId }, transaction: t, lock: t.LOCK.UPDATE });
+        if (deposit) {
+            deposit.utilizedAmount = money(Math.max(0, cents(deposit.utilizedAmount) - cents(row.grossAmount)));
+            if (deposit.status === 'closed' && cents(deposit.utilizedAmount) < cents(deposit.collectedAmount)) {
+                deposit.status = 'open';
+            }
+            if (stamps.updatedBy) deposit.updatedBy = stamps.updatedBy;
+            await deposit.save({ transaction: t });
+        }
+    }
     return null;
 }
 

@@ -28,6 +28,7 @@ router.use(requireModule('Account Receivable'));
 // --- Debtor Listing (shared across membership / member / other debtors) ---
 // Other Debtors are managed FROM this screen, so both mounts gate on its menu.
 router.get('/debtors/meta', requireMenuAction('/ar/debtors'), debtorController.getMeta);
+router.post('/reconcile', requireMenuAction('/ar/debtors'), debtorController.reconcile);
 router.get('/debtors', requireMenuAction('/ar/debtors'), debtorController.listDebtors);
 router.patch('/debtors/:id', requireMenuAction('/ar/debtors'), debtorController.updateDebtor);
 router.get('/other-debtors/:id', requireMenuAction('/ar/debtors'), otherDebtorController.getOtherDebtor);

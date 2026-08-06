@@ -47,6 +47,12 @@
       <span class="material-icons" aria-hidden="true">sync</span>
       {{ backfilling() ? 'Provisioning…' : 'Provision from Membership' }}
     </button>
+    <!-- Drift detector: verifies every materialized balance against the
+         documents (also runs nightly, report-only, from the worker). -->
+    <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="runReconcile()" [disabled]="reconBusy()">
+      <span class="material-icons" aria-hidden="true">fact_check</span>
+      {{ reconBusy() ? 'Checking…' : 'Reconcile' }}
+    </button>
   </div>
 
   <div class="saas-search">
@@ -135,6 +141,42 @@
     <span class="material-icons" aria-hidden="true">add</span>
     <span>New Other Debtor</span>
   </button>
+
+  <!-- ============ Reconciliation results dialog ============ -->
+  @if (reconOpen()) {
+    <app-dialog #reconDlg [title]="'Reconciliation'" [busy]="reconBusy()" (close)="closeRecon()">
+      @if (reconResult(); as r) {
+        <p class="cell-subtle" style="margin-top: 0;">
+          Checked {{ r.checked['debtors'] }} debtor(s), {{ r.checked['ledgerDocs'] }} document(s),
+          {{ r.checked['receipts'] }} receipt(s), {{ r.checked['deposits'] }} deposit(s).
+        </p>
+        <div class="ard-recon">
+          <div class="ard-recon__row ard-recon__row--head">
+            <span>Where</span><span>Field</span><span class="ard-recon__num">Expected</span><span class="ard-recon__num">Stored</span><span></span>
+          </div>
+          @for (d of r.discrepancies; track $index) {
+            <div class="ard-recon__row">
+              <span>{{ d.type }} {{ d.ref }}</span>
+              <span>{{ d.field }}</span>
+              <span class="ard-recon__num">{{ d.expected }}</span>
+              <span class="ard-recon__num">{{ d.actual }}</span>
+              <span>
+                @if (d.fixed) { <span class="status-chip status-chip--on">repaired</span> }
+              </span>
+            </div>
+          }
+        </div>
+      }
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="reconDlg.requestClose()" [disabled]="reconBusy()">Close</button>
+        @if (reconResult() && reconResult()!.discrepancies.length > 0 && !reconResult()!.discrepancies[0].fixed) {
+          <button *appCan="'edit'" type="button" class="btn btn--danger" (click)="runReconcile(true)" [disabled]="reconBusy()">
+            {{ reconBusy() ? 'Repairing…' : 'Repair ' + reconResult()!.discrepancies.length + ' counter(s)' }}
+          </button>
+        }
+      </ng-container>
+    </app-dialog>
+  }
 
   <!-- ============ Edit ledger account dialog ============ -->
   @if (editOpen()) {

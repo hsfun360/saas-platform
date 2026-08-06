@@ -353,6 +353,42 @@ export class ArDebtorsComponent implements OnInit {
     });
   }
 
+  // --- Reconciliation (drift detector; also runs nightly from the worker) ---
+  readonly reconOpen = signal(false);
+  readonly reconBusy = signal(false);
+  readonly reconResult = signal<{
+    message: string;
+    checked: Record<string, number>;
+    discrepancies: Array<{ type: string; ref: string; field: string; expected: string; actual: string; fixed: boolean }>;
+  } | null>(null);
+
+  runReconcile(fix = false): void {
+    this.clearMessages();
+    this.reconBusy.set(true);
+    this.service.reconcile(fix).subscribe({
+      next: (res) => {
+        this.reconBusy.set(false);
+        this.reconResult.set(res);
+        if (res.discrepancies.length === 0) {
+          this.successMessage.set(res.message);
+          this.reconOpen.set(false);
+        } else {
+          this.reconOpen.set(true);
+          if (fix) { this.successMessage.set(res.message); this.load(true); }
+        }
+      },
+      error: (err) => {
+        this.reconBusy.set(false);
+        this.errorMessage.set(err.error?.message || 'Reconciliation failed.');
+      },
+    });
+  }
+
+  closeRecon(): void {
+    this.reconOpen.set(false);
+    this.reconResult.set(null);
+  }
+
   // Producer-side utility: provision ledger accounts for memberships/nominees
   // that were already active before the AR module (idempotent).
   runBackfill(): void {

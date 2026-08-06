@@ -34,6 +34,14 @@ if (MODE === 'drain') {
                 // (SLA scan enqueues to the outbox; the drain below sends it).
                 if (url.searchParams.get('sweep')) {
                     await scanSlaReminders().catch((err) => console.error('[WORKFLOW SLA] Unhandled scan error:', err));
+                    // AR nightly reconciliation (report-only; drift goes to the
+                    // logs for ops). Gated to the 03:00 MYT hour (19:00 UTC) -
+                    // the 5-min sweep re-runs it a few times that hour, which
+                    // is harmless: it's a cheap read-only check.
+                    if (new Date().getUTCHours() === 19) {
+                        const { reconcileAllCompanies } = require('./src/modules/ar/arReconciliation.service');
+                        await reconcileAllCompanies().catch((err) => console.error('[AR RECONCILE] Unhandled error:', err));
+                    }
                 }
                 const sent = await drainOutbox();
                 if (sent > 0) console.log(`[OUTBOX WORKER] Drain processed ${sent} message(s).`);

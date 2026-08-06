@@ -71,6 +71,38 @@
   margin-top: var(--space-md);
 }
 
+/* Reconciliation results table */
+.ard-recon {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ard-recon__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.7fr);
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+}
+
+.ard-recon__row:last-child { border-bottom: none; }
+
+.ard-recon__row--head {
+  background: var(--surface-sunken);
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.ard-recon__num { text-align: right; }
+
 /* Checkbox rows in the dialogs */
 .ard-check {
   display: inline-flex;
