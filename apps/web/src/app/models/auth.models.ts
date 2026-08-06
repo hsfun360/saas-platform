@@ -640,6 +640,8 @@ export interface MembershipTransactionType {
 
 export interface TransactionTypeMeta {
   chargeTypes: MembershipStatusOption[];
+  // Golf only: charge-type keys priced by the 8-cell matrix (the rest are flat).
+  matrixChargeTypes?: string[];
 }
 
 // Picker row served to the Membership Type screen's fee/charge dialogs.
@@ -1213,7 +1215,30 @@ export interface CourseClosureDayPreview extends CourseClosureDay {
 // membership one (the billing-item catalog with THE tax scheme), only the
 // charge-type vocabulary differs (green-fee / caddy-fee / buggy-fee / no-show
 // / miscellaneous).
-export type GolfTransactionType = MembershipTransactionType;
+export interface GolfTransactionType extends MembershipTransactionType {
+  // Whether the pre-set price may be amended manually when billing this item.
+  allowPriceOverride?: boolean;
+}
+
+// One effective-dated price card of a golf Transaction Type. Matrix charge
+// types (green/caddy/buggy fee) fill the eight member/visitor × 9/18 ×
+// weekday/weekend cells; flat charge types (no-show/miscellaneous) fill
+// flatAmount only. "Weekend" includes public holidays platform-wide.
+export interface GolfTransactionTypeRate {
+  id: string;
+  canModify?: boolean;
+  effectiveDate: string;          // YYYY-MM-DD
+  member9Weekday: number | null;
+  member18Weekday: number | null;
+  member9Weekend: number | null;
+  member18Weekend: number | null;
+  visitor9Weekday: number | null;
+  visitor18Weekday: number | null;
+  visitor9Weekend: number | null;
+  visitor18Weekend: number | null;
+  flatAmount: number | null;
+  isActive?: boolean;
+}
 
 // ISO 4217 currency reference row.
 export interface Currency {

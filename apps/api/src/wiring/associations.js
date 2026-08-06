@@ -93,7 +93,8 @@ const UnitCourseTeeBoxDistance = require('../modules/golf/unitCourseTeeBoxDistan
 const Course = require('../modules/golf/course.model');
 const CourseTeeTimeSet = require('../modules/golf/courseTeeTimeSet.model');
 const CourseTeeTimeSlot = require('../modules/golf/courseTeeTimeSlot.model');
-const GolfTransactionType = require('../modules/golf/transactionType.model'); // billing-item master (companyId value ref; tax by code via seam; no associations)
+const GolfTransactionType = require('../modules/golf/transactionType.model'); // billing-item master (companyId value ref; tax by code via seam)
+const GolfTransactionTypeRate = require('../modules/golf/transactionTypeRate.model');
 const CourseClosurePlan = require('../modules/golf/courseClosurePlan.model');
 const CourseClosureDay = require('../modules/golf/courseClosureDay.model');
 // Shared financial reference (Tax). Header/detail pairs are intra-service, so they
@@ -231,6 +232,9 @@ Course.hasMany(CourseTeeTimeSet, { foreignKey: 'courseId', as: 'TeeTimeSets', on
 CourseTeeTimeSet.belongsTo(Course, { foreignKey: 'courseId', as: 'Course' });
 CourseTeeTimeSet.hasMany(CourseTeeTimeSlot, { foreignKey: 'teeTimeSetId', as: 'Slots', onDelete: 'CASCADE' });
 CourseTeeTimeSlot.belongsTo(CourseTeeTimeSet, { foreignKey: 'teeTimeSetId', as: 'TeeTimeSet' });
+// Transaction Type -> its effective-dated price cards.
+GolfTransactionType.hasMany(GolfTransactionTypeRate, { foreignKey: 'transactionTypeId', as: 'Rates', onDelete: 'CASCADE' });
+GolfTransactionTypeRate.belongsTo(GolfTransactionType, { foreignKey: 'transactionTypeId', as: 'TransactionType' });
 // Course -> its closure plans -> generated per-day closure rows (spec 2.2.8).
 Course.hasMany(CourseClosurePlan, { foreignKey: 'courseId', as: 'ClosurePlans', onDelete: 'CASCADE' });
 CourseClosurePlan.belongsTo(Course, { foreignKey: 'courseId', as: 'Course' });

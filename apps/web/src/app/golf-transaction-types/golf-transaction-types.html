@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">receipt_long</span>
       <div>
         <h1>{{ 'Transaction Type' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'The golf billing-item catalog — each carries its charge type and the tax scheme applied when it is billed.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'The golf billing-item catalog — each carries its charge type, the tax scheme applied when it is billed, and its effective-dated prices.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -69,6 +69,9 @@
               <div class="data-card__title">{{ t.transactionType }}</div>
               <div class="data-card__subline">
                 <span class="mt-chip">{{ chargeTypeLabel(t.chargeType) }}</span>
+                @if (t.allowPriceOverride) {
+                  <span class="mt-chip">Manual price allowed</span>
+                }
                 @if (t.description) { <span class="data-card__reg">{{ t.description }}</span> }
               </div>
               @if (t.taxSchemeCode) {
@@ -85,17 +88,20 @@
               }
             </div>
             <div class="data-row__actions">
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openPricing(t)">Pricing</button>
               @if (t.canModify !== false) {
-                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">Edit</button>
-                @if (t.isActive === false) {
-                  <button *appCan="'edit'" type="button" class="btn btn--success btn--sm" (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
-                    {{ togglingId() === t.id ? 'Saving…' : 'Enable' }}
-                  </button>
-                } @else {
-                  <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
-                    {{ togglingId() === t.id ? 'Saving…' : 'Disable' }}
-                  </button>
-                }
+                <ng-container *appCan="'edit'">
+                  <app-overflow-menu [label]="'More actions for ' + t.transactionType">
+                    <button type="button" appMenuItem (click)="openEdit(t)">
+                      <span class="material-icons" aria-hidden="true">edit</span>
+                      Edit
+                    </button>
+                    <button type="button" appMenuItem (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                      <span class="material-icons" aria-hidden="true">{{ t.isActive === false ? 'toggle_on' : 'toggle_off' }}</span>
+                      {{ t.isActive === false ? 'Enable' : 'Disable' }}
+                    </button>
+                  </app-overflow-menu>
+                </ng-container>
               }
             </div>
           </div>
@@ -161,6 +167,13 @@
             <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The single source of tax for this billing item — green-fee and charge setups inherit it.</p>
           </div>
         </div>
+        <div class="form-row">
+          <label class="gtt-check">
+            <input type="checkbox" formControlName="allowPriceOverride" />
+            <span>Allow manual price change at billing</span>
+          </label>
+          <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">When off, the pre-set price from Pricing is binding at the point of charge.</p>
+        </div>
       </form>
 
       <ng-container dialogFooter>
@@ -168,6 +181,200 @@
         <button type="submit" form="gttForm" class="btn btn--primary" [disabled]="saving()">
           {{ saving() ? 'Saving…' : 'Save' }}
         </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Pricing dialog (list ↔ form views) ============ -->
+  @if (prOpen()) {
+    <app-dialog #prDlg [title]="prTitle()" [busy]="prBusy()" [dirty]="prDirty()"
+                discardTitle="Discard this price?"
+                discardMessage="You have unsaved price changes. Leaving now will discard them."
+                (close)="closePricing()">
+      <div class="saas-form" style="padding: 0;">
+        @switch (prMode()) {
+
+          @case ('list') {
+            @if (prLoading()) {
+              <div class="loading-state"><div class="spinner"></div><p>Loading pricing…</p></div>
+            } @else if (prRates().length === 0) {
+              <div class="empty-state">
+                <span class="empty-icon">🏷️</span>
+                @if (prIsMatrix()) {
+                  <p>No prices yet. Use "New price" to set the member/visitor matrix — a later effective date lets you pre-set a future price change.</p>
+                } @else {
+                  <p>No prices yet. Use "New price" to set the amount — a later effective date lets you pre-set a future price change.</p>
+                }
+              </div>
+            } @else {
+              <p class="cell-subtle pr-note">The latest effective date on or before the play date applies. Weekend prices also cover public holidays; amounts exclude tax.</p>
+              @for (r of prRates(); track r.id) {
+                <div class="pr-card">
+                  <div class="pr-card__head">
+                    <span class="pr-card__title">From {{ r.effectiveDate | localDate }}</span>
+                    @switch (rateStatus(r)) {
+                      @case ('in-force') { <span class="status-chip status-chip--on">In force</span> }
+                      @case ('scheduled') { <span class="status-chip status-chip--off">Scheduled</span> }
+                      @case ('superseded') { <span class="status-chip status-chip--off">Superseded</span> }
+                      @case ('disabled') { <span class="status-chip status-chip--off">Disabled</span> }
+                    }
+                  </div>
+                  @if (prIsMatrix()) {
+                    <div class="pr-table-wrap">
+                      <table class="pr-table">
+                        <thead>
+                          <tr>
+                            <th scope="col"></th>
+                            <th scope="colgroup" colspan="2">Weekday</th>
+                            <th scope="colgroup" colspan="2">Weekend &amp; PH</th>
+                          </tr>
+                          <tr>
+                            <th scope="col"></th>
+                            <th scope="col">9 holes</th>
+                            <th scope="col">18 holes</th>
+                            <th scope="col">9 holes</th>
+                            <th scope="col">18 holes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <th scope="row">Member</th>
+                            <td>{{ fmt(r.member9Weekday) }}</td>
+                            <td>{{ fmt(r.member18Weekday) }}</td>
+                            <td>{{ fmt(r.member9Weekend) }}</td>
+                            <td>{{ fmt(r.member18Weekend) }}</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">Guest / Visitor</th>
+                            <td>{{ fmt(r.visitor9Weekday) }}</td>
+                            <td>{{ fmt(r.visitor18Weekday) }}</td>
+                            <td>{{ fmt(r.visitor9Weekend) }}</td>
+                            <td>{{ fmt(r.visitor18Weekend) }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  } @else {
+                    <div class="pr-flat">Amount: <strong>{{ fmt(r.flatAmount) }}</strong></div>
+                  }
+                  @if (r.canModify !== false) {
+                    <div class="pr-card__actions">
+                      <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openRateForm(r)">Edit</button>
+                      @if (r.isActive === false) {
+                        <button *appCan="'edit'" type="button" class="btn btn--success btn--sm" (click)="toggleRateActive(r)" [disabled]="prTogglingId() === r.id">
+                          {{ prTogglingId() === r.id ? 'Saving…' : 'Enable' }}
+                        </button>
+                      } @else {
+                        <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="toggleRateActive(r)" [disabled]="prTogglingId() === r.id">
+                          {{ prTogglingId() === r.id ? 'Saving…' : 'Disable' }}
+                        </button>
+                      }
+                      @if (canDeleteRate(r)) {
+                        <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" (click)="deleteRate(r)" [disabled]="prTogglingId() === r.id">Delete</button>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            }
+          }
+
+          @case ('form') {
+            <form id="gttRateForm" [formGroup]="rateForm" (ngSubmit)="onSaveRate()">
+              <div class="form-row">
+                <div class="form-group" style="max-width: 260px;">
+                  <label for="prEffDate">Effective Date <span class="required">*</span></label>
+                  <input id="prEffDate" type="date" formControlName="effectiveDate"
+                         [attr.aria-invalid]="showError(rateForm.controls.effectiveDate)" aria-describedby="prEffDateErr" />
+                  @if (showError(rateForm.controls.effectiveDate)) {
+                    <p id="prEffDateErr" class="field-error" role="alert">The effective date is required.</p>
+                  }
+                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Use a future date to pre-set a price change.</p>
+                </div>
+              </div>
+
+              @if (prIsMatrix()) {
+                <h3 class="pr-section">Weekday</h3>
+                <div class="pr-grid">
+                  <div class="form-group">
+                    <label for="prM9WD">Member · 9 holes</label>
+                    <input id="prM9WD" type="number" inputmode="decimal" appMoney formControlName="member9Weekday" min="0" step="0.01"
+                           [attr.aria-invalid]="showError(rateForm.controls.member9Weekday)" />
+                  </div>
+                  <div class="form-group">
+                    <label for="prM18WD">Member · 18 holes</label>
+                    <input id="prM18WD" type="number" inputmode="decimal" appMoney formControlName="member18Weekday" min="0" step="0.01"
+                           [attr.aria-invalid]="showError(rateForm.controls.member18Weekday)" />
+                  </div>
+                  <div class="form-group">
+                    <label for="prV9WD">Guest / Visitor · 9 holes</label>
+                    <input id="prV9WD" type="number" inputmode="decimal" appMoney formControlName="visitor9Weekday" min="0" step="0.01"
+                           [attr.aria-invalid]="showError(rateForm.controls.visitor9Weekday)" />
+                  </div>
+                  <div class="form-group">
+                    <label for="prV18WD">Guest / Visitor · 18 holes</label>
+                    <input id="prV18WD" type="number" inputmode="decimal" appMoney formControlName="visitor18Weekday" min="0" step="0.01"
+                           [attr.aria-invalid]="showError(rateForm.controls.visitor18Weekday)" />
+                  </div>
+                </div>
+
+                <div class="pr-section pr-section--row">
+                  <h3 class="pr-section" style="margin: 0;">Weekend &amp; public holiday</h3>
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="copyWeekdayToWeekend()">Copy weekday prices</button>
+                </div>
+                <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">These prices apply on the company's weekend days and on public holidays.</p>
+                <div class="pr-grid">
+                  <div class="form-group">
+                    <label for="prM9WE">Member · 9 holes</label>
+                    <input id="prM9WE" type="number" inputmode="decimal" appMoney formControlName="member9Weekend" min="0" step="0.01"
+                           [attr.aria-invalid]="showError(rateForm.controls.member9Weekend)" />
+                  </div>
+                  <div class="form-group">
+                    <label for="prM18WE">Member · 18 holes</label>
+                    <input id="prM18WE" type="number" inputmode="decimal" appMoney formControlName="member18Weekend" min="0" step="0.01"
+                           [attr.aria-invalid]="showError(rateForm.controls.member18Weekend)" />
+                  </div>
+                  <div class="form-group">
+                    <label for="prV9WE">Guest / Visitor · 9 holes</label>
+                    <input id="prV9WE" type="number" inputmode="decimal" appMoney formControlName="visitor9Weekend" min="0" step="0.01"
+                           [attr.aria-invalid]="showError(rateForm.controls.visitor9Weekend)" />
+                  </div>
+                  <div class="form-group">
+                    <label for="prV18WE">Guest / Visitor · 18 holes</label>
+                    <input id="prV18WE" type="number" inputmode="decimal" appMoney formControlName="visitor18Weekend" min="0" step="0.01"
+                           [attr.aria-invalid]="showError(rateForm.controls.visitor18Weekend)" />
+                  </div>
+                </div>
+              } @else {
+                <div class="form-row">
+                  <div class="form-group" style="max-width: 260px;">
+                    <label for="prFlat">Amount <span class="required">*</span></label>
+                    <input id="prFlat" type="number" inputmode="decimal" appMoney formControlName="flatAmount" min="0" step="0.01"
+                           [attr.aria-invalid]="showError(rateForm.controls.flatAmount)" aria-describedby="prFlatErr" />
+                    @if (showError(rateForm.controls.flatAmount)) {
+                      <p id="prFlatErr" class="field-error" role="alert">The amount must be 0.00 or more.</p>
+                    }
+                  </div>
+                </div>
+              }
+              @if (rateForm.invalid && rateForm.touched) {
+                <p class="field-error" role="alert">Every price needs an amount of 0.00 or more.</p>
+              }
+            </form>
+          }
+        }
+      </div>
+
+      <ng-container dialogFooter>
+        @if (prMode() === 'list') {
+          <button *appCan="'create'" type="button" class="btn btn--primary" (click)="openRateForm()" [disabled]="prLoading()">New price</button>
+          <button type="button" class="btn btn--secondary" (click)="prDlg.requestClose()">Close</button>
+        } @else {
+          <button type="button" class="btn btn--secondary" (click)="backToRates()" [disabled]="prSaving()">Back</button>
+          <button type="submit" form="gttRateForm" class="btn btn--primary" [disabled]="prSaving()">
+            {{ prSaving() ? 'Saving…' : 'Save' }}
+          </button>
+        }
       </ng-container>
     </app-dialog>
   }

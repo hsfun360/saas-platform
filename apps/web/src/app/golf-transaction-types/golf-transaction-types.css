@@ -1,0 +1,115 @@
+/* Golf Transaction Types - pricing dialog + the override checkbox.
+   Shared listing/dialog chrome comes from system-setup.css / styles.css;
+   only the screen-specific pricing pieces live here. All colours are theme
+   tokens so the screen works in every appearance mode. */
+
+.gtt-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-height: 44px;
+}
+.gtt-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.pr-note {
+  margin: 0 0 var(--space-md);
+}
+
+/* One effective-dated price card in the list view. */
+.pr-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+.pr-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+.pr-card__title {
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.pr-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+.pr-flat {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.pr-flat strong {
+  color: var(--text-primary);
+}
+
+/* The read-only 8-cell matrix. Wide content scrolls inside its own wrapper
+   so the dialog body never scrolls horizontally. */
+.pr-table-wrap {
+  overflow-x: auto;
+}
+.pr-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--font-body-2);
+}
+.pr-table th,
+.pr-table td {
+  border: 1px solid var(--border);
+  padding: var(--space-xs) var(--space-sm);
+  text-align: right;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+.pr-table thead th {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  text-align: center;
+}
+.pr-table tbody th {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+}
+
+/* The matrix editor: 2 columns (9/18 holes) per section, 1 column on mobile. */
+.pr-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 var(--space-md);
+}
+@media (max-width: 767px) {
+  .pr-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.pr-section {
+  font-size: var(--font-h3);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin: var(--space-md) 0 var(--space-sm);
+}
+.pr-section--row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}

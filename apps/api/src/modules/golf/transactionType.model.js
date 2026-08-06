@@ -46,6 +46,14 @@ const GolfTransactionType = sequelize.define('GolfTransactionType', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    // Whether the cashier may amend the pre-set matrix/flat price manually when
+    // billing this item. OFF = the resolved TransactionTypeRate amount is
+    // binding at the point of charge.
+    allowPriceOverride: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     isActive: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

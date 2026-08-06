@@ -11,7 +11,7 @@ const {
     annotateCanModify,
 } = require('../../platform/serviceContext');
 const { listCompanyTaxSchemes } = require('../../platform/taxGateway');
-const { CHARGE_TYPES, CHARGE_TYPE_KEYS } = require('./transactionType.constants');
+const { CHARGE_TYPES, CHARGE_TYPE_KEYS, MATRIX_CHARGE_TYPE_KEYS } = require('./transactionType.constants');
 
 function companyIdOf(req) {
     return getUserContext(req).companyId || null;
@@ -29,6 +29,7 @@ function toDto(t, canModify = true) {
         chargeType: t.chargeType,
         description: t.description,
         taxSchemeCode: t.taxSchemeCode,
+        allowPriceOverride: t.allowPriceOverride === true,
         isActive: t.isActive,
     };
 }
@@ -48,6 +49,7 @@ function normalizeBody(body) {
             chargeType,
             description: typeof body.description === 'string' ? body.description.trim() || null : null,
             taxSchemeCode: str(body.taxSchemeCode) || null,
+            allowPriceOverride: body.allowPriceOverride === true,
         },
     };
 }
@@ -64,9 +66,10 @@ async function validateTaxScheme(req, taxSchemeCode) {
     return ok ? null : 'Tax scheme not found for this company (or is an INPUT scheme).';
 }
 
-// GET /api/golf/transaction-types/meta - the charge-type options.
+// GET /api/golf/transaction-types/meta - the charge-type options, plus which
+// of them price by the 8-cell matrix (the rest take a flat amount).
 exports.getMeta = async (req, res) => {
-    res.status(200).json({ chargeTypes: CHARGE_TYPES });
+    res.status(200).json({ chargeTypes: CHARGE_TYPES, matrixChargeTypes: MATRIX_CHARGE_TYPE_KEYS });
 };
 
 // GET /api/golf/transaction-types/tax-schemes - the company's usable OUTPUT
