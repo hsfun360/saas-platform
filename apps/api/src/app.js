@@ -204,6 +204,74 @@ async function initializeDB() {
             // inside the lock, so the schema-scoped models have a schema to land in.
             await require('./platform/schemas').ensureProductSchemas(sequelize);
 
+            // Statement print-completeness migration (2026-08-06) - BEFORE the
+            // alter-sync, so it sees the renamed table/columns instead of
+            // creating fresh empty ones. Idempotent via to_regclass /
+            // information_schema guards; a fresh DB skips it entirely.
+            //
+            // 1. ar.StatementLine -> ar.StatementDetail (+ txnDate -> docDate,
+            //    index renames - rows and counters preserved).
+            const [[stLine]] = await sequelize.query(
+                `SELECT to_regclass('ar."StatementLine"') AS o, to_regclass('ar."StatementDetail"') AS n`,
+            );
+            if (stLine && stLine.o && !stLine.n) {
+                await sequelize.query('ALTER TABLE ar."StatementLine" RENAME TO "StatementDetail"');
+                await sequelize.query('ALTER TABLE ar."StatementDetail" RENAME COLUMN "txnDate" TO "docDate"');
+                await sequelize.query('ALTER INDEX IF EXISTS ar."IDX_StatementLine_Statement_Line" RENAME TO "IDX_StatementDetail_Statement_Line"');
+                await sequelize.query('ALTER INDEX IF EXISTS ar."IDX_StatementLine_Company" RENAME TO "IDX_StatementDetail_Company"');
+                console.log('Migrated ar.StatementLine -> ar.StatementDetail.');
+            }
+            // 2. ar.Statement NOT NULL snapshot columns whose backfill needs
+            //    data the alter-sync cannot derive (month from periodEnd,
+            //    debtor type/category via joins, issuer name from Company).
+            const [[stTable]] = await sequelize.query(`SELECT to_regclass('ar."Statement"') AS t`);
+            if (stTable && stTable.t) {
+                const [stCols] = await sequelize.query(
+                    `SELECT column_name FROM information_schema.columns
+                     WHERE table_schema = 'ar' AND table_name = 'Statement'`,
+                );
+                const have = new Set(stCols.map((c) => c.column_name));
+                if (!have.has('statementMonth')) {
+                    await sequelize.query('ALTER TABLE ar."Statement" ADD COLUMN "statementMonth" DATE');
+                    await sequelize.query(`UPDATE ar."Statement" SET "statementMonth" = date_trunc('month', "periodEnd")::date`);
+                    await sequelize.query('ALTER TABLE ar."Statement" ALTER COLUMN "statementMonth" SET NOT NULL');
+                }
+                if (!have.has('debtorType')) {
+                    await sequelize.query('ALTER TABLE ar."Statement" ADD COLUMN "debtorType" VARCHAR(20)');
+                    await sequelize.query(
+                        `UPDATE ar."Statement" s SET "debtorType" = d."debtorType"
+                         FROM ar."Debtor" d WHERE s."debtorId" = d."id"`,
+                    );
+                    await sequelize.query(`UPDATE ar."Statement" SET "debtorType" = 'other' WHERE "debtorType" IS NULL`);
+                    await sequelize.query('ALTER TABLE ar."Statement" ALTER COLUMN "debtorType" SET NOT NULL');
+                }
+                if (!have.has('debtorCategory')) {
+                    await sequelize.query('ALTER TABLE ar."Statement" ADD COLUMN "debtorCategory" VARCHAR(20)');
+                    await sequelize.query(
+                        `UPDATE ar."Statement" s SET "debtorCategory" = CASE
+                             WHEN d."debtorType" = 'other' THEN 'other'
+                             WHEN d."debtorType" = 'membership' THEN COALESCE(m."membershipClass", 'individual')
+                             WHEN d."debtorType" = 'member' THEN CASE WHEN mem."memberKind" = 'nominee' THEN 'nominee' ELSE 'individual' END
+                             ELSE 'other' END
+                         FROM ar."Debtor" d
+                         LEFT JOIN membership."Membership" m ON d."debtorType" = 'membership' AND m."id" = d."sourceId"
+                         LEFT JOIN membership."Member" mem ON d."debtorType" = 'member' AND mem."id" = d."sourceId"
+                         WHERE s."debtorId" = d."id"`,
+                    );
+                    await sequelize.query(`UPDATE ar."Statement" SET "debtorCategory" = 'other' WHERE "debtorCategory" IS NULL`);
+                    await sequelize.query('ALTER TABLE ar."Statement" ALTER COLUMN "debtorCategory" SET NOT NULL');
+                }
+                if (!have.has('companyName')) {
+                    await sequelize.query('ALTER TABLE ar."Statement" ADD COLUMN "companyName" VARCHAR(255)');
+                    await sequelize.query(
+                        `UPDATE ar."Statement" s SET "companyName" = c."name"
+                         FROM public."Company" c WHERE s."companyId" = c."id"`,
+                    );
+                    await sequelize.query(`UPDATE ar."Statement" SET "companyName" = '' WHERE "companyName" IS NULL`);
+                    await sequelize.query('ALTER TABLE ar."Statement" ALTER COLUMN "companyName" SET NOT NULL');
+                }
+            }
+
             await sequelize.sync({ alter: true });
             await writeStoredFingerprint(sequelize, fingerprint);
             console.log('Database schema synced successfully.');

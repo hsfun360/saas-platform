@@ -1,0 +1,220 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">receipt_long</span>
+      <div>
+        <h1>{{ 'Statement Generation' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Generate monthly statements of account - pick the Statement Month, adjust the date range if needed, choose the debtor scope and follow the progress live.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- AR settings (cutoff day + aging boundaries) -->
+  <div class="settings-card">
+    <button type="button" class="settings-header settings-header--button" (click)="toggleSettings()"
+            [attr.aria-expanded]="settingsExpanded()">
+      <span class="settings-header__title">Statement settings</span>
+      <span class="settings-header__sub">Cutoff day drives the default date range; aging boundaries define the buckets printed on every statement.</span>
+      <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="settingsExpanded()" aria-hidden="true">expand_more</span>
+    </button>
+    @if (settingsExpanded()) {
+      <div class="settings-body">
+        <form [formGroup]="settingForm" (ngSubmit)="onSaveSettings()" class="saas-form" style="padding: 0;">
+          <div class="form-group" style="max-width: 320px;">
+            <label for="asgCutoff">Statement cutoff day</label>
+            <input id="asgCutoff" type="number" inputmode="numeric" min="1" max="31" step="1"
+                   formControlName="statementCutoffDay" placeholder="Blank = calendar month" />
+            <small class="cell-subtle">Day 27 means Aug 2026 defaults to 28 Jul - 27 Aug. Blank uses 1 Aug - 31 Aug.</small>
+          </div>
+          <fieldset class="asg-aging">
+            <legend>Aging boundaries (days)</legend>
+            <div class="asg-aging__grid">
+              <div class="form-group">
+                <label for="asgA1">Aging 1 <span class="required">*</span></label>
+                <input id="asgA1" type="number" inputmode="numeric" min="1" step="1" formControlName="aging1" />
+                @if (showError(settingForm.controls.aging1)) {
+                  <div class="field-error" role="alert">The first boundary is required.</div>
+                }
+              </div>
+              <div class="form-group"><label for="asgA2">Aging 2</label><input id="asgA2" type="number" inputmode="numeric" min="1" step="1" formControlName="aging2" /></div>
+              <div class="form-group"><label for="asgA3">Aging 3</label><input id="asgA3" type="number" inputmode="numeric" min="1" step="1" formControlName="aging3" /></div>
+              <div class="form-group"><label for="asgA4">Aging 4</label><input id="asgA4" type="number" inputmode="numeric" min="1" step="1" formControlName="aging4" /></div>
+              <div class="form-group"><label for="asgA5">Aging 5</label><input id="asgA5" type="number" inputmode="numeric" min="1" step="1" formControlName="aging5" /></div>
+              <div class="form-group"><label for="asgA6">Aging 6</label><input id="asgA6" type="number" inputmode="numeric" min="1" step="1" formControlName="aging6" /></div>
+            </div>
+            <small class="cell-subtle">Fill left to right, each greater than the last. 30, 60, 90, 120 prints &lt;=30, 31-60, 61-90, 91-120, &gt;120.</small>
+          </fieldset>
+          <div>
+            <button *appCan="'edit'" type="submit" class="btn btn--primary" [disabled]="settingsSaving()">
+              {{ settingsSaving() ? 'Saving…' : 'Save settings' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    }
+  </div>
+
+  <!-- Run card -->
+  <div class="settings-card" *appCan="'create'">
+    <div class="settings-header">
+      <span class="settings-header__title">Generate a month</span>
+      <span class="settings-header__sub">One statement per debtor with a balance or activity. A debtor already covered for the month is REPLACED (the old statement is deleted and regenerated).</span>
+    </div>
+    <div class="settings-body">
+      <form [formGroup]="runForm" (ngSubmit)="onGenerate()" class="saas-form" style="padding: 0;">
+        <div class="asg-run">
+          <div class="form-group">
+            <label for="asgMonth">Statement Month <span class="required">*</span></label>
+            <input id="asgMonth" type="month" formControlName="month" />
+          </div>
+          <div class="form-group">
+            <label for="asgFrom">From date <span class="required">*</span></label>
+            <input id="asgFrom" type="date" formControlName="periodStart" />
+          </div>
+          <div class="form-group">
+            <label for="asgTo">To date <span class="required">*</span></label>
+            <input id="asgTo" type="date" formControlName="periodEnd" />
+          </div>
+        </div>
+        <div class="form-group">
+          <span class="asg-scope-label" id="asgScopeLabel">Debtor scope</span>
+          <div class="asg-scope" role="group" aria-labelledby="asgScopeLabel">
+            <label class="asg-check"><input type="checkbox" formControlName="individual" /> Individual</label>
+            <label class="asg-check"><input type="checkbox" formControlName="corporate" /> Corporate</label>
+            <label class="asg-check"><input type="checkbox" formControlName="nominee" /> Nominee</label>
+            <label class="asg-check"><input type="checkbox" formControlName="other" /> Other Debtor</label>
+          </div>
+        </div>
+        <div>
+          <button type="submit" class="btn btn--primary" [disabled]="driving()">
+            {{ driving() ? 'Run in progress…' : 'Preview & generate' }}
+          </button>
+        </div>
+      </form>
+
+      <!-- Live progress -->
+      @if (currentRun(); as run) {
+        <div class="asg-progress-panel" aria-live="polite">
+          <div class="asg-progress-head">
+            <strong>{{ monthLabel(run.statementMonth) }}</strong>
+            <span class="cell-subtle">{{ run.periodStart | localDate }} – {{ run.periodEnd | localDate }} · {{ scopeLabel(run.scope) }}</span>
+            <span class="status-chip"
+                  [class.status-chip--on]="run.status === 'completed'"
+                  [class.status-chip--off]="run.status !== 'completed'">{{ run.status }}</span>
+          </div>
+          <div class="asg-progress-track" role="progressbar" [attr.aria-valuenow]="runPct(run)" aria-valuemin="0" aria-valuemax="100">
+            <div class="asg-progress-fill" [style.width.%]="runPct(run)"></div>
+          </div>
+          <div class="asg-progress-stats">
+            <span><strong>{{ runPct(run) }}%</strong> - {{ run.processedCount }} of {{ run.totalDebtors }} debtors</span>
+            <span>{{ run.generatedCount }} generated · {{ run.replacedCount }} replaced</span>
+          </div>
+          @if (run.errorMessage) {
+            <div class="field-error" role="alert">{{ run.errorMessage }}</div>
+          }
+          <div class="asg-progress-actions">
+            @if (driving()) {
+              <button type="button" class="btn btn--danger btn--sm" (click)="requestCancel()">Cancel run</button>
+            } @else if (run.status === 'running' || run.status === 'failed') {
+              <button type="button" class="btn btn--primary btn--sm" (click)="onResume(run)">Resume</button>
+              <button type="button" class="btn btn--danger btn--sm" (click)="onCancelRun(run)">Cancel run</button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Run history -->
+  <h2 class="asg-history-title">Recent runs</h2>
+  @if (runsLoading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+  } @else if (runs().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">📭</span>
+      <p>No statement runs yet. Use "Preview &amp; generate" above.</p>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (r of runs(); track r.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ monthLabel(r.statementMonth) }}</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">{{ r.periodStart | localDate }} – {{ r.periodEnd | localDate }}</span>
+                <span>{{ scopeLabel(r.scope) }}</span>
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Progress</dt><dd>{{ r.processedCount }}/{{ r.totalDebtors }} ({{ runPct(r) }}%)</dd></div>
+                <div class="meta"><dt>Generated</dt><dd>{{ r.generatedCount }}</dd></div>
+                <div class="meta"><dt>Replaced</dt><dd>{{ r.replacedCount }}</dd></div>
+                <div class="meta"><dt>Started</dt><dd>{{ r.createdAt | localDate:'datetime' }}</dd></div>
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              <span class="status-chip"
+                    [class.status-chip--on]="r.status === 'completed'"
+                    [class.status-chip--off]="r.status !== 'completed'">{{ r.status }}</span>
+            </div>
+            @if (!driving() && (r.status === 'running' || r.status === 'failed')) {
+              <div class="data-row__actions" *appCan="'create'">
+                <button type="button" class="btn btn--primary btn--sm" (click)="onResume(r)">Resume</button>
+                <button type="button" class="btn btn--danger btn--sm" (click)="onCancelRun(r)">Cancel</button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ============ Preview / confirm dialog ============ -->
+  @if (previewOpen()) {
+    <app-dialog #previewDlg title="Confirm statement run" [busy]="previewLoading()" (close)="closePreview()">
+      @if (previewLoading()) {
+        <div class="loading-state"><div class="spinner large"></div><p>Checking the scope…</p></div>
+      } @else if (preview(); as p) {
+        <div class="asg-preview">
+          <p><strong>{{ monthLabel(p.statementMonth) }}</strong> — documents dated
+            {{ p.periodStart | localDate }} to {{ p.periodEnd | localDate }},
+            for {{ scopeLabel(p.categories) }}.</p>
+          <p><strong>{{ p.total }}</strong> debtor(s) are in scope. Debtors with no balance and no activity are skipped automatically.</p>
+          @if (p.replaced > 0) {
+            <p class="asg-preview__warn">⚠️ {{ p.replaced }} debtor(s) already have a statement for this month —
+              their existing statements will be <strong>deleted and regenerated</strong>.</p>
+          } @else {
+            <p class="cell-subtle">No existing statements for this month will be replaced.</p>
+          }
+        </div>
+      }
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="previewDlg.requestClose()">Cancel</button>
+        @if (preview(); as p) {
+          <button type="button" class="btn btn--primary" [disabled]="p.total === 0" (click)="onConfirmRun()">
+            Generate for {{ p.total }} debtor(s)
+          </button>
+        }
+      </ng-container>
+    </app-dialog>
+  }
+
+</div>

@@ -13,10 +13,11 @@ const OtherDebtor = require('./otherDebtor.model');
 const InterestGeneration = require('./interestGeneration.model');
 const InterestGenerationDetail = require('./interestGenerationDetail.model');
 const Statement = require('./statement.model');
-const StatementLine = require('./statementLine.model');
+const StatementDetail = require('./statementDetail.model');
+const StatementRun = require('./statementRun.model');
 const posting = require('./arPosting.service');
 const { generateInterest } = require('./arInterest.service');
-const { generateStatements } = require('./arStatement.service');
+const arStatement = require('./arStatement.service');
 const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
 const membershipGateway = require('../../platform/membershipGateway');
 const numberingGateway = require('../../platform/numberingGateway');
@@ -273,24 +274,110 @@ exports.cancel = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------------
-// Statement run
+// AR Setting (statement cutoff day + aging boundaries) - Generation screen.
 
-// POST /api/ar/statements { periodStart, periodEnd } - generate for every
-// debtor with an opening balance or activity.
-exports.generateStatementsRun = async (req, res) => {
+// GET /api/ar/settings
+exports.getArSetting = async (req, res) => {
     try {
         const { companyId } = getUserContext(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const periodStart = str(req.body.periodStart);
-        const periodEnd = str(req.body.periodEnd);
-        if (!DATE_RE.test(periodStart) || !DATE_RE.test(periodEnd) || periodEnd < periodStart) {
-            return res.status(400).json({ message: 'A valid period (start and end dates) is required.' });
-        }
+        const row = await arStatement.getSetting(companyId);
+        res.status(200).json({
+            setting: {
+                statementCutoffDay: row.statementCutoffDay,
+                aging1: row.aging1, aging2: row.aging2, aging3: row.aging3,
+                aging4: row.aging4, aging5: row.aging5, aging6: row.aging6,
+            },
+        });
+    } catch (err) {
+        console.error('Error loading AR setting:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
 
+// PUT /api/ar/settings { statementCutoffDay, aging1..aging6 }
+exports.saveArSetting = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const placement = await getCallerPlacement(req);
+        const row = await arStatement.saveSetting(companyId, req.body || {}, ownershipStamps(req, placement));
+        res.status(200).json({
+            message: 'AR settings saved.',
+            setting: {
+                statementCutoffDay: row.statementCutoffDay,
+                aging1: row.aging1, aging2: row.aging2, aging3: row.aging3,
+                aging4: row.aging4, aging5: row.aging5, aging6: row.aging6,
+            },
+        });
+    } catch (err) {
+        if (err && err.httpStatus) return res.status(err.httpStatus).json({ message: err.message });
+        console.error('Error saving AR setting:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// ---------------------------------------------------------------------------
+// Statement runs (Generation screen) - preview, start, chunked process, list.
+
+// Parse + validate the shared run parameters. Dates default from the cutoff
+// rule when omitted.
+async function readRunParams(req, companyId) {
+    const month = str(req.body.month);
+    if (!MONTH_RE.test(month)) throw Object.assign(new Error('Statement month is required (YYYY-MM).'), { httpStatus: 400 });
+    const setting = await arStatement.getSetting(companyId);
+    const dflt = arStatement.defaultPeriod(month, setting.statementCutoffDay);
+    const periodStart = str(req.body.periodStart) || dflt.periodStart;
+    const periodEnd = str(req.body.periodEnd) || dflt.periodEnd;
+    if (!DATE_RE.test(periodStart) || !DATE_RE.test(periodEnd) || periodEnd < periodStart) {
+        throw Object.assign(new Error('A valid date range (from and to) is required.'), { httpStatus: 400 });
+    }
+    const categories = arStatement.validCategories(req.body.categories);
+    if (!categories.length) throw Object.assign(new Error('Select at least one debtor category.'), { httpStatus: 400 });
+    return { statementMonth: `${month}-01`, periodStart, periodEnd, categories };
+}
+
+// POST /api/ar/statement-runs/preview - the same selection the run would
+// freeze, without writing: N in scope, M to be replaced (show-expected-results).
+exports.previewStatementRun = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const params = await readRunParams(req, companyId);
+        const preview = await arStatement.previewRun({ companyId, ...params });
+        res.status(200).json({ ...params, ...preview });
+    } catch (err) {
+        if (err && err.httpStatus) return res.status(err.httpStatus).json({ message: err.message });
+        console.error('Error previewing statement run:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/ar/statement-runs - freeze the debtor list and start the run.
+exports.createStatementRun = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const params = await readRunParams(req, companyId);
+        const placement = await getCallerPlacement(req);
+        const run = await arStatement.createRun({ companyId, ...params, stamps: ownershipStamps(req, placement) });
+        res.status(201).json({ message: 'Statement run started.', run: runJson(run) });
+    } catch (err) {
+        if (err && err.httpStatus) return res.status(err.httpStatus).json({ message: err.message });
+        console.error('Error creating statement run:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/ar/statement-runs/:id/process { resume? } - handle the next chunk
+// (~20 debtors, each committing independently) and report live counters. The
+// screen calls this in a loop and renders the percentage.
+exports.processStatementRun = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const placement = await getCallerPlacement(req);
         const stamps = ownershipStamps(req, placement);
-        // Synthetic fallback numbers get a per-run counter - a whole run posts
-        // inside one transaction, so Date.now() alone would collide.
         let synthSeq = 0;
         const issueDocNo = async (t) => {
             const issued = await numberingGateway.issueNumber(req, 'ar-statement', { transaction: t });
@@ -298,44 +385,104 @@ exports.generateStatementsRun = async (req, res) => {
             synthSeq += 1;
             return `ST-${Date.now().toString(36).toUpperCase()}-${synthSeq}`;
         };
-
-        const result = await generateStatements({ companyId, periodStart, periodEnd, issueDocNo, stamps });
-        res.status(200).json({
-            message: `${result.generated} statement(s) generated. `
-                + `${result.skippedExisting} debtor(s) already had a statement for this period.`,
-            ...result,
+        const run = await arStatement.processRun({
+            companyId,
+            runId: req.params.id,
+            resume: req.body && req.body.resume === true,
+            issueDocNo,
+            stamps,
         });
+        res.status(200).json({ run: runJson(run) });
     } catch (err) {
-        console.error('Error generating statements:', err);
+        if (err && err.httpStatus) return res.status(err.httpStatus).json({ message: err.message });
+        console.error('Error processing statement run:', err);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// GET /api/ar/statements?month=YYYY-MM - listing.
+// POST /api/ar/statement-runs/:id/cancel - stop a run (already-generated
+// statements stay; the rest of the frozen list is abandoned).
+exports.cancelStatementRun = async (req, res) => {
+    try {
+        const { companyId, userId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const run = await StatementRun.findOne({ where: { id: req.params.id, companyId } });
+        if (!run) return res.status(404).json({ message: 'Statement run not found.' });
+        if (run.status !== 'running' && run.status !== 'failed') {
+            return res.status(400).json({ message: `This run is already ${run.status}.` });
+        }
+        run.status = 'cancelled';
+        run.updatedBy = userId;
+        await run.save();
+        res.status(200).json({ message: 'Statement run cancelled.', run: runJson(run) });
+    } catch (err) {
+        console.error('Error cancelling statement run:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// GET /api/ar/statement-runs - recent runs (history + resumable ones).
+exports.listStatementRuns = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const rows = await StatementRun.findAll({
+            where: { companyId },
+            order: [['createdAt', 'DESC']],
+            limit: 20,
+        });
+        res.status(200).json({ runs: rows.map(runJson) });
+    } catch (err) {
+        console.error('Error listing statement runs:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+function runJson(r) {
+    return {
+        id: r.id,
+        statementMonth: r.statementMonth,
+        periodStart: r.periodStart,
+        periodEnd: r.periodEnd,
+        scope: r.scope,
+        status: r.status,
+        totalDebtors: r.totalDebtors,
+        processedCount: r.processedCount,
+        generatedCount: r.generatedCount,
+        replacedCount: r.replacedCount,
+        errorMessage: r.errorMessage,
+        createdAt: r.createdAt,
+    };
+}
+
+// GET /api/ar/statements?month=YYYY-MM&category=... - listing (the separate
+// Statement Listing screen; generation lives on /ar/statement-generation).
 exports.listStatements = async (req, res) => {
     try {
         const { companyId } = getUserContext(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const month = str(req.query.month);
+        const category = str(req.query.category);
         const where = { companyId };
-        if (MONTH_RE.test(month)) {
-            where.periodEnd = { [Op.gte]: `${month}-01`, [Op.lte]: `${month}-31` };
-        }
+        if (MONTH_RE.test(month)) where.statementMonth = `${month}-01`;
+        if (arStatement.STATEMENT_CATEGORIES.includes(category)) where.debtorCategory = category;
         const rows = await Statement.findAll({
             where,
             order: [['statementDate', 'DESC'], ['statementNo', 'ASC']],
             limit: 300,
         });
-        const display = rows.length ? await debtorDisplayMap(companyId, [...new Set(rows.map((r) => r.debtorId))]) : new Map();
         res.status(200).json({
             statements: rows.map((r) => ({
                 id: r.id,
                 debtorId: r.debtorId,
-                debtor: display.get(r.debtorId) || null,
                 statementNo: r.statementNo,
                 statementDate: r.statementDate,
+                statementMonth: r.statementMonth,
                 periodStart: r.periodStart,
                 periodEnd: r.periodEnd,
+                debtorType: r.debtorType,
+                debtorCategory: r.debtorCategory,
+                debtorNo: r.debtorNo,
                 openingBalance: r.openingBalance,
                 closingBalance: r.closingBalance,
                 billName: r.billName,
@@ -348,18 +495,19 @@ exports.listStatements = async (req, res) => {
     }
 };
 
-// GET /api/ar/statements/:id - the frozen document (header + lines).
+// GET /api/ar/statements/:id - the frozen document (header + details). Fully
+// self-contained for printing: party + issuer snapshots, aging, deposit.
 exports.getStatement = async (req, res) => {
     try {
         const { companyId } = getUserContext(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await Statement.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Statement not found.' });
-        const lines = await StatementLine.findAll({
+        const details = await StatementDetail.findAll({
             where: { statementId: row.id },
             order: [['lineNo', 'ASC']],
         });
-        res.status(200).json({ statement: row, lines });
+        res.status(200).json({ statement: row, details });
     } catch (err) {
         console.error('Error loading statement:', err);
         res.status(500).json({ message: 'Internal server error' });

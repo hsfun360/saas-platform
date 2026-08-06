@@ -11,7 +11,11 @@ import {
   ArInterestDetail,
   ArInterestGeneration,
   ArOtherDebtor,
+  ArSetting,
+  ArStatementCategory,
   ArStatementDetail,
+  ArStatementRun,
+  ArStatementRunPreview,
   ArStatementSummary,
 } from '../models/ar.models';
 
@@ -148,16 +152,46 @@ export class ArService {
     return this.http.post<{ message: string }>(`${this.base}/interest-generations/${id}/cancel`, {});
   }
 
-  // --- Statement run (slice 3) ---
+  // --- AR settings + statement generation (its own screen) ---
 
-  generateStatements(payload: { periodStart: string; periodEnd: string }):
-    Observable<{ message: string; generated: number; skippedExisting: number }> {
-    return this.http.post<{ message: string; generated: number; skippedExisting: number }>(`${this.base}/statements`, payload);
+  getArSetting(): Observable<{ setting: ArSetting }> {
+    return this.http.get<{ setting: ArSetting }>(`${this.base}/settings`);
   }
 
-  listStatements(month: string): Observable<{ statements: ArStatementSummary[] }> {
+  saveArSetting(setting: ArSetting): Observable<{ message: string; setting: ArSetting }> {
+    return this.http.put<{ message: string; setting: ArSetting }>(`${this.base}/settings`, setting);
+  }
+
+  previewStatementRun(payload: {
+    month: string; periodStart: string; periodEnd: string; categories: ArStatementCategory[];
+  }): Observable<ArStatementRunPreview> {
+    return this.http.post<ArStatementRunPreview>(`${this.base}/statement-runs/preview`, payload);
+  }
+
+  createStatementRun(payload: {
+    month: string; periodStart: string; periodEnd: string; categories: ArStatementCategory[];
+  }): Observable<{ message: string; run: ArStatementRun }> {
+    return this.http.post<{ message: string; run: ArStatementRun }>(`${this.base}/statement-runs`, payload);
+  }
+
+  processStatementRun(id: string, resume = false): Observable<{ run: ArStatementRun }> {
+    return this.http.post<{ run: ArStatementRun }>(`${this.base}/statement-runs/${id}/process`, { resume });
+  }
+
+  cancelStatementRun(id: string): Observable<{ message: string; run: ArStatementRun }> {
+    return this.http.post<{ message: string; run: ArStatementRun }>(`${this.base}/statement-runs/${id}/cancel`, {});
+  }
+
+  listStatementRuns(): Observable<{ runs: ArStatementRun[] }> {
+    return this.http.get<{ runs: ArStatementRun[] }>(`${this.base}/statement-runs`);
+  }
+
+  // --- Statement listing (its own screen) ---
+
+  listStatements(month: string, category = ''): Observable<{ statements: ArStatementSummary[] }> {
     let params = new HttpParams();
     if (month) params = params.set('month', month);
+    if (category) params = params.set('category', category);
     return this.http.get<{ statements: ArStatementSummary[] }>(`${this.base}/statements`, { params });
   }
 

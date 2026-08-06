@@ -413,6 +413,32 @@ async function getCompanyProfile(companyId) {
     return { id: company.id, accountId: company.accountId || null, name: company.name };
 }
 
+// Issuer letterhead for documents a product service prints/snapshots (e.g. the
+// AR statement's companyName/companyAddress). Read through the seam so product
+// services never query Company directly. WHEN SPLIT: a Control-Plane GET.
+async function getCompanyLetterhead(companyId) {
+    if (!companyId) return null;
+    const Company = require('../modules/saas/company.model');
+    const c = await Company.findByPk(companyId, {
+        attributes: ['id', 'name', 'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'country', 'countryCode', 'phone', 'email'],
+    });
+    if (!c) return null;
+    return {
+        id: c.id,
+        name: c.name,
+        phone: c.phone || null,
+        email: c.email || null,
+        address: {
+            line1: c.addressLine1 || null,
+            line2: c.addressLine2 || null,
+            city: c.city || null,
+            state: c.state || null,
+            postcode: c.postalCode || null,
+            countryCode: c.countryCode || (c.country ? String(c.country) : null),
+        },
+    };
+}
+
 // --- WHO is the platform (the invoice issuer) -----------------------------
 // The platform's own "company of record" singleton: its billing country + default
 // tax scheme (anchors the platform's own tax) and its issuer identity (invoice
@@ -578,6 +604,7 @@ module.exports = {
     getActiveAccountId,
     getActiveCompany,
     getCompanyProfile,
+    getCompanyLetterhead,
     requireModule,
     requireMenuAction,
     requireAnyMenuAction,

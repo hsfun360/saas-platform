@@ -164,14 +164,19 @@ export interface ArInterestDetail {
   interestAmount: string;
 }
 
+export type ArStatementCategory = 'individual' | 'corporate' | 'nominee' | 'other';
+
 export interface ArStatementSummary {
   id: string;
   debtorId: string;
-  debtor: ArDebtorRef | null;
   statementNo: string;
   statementDate: string;
+  statementMonth: string;
   periodStart: string;
   periodEnd: string;
+  debtorType: 'membership' | 'member' | 'other';
+  debtorCategory: ArStatementCategory;
+  debtorNo: string | null;
   openingBalance: string;
   closingBalance: string;
   billName: string;
@@ -181,18 +186,62 @@ export interface ArStatementSummary {
 export interface ArStatementLine {
   id: string;
   lineNo: number;
-  txnDate: string;
+  docDate: string;
   docType: string;
   docNo: string;
   description: string | null;
   incurredByName: string | null;
   debit: string;
   credit: string;
+  balance: string;
 }
 
 export interface ArStatementDetail {
-  statement: ArStatementSummary & { billAddress: Record<string, string | null> | null };
-  lines: ArStatementLine[];
+  statement: ArStatementSummary & {
+    billAddress: Record<string, string | null> | null;
+    contactPerson: string | null;
+    companyName: string;
+    companyAddress: Record<string, string | null> | null;
+    deposit: string;
+    aging1: string; aging2: string; aging3: string; aging4: string;
+    aging5: string; aging6: string; aging7: string;
+    agingBoundaries: number[] | null;
+  };
+  details: ArStatementLine[];
+}
+
+export interface ArSetting {
+  statementCutoffDay: number | null;
+  aging1: number | null;
+  aging2: number | null;
+  aging3: number | null;
+  aging4: number | null;
+  aging5: number | null;
+  aging6: number | null;
+}
+
+export interface ArStatementRun {
+  id: string;
+  statementMonth: string;
+  periodStart: string;
+  periodEnd: string;
+  scope: ArStatementCategory[];
+  status: 'running' | 'completed' | 'cancelled' | 'failed';
+  totalDebtors: number;
+  processedCount: number;
+  generatedCount: number;
+  replacedCount: number;
+  errorMessage: string | null;
+  createdAt: string;
+}
+
+export interface ArStatementRunPreview {
+  statementMonth: string;
+  periodStart: string;
+  periodEnd: string;
+  categories: ArStatementCategory[];
+  total: number;
+  replaced: number;
 }
 
 export interface ArOtherDebtor {

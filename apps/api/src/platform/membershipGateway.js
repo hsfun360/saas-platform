@@ -208,7 +208,8 @@ async function ensureInterestType(companyId) {
 // ar.Statement at generation). Membership debtors bill to the contract's
 // mailing address (fallback: company/residential); member debtors to the
 // person's own mailing address; other debtors carry their address themselves
-// (resolved AR-side, not here).
+// (resolved AR-side, not here). Corporate contracts also surface their
+// contact person - statements addressed to a company print who to reach.
 async function lookupPartyBilling(companyId, debtorType, sourceId) {
     const Address = require('../modules/membership/address.model');
     const display = await lookupPartyDisplay(
@@ -217,6 +218,16 @@ async function lookupPartyBilling(companyId, debtorType, sourceId) {
     );
     const d = debtorType === 'membership' ? display.memberships[sourceId] : display.members[sourceId];
     if (!d) return null;
+
+    let contactPerson = null;
+    if (debtorType === 'membership' && d.membershipClass === 'corporate') {
+        const Membership = require('../modules/membership/membership.model');
+        const row = await Membership.findOne({
+            where: { companyId, id: sourceId },
+            attributes: ['contactPerson'],
+        });
+        contactPerson = (row && row.contactPerson) || null;
+    }
 
     const owner = debtorType === 'membership' ? { membershipId: sourceId } : { memberId: sourceId };
     const rows = await Address.findAll({ where: { companyId, ...owner } });
@@ -228,6 +239,7 @@ async function lookupPartyBilling(companyId, debtorType, sourceId) {
     return {
         name: d.name,
         no: d.no,
+        contactPerson,
         address: pick ? {
             line1: pick.address,
             city: pick.city,
@@ -236,6 +248,34 @@ async function lookupPartyBilling(companyId, debtorType, sourceId) {
             countryCode: pick.countryCode,
         } : null,
     };
+}
+
+// Classify party references into the AR statement-scope categories:
+//   memberships -> { id: 'individual' | 'corporate' }  (membershipClass)
+//   members     -> { id: 'nominee' | 'individual' }    (memberKind; any
+//                   non-nominee personal debtor reads as 'individual')
+// Used by the statement run's debtor-scope filter (Individual / Corporate /
+// Nominee / Other) and stamped onto each generated Statement.
+async function classifyParties(companyId, { membershipIds = [], memberIds = [] }) {
+    const Membership = require('../modules/membership/membership.model');
+    const Member = require('../modules/membership/member.model');
+    const out = { memberships: {}, members: {} };
+    if (!companyId) return out;
+    if (membershipIds.length) {
+        const rows = await Membership.findAll({
+            where: { companyId, id: { [Op.in]: membershipIds } },
+            attributes: ['id', 'membershipClass'],
+        });
+        for (const r of rows) out.memberships[r.id] = r.membershipClass === 'corporate' ? 'corporate' : 'individual';
+    }
+    if (memberIds.length) {
+        const rows = await Member.findAll({
+            where: { companyId, id: { [Op.in]: memberIds } },
+            attributes: ['id', 'memberKind'],
+        });
+        for (const r of rows) out.members[r.id] = r.memberKind === 'nominee' ? 'nominee' : 'individual';
+    }
+    return out;
 }
 
 module.exports = {
@@ -247,4 +287,5 @@ module.exports = {
     ensureInterestType,
     listDebtorPersons,
     lookupPartyBilling,
+    classifyParties,
 };

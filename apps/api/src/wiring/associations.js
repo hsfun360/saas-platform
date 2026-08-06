@@ -123,7 +123,9 @@ const Allocation = require('../modules/ar/allocation.model');
 const InterestGeneration = require('../modules/ar/interestGeneration.model');
 const InterestGenerationDetail = require('../modules/ar/interestGenerationDetail.model');
 const ArStatement = require('../modules/ar/statement.model');
-const ArStatementLine = require('../modules/ar/statementLine.model');
+const ArStatementDetail = require('../modules/ar/statementDetail.model');
+const ArStatementRun = require('../modules/ar/statementRun.model');
+const ArSetting = require('../modules/ar/setting.model');
 // Shared capability (Workflow). Definition/steps and instance/tasks are
 // intra-service header/detail pairs (real FKs); account/company/role/
 // department/position/user/entity references stay plain UUIDs (no FK).
@@ -335,5 +337,7 @@ module.exports = {
     InterestGeneration,
     InterestGenerationDetail,
     ArStatement,
-    ArStatementLine,
+    ArStatementDetail,
+    ArStatementRun,
+    ArSetting,
 };

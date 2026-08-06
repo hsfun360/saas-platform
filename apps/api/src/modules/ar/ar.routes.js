@@ -68,9 +68,19 @@ router.get('/interest-generations/:id', requireMenuAction('/ar/interest'), perio
 router.post('/interest-generations/confirm', requireMenuAction('/ar/interest'), periodicController.confirm);
 router.post('/interest-generations/:id/cancel', requireMenuAction('/ar/interest'), periodicController.cancel);
 
-// --- Statement run (its own screen/menu: /ar/statements) ---
+// --- Statement Generation (its own screen/menu: /ar/statement-generation) ---
+// AR settings (cutoff day + aging boundaries) are maintained on this screen;
+// runs are tracked jobs the screen drives in chunks (progress + resume).
+router.get('/settings', requireMenuAction('/ar/statement-generation'), periodicController.getArSetting);
+router.put('/settings', requireMenuAction('/ar/statement-generation'), periodicController.saveArSetting);
+router.post('/statement-runs/preview', requireMenuAction('/ar/statement-generation'), periodicController.previewStatementRun);
+router.post('/statement-runs', requireMenuAction('/ar/statement-generation'), periodicController.createStatementRun);
+router.post('/statement-runs/:id/process', requireMenuAction('/ar/statement-generation'), periodicController.processStatementRun);
+router.post('/statement-runs/:id/cancel', requireMenuAction('/ar/statement-generation'), periodicController.cancelStatementRun);
+router.get('/statement-runs', requireMenuAction('/ar/statement-generation'), periodicController.listStatementRuns);
+
+// --- Statement Listing (its own screen/menu: /ar/statements) ---
 router.get('/statements', requireMenuAction('/ar/statements'), periodicController.listStatements);
-router.post('/statements', requireMenuAction('/ar/statements'), periodicController.generateStatementsRun);
 router.get('/statements/:id', requireMenuAction('/ar/statements'), periodicController.getStatement);
 router.patch('/statements/:id/void', requireMenuAction('/ar/statements'), periodicController.voidStatement);
 

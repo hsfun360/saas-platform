@@ -1,0 +1,342 @@
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { DialogComponent } from '../shared/dialog/dialog';
+import { CanDirective } from '../shared/can.directive';
+import { LocalDatePipe } from '../shared/local-date.pipe';
+import { ArService } from '../services/ar.service';
+import { ArSetting, ArStatementCategory, ArStatementRun, ArStatementRunPreview } from '../models/ar.models';
+
+// Account Receivable → Statement Generation (split from the listing 2026-08-06).
+// The run screen: AR settings (statement cutoff day + user-defined aging
+// boundaries), Statement Month with From/To dates auto-filled from the cutoff
+// rule, a debtor-category scope, a preview/confirm step (show the expected
+// result: N in scope, M replaced), then a chunk-driven run with a live
+// progress bar. Interrupted runs resume exactly where they stopped.
+@Component({
+  selector: 'app-ar-statement-generation',
+  standalone: true,
+  imports: [
+    FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
+    DialogComponent, CanDirective, LocalDatePipe,
+  ],
+  templateUrl: './ar-statement-generation.html',
+  styleUrls: ['../system-setup/system-setup.css', './ar-statement-generation.css'],
+})
+export class ArStatementGenerationComponent implements OnInit, OnDestroy {
+  private readonly service = inject(ArService);
+  private readonly fb = inject(FormBuilder);
+
+  readonly successMessage = signal('');
+  readonly errorMessage = signal('');
+
+  // --- AR settings card ---
+  readonly settingsExpanded = signal(false);
+  readonly settingsSaving = signal(false);
+  private cutoffDay: number | null = null;
+  readonly settingForm = this.fb.nonNullable.group({
+    statementCutoffDay: [''],
+    aging1: ['', [Validators.required]],
+    aging2: [''],
+    aging3: [''],
+    aging4: [''],
+    aging5: [''],
+    aging6: [''],
+  });
+
+  // --- Run form ---
+  readonly runForm = this.fb.nonNullable.group({
+    month: ['', [Validators.required]],
+    periodStart: ['', [Validators.required]],
+    periodEnd: ['', [Validators.required]],
+    individual: [true],
+    corporate: [true],
+    nominee: [true],
+    other: [true],
+  });
+
+  // Preview/confirm dialog.
+  readonly previewOpen = signal(false);
+  readonly previewLoading = signal(false);
+  readonly preview = signal<ArStatementRunPreview | null>(null);
+
+  // The run being driven + history.
+  readonly currentRun = signal<ArStatementRun | null>(null);
+  readonly driving = signal(false);
+  readonly runs = signal<ArStatementRun[]>([]);
+  readonly runsLoading = signal(false);
+  private cancelRequested = false;
+  private destroyed = false;
+
+  readonly progressPct = computed(() => {
+    const r = this.currentRun();
+    if (!r || !r.totalDebtors) return 0;
+    return Math.round((r.processedCount / r.totalDebtors) * 100);
+  });
+
+  ngOnInit(): void {
+    const month = this.thisMonth();
+    this.runForm.patchValue({ month });
+    this.loadSetting(month);
+    this.loadRuns();
+    this.runForm.controls.month.valueChanges.subscribe((m) => this.applyDefaultPeriod(m));
+  }
+
+  ngOnDestroy(): void {
+    this.destroyed = true;
+  }
+
+  showError(control: AbstractControl): boolean {
+    return control.invalid && control.touched;
+  }
+
+  private thisMonth(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  // --- Cutoff-rule period defaulting (mirrors the API's defaultPeriod) ---
+  private lastDay(y: number, m: number): number {
+    return new Date(y, m, 0).getDate();
+  }
+
+  private fmt(y: number, m: number, d: number): string {
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+
+  private applyDefaultPeriod(month: string): void {
+    const [y, m] = (month || '').split('-').map(Number);
+    if (!y || !m) return;
+    const cutoff = this.cutoffDay;
+    if (!cutoff) {
+      this.runForm.patchValue({ periodStart: this.fmt(y, m, 1), periodEnd: this.fmt(y, m, this.lastDay(y, m)) });
+      return;
+    }
+    const end = Math.min(cutoff, this.lastDay(y, m));
+    const py = m === 1 ? y - 1 : y;
+    const pm = m === 1 ? 12 : m - 1;
+    const prevEnd = Math.min(cutoff, this.lastDay(py, pm));
+    let sy = py; let sm = pm; let sd = prevEnd + 1;
+    if (sd > this.lastDay(py, pm)) { sy = y; sm = m; sd = 1; }
+    this.runForm.patchValue({ periodStart: this.fmt(sy, sm, sd), periodEnd: this.fmt(y, m, end) });
+  }
+
+  // --- Settings ---
+  private loadSetting(month: string): void {
+    this.service.getArSetting().subscribe({
+      next: (res) => {
+        this.applySetting(res.setting);
+        this.applyDefaultPeriod(month);
+      },
+      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to load AR settings.'),
+    });
+  }
+
+  private applySetting(s: ArSetting): void {
+    this.cutoffDay = s.statementCutoffDay;
+    this.settingForm.reset({
+      statementCutoffDay: s.statementCutoffDay === null ? '' : String(s.statementCutoffDay),
+      aging1: s.aging1 === null ? '' : String(s.aging1),
+      aging2: s.aging2 === null ? '' : String(s.aging2),
+      aging3: s.aging3 === null ? '' : String(s.aging3),
+      aging4: s.aging4 === null ? '' : String(s.aging4),
+      aging5: s.aging5 === null ? '' : String(s.aging5),
+      aging6: s.aging6 === null ? '' : String(s.aging6),
+    });
+  }
+
+  toggleSettings(): void {
+    this.settingsExpanded.update((v) => !v);
+  }
+
+  onSaveSettings(): void {
+    this.clearMessages();
+    if (this.settingForm.invalid) { this.settingForm.markAllAsTouched(); return; }
+    const v = this.settingForm.getRawValue();
+    const num = (x: string): number | null => (x.trim() === '' ? null : Number(x));
+    this.settingsSaving.set(true);
+    this.service.saveArSetting({
+      statementCutoffDay: num(v.statementCutoffDay),
+      aging1: num(v.aging1), aging2: num(v.aging2), aging3: num(v.aging3),
+      aging4: num(v.aging4), aging5: num(v.aging5), aging6: num(v.aging6),
+    }).subscribe({
+      next: (res) => {
+        this.settingsSaving.set(false);
+        this.successMessage.set(res.message);
+        this.applySetting(res.setting);
+        this.applyDefaultPeriod(this.runForm.getRawValue().month);
+      },
+      error: (err) => {
+        this.settingsSaving.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to save AR settings.');
+      },
+    });
+  }
+
+  // --- Preview + confirm + run ---
+  selectedCategories(): ArStatementCategory[] {
+    const v = this.runForm.getRawValue();
+    const out: ArStatementCategory[] = [];
+    if (v.individual) out.push('individual');
+    if (v.corporate) out.push('corporate');
+    if (v.nominee) out.push('nominee');
+    if (v.other) out.push('other');
+    return out;
+  }
+
+  onGenerate(): void {
+    this.clearMessages();
+    if (this.runForm.invalid) { this.runForm.markAllAsTouched(); return; }
+    const categories = this.selectedCategories();
+    if (!categories.length) {
+      this.errorMessage.set('Select at least one debtor category.');
+      return;
+    }
+    const v = this.runForm.getRawValue();
+    this.preview.set(null);
+    this.previewOpen.set(true);
+    this.previewLoading.set(true);
+    this.service.previewStatementRun({
+      month: v.month, periodStart: v.periodStart, periodEnd: v.periodEnd, categories,
+    }).subscribe({
+      next: (res) => { this.preview.set(res); this.previewLoading.set(false); },
+      error: (err) => {
+        this.previewOpen.set(false);
+        this.previewLoading.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to preview the statement run.');
+      },
+    });
+  }
+
+  closePreview(): void {
+    this.previewOpen.set(false);
+  }
+
+  onConfirmRun(): void {
+    const v = this.runForm.getRawValue();
+    const categories = this.selectedCategories();
+    this.previewOpen.set(false);
+    this.service.createStatementRun({
+      month: v.month, periodStart: v.periodStart, periodEnd: v.periodEnd, categories,
+    }).subscribe({
+      next: (res) => {
+        this.currentRun.set(res.run);
+        this.drive(res.run.id, false);
+      },
+      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to start the statement run.'),
+    });
+  }
+
+  // Drive the run: call process in a loop until it leaves 'running'. Each call
+  // handles ~20 debtors server-side and returns live counters.
+  private drive(runId: string, resume: boolean): void {
+    this.driving.set(true);
+    this.cancelRequested = false;
+    const step = (isFirst: boolean): void => {
+      if (this.destroyed) return;
+      if (this.cancelRequested) {
+        this.service.cancelStatementRun(runId).subscribe({
+          next: (res) => { this.currentRun.set(res.run); this.finishDrive('Statement run cancelled.'); },
+          error: () => this.finishDrive(''),
+        });
+        return;
+      }
+      this.service.processStatementRun(runId, isFirst && resume).subscribe({
+        next: (res) => {
+          this.currentRun.set(res.run);
+          if (res.run.status === 'running') { step(false); return; }
+          if (res.run.status === 'completed') {
+            this.finishDrive(`${res.run.generatedCount} statement(s) generated`
+              + ` (${res.run.replacedCount} replaced) for ${res.run.totalDebtors} debtor(s).`);
+          } else if (res.run.status === 'failed') {
+            this.driving.set(false);
+            this.errorMessage.set(res.run.errorMessage || 'The statement run failed.');
+            this.loadRuns();
+          } else {
+            this.finishDrive('');
+          }
+        },
+        error: (err) => {
+          this.driving.set(false);
+          this.errorMessage.set(err.error?.message || 'The statement run was interrupted. Use Resume to continue.');
+          this.loadRuns();
+        },
+      });
+    };
+    step(true);
+  }
+
+  private finishDrive(message: string): void {
+    this.driving.set(false);
+    if (message) this.successMessage.set(message);
+    this.loadRuns();
+  }
+
+  requestCancel(): void {
+    this.cancelRequested = true;
+  }
+
+  // --- Run history ---
+  loadRuns(): void {
+    this.runsLoading.set(true);
+    this.service.listStatementRuns().subscribe({
+      next: (res) => {
+        this.runs.set(res.runs);
+        this.runsLoading.set(false);
+        // Surface an abandoned run (browser closed mid-run) as the current one
+        // so its progress + Resume button show without digging in history.
+        if (!this.driving() && !this.currentRun()) {
+          const open = res.runs.find((r) => r.status === 'running' || r.status === 'failed');
+          if (open) this.currentRun.set(open);
+        }
+      },
+      error: () => this.runsLoading.set(false),
+    });
+  }
+
+  onResume(run: ArStatementRun): void {
+    this.clearMessages();
+    this.currentRun.set(run);
+    this.drive(run.id, run.status === 'failed');
+  }
+
+  onCancelRun(run: ArStatementRun): void {
+    this.clearMessages();
+    this.service.cancelStatementRun(run.id).subscribe({
+      next: (res) => {
+        this.successMessage.set(res.message);
+        if (this.currentRun()?.id === run.id) this.currentRun.set(res.run);
+        this.loadRuns();
+      },
+      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to cancel the run.'),
+    });
+  }
+
+  monthLabel(iso: string): string {
+    // '2026-08-01' -> 'Aug 2026' (device-locale month name via localDate pipe
+    // would render the full date; statements are month-labelled).
+    const [y, m] = iso.split('-').map(Number);
+    if (!y || !m) return iso;
+    const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${names[m - 1]} ${y}`;
+  }
+
+  scopeLabel(scope: ArStatementCategory[]): string {
+    const labels: Record<ArStatementCategory, string> = {
+      individual: 'Individual', corporate: 'Corporate', nominee: 'Nominee', other: 'Other Debtor',
+    };
+    if (!scope || scope.length === 4) return 'All debtors';
+    return scope.map((s) => labels[s]).join(', ');
+  }
+
+  runPct(r: ArStatementRun): number {
+    return r.totalDebtors ? Math.round((r.processedCount / r.totalDebtors) * 100) : 0;
+  }
+
+  private clearMessages(): void {
+    this.successMessage.set('');
+    this.errorMessage.set('');
+  }
+}

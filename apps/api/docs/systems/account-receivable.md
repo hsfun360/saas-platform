@@ -26,12 +26,26 @@ Key rules a maintainer must not break:
   `trxDate` is the accounting-period (GL) date - defaults to `docDate`, but a forgotten last-month document keyed after the period closed keeps last month's `docDate` with a current-month `trxDate`.
   Aging/statements bucket by `docDate`/`dueDate`; financial-period reporting buckets by `trxDate`.
 
-## Built so far (slice 1)
+## Built so far
 
-- Models: `Debtor`, `OtherDebtor` (AR-owned city-ledger party master), `CreditAccount`, `CreditMemberLimit`.
-- Provisioning: membership/nominee activation (create, status change, import migration) enqueues `DebtorProvisionRequested` through the gateway; the outbox worker calls `debtorProvisioning.service` (idempotent find-or-create; existing debtors never overwritten). Backfill: `POST /api/membership/debtor-backfill`.
-- Screens/API: shared Debtor Listing (`GET /api/ar/debtors` - one list for all three types, party search through the membership seam), ledger-account maintenance (`PATCH /api/ar/debtors/:id`), Other Debtor CRUD (creates party + ledger account in one tx; numbering purpose `ar-other-debtor`).
+- Slice 1 - masters: `Debtor`, `OtherDebtor` (AR-owned city-ledger party master), `CreditAccount`, `CreditMemberLimit`.
+  Provisioning: membership/nominee activation (create, status change, import migration) enqueues `DebtorProvisionRequested` through the gateway; the outbox worker calls `debtorProvisioning.service` (idempotent find-or-create; existing debtors never overwritten). Backfill: `POST /api/membership/debtor-backfill`.
+  Screens/API: shared Debtor Listing (one list for all three types, party search through the membership seam), ledger-account maintenance, Other Debtor CRUD (party + ledger account in one tx; numbering purpose `ar-other-debtor`).
+- Slice 2 - document ledger: `Ledger` (Invoice/DN/CN with debit/credit mode; invoice void = new credit-mode row + auto-allocation), `Receipt` (receipt/refund), `Deposit` (collateral, converted to CN via the DEPCONV process), `Allocation` (validated pairs), `arPosting.service` (integer cents, pool-lock-first, materialized counters), debtor-account screen with entry/void dialogs.
+- Slice 3 - periodic: staged interest run (holding header/detail per debtor-month -> review -> selective confirm posts the INTEREST Debit Note) and statements (below).
+- Slice 4 - fee runs (membership side producers) and the nightly reconciliation sweep (`arReconciliation.service`, invariant checks + `?fix=1`).
+- Numbering Control: AR owns `ar.NumberingScheme` (purposes `ar-*`), screen `/ar/numbering`.
+
+## Statements (enhanced 2026-08-06)
+
+- Two screens/menus: `/ar/statement-generation` (settings + runs) and `/ar/statements` (pure listing + viewer + void).
+- `ar.Setting` per-company singleton: `statementCutoffDay` (day D = period defaults prev-month D+1 .. this-month D, clamped; NULL = calendar month) and aging boundaries `aging1..aging6` (user-defined days, contiguous ascending prefix).
+- `ar.Statement` is PRINT-COMPLETE: party snapshot (billName/billAddress/`debtorNo`/`contactPerson` for corporate receivers), issuer letterhead (`companyName`/`companyAddress` via `serviceContext.getCompanyLetterhead`), `deposit` balance, aging amounts `aging1..aging7` (+`agingBoundaries` snapshot - N boundaries print N+1 buckets), `debtorType` + `debtorCategory` (individual|corporate|nominee|other via `membershipGateway.classifyParties`).
+- `ar.StatementDetail` (renamed from StatementLine): docDate-based lines + running `balance`.
+- OVERWRITE semantics: `statementMonth` is the key; regenerating a debtor's month deletes the old statement + details and recreates them (partial unique index, void rows exempt).
+- `ar.StatementRun`: chunked, resumable generation jobs - the screen drives `POST /statement-runs/:id/process` (~20 debtors per call, one tx per debtor) and renders live percentage/counters; preview endpoint reports "N in scope, M replaced" before starting.
+- Aging is as-of periodEnd: debit open items age by `dueDate` (docDate fallback), allocations counted only when the settling credit document's docDate <= periodEnd, and the unapplied credit side lands in the first bucket so buckets always sum to the closing balance.
 
 ## Not built yet
 
-Document ledger (`Ledger` Invoice/DN/CN with debit/credit mode, `Receipt`/Refund, `Deposit`, `Allocation`), authorizeCharge credit check, interest generation, statements, fee-generation producers (membership side).
+Frontend producers wiring `authorizeCharge`/`postCharge` from Golf/POS/Facility, statement PDF/email delivery, and the conversions phase of the membership CRM.

@@ -2,10 +2,12 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { AR_SCHEMA } = require('../../platform/schemas');
 
-// StatementLine - a statement's frozen line items (approved 2026-08-05). Doc
-// number/description/person name are SNAPSHOTS at generation time; statements
-// itemize by incurredBy (who consumed), per the design.
-const StatementLine = sequelize.define('StatementLine', {
+// StatementDetail - a statement's frozen line items (renamed from StatementLine
+// 2026-08-06). Doc number/description/person name are SNAPSHOTS at generation
+// time; statements itemize by incurredBy (who consumed). Lines carry docDate
+// (the occurrence date - statements/aging are docDate-based, never trxDate) and
+// the running balance after the line, so printing never recomputes.
+const StatementDetail = sequelize.define('StatementDetail', {
     id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
@@ -24,7 +26,7 @@ const StatementLine = sequelize.define('StatementLine', {
         type: DataTypes.INTEGER,
         allowNull: false,
     },
-    txnDate: {
+    docDate: {
         type: DataTypes.DATEONLY,
         allowNull: false,
     },
@@ -64,14 +66,20 @@ const StatementLine = sequelize.define('StatementLine', {
         allowNull: false,
         defaultValue: 0,
     },
+    // Running balance AFTER this line (opening + deltas so far).
+    balance: {
+        type: DataTypes.DECIMAL(21, 2),
+        allowNull: false,
+        defaultValue: 0,
+    },
 }, {
     schema: AR_SCHEMA,
-    tableName: 'StatementLine',
+    tableName: 'StatementDetail',
     timestamps: true,
     indexes: [
-        { name: 'IDX_StatementLine_Statement_Line', fields: ['statementId', 'lineNo'], unique: true },
-        { name: 'IDX_StatementLine_Company', fields: ['companyId'] },
+        { name: 'IDX_StatementDetail_Statement_Line', fields: ['statementId', 'lineNo'], unique: true },
+        { name: 'IDX_StatementDetail_Company', fields: ['companyId'] },
     ],
 });
 
-module.exports = StatementLine;
+module.exports = StatementDetail;

@@ -1,0 +1,140 @@
+/* Statement Generation (AR) - settings + run form, live progress, history.
+   Composes the shared primitives (.settings-card / .data-card / .status-chip /
+   .saas-*); only the aging grid, scope row and progress bar are screen-local. */
+
+/* Aging boundaries: 6 compact inputs on one wrapping row */
+.asg-aging {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+  margin: 0 0 var(--space-md);
+}
+
+.asg-aging legend {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  padding: 0 var(--space-xs);
+}
+
+.asg-aging__grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+@media (max-width: 767px) {
+  .asg-aging__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* Month + from/to on one row (stacks on mobile via the global form rule) */
+.asg-run {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-sm);
+  max-width: 720px;
+}
+
+@media (max-width: 767px) {
+  .asg-run { grid-template-columns: minmax(0, 1fr); max-width: none; }
+}
+
+/* Debtor-scope checkboxes */
+.asg-scope-label {
+  display: block;
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.asg-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-lg);
+}
+
+.asg-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.asg-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+}
+
+/* Live progress panel */
+.asg-progress-panel {
+  margin-top: var(--space-lg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  background: var(--surface-sunken);
+}
+
+.asg-progress-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.asg-progress-track {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.asg-progress-fill {
+  height: 100%;
+  background: var(--brand);
+  border-radius: 5px;
+  transition: width 0.3s ease;
+}
+
+.asg-progress-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+}
+
+.asg-progress-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+/* History */
+.asg-history-title {
+  font-size: var(--font-h2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin: var(--space-lg) 0 var(--space-md);
+}
+
+/* Preview dialog */
+.asg-preview p { margin: 0 0 var(--space-sm); }
+
+.asg-preview__warn {
+  background: var(--danger-surface);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md);
+}

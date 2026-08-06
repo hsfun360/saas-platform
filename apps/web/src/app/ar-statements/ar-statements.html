@@ -5,8 +5,8 @@
     <div class="saas-header-left">
       <span class="saas-icon material-icons" aria-hidden="true">receipt_long</span>
       <div>
-        <h1>{{ 'Statements' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Monthly statement of account per debtor — party details frozen at generation, lines itemized by who incurred them.' | screenSubtitle }}</p>
+        <h1>{{ 'Statement Listing' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Generated statements of account per debtor — party and letterhead details frozen at generation. Generate months on the Statement Generation screen.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -27,31 +27,18 @@
     </div>
   }
 
-  <!-- Run card -->
-  <div class="settings-card" *appCan="'create'">
-    <div class="settings-header">
-      <span class="settings-header__title">Generate a month</span>
-      <span class="settings-header__sub">One statement per debtor with a balance or activity; debtors already covered for the period are skipped.</span>
-    </div>
-    <div class="settings-body">
-      <form [formGroup]="runForm" (ngSubmit)="onGenerate()" class="saas-form as-run" style="padding: 0;">
-        <div class="form-group">
-          <label for="asMonth">Month <span class="required">*</span></label>
-          <input id="asMonth" type="month" formControlName="month" />
-        </div>
-        <div class="as-run__go">
-          <button type="submit" class="btn btn--primary" [disabled]="generating()">
-            {{ generating() ? 'Generating…' : 'Generate statements' }}
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Listing -->
+  <!-- Filters -->
   <div class="as-toolbar">
-    <label for="asFilterMonth" class="cell-subtle">Month</label>
+    <label for="asFilterMonth" class="cell-subtle">Statement Month</label>
     <input id="asFilterMonth" type="month" [value]="month()" #asFilter (change)="setMonth(asFilter.value)" />
+    <label for="asFilterCat" class="cell-subtle">Category</label>
+    <select id="asFilterCat" class="as-cat-select" [value]="category()" #asCat (change)="setCategory(asCat.value)">
+      <option value="">All categories</option>
+      <option value="individual">Individual</option>
+      <option value="corporate">Corporate</option>
+      <option value="nominee">Nominee</option>
+      <option value="other">Other Debtor</option>
+    </select>
   </div>
 
   @if (loading()) {
@@ -59,7 +46,7 @@
   } @else if (rows().length === 0) {
     <div class="empty-state">
       <span class="empty-icon">📭</span>
-      <p>No statements for this month yet. Use "Generate statements" above.</p>
+      <p>No statements for this month. Generate them on the Statement Generation screen.</p>
     </div>
   } @else {
     <div class="data-list">
@@ -68,6 +55,10 @@
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <div class="data-card__title">{{ s.statementNo }} — {{ s.billName }}</div>
+              <div class="data-card__subline">
+                @if (s.debtorNo) { <span class="data-card__reg">({{ s.debtorNo }})</span> }
+                <span class="as-cat-chip">{{ categoryLabels[s.debtorCategory] || s.debtorCategory }}</span>
+              </div>
               <dl class="data-card__meta">
                 <div class="meta"><dt>Period</dt><dd>{{ s.periodStart | localDate }} – {{ s.periodEnd | localDate }}</dd></div>
                 <div class="meta"><dt>Opening</dt><dd>{{ s.openingBalance }}</dd></div>
@@ -97,11 +88,22 @@
       @if (viewLoading()) {
         <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
       } @else if (view(); as v) {
+        <!-- Issuer letterhead (frozen) -->
+        <div class="as-letterhead">
+          <strong>{{ v.statement.companyName }}</strong>
+          @for (line of companyAddressLines(v); track $index) {
+            <span class="cell-subtle">{{ line }}</span>
+          }
+        </div>
         <div class="as-head">
           <div>
             <strong>{{ v.statement.billName }}</strong>
+            @if (v.statement.debtorNo) { <span class="cell-subtle"> ({{ v.statement.debtorNo }})</span> }
             @for (line of addressLines(v); track $index) {
               <div class="cell-subtle">{{ line }}</div>
+            }
+            @if (v.statement.contactPerson) {
+              <div class="cell-subtle">Attn: {{ v.statement.contactPerson }}</div>
             }
           </div>
           <div class="as-head__period">
@@ -111,15 +113,15 @@
         </div>
         <div class="as-lines">
           <div class="as-line as-line--head">
-            <span>Date</span><span>Document</span><span>Details</span><span class="as-num">Debit</span><span class="as-num">Credit</span>
+            <span>Date</span><span>Document</span><span>Details</span><span class="as-num">Debit</span><span class="as-num">Credit</span><span class="as-num">Balance</span>
           </div>
           <div class="as-line as-line--balance">
-            <span></span><span>Opening balance</span><span></span>
-            <span class="as-num" style="grid-column: 4 / 6;">{{ v.statement.openingBalance }}</span>
+            <span></span><span>Opening balance</span><span></span><span></span><span></span>
+            <span class="as-num">{{ v.statement.openingBalance }}</span>
           </div>
-          @for (l of v.lines; track l.id) {
+          @for (l of v.details; track l.id) {
             <div class="as-line">
-              <span>{{ l.txnDate | localDate }}</span>
+              <span>{{ l.docDate | localDate }}</span>
               <span>{{ l.docNo }}</span>
               <span>
                 {{ l.description || l.docType }}
@@ -127,12 +129,31 @@
               </span>
               <span class="as-num">{{ l.debit !== '0.00' ? l.debit : '' }}</span>
               <span class="as-num">{{ l.credit !== '0.00' ? l.credit : '' }}</span>
+              <span class="as-num">{{ l.balance }}</span>
             </div>
           }
           <div class="as-line as-line--balance">
-            <span></span><span>Closing balance</span><span></span>
-            <span class="as-num" style="grid-column: 4 / 6;">{{ v.statement.closingBalance }}</span>
+            <span></span><span>Closing balance</span><span></span><span></span><span></span>
+            <span class="as-num">{{ v.statement.closingBalance }}</span>
           </div>
+        </div>
+        <!-- Aging + deposit footer -->
+        @if (agingBuckets(v).length) {
+          <div class="as-aging">
+            <div class="as-aging__row as-aging__row--head">
+              @for (bkt of agingBuckets(v); track $index) {
+                <span class="as-num">{{ bkt.label }}</span>
+              }
+            </div>
+            <div class="as-aging__row">
+              @for (bkt of agingBuckets(v); track $index) {
+                <span class="as-num">{{ bkt.amount }}</span>
+              }
+            </div>
+          </div>
+        }
+        <div class="as-footer-meta">
+          <span class="cell-subtle">Security deposit held: <strong>{{ v.statement.deposit }}</strong></span>
         </div>
       }
       <ng-container dialogFooter>

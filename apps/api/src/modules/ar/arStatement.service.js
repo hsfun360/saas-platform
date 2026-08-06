@@ -1,13 +1,16 @@
 // src/modules/ar/arStatement.service.js
 //
-// The statement run (approved 2026-08-05): for every debtor with an opening
-// balance or activity in the period, freeze a Statement (party name/address
-// snapshot via the seams - looked up ONCE, reprints never re-resolve) plus its
-// lines. Buckets by docDate (statements/aging use docDate; trxDate is for
-// financial-period reporting).
+// The statement run, rewritten 2026-08-06 for the print-complete design:
+// per-company AR Setting (cutoff day + user-defined aging boundaries), debtor
+// scope categories (individual / corporate / nominee / other), OVERWRITE
+// semantics per (debtor, statementMonth), and chunked StatementRun processing
+// so thousand-statement months report live progress and resume after any
+// interruption (each debtor's statement commits in its own transaction).
 //
-// Void documents and their reversal rows net to zero and are EXCLUDED (a void
-// pair would only add noise); everything else that was posted appears.
+// Statements/aging bucket by docDate (trxDate is financial-period reporting
+// only). Void documents and their reversal rows net to zero and are EXCLUDED.
+// Deposit money is COLLATERAL, not AR credit: receipt cents allocated to a
+// deposit and refund cents funded BY a deposit stay off the statement balance.
 
 const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
@@ -15,160 +18,512 @@ const Debtor = require('./debtor.model');
 const OtherDebtor = require('./otherDebtor.model');
 const Ledger = require('./ledger.model');
 const Receipt = require('./receipt.model');
+const Deposit = require('./deposit.model');
 const Allocation = require('./allocation.model');
 const Statement = require('./statement.model');
-const StatementLine = require('./statementLine.model');
+const StatementDetail = require('./statementDetail.model');
+const StatementRun = require('./statementRun.model');
+const Setting = require('./setting.model');
 const membershipGateway = require('../../platform/membershipGateway');
+const { getCompanyLetterhead } = require('../../platform/serviceContext');
 const { cents, money } = require('./arPosting.service');
 
-// Signed cents effect of a document on the debtor's AR balance. Deposit money
-// is COLLATERAL, not AR credit: the portion of a receipt allocated to a
-// deposit, and the portion of a refund funded BY a deposit, are excluded
-// (doc.depositC carries those cents).
+const STATEMENT_CATEGORIES = ['individual', 'corporate', 'nominee', 'other'];
+const DEFAULT_AGING = [30, 60, 90, 120, 150, 180];
+
+function badRequest(message) {
+    const err = new Error(message);
+    err.httpStatus = 400;
+    return err;
+}
+
+// ---------------------------------------------------------------------------
+// AR Setting (per-company singleton)
+
+async function getSetting(companyId) {
+    let row = await Setting.findOne({ where: { companyId } });
+    if (!row) {
+        row = await Setting.create({
+            companyId,
+            statementCutoffDay: null,
+            aging1: DEFAULT_AGING[0],
+            aging2: DEFAULT_AGING[1],
+            aging3: DEFAULT_AGING[2],
+            aging4: DEFAULT_AGING[3],
+            aging5: DEFAULT_AGING[4],
+            aging6: DEFAULT_AGING[5],
+        });
+    }
+    return row;
+}
+
+// The contiguous filled prefix of aging1..aging6 (stops at the first blank).
+function boundariesOf(setting) {
+    const out = [];
+    for (const key of ['aging1', 'aging2', 'aging3', 'aging4', 'aging5', 'aging6']) {
+        const v = setting[key];
+        if (v === null || v === undefined) break;
+        out.push(Number(v));
+    }
+    return out.length ? out : [...DEFAULT_AGING];
+}
+
+async function saveSetting(companyId, payload, stamps) {
+    let cutoff = payload.statementCutoffDay;
+    if (cutoff === '' || cutoff === undefined) cutoff = null;
+    if (cutoff !== null) {
+        cutoff = Number(cutoff);
+        if (!Number.isInteger(cutoff) || cutoff < 1 || cutoff > 31) {
+            throw badRequest('Statement cutoff day must be between 1 and 31 (or blank for calendar month).');
+        }
+    }
+    // Aging boundaries: contiguous from aging1, strictly ascending, >= 1 day.
+    const agings = [];
+    let ended = false;
+    for (const key of ['aging1', 'aging2', 'aging3', 'aging4', 'aging5', 'aging6']) {
+        let v = payload[key];
+        if (v === '' || v === undefined) v = null;
+        if (v === null) { ended = true; agings.push(null); continue; }
+        if (ended) throw badRequest('Aging boundaries must be filled left to right with no gaps.');
+        v = Number(v);
+        if (!Number.isInteger(v) || v < 1) throw badRequest('Each aging boundary must be a whole number of days (1 or more).');
+        const prev = agings.filter((x) => x !== null).pop();
+        if (prev !== undefined && v <= prev) throw badRequest('Each aging boundary must be greater than the previous one.');
+        agings.push(v);
+    }
+    if (agings[0] === null) throw badRequest('At least the first aging boundary is required.');
+
+    const row = await getSetting(companyId);
+    row.statementCutoffDay = cutoff;
+    [row.aging1, row.aging2, row.aging3, row.aging4, row.aging5, row.aging6] = agings;
+    if (!row.createdBy && stamps.createdBy) {
+        row.createdBy = stamps.createdBy;
+        row.createdByDepartmentId = stamps.createdByDepartmentId;
+    }
+    row.updatedBy = stamps.updatedBy;
+    await row.save();
+    return row;
+}
+
+// ---------------------------------------------------------------------------
+// Period defaulting (cutoff rule)
+
+function lastDayOfMonth(y, m) { // m = 1..12
+    return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+
+function fmtDate(y, m, d) {
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+// month = 'YYYY-MM'. Cutoff day D: (prev month's D + 1) .. (this month's D),
+// clamped to short months; null = the calendar month.
+function defaultPeriod(month, cutoffDay) {
+    const [y, m] = String(month).split('-').map(Number);
+    if (!y || !m) return null;
+    if (!cutoffDay) {
+        return { periodStart: fmtDate(y, m, 1), periodEnd: fmtDate(y, m, lastDayOfMonth(y, m)) };
+    }
+    const end = Math.min(cutoffDay, lastDayOfMonth(y, m));
+    const py = m === 1 ? y - 1 : y;
+    const pm = m === 1 ? 12 : m - 1;
+    const prevEnd = Math.min(cutoffDay, lastDayOfMonth(py, pm));
+    let sy = py; let sm = pm; let sd = prevEnd + 1;
+    if (sd > lastDayOfMonth(py, pm)) { sy = y; sm = m; sd = 1; }
+    return { periodStart: fmtDate(sy, sm, sd), periodEnd: fmtDate(y, m, end) };
+}
+
+// ---------------------------------------------------------------------------
+// Debtor scope selection
+
+// All open debtors of the company resolved to their scope category, filtered
+// to the requested categories. Order is stable (createdAt) so a frozen run's
+// progress list is deterministic.
+async function selectDebtors(companyId, categories) {
+    const debtors = await Debtor.findAll({
+        where: { companyId, status: { [Op.ne]: 'closed' } },
+        order: [['createdAt', 'ASC'], ['id', 'ASC']],
+    });
+    const ids = { membershipIds: [], memberIds: [] };
+    for (const d of debtors) {
+        if (d.debtorType === 'membership') ids.membershipIds.push(d.sourceId);
+        else if (d.debtorType === 'member') ids.memberIds.push(d.sourceId);
+    }
+    const cls = await membershipGateway.classifyParties(companyId, ids);
+    const wanted = new Set(categories);
+    const out = [];
+    for (const d of debtors) {
+        let category = 'other';
+        if (d.debtorType === 'membership') category = cls.memberships[d.sourceId] || 'individual';
+        else if (d.debtorType === 'member') category = cls.members[d.sourceId] || 'individual';
+        if (wanted.has(category)) out.push({ debtor: d, category });
+    }
+    return out;
+}
+
+function validCategories(input) {
+    const arr = Array.isArray(input) ? input.filter((c) => STATEMENT_CATEGORIES.includes(c)) : [];
+    return [...new Set(arr)];
+}
+
+// Preview = the same selection the run would freeze, without writing anything:
+// how many debtors are in scope, and how many already carry a live statement
+// for the month (those get REPLACED).
+async function previewRun({ companyId, statementMonth, categories }) {
+    const selected = await selectDebtors(companyId, categories);
+    let replaced = 0;
+    if (selected.length) {
+        replaced = await Statement.count({
+            where: {
+                companyId,
+                statementMonth,
+                status: { [Op.ne]: 'void' },
+                debtorId: { [Op.in]: selected.map((s) => s.debtor.id) },
+            },
+        });
+    }
+    return { total: selected.length, replaced };
+}
+
+// ---------------------------------------------------------------------------
+// Run lifecycle
+
+async function createRun({ companyId, statementMonth, periodStart, periodEnd, categories, stamps }) {
+    const active = await StatementRun.findOne({ where: { companyId, status: 'running' } });
+    if (active) throw badRequest('Another statement run is still in progress. Resume or cancel it first.');
+    const selected = await selectDebtors(companyId, categories);
+    if (!selected.length) throw badRequest('No debtors match the selected scope.');
+    return StatementRun.create({
+        companyId,
+        statementMonth,
+        periodStart,
+        periodEnd,
+        scope: categories,
+        debtorIds: selected.map((s) => s.debtor.id),
+        status: 'running',
+        totalDebtors: selected.length,
+        ...stamps,
+    });
+}
+
+// Process the next batch of a run. Each debtor commits independently, so the
+// caller (the screen's drive loop) gets true incremental progress and a
+// crashed/closed browser resumes exactly where it stopped. On a per-debtor
+// error the run flips to 'failed' at that debtor; process(resume) retries it.
+async function processRun({ companyId, runId, batchSize = 20, resume = false, issueDocNo, stamps }) {
+    const run = await StatementRun.findOne({ where: { id: runId, companyId } });
+    if (!run) {
+        const err = new Error('Statement run not found.');
+        err.httpStatus = 404;
+        throw err;
+    }
+    if (resume && run.status === 'failed') {
+        run.status = 'running';
+        run.errorMessage = null;
+    }
+    if (run.status !== 'running') return run;
+
+    const ids = run.debtorIds.slice(run.processedCount, run.processedCount + batchSize);
+    if (!ids.length) {
+        run.status = 'completed';
+        run.updatedBy = stamps.updatedBy;
+        await run.save();
+        return run;
+    }
+
+    const debtors = await Debtor.findAll({ where: { companyId, id: { [Op.in]: ids } } });
+    const byId = new Map(debtors.map((d) => [d.id, d]));
+    const clsIds = { membershipIds: [], memberIds: [] };
+    for (const d of debtors) {
+        if (d.debtorType === 'membership') clsIds.membershipIds.push(d.sourceId);
+        else if (d.debtorType === 'member') clsIds.memberIds.push(d.sourceId);
+    }
+    const cls = await membershipGateway.classifyParties(companyId, clsIds);
+    const setting = await getSetting(companyId);
+    const boundaries = boundariesOf(setting);
+    const letterhead = await getCompanyLetterhead(companyId);
+
+    for (const id of ids) {
+        const debtor = byId.get(id);
+        if (!debtor) { run.processedCount += 1; continue; }
+        let category = 'other';
+        if (debtor.debtorType === 'membership') category = cls.memberships[debtor.sourceId] || 'individual';
+        else if (debtor.debtorType === 'member') category = cls.members[debtor.sourceId] || 'individual';
+        try {
+            const r = await generateOne({
+                companyId,
+                debtor,
+                category,
+                statementMonth: run.statementMonth,
+                periodStart: run.periodStart,
+                periodEnd: run.periodEnd,
+                boundaries,
+                letterhead,
+                issueDocNo,
+                stamps,
+            });
+            run.processedCount += 1;
+            if (r.generated) run.generatedCount += 1;
+            if (r.replaced) run.replacedCount += 1;
+        } catch (e) {
+            run.status = 'failed';
+            run.errorMessage = (e && e.message) ? String(e.message).slice(0, 250) : 'Statement generation failed.';
+            run.updatedBy = stamps.updatedBy;
+            await run.save();
+            return run;
+        }
+    }
+    if (run.processedCount >= run.totalDebtors) run.status = 'completed';
+    run.updatedBy = stamps.updatedBy;
+    await run.save();
+    return run;
+}
+
+// ---------------------------------------------------------------------------
+// Per-debtor generation
+
+// Signed cents effect of a document on the debtor's AR balance (deposit cents
+// excluded - see header note).
 function docDelta(doc) {
     if (doc.kind === 'ledger') return doc.mode === 'debit' ? cents(doc.grossAmount) : -cents(doc.grossAmount);
     const ar = cents(doc.amount) - (doc.depositC || 0);
     return doc.docKind === 'receipt' ? -ar : ar;
 }
 
-// Generate statements for a company period. Skips debtors that already carry a
-// non-void statement for this periodEnd (re-runs are safe and reported).
-// `issueDocNo(t)` supplies numbers inside the tx.
-async function generateStatements({ companyId, periodStart, periodEnd, issueDocNo, stamps }) {
-    const debtors = await Debtor.findAll({ where: { companyId, status: { [Op.ne]: 'closed' } } });
-    if (!debtors.length) return { generated: 0, skippedExisting: 0, considered: 0 };
+function daysBetween(fromDate, toDate) {
+    return Math.round((Date.parse(`${toDate}T00:00:00Z`) - Date.parse(`${fromDate}T00:00:00Z`)) / 86400000);
+}
 
-    const existing = await Statement.findAll({
-        where: { companyId, periodEnd, status: { [Op.ne]: 'void' } },
-        attributes: ['debtorId'],
-    });
-    const blocked = new Set(existing.map((s) => s.debtorId));
+// Bucket index for an age in days: <= b[0] -> 0, b[0] < age <= b[1] -> 1, ...,
+// age > b[last] -> boundaries.length (the overflow column).
+function bucketIndex(age, boundaries) {
+    for (let i = 0; i < boundaries.length; i += 1) {
+        if (age <= boundaries[i]) return i;
+    }
+    return boundaries.length;
+}
 
-    // Bulk-load every posted document once, bucket per debtor in memory.
-    const [ledgerRows, receiptRows, depositAllocs] = await Promise.all([
+async function generateOne({
+    companyId, debtor, category, statementMonth, periodStart, periodEnd,
+    boundaries, letterhead, issueDocNo, stamps,
+}) {
+    // --- Load this debtor's posted documents up to the period end ---
+    const [ledgerRows, receiptRows, depositRows] = await Promise.all([
         Ledger.findAll({
-            where: { companyId, status: { [Op.ne]: 'void' }, reversalOfId: null, docDate: { [Op.lte]: periodEnd } },
+            where: { companyId, debtorId: debtor.id, status: { [Op.ne]: 'void' }, reversalOfId: null, docDate: { [Op.lte]: periodEnd } },
         }),
         Receipt.findAll({
-            where: { companyId, status: { [Op.ne]: 'void' }, docDate: { [Op.lte]: periodEnd } },
+            where: { companyId, debtorId: debtor.id, status: { [Op.ne]: 'void' }, docDate: { [Op.lte]: periodEnd } },
         }),
-        // Deposit-side allocations: receipt->deposit (collection) and
-        // deposit->refund (deposit paid back) - both OUTSIDE the AR balance.
-        Allocation.findAll({
+        Deposit.findAll({
+            where: { companyId, debtorId: debtor.id, status: { [Op.ne]: 'void' }, docDate: { [Op.lte]: periodEnd } },
+        }),
+    ]);
+
+    // Allocations touching this debtor's documents (allocations never cross
+    // debtors, so doc-id lists cover everything).
+    const ledgerIds = ledgerRows.map((r) => r.id);
+    const receiptIds = receiptRows.map((r) => r.id);
+    const depositIds = depositRows.map((r) => r.id);
+    const allDocIds = [...ledgerIds, ...receiptIds, ...depositIds];
+    const allocs = allDocIds.length
+        ? await Allocation.findAll({
             where: {
                 companyId,
                 [Op.or]: [
-                    { creditDocType: 'receipt', debitDocType: 'deposit' },
-                    { creditDocType: 'deposit', debitDocType: 'refund' },
+                    { creditDocId: { [Op.in]: allDocIds } },
+                    { debitDocId: { [Op.in]: allDocIds } },
                 ],
             },
-        }),
-    ]);
-    // Per-document cents that belong to deposits, not AR.
+        })
+        : [];
+
+    // Per-document cents that belong to deposits, not AR: receipt -> deposit
+    // (collection) and deposit -> refund (deposit paid back).
     const depositCByDoc = new Map();
-    for (const a of depositAllocs) {
-        const key = a.creditDocType === 'receipt' ? a.creditDocId : a.debitDocId;
-        depositCByDoc.set(key, (depositCByDoc.get(key) || 0) + cents(a.amount));
+    for (const a of allocs) {
+        if (a.creditDocType === 'receipt' && a.debitDocType === 'deposit') {
+            depositCByDoc.set(a.creditDocId, (depositCByDoc.get(a.creditDocId) || 0) + cents(a.amount));
+        } else if (a.creditDocType === 'deposit' && a.debitDocType === 'refund') {
+            depositCByDoc.set(a.debitDocId, (depositCByDoc.get(a.debitDocId) || 0) + cents(a.amount));
+        }
     }
-    const byDebtor = new Map();
-    const push = (debtorId, doc) => {
-        if (!byDebtor.has(debtorId)) byDebtor.set(debtorId, []);
-        byDebtor.get(debtorId).push(doc);
-    };
-    for (const r of ledgerRows) push(r.debtorId, { kind: 'ledger', row: r, mode: r.mode, docKind: r.docKind, docDate: r.docDate, grossAmount: r.grossAmount, createdAt: r.createdAt });
+
+    const docs = [];
+    for (const r of ledgerRows) {
+        docs.push({ kind: 'ledger', row: r, mode: r.mode, docKind: r.docKind, docDate: r.docDate, grossAmount: r.grossAmount, createdAt: r.createdAt });
+    }
     for (const r of receiptRows) {
-        push(r.debtorId, {
+        docs.push({
             kind: 'receipt', row: r, mode: r.mode, docKind: r.docKind, docDate: r.docDate,
             amount: r.amount, createdAt: r.createdAt, depositC: depositCByDoc.get(r.id) || 0,
         });
     }
+    docs.sort((a, b) => (a.docDate < b.docDate ? -1 : a.docDate > b.docDate ? 1 : (a.createdAt < b.createdAt ? -1 : 1)));
 
-    // Person-name snapshots for incurredBy lines, resolved per debtor lazily.
-    let generated = 0;
-    await sequelize.transaction(async (t) => {
-        for (const debtor of debtors) {
-            if (blocked.has(debtor.id)) continue;
-            const docs = (byDebtor.get(debtor.id) || []).sort((a, b) =>
-                a.docDate < b.docDate ? -1 : a.docDate > b.docDate ? 1 : (a.createdAt < b.createdAt ? -1 : 1));
+    let openingC = 0;
+    const period = [];
+    for (const doc of docs) {
+        // A receipt fully consumed by deposit collection (or a refund fully
+        // funded by a deposit) has zero AR effect - deposit report material,
+        // not statement material.
+        if (doc.kind === 'receipt' && docDelta(doc) === 0) continue;
+        if (doc.docDate < periodStart) openingC += docDelta(doc);
+        else period.push(doc);
+    }
 
-            let openingC = 0;
-            const period = [];
-            for (const doc of docs) {
-                // A receipt fully consumed by deposit collection (or a refund
-                // fully funded by a deposit) has zero AR effect - it belongs
-                // on a deposit report, not the statement.
-                if (doc.kind === 'receipt' && docDelta(doc) === 0) continue;
-                if (doc.docDate < periodStart) openingC += docDelta(doc);
-                else period.push(doc);
-            }
-            if (openingC === 0 && period.length === 0) continue;
+    // Existing statement(s) for this debtor + month: the overwrite target.
+    const existing = await Statement.findAll({ where: { companyId, debtorId: debtor.id, statementMonth } });
 
-            // Party snapshot through the seams (other debtors resolve locally).
-            let billName = null;
-            let billAddress = null;
-            if (debtor.debtorType === 'other') {
-                const o = await OtherDebtor.findByPk(debtor.sourceId);
-                if (o) {
-                    billName = `${o.name} (${o.code})`;
-                    billAddress = {
-                        line1: o.address1, line2: o.address2, line3: o.address3,
-                        city: o.city, state: o.state, postcode: o.postcode, countryCode: o.countryCode,
-                    };
-                }
-            } else {
-                const b = await membershipGateway.lookupPartyBilling(companyId, debtor.debtorType, debtor.sourceId);
-                if (b) {
-                    billName = `${b.name} (${b.no})`;
-                    billAddress = b.address;
-                }
-            }
-            if (!billName) billName = 'Unknown debtor';
-
-            const persons = await membershipGateway.listDebtorPersons(companyId, debtor.debtorType, debtor.sourceId);
-            const personName = new Map(persons.map((p) => [p.id, p.name]));
-
-            let closingC = openingC;
-            const lines = period.map((doc, i) => {
-                const delta = docDelta(doc);
-                closingC += delta;
-                return {
-                    companyId,
-                    lineNo: i + 1,
-                    txnDate: doc.docDate,
-                    docType: doc.docKind,
-                    docId: doc.row.id,
-                    docNo: doc.row.docNo,
-                    description: doc.row.description || null,
-                    incurredByMemberId: doc.kind === 'ledger' ? doc.row.incurredByMemberId : null,
-                    incurredByName: doc.kind === 'ledger' && doc.row.incurredByMemberId
-                        ? (personName.get(doc.row.incurredByMemberId) || null) : null,
-                    debit: delta > 0 ? money(delta) : '0.00',
-                    credit: delta < 0 ? money(-delta) : '0.00',
-                };
+    if (openingC === 0 && period.length === 0) {
+        // Nothing to report. Still clear a stale statement from an earlier run
+        // of the month (its documents were voided since).
+        if (existing.length) {
+            await sequelize.transaction(async (t) => {
+                await StatementDetail.destroy({ where: { statementId: { [Op.in]: existing.map((s) => s.id) } }, transaction: t });
+                await Statement.destroy({ where: { id: { [Op.in]: existing.map((s) => s.id) } }, transaction: t });
             });
+            return { generated: false, replaced: true };
+        }
+        return { generated: false, replaced: false };
+    }
 
-            const st = await Statement.create({
-                companyId,
-                debtorId: debtor.id,
-                statementNo: await issueDocNo(t),
-                statementDate: periodEnd,
-                periodStart,
-                periodEnd,
-                openingBalance: money(openingC),
-                closingBalance: money(closingC),
-                billName,
-                billAddress,
-                status: 'generated',
-                ...stamps,
-            }, { transaction: t });
-            if (lines.length) {
-                await StatementLine.bulkCreate(lines.map((l) => ({ ...l, statementId: st.id })), { transaction: t });
-            }
-            generated += 1;
+    // --- Party snapshot through the seams (other debtors resolve locally) ---
+    let billName = null;
+    let billAddress = null;
+    let debtorNo = null;
+    let contactPerson = null;
+    if (debtor.debtorType === 'other') {
+        const o = await OtherDebtor.findByPk(debtor.sourceId);
+        if (o) {
+            billName = o.name;
+            debtorNo = o.code;
+            contactPerson = o.contactPerson || null;
+            billAddress = {
+                line1: o.address1, line2: o.address2, line3: o.address3,
+                city: o.city, state: o.state, postcode: o.postcode, countryCode: o.countryCode,
+            };
+        }
+    } else {
+        const b = await membershipGateway.lookupPartyBilling(companyId, debtor.debtorType, debtor.sourceId);
+        if (b) {
+            billName = b.name;
+            debtorNo = b.no;
+            contactPerson = b.contactPerson || null;
+            billAddress = b.address;
+        }
+    }
+    if (!billName) billName = 'Unknown debtor';
+
+    const persons = await membershipGateway.listDebtorPersons(companyId, debtor.debtorType, debtor.sourceId);
+    const personName = new Map(persons.map((p) => [p.id, p.name]));
+
+    // --- Lines with running balance ---
+    let closingC = openingC;
+    const lines = period.map((doc, i) => {
+        const delta = docDelta(doc);
+        closingC += delta;
+        return {
+            companyId,
+            lineNo: i + 1,
+            docDate: doc.docDate,
+            docType: doc.docKind,
+            docId: doc.row.id,
+            docNo: doc.row.docNo,
+            description: doc.row.description || null,
+            incurredByMemberId: doc.kind === 'ledger' ? doc.row.incurredByMemberId : null,
+            incurredByName: doc.kind === 'ledger' && doc.row.incurredByMemberId
+                ? (personName.get(doc.row.incurredByMemberId) || null) : null,
+            debit: delta > 0 ? money(delta) : '0.00',
+            credit: delta < 0 ? money(-delta) : '0.00',
+            balance: money(closingC),
+        };
+    });
+
+    // --- Aging of the closing balance at periodEnd ---
+    // Debit open items age by days overdue from dueDate (docDate fallback),
+    // with allocations counted as-of the period end (a settlement whose credit
+    // document is dated after periodEnd hadn't happened yet on this statement).
+    // The net credit side (receipts/CNs not yet applied) lands in the first
+    // bucket, so the buckets always sum exactly to the closing balance.
+    const docDateById = new Map();
+    for (const r of ledgerRows) docDateById.set(r.id, r.docDate);
+    for (const r of receiptRows) docDateById.set(r.id, r.docDate);
+    const allocatedAsOfC = new Map();
+    for (const a of allocs) {
+        if (a.debitDocType !== 'ledger') continue;
+        const creditDate = docDateById.get(a.creditDocId);
+        if (!creditDate || creditDate > periodEnd) continue;
+        allocatedAsOfC.set(a.debitDocId, (allocatedAsOfC.get(a.debitDocId) || 0) + cents(a.amount));
+    }
+    const agingC = new Array(7).fill(0);
+    let totalRemainC = 0;
+    for (const r of ledgerRows) {
+        if (r.mode !== 'debit') continue;
+        const remainC = cents(r.grossAmount) - (allocatedAsOfC.get(r.id) || 0);
+        if (remainC <= 0) continue;
+        totalRemainC += remainC;
+        const age = daysBetween(r.dueDate || r.docDate, periodEnd);
+        agingC[Math.min(bucketIndex(age, boundaries), 6)] += remainC;
+    }
+    agingC[0] += closingC - totalRemainC;
+
+    // Deposit balance snapshot (held minus utilized, deposits up to periodEnd).
+    let depositC = 0;
+    for (const d of depositRows) depositC += cents(d.collectedAmount) - cents(d.utilizedAmount);
+
+    // --- Overwrite + create, one transaction per debtor ---
+    await sequelize.transaction(async (t) => {
+        if (existing.length) {
+            await StatementDetail.destroy({ where: { statementId: { [Op.in]: existing.map((s) => s.id) } }, transaction: t });
+            await Statement.destroy({ where: { id: { [Op.in]: existing.map((s) => s.id) } }, transaction: t });
+        }
+        const st = await Statement.create({
+            companyId,
+            debtorId: debtor.id,
+            statementNo: await issueDocNo(t),
+            statementDate: periodEnd,
+            statementMonth,
+            periodStart,
+            periodEnd,
+            debtorType: debtor.debtorType,
+            debtorCategory: category,
+            debtorNo,
+            openingBalance: money(openingC),
+            closingBalance: money(closingC),
+            billName,
+            billAddress,
+            contactPerson,
+            companyName: (letterhead && letterhead.name) || '',
+            companyAddress: (letterhead && letterhead.address) || null,
+            deposit: money(depositC),
+            aging1: money(agingC[0]),
+            aging2: money(agingC[1]),
+            aging3: money(agingC[2]),
+            aging4: money(agingC[3]),
+            aging5: money(agingC[4]),
+            aging6: money(agingC[5]),
+            aging7: money(agingC[6]),
+            agingBoundaries: boundaries,
+            status: 'generated',
+            ...stamps,
+        }, { transaction: t });
+        if (lines.length) {
+            await StatementDetail.bulkCreate(lines.map((l) => ({ ...l, statementId: st.id })), { transaction: t });
         }
     });
 
-    return { generated, skippedExisting: blocked.size, considered: debtors.length };
+    return { generated: true, replaced: existing.length > 0 };
 }
 
-module.exports = { generateStatements };
+module.exports = {
+    STATEMENT_CATEGORIES,
+    getSetting,
+    saveSetting,
+    boundariesOf,
+    defaultPeriod,
+    validCategories,
+    previewRun,
+    createRun,
+    processRun,
+};

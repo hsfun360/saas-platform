@@ -1,12 +1,17 @@
-const { DataTypes } = require('sequelize');
+const { DataTypes, Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { AR_SCHEMA } = require('../../platform/schemas');
 
-// Statement - the monthly cutoff document (approved 2026-08-05). THIS is where
-// the party snapshot lands: the run looks the debtor's name/address up ONCE
-// (through the seams) and freezes it here - reprints and audits never
-// re-resolve, and the thin-Debtor rule (no party data on the ledger account)
-// stays intact.
+// Statement - the monthly cutoff document (approved 2026-08-05; print-complete
+// revision 2026-08-06). THIS is where every snapshot lands: the run resolves
+// the debtor's name/address/contact, the issuing company's letterhead, the
+// deposit balance and the aging buckets ONCE and freezes them here - printing
+// a statement never re-resolves or recomputes, and the thin-Debtor rule (no
+// party data on the ledger account) stays intact.
+//
+// statementMonth is the OVERWRITE key: regenerating a debtor's month deletes
+// the existing Statement (+details) and creates a fresh one, enforced by the
+// partial unique index (void rows from the pre-overwrite era are exempt).
 const Statement = sequelize.define('Statement', {
     id: {
         type: DataTypes.UUID,
@@ -30,6 +35,13 @@ const Statement = sequelize.define('Statement', {
         type: DataTypes.DATEONLY,
         allowNull: false,
     },
+    // First day of the Statement Month - the accounting month this statement
+    // belongs to (the overwrite key). The docDate range actually used can
+    // straddle months (cutoff-day periods like 28 Jul - 27 Aug).
+    statementMonth: {
+        type: DataTypes.DATEONLY,
+        allowNull: false,
+    },
     periodStart: {
         type: DataTypes.DATEONLY,
         allowNull: false,
@@ -37,6 +49,22 @@ const Statement = sequelize.define('Statement', {
     periodEnd: {
         type: DataTypes.DATEONLY,
         allowNull: false,
+    },
+    // Debtor snapshots: raw ledger type (membership | member | other) and the
+    // refined scope category (individual | corporate | nominee | other) - both
+    // frozen so listing filters and prints never re-join.
+    debtorType: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+    },
+    debtorCategory: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+    },
+    // Membership / member / other-debtor number snapshot.
+    debtorNo: {
+        type: DataTypes.STRING(30),
+        allowNull: true,
     },
     openingBalance: {
         type: DataTypes.DECIMAL(21, 2),
@@ -54,6 +82,45 @@ const Statement = sequelize.define('Statement', {
     // { line1, line2, line3, city, state, postcode, countryCode } - whatever
     // the party master held at generation time.
     billAddress: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+    },
+    // Printed when the receiver is a Corporate membership (the contract's
+    // contact person); Other Debtors use their own contact field.
+    contactPerson: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    // Issuer letterhead snapshot (the club's own name/address at generation).
+    companyName: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
+    companyAddress: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+    },
+    // Debtor's security-deposit balance (held minus utilized) at generation.
+    deposit: {
+        type: DataTypes.DECIMAL(21, 2),
+        allowNull: false,
+        defaultValue: 0,
+    },
+    // Aging of the closing balance at periodEnd, bucketed by the company's
+    // ar.Setting day boundaries (aging1..aging6). N filled boundaries produce
+    // N+1 buckets: aging1..agingN per boundary, plus the "over last boundary"
+    // amount in the column right after the last filled boundary. Unused
+    // trailing columns stay 0. agingBoundaries snapshots the boundaries used,
+    // so a later Setting change never re-labels a generated statement.
+    aging1: { type: DataTypes.DECIMAL(21, 2), allowNull: false, defaultValue: 0 },
+    aging2: { type: DataTypes.DECIMAL(21, 2), allowNull: false, defaultValue: 0 },
+    aging3: { type: DataTypes.DECIMAL(21, 2), allowNull: false, defaultValue: 0 },
+    aging4: { type: DataTypes.DECIMAL(21, 2), allowNull: false, defaultValue: 0 },
+    aging5: { type: DataTypes.DECIMAL(21, 2), allowNull: false, defaultValue: 0 },
+    aging6: { type: DataTypes.DECIMAL(21, 2), allowNull: false, defaultValue: 0 },
+    aging7: { type: DataTypes.DECIMAL(21, 2), allowNull: false, defaultValue: 0 },
+    // e.g. [30, 60, 90, 120] - the boundaries in force at generation.
+    agingBoundaries: {
         type: DataTypes.JSONB,
         allowNull: true,
     },
@@ -75,6 +142,14 @@ const Statement = sequelize.define('Statement', {
         { name: 'IDX_Statement_Company_No', fields: ['companyId', 'statementNo'], unique: true },
         { name: 'IDX_Statement_Debtor_Date', fields: ['debtorId', 'statementDate'] },
         { name: 'IDX_Statement_Company_Date', fields: ['companyId', 'statementDate'] },
+        // One LIVE statement per debtor per Statement Month (overwrite key).
+        // Partial: void rows from before overwrite semantics existed are exempt.
+        {
+            name: 'IDX_Statement_Company_Debtor_Month',
+            fields: ['companyId', 'debtorId', 'statementMonth'],
+            unique: true,
+            where: { status: { [Op.ne]: 'void' } },
+        },
     ],
 });
 

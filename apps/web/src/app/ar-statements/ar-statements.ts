@@ -1,6 +1,5 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { DialogComponent } from '../shared/dialog/dialog';
@@ -9,15 +8,15 @@ import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ArService } from '../services/ar.service';
 import { ArStatementDetail, ArStatementSummary } from '../models/ar.models';
 
-// Account Receivable → Statements (monthly cutoff run, approved design): one
-// frozen Statement per debtor with activity or balance - party name/address
-// snapshotted at generation, lines itemized by who incurred them. Re-running a
-// period skips debtors already covered; void a statement first to re-issue it.
+// Account Receivable → Statement Listing (generation split to its own screen
+// /ar/statement-generation on 2026-08-06). Pure query surface: month +
+// category filters, the frozen-document viewer (print-complete: letterhead,
+// contact person, running balance, deposit, aging buckets), and void.
 @Component({
   selector: 'app-ar-statements',
   standalone: true,
   imports: [
-    FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
+    FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule,
     DialogComponent, CanDirective, LocalDatePipe,
   ],
   templateUrl: './ar-statements.html',
@@ -25,18 +24,17 @@ import { ArStatementDetail, ArStatementSummary } from '../models/ar.models';
 })
 export class ArStatementsComponent implements OnInit {
   private readonly service = inject(ArService);
-  private readonly fb = inject(FormBuilder);
 
   readonly rows = signal<ArStatementSummary[]>([]);
   readonly loading = signal(false);
-  readonly generating = signal(false);
   readonly month = signal('');
+  readonly category = signal('');
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
 
-  readonly runForm = this.fb.nonNullable.group({
-    month: ['', [Validators.required]],
-  });
+  readonly categoryLabels: Record<string, string> = {
+    individual: 'Individual', corporate: 'Corporate', nominee: 'Nominee', other: 'Other Debtor',
+  };
 
   // Viewer dialog.
   readonly viewOpen = signal(false);
@@ -44,14 +42,8 @@ export class ArStatementsComponent implements OnInit {
   readonly view = signal<ArStatementDetail | null>(null);
 
   ngOnInit(): void {
-    const m = this.thisMonth();
-    this.month.set(m);
-    this.runForm.reset({ month: m });
+    this.month.set(this.thisMonth());
     this.load();
-  }
-
-  showError(control: AbstractControl): boolean {
-    return control.invalid && control.touched;
   }
 
   private thisMonth(): string {
@@ -59,17 +51,9 @@ export class ArStatementsComponent implements OnInit {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }
 
-  periodOf(month: string): { start: string; end: string } | null {
-    const [y, m] = month.split('-').map(Number);
-    if (!y || !m) return null;
-    const last = new Date(y, m, 0).getDate();
-    const mm = String(m).padStart(2, '0');
-    return { start: `${y}-${mm}-01`, end: `${y}-${mm}-${String(last).padStart(2, '0')}` };
-  }
-
   load(): void {
     this.loading.set(true);
-    this.service.listStatements(this.month()).subscribe({
+    this.service.listStatements(this.month(), this.category()).subscribe({
       next: (res) => { this.rows.set(res.statements); this.loading.set(false); },
       error: (err) => {
         this.loading.set(false);
@@ -83,24 +67,9 @@ export class ArStatementsComponent implements OnInit {
     this.load();
   }
 
-  onGenerate(): void {
-    this.clearMessages();
-    if (this.runForm.invalid) { this.runForm.markAllAsTouched(); return; }
-    const period = this.periodOf(this.runForm.getRawValue().month);
-    if (!period) return;
-    this.generating.set(true);
-    this.service.generateStatements({ periodStart: period.start, periodEnd: period.end }).subscribe({
-      next: (res) => {
-        this.successMessage.set(res.message);
-        this.generating.set(false);
-        this.month.set(this.runForm.getRawValue().month);
-        this.load();
-      },
-      error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to generate statements.');
-        this.generating.set(false);
-      },
-    });
+  setCategory(value: string): void {
+    this.category.set(value);
+    this.load();
   }
 
   openView(row: ArStatementSummary): void {
@@ -121,13 +90,36 @@ export class ArStatementsComponent implements OnInit {
     this.viewOpen.set(false);
   }
 
-  addressLines(v: ArStatementDetail | null): string[] {
-    const a = v?.statement?.billAddress;
+  private jsonAddressLines(a: Record<string, string | null> | null): string[] {
     if (!a) return [];
     return [a['line1'], a['line2'], a['line3'],
       [a['postcode'], a['city']].filter(Boolean).join(' '),
       a['state'], a['countryCode'] ? String(a['countryCode']).toUpperCase() : null]
       .filter((x): x is string => !!x);
+  }
+
+  addressLines(v: ArStatementDetail | null): string[] {
+    return this.jsonAddressLines(v?.statement?.billAddress ?? null);
+  }
+
+  companyAddressLines(v: ArStatementDetail | null): string[] {
+    return this.jsonAddressLines(v?.statement?.companyAddress ?? null);
+  }
+
+  // The printed aging buckets: labels derive from the boundaries snapshotted
+  // at generation (never from today's setting). [30,60,90] -> <=30, 31-60,
+  // 61-90, >90 across aging1..aging4.
+  agingBuckets(v: ArStatementDetail | null): { label: string; amount: string }[] {
+    const s = v?.statement;
+    const b = s?.agingBoundaries;
+    if (!s || !b || !b.length) return [];
+    const amounts = [s.aging1, s.aging2, s.aging3, s.aging4, s.aging5, s.aging6, s.aging7];
+    const out: { label: string; amount: string }[] = [];
+    for (let i = 0; i < b.length && i < 6; i += 1) {
+      out.push({ label: i === 0 ? `<=${b[0]}` : `${b[i - 1] + 1}-${b[i]}`, amount: amounts[i] });
+    }
+    out.push({ label: `>${b[Math.min(b.length, 6) - 1]}`, amount: amounts[Math.min(b.length, 6)] });
+    return out;
   }
 
   onVoid(row: ArStatementSummary): void {
