@@ -2,6 +2,20 @@
    role as Club Specification). Composes the global .settings-card chrome;
    only the aging grid and the save row are screen-local. */
 
+/* Day-count fields keep type=number (numeric keyboard, min/max) but hide the
+   browser spin buttons - nobody spins to day 27 or boundary 180 one click at
+   a time. Scoped to this screen by Angular's style encapsulation. */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 .arsp-aging__grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
