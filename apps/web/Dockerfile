@@ -8,7 +8,8 @@ COPY package*.json ./
 RUN npm install
 
 # Build the production bundle. The @angular/build:application builder outputs to
-# dist/Login/browser. environment.ts already points at the live API URL.
+# dist/Login/browser. environment.ts uses a RELATIVE apiUrl ('/api'), so the app
+# never names an API host - nginx (or the LB) resolves /api at runtime.
 COPY . .
 RUN npm run build -- --configuration production
 
@@ -24,10 +25,13 @@ COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist/Login/browser /usr/share/nginx/html
 
 ENV PORT=8080
-# Upstream for the nginx /api reverse proxy (see nginx.conf). Default points at
-# the production API; dev/staging deploys override with their own API host via
-# --set-env-vars API_HOST=... In prod the LB answers /api first, so the default
-# is only a bypass-the-LB fallback.
-ENV API_HOST=login-api-148523901156.asia-southeast1.run.app
+
+# API_HOST (the upstream for the nginx /api reverse proxy, see nginx.conf) is
+# REQUIRED and deliberately has NO default - it is per-environment, and a wrong
+# default silently proxies one environment's API to another's data. This guard
+# runs before the envsubst step and aborts startup with an actionable message.
+COPY docker-entrypoint.d/05-require-api-host.sh /docker-entrypoint.d/05-require-api-host.sh
+RUN chmod +x /docker-entrypoint.d/05-require-api-host.sh
+
 EXPOSE 8080
-# (Default nginx entrypoint handles envsubst + launches nginx.)
+# (Default nginx entrypoint runs /docker-entrypoint.d/*, then envsubst, then nginx.)
