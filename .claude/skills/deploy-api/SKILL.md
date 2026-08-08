@@ -1,150 +1,133 @@
 ---
 name: deploy-api
-description: Build, push and deploy the LoginAPI backend to Google Cloud Run (Artifact Registry image + gcloud run deploy), including the required env config, post-deploy data migrations, and verification. Use when asked to deploy the API, ship the backend, push a new Cloud Run revision, or release LoginAPI.
+description: Manually build, push and deploy the platform-api backend to Google Cloud Run (Artifact Registry image + gcloud run deploy), including the env/secret config, schema-sync behaviour, post-deploy data migrations, and verification. Use when asked to deploy the API, ship the backend, push a new Cloud Run revision, change API env vars or secrets, or release to an environment the pipeline does not cover.
 ---
 
-# Deploy LoginAPI to Cloud Run
+# Deploy the platform API to Cloud Run
 
-A runbook for shipping the `login-api` backend. Commands are **PowerShell** (the
-shell on this machine). Don't paste new secrets into git or this file.
+> **The pipeline is the normal path, not this runbook.**
+> Pushing to `dev` builds and deploys worker -> api -> web automatically ([`docs/ops/cicd.md`](../../../docs/ops/cicd.md)), and staging is a manual "Promote to staging" run that redeploys the SAME digests.
+> Use this skill only when the pipeline cannot do the job:
+> - changing **env vars or secrets** (deliberately not managed by the pipeline),
+> - deploying to an environment with no workflow yet (prod),
+> - the pipeline is broken and a release cannot wait.
+>
+> A manual `:latest` deploy is self-healing: the promotion workflow resolves tags to digests before deploying staging.
 
-Known-good config (verified 2026-06-25): project `membership-project-199610`,
-region `asia-southeast1`, account `hsfun360@gmail.com`. The live service runs with
-plain env vars `DATABASE_URL`, `ADMIN_EMAILS` (and a no-op `JWT_SECRET`).
+Commands are **PowerShell** (the shell on this machine).
+Never paste secret values into git or this file.
+
+## Environments
+
+| | dev | staging |
+| --- | --- | --- |
+| Project | `my-easy-software-dev` (number `855636431759`) | `my-easy-software-staging` (`640963543517`) |
+| Region | `asia-southeast3` (Bangkok) | `asia-southeast3` |
+| Service | `platform-api` | `platform-api` |
+| URL | https://platform-api-855636431759.asia-southeast3.run.app | https://platform-api-640963543517.asia-southeast3.run.app |
+| Registry | `asia-southeast3-docker.pkg.dev/my-easy-software-dev/login-apps` | **the same one** - staging has no registry of its own |
+| gcloud account | `admin@myeasysoft.com` | `admin@myeasysoft.com` |
+
+Prod does not exist yet.
+The old `membership-project-199610` / `asia-southeast1` / `login-api` environment was **decommissioned 2026-08-01** - none of those resources exist, do not deploy to them.
 
 ## What gets deployed
-- **API service** (`login-api`) - `Dockerfile` → `CMD node server.js`. This runbook.
-- **Outbox worker** (email sender) is a **separate** service (`outboxworker.js`,
-  needs `EMAIL_USER`/`EMAIL_PASS`). Not covered here.
+- **API service** (`platform-api`) - `apps/api/Dockerfile`, `CMD node server.js`. This runbook.
+- **Outbox worker** (`platform-api-outboxworker`) reuses the SAME image with the command overridden. Separate service, see the `deploy-worker` skill. Standing convention: **deploy the worker BEFORE the api**, so outbox/template changes are live in the sender before producers write them.
 
-## Prerequisites (check before every deploy)
-- **Docker Desktop must be RUNNING** (`docker info` must succeed) - the build needs the
-  Linux engine daemon. If `docker info` errors with "failed to connect... dockerDesktopLinuxEngine",
-  start Docker Desktop and wait for it to be ready.
-- gcloud authenticated (`gcloud auth list`) on project `membership-project-199610`.
-- One-time per machine: `gcloud auth configure-docker asia-southeast1-docker.pkg.dev`
-  and the Artifact Registry repo exists (`gcloud artifacts repositories create login-api
-  --repository-format=docker --location=asia-southeast1`).
+## Prerequisites
+- **Docker Desktop RUNNING** (`docker info` succeeds).
+- `admin@myeasysoft.com` authenticated. The DEFAULT gcloud account on this machine is `hsfun360@gmail.com`, which has **no access** to the dev/staging projects, so every command below passes `--account`.
+  If a command fails with `Reauthentication failed. cannot prompt during non-interactive execution`, the token expired - the user must run `gcloud auth login admin@myeasysoft.com` interactively.
+- One-time per machine: `gcloud auth configure-docker asia-southeast3-docker.pkg.dev`.
 
-## Runtime config (Cloud Run)
-
-| Var | Status | Purpose |
-| --- | --- | --- |
-| `DATABASE_URL` | ✅ required | Postgres connection (URL-encode the password: `@`→`%40`). |
-| `ADMIN_EMAILS` | ✅ required | Break-glass System Admin allowlist + seed owner (comma-separated). |
-| `FRONTEND_BASE_URL` | ⚠️ recommended | Base URL used in invitation / reset emails. |
-| `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` | ✅ required (secret) | RS256 keys, now in **Secret Manager** (secrets `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY`), injected as env vars via `--update-secrets` (see below). NO longer baked into the image (`keys/` is `.dockerignore`d). `src/platform/jwt.keys.js` reads them from `process.env` first, falling back to a local `keys/` file for dev only. |
-| `GOOGLE_CLIENT_SECRET` | ✅ required (secret) | OAuth client secret for the Google sign-in code exchange (`/api/auth/google/exchange`). Secret Manager secret `GOOGLE_CLIENT_SECRET`, attached via `--update-secrets GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest` (same pattern as the JWT keys - persists across deploys). Client ID is public and hardcoded as a fallback in `auth.controller.js`. Redirect URIs (`<origin>/login` per frontend host) must be authorized on the OAuth client in the Google Cloud console. |
-| `ASSETS_BUCKET` | ✅ required | Per-environment GCS bucket for public image uploads (user avatars, company logos). Dev: `my-easy-software-dev-app-assets`. The bucket needs `allUsers` objectViewer + the service's runtime SA objectAdmin; uploads 500 with a clear message when unset. |
-| `PORT` | auto | Cloud Run sets it; `server.js` reads `process.env.PORT`. |
-| `RUN_SEED` | 🚫 never in prod | Gates the destructive wipe+reseed. Fresh/dev DB only, ad-hoc. |
-| ~~`JWT_SECRET`~~ | ❌ unused | Not referenced anywhere (app is RS256, not HMAC). Harmless but drop it. |
-
-> ⚠️ **`--set-env-vars` REPLACES the whole plain env-var set** - anything not listed is
-> removed. Always pass the FULL set you want. **Secret-backed vars (`--update-secrets`)
-> are a SEPARATE set and persist across deploys**, so a plain `gcloud run deploy --image`
-> keeps the JWT secrets attached - you only pass `--update-secrets` when (re)wiring them.
-> Since login now depends on these secrets, NEVER ship an image without them attached.
-
-## Deploy (every release)
+## Deploy (manual)
 
 ```powershell
-$env:PROJECT_ID = "membership-project-199610"
-$env:REGION     = "asia-southeast1"
-$env:IMAGE_NAME = "login-api"
-$FULL_TAG = "$($env:REGION)-docker.pkg.dev/$($env:PROJECT_ID)/$($env:IMAGE_NAME)/$($env:IMAGE_NAME):latest"
+$PROJECT  = "my-easy-software-dev"
+$REGION   = "asia-southeast3"
+$ACCOUNT  = "admin@myeasysoft.com"
+$REGISTRY = "asia-southeast3-docker.pkg.dev/my-easy-software-dev/login-apps"
+$TAG      = "$REGISTRY/platform-api:latest"
 
-# 1. Build for Cloud Run (linux/amd64). Drop --no-cache for faster rebuilds.
-#    Run from the saas-platform repo root (the api Dockerfile lives in apps/api).
-docker build --platform linux/amd64 -t login-api-local:latest apps/api --no-cache
+# 1. Build for Cloud Run. --platform linux/amd64 is REQUIRED on this machine
+#    (the CI runner is already amd64, which is why the workflow omits it).
+#    Run from the repo root - the api Dockerfile lives in apps/api.
+docker build --platform linux/amd64 -t $TAG apps/api
 
-# 2. Tag + push to Artifact Registry
-docker tag login-api-local:latest $FULL_TAG
-docker push $FULL_TAG
+# 2. Push. The docker credential helper follows the ACTIVE gcloud account, NOT
+#    --account, so the active account must be the one with registry access.
+gcloud config set account $ACCOUNT
+docker push $TAG
+gcloud config set account hsfun360@gmail.com   # restore the default
 
-# 3. Deploy. Plain env vars + secret-backed JWT keys both persist across deploys,
-#    so a routine release is just the image - no env/secret flags needed:
-gcloud run deploy $env:IMAGE_NAME `
-  --image $FULL_TAG `
-  --platform managed `
-  --region $env:REGION `
-  --allow-unauthenticated
+# 3. Deploy the worker FIRST, then the api (see convention above).
+gcloud run deploy platform-api-outboxworker --image $TAG --region $REGION --project $PROJECT --account $ACCOUNT --quiet
+gcloud run deploy platform-api --image $TAG --region $REGION --project $PROJECT --account $ACCOUNT --allow-unauthenticated
 ```
 
-> Use `--update-env-vars` to change ONE plain var without re-specifying the rest (it merges),
-> and `--update-secrets JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest --update-secrets JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest`
-> to (re)attach the JWT secrets. One-time setup of those secrets is in **JWT keys (Secret Manager)** below.
-> If you ever change plain vars with `--set-env-vars` (which REPLACES the plain set), it does NOT
-> touch the secret set - the JWT keys stay attached.
+> ⚠️ **`--set-env-vars` REPLACES the whole plain env-var set** - anything not listed is removed.
+> Use `--update-env-vars` to change one var, and `--remove-env-vars` to drop one.
+> **Secret-backed vars (`--update-secrets`) are a SEPARATE set and persist across deploys**, so an image-only deploy keeps them attached. Never ship a revision without the JWT secrets - every login 500s.
+
+## Runtime config
+
+Already attached to dev; listed so a new environment can be wired from scratch.
+
+| Var | Kind | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | secret | Postgres. Dev uses the Cloud SQL connector (`--add-cloudsql-instances`) over a unix socket: the URL carries `?host=/cloudsql/my-easy-software-dev:asia-southeast3:platform-db-dev` (Sequelize v6 honours the `host` query param for socket paths). |
+| `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` | secret | RS256 keys. NOT in the image (`keys/` is `.dockerignore`d), so they MUST be attached. `src/platform/jwt.keys.js` reads env first, falling back to a local `keys/` file for dev only. Staging has its OWN fresh keypair. |
+| `SMTP_ENCRYPTION_KEY` | secret | Decrypts per-company SMTP passwords. **Must match whatever environment the data was copied from** - a fresh key cannot decrypt existing `CompanySmtpConfigs` rows. |
+| `GOOGLE_CLIENT_SECRET` | secret | Google sign-in code exchange. |
+| `ADMIN_EMAILS` | plain | Break-glass System Admin allowlist + seed owner. Dev: `admin@myeasysoft.com`. |
+| `FRONTEND_BASE_URL` | plain | Base URL in invitation / reset emails. Must point at the WEB service, never the API host. |
+| `ASSETS_BUCKET` | plain | Per-environment GCS bucket for public image uploads (avatars, logos). Dev: `my-easy-software-dev-app-assets`. Needs `allUsers` objectViewer + the runtime SA objectAdmin. Uploads 500 with a clear message when unset - **each new environment needs its own bucket and value**. |
+| `GOOGLE_CLIENT_ID` | plain | Per-environment OAuth client; read by the login screen via `GET /api/auth/sso-config`. |
+| `MICROSOFT_SSO_ENABLED` | plain | `false` outside prod - hides the button. |
+| `OUTBOX_WORKER_URL` | plain | Worker URL for the post-commit drain ping. See `deploy-worker`. |
+| `PORT` | auto | Set by Cloud Run; `server.js` reads it. |
+| `RUN_SEED` | 🚫 never | Gates a destructive wipe+reseed, and it fires on EVERY cold start while set. Used once on a fresh DB, then removed. |
 
 ## Schema & data migrations
-- **Schema columns auto-apply on boot** - `app.js` runs `sequelize.sync({ alter: true })`
-  under an advisory lock, so new nullable columns (e.g. `Module.landingRoute`,
-  `Role.description`) are added when the revision starts. No manual step.
-- **Fingerprint gate (2026-07-16):** the sync is SKIPPED when nothing changed.
-  Boot hashes the model definitions (`src/platform/schemaFingerprint.js`) and
-  compares against the one-row `public."SchemaMeta"` table: match → log
-  `Database schema up to date (fingerprint match) - skipping sync.` and the
-  instance is ready in seconds; mismatch (a release edited a model) → full sync
-  runs once, then the fingerprint is updated. So expect the multi-minute
-  `Database schema synced successfully.` only on the FIRST boot after a
-  model-changing release - scale-ups/cold starts/no-op deploys skip.
-- **Escape hatch:** if the DB was changed manually (dropped/altered outside the
-  models) and you need a full re-sync despite an unchanged fingerprint, deploy
-  once with `--update-env-vars FORCE_SCHEMA_SYNC=1`, then remove it
-  (`--remove-env-vars FORCE_SCHEMA_SYNC`) so later boots go back to skipping.
-- **Data migrations are manual**, run from a machine that can reach the DB
-  (`DATABASE_URL` in `apps/api/.env`), NOT part of the deploy. Run them from the
-  `apps/api` folder (that is where `package.json` and the scripts live). Run the
-  one(s) a release needs, e.g.:
+
+- **Schema changes auto-apply on boot.** `app.js` runs `sequelize.sync({ alter: true })` under an advisory lock.
+- **Fingerprint gate:** boot hashes the model definitions (`src/platform/schemaFingerprint.js`) against the one-row `public."SchemaMeta"` table. Match -> `Database schema up to date (fingerprint match) - skipping sync.` and the instance is ready in seconds. Mismatch -> the full sync runs once, then the fingerprint is updated. Expect the slow `Database schema synced successfully.` only on the FIRST boot after a model-changing release.
+- **Escape hatch:** after manual DDL outside the models, deploy once with `--update-env-vars FORCE_SCHEMA_SYNC=1`, then `--remove-env-vars FORCE_SCHEMA_SYNC`.
+- **Destructive DDL (renames, drops, NOT NULL backfills) must run BEFORE the sync sees it** - the pattern is an idempotent guarded block at the top of `initializeDB()` in `app.js`, keyed on `to_regclass` / `information_schema` so a fresh DB skips it.
+- **Data migrations are manual** and are NOT part of the deploy. Run them from `apps/api` (where `package.json` lives) on a machine that can reach the DB:
   ```powershell
   cd apps/api
   npm run migrate:menu-routes -- --dry-run   # preview
   npm run migrate:menu-routes                # apply (idempotent)
   ```
-- **Fresh/empty DB only:** `npm run seed` (destructive). Never on a populated prod DB.
+  ⚠️ `apps/api/.env` may still point `DATABASE_URL` at the retired external Postgres (`20.212.81.135`). **Check it before running anything** or the migration silently targets the wrong database.
+- **Fresh/empty DB only:** `npm run seed` (destructive).
+- One-off DB scripts run as the `seed-users` Cloud Run Job (`scripts/` is `.dockerignore`d, so it cannot be a container command) - see [`docs/ops/dev-environment.md`](../../../docs/ops/dev-environment.md).
 
 ## Verify
+
+**A 200 on `/` does NOT mean the deploy is healthy.** `start()` calls `app.listen` and only then kicks off `initializeDB()` in the background (`src/app.js`), so the service serves traffic whether or not the schema sync succeeded. The pipeline's smoke check has the same blind spot. Always read the logs after a model-changing release.
+
 ```powershell
-curl "https://<your-cloud-run-url>/"          # -> "Login API is running!"
-gcloud run services describe login-api --region asia-southeast1 `
-  --format="value(spec.template.spec.containers[0].env[].name)"   # env var names (no values)
-gcloud run services logs read login-api --region asia-southeast1 --limit 50
+$ACCOUNT = "admin@myeasysoft.com"; $PROJECT = "my-easy-software-dev"
+curl "https://platform-api-855636431759.asia-southeast3.run.app/"     # -> "Login API is running!"
+
+# The real check - schema sync outcome and any boot error:
+gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="platform-api"' `
+  --project $PROJECT --account $ACCOUNT --limit 50 --freshness 15m --format="value(timestamp,severity,textPayload)"
+
+# Env var NAMES only (never prints values):
+gcloud run services describe platform-api --region asia-southeast3 --project $PROJECT --account $ACCOUNT `
+  --format="value(spec.template.spec.containers[0].env[].name)"
 ```
-Confirm in logs: `Database schema synced successfully`, `[JWT KEYS] Loaded private key
-from environment variable.`, and a DB connect. Then do a real **login** (exercises
-JWT signing + DB - the "from environment variable" line only prints on the first token
-op, so it appears after that login, not at boot). After a release that changed menu
-routes, **log out/in** so the browser's cached `userMenus` refresh.
+
+Confirm in the logs: `PostgreSQL connection established successfully.`, then either the fingerprint-skip line or `Database schema synced successfully.`, and **no error from a guarded migration block**.
+Then do a real **login** - it exercises JWT signing, and `[JWT KEYS] Loaded private key from environment variable.` only prints on the first token op, so it appears after that login rather than at boot.
+After a release that changed menu routes, **log out and back in** so the browser's cached `userMenus` refresh.
 
 ## Gotchas
-- `JWT_SECRET` is dead - RS256 keys are what matter. They now come from **Secret Manager**
-  (env vars `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY`), NOT the image. If login fails with
-  `ENOENT .../keys/private.pem` or `secretOrPrivateKey`, the secrets aren't attached to the
-  revision - re-attach with `--update-secrets` (see below) and confirm the runtime SA has
-  `roles/secretmanager.secretAccessor`. (`keys/` is `.dockerignore`d, so there is no file
-  fallback in the image - the secrets MUST be attached.)
-- DB SSL is commented out in `db.js` → plaintext to the external Postgres. Re-enable
-  the `ssl` block if you move to Cloud SQL / require TLS.
-- CORS `origin` is `'*'` in `app.js` - lock to the frontend URL before real prod.
-
-## JWT keys (Secret Manager) - one-time setup
-Done for `membership-project-199610` (2026-07-01); repeat only for a new project/env.
-Keys are kept out of the registry and injected as env vars, so the app stays
-platform-agnostic (`src/platform/jwt.keys.js` reads `process.env.JWT_PRIVATE_KEY` first).
-```powershell
-gcloud services enable secretmanager.googleapis.com
-# 1. Create the secrets from the local keys (once)
-gcloud secrets create JWT_PRIVATE_KEY --data-file="apps/api/keys/private.pem" --replication-policy="automatic"
-gcloud secrets create JWT_PUBLIC_KEY  --data-file="apps/api/keys/public.pem"  --replication-policy="automatic"
-# 2. Grant the Cloud Run runtime service account read access
-$SA = "148523901156-compute@developer.gserviceaccount.com"   # PROJECT_NUMBER-compute@developer.gserviceaccount.com
-gcloud secrets add-iam-policy-binding JWT_PRIVATE_KEY --member="serviceAccount:$SA" --role="roles/secretmanager.secretAccessor"
-gcloud secrets add-iam-policy-binding JWT_PUBLIC_KEY  --member="serviceAccount:$SA" --role="roles/secretmanager.secretAccessor"
-# 3. Attach to the service (persists across future deploys)
-gcloud run services update login-api --region asia-southeast1 `
-  --update-secrets "JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest" --update-secrets "JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest"
-```
-To rotate a key: `gcloud secrets versions add JWT_PRIVATE_KEY --data-file=...` then redeploy
-(new tokens use the new key; keep the old version until all old tokens expire). The local
-`apps/api/keys/*.pem` are for dev only and must stay git-ignored - never commit them.
+- **The credential helper ignores `--account`.** Pushing while `hsfun360@gmail.com` is active fails with a permissions error even though every `gcloud` flag looks right. Switch the active account for the push, then switch back.
+- **`JWT_SECRET` is dead** (the app is RS256, not HMAC). If login fails with `ENOENT .../keys/private.pem` or `secretOrPrivateKey`, the RS256 secrets are not attached to the revision - re-attach with `--update-secrets` and confirm the runtime SA has `roles/secretmanager.secretAccessor`.
+- **Cloud Scheduler is not available in `asia-southeast3`.** Jobs that drive this environment live in `asia-southeast1`; that is deliberate, not a misconfiguration.
+- **Most tables are singular** (`public."User"`, `public."Account"`); only a few are plural (`Modules`, `Menus`, `Roles`, `RoleMenus`). Check names before writing verification queries.

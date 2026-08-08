@@ -1,112 +1,123 @@
 ---
 name: deploy-web
-description: Build, push and deploy the Angular frontend (login-web) to Google Cloud Run (Artifact Registry image + gcloud run deploy), including the nginx/SPA setup, the production-budget gotcha, verification, and keeping the backend's FRONTEND_BASE_URL in sync. Use when asked to deploy the frontend, ship the web app, push a new login-web revision, or release the Login UI.
+description: Manually build, push and deploy the Angular frontend (platform-web) to Google Cloud Run (Artifact Registry image + gcloud run deploy), including the nginx SPA + /api reverse-proxy setup, the API_HOST runtime var, the production-budget gotcha, Google SSO origin registration, and verification. Use when asked to deploy the frontend, ship the web app, push a new platform-web revision, or repoint the app at a different API.
 ---
 
-# Deploy the Login frontend to Cloud Run
+# Deploy the platform frontend to Cloud Run
 
-Runbook for shipping the Angular SPA as the `login-web` Cloud Run service.
+> **The pipeline is the normal path, not this runbook.**
+> Pushing to `dev` builds and deploys worker -> api -> web automatically ([`docs/ops/cicd.md`](../../../docs/ops/cicd.md)), and staging is a manual "Promote to staging" run of the same digests.
+> Use this skill only for env-var changes (`API_HOST`), an environment with no workflow yet (prod), or when the pipeline is broken.
+
 Commands are **PowerShell** (the shell on this machine).
 
-Known-good config (verified 2026-06-26): project `membership-project-199610`,
-region `asia-southeast1`, account `hsfun360@gmail.com`.
-- Frontend service: **`login-web`** → https://login-web-148523901156.asia-southeast1.run.app
-- Backend service: `login-api` → https://login-api-148523901156.asia-southeast1.run.app
+## Environments
+
+| | dev | staging |
+| --- | --- | --- |
+| Project | `my-easy-software-dev` (`855636431759`) | `my-easy-software-staging` (`640963543517`) |
+| Region | `asia-southeast3` | `asia-southeast3` |
+| Service | `platform-web` | `platform-web` |
+| URL | https://platform-web-855636431759.asia-southeast3.run.app | https://platform-web-640963543517.asia-southeast3.run.app |
+| Registry | `asia-southeast3-docker.pkg.dev/my-easy-software-dev/login-apps` | **the same one** |
+| `API_HOST` | `platform-api-855636431759.asia-southeast3.run.app` | `platform-api-640963543517.asia-southeast3.run.app` |
+
+The old `membership-project-199610` / `asia-southeast1` / `login-web` environment was **decommissioned 2026-08-01**.
 
 ## How it's built
-Multi-stage `Dockerfile`: **Node build → nginx serve**.
-- `npm run build -- --configuration production` (Angular `@angular/build:application`)
-  emits static files to **`dist/Login/browser`**.
-- `nginx.conf` is copied to `/etc/nginx/templates/default.conf.template`; the nginx
-  image's envsubst step expands **`${PORT}`** at startup (Cloud Run sets PORT=8080),
-  serves `/usr/share/nginx/html`, and does **SPA fallback** (`try_files … /index.html`)
-  so deep links like `/admin/roles`, `/golf` return 200 on refresh.
-- **The API URL is baked into the image** from `src/environments/environment.ts`
-  (`apiUrl`). There are NO runtime env vars. To repoint at a different API, edit
-  `environment.ts` and rebuild.
 
-## Prerequisites (check before every deploy)
-- **Docker Desktop RUNNING** (`docker info` succeeds).
-- gcloud authenticated on `membership-project-199610`.
-- One-time per machine: `gcloud auth configure-docker asia-southeast1-docker.pkg.dev`.
-- One-time: Artifact Registry repo exists -
-  `gcloud artifacts repositories create login-web --repository-format=docker --location=asia-southeast1`.
+Multi-stage `apps/web/Dockerfile`: **Node build -> nginx serve**.
 
-## Deploy (every release)
+- `npm run build -- --configuration production` emits static files to **`dist/Login/browser`**.
+- `nginx.conf` is copied to `/etc/nginx/templates/default.conf.template`; the nginx image's envsubst step expands **`${PORT}`** and **`${API_HOST}`** at container start.
+- **SPA fallback** (`try_files … /index.html`) so deep links like `/admin/roles` return 200 on refresh.
+
+### The API URL is same-origin, not baked in
+
+`environment.ts` sets `apiUrl: '/api'` (relative).
+The app never names an API host - it calls `/api` on its own origin, and something in front resolves it:
+
+- **dev / staging:** nginx reverse-proxies `/api/*` to `https://${API_HOST}` (`nginx.conf:31-37`). This is why `API_HOST` is a **runtime env var** on the service, and how these environments get same-origin cookie/CORS behaviour with no load balancer.
+- **future prod:** the load balancer answers `/api/*` before traffic reaches nginx, so the nginx location is dormant there.
+
+To repoint the app at a different API, set `API_HOST` - **no rebuild needed**:
 ```powershell
-$env:PROJECT_ID = "membership-project-199610"
-$env:REGION     = "asia-southeast1"
-$FULL_TAG = "$($env:REGION)-docker.pkg.dev/$($env:PROJECT_ID)/login-web/login-web:latest"
-
-# From the saas-platform repo root (the web Dockerfile lives in apps/web):
-docker build --platform linux/amd64 -t login-web-local:latest apps/web
-docker tag login-web-local:latest $FULL_TAG
-docker push $FULL_TAG
-
-# No env vars - static SPA; Cloud Run provides PORT.
-gcloud run deploy login-web `
-  --image $FULL_TAG `
-  --platform managed `
-  --region $env:REGION `
-  --allow-unauthenticated
+gcloud run services update platform-web --region asia-southeast3 --project my-easy-software-dev `
+  --account admin@myeasysoft.com --update-env-vars API_HOST=<api-host-without-scheme>
 ```
 
-## Keep the backend's FRONTEND_BASE_URL in sync
-The backend (`login-api`) uses `FRONTEND_BASE_URL` for invitation / password-reset
-email links. The `login-web` URL is **stable** for a given service+region+project,
-so this is normally a **one-time** step (already done). Only re-run if the URL
-changes - and use `--update-env-vars` so the backend's other vars (DATABASE_URL,
-ADMIN_EMAILS) are preserved:
+> ⚠️ `apps/web/Dockerfile` still defaults `ENV API_HOST=login-api-148523901156.asia-southeast1.run.app` - a service **deleted on 2026-08-01**.
+> Dev and staging override it, so they are fine, but a NEW environment that forgets the override will silently proxy `/api` to a dead host.
+> Always set `API_HOST` explicitly when standing up an environment.
+
+## Prerequisites
+- **Docker Desktop RUNNING** (`docker info` succeeds).
+- `admin@myeasysoft.com` authenticated; the default account (`hsfun360@gmail.com`) has no access to these projects.
+- One-time per machine: `gcloud auth configure-docker asia-southeast3-docker.pkg.dev`.
+
+## Deploy (manual)
+
 ```powershell
-gcloud run services update login-api --region asia-southeast1 `
-  --update-env-vars FRONTEND_BASE_URL=https://login-web-148523901156.asia-southeast1.run.app
+$PROJECT  = "my-easy-software-dev"
+$REGION   = "asia-southeast3"
+$ACCOUNT  = "admin@myeasysoft.com"
+$TAG      = "asia-southeast3-docker.pkg.dev/my-easy-software-dev/login-apps/platform-web:latest"
+
+# From the repo root - the web Dockerfile lives in apps/web.
+# --platform linux/amd64 is REQUIRED here (the CI runner is already amd64).
+docker build --platform linux/amd64 -t $TAG apps/web
+
+# The docker credential helper follows the ACTIVE gcloud account, not --account.
+gcloud config set account $ACCOUNT
+docker push $TAG
+gcloud config set account hsfun360@gmail.com   # restore the default
+
+gcloud run deploy platform-web --image $TAG --region $REGION --project $PROJECT `
+  --account $ACCOUNT --allow-unauthenticated
+```
+
+`API_HOST` persists across image-only deploys - only pass `--update-env-vars` when changing it.
+
+## Keep the backend's FRONTEND_BASE_URL in sync
+
+The API uses `FRONTEND_BASE_URL` for invitation / password-reset email links, and it must point at the WEB service.
+The URL is stable for a given service+region+project, so this is normally a one-time step per environment (already done for dev and staging).
+Use `--update-env-vars` so the API's other vars survive:
+
+```powershell
+gcloud run services update platform-api --region asia-southeast3 --project my-easy-software-dev `
+  --account admin@myeasysoft.com `
+  --update-env-vars FRONTEND_BASE_URL=https://platform-web-855636431759.asia-southeast3.run.app
 ```
 
 ## Verify
+
 ```powershell
-$base = "https://login-web-148523901156.asia-southeast1.run.app"
-(Invoke-WebRequest "$base/"            -UseBasicParsing).StatusCode   # 200, page has <app-root>
-(Invoke-WebRequest "$base/admin/roles" -UseBasicParsing).StatusCode   # 200 (SPA fallback, NOT 404)
-gcloud run services logs read login-web --region asia-southeast1 --limit 30
+$base = "https://platform-web-855636431759.asia-southeast3.run.app"
+curl -s -o /dev/null -w "%{http_code}`n" "$base/"                      # 200, page has <app-root>
+curl -s -o /dev/null -w "%{http_code}`n" "$base/admin/roles"           # 200 via SPA fallback, NOT 404
+curl -s "$base/api/auth/sso-config"                                    # proves the /api proxy reaches the API
 ```
-Then open the URL and do a real login (the SPA calls the baked-in API URL). After a
-release that changed menu routes, **log out/in** so the cached `userMenus` refresh.
 
-## Google SSO - register the live origin (one-time per URL)
-"Sign in with Google" uses the GIS **token model** (`initTokenClient` in
-`src/app/login/login.ts`, client_id `148523901156-uc6a3f7q2le2fsqbm5idc0ai27vebe69`),
-which validates the page's **JavaScript origin** against the OAuth client. A freshly
-deployed Cloud Run URL is not on that list → login fails with **`Error 400:
-origin_mismatch`** ("register the JavaScript origin").
+The third check is the important one: it exercises the nginx `/api` proxy end to end, which is exactly what the pipeline's smoke check asserts.
+Then open the URL and do a real login.
+After a release that changed menu routes, **log out and back in** so the cached `userMenus` refresh.
 
-Fix (Google Cloud Console, can't be done via gcloud): **APIs & Services → Credentials
-→** the OAuth 2.0 Client ID ending `…uc6a3f7q2le2fsqbm5idc0ai27vebe69` → **Authorized
-JavaScript origins → Add URI**:
-```
-https://login-web-148523901156.asia-southeast1.run.app
-```
-- Edit the **existing** client - do NOT create a new OAuth client (a new client ID
-  won't match the one baked into the code).
-- Put it under **Authorized JavaScript origins**, not "Authorized redirect URIs"
-  (the token model has no redirect).
-- Use the **exact URL in the browser's address bar**, no trailing slash / no path.
-  Cloud Run serves the service under more than one host (the project-number form
-  above **and** a hash form like `https://login-web-iqbkpf5usq-as.a.run.app` -
-  `gcloud run services describe login-web --region asia-southeast1 --format="value(status.url)"`
-  prints the hash one). Register whichever origin you actually browse to; add both to
-  be safe. Keep `http://localhost:4200` for dev.
-- Changes take ~5 min to a few hours to propagate; retry in an Incognito window.
+## Google SSO - register the origin (one-time per URL)
+
+Sign-in validates the page's **JavaScript origin** against the OAuth client, so a new Cloud Run URL fails with **`Error 400: origin_mismatch`** until registered.
+Each environment has its OWN client (dev: `855636431759-7dktsf4ls0iq5h6e5gsu9abeeo8gd5q6`; the client ID reaches the app as the API's `GOOGLE_CLIENT_ID`, surfaced via `GET /api/auth/sso-config`).
+Staging has no client configured yet.
+
+In the Google Cloud Console (not doable via gcloud) for the environment's project: **APIs & Services -> Credentials -> the OAuth 2.0 Client ID -> Authorized JavaScript origins -> Add URI**, plus the redirect URI `<origin>/login`.
+
+- Edit the **existing** client for that environment; do not create a new one.
+- Use the **exact URL in the browser's address bar**, no trailing slash, no path. Cloud Run serves the service under more than one host (the project-number form above **and** a hash form) - `gcloud run services describe platform-web --region asia-southeast3 --format="value(status.url)"` prints the one to register. Add both to be safe, and keep `http://localhost:4200` for dev.
+- Changes take ~5 minutes to a few hours to propagate; retry in an Incognito window.
 
 ## Gotchas
-- **Production budgets are stricter than dev.** `ng build --configuration production`
-  fails if a component style exceeds the `anyComponentStyle` error budget (the shell
-  `dashboard.css` hit this). The dev builds run all session don't enforce it. Fix:
-  raise the budgets in `angular.json` (`configurations.production.budgets`) - currently
-  `anyComponentStyle` 12/24 kB and `initial` 1/2 MB - or trim the CSS. A failing
-  `RUN npm run build` in the Docker build is almost always this.
-- **API URL is compile-time**, not a runtime env var - change `environment.ts` + rebuild.
-- nginx must listen on `${PORT}` (don't hardcode 80) and must SPA-fallback to
-  `index.html`, or Cloud Run health checks / deep links break.
-- `index.html` is served `no-cache` (hashed JS/CSS are cached 1y) so a new deploy is
-  visible immediately without a hard refresh.
-- `.dockerignore` keeps `node_modules`/`dist`/`.git` out of the build context - keep it.
+- **Production budgets are stricter than dev.** `ng build --configuration production` fails if a component style exceeds the `anyComponentStyle` error budget (the shell `dashboard.css` hit this once). Session dev builds do not enforce it. A failing `RUN npm run build` inside the Docker build is almost always this - raise the budgets in `angular.json` (`configurations.production.budgets`) or trim the CSS.
+- **The credential helper ignores `--account`** - switch the active account for the push, then switch back.
+- nginx must listen on `${PORT}` (never hardcode 80) and must SPA-fallback to `index.html`, or Cloud Run health checks and deep links break.
+- `index.html` is served `no-cache` (hashed JS/CSS cached 1y), so a new deploy is visible without a hard refresh.
+- `.dockerignore` keeps `node_modules` / `dist` / `.git` out of the build context - keep it.
