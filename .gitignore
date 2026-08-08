@@ -1,0 +1,4 @@
+# Skill-authoring eval scratch: benchmark/grading/timing output from running a
+# skill's evals. The eval definitions themselves live with the skill and are
+# tracked; only the run output is ignored.
+.claude/skills/*-workspace/
