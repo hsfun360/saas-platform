@@ -2,13 +2,18 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { AR_SCHEMA } = require('../../platform/schemas');
 
-// StatementRun - a tracked statement-generation job (approved 2026-08-06).
-// A club can need thousands of statements per month; Cloud Run throttles CPU
-// outside requests, so one long request would stall or time out. Instead the
-// run freezes its debtor list up front and the screen drives processing in
-// small chunks (POST /:id/process), each chunk committing per debtor - which
-// makes progress a true percentage and any interruption resumable exactly
-// where it stopped.
+// StatementRun - a tracked statement-generation job (approved 2026-08-06;
+// background execution 2026-08-08). A club can need thousands of statements
+// per month, so after submit the OUTBOX WORKER drives the run in time-boxed
+// slices (the run row IS the task queue: status 'queued' marks pending work),
+// each debtor committing in its own transaction - progress is a true
+// percentage, any interruption resumes exactly where it stopped, and the
+// user's session is never held. The screen only POLLS this row.
+//
+// leaseUntil is the worker's claim: a slice claims the run only when the lease
+// is free/expired, renews it every chunk, and releases it on voluntary yield -
+// so overlapping drain invocations (ping + sweep) never double-process, and a
+// crashed instance's lease simply expires.
 const StatementRun = sequelize.define('StatementRun', {
     id: {
         type: DataTypes.UUID,
@@ -42,11 +47,26 @@ const StatementRun = sequelize.define('StatementRun', {
         type: DataTypes.JSONB,
         allowNull: false,
     },
-    // 'running' | 'completed' | 'cancelled' | 'failed'.
+    // 'queued' | 'running' | 'cancelling' | 'completed' | 'cancelled' | 'failed'.
     status: {
         type: DataTypes.STRING(20),
         allowNull: false,
-        defaultValue: 'running',
+        defaultValue: 'queued',
+    },
+    // Worker claim lease (see header note).
+    leaseUntil: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    // Observability heartbeat: when a worker last advanced this run.
+    lastProcessedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    // Exactly-once guard for the completion notification + email.
+    notifiedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
     },
     totalDebtors: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     processedCount: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },

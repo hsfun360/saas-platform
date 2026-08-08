@@ -32,19 +32,23 @@ async function identityToken(audience) {
     return res.data;
 }
 
-// Fire the actual HTTP ping. Never throws.
-async function fireDrainPing() {
+// Fire the actual HTTP ping. Never throws. A short `timeoutMs` turns this into
+// a kick-and-detach: the request is delivered (starting a fresh drain) but the
+// caller stops waiting long before that drain finishes - used by the worker's
+// own SELF-ping when a statement-run slice yields with work remaining.
+async function fireDrainPing(timeoutMs = 30000) {
     const workerUrl = process.env.OUTBOX_WORKER_URL;
     if (!workerUrl) return;
     try {
         const token = await identityToken(workerUrl);
         await axios.post(`${workerUrl.replace(/\/$/, '')}/drain`, null, {
             headers: { Authorization: `Bearer ${token}` },
-            timeout: 30000,
+            timeout: timeoutMs,
         });
     } catch (err) {
         // Best-effort by design: the scheduler sweep is the delivery guarantee.
-        console.warn('[OUTBOX PING] drain ping failed (sweep will pick it up):', err.message);
+        // (A kick-and-detach timeout lands here too - that is expected.)
+        if (timeoutMs >= 5000) console.warn('[OUTBOX PING] drain ping failed (sweep will pick it up):', err.message);
     }
 }
 
@@ -61,4 +65,4 @@ function pingOutboxWorker(transaction = null) {
     }
 }
 
-module.exports = { pingOutboxWorker };
+module.exports = { pingOutboxWorker, fireDrainPing };

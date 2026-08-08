@@ -25,6 +25,25 @@ const MODE = process.env.WORKER_MODE === 'drain' ? 'drain' : 'poll';
 const { startWorker, drainOutbox } = require('./src/modules/notification/notification.worker');
 const { scanSlaReminders } = require('./src/modules/workflow/workflow.reminders');
 
+// AR statement runs: the ar.StatementRun table is itself the job queue
+// (status 'queued' = pending work; see arStatement.service.processActiveRuns).
+// Each drain advances active runs inside a time budget that stays well under
+// the Cloud Run request timeout; leases make overlapping drains safe. When
+// budget runs out with work left we kick a fresh drain at ourselves
+// (fire-and-detach self-ping, needs OUTBOX_WORKER_URL on THIS service +
+// run.invoker for its own SA) - and the 5-minute sweep remains the guarantee
+// when the ping cannot fire.
+const AR_RUN_BUDGET_MS = 4 * 60 * 1000;
+async function processStatementRuns() {
+    try {
+        const { processActiveRuns } = require('./src/modules/ar/arStatement.service');
+        return await processActiveRuns({ timeBudgetMs: AR_RUN_BUDGET_MS });
+    } catch (err) {
+        console.error('[AR STATEMENTS] run processing failed:', err);
+        return { remaining: false };
+    }
+}
+
 if (MODE === 'drain') {
     http.createServer(async (req, res) => {
         const url = new URL(req.url, `http://${req.headers.host}`);
@@ -45,8 +64,18 @@ if (MODE === 'drain') {
                 }
                 const sent = await drainOutbox();
                 if (sent > 0) console.log(`[OUTBOX WORKER] Drain processed ${sent} message(s).`);
+                // Advance any active statement runs, then drain again so the
+                // completion notification emails they enqueue go out in this
+                // same invocation.
+                const runs = await processStatementRuns();
+                const sent2 = await drainOutbox();
+                if (sent2 > 0) console.log(`[OUTBOX WORKER] Drain processed ${sent2} follow-up message(s).`);
+                if (runs.remaining) {
+                    const { fireDrainPing } = require('./src/platform/outboxWorkerPing');
+                    await fireDrainPing(1500); // kick-and-detach continuation
+                }
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ processed: sent }));
+                res.end(JSON.stringify({ processed: sent + sent2, runsRemaining: runs.remaining }));
             } catch (err) {
                 console.error('[OUTBOX WORKER] Drain failed:', err);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -71,4 +100,9 @@ if (MODE === 'drain') {
     // time every 5 minutes (the scan enqueues to the outbox; the poller above
     // dispatches). Time-driven workflow work lives HERE, never in an API request.
     setInterval(() => scanSlaReminders().catch((err) => console.error('[WORKFLOW SLA] Unhandled scan error:', err)), 5 * 60 * 1000);
+
+    // 4. AR statement runs (poll mode): check for queued/expired-lease runs
+    // every 30s. Overlapping ticks are safe - the run lease makes a busy run
+    // unclaimable.
+    setInterval(() => processStatementRuns(), 30 * 1000);
 }

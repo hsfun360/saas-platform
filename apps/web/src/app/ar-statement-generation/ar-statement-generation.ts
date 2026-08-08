@@ -10,12 +10,15 @@ import { ArService } from '../services/ar.service';
 import { ArStatementCategory, ArStatementRun, ArStatementRunPreview } from '../models/ar.models';
 
 // Account Receivable → Statement Generation (split from the listing
-// 2026-08-06; the AR options card moved to AR Specification the same day).
-// The run screen: Statement Month with From/To dates auto-filled from the
-// cutoff rule (maintained on /ar/settings), a debtor-category scope, a
-// preview/confirm step (show the expected result: N in scope, M replaced),
-// then a chunk-driven run with a live progress bar. Interrupted runs resume
-// exactly where they stopped.
+// 2026-08-06; the AR options card moved to AR Specification the same day;
+// BACKGROUND execution 2026-08-08). The run screen: Statement Month with
+// From/To dates auto-filled from the cutoff rule (maintained on /ar/settings),
+// a debtor-category scope, a preview/confirm step (show the expected result:
+// N in scope, M replaced) - then submit hands the run to the outbox worker.
+// This screen only POLLS the run row for the progress bar, so the user can
+// leave any time; completion arrives as an in-app notification + email.
+// Cancel settles at the next chunk; failed/partial runs Resume exactly where
+// they stopped.
 @Component({
   selector: 'app-ar-statement-generation',
   standalone: true,
@@ -53,13 +56,20 @@ export class ArStatementGenerationComponent implements OnInit, OnDestroy {
   readonly previewLoading = signal(false);
   readonly preview = signal<ArStatementRunPreview | null>(null);
 
-  // The run being driven + history.
+  // The run being watched + history. The run executes on the BACKGROUND
+  // worker after submit - this screen only polls the run row, so the user can
+  // navigate anywhere (or close the browser) and the run keeps going.
   readonly currentRun = signal<ArStatementRun | null>(null);
-  readonly driving = signal(false);
   readonly runs = signal<ArStatementRun[]>([]);
   readonly runsLoading = signal(false);
-  private cancelRequested = false;
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
+
+  // A run the worker is (or will be) processing - disables Generate, shows Cancel.
+  readonly runActive = computed(() => {
+    const r = this.currentRun();
+    return !!r && (r.status === 'queued' || r.status === 'running' || r.status === 'cancelling');
+  });
 
   readonly progressPct = computed(() => {
     const r = this.currentRun();
@@ -77,6 +87,7 @@ export class ArStatementGenerationComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.destroyed = true;
+    this.stopPolling();
   }
 
   private thisMonth(): string {
@@ -168,60 +179,51 @@ export class ArStatementGenerationComponent implements OnInit, OnDestroy {
       month: v.month, periodStart: v.periodStart, periodEnd: v.periodEnd, categories,
     }).subscribe({
       next: (res) => {
+        this.successMessage.set('Statement run submitted - it continues in the background. You will be notified when it finishes.');
         this.currentRun.set(res.run);
-        this.drive(res.run.id, false);
+        this.startPolling(res.run.id);
+        this.loadRuns();
       },
       error: (err) => this.errorMessage.set(err.error?.message || 'Failed to start the statement run.'),
     });
   }
 
-  // Drive the run: call process in a loop until it leaves 'running'. Each call
-  // handles ~20 debtors server-side and returns live counters.
-  private drive(runId: string, resume: boolean): void {
-    this.driving.set(true);
-    this.cancelRequested = false;
-    const step = (isFirst: boolean): void => {
+  // --- Progress polling (the worker does the work; we just watch) ---
+  private startPolling(runId: string): void {
+    this.stopPolling();
+    const tick = (): void => {
       if (this.destroyed) return;
-      if (this.cancelRequested) {
-        this.service.cancelStatementRun(runId).subscribe({
-          next: (res) => { this.currentRun.set(res.run); this.finishDrive('Statement run cancelled.'); },
-          error: () => this.finishDrive(''),
-        });
-        return;
-      }
-      this.service.processStatementRun(runId, isFirst && resume).subscribe({
+      this.service.getStatementRun(runId).subscribe({
         next: (res) => {
           this.currentRun.set(res.run);
-          if (res.run.status === 'running') { step(false); return; }
-          if (res.run.status === 'completed') {
-            this.finishDrive(`${res.run.generatedCount} statement(s) generated`
-              + ` (${res.run.replacedCount} replaced) for ${res.run.totalDebtors} debtor(s).`);
-          } else if (res.run.status === 'failed') {
-            this.driving.set(false);
-            this.errorMessage.set(res.run.errorMessage || 'The statement run failed.');
-            this.loadRuns();
-          } else {
-            this.finishDrive('');
+          const s = res.run.status;
+          if (s === 'queued' || s === 'running' || s === 'cancelling') {
+            this.pollTimer = setTimeout(tick, 2500);
+            return;
           }
-        },
-        error: (err) => {
-          this.driving.set(false);
-          this.errorMessage.set(err.error?.message || 'The statement run was interrupted. Use Resume to continue.');
+          this.stopPolling();
+          if (s === 'completed') {
+            this.successMessage.set(`${res.run.generatedCount} statement(s) generated`
+              + ` (${res.run.replacedCount} replaced) for ${res.run.totalDebtors} debtor(s).`);
+          } else if (s === 'failed') {
+            this.errorMessage.set(res.run.errorMessage || 'The statement run failed. Use Resume to continue.');
+          }
           this.loadRuns();
+        },
+        error: () => {
+          // Transient poll failure (network blip) - keep watching.
+          this.pollTimer = setTimeout(tick, 5000);
         },
       });
     };
-    step(true);
+    tick();
   }
 
-  private finishDrive(message: string): void {
-    this.driving.set(false);
-    if (message) this.successMessage.set(message);
-    this.loadRuns();
-  }
-
-  requestCancel(): void {
-    this.cancelRequested = true;
+  private stopPolling(): void {
+    if (this.pollTimer) {
+      clearTimeout(this.pollTimer);
+      this.pollTimer = null;
+    }
   }
 
   // --- Run history ---
@@ -231,11 +233,15 @@ export class ArStatementGenerationComponent implements OnInit, OnDestroy {
       next: (res) => {
         this.runs.set(res.runs);
         this.runsLoading.set(false);
-        // Surface an abandoned run (browser closed mid-run) as the current one
-        // so its progress + Resume button show without digging in history.
-        if (!this.driving() && !this.currentRun()) {
-          const open = res.runs.find((r) => r.status === 'running' || r.status === 'failed');
-          if (open) this.currentRun.set(open);
+        // Surface the active (or last failed) run as the current one on screen
+        // entry, so its live progress / Resume shows without digging in history.
+        if (!this.currentRun()) {
+          const open = res.runs.find((r) => r.status === 'queued' || r.status === 'running' || r.status === 'cancelling')
+            || res.runs.find((r) => r.status === 'failed');
+          if (open) {
+            this.currentRun.set(open);
+            if (open.status !== 'failed') this.startPolling(open.id);
+          }
         }
       },
       error: () => this.runsLoading.set(false),
@@ -244,8 +250,15 @@ export class ArStatementGenerationComponent implements OnInit, OnDestroy {
 
   onResume(run: ArStatementRun): void {
     this.clearMessages();
-    this.currentRun.set(run);
-    this.drive(run.id, run.status === 'failed');
+    this.service.resumeStatementRun(run.id).subscribe({
+      next: (res) => {
+        this.successMessage.set(res.message);
+        this.currentRun.set(res.run);
+        this.startPolling(res.run.id);
+        this.loadRuns();
+      },
+      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to resume the run.'),
+    });
   }
 
   onCancelRun(run: ArStatementRun): void {
@@ -253,7 +266,11 @@ export class ArStatementGenerationComponent implements OnInit, OnDestroy {
     this.service.cancelStatementRun(run.id).subscribe({
       next: (res) => {
         this.successMessage.set(res.message);
-        if (this.currentRun()?.id === run.id) this.currentRun.set(res.run);
+        if (this.currentRun()?.id === run.id) {
+          this.currentRun.set(res.run);
+          // 'cancelling' still settles worker-side - keep watching it.
+          if (res.run.status === 'cancelling') this.startPolling(res.run.id);
+        }
         this.loadRuns();
       },
       error: (err) => this.errorMessage.set(err.error?.message || 'Failed to cancel the run.'),

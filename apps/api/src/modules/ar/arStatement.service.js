@@ -6,6 +6,9 @@
 // semantics per (debtor, statementMonth), and chunked StatementRun processing
 // so thousand-statement months report live progress and resume after any
 // interruption (each debtor's statement commits in its own transaction).
+// Background execution 2026-08-08: the OUTBOX WORKER drives the run (see
+// processActiveRuns / the StatementRun model note); the screen only polls,
+// and completion alerts the initiator in-app + by email (notifyRunDone).
 //
 // Statements/aging bucket by docDate (trxDate is financial-period reporting
 // only). Void documents and their reversal rows net to zero and are EXCLUDED.
@@ -186,97 +189,271 @@ async function previewRun({ companyId, statementMonth, categories }) {
 }
 
 // ---------------------------------------------------------------------------
-// Run lifecycle
+// Run lifecycle (background execution - the run row IS the task queue)
 
+const ACTIVE_RUN_STATUSES = ['queued', 'running', 'cancelling'];
+const CHUNK_SIZE = 20;
+const LEASE_SECONDS = 90;
+
+function monthLabelOf(statementMonth) {
+    const [y, m] = String(statementMonth).split('-').map(Number);
+    const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return names[m - 1] ? `${names[m - 1]} ${y}` : String(statementMonth);
+}
+
+// Submit: freeze the debtor list, queue the run, wake the worker. The API
+// returns immediately - the user is free to navigate anywhere.
 async function createRun({ companyId, statementMonth, periodStart, periodEnd, categories, stamps }) {
-    const active = await StatementRun.findOne({ where: { companyId, status: 'running' } });
-    if (active) throw badRequest('Another statement run is still in progress. Resume or cancel it first.');
+    const active = await StatementRun.findOne({ where: { companyId, status: { [Op.in]: ACTIVE_RUN_STATUSES } } });
+    if (active) throw badRequest('Another statement run is still in progress. Wait for it to finish or cancel it first.');
     const selected = await selectDebtors(companyId, categories);
     if (!selected.length) throw badRequest('No debtors match the selected scope.');
-    return StatementRun.create({
+    const run = await StatementRun.create({
         companyId,
         statementMonth,
         periodStart,
         periodEnd,
         scope: categories,
         debtorIds: selected.map((s) => s.debtor.id),
-        status: 'running',
+        status: 'queued',
         totalDebtors: selected.length,
         ...stamps,
     });
+    const { pingOutboxWorker } = require('../../platform/outboxWorkerPing');
+    pingOutboxWorker();
+    return run;
 }
 
-// Process the next batch of a run. Each debtor commits independently, so the
-// caller (the screen's drive loop) gets true incremental progress and a
-// crashed/closed browser resumes exactly where it stopped. On a per-debtor
-// error the run flips to 'failed' at that debtor; process(resume) retries it.
-async function processRun({ companyId, runId, batchSize = 20, resume = false, issueDocNo, stamps }) {
+// Cancel: settle immediately when no worker holds the run (queued, or lease
+// expired); otherwise flag 'cancelling' and the worker settles it at the next
+// chunk boundary. Already-generated statements always stay.
+async function cancelRun({ companyId, runId, userId }) {
     const run = await StatementRun.findOne({ where: { id: runId, companyId } });
     if (!run) {
         const err = new Error('Statement run not found.');
         err.httpStatus = 404;
         throw err;
     }
-    if (resume && run.status === 'failed') {
-        run.status = 'running';
-        run.errorMessage = null;
-    }
-    if (run.status !== 'running') return run;
+    if (!ACTIVE_RUN_STATUSES.includes(run.status)) throw badRequest(`This run is already ${run.status}.`);
+    const leaseHeld = run.leaseUntil && new Date(run.leaseUntil).getTime() > Date.now();
+    run.status = (run.status === 'queued' || !leaseHeld) ? 'cancelled' : 'cancelling';
+    run.updatedBy = userId;
+    await run.save();
+    return run;
+}
 
-    const ids = run.debtorIds.slice(run.processedCount, run.processedCount + batchSize);
-    if (!ids.length) {
-        run.status = 'completed';
-        run.updatedBy = stamps.updatedBy;
-        await run.save();
-        return run;
+// Resume a failed (or cancelled) run: re-queue it at processedCount and wake
+// the worker.
+async function resumeRun({ companyId, runId, userId }) {
+    const run = await StatementRun.findOne({ where: { id: runId, companyId } });
+    if (!run) {
+        const err = new Error('Statement run not found.');
+        err.httpStatus = 404;
+        throw err;
     }
+    if (!['failed', 'cancelled'].includes(run.status)) throw badRequest(`Only a failed or cancelled run can be resumed (this one is ${run.status}).`);
+    if (run.processedCount >= run.totalDebtors) throw badRequest('This run already processed every debtor.');
+    run.status = 'queued';
+    run.errorMessage = null;
+    run.leaseUntil = null;
+    run.notifiedAt = null;
+    run.updatedBy = userId;
+    await run.save();
+    const { pingOutboxWorker } = require('../../platform/outboxWorkerPing');
+    pingOutboxWorker();
+    return run;
+}
 
-    const debtors = await Debtor.findAll({ where: { companyId, id: { [Op.in]: ids } } });
-    const byId = new Map(debtors.map((d) => [d.id, d]));
-    const clsIds = { membershipIds: [], memberIds: [] };
-    for (const d of debtors) {
-        if (d.debtorType === 'membership') clsIds.membershipIds.push(d.sourceId);
-        else if (d.debtorType === 'member') clsIds.memberIds.push(d.sourceId);
+// Atomic worker claim: take the run only when nobody holds a live lease.
+async function claimRun(runId) {
+    const [rows] = await sequelize.query(
+        `UPDATE ar."StatementRun" SET
+             status = CASE WHEN status = 'queued' THEN 'running' ELSE status END,
+             "leaseUntil" = now() + interval '${LEASE_SECONDS} seconds',
+             "updatedAt" = now()
+         WHERE id = :id AND status IN ('queued', 'running', 'cancelling')
+           AND ("leaseUntil" IS NULL OR "leaseUntil" < now())
+         RETURNING id`,
+        { replacements: { id: runId } },
+    );
+    return rows.length > 0;
+}
+
+// WORKER ENTRY - called from the drain handler. Processes claimable runs
+// oldest-first inside the time budget; each run advances in chunks with the
+// lease renewed per chunk (a crash just lets the lease expire). Returns
+// { remaining: true } when budget ran out with work left, so the worker can
+// kick a fresh drain (self-ping) instead of waiting for the 5-minute sweep.
+async function processActiveRuns({ timeBudgetMs = 240000 } = {}) {
+    const started = Date.now();
+    let remaining = false;
+    for (;;) {
+        const budget = timeBudgetMs - (Date.now() - started);
+        if (budget < 5000) {
+            const open = await StatementRun.count({ where: { status: { [Op.in]: ACTIVE_RUN_STATUSES } } });
+            remaining = open > 0;
+            break;
+        }
+        const run = await StatementRun.findOne({
+            where: {
+                status: { [Op.in]: ACTIVE_RUN_STATUSES },
+                [Op.or]: [{ leaseUntil: null }, { leaseUntil: { [Op.lt]: new Date() } }],
+            },
+            order: [['createdAt', 'ASC']],
+        });
+        if (!run) break;
+        if (!(await claimRun(run.id))) break; // raced by a concurrent drain - its chain continues
+        const outcome = await runSlice(run.id, budget);
+        if (outcome === 'yielded') remaining = true;
     }
-    const cls = await membershipGateway.classifyParties(companyId, clsIds);
+    return { remaining };
+}
+
+// One time-boxed slice of a claimed run. Chunks of CHUNK_SIZE debtors, one
+// transaction per debtor (crash-safe: overwrite semantics make reprocessing a
+// debtor idempotent), status re-read every chunk so Cancel takes effect
+// mid-run, lease renewed as the heartbeat.
+async function runSlice(runId, budgetMs) {
+    const run = await StatementRun.findByPk(runId);
+    if (!run) return 'done';
+    const { companyId } = run;
     const setting = await getSetting(companyId);
     const boundaries = boundariesOf(setting);
     const letterhead = await getCompanyLetterhead(companyId);
+    const numberingGateway = require('../../platform/numberingGateway');
+    const started = Date.now();
+    let synthSeq = 0;
+    const issueDocNo = async (t) => {
+        const issued = await numberingGateway.issueNumberForCompany(companyId, 'ar-statement', { transaction: t });
+        if (issued && issued.number) return issued.number;
+        synthSeq += 1;
+        return `ST-${Date.now().toString(36).toUpperCase()}-${synthSeq}`;
+    };
+    const stamps = { updatedBy: run.createdBy || null };
 
-    for (const id of ids) {
-        const debtor = byId.get(id);
-        if (!debtor) { run.processedCount += 1; continue; }
-        let category = 'other';
-        if (debtor.debtorType === 'membership') category = cls.memberships[debtor.sourceId] || 'individual';
-        else if (debtor.debtorType === 'member') category = cls.members[debtor.sourceId] || 'individual';
-        try {
-            const r = await generateOne({
-                companyId,
-                debtor,
-                category,
-                statementMonth: run.statementMonth,
-                periodStart: run.periodStart,
-                periodEnd: run.periodEnd,
-                boundaries,
-                letterhead,
-                issueDocNo,
-                stamps,
-            });
-            run.processedCount += 1;
-            if (r.generated) run.generatedCount += 1;
-            if (r.replaced) run.replacedCount += 1;
-        } catch (e) {
-            run.status = 'failed';
-            run.errorMessage = (e && e.message) ? String(e.message).slice(0, 250) : 'Statement generation failed.';
-            run.updatedBy = stamps.updatedBy;
+    for (;;) {
+        await run.reload();
+        if (run.status === 'cancelling') {
+            run.status = 'cancelled';
+            run.leaseUntil = null;
             await run.save();
-            return run;
+            return 'done';
+        }
+        if (run.status !== 'running') return 'done';
+
+        const ids = run.debtorIds.slice(run.processedCount, run.processedCount + CHUNK_SIZE);
+        if (!ids.length) {
+            run.status = 'completed';
+            run.leaseUntil = null;
+            run.lastProcessedAt = new Date();
+            await run.save();
+            await notifyRunDone(run);
+            return 'done';
+        }
+
+        const debtors = await Debtor.findAll({ where: { companyId, id: { [Op.in]: ids } } });
+        const byId = new Map(debtors.map((d) => [d.id, d]));
+        const clsIds = { membershipIds: [], memberIds: [] };
+        for (const d of debtors) {
+            if (d.debtorType === 'membership') clsIds.membershipIds.push(d.sourceId);
+            else if (d.debtorType === 'member') clsIds.memberIds.push(d.sourceId);
+        }
+        const cls = await membershipGateway.classifyParties(companyId, clsIds);
+
+        for (const id of ids) {
+            const debtor = byId.get(id);
+            if (!debtor) { run.processedCount += 1; continue; }
+            let category = 'other';
+            if (debtor.debtorType === 'membership') category = cls.memberships[debtor.sourceId] || 'individual';
+            else if (debtor.debtorType === 'member') category = cls.members[debtor.sourceId] || 'individual';
+            try {
+                const r = await generateOne({
+                    companyId,
+                    debtor,
+                    category,
+                    statementMonth: run.statementMonth,
+                    periodStart: run.periodStart,
+                    periodEnd: run.periodEnd,
+                    boundaries,
+                    letterhead,
+                    issueDocNo,
+                    stamps,
+                });
+                run.processedCount += 1;
+                if (r.generated) run.generatedCount += 1;
+                if (r.replaced) run.replacedCount += 1;
+            } catch (e) {
+                run.status = 'failed';
+                run.errorMessage = (e && e.message) ? String(e.message).slice(0, 250) : 'Statement generation failed.';
+                run.leaseUntil = null;
+                run.lastProcessedAt = new Date();
+                await run.save();
+                await notifyRunDone(run);
+                return 'done';
+            }
+        }
+
+        run.leaseUntil = new Date(Date.now() + LEASE_SECONDS * 1000);
+        run.lastProcessedAt = new Date();
+        await run.save();
+
+        if (Date.now() - started > budgetMs) {
+            // Voluntary yield: release the lease so the next drain (self-ping
+            // or sweep) resumes instantly.
+            run.leaseUntil = null;
+            await run.save();
+            return 'yielded';
         }
     }
-    if (run.processedCount >= run.totalDebtors) run.status = 'completed';
-    run.updatedBy = stamps.updatedBy;
-    await run.save();
-    return run;
+}
+
+// Completion alerting (objective 2): in-app notification + templated email to
+// the user who started the run. notifiedAt is the exactly-once guard; a
+// cancelled run alerts nobody (the user did it themselves).
+async function notifyRunDone(run) {
+    try {
+        if (run.notifiedAt || !run.createdBy) return;
+        if (!['completed', 'failed'].includes(run.status)) return;
+        run.notifiedAt = new Date();
+        await run.save();
+
+        const notificationGateway = require('../../platform/notificationGateway');
+        const label = monthLabelOf(run.statementMonth);
+        const failed = run.status === 'failed';
+        const title = failed
+            ? `Statement run failed - ${label}`
+            : `${label} statements are ready`;
+        const body = failed
+            ? `Stopped after ${run.processedCount} of ${run.totalDebtors} debtor(s): ${run.errorMessage || 'unknown error'}`
+            : `${run.generatedCount} statement(s) generated (${run.replacedCount} replaced) for ${run.totalDebtors} debtor(s).`;
+        await notificationGateway.notifyUser({
+            userId: run.createdBy,
+            companyId: run.companyId,
+            type: 'statement-run-completed',
+            title,
+            body,
+            linkRoute: failed ? '/ar/statement-generation' : '/ar/statements',
+        });
+        await notificationGateway.emailUser({
+            userId: run.createdBy,
+            companyId: run.companyId,
+            templateKey: 'ar.statement-run-completed',
+            data: {
+                monthLabel: label,
+                status: run.status,
+                failed,
+                generated: run.generatedCount,
+                replaced: run.replacedCount,
+                processed: run.processedCount,
+                total: run.totalDebtors,
+                errorMessage: run.errorMessage || '',
+                listLink: `${(process.env.FRONTEND_BASE_URL || '').replace(/\/$/, '')}/ar/statements`,
+            },
+        });
+    } catch (e) {
+        // Alerting must never fail the run itself.
+        console.error('[AR STATEMENTS] completion notification failed:', e.message);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -525,5 +702,7 @@ module.exports = {
     validCategories,
     previewRun,
     createRun,
-    processRun,
+    cancelRun,
+    resumeRun,
+    processActiveRuns,
 };

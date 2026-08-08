@@ -31,7 +31,7 @@
   <div class="settings-card" *appCan="'create'">
     <div class="settings-header">
       <span class="settings-header__title">Generate a month</span>
-      <span class="settings-header__sub">One statement per debtor with a balance or activity. A debtor already covered for the month is REPLACED (the old statement is deleted and regenerated).</span>
+      <span class="settings-header__sub">Runs in the background after submit - you can continue with other work and will be notified (in-app + email) when it finishes. A debtor already covered for the month is REPLACED.</span>
     </div>
     <div class="settings-body">
       <form [formGroup]="runForm" (ngSubmit)="onGenerate()" class="saas-form" style="padding: 0;">
@@ -59,8 +59,8 @@
           </div>
         </div>
         <div>
-          <button type="submit" class="btn btn--primary" [disabled]="driving()">
-            {{ driving() ? 'Run in progress…' : 'Preview & generate' }}
+          <button type="submit" class="btn btn--primary" [disabled]="runActive()">
+            {{ runActive() ? 'Run in progress…' : 'Preview & generate' }}
           </button>
         </div>
       </form>
@@ -85,12 +85,11 @@
           @if (run.errorMessage) {
             <div class="field-error" role="alert">{{ run.errorMessage }}</div>
           }
-          <div class="asg-progress-actions">
-            @if (driving()) {
-              <button type="button" class="btn btn--danger btn--sm" (click)="requestCancel()">Cancel run</button>
-            } @else if (run.status === 'running' || run.status === 'failed') {
-              <button type="button" class="btn btn--primary btn--sm" (click)="onResume(run)">Resume</button>
+          <div class="asg-progress-actions" *appCan="'create'">
+            @if (run.status === 'queued' || run.status === 'running') {
               <button type="button" class="btn btn--danger btn--sm" (click)="onCancelRun(run)">Cancel run</button>
+            } @else if (run.status === 'failed' || (run.status === 'cancelled' && run.processedCount < run.totalDebtors)) {
+              <button type="button" class="btn btn--primary btn--sm" (click)="onResume(run)">Resume</button>
             }
           </div>
         </div>
@@ -130,10 +129,14 @@
                     [class.status-chip--on]="r.status === 'completed'"
                     [class.status-chip--off]="r.status !== 'completed'">{{ r.status }}</span>
             </div>
-            @if (!driving() && (r.status === 'running' || r.status === 'failed')) {
+            @if (r.status === 'queued' || r.status === 'running' || r.status === 'failed'
+                 || (r.status === 'cancelled' && r.processedCount < r.totalDebtors)) {
               <div class="data-row__actions" *appCan="'create'">
-                <button type="button" class="btn btn--primary btn--sm" (click)="onResume(r)">Resume</button>
-                <button type="button" class="btn btn--danger btn--sm" (click)="onCancelRun(r)">Cancel</button>
+                @if (r.status === 'failed' || r.status === 'cancelled') {
+                  <button type="button" class="btn btn--primary btn--sm" (click)="onResume(r)">Resume</button>
+                } @else {
+                  <button type="button" class="btn btn--danger btn--sm" (click)="onCancelRun(r)">Cancel</button>
+                }
               </div>
             }
           </div>

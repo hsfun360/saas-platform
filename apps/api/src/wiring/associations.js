@@ -126,6 +126,9 @@ const ArStatement = require('../modules/ar/statement.model');
 const ArStatementDetail = require('../modules/ar/statementDetail.model');
 const ArStatementRun = require('../modules/ar/statementRun.model');
 const ArSetting = require('../modules/ar/setting.model');
+// In-app notifications (Notification service; userId/companyId are plain UUID
+// value references, no FK) - required here so sync creates the table.
+const Notification = require('../modules/notification/notification.model');
 // Shared capability (Workflow). Definition/steps and instance/tasks are
 // intra-service header/detail pairs (real FKs); account/company/role/
 // department/position/user/entity references stay plain UUIDs (no FK).
@@ -340,4 +343,5 @@ module.exports = {
     ArStatementDetail,
     ArStatementRun,
     ArSetting,
+    Notification,
 };

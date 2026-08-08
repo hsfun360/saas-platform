@@ -226,7 +226,7 @@ export interface ArStatementRun {
   periodStart: string;
   periodEnd: string;
   scope: ArStatementCategory[];
-  status: 'running' | 'completed' | 'cancelled' | 'failed';
+  status: 'queued' | 'running' | 'cancelling' | 'completed' | 'cancelled' | 'failed';
   totalDebtors: number;
   processedCount: number;
   generatedCount: number;

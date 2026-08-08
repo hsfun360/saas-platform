@@ -174,8 +174,12 @@ export class ArService {
     return this.http.post<{ message: string; run: ArStatementRun }>(`${this.base}/statement-runs`, payload);
   }
 
-  processStatementRun(id: string, resume = false): Observable<{ run: ArStatementRun }> {
-    return this.http.post<{ run: ArStatementRun }>(`${this.base}/statement-runs/${id}/process`, { resume });
+  getStatementRun(id: string): Observable<{ run: ArStatementRun }> {
+    return this.http.get<{ run: ArStatementRun }>(`${this.base}/statement-runs/${id}`);
+  }
+
+  resumeStatementRun(id: string): Observable<{ message: string; run: ArStatementRun }> {
+    return this.http.post<{ message: string; run: ArStatementRun }>(`${this.base}/statement-runs/${id}/resume`, {});
   }
 
   cancelStatementRun(id: string): Observable<{ message: string; run: ArStatementRun }> {

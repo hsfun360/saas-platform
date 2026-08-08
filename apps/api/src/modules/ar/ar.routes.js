@@ -77,10 +77,12 @@ router.get('/settings', requireAnyMenuAction(['/ar/settings', '/ar/statement-gen
 router.put('/settings', requireMenuAction('/ar/settings'), periodicController.saveArSetting);
 
 // --- Statement Generation (its own screen/menu: /ar/statement-generation) ---
-// Runs are tracked jobs the screen drives in chunks (progress + resume).
+// Runs are BACKGROUND jobs: submit queues the run for the outbox worker; the
+// screen polls the run row for progress and can cancel/resume any time.
 router.post('/statement-runs/preview', requireMenuAction('/ar/statement-generation'), periodicController.previewStatementRun);
 router.post('/statement-runs', requireMenuAction('/ar/statement-generation'), periodicController.createStatementRun);
-router.post('/statement-runs/:id/process', requireMenuAction('/ar/statement-generation'), periodicController.processStatementRun);
+router.get('/statement-runs/:id', requireMenuAction('/ar/statement-generation'), periodicController.getStatementRun);
+router.post('/statement-runs/:id/resume', requireMenuAction('/ar/statement-generation'), periodicController.resumeStatementRun);
 router.post('/statement-runs/:id/cancel', requireMenuAction('/ar/statement-generation'), periodicController.cancelStatementRun);
 router.get('/statement-runs', requireMenuAction('/ar/statement-generation'), periodicController.listStatementRuns);
 

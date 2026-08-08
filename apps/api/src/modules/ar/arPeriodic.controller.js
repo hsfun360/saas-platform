@@ -353,7 +353,9 @@ exports.previewStatementRun = async (req, res) => {
     }
 };
 
-// POST /api/ar/statement-runs - freeze the debtor list and start the run.
+// POST /api/ar/statement-runs - freeze the debtor list, queue the run and
+// wake the worker. Returns the run id immediately; the worker does the rest
+// and the screen just polls.
 exports.createStatementRun = async (req, res) => {
     try {
         const { companyId } = getUserContext(req);
@@ -361,7 +363,7 @@ exports.createStatementRun = async (req, res) => {
         const params = await readRunParams(req, companyId);
         const placement = await getCallerPlacement(req);
         const run = await arStatement.createRun({ companyId, ...params, stamps: ownershipStamps(req, placement) });
-        res.status(201).json({ message: 'Statement run started.', run: runJson(run) });
+        res.status(201).json({ message: 'Statement run submitted.', run: runJson(run) });
     } catch (err) {
         if (err && err.httpStatus) return res.status(err.httpStatus).json({ message: err.message });
         console.error('Error creating statement run:', err);
@@ -369,53 +371,49 @@ exports.createStatementRun = async (req, res) => {
     }
 };
 
-// POST /api/ar/statement-runs/:id/process { resume? } - handle the next chunk
-// (~20 debtors, each committing independently) and report live counters. The
-// screen calls this in a loop and renders the percentage.
-exports.processStatementRun = async (req, res) => {
+// GET /api/ar/statement-runs/:id - the polling endpoint (progress %, counters).
+exports.getStatementRun = async (req, res) => {
     try {
         const { companyId } = getUserContext(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const placement = await getCallerPlacement(req);
-        const stamps = ownershipStamps(req, placement);
-        let synthSeq = 0;
-        const issueDocNo = async (t) => {
-            const issued = await numberingGateway.issueNumber(req, 'ar-statement', { transaction: t });
-            if (issued && issued.number) return issued.number;
-            synthSeq += 1;
-            return `ST-${Date.now().toString(36).toUpperCase()}-${synthSeq}`;
-        };
-        const run = await arStatement.processRun({
-            companyId,
-            runId: req.params.id,
-            resume: req.body && req.body.resume === true,
-            issueDocNo,
-            stamps,
-        });
+        const run = await StatementRun.findOne({ where: { id: req.params.id, companyId } });
+        if (!run) return res.status(404).json({ message: 'Statement run not found.' });
         res.status(200).json({ run: runJson(run) });
     } catch (err) {
+        console.error('Error loading statement run:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/ar/statement-runs/:id/resume - re-queue a failed/cancelled run at
+// exactly where it stopped.
+exports.resumeStatementRun = async (req, res) => {
+    try {
+        const { companyId, userId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const run = await arStatement.resumeRun({ companyId, runId: req.params.id, userId });
+        res.status(200).json({ message: 'Statement run resumed.', run: runJson(run) });
+    } catch (err) {
         if (err && err.httpStatus) return res.status(err.httpStatus).json({ message: err.message });
-        console.error('Error processing statement run:', err);
+        console.error('Error resuming statement run:', err);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
 // POST /api/ar/statement-runs/:id/cancel - stop a run (already-generated
-// statements stay; the rest of the frozen list is abandoned).
+// statements stay). Settles immediately when no worker holds the run;
+// otherwise the worker honors it at the next chunk boundary.
 exports.cancelStatementRun = async (req, res) => {
     try {
         const { companyId, userId } = getUserContext(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const run = await StatementRun.findOne({ where: { id: req.params.id, companyId } });
-        if (!run) return res.status(404).json({ message: 'Statement run not found.' });
-        if (run.status !== 'running' && run.status !== 'failed') {
-            return res.status(400).json({ message: `This run is already ${run.status}.` });
-        }
-        run.status = 'cancelled';
-        run.updatedBy = userId;
-        await run.save();
-        res.status(200).json({ message: 'Statement run cancelled.', run: runJson(run) });
+        const run = await arStatement.cancelRun({ companyId, runId: req.params.id, userId });
+        res.status(200).json({
+            message: run.status === 'cancelling' ? 'Cancellation requested - stopping at the next chunk.' : 'Statement run cancelled.',
+            run: runJson(run),
+        });
     } catch (err) {
+        if (err && err.httpStatus) return res.status(err.httpStatus).json({ message: err.message });
         console.error('Error cancelling statement run:', err);
         res.status(500).json({ message: 'Internal server error' });
     }

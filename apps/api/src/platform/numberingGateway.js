@@ -41,6 +41,13 @@ async function getMode(req, purpose) {
 async function issueNumber(req, purpose, opts = {}) {
     const { companyId } = getUserContext(req);
     if (!companyId) return null;
+    return issueNumberForCompany(companyId, purpose, opts);
+}
+
+// Same issuance for callers WITHOUT an HTTP request - background jobs (the
+// outbox worker's statement runs) that carry a companyId of their own.
+async function issueNumberForCompany(companyId, purpose, opts = {}) {
+    if (!companyId) return null;
     const { sequelize } = require('./db');
     const generator = require('../modules/saas/numberingGenerator');
     const result = await generator.issue(modelForPurpose(purpose), sequelize, {
@@ -116,4 +123,4 @@ function previewScheme(draft, opts = {}) {
     }, { typeCode: typeof opts.typeCode === 'string' ? opts.typeCode : undefined });
 }
 
-module.exports = { getMode, issueNumber, numberingMeta, getScheme, saveScheme, previewScheme, modelForPurpose };
+module.exports = { getMode, issueNumber, issueNumberForCompany, numberingMeta, getScheme, saveScheme, previewScheme, modelForPurpose };
