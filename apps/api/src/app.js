@@ -270,6 +270,23 @@ async function initializeDB() {
                     await sequelize.query(`UPDATE ar."Statement" SET "companyName" = '' WHERE "companyName" IS NULL`);
                     await sequelize.query('ALTER TABLE ar."Statement" ALTER COLUMN "companyName" SET NOT NULL');
                 }
+                // The pre-overwrite era skipped re-runs by EXACT periodEnd, so
+                // two runs with different end dates in the same month could
+                // leave two LIVE statements for one debtor+month - which would
+                // abort the sync when it builds the partial unique index. Void
+                // every older duplicate, keeping the newest live statement per
+                // (company, debtor, month). Idempotent (no-op once clean).
+                await sequelize.query(
+                    `UPDATE ar."Statement" s SET status = 'void'
+                     WHERE s.status <> 'void' AND EXISTS (
+                         SELECT 1 FROM ar."Statement" n
+                         WHERE n."companyId" = s."companyId"
+                           AND n."debtorId" = s."debtorId"
+                           AND n."statementMonth" = s."statementMonth"
+                           AND n.status <> 'void'
+                           AND (n."createdAt" > s."createdAt"
+                                OR (n."createdAt" = s."createdAt" AND n.id > s.id)))`,
+                );
             }
 
             await sequelize.sync({ alter: true });
