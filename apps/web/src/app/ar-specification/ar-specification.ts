@@ -84,7 +84,12 @@ export class ArSpecificationComponent implements OnInit {
     this.errorMessage.set('');
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     const v = this.form.getRawValue();
-    const num = (x: string): number | null => (x.trim() === '' ? null : Number(x));
+    // input[type=number] controls carry number | null at runtime (Angular's
+    // NumberValueAccessor), '' only before first edit - normalize either way.
+    const num = (x: string | number | null): number | null => {
+      if (x === null || x === undefined || String(x).trim() === '') return null;
+      return Number(x);
+    };
     this.saving.set(true);
     this.service.saveArSetting({
       statementCutoffDay: num(v.statementCutoffDay),
