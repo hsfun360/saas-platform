@@ -141,6 +141,8 @@ function createApp() {
     app.use('/api/workflow', workflowRoutes);
     // Account Receivable - the debtor ledger, its own seam.
     app.use('/api/ar', arRoutes);
+    // In-app notifications (the header bell) - Notification service, user-scoped.
+    app.use('/api/notifications', require('./modules/notification/notification.routes'));
 
     // Simple Health Check Route
     app.get('/', (req, res) => {

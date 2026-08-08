@@ -306,6 +306,98 @@
   width: 100%;
 }
 
+/* --- Notification bell (header) --- */
+.notif-bell {
+  position: relative;
+}
+
+.notif-badge {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--danger-text);
+  color: var(--text-on-brand);
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  line-height: 16px;
+  text-align: center;
+}
+
+.notif-pop {
+  min-width: 320px;
+  max-width: 380px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.notif-pop__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.notif-pop__readall {
+  background: transparent;
+  border: none;
+  color: var(--brand-text);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  padding: var(--space-xs);
+  text-transform: none;
+}
+
+.notif-pop__empty {
+  padding: var(--space-lg) var(--space-sm);
+  color: var(--text-muted);
+  font-size: var(--font-body-2);
+  text-align: center;
+}
+
+.notif-item {
+  align-items: flex-start;
+}
+
+.notif-item__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.notif-item--unread .notif-item__dot {
+  background: var(--brand);
+}
+
+.notif-item__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.notif-item__title {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.notif-item--unread .notif-item__title {
+  font-weight: var(--weight-bold);
+}
+
+.notif-item__body {
+  font-size: var(--font-caption);
+  color: var(--text-secondary);
+}
+
 /* Account (avatar) popover: rounded profile card + pill actions. */
 .menu-pop--account {
   border-radius: 28px;

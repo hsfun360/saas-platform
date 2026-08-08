@@ -389,4 +389,43 @@ module.exports = [
             {{/if}}
         `),
     },
+    {
+        key: 'ar.statement-run-completed',
+        name: 'Statement run completed',
+        description: 'Sent to the user who started a statement generation run when the background run finishes (or fails).',
+        tenantOverridable: true,
+        variables: [
+            { name: 'userName', description: "The recipient's name." },
+            { name: 'companyName', description: 'The company the statements were generated for.' },
+            { name: 'monthLabel', description: "The Statement Month, e.g. 'Aug 2026'." },
+            { name: 'status', description: "'completed' or 'failed'." },
+            { name: 'failed', description: 'True when the run failed (drives the failure wording).' },
+            { name: 'generated', description: 'Number of statements generated.' },
+            { name: 'replaced', description: 'How many of those replaced an existing statement.' },
+            { name: 'processed', description: 'Debtors processed.' },
+            { name: 'total', description: 'Debtors in scope.' },
+            { name: 'errorMessage', description: 'The failure reason (failed runs only).' },
+            { name: 'listLink', description: 'Deep link to the Statement Listing screen.' },
+        ],
+        sample: {
+            userName: 'Jane Tan', companyName: 'Acme Golf & Country Club', monthLabel: 'Aug 2026',
+            status: 'completed', failed: false, generated: 1842, replaced: 12, processed: 1900, total: 1900,
+            errorMessage: '', listLink: 'https://app.example.com/ar/statements',
+        },
+        fromName: null,
+        subject: '{{#if failed}}Statement run FAILED - {{monthLabel}}{{else}}{{monthLabel}} statements are ready - {{companyName}}{{/if}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">{{#if failed}}Statement run failed{{else}}Statement run completed{{/if}}</h2>
+            <p>Hello{{#if userName}} {{userName}}{{/if}},</p>
+            {{#if failed}}
+            <p>The statement generation run for <strong>{{monthLabel}}</strong> at <strong>{{companyName}}</strong> stopped after {{processed}} of {{total}} debtor(s):</p>
+            <p style="padding: 10px; background-color: #ffeaea; color: #cc0000; border-left: 4px solid #cc0000;">{{errorMessage}}</p>
+            <p>Already-generated statements are kept. Open Statement Generation and use Resume to continue from where it stopped.</p>
+            {{else}}
+            <p>The statement generation run for <strong>{{monthLabel}}</strong> at <strong>{{companyName}}</strong> has finished.</p>
+            <p><strong>{{generated}}</strong> statement(s) generated ({{replaced}} replaced) across {{total}} debtor(s) in scope.</p>
+            {{/if}}
+            ${button('{{listLink}}', 'View statements')}
+        `),
+    },
 ];

@@ -88,6 +88,43 @@
              Sign out) - the header stays uncluttered and mobile always worked
              that way. Don't re-add a header gear. -->
 
+        <!-- Notification bell: background jobs (statement runs etc.) alert here -->
+        <div style="position: relative; display: flex; align-items: center;">
+          <button class="icon-btn notif-bell" title="Notifications" aria-label="Notifications"
+                  aria-haspopup="true" [attr.aria-expanded]="isNotifDropdownOpen"
+                  (click)="toggleNotifDropdown($event)" style="color: white">
+            <span class="material-icons" style="font-size: 22px; vertical-align: middle;">notifications</span>
+            @if (notifications.unread() > 0) {
+              <span class="notif-badge">{{ notifications.unread() > 99 ? '99+' : notifications.unread() }}</span>
+            }
+          </button>
+
+          @if (isNotifDropdownOpen) {
+            <div class="menu-pop notif-pop" (click)="$event.stopPropagation()">
+              <div class="menu-pop__title notif-pop__title">
+                <span>Notifications</span>
+                @if (notifications.unread() > 0) {
+                  <button type="button" class="notif-pop__readall" (click)="markAllNotificationsRead()">Mark all read</button>
+                }
+              </div>
+              @if (notifications.items().length === 0) {
+                <div class="notif-pop__empty">No notifications yet.</div>
+              } @else {
+                @for (n of notifications.items(); track n.id) {
+                  <button type="button" class="menu-pop__item notif-item" [class.notif-item--unread]="!n.readAt"
+                          (click)="openNotification(n)">
+                    <span class="notif-item__dot" aria-hidden="true"></span>
+                    <span class="notif-item__text">
+                      <span class="notif-item__title">{{ n.title }}</span>
+                      <span class="notif-item__body">{{ n.body }}</span>
+                    </span>
+                  </button>
+                }
+              }
+            </div>
+          }
+        </div>
+
         <!-- Language quick-switch (only when the user has more than one to pick from) -->
         @if (languageOptions().length > 1) {
           <div style="position: relative; display: flex; align-items: center;">

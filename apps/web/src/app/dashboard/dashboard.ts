@@ -1,9 +1,10 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
 import { RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
 import { LanguageService } from '../services/language.service';
 import { I18nService } from '../i18n/i18n.service';
+import { NotificationService, AppNotification } from '../services/notification.service';
 import { RecentScreensService } from '../services/recent-screens.service';
 import { TranslatePipe } from '../i18n/translate.pipe';
 import { HelpButtonComponent } from '../shared/help-button/help-button';
@@ -58,7 +59,7 @@ interface NavNode {
       '(document:keydown.escape)': 'onEscape()'
     }
 })
-export class Dashboard implements OnInit {
+export class Dashboard implements OnInit, OnDestroy {
   loggedInUser: string | null = '';
   // Updated asynchronously from the avatar$/fullName$ streams, so held in signals
   // to refresh the view without relying on zone-based change detection.
@@ -131,11 +132,17 @@ export class Dashboard implements OnInit {
   readonly languageOptions = signal<Language[]>([]);
   isLanguageDropdownOpen = false;
 
+  // In-app notifications (the header bell): unread badge + dropdown list,
+  // refreshed on boot and every minute (background jobs notify through this).
+  isNotifDropdownOpen = false;
+  private notifTimer: ReturnType<typeof setInterval> | null = null;
+
   constructor(
     private router: Router,
     private authService: AuthService,
     private languageService: LanguageService,
     public i18n: I18nService,
+    public notifications: NotificationService,
     // Instantiated with the shell so screen visits are tracked from the first
     // navigation (feeds the launchpad's "continue where you left off" row).
     _recentScreens: RecentScreensService,
@@ -153,6 +160,8 @@ export class Dashboard implements OnInit {
     this.loadWorkspaces();
     this.loadMyInvitations();
     this.loadLanguageOptions();
+    this.notifications.load();
+    this.notifTimer = setInterval(() => this.notifications.load(), 60 * 1000);
 
     const savedAvatar = localStorage.getItem('profilePicture');
     if (savedAvatar) this.profilePictureUrl.set(savedAvatar);
@@ -365,6 +374,30 @@ export class Dashboard implements OnInit {
     this.isAppsDropdownOpen = false;
     this.isWorkspaceDropdownOpen = false;
     this.isLanguageDropdownOpen = false;
+    this.isNotifDropdownOpen = false;
+  }
+
+  ngOnDestroy(): void {
+    if (this.notifTimer) clearInterval(this.notifTimer);
+  }
+
+  // --- Header notification bell ---
+  toggleNotifDropdown(event: Event): void {
+    event.stopPropagation();
+    const next = !this.isNotifDropdownOpen;
+    this.closeDropdown();
+    this.isNotifDropdownOpen = next;
+    if (next) this.notifications.load(); // fresh list on open
+  }
+
+  openNotification(n: AppNotification): void {
+    this.notifications.markRead(n.id);
+    this.isNotifDropdownOpen = false;
+    if (n.linkRoute) this.router.navigateByUrl(n.linkRoute);
+  }
+
+  markAllNotificationsRead(): void {
+    this.notifications.markAllRead();
   }
 
   // --- Header language quick-switch ---
