@@ -38,8 +38,9 @@ Key rules a maintainer must not break:
 
 ## Statements (enhanced 2026-08-06)
 
-- Two screens/menus: `/ar/statement-generation` (settings + runs) and `/ar/statements` (pure listing + viewer + void).
-- `ar.Setting` per-company singleton: `statementCutoffDay` (day D = period defaults prev-month D+1 .. this-month D, clamped; NULL = calendar month) and aging boundaries `aging1..aging6` (user-defined days, contiguous ascending prefix).
+- Three screens/menus: `/ar/settings` (AR Specification - the per-company options singleton, same role as Club Specification), `/ar/statement-generation` (runs), and `/ar/statements` (pure listing + viewer + void).
+- `ar.Setting` per-company singleton, maintained on AR Specification: `statementCutoffDay` (day D = period defaults prev-month D+1 .. this-month D, clamped; NULL = calendar month) and aging boundaries `aging1..aging6` (user-defined days, contiguous ascending prefix).
+  `GET /api/ar/settings` is shared with the Generation screen (`requireAnyMenuAction` - its date auto-fill reads the cutoff); `PUT` is Specification-only.
 - `ar.Statement` is PRINT-COMPLETE: party snapshot (billName/billAddress/`debtorNo`/`contactPerson` for corporate receivers), issuer letterhead (`companyName`/`companyAddress` via `serviceContext.getCompanyLetterhead`), `deposit` balance, aging amounts `aging1..aging7` (+`agingBoundaries` snapshot - N boundaries print N+1 buckets), `debtorType` + `debtorCategory` (individual|corporate|nominee|other via `membershipGateway.classifyParties`).
 - `ar.StatementDetail` (renamed from StatementLine): docDate-based lines + running `balance`.
 - OVERWRITE semantics: `statementMonth` is the key; regenerating a debtor's month deletes the old statement + details and recreates them (partial unique index, void rows exempt).

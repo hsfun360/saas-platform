@@ -2,33 +2,6 @@
    Composes the shared primitives (.settings-card / .data-card / .status-chip /
    .saas-*); only the aging grid, scope row and progress bar are screen-local. */
 
-/* Aging boundaries: 6 compact inputs on one wrapping row */
-.asg-aging {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: var(--space-sm) var(--space-md) var(--space-md);
-  margin: 0 0 var(--space-md);
-}
-
-.asg-aging legend {
-  font-size: var(--font-caption);
-  font-weight: var(--weight-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-  padding: 0 var(--space-xs);
-}
-
-.asg-aging__grid {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: var(--space-sm);
-}
-
-@media (max-width: 767px) {
-  .asg-aging__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-
 /* Month + from/to on one row (stacks on mobile via the global form rule) */
 .asg-run {
   display: grid;

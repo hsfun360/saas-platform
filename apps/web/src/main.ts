@@ -171,6 +171,8 @@ const routes: Routes = [
       { path: 'ar/debtors/:id', loadComponent: () => import('./app/ar-debtor-account/ar-debtor-account').then((m) => m.ArDebtorAccountComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
       // Periodic processing: staged interest run + monthly statement run.
       { path: 'ar/interest', loadComponent: () => import('./app/ar-interest/ar-interest').then((m) => m.ArInterestComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
+      // AR Specification - company-wide AR options (same role as Club Specification).
+      { path: 'ar/settings', loadComponent: () => import('./app/ar-specification/ar-specification').then((m) => m.ArSpecificationComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
       { path: 'ar/statement-generation', loadComponent: () => import('./app/ar-statement-generation/ar-statement-generation').then((m) => m.ArStatementGenerationComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
       { path: 'ar/statements', loadComponent: () => import('./app/ar-statements/ar-statements').then((m) => m.ArStatementsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
       // Master File Setup → Unit Courses (per-company 9-hole building blocks).

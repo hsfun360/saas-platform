@@ -68,11 +68,16 @@ router.get('/interest-generations/:id', requireMenuAction('/ar/interest'), perio
 router.post('/interest-generations/confirm', requireMenuAction('/ar/interest'), periodicController.confirm);
 router.post('/interest-generations/:id/cancel', requireMenuAction('/ar/interest'), periodicController.cancel);
 
+// --- AR Specification (its own screen/menu: /ar/settings) ---
+// The per-company AR options singleton (statement cutoff day + aging
+// boundaries). Reads are shared with Statement Generation (its date auto-fill
+// needs the cutoff), writes belong to the Specification screen alone.
+const { requireAnyMenuAction } = require('../../platform/serviceContext');
+router.get('/settings', requireAnyMenuAction(['/ar/settings', '/ar/statement-generation']), periodicController.getArSetting);
+router.put('/settings', requireMenuAction('/ar/settings'), periodicController.saveArSetting);
+
 // --- Statement Generation (its own screen/menu: /ar/statement-generation) ---
-// AR settings (cutoff day + aging boundaries) are maintained on this screen;
-// runs are tracked jobs the screen drives in chunks (progress + resume).
-router.get('/settings', requireMenuAction('/ar/statement-generation'), periodicController.getArSetting);
-router.put('/settings', requireMenuAction('/ar/statement-generation'), periodicController.saveArSetting);
+// Runs are tracked jobs the screen drives in chunks (progress + resume).
 router.post('/statement-runs/preview', requireMenuAction('/ar/statement-generation'), periodicController.previewStatementRun);
 router.post('/statement-runs', requireMenuAction('/ar/statement-generation'), periodicController.createStatementRun);
 router.post('/statement-runs/:id/process', requireMenuAction('/ar/statement-generation'), periodicController.processStatementRun);

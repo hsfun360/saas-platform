@@ -1,0 +1,92 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">tune</span>
+      <div>
+        <h1>{{ 'AR Specification' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Company-wide Account Receivable options - the statement cutoff day and the aging buckets printed on every statement.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="onSave()">
+
+      <!-- Statement period -->
+      <section class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('cutoff')"
+                [attr.aria-expanded]="isExpanded('cutoff')">
+          <span class="settings-header__title">Statement cutoff</span>
+          <span class="settings-header__sub">Drives the default From/To date range on Statement Generation.</span>
+          <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('cutoff')" aria-hidden="true">expand_more</span>
+        </button>
+        @if (isExpanded('cutoff')) {
+          <div class="settings-body">
+            <div class="form-group" style="max-width: 320px;">
+              <label for="arspCutoff">Statement cutoff day</label>
+              <input id="arspCutoff" type="number" inputmode="numeric" min="1" max="31" step="1"
+                     formControlName="statementCutoffDay" placeholder="Blank = calendar month" />
+              <small class="cell-subtle">Day 27 means Aug 2026 defaults to 28 Jul - 27 Aug. Blank uses 1 Aug - 31 Aug. Short months clamp to their last day.</small>
+            </div>
+          </div>
+        }
+      </section>
+
+      <!-- Aging boundaries -->
+      <section class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('aging')"
+                [attr.aria-expanded]="isExpanded('aging')">
+          <span class="settings-header__title">Aging boundaries</span>
+          <span class="settings-header__sub">Upper day boundary of each statement aging bucket - N filled boundaries print N+1 buckets.</span>
+          <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('aging')" aria-hidden="true">expand_more</span>
+        </button>
+        @if (isExpanded('aging')) {
+          <div class="settings-body">
+            <div class="arsp-aging__grid">
+              <div class="form-group">
+                <label for="arspA1">Aging 1 <span class="required">*</span></label>
+                <input id="arspA1" type="number" inputmode="numeric" min="1" step="1" formControlName="aging1" />
+                @if (showError(form.controls.aging1)) {
+                  <div class="field-error" role="alert">The first boundary is required.</div>
+                }
+              </div>
+              <div class="form-group"><label for="arspA2">Aging 2</label><input id="arspA2" type="number" inputmode="numeric" min="1" step="1" formControlName="aging2" /></div>
+              <div class="form-group"><label for="arspA3">Aging 3</label><input id="arspA3" type="number" inputmode="numeric" min="1" step="1" formControlName="aging3" /></div>
+              <div class="form-group"><label for="arspA4">Aging 4</label><input id="arspA4" type="number" inputmode="numeric" min="1" step="1" formControlName="aging4" /></div>
+              <div class="form-group"><label for="arspA5">Aging 5</label><input id="arspA5" type="number" inputmode="numeric" min="1" step="1" formControlName="aging5" /></div>
+              <div class="form-group"><label for="arspA6">Aging 6</label><input id="arspA6" type="number" inputmode="numeric" min="1" step="1" formControlName="aging6" /></div>
+            </div>
+            <small class="cell-subtle">Fill left to right, each greater than the last. 30, 60, 90, 120 prints &lt;=30, 31-60, 61-90, 91-120, &gt;120. Changing boundaries only affects statements generated AFTER the change - existing statements keep the buckets they were printed with.</small>
+          </div>
+        }
+      </section>
+
+      <div class="arsp-actions">
+        <button *appCan="'edit'" type="submit" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save specification' }}
+        </button>
+      </div>
+    </form>
+  }
+
+</div>

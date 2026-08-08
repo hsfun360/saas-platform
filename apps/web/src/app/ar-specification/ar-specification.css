@@ -1,0 +1,18 @@
+/* AR Specification - company-wide AR options (section-card standard, same
+   role as Club Specification). Composes the global .settings-card chrome;
+   only the aging grid and the save row are screen-local. */
+
+.arsp-aging__grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+@media (max-width: 767px) {
+  .arsp-aging__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.arsp-actions {
+  margin-top: var(--space-md);
+}

@@ -27,52 +27,7 @@
     </div>
   }
 
-  <!-- AR settings (cutoff day + aging boundaries) -->
-  <div class="settings-card">
-    <button type="button" class="settings-header settings-header--button" (click)="toggleSettings()"
-            [attr.aria-expanded]="settingsExpanded()">
-      <span class="settings-header__title">Statement settings</span>
-      <span class="settings-header__sub">Cutoff day drives the default date range; aging boundaries define the buckets printed on every statement.</span>
-      <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="settingsExpanded()" aria-hidden="true">expand_more</span>
-    </button>
-    @if (settingsExpanded()) {
-      <div class="settings-body">
-        <form [formGroup]="settingForm" (ngSubmit)="onSaveSettings()" class="saas-form" style="padding: 0;">
-          <div class="form-group" style="max-width: 320px;">
-            <label for="asgCutoff">Statement cutoff day</label>
-            <input id="asgCutoff" type="number" inputmode="numeric" min="1" max="31" step="1"
-                   formControlName="statementCutoffDay" placeholder="Blank = calendar month" />
-            <small class="cell-subtle">Day 27 means Aug 2026 defaults to 28 Jul - 27 Aug. Blank uses 1 Aug - 31 Aug.</small>
-          </div>
-          <fieldset class="asg-aging">
-            <legend>Aging boundaries (days)</legend>
-            <div class="asg-aging__grid">
-              <div class="form-group">
-                <label for="asgA1">Aging 1 <span class="required">*</span></label>
-                <input id="asgA1" type="number" inputmode="numeric" min="1" step="1" formControlName="aging1" />
-                @if (showError(settingForm.controls.aging1)) {
-                  <div class="field-error" role="alert">The first boundary is required.</div>
-                }
-              </div>
-              <div class="form-group"><label for="asgA2">Aging 2</label><input id="asgA2" type="number" inputmode="numeric" min="1" step="1" formControlName="aging2" /></div>
-              <div class="form-group"><label for="asgA3">Aging 3</label><input id="asgA3" type="number" inputmode="numeric" min="1" step="1" formControlName="aging3" /></div>
-              <div class="form-group"><label for="asgA4">Aging 4</label><input id="asgA4" type="number" inputmode="numeric" min="1" step="1" formControlName="aging4" /></div>
-              <div class="form-group"><label for="asgA5">Aging 5</label><input id="asgA5" type="number" inputmode="numeric" min="1" step="1" formControlName="aging5" /></div>
-              <div class="form-group"><label for="asgA6">Aging 6</label><input id="asgA6" type="number" inputmode="numeric" min="1" step="1" formControlName="aging6" /></div>
-            </div>
-            <small class="cell-subtle">Fill left to right, each greater than the last. 30, 60, 90, 120 prints &lt;=30, 31-60, 61-90, 91-120, &gt;120.</small>
-          </fieldset>
-          <div>
-            <button *appCan="'edit'" type="submit" class="btn btn--primary" [disabled]="settingsSaving()">
-              {{ settingsSaving() ? 'Saving…' : 'Save settings' }}
-            </button>
-          </div>
-        </form>
-      </div>
-    }
-  </div>
-
-  <!-- Run card -->
+  <!-- Run card (cutoff day + aging boundaries live on AR Specification) -->
   <div class="settings-card" *appCan="'create'">
     <div class="settings-header">
       <span class="settings-header__title">Generate a month</span>

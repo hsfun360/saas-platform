@@ -1,20 +1,21 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ArService } from '../services/ar.service';
-import { ArSetting, ArStatementCategory, ArStatementRun, ArStatementRunPreview } from '../models/ar.models';
+import { ArStatementCategory, ArStatementRun, ArStatementRunPreview } from '../models/ar.models';
 
-// Account Receivable → Statement Generation (split from the listing 2026-08-06).
-// The run screen: AR settings (statement cutoff day + user-defined aging
-// boundaries), Statement Month with From/To dates auto-filled from the cutoff
-// rule, a debtor-category scope, a preview/confirm step (show the expected
-// result: N in scope, M replaced), then a chunk-driven run with a live
-// progress bar. Interrupted runs resume exactly where they stopped.
+// Account Receivable → Statement Generation (split from the listing
+// 2026-08-06; the AR options card moved to AR Specification the same day).
+// The run screen: Statement Month with From/To dates auto-filled from the
+// cutoff rule (maintained on /ar/settings), a debtor-category scope, a
+// preview/confirm step (show the expected result: N in scope, M replaced),
+// then a chunk-driven run with a live progress bar. Interrupted runs resume
+// exactly where they stopped.
 @Component({
   selector: 'app-ar-statement-generation',
   standalone: true,
@@ -32,19 +33,9 @@ export class ArStatementGenerationComponent implements OnInit, OnDestroy {
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
 
-  // --- AR settings card ---
-  readonly settingsExpanded = signal(false);
-  readonly settingsSaving = signal(false);
+  // Cutoff day (maintained on AR Specification; read here for the date
+  // auto-fill only).
   private cutoffDay: number | null = null;
-  readonly settingForm = this.fb.nonNullable.group({
-    statementCutoffDay: [''],
-    aging1: ['', [Validators.required]],
-    aging2: [''],
-    aging3: [''],
-    aging4: [''],
-    aging5: [''],
-    aging6: [''],
-  });
 
   // --- Run form ---
   readonly runForm = this.fb.nonNullable.group({
@@ -88,10 +79,6 @@ export class ArStatementGenerationComponent implements OnInit, OnDestroy {
     this.destroyed = true;
   }
 
-  showError(control: AbstractControl): boolean {
-    return control.invalid && control.touched;
-  }
-
   private thisMonth(): string {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -123,55 +110,14 @@ export class ArStatementGenerationComponent implements OnInit, OnDestroy {
     this.runForm.patchValue({ periodStart: this.fmt(sy, sm, sd), periodEnd: this.fmt(y, m, end) });
   }
 
-  // --- Settings ---
+  // --- Setting read (cutoff day -> default date range) ---
   private loadSetting(month: string): void {
     this.service.getArSetting().subscribe({
       next: (res) => {
-        this.applySetting(res.setting);
+        this.cutoffDay = res.setting.statementCutoffDay;
         this.applyDefaultPeriod(month);
       },
       error: (err) => this.errorMessage.set(err.error?.message || 'Failed to load AR settings.'),
-    });
-  }
-
-  private applySetting(s: ArSetting): void {
-    this.cutoffDay = s.statementCutoffDay;
-    this.settingForm.reset({
-      statementCutoffDay: s.statementCutoffDay === null ? '' : String(s.statementCutoffDay),
-      aging1: s.aging1 === null ? '' : String(s.aging1),
-      aging2: s.aging2 === null ? '' : String(s.aging2),
-      aging3: s.aging3 === null ? '' : String(s.aging3),
-      aging4: s.aging4 === null ? '' : String(s.aging4),
-      aging5: s.aging5 === null ? '' : String(s.aging5),
-      aging6: s.aging6 === null ? '' : String(s.aging6),
-    });
-  }
-
-  toggleSettings(): void {
-    this.settingsExpanded.update((v) => !v);
-  }
-
-  onSaveSettings(): void {
-    this.clearMessages();
-    if (this.settingForm.invalid) { this.settingForm.markAllAsTouched(); return; }
-    const v = this.settingForm.getRawValue();
-    const num = (x: string): number | null => (x.trim() === '' ? null : Number(x));
-    this.settingsSaving.set(true);
-    this.service.saveArSetting({
-      statementCutoffDay: num(v.statementCutoffDay),
-      aging1: num(v.aging1), aging2: num(v.aging2), aging3: num(v.aging3),
-      aging4: num(v.aging4), aging5: num(v.aging5), aging6: num(v.aging6),
-    }).subscribe({
-      next: (res) => {
-        this.settingsSaving.set(false);
-        this.successMessage.set(res.message);
-        this.applySetting(res.setting);
-        this.applyDefaultPeriod(this.runForm.getRawValue().month);
-      },
-      error: (err) => {
-        this.settingsSaving.set(false);
-        this.errorMessage.set(err.error?.message || 'Failed to save AR settings.');
-      },
     });
   }
 
