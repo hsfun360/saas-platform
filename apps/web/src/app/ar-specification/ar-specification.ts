@@ -36,7 +36,9 @@ export class ArSpecificationComponent implements OnInit {
   readonly expanded = signal<Record<string, boolean>>({ cutoff: true, aging: true });
 
   readonly form = this.fb.nonNullable.group({
-    statementCutoffDay: [''],
+    // Blank = calendar month; otherwise a whole day 1..31 (pattern runs on the
+    // stringified value, so it also rejects decimals like 27.5).
+    statementCutoffDay: ['', [Validators.min(1), Validators.max(31), Validators.pattern(/^\d*$/)]],
     aging1: ['', [Validators.required]],
     aging2: [''],
     aging3: [''],

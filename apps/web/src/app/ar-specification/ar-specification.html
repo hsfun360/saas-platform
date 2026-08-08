@@ -45,8 +45,13 @@
             <div class="form-group" style="max-width: 320px;">
               <label for="arspCutoff">Statement cutoff day</label>
               <input id="arspCutoff" type="number" inputmode="numeric" min="1" max="31" step="1"
-                     formControlName="statementCutoffDay" placeholder="Blank = calendar month" />
-              <small class="cell-subtle">Day 27 means Aug 2026 defaults to 28 Jul - 27 Aug. Blank uses 1 Aug - 31 Aug. Short months clamp to their last day.</small>
+                     formControlName="statementCutoffDay" placeholder="Blank = calendar month"
+                     [attr.aria-invalid]="showError(form.controls.statementCutoffDay)"
+                     aria-describedby="arspCutoffErr" />
+              @if (showError(form.controls.statementCutoffDay)) {
+                <div id="arspCutoffErr" class="field-error" role="alert">Cutoff day must be a whole day between 1 and 31 (or blank for calendar month).</div>
+              }
+              <small class="cell-subtle">Day 27 means Aug 2026 defaults to 28 Jul - 27 Aug. Blank uses 1 Aug - 31 Aug. Short months clamp to their last day. Day 31 behaves the same as blank.</small>
             </div>
           </div>
         }
