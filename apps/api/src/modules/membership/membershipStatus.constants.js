@@ -23,7 +23,8 @@ const STATUS_CLASSES = [
 // The old single "System control" conflated two orthogonal questions (the
 // composite 'warning-no-charge' value was the tell), so it was SPLIT
 // (user decision 2026-08-09) into the two vocabularies below. The legacy
-// column/backfill mapping lives in LEGACY_SYSTEM_CONTROL_SPLIT.
+// column was backfilled (allow->allow/allow, warning->warning/warning,
+// warning-no-charge->warning/barred, barred->barred/barred) and dropped.
 
 // ACTION control - what the system does when a member carrying this status
 // ACTS in a frontend module (registration, booking, check-in).
@@ -45,16 +46,6 @@ const CHARGE_CONTROLS = [
     { key: 'barred', label: 'Barred' },
 ];
 
-// How the retired systemControl values split across the two axes (boot
-// backfill in app.js). Legacy 'warning' warned at charging (the legacy field
-// WAS the charges control), so it lands as warning on BOTH axes.
-const LEGACY_SYSTEM_CONTROL_SPLIT = {
-    allow: { action: 'allow', charge: 'allow' },
-    warning: { action: 'warning', charge: 'warning' },
-    'warning-no-charge': { action: 'warning', charge: 'barred' },
-    barred: { action: 'barred', charge: 'barred' },
-};
-
 const STATUS_CLASS_KEYS = STATUS_CLASSES.map((c) => c.key);
 const ACTION_CONTROL_KEYS = ACTION_CONTROLS.map((c) => c.key);
 const CHARGE_CONTROL_KEYS = CHARGE_CONTROLS.map((c) => c.key);
@@ -66,5 +57,4 @@ module.exports = {
     ACTION_CONTROL_KEYS,
     CHARGE_CONTROLS,
     CHARGE_CONTROL_KEYS,
-    LEGACY_SYSTEM_CONTROL_SPLIT,
 };

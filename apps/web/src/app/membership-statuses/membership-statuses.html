@@ -147,6 +147,12 @@
             }
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aDesc">Description</label>
+            <textarea id="aDesc" formControlName="description" rows="2" wrap="off" placeholder="Optional summary" maxlength="255"></textarea>
+          </div>
+        </div>
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="aAction">Action control <span class="required">*</span></label>
@@ -175,12 +181,6 @@
             @if (showError(addForm.controls.chargeControl)) {
               <p id="aChargeErr" class="field-error" role="alert">Charge control is required.</p>
             }
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="aDesc">Description</label>
-            <textarea id="aDesc" formControlName="description" rows="2" wrap="off" placeholder="Optional summary" maxlength="255"></textarea>
           </div>
         </div>
         <div class="form-row">
@@ -232,6 +232,12 @@
             }
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eDesc">Description</label>
+            <textarea id="eDesc" formControlName="description" rows="2" wrap="off" placeholder="Optional summary" maxlength="255"></textarea>
+          </div>
+        </div>
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="eAction">Action control <span class="required">*</span></label>
@@ -260,12 +266,6 @@
             @if (showError(editForm.controls.chargeControl)) {
               <p id="eChargeErr" class="field-error" role="alert">Charge control is required.</p>
             }
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="eDesc">Description</label>
-            <textarea id="eDesc" formControlName="description" rows="2" wrap="off" placeholder="Optional summary" maxlength="255"></textarea>
           </div>
         </div>
         <div class="form-row">
