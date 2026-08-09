@@ -117,7 +117,7 @@ export class GolfTransactionTypesComponent implements OnInit {
   readonly prTitle = computed(() => {
     const code = this.prType()?.transactionType || '';
     if (this.prMode() === 'form') return this.prEditId() ? `Edit price — ${code}` : `New price — ${code}`;
-    return `Pricing — ${code}`;
+    return `Default Price — ${code}`;
   });
   readonly prBusy = computed(() => this.prLoading() || this.prSaving());
   // Method (not computed): rateForm.dirty is not a signal, but template

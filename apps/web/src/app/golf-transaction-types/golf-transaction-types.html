@@ -95,21 +95,28 @@
               }
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openPricing(t)">Pricing</button>
               @if (t.canModify !== false) {
-                <ng-container *appCan="'edit'">
-                  <app-overflow-menu [label]="'More actions for ' + t.transactionType">
-                    <button type="button" appMenuItem (click)="openEdit(t)">
-                      <span class="material-icons" aria-hidden="true">edit</span>
-                      Edit
-                    </button>
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+              }
+              <!-- Kebab stays visible for everyone: Default Price is view-only
+                   without the edit grant; the mutating items are gated. -->
+              <app-overflow-menu [label]="'More actions for ' + t.transactionType">
+                <button type="button" appMenuItem (click)="openPricing(t)">
+                  <span class="material-icons" aria-hidden="true">sell</span>
+                  Default Price
+                </button>
+                @if (t.canModify !== false) {
+                  <ng-container *appCan="'edit'">
                     <button type="button" appMenuItem (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
                       <span class="material-icons" aria-hidden="true">{{ t.isActive === false ? 'toggle_on' : 'toggle_off' }}</span>
                       {{ t.isActive === false ? 'Enable' : 'Disable' }}
                     </button>
-                  </app-overflow-menu>
-                </ng-container>
-              }
+                  </ng-container>
+                }
+              </app-overflow-menu>
             </div>
           </div>
         </div>
