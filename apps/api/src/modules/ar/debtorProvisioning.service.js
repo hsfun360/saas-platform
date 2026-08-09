@@ -25,10 +25,11 @@ function money(value) {
 
 // Find-or-create the ledger account (Debtor + its CreditAccount pool row) for a
 // provisioning payload:
-//   { companyId, debtorType, sourceId, terms?, creditLimit?, sendReminders?,
-//     chargeInterest? }
-// Returns the Debtor row (existing or created). Throws on a malformed payload
-// so the outbox retry/poison handling surfaces it.
+//   { companyId, debtorType, sourceId, sourceNo?, requestedBy?, terms?,
+//     creditLimit?, sendReminders?, chargeInterest? }
+// Returns { debtor, created } - `created` false when the account already
+// existed (replays stay silent). Throws on a malformed payload so the outbox
+// retry/poison handling surfaces it.
 async function provisionDebtor(payload, transaction = null) {
     const { companyId, debtorType, sourceId } = payload || {};
     if (!companyId || !sourceId || !DEBTOR_TYPE_KEYS.includes(debtorType)) {
@@ -56,7 +57,7 @@ async function provisionDebtor(payload, transaction = null) {
                 transaction: t,
             });
         }
-        return debtor;
+        return { debtor, created };
     };
 
     if (transaction) return run(transaction);

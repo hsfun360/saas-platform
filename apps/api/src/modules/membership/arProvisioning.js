@@ -33,11 +33,16 @@ function toInt(x) { const n = Number(x); return Number.isInteger(n) ? n : null; 
 function toMoney(x) { const n = Number(x); return Number.isFinite(n) && n > 0 ? n : 0; }
 
 // The contract debtor payload, seeded from the Membership credit card.
-async function provisionContractDebtor(membership, transaction) {
+// `requestedBy` (a userId) makes the worker notify that user when the ledger
+// account is actually opened or terminally fails - interactive saves pass it,
+// bulk paths (import migrate, backfill) leave it off so they stay silent.
+async function provisionContractDebtor(membership, transaction, requestedBy = null) {
     await enqueueDebtorProvisioning({
         companyId: membership.companyId,
         debtorType: 'membership',
         sourceId: membership.id,
+        sourceNo: membership.membershipNo || null,
+        requestedBy,
         terms: toInt(membership.terms),
         creditLimit: toMoney(membership.creditLimit),
         sendReminders: !!membership.sendReminders,
@@ -47,11 +52,13 @@ async function provisionContractDebtor(membership, transaction) {
 
 // A nominee's personal debtor: repayment terms follow the contract, the limit
 // seeds from the nominee's own member-level credit limit.
-async function provisionNomineeDebtor(member, membership, transaction) {
+async function provisionNomineeDebtor(member, membership, transaction, requestedBy = null) {
     await enqueueDebtorProvisioning({
         companyId: member.companyId,
         debtorType: 'member',
         sourceId: member.id,
+        sourceNo: member.memberNo || null,
+        requestedBy,
         terms: toInt(membership.terms),
         creditLimit: toMoney(member.creditLimit),
         sendReminders: !!membership.sendReminders,
@@ -60,14 +67,15 @@ async function provisionNomineeDebtor(member, membership, transaction) {
 }
 
 // Fire-if-active helpers for the controller hook points. `statusRow` is the
-// resolved MembershipStatus the caller already validated.
-async function onMembershipStatus(membership, statusRow, transaction) {
-    if (isActiveClass(statusRow)) await provisionContractDebtor(membership, transaction);
+// resolved MembershipStatus the caller already validated. `requestedBy` is the
+// interactive caller's userId (bell notification target) - omit for bulk runs.
+async function onMembershipStatus(membership, statusRow, transaction, requestedBy = null) {
+    if (isActiveClass(statusRow)) await provisionContractDebtor(membership, transaction, requestedBy);
 }
 
-async function onMemberStatus(member, membership, statusRow, transaction) {
+async function onMemberStatus(member, membership, statusRow, transaction, requestedBy = null) {
     if (member.memberKind === 'nominee' && isActiveClass(statusRow)) {
-        await provisionNomineeDebtor(member, membership, transaction);
+        await provisionNomineeDebtor(member, membership, transaction, requestedBy);
     }
 }
 

@@ -18,7 +18,11 @@ const { pingOutboxWorker } = require('./outboxWorkerPing');
 // `transaction` (event-carried state - AR opens the ledger account from the
 // payload alone, never reading producer tables):
 //   { companyId, debtorType: 'membership'|'member'|'other', sourceId,
-//     terms?, creditLimit?, sendReminders?, chargeInterest? }
+//     sourceNo?, requestedBy?, terms?, creditLimit?, sendReminders?,
+//     chargeInterest? }
+// `sourceNo` labels the party in notifications; `requestedBy` (userId) makes
+// the worker bell that user when the account opens or terminally fails -
+// interactive saves set it, bulk paths (import/backfill) leave it off.
 // Idempotent end-to-end: replays converge on the Debtor unique index, and an
 // existing Debtor is never overwritten (AR owns the terms after first
 // provisioning). Fire-and-forget by design - activation must not fail because

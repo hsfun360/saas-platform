@@ -36,6 +36,13 @@ async function dispatchEmail(payload) {
     await sendMail({ to: payload.to, from: payload.from, subject: payload.subject, html: payload.html });
 }
 
+// Human-readable party label for AR debtor-provisioning notifications, built
+// from the event payload alone (event-carried state - no membership reads).
+function debtorLabel(payload) {
+    const kind = payload.debtorType === 'member' ? 'nominee' : 'membership';
+    return payload.sourceNo ? `${kind} ${payload.sourceNo}` : `a ${kind}`;
+}
+
 // 2. The Email Sending for User Registration (Activation Link)
 async function sendActivationEmail(toEmail, activationLink) {
     const mailOptions = {
@@ -272,8 +279,26 @@ async function processOutboxSafely() {
                     // worker's cross-module surface explicit; when AR splits, this
                     // message type routes to the AR service's own consumer instead.
                     const { provisionDebtor } = require('../ar/debtorProvisioning.service');
-                    const debtor = await provisionDebtor(msg.payload);
-                    console.log(`[OUTBOX WORKER] Debtor provisioned (${msg.payload.debtorType}/${msg.payload.sourceId}) -> ${debtor.id}`);
+                    const { debtor, created } = await provisionDebtor(msg.payload);
+                    console.log(`[OUTBOX WORKER] Debtor provisioned (${msg.payload.debtorType}/${msg.payload.sourceId}) -> ${debtor.id}${created ? '' : ' (existing)'}`);
+                    // Bell the saver when the account actually OPENED (replays /
+                    // re-activations found an existing row and stay silent).
+                    // Best-effort: a notification hiccup must not fail the event.
+                    if (created && msg.payload.requestedBy) {
+                        try {
+                            const { notifyUser } = require('../../platform/notificationGateway');
+                            await notifyUser({
+                                userId: msg.payload.requestedBy,
+                                companyId: msg.payload.companyId,
+                                type: 'ar.debtor-provisioned',
+                                title: 'AR ledger account opened',
+                                body: `The AR debtor account for ${debtorLabel(msg.payload)} is ready.`,
+                                linkRoute: `/ar/debtors/${debtor.id}`,
+                            });
+                        } catch (nerr) {
+                            console.warn('[OUTBOX WORKER] Debtor-provisioned notification failed:', nerr.message);
+                        }
+                    }
                 }
 
                 // Mark as done
@@ -292,6 +317,25 @@ async function processOutboxSafely() {
                     console.error(`[POISON MESSAGE] Message ${msg.id} failed 3 times. Moving to FAILED state.`);
                     msg.status = 'FAILED';
                     msg.processedDate = new Date(); // We set the date so the query stops picking it up
+
+                    // AR debtor provisioning: tell the saver their ledger account
+                    // did NOT open (terminal failure only - retries stay quiet).
+                    // Best-effort; never disturbs the outbox handling itself.
+                    if (msg.type === 'DebtorProvisionRequested' && msg.payload && msg.payload.requestedBy) {
+                        try {
+                            const { notifyUser } = require('../../platform/notificationGateway');
+                            await notifyUser({
+                                userId: msg.payload.requestedBy,
+                                companyId: msg.payload.companyId,
+                                type: 'ar.debtor-provision-failed',
+                                title: 'AR ledger account failed to open',
+                                body: `The AR debtor account for ${debtorLabel(msg.payload)} could not be created after 5 attempts (${err.message}). The event is parked as FAILED in the outbox - contact support or retry via the debtor backfill.`,
+                                linkRoute: '/ar/debtors',
+                            });
+                        } catch (nerr) {
+                            console.warn('[OUTBOX WORKER] Debtor-failed notification failed:', nerr.message);
+                        }
+                    }
                 } else {
                     // ⚠️ RETRY: Leave processedDate as null so it gets picked up again
                     console.warn(`[RETRY] Message ${msg.id} failed. Attempt ${msg.retryCount}/3`);

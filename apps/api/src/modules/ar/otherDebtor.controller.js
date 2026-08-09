@@ -114,7 +114,7 @@ exports.createOtherDebtor = async (req, res) => {
                 const row = await OtherDebtor.create({ companyId, code, ...parsed.value, ...stamps }, { transaction: t });
                 // Same-tx ledger account (in-process is fine INSIDE the ar module;
                 // the outbox path is for cross-service producers).
-                const debtor = await provisionDebtor({
+                const { debtor } = await provisionDebtor({
                     companyId,
                     debtorType: 'other',
                     sourceId: row.id,

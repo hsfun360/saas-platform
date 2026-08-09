@@ -848,8 +848,9 @@ exports.createMembership = async (req, res) => {
             await replaceAddresses({ membershipId: ms.id }, contractAddrs.value, companyId, stamps, t);
 
             // AR: a membership born into an active status class opens its
-            // contract debtor (outbox event, idempotent).
-            await arProvisioning.onMembershipStatus(ms, status, t);
+            // contract debtor (outbox event, idempotent). The saver gets a
+            // bell notification when the account opens (or terminally fails).
+            await arProvisioning.onMembershipStatus(ms, status, t, callerId);
 
             // The individual member is born with the membership; the member number
             // IS the membership number, the person's status mirrors the contract's.
@@ -1002,7 +1003,7 @@ exports.updateMembership = async (req, res) => {
 
             // AR: entering an active status class opens the contract debtor
             // (outbox event, idempotent - re-activations are no-ops).
-            if (statusChanged) await arProvisioning.onMembershipStatus(ms, newStatus, t);
+            if (statusChanged) await arProvisioning.onMembershipStatus(ms, newStatus, t, getUserContext(req).userId);
         });
 
         const members = await Member.findAll({ where: { membershipId: ms.id }, order: [['memberNo', 'ASC']] });
@@ -1123,7 +1124,7 @@ exports.createNominee = async (req, res) => {
 
             // AR: an active nominee gets their personal debtor EAGERLY (frontend
             // charges / own subscription always land there).
-            await arProvisioning.onMemberStatus(created, ms, status, t);
+            await arProvisioning.onMemberStatus(created, ms, status, t, getUserContext(req).userId);
             return created;
         });
 
@@ -1268,9 +1269,10 @@ exports.updateMember = async (req, res) => {
             // Nominee -> their personal debtor; individual -> the contract
             // debtor (the person and the contract share one account).
             if (statusChanged) {
-                await arProvisioning.onMemberStatus(member, ms, newStatus, t);
+                const requestedBy = getUserContext(req).userId;
+                await arProvisioning.onMemberStatus(member, ms, newStatus, t, requestedBy);
                 if (member.memberKind === 'individual') {
-                    await arProvisioning.onMembershipStatus(ms, newStatus, t);
+                    await arProvisioning.onMembershipStatus(ms, newStatus, t, requestedBy);
                 }
             }
         });
