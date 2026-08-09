@@ -62,6 +62,9 @@ Current env wiring (already attached, listed for reference):
 
 - `platform-api`: `ADMIN_EMAILS=admin@myeasysoft.com`, `FRONTEND_BASE_URL=https://platform-web-855636431759.asia-southeast3.run.app`, `ASSETS_BUCKET=my-easy-software-dev-app-assets`, secrets `DATABASE_URL` / `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` / `SMTP_ENCRYPTION_KEY`, Cloud SQL connector to `platform-db-dev`.
 - `platform-web`: `API_HOST=platform-api-855636431759.asia-southeast3.run.app`.
+- `platform-api` runs with **CPU always allocated** (`gcloud run services update platform-api --no-cpu-throttling`) - set on dev 2026-08-04 and staging 2026-08-09.
+  Required because the boot-time schema sync (and other background work) runs AFTER the startup probe passes; under default request-based throttling an idle instance gets near-zero CPU, the sync stalls for tens of minutes and a reclaimed instance abandons it mid-run (observed 2026-08-04: two consecutive syncs died before the flag was set).
+  A future prod `platform-api` must get the same flag - or better, move schema changes to a pre-deploy migration step so boot never depends on background CPU.
 - `RUN_SEED` must NEVER stay set on the service: it wipes and reseeds on every cold start.
   It was used once on the first deploy and then removed.
 
