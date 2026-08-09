@@ -167,7 +167,12 @@
   </div>
 </div>
 
-@if (ssoInProgress) {
+}
+
+<!-- Sign-in progress overlay — shared by EVERY method (local submit, Google /
+     Microsoft redirect returns, workspace-selection resume, MFA verify), so it
+     sits outside the branches above and covers whichever screen is behind it. -->
+@if (signingIn) {
   <div class="sso-overlay">
     <div class="sso-panel">
       <div class="sso-spinner" aria-hidden="true"></div>
@@ -178,5 +183,4 @@
       }
     </div>
   </div>
-}
 }

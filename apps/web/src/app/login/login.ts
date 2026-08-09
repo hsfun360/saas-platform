@@ -44,9 +44,11 @@ export class LoginComponent implements OnInit {
   showPassword = false;
   isLoggingIn = false;
 
-  // True while completing an SSO redirect (Google), so the template shows a
-  // "Signing you in…" state instead of the login form.
-  ssoInProgress = false;
+  // True while a sign-in is being completed - an SSO redirect return, a local
+  // (email/password) submit, or a workspace-selection resume. The template
+  // shows the full-screen "Signing you in…" overlay so every login method has
+  // the same progress feedback.
+  signingIn = false;
 
   // Per-environment SSO wiring (null until /auth/sso-config answers; the
   // fallbacks keep both buttons functional if it never does).
@@ -123,7 +125,7 @@ export class LoginComponent implements OnInit {
     // "Signing you in…" overlay immediately so the login form never flashes back
     // up. handleGoogleRedirect manages its own reset.
     if (new URLSearchParams(window.location.search).has('code')) {
-      this.ssoInProgress = true;
+      this.signingIn = true;
     }
     // Catch the user when they return from the Google authorization-code redirect.
     this.handleGoogleRedirect();
@@ -132,7 +134,7 @@ export class LoginComponent implements OnInit {
     // FRAGMENT (#code=…/#error=…), so detect that separately from Google's query.
     const msReturn = window.location.hash.includes('code=') || window.location.hash.includes('error=');
     if (msReturn) {
-      this.ssoInProgress = true;
+      this.signingIn = true;
     }
     this.msalService.handleRedirectObservable().subscribe({
       next: (response: { accessToken?: string } | null) => {
@@ -140,12 +142,12 @@ export class LoginComponent implements OnInit {
           this.processMicrosoftToken(response.accessToken);
         } else if (msReturn) {
           // A Microsoft return without a usable token — drop the overlay.
-          this.ssoInProgress = false;
+          this.signingIn = false;
           this.cdr.detectChanges();
         }
       },
       error: () => {
-        if (msReturn) this.ssoInProgress = false;
+        if (msReturn) this.signingIn = false;
         this.errorMessage = 'Microsoft sign-in failed. Please try again.';
         this.cdr.detectChanges();
       }
@@ -155,11 +157,10 @@ export class LoginComponent implements OnInit {
   processMicrosoftToken(token: string): void {
     this.authService.microsoftLogin(token).subscribe({
       next: (res) => {
-        // Returning from SSO: go straight into the app, no "Redirecting…" delay.
-        this.handleLoginResponse(res, 'local', undefined, true);
+        this.handleLoginResponse(res, 'local');
       },
       error: () => {
-        this.ssoInProgress = false;
+        this.signingIn = false;
         this.errorMessage = 'Microsoft sign-in failed. Please try again.';
         this.cdr.detectChanges();
       }
@@ -179,18 +180,21 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    // 1. Set loading state
+    // Same progress feedback as SSO: the "Signing you in…" overlay covers the
+    // form for the whole attempt. Dropped again on any non-success outcome
+    // (wrong password here; MFA / workspace picker inside handleLoginResponse).
     this.loading = true;
+    this.signingIn = true;
     this.errorMessage = null;
     this.successMessage = null;
-    
+
     const { email, password, rememberMe } = this.loginForm.value;
 
     this.authService.login(email, password, null, !!rememberMe)
       .pipe(
         finalize(() => {
           // This runs ALWAYS (on success OR error)
-          this.loading = false; 
+          this.loading = false;
           this.cdr.detectChanges(); // Tell the button to change back to "Login"
         })
       )
@@ -201,6 +205,7 @@ export class LoginComponent implements OnInit {
         error: (err) => {
           // Surface the backend reason (invalid email/password, deactivated
           // account, etc.); fall back to a generic message otherwise.
+          this.signingIn = false;
           this.errorMessage = err?.error?.message || 'Login failed. Please try again.';
           this.cdr.detectChanges();
         },
@@ -238,14 +243,14 @@ export class LoginComponent implements OnInit {
     history.replaceState({}, '', '/login');
 
     if (!expectedState || returnedState !== expectedState) {
-      this.ssoInProgress = false;
+      this.signingIn = false;
       this.errorMessage = 'Google sign-in failed (state mismatch). Please try again.';
       return;
     }
 
     this.loading = true;
     const fail = () => {
-      this.ssoInProgress = false;
+      this.signingIn = false;
       this.loading = false;
       this.errorMessage = 'Google sign-in failed. Please try again.';
       this.cdr.detectChanges();
@@ -255,8 +260,7 @@ export class LoginComponent implements OnInit {
         this.authService.googleLogin(accessToken).subscribe({
           next: (response) => {
             this.loading = false;
-            // Returning from SSO: go straight into the app, no "Redirecting…" delay.
-            this.handleLoginResponse(response, 'google', accessToken, true);
+            this.handleLoginResponse(response, 'google', accessToken);
           },
           error: fail,
         });
@@ -275,8 +279,11 @@ export class LoginComponent implements OnInit {
     this.showPassword = !this.showPassword;
   }
 
-  // A helper function to handle both Local and Google API responses
-  private handleLoginResponse(res: AuthResponse, method: 'local' | 'google', googleToken?: string, immediate = false): void {
+  // A helper function to handle both Local and Google API responses. The
+  // "Signing you in…" overlay (signingIn) is up for every method by the time
+  // we get here; it stays until navigation on success and is dropped on the
+  // branches that need more input (MFA, workspace picker).
+  private handleLoginResponse(res: AuthResponse, method: 'local' | 'google', googleToken?: string): void {
     if (res.mfaEnrollRequired && res.mfaToken) {
       // Admin role without MFA: enrollment is mandatory. The purpose-scoped
       // token drives the full-screen /mfa-setup flow (guards keep it there).
@@ -286,7 +293,7 @@ export class LoginComponent implements OnInit {
       return;
     }
     if (res.mfaRequired && res.mfaToken) {
-      this.ssoInProgress = false;
+      this.signingIn = false;
       this.isMfaStep = true;
       this.pendingMfaToken = res.mfaToken;
       this.mfaCode = '';
@@ -307,7 +314,7 @@ export class LoginComponent implements OnInit {
     if (res.clubs) {
       // SCENARIO B: The 206 Multi-Workspace Pause! Show the picker (not the
       // "signing in" state).
-      this.ssoInProgress = false;
+      this.signingIn = false;
       this.isWorkspaceSelection = true;
       this.availableWorkspaces = res.clubs;
       this.pendingLoginMethod = method;
@@ -338,15 +345,10 @@ export class LoginComponent implements OnInit {
         error: () => {}, // keep the current/stored language
       });
 
-      if (immediate) {
-        // SSO return: go straight into the app (the "Signing you in…" state
-        // stays until navigation, so the login form never reappears).
-        this.router.navigate(['/home']);
-      } else {
-        this.successMessage = 'Login successful! Redirecting...';
-        this.cdr.detectChanges();
-        setTimeout(() => this.router.navigate(['/home']), 1000);
-      }
+      // Go straight into the app - the "Signing you in…" overlay stays until
+      // navigation, so the login form never reappears and there is no
+      // artificial "Redirecting…" delay.
+      this.router.navigate(['/home']);
     }
   }
 
@@ -355,6 +357,7 @@ export class LoginComponent implements OnInit {
     const code = this.mfaCode.trim();
     if (!code || !this.pendingMfaToken) return;
     this.loading = true;
+    this.signingIn = true;
     this.errorMessage = null;
     this.authService.mfaVerify(this.pendingMfaToken, code, this.mfaRememberDevice)
       .pipe(finalize(() => { this.loading = false; this.cdr.detectChanges(); }))
@@ -362,9 +365,10 @@ export class LoginComponent implements OnInit {
         next: (res) => {
           this.isMfaStep = false;
           this.pendingMfaToken = null;
-          this.handleLoginResponse(res, 'local', undefined, true);
+          this.handleLoginResponse(res, 'local');
         },
         error: (err) => {
+          this.signingIn = false;
           this.errorMessage = err?.error?.message || 'That code is not valid. Please try again.';
           this.cdr.detectChanges();
         },
@@ -381,7 +385,8 @@ export class LoginComponent implements OnInit {
   // 👇 The function triggered by your HTML Workspace buttons
   selectWorkspace(companyId: string) {
     this.loading = true;
-    
+    this.signingIn = true; // same overlay while the chosen workspace's login completes
+
     // Resume the login based on how they started (Email vs Google)
     if (this.pendingLoginMethod === 'local') {
       const { email, password, rememberMe } = this.loginForm.value;
@@ -389,14 +394,20 @@ export class LoginComponent implements OnInit {
         finalize(() => { this.loading = false; this.cdr.detectChanges(); })
       ).subscribe({
         next: (res) => this.handleLoginResponse(res, 'local'),
-        error: (err) => this.errorMessage = err?.error?.message || 'Login failed.'
+        error: (err) => {
+          this.signingIn = false;
+          this.errorMessage = err?.error?.message || 'Login failed.';
+        }
       });
     } else if (this.pendingLoginMethod === 'google' && this.pendingGoogleToken) {
       this.authService.googleLogin(this.pendingGoogleToken, companyId).pipe(
         finalize(() => { this.loading = false; this.cdr.detectChanges(); })
       ).subscribe({
         next: (res) => this.handleLoginResponse(res, 'google'),
-        error: (err) => this.errorMessage = err?.error?.message || 'Google login failed.'
+        error: (err) => {
+          this.signingIn = false;
+          this.errorMessage = err?.error?.message || 'Google login failed.';
+        }
       });
     }
   }
