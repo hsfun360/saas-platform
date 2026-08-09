@@ -18,6 +18,48 @@
   flex-shrink: 0;
 }
 
+/* Listing card with the billing-item icon leading the text (like golf-courses). */
+.gtt-main {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+  min-width: 0;
+}
+.gtt-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.gtt-info {
+  min-width: 0;
+}
+
+/* Icon upload in the dialog - visually hidden file input, button-driven. */
+.gtt-icon-preview {
+  display: block;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-bottom: var(--space-sm);
+}
+.gtt-icon-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+.gtt-icon-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .pr-note {
   margin: 0 0 var(--space-md);
 }

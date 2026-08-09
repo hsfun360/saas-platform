@@ -3,6 +3,7 @@
 // (single source - consuming rows don't store their own tax). Mirrors the
 // membership Transaction Type controller.
 
+const { Storage } = require('@google-cloud/storage');
 const GolfTransactionType = require('./transactionType.model');
 const {
     getUserContext,
@@ -15,6 +16,16 @@ const { CHARGE_TYPES, CHARGE_TYPE_KEYS, MATRIX_CHARGE_TYPE_KEYS } = require('./t
 
 function companyIdOf(req) {
     return getUserContext(req).companyId || null;
+}
+
+// Public image uploads go to the per-environment bucket named by ASSETS_BUCKET
+// (12-factor: config from env, never hardcoded). Resolved lazily so a missing
+// var fails the one upload request with a clear message, not the whole API.
+const storage = new Storage(); // default credentials on Cloud Run
+function assetsBucket() {
+    const name = process.env.ASSETS_BUCKET;
+    if (!name) throw new Error('ASSETS_BUCKET env var is not set - cannot store uploads.');
+    return storage.bucket(name);
 }
 
 function str(v) {
@@ -30,6 +41,7 @@ function toDto(t, canModify = true) {
         description: t.description,
         taxSchemeCode: t.taxSchemeCode,
         allowPriceOverride: t.allowPriceOverride === true,
+        iconUrl: t.iconUrl,
         isActive: t.isActive,
     };
 }
@@ -50,6 +62,7 @@ function normalizeBody(body) {
             description: typeof body.description === 'string' ? body.description.trim() || null : null,
             taxSchemeCode: str(body.taxSchemeCode) || null,
             allowPriceOverride: body.allowPriceOverride === true,
+            iconUrl: str(body.iconUrl) || null,
         },
     };
 }
@@ -87,6 +100,28 @@ exports.getTaxSchemes = async (req, res) => {
     } catch (error) {
         console.error('Error listing tax schemes for golf transaction types:', error);
         res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/golf/transaction-types/icon  (multipart, field "icon")
+// Upload the billing-item icon to GCS and return its public URL; the caller
+// stores the URL via create/update (same shape as the course picture flow).
+exports.uploadIcon = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        if (!req.file) return res.status(400).json({ message: 'No image file uploaded.' });
+
+        const bucket = assetsBucket();
+        const fileExtension = req.file.originalname.split('.').pop();
+        const gcsFileName = `golf-txn-type-${companyId}-${Date.now()}.${fileExtension}`;
+        const blob = bucket.file(gcsFileName);
+        await blob.save(req.file.buffer, { resumable: false, contentType: req.file.mimetype });
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+        res.status(200).json({ message: 'Icon uploaded.', url: publicUrl });
+    } catch (error) {
+        console.error('Transaction type icon upload error:', error);
+        res.status(500).json({ message: error.message || 'Failed to upload icon.' });
     }
 };
 

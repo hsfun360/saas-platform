@@ -49,6 +49,7 @@ export class GolfTransactionTypesComponent implements OnInit {
 
   readonly dialogOpen = signal(false);
   readonly saving = signal(false);
+  readonly uploading = signal(false);
   readonly editId = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
@@ -57,6 +58,7 @@ export class GolfTransactionTypesComponent implements OnInit {
     description: ['', [Validators.maxLength(255)]],
     taxSchemeCode: [''],
     allowPriceOverride: [false],
+    iconUrl: [''],
   });
 
   // ---- Pricing dialog (single instance, 'list' ↔ 'form' views) ----
@@ -174,7 +176,7 @@ export class GolfTransactionTypesComponent implements OnInit {
   openAdd(): void {
     this.clearMessages();
     this.editId.set(null);
-    this.form.reset({ transactionType: '', chargeType: '', description: '', taxSchemeCode: '', allowPriceOverride: false });
+    this.form.reset({ transactionType: '', chargeType: '', description: '', taxSchemeCode: '', allowPriceOverride: false, iconUrl: '' });
     this.dialogOpen.set(true);
   }
 
@@ -187,6 +189,7 @@ export class GolfTransactionTypesComponent implements OnInit {
       description: t.description || '',
       taxSchemeCode: t.taxSchemeCode || '',
       allowPriceOverride: t.allowPriceOverride === true,
+      iconUrl: t.iconUrl || '',
     });
     this.dialogOpen.set(true);
   }
@@ -208,6 +211,7 @@ export class GolfTransactionTypesComponent implements OnInit {
       description: v.description.trim() || null,
       taxSchemeCode: v.taxSchemeCode || null,
       allowPriceOverride: v.allowPriceOverride,
+      iconUrl: v.iconUrl || null,
     };
 
     this.saving.set(true);
@@ -225,6 +229,30 @@ export class GolfTransactionTypesComponent implements OnInit {
         this.saving.set(false);
       },
     });
+  }
+
+  onIconSelected(input: HTMLInputElement): void {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    this.clearMessages();
+    this.uploading.set(true);
+    this.service.uploadIcon(file).subscribe({
+      next: (res) => {
+        this.form.controls.iconUrl.setValue(res.url);
+        this.form.controls.iconUrl.markAsDirty(); // uploads count as unsaved changes
+        this.uploading.set(false);
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to upload the icon.');
+        this.uploading.set(false);
+      },
+    });
+  }
+
+  removeIcon(): void {
+    this.form.controls.iconUrl.setValue('');
+    this.form.controls.iconUrl.markAsDirty();
   }
 
   toggleActive(t: GolfTransactionType): void {

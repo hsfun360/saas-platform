@@ -66,19 +66,26 @@
         <div class="data-card">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ t.transactionType }}</div>
-              <div class="data-card__subline">
-                <span class="mt-chip">{{ chargeTypeLabel(t.chargeType) }}</span>
-                @if (t.allowPriceOverride) {
-                  <span class="mt-chip">Manual price allowed</span>
+              <div class="gtt-main">
+                @if (t.iconUrl) {
+                  <img class="gtt-thumb" [src]="t.iconUrl" [alt]="t.transactionType + ' icon'" />
                 }
-                @if (t.description) { <span class="data-card__reg">{{ t.description }}</span> }
+                <div class="gtt-info">
+                  <div class="data-card__title">{{ t.transactionType }}</div>
+                  <div class="data-card__subline">
+                    <span class="mt-chip">{{ chargeTypeLabel(t.chargeType) }}</span>
+                    @if (t.allowPriceOverride) {
+                      <span class="mt-chip">Manual price allowed</span>
+                    }
+                    @if (t.description) { <span class="data-card__reg">{{ t.description }}</span> }
+                  </div>
+                  @if (t.taxSchemeCode) {
+                    <dl class="data-card__meta">
+                      <div class="meta"><dt>Tax scheme</dt><dd>{{ taxSchemeName(t.taxSchemeCode) }}</dd></div>
+                    </dl>
+                  }
+                </div>
               </div>
-              @if (t.taxSchemeCode) {
-                <dl class="data-card__meta">
-                  <div class="meta"><dt>Tax scheme</dt><dd>{{ taxSchemeName(t.taxSchemeCode) }}</dd></div>
-                </dl>
-              }
             </div>
             <div class="data-row__badge">
               @if (t.isActive === false) {
@@ -174,11 +181,30 @@
           </label>
           <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">When off, the pre-set price from Pricing is binding at the point of charge.</p>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="gttIcon">Icon</label>
+            @if (form.controls.iconUrl.value) {
+              <img class="gtt-icon-preview" [src]="form.controls.iconUrl.value" alt="Billing-item icon preview" />
+            }
+            <div class="gtt-icon-actions">
+              <input #gttIconFile id="gttIcon" type="file" accept="image/*" class="gtt-icon-file"
+                     (change)="onIconSelected(gttIconFile)" />
+              <button type="button" class="btn btn--secondary btn--sm" (click)="gttIconFile.click()" [disabled]="uploading()">
+                {{ uploading() ? 'Uploading…' : (form.controls.iconUrl.value ? 'Replace icon' : 'Upload icon') }}
+              </button>
+              @if (form.controls.iconUrl.value) {
+                <button type="button" class="btn btn--danger btn--sm" (click)="removeIcon()" [disabled]="uploading()">Remove</button>
+              }
+            </div>
+            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Shown on the front-desk billing tiles (square images look best, up to 2 MB).</p>
+          </div>
+        </div>
       </form>
 
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
-        <button type="submit" form="gttForm" class="btn btn--primary" [disabled]="saving()">
+        <button type="submit" form="gttForm" class="btn btn--primary" [disabled]="saving() || uploading()">
           {{ saving() ? 'Saving…' : 'Save' }}
         </button>
       </ng-container>

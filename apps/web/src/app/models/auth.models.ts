@@ -1218,6 +1218,9 @@ export interface CourseClosureDayPreview extends CourseClosureDay {
 export interface GolfTransactionType extends MembershipTransactionType {
   // Whether the pre-set price may be amended manually when billing this item.
   allowPriceOverride?: boolean;
+  // Billing-item icon (public GCS URL) shown in the catalog and on the
+  // front-desk billing tiles.
+  iconUrl?: string | null;
 }
 
 // One effective-dated price card of a golf Transaction Type. Matrix charge

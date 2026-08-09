@@ -35,6 +35,13 @@ export class GolfTransactionTypeService {
     return this.http.patch<{ message: string; transactionType: GolfTransactionType }>(`${this.base}/${id}`, { isActive });
   }
 
+  // Upload the billing-item icon; returns the public URL to store via create/update.
+  uploadIcon(file: File): Observable<{ message: string; url: string }> {
+    const form = new FormData();
+    form.append('icon', file);
+    return this.http.post<{ message: string; url: string }>(`${this.base}/icon`, form);
+  }
+
   // Pricing - the effective-dated price cards of one transaction type.
   rates(id: string): Observable<GolfTransactionTypeRate[]> {
     return this.http.get<GolfTransactionTypeRate[]>(`${this.base}/${id}/rates`);

@@ -3,10 +3,16 @@ const Course = require('./course.model');
 const UnitCourse = require('./unitCourse.model');
 const { getUserContext } = require('../../platform/serviceContext');
 
-// Same GCS bucket as the company/platform logo uploads (default credentials on
-// Cloud Run); the stored value is the public URL.
-const storage = new Storage();
-const bucket = storage.bucket('membership-app-avatars-123');
+// Public image uploads go to the per-environment bucket named by ASSETS_BUCKET
+// (12-factor - the old hardcoded avatars bucket died with the old GCP project).
+// Resolved lazily so a missing var fails the one upload request with a clear
+// message, not the whole API. The stored value is the public URL.
+const storage = new Storage(); // default credentials on Cloud Run
+function assetsBucket() {
+    const name = process.env.ASSETS_BUCKET;
+    if (!name) throw new Error('ASSETS_BUCKET env var is not set - cannot store uploads.');
+    return storage.bucket(name);
+}
 
 // The active company (club) whose courses we're maintaining.
 function companyIdOf(req) {
@@ -203,6 +209,7 @@ exports.uploadPhoto = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         if (!req.file) return res.status(400).json({ message: 'No image file uploaded.' });
 
+        const bucket = assetsBucket();
         const fileExtension = req.file.originalname.split('.').pop();
         const gcsFileName = `golf-course-${companyId}-${Date.now()}.${fileExtension}`;
         const blob = bucket.file(gcsFileName);

@@ -54,6 +54,13 @@ const GolfTransactionType = sequelize.define('GolfTransactionType', {
         allowNull: false,
         defaultValue: false,
     },
+    // Public GCS URL of the billing-item icon (front-desk billing renders the
+    // catalog as tappable tiles). Uploaded via POST /transaction-types/icon,
+    // same flow as the course picture / company logo.
+    iconUrl: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
     isActive: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
