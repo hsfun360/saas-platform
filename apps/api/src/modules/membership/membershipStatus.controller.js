@@ -8,9 +8,11 @@ const {
 } = require('../../platform/serviceContext');
 const {
     STATUS_CLASSES,
-    SYSTEM_CONTROLS,
     STATUS_CLASS_KEYS,
-    SYSTEM_CONTROL_KEYS,
+    ACTION_CONTROLS,
+    ACTION_CONTROL_KEYS,
+    CHARGE_CONTROLS,
+    CHARGE_CONTROL_KEYS,
 } = require('./membershipStatus.constants');
 
 // #RGB or #RRGGBB.
@@ -31,7 +33,7 @@ function companyIdOf(req) {
 // The fixed option lists for the screen's dropdowns (and the source the API
 // validates against). Auth + entitlement already enforced by the parent router.
 exports.getMeta = async (req, res) => {
-    res.status(200).json({ classes: STATUS_CLASSES, controls: SYSTEM_CONTROLS });
+    res.status(200).json({ classes: STATUS_CLASSES, actionControls: ACTION_CONTROLS, chargeControls: CHARGE_CONTROLS });
 };
 
 // GET /api/membership/statuses  - every status for the active company.
@@ -55,7 +57,8 @@ exports.listStatuses = async (req, res) => {
 };
 
 // POST /api/membership/statuses
-// Body: { membershipStatus, statusClass, systemControl, description?, statusColor? }
+// Body: { membershipStatus, statusClass, actionControl, chargeControl,
+//         description?, statusColor? }
 exports.createStatus = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
@@ -63,13 +66,15 @@ exports.createStatus = async (req, res) => {
 
         const membershipStatus = String(req.body.membershipStatus || '').trim();
         const statusClass = String(req.body.statusClass || '').trim();
-        const systemControl = String(req.body.systemControl || '').trim();
+        const actionControl = String(req.body.actionControl || '').trim();
+        const chargeControl = String(req.body.chargeControl || '').trim();
         const description = typeof req.body.description === 'string' ? req.body.description.trim() : null;
         const statusColor = normalizeColor(req.body.statusColor);
 
         if (!membershipStatus) return res.status(400).json({ message: 'Membership status is required.' });
         if (!STATUS_CLASS_KEYS.includes(statusClass)) return res.status(400).json({ message: 'Invalid status class.' });
-        if (!SYSTEM_CONTROL_KEYS.includes(systemControl)) return res.status(400).json({ message: 'Invalid system control.' });
+        if (!ACTION_CONTROL_KEYS.includes(actionControl)) return res.status(400).json({ message: 'Invalid action control.' });
+        if (!CHARGE_CONTROL_KEYS.includes(chargeControl)) return res.status(400).json({ message: 'Invalid charge control.' });
         if (statusColor && !HEX_COLOR.test(statusColor)) return res.status(400).json({ message: 'Status color must be a hex value like #22c55e.' });
 
         const existing = await MembershipStatus.findOne({ where: { companyId, membershipStatus } });
@@ -82,7 +87,8 @@ exports.createStatus = async (req, res) => {
             membershipStatus,
             statusClass,
             description: description || null,
-            systemControl,
+            actionControl,
+            chargeControl,
             statusColor,
             createdBy: getUserContext(req).userId,
             createdByDepartmentId: departmentId,
@@ -96,7 +102,8 @@ exports.createStatus = async (req, res) => {
 };
 
 // PATCH /api/membership/statuses/:id
-// Body: any of { membershipStatus, statusClass, systemControl, description, statusColor, isActive }
+// Body: any of { membershipStatus, statusClass, actionControl, chargeControl,
+//                description, statusColor, isActive }
 exports.updateStatus = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
@@ -123,10 +130,15 @@ exports.updateStatus = async (req, res) => {
             if (!STATUS_CLASS_KEYS.includes(statusClass)) return res.status(400).json({ message: 'Invalid status class.' });
             status.statusClass = statusClass;
         }
-        if (typeof req.body.systemControl === 'string' && req.body.systemControl.trim()) {
-            const systemControl = req.body.systemControl.trim();
-            if (!SYSTEM_CONTROL_KEYS.includes(systemControl)) return res.status(400).json({ message: 'Invalid system control.' });
-            status.systemControl = systemControl;
+        if (typeof req.body.actionControl === 'string' && req.body.actionControl.trim()) {
+            const actionControl = req.body.actionControl.trim();
+            if (!ACTION_CONTROL_KEYS.includes(actionControl)) return res.status(400).json({ message: 'Invalid action control.' });
+            status.actionControl = actionControl;
+        }
+        if (typeof req.body.chargeControl === 'string' && req.body.chargeControl.trim()) {
+            const chargeControl = req.body.chargeControl.trim();
+            if (!CHARGE_CONTROL_KEYS.includes(chargeControl)) return res.status(400).json({ message: 'Invalid charge control.' });
+            status.chargeControl = chargeControl;
         }
         if (typeof req.body.description === 'string') status.description = req.body.description.trim() || null;
         if (typeof req.body.statusColor === 'string') {
@@ -152,7 +164,8 @@ function toSourceDto(s) {
         membershipStatus: s.membershipStatus,
         statusClass: s.statusClass,
         description: s.description,
-        systemControl: s.systemControl,
+        actionControl: s.actionControl,
+        chargeControl: s.chargeControl,
         statusColor: s.statusColor,
     };
 }
@@ -234,7 +247,8 @@ exports.copyStatuses = async (req, res) => {
             membershipStatus: s.membershipStatus,
             statusClass: s.statusClass,
             description: s.description,
-            systemControl: s.systemControl,
+            actionControl: s.actionControl,
+            chargeControl: s.chargeControl,
             statusColor: s.statusColor,
             isActive: s.isActive,
             createdBy: callerId,

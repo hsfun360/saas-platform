@@ -28,7 +28,8 @@ export class MembershipStatusesComponent implements OnInit {
 
   readonly statuses = signal<MembershipStatus[]>([]);
   readonly classes = signal<MembershipStatusOption[]>([]);
-  readonly controls = signal<MembershipStatusOption[]>([]);
+  readonly actionControls = signal<MembershipStatusOption[]>([]);
+  readonly chargeControls = signal<MembershipStatusOption[]>([]);
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);
 
@@ -38,7 +39,8 @@ export class MembershipStatusesComponent implements OnInit {
   readonly addForm = this.fb.nonNullable.group({
     membershipStatus: ['', [Validators.required, Validators.maxLength(255)]],
     statusClass: ['', [Validators.required]],
-    systemControl: ['', [Validators.required]],
+    actionControl: ['', [Validators.required]],
+    chargeControl: ['', [Validators.required]],
     description: ['', [Validators.maxLength(255)]],
     statusColor: ['#000000'],
   });
@@ -50,7 +52,8 @@ export class MembershipStatusesComponent implements OnInit {
   readonly editForm = this.fb.nonNullable.group({
     membershipStatus: ['', [Validators.required, Validators.maxLength(255)]],
     statusClass: ['', [Validators.required]],
-    systemControl: ['', [Validators.required]],
+    actionControl: ['', [Validators.required]],
+    chargeControl: ['', [Validators.required]],
     description: ['', [Validators.maxLength(255)]],
     statusColor: ['#000000'],
   });
@@ -104,15 +107,20 @@ export class MembershipStatusesComponent implements OnInit {
     return this.classes().find((c) => c.key === key)?.label || key;
   }
 
-  controlLabel(key: string): string {
-    return this.controls().find((c) => c.key === key)?.label || key;
+  actionLabel(key: string): string {
+    return this.actionControls().find((c) => c.key === key)?.label || key;
+  }
+
+  chargeLabel(key: string): string {
+    return this.chargeControls().find((c) => c.key === key)?.label || key;
   }
 
   loadMeta(): void {
     this.service.meta().subscribe({
       next: (m) => {
         this.classes.set(m.classes);
-        this.controls.set(m.controls);
+        this.actionControls.set(m.actionControls);
+        this.chargeControls.set(m.chargeControls);
       },
       error: () => {
         /* dropdowns fall back to raw keys if meta fails */
@@ -136,7 +144,7 @@ export class MembershipStatusesComponent implements OnInit {
 
   openAdd(): void {
     this.clearMessages();
-    this.addForm.reset({ membershipStatus: '', statusClass: '', systemControl: '', description: '', statusColor: '#000000' });
+    this.addForm.reset({ membershipStatus: '', statusClass: '', actionControl: '', chargeControl: '', description: '', statusColor: '#000000' });
     this.addOpen.set(true);
   }
 
@@ -157,7 +165,8 @@ export class MembershipStatusesComponent implements OnInit {
         membershipStatus: f.membershipStatus.trim(),
         statusClass: f.statusClass,
         description: f.description.trim() || null,
-        systemControl: f.systemControl,
+        actionControl: f.actionControl,
+        chargeControl: f.chargeControl,
         statusColor: f.statusColor || null,
       })
       .subscribe({
@@ -180,7 +189,8 @@ export class MembershipStatusesComponent implements OnInit {
     this.editForm.reset({
       membershipStatus: s.membershipStatus,
       statusClass: s.statusClass,
-      systemControl: s.systemControl,
+      actionControl: s.actionControl || '',
+      chargeControl: s.chargeControl || '',
       description: s.description || '',
       statusColor: s.statusColor || '#000000',
     });
@@ -204,7 +214,8 @@ export class MembershipStatusesComponent implements OnInit {
         membershipStatus: f.membershipStatus.trim(),
         statusClass: f.statusClass,
         description: f.description.trim() || null,
-        systemControl: f.systemControl,
+        actionControl: f.actionControl,
+        chargeControl: f.chargeControl,
         statusColor: f.statusColor || null,
       })
       .subscribe({

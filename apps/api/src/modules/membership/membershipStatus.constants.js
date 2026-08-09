@@ -20,15 +20,51 @@ const STATUS_CLASSES = [
     { key: 'active-absent', label: 'Active (Absent)' },
 ];
 
-// What the system does to a member carrying this status.
-const SYSTEM_CONTROLS = [
-    { key: 'barred', label: 'Barred' },                          // block all activity
-    { key: 'allow', label: 'Allow' },                            // full access
-    { key: 'warning', label: 'Warning' },                        // warn, still allow
-    { key: 'warning-no-charge', label: 'Warning (No-charge)' },  // warn + no posting/charging
+// The old single "System control" conflated two orthogonal questions (the
+// composite 'warning-no-charge' value was the tell), so it was SPLIT
+// (user decision 2026-08-09) into the two vocabularies below. The legacy
+// column/backfill mapping lives in LEGACY_SYSTEM_CONTROL_SPLIT.
+
+// ACTION control - what the system does when a member carrying this status
+// ACTS in a frontend module (registration, booking, check-in).
+// 'warning' proceeds but alerts the operator.
+const ACTION_CONTROLS = [
+    { key: 'allow', label: 'Allow' },
+    { key: 'warning', label: 'Warning' },
+    { key: 'barred', label: 'Barred' },
 ];
 
-const STATUS_CLASS_KEYS = STATUS_CLASSES.map((c) => c.key);
-const SYSTEM_CONTROL_KEYS = SYSTEM_CONTROLS.map((c) => c.key);
+// CHARGE control - what the system does when the member CHARGES TO ACCOUNT at
+// settlement (cash/card settlement is never checked). 'warning' alerts the
+// operator but still posts - the advisory stage before a club converts the
+// member to a truly barred status; 'barred' refuses the posting. The AR
+// credit-headroom check runs AFTER this, in the authorizeCharge seam.
+const CHARGE_CONTROLS = [
+    { key: 'allow', label: 'Allow' },
+    { key: 'warning', label: 'Warning' },
+    { key: 'barred', label: 'Barred' },
+];
 
-module.exports = { STATUS_CLASSES, SYSTEM_CONTROLS, STATUS_CLASS_KEYS, SYSTEM_CONTROL_KEYS };
+// How the retired systemControl values split across the two axes (boot
+// backfill in app.js). Legacy 'warning' warned at charging (the legacy field
+// WAS the charges control), so it lands as warning on BOTH axes.
+const LEGACY_SYSTEM_CONTROL_SPLIT = {
+    allow: { action: 'allow', charge: 'allow' },
+    warning: { action: 'warning', charge: 'warning' },
+    'warning-no-charge': { action: 'warning', charge: 'barred' },
+    barred: { action: 'barred', charge: 'barred' },
+};
+
+const STATUS_CLASS_KEYS = STATUS_CLASSES.map((c) => c.key);
+const ACTION_CONTROL_KEYS = ACTION_CONTROLS.map((c) => c.key);
+const CHARGE_CONTROL_KEYS = CHARGE_CONTROLS.map((c) => c.key);
+
+module.exports = {
+    STATUS_CLASSES,
+    STATUS_CLASS_KEYS,
+    ACTION_CONTROLS,
+    ACTION_CONTROL_KEYS,
+    CHARGE_CONTROLS,
+    CHARGE_CONTROL_KEYS,
+    LEGACY_SYSTEM_CONTROL_SPLIT,
+};

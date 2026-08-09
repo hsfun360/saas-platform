@@ -532,7 +532,8 @@ export interface MembershipStatus {
   membershipStatus: string;     // the status value, unique per company (e.g. 'Active', 'OA')
   statusClass: string;          // one of MembershipStatusMeta.classes[].key
   description?: string | null;
-  systemControl: string;        // one of MembershipStatusMeta.controls[].key
+  actionControl: string;        // frontend registration/booking behaviour - meta.actionControls[].key
+  chargeControl: string;        // charge-to-account behaviour at settlement - meta.chargeControls[].key
   statusColor?: string | null;  // hex, e.g. '#22c55e'
   isActive?: boolean;
   // Row-level data scope: whether the CALLER may modify this record (computed
@@ -550,7 +551,8 @@ export interface MembershipStatusOption {
 // the screen never drifts from server-side validation.
 export interface MembershipStatusMeta {
   classes: MembershipStatusOption[];
-  controls: MembershipStatusOption[];
+  actionControls: MembershipStatusOption[];
+  chargeControls: MembershipStatusOption[];
 }
 
 // A sibling company (same subscription) whose statuses can be copied during

@@ -39,10 +39,10 @@ Design constraints that follow (bake in when the Member master is built):
   endpoints sit behind a member-context guard (JWT claim "acting as member X of
   company Y") that staff middlewares reject and vice versa - a member token must
   be unusable on `/api/admin/*` by construction.
-- **Runtime policy = master files:** the member's Membership Status
-  `systemControl` (barred / allow / warning / warning-no-charge) gates
-  transacting in the portal; the Membership Type's product privileges gate which
-  activities (golf booking vs facility etc.).
+- **Runtime policy = master files:** the member's Membership Status controls
+  gate transacting in the portal (`actionControl` for registration/booking,
+  `chargeControl` for charge-to-account); the Membership Type's product
+  privileges gate which activities (golf booking vs facility etc.).
 - Onboarding: "send portal invitation" reuses the existing invitation +
   setup-password machinery. Members outnumber staff 10-100x; keep portal
   endpoints read-lean.
@@ -201,11 +201,14 @@ Golf and Facility follow the same pattern (`golf`, `facility`) as they are built
 
 Per-company master file. Owner table `membership."MembershipStatus"` (references `companyId` by UUID, no FK).
 
-Fields: `membershipStatus` (the status value, unique per company - the legacy code-base "status code", renamed since the PK is the UUID `id`), `statusClass` (fixed vocabulary), `description`, `systemControl` (fixed vocabulary), `statusColor` (hex, new-record default black), `isActive` (enable/disable, no hard delete).
+Fields: `membershipStatus` (the status value, unique per company - the legacy code-base "status code", renamed since the PK is the UUID `id`), `statusClass` (fixed vocabulary), `description`, `actionControl` + `chargeControl` (fixed vocabularies, see below), `statusColor` (hex, new-record default black), `isActive` (enable/disable, no hard delete).
 
 Fixed vocabularies (stored as the `key`, served to the UI via `/meta` so dropdowns never drift from server validation) - defined in `membershipStatus.constants.js`:
 - **Status class:** active, provisional, resigned, decease, terminate, absent, suspend, defaulter, expired, active-absent.
-- **System control:** barred, allow, warning, warning-no-charge.
+- **Action control** (frontend registration/booking/check-in): allow, warning, barred. Warning proceeds with an operator alert.
+- **Charge control** (charge-to-account at settlement; cash/card settlement is never checked): allow, warning, barred. Warning alerts the operator but still posts - the advisory stage before the club converts the member to a truly barred status (user decision 2026-08-09); the AR credit-headroom check runs AFTER charge control, in the `authorizeCharge` seam. Billing runs (membership fee / subscription) deliberately do NOT check charge control - billing reality is never blocked.
+
+**`systemControl` SPLIT 2026-08-09** into the two columns above (the composite 'warning-no-charge' value conflated the axes). Boot backfill in `app.js` maps legacy values (allow -> allow/allow, warning -> warning/warning since the legacy field WAS the charges control, warning-no-charge -> warning/barred, barred -> barred/barred); the retired `systemControl` column stays in the model (nullable) so the alter-sync cannot drop it before the backfill reads it - manual column drop at a later checkpoint. No consumer read `systemControl` yet, so nothing else changed.
 
 API (all behind `verifyToken` + `requireModule('Membership Management')`):
 - `GET /api/membership/statuses/meta` - the two option lists for the dropdowns.
@@ -355,7 +358,7 @@ Both need DB Menus under Membership Management (routes `/membership/memberships`
 
 Phase 2 (planned): per-member standing-charge overrides (additional/exception), hobbies / misc attributes / article subscriptions as their §2.1 masters get built.
 Phase 3 (planned): ID conversion, category conversion, status conversion (immediate + scheduled plan), membership transfer - each with follow-the-principal cascades; requires the §2.1.1 Membership Settings singleton (No Conversion / Category Conversion / Transfer Resigned default statuses).
-Cascade vocabulary decision pending user confirmation: cascades follow `systemControl != 'barred'` (the generalisation of legacy Authorized/Warning-follow, Unauthorized-skip).
+Cascade vocabulary decision pending user confirmation: cascades follow `actionControl != 'barred'` (the generalisation of legacy Authorized/Warning-follow, Unauthorized-skip; updated for the 2026-08-09 control split).
 
 ### Open questions (resolve per file as requirements arrive)
 - Which of these are truly tenant-scoped vs. shared platform reference data (Nationality clearly leans platform; Race/Salutation lean locale-curated).

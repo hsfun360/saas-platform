@@ -39,10 +39,27 @@ const MembershipStatus = sequelize.define('MembershipStatus', {
         type: DataTypes.STRING,
         allowNull: true,
     },
-    // System behaviour - one of membershipStatus.constants SYSTEM_CONTROL_KEYS.
+    // Frontend ACTION behaviour (registration/booking/check-in) - one of
+    // membershipStatus.constants ACTION_CONTROL_KEYS. Nullable only so the
+    // boot backfill can spot pre-split rows; the API always writes a value.
+    actionControl: {
+        type: DataTypes.STRING(30),
+        allowNull: true,
+    },
+    // CHARGE-TO-ACCOUNT behaviour at settlement - one of CHARGE_CONTROL_KEYS.
+    // 'warning' alerts the operator but still posts (advisory stage before the
+    // club flips the member to a truly barred status).
+    chargeControl: {
+        type: DataTypes.STRING(30),
+        allowNull: true,
+    },
+    // RETIRED (split into actionControl + chargeControl 2026-08-09; boot
+    // backfill in app.js maps old values). Kept in the model so the alter-sync
+    // cannot drop it before the backfill reads it - manual column drop happens
+    // at a later checkpoint, then this block goes.
     systemControl: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
     },
     // Display colour as a hex string, e.g. '#22c55e'. Convenience for the UI.
     statusColor: {

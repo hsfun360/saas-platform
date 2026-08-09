@@ -330,6 +330,26 @@ async function initializeDB() {
              WHERE "countryCode" IS NULL AND "country" ~ '^[A-Za-z]{2}$'`,
         );
 
+        // MembershipStatus systemControl split (2026-08-09): backfill the new
+        // actionControl + chargeControl from the retired composite value
+        // (mapping per membershipStatus.constants LEGACY_SYSTEM_CONTROL_SPLIT).
+        // Idempotent - only touches rows the split has not reached; the old
+        // column is dropped manually at a later checkpoint.
+        await sequelize.query(
+            `UPDATE membership."MembershipStatus" SET
+                "actionControl" = CASE "systemControl"
+                    WHEN 'barred' THEN 'barred'
+                    WHEN 'warning' THEN 'warning'
+                    WHEN 'warning-no-charge' THEN 'warning'
+                    ELSE 'allow' END,
+                "chargeControl" = CASE "systemControl"
+                    WHEN 'barred' THEN 'barred'
+                    WHEN 'warning' THEN 'warning'
+                    WHEN 'warning-no-charge' THEN 'barred'
+                    ELSE 'allow' END
+             WHERE "actionControl" IS NULL OR "chargeControl" IS NULL`,
+        );
+
         // Ensure the platform email-template defaults exist (idempotent, always
         // runs — unlike the RUN_SEED-gated demo seeder — so emails never break).
         await require('./modules/notification/emailTemplate.service').seedPlatformDefaults();

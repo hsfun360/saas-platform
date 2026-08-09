@@ -76,7 +76,7 @@
               </div>
               <div class="data-card__subline">
                 <span class="data-card__reg">
-                  {{ classLabel(s.statusClass) }} · {{ controlLabel(s.systemControl) }}@if (s.description) { · {{ s.description }} }
+                  {{ classLabel(s.statusClass) }} · Action: {{ actionLabel(s.actionControl) }} · Charge: {{ chargeLabel(s.chargeControl) }}@if (s.description) { · {{ s.description }} }
                 </span>
               </div>
             </div>
@@ -147,18 +147,33 @@
             }
           </div>
         </div>
-        <div class="form-row">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
-            <label for="aControl">System control <span class="required">*</span></label>
-            <select id="aControl" formControlName="systemControl"
-                    [attr.aria-invalid]="showError(addForm.controls.systemControl)" aria-describedby="aControlErr">
-              <option value="" disabled>Select a control…</option>
-              @for (ctrl of controls(); track ctrl.key) {
+            <label for="aAction">Action control <span class="required">*</span></label>
+            <select id="aAction" formControlName="actionControl"
+                    [attr.aria-invalid]="showError(addForm.controls.actionControl)" aria-describedby="aActionErr aActionHint">
+              <option value="" disabled>Select…</option>
+              @for (ctrl of actionControls(); track ctrl.key) {
                 <option [value]="ctrl.key">{{ ctrl.label }}</option>
               }
             </select>
-            @if (showError(addForm.controls.systemControl)) {
-              <p id="aControlErr" class="field-error" role="alert">System control is required.</p>
+            <p id="aActionHint" class="cell-subtle" style="margin: var(--space-xs) 0 0;">Frontend registration and booking. Warning proceeds with an alert.</p>
+            @if (showError(addForm.controls.actionControl)) {
+              <p id="aActionErr" class="field-error" role="alert">Action control is required.</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="aCharge">Charge control <span class="required">*</span></label>
+            <select id="aCharge" formControlName="chargeControl"
+                    [attr.aria-invalid]="showError(addForm.controls.chargeControl)" aria-describedby="aChargeErr aChargeHint">
+              <option value="" disabled>Select…</option>
+              @for (ctrl of chargeControls(); track ctrl.key) {
+                <option [value]="ctrl.key">{{ ctrl.label }}</option>
+              }
+            </select>
+            <p id="aChargeHint" class="cell-subtle" style="margin: var(--space-xs) 0 0;">Charge to account at settlement. Warning alerts but still posts.</p>
+            @if (showError(addForm.controls.chargeControl)) {
+              <p id="aChargeErr" class="field-error" role="alert">Charge control is required.</p>
             }
           </div>
         </div>
@@ -217,17 +232,33 @@
             }
           </div>
         </div>
-        <div class="form-row">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
-            <label for="eControl">System control <span class="required">*</span></label>
-            <select id="eControl" formControlName="systemControl"
-                    [attr.aria-invalid]="showError(editForm.controls.systemControl)" aria-describedby="eControlErr">
-              @for (ctrl of controls(); track ctrl.key) {
+            <label for="eAction">Action control <span class="required">*</span></label>
+            <select id="eAction" formControlName="actionControl"
+                    [attr.aria-invalid]="showError(editForm.controls.actionControl)" aria-describedby="eActionErr eActionHint">
+              <option value="" disabled>Select…</option>
+              @for (ctrl of actionControls(); track ctrl.key) {
                 <option [value]="ctrl.key">{{ ctrl.label }}</option>
               }
             </select>
-            @if (showError(editForm.controls.systemControl)) {
-              <p id="eControlErr" class="field-error" role="alert">System control is required.</p>
+            <p id="eActionHint" class="cell-subtle" style="margin: var(--space-xs) 0 0;">Frontend registration and booking. Warning proceeds with an alert.</p>
+            @if (showError(editForm.controls.actionControl)) {
+              <p id="eActionErr" class="field-error" role="alert">Action control is required.</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="eCharge">Charge control <span class="required">*</span></label>
+            <select id="eCharge" formControlName="chargeControl"
+                    [attr.aria-invalid]="showError(editForm.controls.chargeControl)" aria-describedby="eChargeErr eChargeHint">
+              <option value="" disabled>Select…</option>
+              @for (ctrl of chargeControls(); track ctrl.key) {
+                <option [value]="ctrl.key">{{ ctrl.label }}</option>
+              }
+            </select>
+            <p id="eChargeHint" class="cell-subtle" style="margin: var(--space-xs) 0 0;">Charge to account at settlement. Warning alerts but still posts.</p>
+            @if (showError(editForm.controls.chargeControl)) {
+              <p id="eChargeErr" class="field-error" role="alert">Charge control is required.</p>
             }
           </div>
         </div>
@@ -287,7 +318,7 @@
               <label class="ms-copy-item">
                 <input type="checkbox" [checked]="isCopySelected(st.id)" (change)="toggleCopyStatus(st.id)" />
                 <span class="ms-swatch" [style.background]="st.statusColor || '#94a3b8'" aria-hidden="true"></span>
-                <span class="ms-copy-item__text">{{ st.membershipStatus }} — {{ classLabel(st.statusClass) }} · {{ controlLabel(st.systemControl) }}</span>
+                <span class="ms-copy-item__text">{{ st.membershipStatus }} — {{ classLabel(st.statusClass) }} · Action: {{ actionLabel(st.actionControl) }} · Charge: {{ chargeLabel(st.chargeControl) }}</span>
               </label>
             }
           </div>
