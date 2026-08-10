@@ -16,6 +16,7 @@ import {
   UnitCourse,
 } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
 // One editable slot row in the slot editor (strings from inputs).
 interface SlotRow {
@@ -70,7 +71,8 @@ function toHHMM(minutes: number): string {
 @Component({
   selector: 'app-golf-courses',
   standalone: true,
-  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
+    OverflowMenuComponent, MenuItemDirective],
   templateUrl: './golf-courses.html',
   styleUrls: ['../system-setup/system-setup.css', './golf-courses.css'],
 })

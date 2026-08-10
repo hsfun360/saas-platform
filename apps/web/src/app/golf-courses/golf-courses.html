@@ -104,20 +104,24 @@
               }
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openTeeTimes(c)">Tee times</button>
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openClosures(c)">Closures</button>
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">Edit</button>
-              @if (c.isActive === false) {
-                <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(c)"
-                        [disabled]="togglingId() === c.id">
-                  {{ togglingId() === c.id ? 'Saving…' : 'Enable' }}
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">
+                <span class="material-icons" aria-hidden="true">edit</span>
+                Edit
+              </button>
+              <app-overflow-menu [label]="'More actions for ' + c.courseCode">
+                <button type="button" appMenuItem (click)="openTeeTimes(c)">
+                  <span class="material-icons" aria-hidden="true">schedule</span>
+                  Tee times
                 </button>
-              } @else {
-                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(c)"
-                        [disabled]="togglingId() === c.id">
-                  {{ togglingId() === c.id ? 'Saving…' : 'Disable' }}
+                <button type="button" appMenuItem (click)="openClosures(c)">
+                  <span class="material-icons" aria-hidden="true">event_busy</span>
+                  Closures
                 </button>
-              }
+                <button type="button" appMenuItem (click)="toggleActive(c)" [disabled]="togglingId() === c.id">
+                  <span class="material-icons" aria-hidden="true">{{ c.isActive === false ? 'toggle_on' : 'toggle_off' }}</span>
+                  {{ c.isActive === false ? 'Enable' : 'Disable' }}
+                </button>
+              </app-overflow-menu>
             </div>
           </div>
         </div>
