@@ -10,14 +10,20 @@
     </div>
   </header>
 
+  <!-- Transient messages use the GLOBAL floating snackbar standard (.flash in
+       styles.css) - copy this block, not a hand-rolled banner. -->
   @if (successMessage()) {
-    <div role="status" aria-live="polite" style="margin: var(--space-md) 0; padding: var(--space-sm) var(--space-md); background: var(--success-surface); color: var(--success-text); border-radius: 6px; border: 1px solid var(--success-border); font-size: var(--font-body-2);">
-      ✅ {{ successMessage() }}
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
   @if (errorMessage()) {
-    <div role="alert" aria-live="assertive" style="margin: var(--space-md) 0; padding: var(--space-sm) var(--space-md); background: var(--danger-surface); color: var(--danger-text); border-radius: 6px; border: 1px solid var(--danger-border); font-size: var(--font-body-2);">
-      ⚠️ {{ errorMessage() }}
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
 

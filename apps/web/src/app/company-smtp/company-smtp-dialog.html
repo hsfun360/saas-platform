@@ -1,21 +1,27 @@
-<app-dialog #smtpDlg [title]="'Email delivery (SMTP) — ' + company().name" [busy]="saving() || removing()" [dirty]="form.dirty"
+<app-dialog #smtpDlg [title]="'Email delivery (SMTP) — ' + company().name" [busy]="saving() || removing()" [dirty]="form.dirty" [error]="errorMessage()"
             discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="onClose()">
   @if (loading()) {
-    <p style="color: #64748b;">Loading…</p>
+    <p style="color: var(--text-muted);">Loading…</p>
   } @else {
     <p class="smtp-hint" style="margin: 0 0 var(--space-md);">
       Send this company's emails (e.g. collaborator invitations) through its own mail server, from your own address.
       Leave this unset to use the platform's default sender. Security emails (sign-in, password reset) always use the platform.
     </p>
 
+    <!-- Save/test errors render in the dialog's own [error] bar; success uses
+         the GLOBAL floating snackbar (.flash floats above the dialog overlay).
+         The persistent status lines below (last delivery error / verified)
+         are contextual state, not transient messages - they stay in flow,
+         on theme tokens. -->
     @if (successMessage()) {
-      <div class="smtp-status" style="background:#dcfce7; color:#166534;" role="status">✅ {{ successMessage() }}</div>
-    }
-    @if (errorMessage()) {
-      <div class="smtp-status" style="background:#fee2e2; color:#991b1b;" role="alert">❌ {{ errorMessage() }}</div>
+      <div class="flash flash-success" role="status" aria-live="polite">
+        <span class="flash-icon">✅</span>
+        <span>{{ successMessage() }}</span>
+        <button class="flash-close" type="button" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+      </div>
     }
     @if (configured() && lastError() && !errorMessage()) {
-      <div class="smtp-status" style="background:#fef3c7; color:#92400e;" role="alert">
+      <div class="smtp-status" style="background:var(--danger-surface); color:var(--danger-text);" role="alert">
         ⚠️ Last delivery error: {{ lastError() }}
       </div>
     }

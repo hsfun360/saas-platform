@@ -195,6 +195,37 @@ Rules:
 - The auth screens (login / reset / forgot / system-setup) keep their own scoped
   `.btn-primary` (single-dash) for their centred-card layout - don't confuse the two.
 
+#### Flash messages - ONE floating snackbar standard
+
+Every transient success/error message uses the global **`.flash`** snackbar (defined once in `src/styles.css`) - never a hand-rolled in-flow banner.
+It renders `position: fixed`, bottom-centre, at `z-index: 1300` - deliberately ABOVE the dialog overlay (1200) - so a post-action message is always visible, animated in, and dismissible.
+Reference implementations: `platform-users.html`, `companies.html` (and nearly every listing screen).
+
+```html
+@if (successMessage()) {
+  <div class="flash flash-success" role="status" aria-live="polite">
+    <span class="flash-icon">✅</span>
+    <span>{{ successMessage() }}</span>
+    <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+  </div>
+}
+@if (errorMessage()) {
+  <div class="flash flash-error" role="alert" aria-live="assertive">
+    <span class="flash-icon">❌</span>
+    <span>{{ errorMessage() }}</span>
+    <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+  </div>
+}
+```
+
+Rules:
+
+- **Copy the markup above verbatim** (icon span, message span, dismiss ✕) - do not restyle a `<div>` with success/danger tokens by hand; that is exactly the drift this standard kills.
+- **Errors raised while a shared `<app-dialog>` is open** additionally bind the dialog's **`[error]`** input (an alert bar pinned above the Save/Cancel footer, adjacent to the action that failed); gate the page-level flash-error with `!dialogOpen()` so the two never show at once.
+  Success after a save that keeps the dialog open just uses the floating flash - it floats above the overlay.
+- **`.flash--static`** (composed on top) is ONLY for permanent contextual notes and multi-line result reports that must stay in the page flow (e.g. the Unverified Registrations deletion report) - never for a plain transient message.
+- Deliberate exceptions - and the only ones: the auth/portal flows' centred outcome cards (login, forgot-password, member/agent registration "check your email" panels) and field-level `.field-error` / `.field-success` messages, which stay next to their control.
+
 #### Icons - one system, no icon libraries
 
 All icons come from the **Material Icons ligature font**, loaded once from Google Fonts in `index.html`.

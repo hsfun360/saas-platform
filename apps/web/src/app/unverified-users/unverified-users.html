@@ -9,17 +9,24 @@
     </div>
   </div>
 
+  <!-- The deletion RESULT is a multi-line report (deleted count + per-row
+       skip reasons), so it composes .flash--static to stay in the page flow;
+       plain errors use the standard floating snackbar. -->
   @if (resultMessage()) {
-    <div role="status" style="margin: var(--space-md) 0; padding: var(--space-sm) var(--space-md); border: 1px solid var(--success-border); border-radius: 8px; background: var(--success-surface); color: var(--success-text);">
-      {{ resultMessage() }}
-      @for (s of skipped(); track s.id) {
-        <div style="font-size: var(--font-caption);">Skipped {{ s.email || s.id }} - {{ s.reason }}.</div>
-      }
+    <div class="flash flash-success flash--static" role="status">
+      <div>
+        {{ resultMessage() }}
+        @for (s of skipped(); track s.id) {
+          <div style="font-size: var(--font-caption);">Skipped {{ s.email || s.id }} - {{ s.reason }}.</div>
+        }
+      </div>
     </div>
   }
   @if (errorMessage()) {
-    <div role="alert" style="margin: var(--space-md) 0; padding: var(--space-sm) var(--space-md); border: 1px solid var(--danger-border); border-radius: 8px; background: var(--danger-surface); color: var(--danger-text);">
-      {{ errorMessage() }}
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
 

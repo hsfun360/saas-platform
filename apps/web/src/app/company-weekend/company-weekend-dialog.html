@@ -1,4 +1,4 @@
-<app-dialog #wkDlg [title]="'Weekend days — ' + company().name" [busy]="saving()" [dirty]="form.dirty"
+<app-dialog #wkDlg [title]="'Weekend days — ' + company().name" [busy]="saving()" [dirty]="form.dirty" [error]="errorMessage()"
             discardTitle="Discard your changes?" discardMessage="You have unsaved weekend-day changes. Leaving now will discard them." (close)="onClose()">
   @if (loading()) {
     <p style="color: var(--text-muted);">Loading…</p>
@@ -8,11 +8,14 @@
       Saturday &amp; Sunday in KL. Weekday/weekend pricing (such as golf green fees) uses this setting.
     </p>
 
+    <!-- Save errors render in the dialog's own [error] bar; success uses the
+         GLOBAL floating snackbar (.flash floats above the dialog overlay). -->
     @if (successMessage()) {
-      <div class="wk-summary" style="background: var(--success-surface); color: var(--success-text); border-color: var(--success-border);" role="status">✅ {{ successMessage() }}</div>
-    }
-    @if (errorMessage()) {
-      <div class="wk-summary" style="background: var(--danger-surface); color: var(--danger-text); border-color: var(--danger-border);" role="alert">❌ {{ errorMessage() }}</div>
+      <div class="flash flash-success" role="status" aria-live="polite">
+        <span class="flash-icon">✅</span>
+        <span>{{ successMessage() }}</span>
+        <button class="flash-close" type="button" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+      </div>
     }
 
     <form id="weekendForm" [formGroup]="form" (ngSubmit)="save()">
