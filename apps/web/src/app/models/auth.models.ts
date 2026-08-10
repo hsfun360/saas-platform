@@ -268,9 +268,14 @@ export interface AdminModule {
   icon?: string;
   description?: string | null;
   // 'tenant' modules are the subscriber-facing catalogue; 'platform' modules
-  // (SaaS Administration) belong to platform users only and are never
-  // offered in a subscriber's entitlement picker.
+  // (SaaS Administration, future platform AR, ...) belong to platform users
+  // only and are never offered in a subscriber's entitlement picker. Fixed at
+  // creation.
   audience?: 'tenant' | 'platform';
+  // Not deletable + base name locked (system modules and the boot-seeded
+  // platform-shell module). Computed server-side - the UI never duplicates
+  // the rule.
+  isProtected?: boolean;
   // System module (like a system role): always entitled by provisioning,
   // never deletable, base name locked. Currently "System Administration".
   isSystem?: boolean;
@@ -282,6 +287,8 @@ export interface ModuleInput {
   icon?: string;
   description?: string;
   names?: Record<string, string>;
+  // Only honoured on create; the backend rejects changing it afterwards.
+  audience?: 'tenant' | 'platform';
 }
 
 export interface MenuInput {

@@ -105,7 +105,9 @@ export class ModulesMenusComponent implements OnInit {
     name: ['', [Validators.required, Validators.maxLength(100)]],
     icon: [''],
     description: [''],
-
+    // Who the module serves - pickable on CREATE only (the backend rejects
+    // changing it afterwards); the edit dialog shows it as a locked line.
+    audience: ['tenant' as 'tenant' | 'platform'],
     translations: this.fb.nonNullable.array<TranslationGroup>([]),
   });
 
@@ -300,7 +302,7 @@ export class ModulesMenusComponent implements OnInit {
     this.editingModuleIsSystem.set(false);
     this.moduleForm.controls.name.enable();
     this.populateTranslations(this.moduleForm.controls.translations, {});
-    this.moduleForm.reset({ name: '', icon: '', description: '' });
+    this.moduleForm.reset({ name: '', icon: '', description: '', audience: 'tenant' });
     this.moduleDialogOpen.set(true);
   }
 
@@ -312,13 +314,13 @@ export class ModulesMenusComponent implements OnInit {
       name: m.name,
       icon: m.icon || '',
       description: m.description || '',
-
+      audience: m.audience || 'tenant',
     });
-    // A system/platform module's base name is a code-level identifier
+    // A protected module's base name is a code-level identifier
     // (mandatory-entitlement stamp / platform-nav seed key + frontend gating
-    // key) - locked; translations stay editable. The backend enforces the
-    // same rule.
-    const nameLocked = !!m.isSystem || m.audience === 'platform';
+    // key) - locked; translations stay editable. The backend computes
+    // isProtected (fallback covers a payload cached before the field shipped).
+    const nameLocked = m.isProtected ?? (!!m.isSystem || m.audience === 'platform');
     this.editingModuleIsSystem.set(nameLocked);
     if (nameLocked) this.moduleForm.controls.name.disable();
     else this.moduleForm.controls.name.enable();
@@ -330,7 +332,7 @@ export class ModulesMenusComponent implements OnInit {
     this.editingModuleId.set(null);
     this.editingModuleIsSystem.set(false);
     this.moduleForm.controls.name.enable();
-    this.moduleForm.reset({ name: '', icon: '', description: '' });
+    this.moduleForm.reset({ name: '', icon: '', description: '', audience: 'tenant' });
   }
 
   saveModule(): void {
@@ -341,12 +343,15 @@ export class ModulesMenusComponent implements OnInit {
       return;
     }
 
-    const { name, icon, description, translations } = this.moduleForm.getRawValue();
+    const { name, icon, description, audience, translations } = this.moduleForm.getRawValue();
+    const editingId = this.editingModuleId();
     const payload = {
       name: name.trim(), icon: icon.trim(), description: description.trim(),
       names: this.namesFrom(translations),
+      // Audience is fixed at creation - never sent on edit (the backend
+      // rejects a change).
+      ...(editingId ? {} : { audience }),
     };
-    const editingId = this.editingModuleId();
 
     this.savingModule.set(true);
     const req$ = editingId

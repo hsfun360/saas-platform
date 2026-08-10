@@ -61,7 +61,13 @@
                       [attr.aria-pressed]="selectedModuleId() === m.id" [attr.aria-label]="'Manage menus for ' + m.name">
                 <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: var(--accent);">{{ m.icon || 'widgets' }}</span>
                 <span class="mm-row__text">
-                  <span style="font-weight: var(--weight-semibold); color: var(--text-primary);">{{ m.name }}</span>
+                  <span style="display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0;">
+                    <span style="font-weight: var(--weight-semibold); color: var(--text-primary);">{{ m.name }}</span>
+                    @if (m.audience === 'platform') {
+                      <!-- Audience marker: staff-only module, invisible to subscribers. -->
+                      <span class="status-chip status-chip--off">Platform</span>
+                    }
+                  </span>
                   @if (m.description) {
                     <span style="color: var(--text-muted); font-size: var(--font-body-2);">{{ m.description }}</span>
                   }
@@ -73,12 +79,17 @@
                   <span class="material-icons" aria-hidden="true">edit</span>
                   Edit
                 </button>
-                @if (m.isSystem || m.audience === 'platform') {
+                @if (m.isProtected ?? (m.isSystem || m.audience === 'platform')) {
                   <!-- Mirrors Role Management's protected "System role" row:
-                       system modules and the platform's own module (SaaS
-                       Administration) are never deletable - the backend
-                       rejects it, so no Delete button is shown. -->
-                  <span style="color: var(--text-muted); font-size: var(--font-caption); align-self: center;">{{ m.isSystem ? 'System module' : 'Platform module' }}</span>
+                       system modules and the seeded platform-shell module
+                       (SaaS Administration) are never deletable - the backend
+                       rejects it, so no Delete button is shown. Other
+                       platform modules stay deletable like any module. The
+                       platform-shell row needs no extra tag - its PLATFORM
+                       chip already marks it. -->
+                  @if (m.isSystem) {
+                    <span style="color: var(--text-muted); font-size: var(--font-caption); align-self: center;">System module</span>
+                  }
                 } @else {
                   <button type="button" class="btn btn--danger btn--sm" (click)="deleteModule(m)"
                           [disabled]="deletingModuleId() === m.id" [attr.aria-label]="'Delete module ' + m.name">
@@ -263,7 +274,7 @@
           <input id="mod-name" type="text" formControlName="name" placeholder="e.g. Golf Management"
                  style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
           @if (editingModuleIsSystem()) {
-            <span style="color: var(--text-muted); font-size: var(--font-caption);">System module - the base name is fixed. Edit the translated names below instead.</span>
+            <span style="color: var(--text-muted); font-size: var(--font-caption);">This module's base name is a system key and cannot be changed. Edit the translated names below instead.</span>
           }
           @if (moduleForm.controls.name.touched && moduleForm.controls.name.invalid) {
             <span role="alert" style="color: var(--danger-text); font-size: var(--font-caption);">A module name is required.</span>
@@ -288,6 +299,34 @@
 
         <!-- No "Landing route" field: switching systems always lands on My
              Dashboard (/home) since 2026-07-23; Module.landingRoute is dormant. -->
+
+        <!-- Audience: pickable on CREATE only. Flipping later would strand
+             tenant entitlements or expose staff screens, so the backend fixes
+             it at creation; the edit dialog shows a locked line instead. -->
+        @if (!editingModuleId()) {
+          <fieldset style="border: none; padding: 0; margin: 0 0 var(--space-md);">
+            <legend style="padding: 0; font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Audience</legend>
+            <p style="font-size: var(--font-caption); color: var(--text-muted); margin: var(--space-xs) 0 var(--space-sm);">Who this module serves. This cannot be changed after the module is created.</p>
+            <label style="display: flex; align-items: flex-start; gap: var(--space-sm); padding: var(--space-xs) 0; min-height: 44px; cursor: pointer;">
+              <input type="radio" formControlName="audience" value="tenant" style="width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; cursor: pointer; accent-color: var(--brand);">
+              <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+                <span style="color: var(--text-primary);">Tenant module</span>
+                <span style="font-size: var(--font-body-2); color: var(--text-muted);">A product area subscribers can be entitled to (Companies, tenant roles, the subscriber picker).</span>
+              </span>
+            </label>
+            <label style="display: flex; align-items: flex-start; gap: var(--space-sm); padding: var(--space-xs) 0; min-height: 44px; cursor: pointer;">
+              <input type="radio" formControlName="audience" value="platform" style="width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; cursor: pointer; accent-color: var(--brand);">
+              <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+                <span style="color: var(--text-primary);">Platform module</span>
+                <span style="font-size: var(--font-body-2); color: var(--text-muted);">For platform staff only (e.g. subscriber billing / AR). Never offered to subscribers; its menus are grantable to platform roles under Access → Roles.</span>
+              </span>
+            </label>
+          </fieldset>
+        } @else {
+          <p style="font-size: var(--font-caption); color: var(--text-muted); margin: 0 0 var(--space-md);">
+            Audience: <strong style="color: var(--text-secondary);">{{ moduleForm.controls.audience.value === 'platform' ? 'Platform (staff only)' : 'Tenant (subscribers)' }}</strong> - fixed at creation.
+          </p>
+        }
 
         <div style="margin-top: var(--space-md); border-top: 1px solid var(--border); padding-top: var(--space-md);">
           <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Translations</label>

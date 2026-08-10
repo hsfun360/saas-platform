@@ -316,7 +316,10 @@ exports.listModules = async (req, res) => {
             attributes: ['id', 'name', 'names', 'icon', 'description', 'landingRoute', 'isSystem', 'audience'],
             order: [['name', 'ASC']],
         });
-        res.status(200).json(modules);
+        // isProtected = not deletable, base name locked (system modules + the
+        // seeded platform-shell module) - computed here so the UI never has to
+        // duplicate the rule.
+        res.status(200).json(modules.map((m) => ({ ...m.toJSON(), isProtected: isProtectedModule(m) })));
     } catch (error) {
         console.error("Error fetching modules:", error);
         res.status(500).json({ message: "Internal server error" });
@@ -345,11 +348,30 @@ exports.listMenus = async (req, res) => {
 // each Menu is a "detail" navigation entry belonging to one module. Subscribers
 // subscribe to Modules (CompanyModule); Roles grant access to Menus (RoleMenu).
 
-// POST /api/admin/modules  Body: { name, icon?, description?, landingRoute? }
+// A protected module can neither be deleted nor have its base name changed:
+// system modules (isSystem - the mandatory-entitlement key) and the boot-seeded
+// platform-shell module (SaaS Administration - the platform nav's seed key).
+// OTHER platform-audience modules (created via the dialog, e.g. a platform AR
+// module) behave like normal modules - renamable, deletable when unreferenced.
+const { PLATFORM_MODULE_NAME } = require('./platformNav.seed');
+const isProtectedModule = (m) => !!m.isSystem || (m.audience === 'platform' && m.name === PLATFORM_MODULE_NAME);
+
+const MODULE_AUDIENCES = ['tenant', 'platform'];
+
+// POST /api/admin/modules  Body: { name, icon?, description?, landingRoute?, audience? }
+// `audience` ('tenant' default | 'platform') is fixed at creation: flipping an
+// entitled tenant module to platform would strand its CompanyModule rows, and
+// flipping a platform module to tenant would expose staff screens to
+// subscribers - so there is deliberately no way to change it later.
 exports.createModule = async (req, res) => {
     try {
         const name = (req.body.name || '').trim();
         if (!name) return res.status(400).json({ message: "Module name is required." });
+
+        const audience = typeof req.body.audience === 'string' ? req.body.audience : 'tenant';
+        if (!MODULE_AUDIENCES.includes(audience)) {
+            return res.status(400).json({ message: "Audience must be 'tenant' or 'platform'." });
+        }
 
         const existing = await Module.findOne({ where: { name } });
         if (existing) return res.status(409).json({ message: "A module with that name already exists." });
@@ -361,6 +383,7 @@ exports.createModule = async (req, res) => {
             icon: icon || undefined, // fall back to the model default ('widgets')
             description: (req.body.description || '').trim() || null,
             landingRoute: (req.body.landingRoute || '').trim() || null,
+            audience,
         });
         res.status(201).json({ message: "Module created.", module });
     } catch (error) {
@@ -375,14 +398,20 @@ exports.updateModule = async (req, res) => {
         const module = await Module.findByPk(req.params.moduleId);
         if (!module) return res.status(404).json({ message: "Module not found." });
 
+        // Audience is fixed at creation (see createModule) - reject any attempt
+        // to flip it rather than silently ignoring the field.
+        if (typeof req.body.audience === 'string' && req.body.audience !== module.audience) {
+            return res.status(400).json({ message: "A module's audience is fixed at creation and cannot be changed." });
+        }
+
         const updates = {};
         if (typeof req.body.name === 'string' && req.body.name.trim()) {
             const name = req.body.name.trim();
             if (name !== module.name) {
-                // A system/platform module's base name is a code-level identifier
+                // A protected module's base name is a code-level identifier
                 // (the boot-time stamps and frontend gating keys on it) —
                 // localized display names stay editable, the base name does not.
-                if (module.isSystem || module.audience === 'platform') {
+                if (isProtectedModule(module)) {
                     return res.status(400).json({ message: "This is a system module - its base name cannot be changed. Edit the translated names instead." });
                 }
                 const dup = await Module.findOne({ where: { name } });
@@ -418,9 +447,10 @@ exports.deleteModule = async (req, res) => {
 
         // System modules are platform infrastructure (every tenant is entitled
         // to them by provisioning) - never deletable, like a system Role. The
-        // platform-audience module (SaaS Administration) IS the platform's own
-        // navigation - deleting it would kill the admin shell.
-        if (module.isSystem || module.audience === 'platform') {
+        // seeded SaaS Administration module IS the platform's own navigation -
+        // deleting it would kill the admin shell. Other platform-audience
+        // modules (e.g. a platform AR module) are deletable like any module.
+        if (isProtectedModule(module)) {
             await transaction.rollback();
             return res.status(400).json({ message: "This is a system module and cannot be deleted." });
         }
