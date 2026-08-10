@@ -102,20 +102,24 @@
               }
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openHoles(c)">Holes</button>
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openTees(c)">Tees</button>
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">Edit</button>
-              @if (c.isActive === false) {
-                <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(c)"
-                        [disabled]="togglingId() === c.id">
-                  {{ togglingId() === c.id ? 'Saving…' : 'Enable' }}
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">
+                <span class="material-icons" aria-hidden="true">edit</span>
+                Edit
+              </button>
+              <app-overflow-menu [label]="'More actions for ' + c.unitCourseCode">
+                <button type="button" appMenuItem (click)="openHoles(c)">
+                  <span class="material-icons" aria-hidden="true">golf_course</span>
+                  Holes
                 </button>
-              } @else {
-                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(c)"
-                        [disabled]="togglingId() === c.id">
-                  {{ togglingId() === c.id ? 'Saving…' : 'Disable' }}
+                <button type="button" appMenuItem (click)="openTees(c)">
+                  <span class="material-icons" aria-hidden="true">sports_golf</span>
+                  Tees
                 </button>
-              }
+                <button type="button" appMenuItem (click)="toggleActive(c)" [disabled]="togglingId() === c.id">
+                  <span class="material-icons" aria-hidden="true">{{ c.isActive === false ? 'toggle_on' : 'toggle_off' }}</span>
+                  {{ c.isActive === false ? 'Enable' : 'Disable' }}
+                </button>
+              </app-overflow-menu>
             </div>
           </div>
         </div>

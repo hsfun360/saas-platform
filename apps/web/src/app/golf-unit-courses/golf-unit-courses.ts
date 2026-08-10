@@ -13,6 +13,7 @@ import {
   UnitCourseTypeOption,
 } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
 // One editable hole row in the Holes dialog. Inputs bind strings; parsing
 // happens on save. Numbering comes from the course type, never the user.
@@ -64,7 +65,8 @@ const SEQ_OPTIONS = [1, 2, 3, 4, 5];
 @Component({
   selector: 'app-golf-unit-courses',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
+    OverflowMenuComponent, MenuItemDirective],
   templateUrl: './golf-unit-courses.html',
   styleUrls: ['../system-setup/system-setup.css', './golf-unit-courses.css'],
 })
