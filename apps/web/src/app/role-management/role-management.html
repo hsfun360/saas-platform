@@ -9,16 +9,21 @@
     </div>
   </header>
 
+  <!-- Messages use the GLOBAL floating snackbar standard (.flash in
+       styles.css). Errors raised while the dialog is open render INSIDE the
+       dialog instead (the shared [error] binding). -->
   @if (successMessage()) {
-    <div role="status" aria-live="polite" style="margin-bottom: var(--space-md); padding: var(--space-sm); background: var(--success-surface); color: var(--success-text); border-radius: 6px; border: 1px solid var(--success-border);">
-      ✅ {{ successMessage() }}
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
-  <!-- Page-level error only while no dialog is open - dialog save errors
-       render inside the dialog via its [error] binding. -->
   @if (errorMessage() && !roleDialogOpen()) {
-    <div role="alert" aria-live="assertive" style="margin-bottom: var(--space-md); padding: var(--space-sm); background: var(--danger-surface); color: var(--danger-text); border-radius: 6px; border: 1px solid var(--danger-border);">
-      ❌ {{ errorMessage() }}
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
 
