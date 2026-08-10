@@ -19,9 +19,7 @@
       <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
-  <!-- Page-level error only while no dialog is open - dialog save errors
-       render inside the dialog via its [error] binding. -->
-  @if (errorMessage() && !roleDialogOpen()) {
+  @if (errorMessage()) {
     <div class="flash flash-error" role="alert" aria-live="assertive">
       <span class="flash-icon">❌</span>
       <span>{{ errorMessage() }}</span>
@@ -101,7 +99,7 @@
   <!-- ============ Create / Edit role dialog ============ -->
   @if (roleDialogOpen()) {
     <app-dialog #roleDlg [title]="dialogMode() === 'edit' ? 'Edit role' : 'Create role'" [busy]="roleSubmitting()"
-                [dirty]="roleForm.dirty" [error]="errorMessage()"
+                [dirty]="roleForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."
                 (close)="closeDialog()">

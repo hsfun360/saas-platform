@@ -221,8 +221,8 @@ Reference implementations: `platform-users.html`, `companies.html` (and nearly e
 Rules:
 
 - **Copy the markup above verbatim** (icon span, message span, dismiss ✕) - do not restyle a `<div>` with success/danger tokens by hand; that is exactly the drift this standard kills.
-- **Errors raised while a shared `<app-dialog>` is open** additionally bind the dialog's **`[error]`** input (an alert bar pinned above the Save/Cancel footer, adjacent to the action that failed); gate the page-level flash-error with `!dialogOpen()` so the two never show at once.
-  Success after a save that keeps the dialog open just uses the floating flash - it floats above the overlay.
+- **Dialog save errors use the SAME floating snackbar** - `.flash` renders above the dialog overlay by design, so it stays visible while the dialog is open (reference: `platform-users` Create user with a duplicate email).
+  Do NOT gate the flash on dialog state and do NOT build an in-dialog error bar (a briefly-lived `<app-dialog>` `[error]` input was removed in favour of this one pattern).
 - **`.flash--static`** (composed on top) is ONLY for permanent contextual notes and multi-line result reports that must stay in the page flow (e.g. the Unverified Registrations deletion report) - never for a plain transient message.
 - Deliberate exceptions - and the only ones: the auth/portal flows' centred outcome cards (login, forgot-password, member/agent registration "check your email" panels) and field-level `.field-error` / `.field-success` messages, which stay next to their control.
 

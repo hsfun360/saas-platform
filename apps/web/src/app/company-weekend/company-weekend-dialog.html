@@ -1,4 +1,4 @@
-<app-dialog #wkDlg [title]="'Weekend days — ' + company().name" [busy]="saving()" [dirty]="form.dirty" [error]="errorMessage()"
+<app-dialog #wkDlg [title]="'Weekend days — ' + company().name" [busy]="saving()" [dirty]="form.dirty"
             discardTitle="Discard your changes?" discardMessage="You have unsaved weekend-day changes. Leaving now will discard them." (close)="onClose()">
   @if (loading()) {
     <p style="color: var(--text-muted);">Loading…</p>
@@ -8,13 +8,20 @@
       Saturday &amp; Sunday in KL. Weekday/weekend pricing (such as golf green fees) uses this setting.
     </p>
 
-    <!-- Save errors render in the dialog's own [error] bar; success uses the
-         GLOBAL floating snackbar (.flash floats above the dialog overlay). -->
+    <!-- Messages use the GLOBAL floating snackbar standard (.flash) - it
+         floats ABOVE the dialog overlay, so both render fine from here. -->
     @if (successMessage()) {
       <div class="flash flash-success" role="status" aria-live="polite">
         <span class="flash-icon">✅</span>
         <span>{{ successMessage() }}</span>
         <button class="flash-close" type="button" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+      </div>
+    }
+    @if (errorMessage()) {
+      <div class="flash flash-error" role="alert" aria-live="assertive">
+        <span class="flash-icon">❌</span>
+        <span>{{ errorMessage() }}</span>
+        <button class="flash-close" type="button" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
       </div>
     }
 

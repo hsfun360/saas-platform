@@ -17,9 +17,8 @@
   </header>
 
   <!-- Messages use the GLOBAL floating snackbar standard (.flash in
-       styles.css, like the Users screen). Errors raised while a dialog is
-       open render INSIDE the dialog instead (the shared [error] binding),
-       so the two never show at once. -->
+       styles.css, like the Users screen) - it floats ABOVE an open dialog,
+       so save errors show without any dialog-specific plumbing. -->
   @if (successMessage()) {
     <div class="flash flash-success" role="status" aria-live="polite">
       <span class="flash-icon">✅</span>
@@ -27,7 +26,7 @@
       <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
-  @if (errorMessage() && !moduleDialogOpen() && !menuDialogOpen()) {
+  @if (errorMessage()) {
     <div class="flash flash-error" role="alert" aria-live="assertive">
       <span class="flash-icon">❌</span>
       <span>{{ errorMessage() }}</span>
@@ -274,7 +273,7 @@
 
   <!-- ============ Add / edit module dialog ============ -->
   @if (moduleDialogOpen()) {
-    <app-dialog #moduleDlg [title]="editingModuleId() ? 'Edit module' : 'Add module'" [busy]="savingModule()" [dirty]="moduleForm.dirty" [error]="errorMessage()"
+    <app-dialog #moduleDlg [title]="editingModuleId() ? 'Edit module' : 'Add module'" [busy]="savingModule()" [dirty]="moduleForm.dirty"
                 discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="cancelModuleEdit()">
       <form id="moduleForm" [formGroup]="moduleForm" (ngSubmit)="saveModule()">
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
@@ -352,7 +351,7 @@
 
   <!-- ============ Add / edit menu dialog ============ -->
   @if (menuDialogOpen()) {
-    <app-dialog #menuDlg [title]="editingMenuId() ? 'Edit menu' : 'Add menu'" [busy]="savingMenu()" [dirty]="menuForm.dirty" [error]="errorMessage()"
+    <app-dialog #menuDlg [title]="editingMenuId() ? 'Edit menu' : 'Add menu'" [busy]="savingMenu()" [dirty]="menuForm.dirty"
                 discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="cancelMenuEdit()">
       <form id="menuForm" [formGroup]="menuForm" (ngSubmit)="saveMenu()">
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">

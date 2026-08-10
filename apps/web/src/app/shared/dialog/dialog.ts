@@ -60,11 +60,12 @@ import {
 export class DialogComponent implements OnDestroy {
   readonly title = input.required<string>();
   readonly busy = input(false); // while true, the ✕ and Esc are inert (mid-save)
-  // A save/submit error to show INSIDE the dialog, pinned above the footer -
-  // a page-level flash is invisible behind the modal overlay, so screens with
-  // a dialog form should bind their error signal here instead.
-  readonly error = input<string | null | undefined>('');
   readonly close = output<void>();
+  // NOTE: save/submit errors are NOT a dialog concern - they use the global
+  // .flash floating snackbar, which renders at z-index 1300, deliberately
+  // ABOVE this dialog's overlay (1200), so it stays visible while the dialog
+  // is open. See project-overview.md "Flash messages" - do not re-add an
+  // in-dialog error bar (a briefly-lived [error] input was removed for this).
 
   // Unsaved-changes guard — see the class comment. Default: never dirty (off).
   // Typed nullable because NgForm.dirty is `boolean | null`; every read is a

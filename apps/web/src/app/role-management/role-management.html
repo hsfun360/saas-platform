@@ -10,8 +10,7 @@
   </header>
 
   <!-- Messages use the GLOBAL floating snackbar standard (.flash in
-       styles.css). Errors raised while the dialog is open render INSIDE the
-       dialog instead (the shared [error] binding). -->
+       styles.css) - it floats ABOVE an open dialog. -->
   @if (successMessage()) {
     <div class="flash flash-success" role="status" aria-live="polite">
       <span class="flash-icon">✅</span>
@@ -19,7 +18,7 @@
       <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
-  @if (errorMessage() && !roleDialogOpen()) {
+  @if (errorMessage()) {
     <div class="flash flash-error" role="alert" aria-live="assertive">
       <span class="flash-icon">❌</span>
       <span>{{ errorMessage() }}</span>
@@ -104,7 +103,7 @@
   <!-- ============ Create / edit role dialog ============ -->
   @if (roleDialogOpen()) {
     <app-dialog #roleDlg [title]="editingRoleId() ? 'Edit role' : 'New role'" [busy]="isLoading()"
-                [dirty]="roleForm.dirty" [error]="errorMessage()"
+                [dirty]="roleForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."
                 (close)="cancelEdit()">
