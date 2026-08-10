@@ -554,6 +554,14 @@ exports.updateMenu = async (req, res) => {
         if (typeof req.body.moduleId === 'string' && req.body.moduleId) {
             const module = await Module.findByPk(req.body.moduleId);
             if (!module) return res.status(400).json({ message: "The selected module does not exist." });
+            // A menu never hops between the tenant and platform catalogues -
+            // the two are separately grantable maintenance screens.
+            if (req.body.moduleId !== menu.moduleId) {
+                const currentModule = await Module.findByPk(menu.moduleId, { attributes: ['audience'] });
+                if (currentModule && module.audience !== currentModule.audience) {
+                    return res.status(400).json({ message: "A menu cannot move between tenant and platform modules." });
+                }
+            }
             updates.moduleId = req.body.moduleId;
         }
         // Re-parent (nesting): validate the new parent is in the same module and

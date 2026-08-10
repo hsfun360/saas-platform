@@ -51,12 +51,22 @@ const NAV_TREE = [
     },
     {
         name: 'Configuration', route: '', icon: 'settings', sequence: 3, children: [
-            { name: 'Modules & Menus', route: '/admin/modules-menus', icon: 'category', sequence: 0 },
-            { name: 'Email Templates', route: '/admin/email-templates', icon: 'mail', sequence: 1 },
-            { name: 'Platform Tax', route: '/admin/platform-tax', icon: 'receipt_long', sequence: 2 },
-            { name: 'Platform Profile', route: '/admin/platform-profile', icon: 'store', sequence: 3 },
+            // Catalogue maintenance is split per Module.audience into two
+            // separately-grantable screens (one shared component).
+            { name: 'Tenant Modules & Menus', route: '/admin/modules-menus', icon: 'category', sequence: 0 },
+            { name: 'Platform Modules & Menus', route: '/admin/platform-menus', icon: 'dashboard_customize', sequence: 1 },
+            { name: 'Email Templates', route: '/admin/email-templates', icon: 'mail', sequence: 2 },
+            { name: 'Platform Tax', route: '/admin/platform-tax', icon: 'receipt_long', sequence: 3 },
+            { name: 'Platform Profile', route: '/admin/platform-profile', icon: 'store', sequence: 4 },
         ],
     },
+];
+
+// One-shot renames for menus this seed created under an older name. Applied
+// only while the row still carries the old seeded default, so a user's own
+// rename in Modules & Menus is never overwritten. Keyed by route.
+const SEED_RENAMES = [
+    { route: '/admin/modules-menus', from: 'Modules & Menus', to: 'Tenant Modules & Menus' },
 ];
 
 async function ensurePlatformNav() {
@@ -100,6 +110,15 @@ async function ensurePlatformNav() {
             });
             byRoute.set(row.route, row);
             added++;
+        }
+    }
+
+    // Apply pending seed renames (no-ops once done or after a user rename).
+    for (const r of SEED_RENAMES) {
+        const row = byRoute.get(r.route);
+        if (row && row.name === r.from) {
+            await row.update({ name: r.to });
+            added++; // count it so the summary line logs the change
         }
     }
 

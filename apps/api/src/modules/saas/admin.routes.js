@@ -31,6 +31,39 @@ router.use(isPlatformUser);
 // instead of a subscriber account. Applied only to the /admin/tax routes below.
 const asPlatformTax = (req, res, next) => { req.taxPlatform = true; next(); };
 
+// --- Catalogue maintenance, split per Module.audience -----------------------
+// Two separately-grantable screens maintain the catalogue: Tenant Modules &
+// Menus (/admin/modules-menus) and Platform Modules & Menus
+// (/admin/platform-menus). Authorization must follow the TARGET's audience,
+// not the caller's URL, so a role granted only one side can never reach the
+// other through the API. Each resolver derives the audience from the request;
+// an unresolvable target falls back to the tenant screen's grant and the
+// controller 404s right after.
+const Module = require('./module.model');
+const Menu = require('./menu.model');
+const CATALOGUE_ROUTE = { tenant: '/admin/modules-menus', platform: '/admin/platform-menus' };
+
+const requireCatalogueAction = (resolveAudience) => async (req, res, next) => {
+    try {
+        if (req.user?.isSystemAdmin) return next(); // master bypass, same as requireMenuAction
+        const audience = (await resolveAudience(req)) === 'platform' ? 'platform' : 'tenant';
+        return requireMenuAction(CATALOGUE_ROUTE[audience])(req, res, next);
+    } catch (err) {
+        console.error('Catalogue permission check failed:', err);
+        return res.status(500).json({ message: 'Permission check failed.' });
+    }
+};
+const audienceOfBody = async (req) => req.body?.audience;
+const audienceOfModuleParam = async (req) =>
+    (await Module.findByPk(req.params.moduleId, { attributes: ['audience'] }))?.audience;
+const audienceOfBodyModule = async (req) =>
+    req.body?.moduleId ? (await Module.findByPk(req.body.moduleId, { attributes: ['audience'] }))?.audience : null;
+const audienceOfMenuParam = async (req) => {
+    const menu = await Menu.findByPk(req.params.menuId, { attributes: ['moduleId'] });
+    if (!menu) return null;
+    return (await Module.findByPk(menu.moduleId, { attributes: ['audience'] }))?.audience;
+};
+
 // Role Management (the Roles screen; GET /roles also feeds Assign Role)
 router.post('/roles', requireMenuAction('/admin/system-roles'), adminController.createRole);
 router.get('/roles', requireAnyMenuAction(['/admin/system-roles', '/admin/system-setup']), adminController.getRoles);
@@ -39,18 +72,19 @@ router.put('/roles/:id', requireMenuAction('/admin/system-roles'), adminControll
 router.delete('/roles/:id', requireMenuAction('/admin/system-roles'), adminController.deleteRole);
 // The role builder's permission catalogue (platform-audience menus only).
 router.get('/menus', requireMenuAction('/admin/system-roles'), adminController.listMenus);
-// Module list feeds the Subscribers entitlement picker AND Modules & Menus.
-router.get('/modules', requireAnyMenuAction(['/admin/subscribers', '/admin/modules-menus']), adminController.listModules);
+// Module list feeds the Subscribers entitlement picker AND both catalogue screens.
+router.get('/modules', requireAnyMenuAction(['/admin/subscribers', '/admin/modules-menus', '/admin/platform-menus']), adminController.listModules);
 
-// Modules & Menus Maintenance (master–detail catalogue management)
-router.post('/modules', requireMenuAction('/admin/modules-menus'), adminController.createModule);
-router.put('/modules/:moduleId', requireMenuAction('/admin/modules-menus'), adminController.updateModule);
-router.delete('/modules/:moduleId', requireMenuAction('/admin/modules-menus'), adminController.deleteModule);
-router.get('/modules/:moduleId/menus', requireMenuAction('/admin/modules-menus'), adminController.listModuleMenus);
-router.put('/modules/:moduleId/menus/order', requireMenuAction('/admin/modules-menus'), adminController.reorderMenus); // sibling drag-reorder
-router.post('/menus', requireMenuAction('/admin/modules-menus'), adminController.createMenu);
-router.put('/menus/:menuId', requireMenuAction('/admin/modules-menus'), adminController.updateMenu);
-router.delete('/menus/:menuId', requireMenuAction('/admin/modules-menus'), adminController.deleteMenu);
+// Modules & Menus Maintenance (master–detail catalogue management) - gated by
+// the screen matching the TARGET's audience (see requireCatalogueAction above).
+router.post('/modules', requireCatalogueAction(audienceOfBody), adminController.createModule);
+router.put('/modules/:moduleId', requireCatalogueAction(audienceOfModuleParam), adminController.updateModule);
+router.delete('/modules/:moduleId', requireCatalogueAction(audienceOfModuleParam), adminController.deleteModule);
+router.get('/modules/:moduleId/menus', requireCatalogueAction(audienceOfModuleParam), adminController.listModuleMenus);
+router.put('/modules/:moduleId/menus/order', requireCatalogueAction(audienceOfModuleParam), adminController.reorderMenus); // sibling drag-reorder
+router.post('/menus', requireCatalogueAction(audienceOfBodyModule), adminController.createMenu);
+router.put('/menus/:menuId', requireCatalogueAction(audienceOfMenuParam), adminController.updateMenu);
+router.delete('/menus/:menuId', requireCatalogueAction(audienceOfMenuParam), adminController.deleteMenu);
 
 // User Management (list also feeds Assign Role)
 router.get('/users', requireAnyMenuAction(['/admin/platform-users', '/admin/system-setup']), adminController.listUsers);

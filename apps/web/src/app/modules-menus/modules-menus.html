@@ -2,10 +2,16 @@
   <header style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-md);">
     <span class="saas-icon material-icons" aria-hidden="true">widgets</span>
     <div>
-      <h2 style="color: var(--text-primary); margin: 0; font-size: var(--font-h1);">{{ 'Modules & Menus Maintenance' | screenTitle }}<app-fav-star /></h2>
+      <h2 style="color: var(--text-primary); margin: 0; font-size: var(--font-h1);">{{ titleFallback | screenTitle }}<app-fav-star /></h2>
       <p style="color: var(--text-muted); font-size: var(--font-body-2); margin: 2px 0 0;">
-        Manage the platform catalogue. <strong>Modules</strong> are product areas subscribers can subscribe to;
-        each <strong>Menu</strong> is a navigation entry belonging to a module. Pick a module to manage its menus.
+        @if (audience === 'platform') {
+          Manage the platform's own staff catalogue. <strong>Modules</strong> group the screens platform users work in
+          (never offered to subscribers); each <strong>Menu</strong> is a navigation entry grantable to platform roles.
+          Pick a module to manage its menus.
+        } @else {
+          Manage the subscriber catalogue. <strong>Modules</strong> are product areas subscribers can subscribe to;
+          each <strong>Menu</strong> is a navigation entry belonging to a module. Pick a module to manage its menus.
+        }
       </p>
     </div>
   </header>
@@ -61,13 +67,7 @@
                       [attr.aria-pressed]="selectedModuleId() === m.id" [attr.aria-label]="'Manage menus for ' + m.name">
                 <span class="material-icons" aria-hidden="true" style="font-size: 18px; color: var(--accent);">{{ m.icon || 'widgets' }}</span>
                 <span class="mm-row__text">
-                  <span style="display: inline-flex; align-items: center; gap: var(--space-xs); min-width: 0;">
-                    <span style="font-weight: var(--weight-semibold); color: var(--text-primary);">{{ m.name }}</span>
-                    @if (m.audience === 'platform') {
-                      <!-- Audience marker: staff-only module, invisible to subscribers. -->
-                      <span class="status-chip status-chip--off">Platform</span>
-                    }
-                  </span>
+                  <span style="font-weight: var(--weight-semibold); color: var(--text-primary);">{{ m.name }}</span>
                   @if (m.description) {
                     <span style="color: var(--text-muted); font-size: var(--font-body-2);">{{ m.description }}</span>
                   }
@@ -84,12 +84,8 @@
                        system modules and the seeded platform-shell module
                        (SaaS Administration) are never deletable - the backend
                        rejects it, so no Delete button is shown. Other
-                       platform modules stay deletable like any module. The
-                       platform-shell row needs no extra tag - its PLATFORM
-                       chip already marks it. -->
-                  @if (m.isSystem) {
-                    <span style="color: var(--text-muted); font-size: var(--font-caption); align-self: center;">System module</span>
-                  }
+                       platform modules stay deletable like any module. -->
+                  <span style="color: var(--text-muted); font-size: var(--font-caption); align-self: center;">System module</span>
                 } @else {
                   <button type="button" class="btn btn--danger btn--sm" (click)="deleteModule(m)"
                           [disabled]="deletingModuleId() === m.id" [attr.aria-label]="'Delete module ' + m.name">
@@ -300,31 +296,12 @@
         <!-- No "Landing route" field: switching systems always lands on My
              Dashboard (/home) since 2026-07-23; Module.landingRoute is dormant. -->
 
-        <!-- Audience: pickable on CREATE only. Flipping later would strand
-             tenant entitlements or expose staff screens, so the backend fixes
-             it at creation; the edit dialog shows a locked line instead. -->
-        @if (!editingModuleId()) {
-          <fieldset style="border: none; padding: 0; margin: 0 0 var(--space-md);">
-            <legend style="padding: 0; font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Audience</legend>
-            <p style="font-size: var(--font-caption); color: var(--text-muted); margin: var(--space-xs) 0 var(--space-sm);">Who this module serves. This cannot be changed after the module is created.</p>
-            <label style="display: flex; align-items: flex-start; gap: var(--space-sm); padding: var(--space-xs) 0; min-height: 44px; cursor: pointer;">
-              <input type="radio" formControlName="audience" value="tenant" style="width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; cursor: pointer; accent-color: var(--brand);">
-              <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
-                <span style="color: var(--text-primary);">Tenant module</span>
-                <span style="font-size: var(--font-body-2); color: var(--text-muted);">A product area subscribers can be entitled to (Companies, tenant roles, the subscriber picker).</span>
-              </span>
-            </label>
-            <label style="display: flex; align-items: flex-start; gap: var(--space-sm); padding: var(--space-xs) 0; min-height: 44px; cursor: pointer;">
-              <input type="radio" formControlName="audience" value="platform" style="width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; cursor: pointer; accent-color: var(--brand);">
-              <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
-                <span style="color: var(--text-primary);">Platform module</span>
-                <span style="font-size: var(--font-body-2); color: var(--text-muted);">For platform staff only (e.g. subscriber billing / AR). Never offered to subscribers; its menus are grantable to platform roles under Access → Roles.</span>
-              </span>
-            </label>
-          </fieldset>
-        } @else {
+        <!-- No Audience field: the maintenance is split into two screens
+             (Tenant / Platform Modules & Menus) and a module is created with
+             this screen's audience implicitly - fixed at creation. -->
+        @if (!editingModuleId() && audience === 'platform') {
           <p style="font-size: var(--font-caption); color: var(--text-muted); margin: 0 0 var(--space-md);">
-            Audience: <strong style="color: var(--text-secondary);">{{ moduleForm.controls.audience.value === 'platform' ? 'Platform (staff only)' : 'Tenant (subscribers)' }}</strong> - fixed at creation.
+            This creates a <strong style="color: var(--text-secondary);">platform</strong> module: staff-only, never offered to subscribers; its menus are grantable to platform roles under Access → Roles.
           </p>
         }
 

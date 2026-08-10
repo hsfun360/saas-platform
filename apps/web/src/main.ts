@@ -131,8 +131,12 @@ const routes: Routes = [
       { path: 'admin/languages', loadComponent: () => import('./app/languages/languages').then((m) => m.LanguagesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/currencies', loadComponent: () => import('./app/currencies/currencies').then((m) => m.CurrenciesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/system-setup', loadComponent: () => import('./app/system-setup/system-setup').then((m) => m.SystemSetupComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/modules-menus', loadComponent: () => import('./app/modules-menus/modules-menus').then((m) => m.ModulesMenusComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/modules-menus/:moduleId', loadComponent: () => import('./app/modules-menus/modules-menus').then((m) => m.ModulesMenusComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      // The catalogue maintenance is split into two grantable screens - one per
+      // Module.audience - sharing one component (route data picks the side).
+      { path: 'admin/modules-menus', loadComponent: () => import('./app/modules-menus/modules-menus').then((m) => m.ModulesMenusComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', audience: 'tenant' } },
+      { path: 'admin/modules-menus/:moduleId', loadComponent: () => import('./app/modules-menus/modules-menus').then((m) => m.ModulesMenusComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', audience: 'tenant' } },
+      { path: 'admin/platform-menus', loadComponent: () => import('./app/modules-menus/modules-menus').then((m) => m.ModulesMenusComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', audience: 'platform' } },
+      { path: 'admin/platform-menus/:moduleId', loadComponent: () => import('./app/modules-menus/modules-menus').then((m) => m.ModulesMenusComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', audience: 'platform' } },
       { path: 'admin/email-templates', loadComponent: () => import('./app/email-templates/email-templates').then((m) => m.EmailTemplatesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/email-templates/:key', loadComponent: () => import('./app/email-templates/email-template-edit').then((m) => m.EmailTemplateEditComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
 

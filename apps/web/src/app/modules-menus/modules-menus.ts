@@ -74,7 +74,20 @@ export class ModulesMenusComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly returnScroll = inject(ScrollReturnService);
   private readonly injector = inject(Injector);
-  private readonly basePath = ['/admin', 'modules-menus'];
+
+  // Which catalogue this screen manages - the maintenance is split into two
+  // grantable menu options (Tenant Modules & Menus at /admin/modules-menus,
+  // Platform Modules & Menus at /admin/platform-menus) sharing this one
+  // component; route data picks the side and modules are created with that
+  // audience implicitly (the dialog never asks).
+  readonly audience: 'tenant' | 'platform' =
+    this.route.snapshot.data['audience'] === 'platform' ? 'platform' : 'tenant';
+  private readonly basePath =
+    this.audience === 'platform' ? ['/admin', 'platform-menus'] : ['/admin', 'modules-menus'];
+  private readonly listPath = this.basePath.join('/');
+
+  // Header fallbacks (the screenTitle pipe prefers the granted Menu's name).
+  readonly titleFallback = this.audience === 'platform' ? 'Platform Modules & Menus' : 'Tenant Modules & Menus';
 
   // --- Master: modules ---
   readonly modules = signal<AdminModule[]>([]);
@@ -105,9 +118,6 @@ export class ModulesMenusComponent implements OnInit {
     name: ['', [Validators.required, Validators.maxLength(100)]],
     icon: [''],
     description: [''],
-    // Who the module serves - pickable on CREATE only (the backend rejects
-    // changing it afterwards); the edit dialog shows it as a locked line.
-    audience: ['tenant' as 'tenant' | 'platform'],
     translations: this.fb.nonNullable.array<TranslationGroup>([]),
   });
 
@@ -257,7 +267,7 @@ export class ModulesMenusComponent implements OnInit {
     this.selectedModuleId.set(moduleId);
     // Remember the open module so the master scrolls its row back into view when
     // the user returns to the plain list route (the component is recreated then).
-    if (moduleId) this.returnScroll.remember('/admin/modules-menus', moduleId);
+    if (moduleId) this.returnScroll.remember(this.listPath, moduleId);
     this.menuSearch.set(''); // don't carry a filter across modules
     this.cancelMenuEdit();
     if (moduleId) {
@@ -276,10 +286,12 @@ export class ModulesMenusComponent implements OnInit {
     this.modulesLoading.set(true);
     this.admin.listModules().subscribe({
       next: (list) => {
-        this.modules.set(list);
+        // Only this screen's side of the catalogue (rows created before the
+        // audience column shipped count as tenant).
+        this.modules.set(list.filter((m) => (m.audience || 'tenant') === this.audience));
         this.modulesLoading.set(false);
         // Back on the plain list route: scroll to the module the user came from.
-        if (!this.selectedModuleId()) this.returnScroll.consume('/admin/modules-menus', this.injector);
+        if (!this.selectedModuleId()) this.returnScroll.consume(this.listPath, this.injector);
       },
       error: () => this.modulesLoading.set(false),
     });
@@ -302,7 +314,7 @@ export class ModulesMenusComponent implements OnInit {
     this.editingModuleIsSystem.set(false);
     this.moduleForm.controls.name.enable();
     this.populateTranslations(this.moduleForm.controls.translations, {});
-    this.moduleForm.reset({ name: '', icon: '', description: '', audience: 'tenant' });
+    this.moduleForm.reset({ name: '', icon: '', description: '' });
     this.moduleDialogOpen.set(true);
   }
 
@@ -314,7 +326,6 @@ export class ModulesMenusComponent implements OnInit {
       name: m.name,
       icon: m.icon || '',
       description: m.description || '',
-      audience: m.audience || 'tenant',
     });
     // A protected module's base name is a code-level identifier
     // (mandatory-entitlement stamp / platform-nav seed key + frontend gating
@@ -332,7 +343,7 @@ export class ModulesMenusComponent implements OnInit {
     this.editingModuleId.set(null);
     this.editingModuleIsSystem.set(false);
     this.moduleForm.controls.name.enable();
-    this.moduleForm.reset({ name: '', icon: '', description: '', audience: 'tenant' });
+    this.moduleForm.reset({ name: '', icon: '', description: '' });
   }
 
   saveModule(): void {
@@ -343,14 +354,14 @@ export class ModulesMenusComponent implements OnInit {
       return;
     }
 
-    const { name, icon, description, audience, translations } = this.moduleForm.getRawValue();
+    const { name, icon, description, translations } = this.moduleForm.getRawValue();
     const editingId = this.editingModuleId();
     const payload = {
       name: name.trim(), icon: icon.trim(), description: description.trim(),
       names: this.namesFrom(translations),
-      // Audience is fixed at creation - never sent on edit (the backend
-      // rejects a change).
-      ...(editingId ? {} : { audience }),
+      // The screen's side of the catalogue IS the audience - fixed at
+      // creation, never sent on edit (the backend rejects a change).
+      ...(editingId ? {} : { audience: this.audience }),
     };
 
     this.savingModule.set(true);
