@@ -373,8 +373,10 @@ exports.createModule = async (req, res) => {
             return res.status(400).json({ message: "Audience must be 'tenant' or 'platform'." });
         }
 
-        const existing = await Module.findOne({ where: { name } });
-        if (existing) return res.status(409).json({ message: "A module with that name already exists." });
+        // Names are unique PER CATALOGUE side - a platform module may reuse a
+        // tenant module's name (e.g. "Account Receivable").
+        const existing = await Module.findOne({ where: { name, audience } });
+        if (existing) return res.status(409).json({ message: `A ${audience} module with that name already exists.` });
 
         const icon = (req.body.icon || '').trim();
         const module = await Module.create({
@@ -414,8 +416,8 @@ exports.updateModule = async (req, res) => {
                 if (isProtectedModule(module)) {
                     return res.status(400).json({ message: "This is a system module - its base name cannot be changed. Edit the translated names instead." });
                 }
-                const dup = await Module.findOne({ where: { name } });
-                if (dup) return res.status(409).json({ message: "A module with that name already exists." });
+                const dup = await Module.findOne({ where: { name, audience: module.audience } });
+                if (dup) return res.status(409).json({ message: `A ${module.audience} module with that name already exists.` });
             }
             updates.name = name;
         }

@@ -50,7 +50,11 @@ function requireModule(moduleName) {
             const Module = require('../modules/saas/module.model');
             const CompanyModule = require('../modules/saas/companyModule.model');
 
-            const mod = await Module.findOne({ where: { name: moduleName }, attributes: ['id'] });
+            // Entitlement is a TENANT concern; module names are unique per
+            // audience, so pin the lookup to the tenant catalogue - a
+            // same-named platform module must never shadow the product module
+            // and break its subscribers.
+            const mod = await Module.findOne({ where: { name: moduleName, audience: 'tenant' }, attributes: ['id'] });
             if (!mod) {
                 return res.status(403).json({ message: `The "${moduleName}" module is not available.` });
             }

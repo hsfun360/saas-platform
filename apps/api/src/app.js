@@ -330,6 +330,30 @@ async function initializeDB() {
              WHERE "countryCode" IS NULL AND "country" ~ '^[A-Za-z]{2}$'`,
         );
 
+        // Module names are unique PER AUDIENCE since 2026-08-10 (the tenant and
+        // platform catalogues may reuse a name, e.g. "Account Receivable").
+        // Drop every legacy single-column unique on Modules.name — plural
+        // because historic sequelize alter runs are known to duplicate unique
+        // constraints — the model's composite UX_Module_name_audience replaces
+        // them. Idempotent: no-op once none remain.
+        await sequelize.query(`
+            DO $$
+            DECLARE c record;
+            BEGIN
+                FOR c IN
+                    SELECT con.conname
+                    FROM pg_constraint con
+                    JOIN pg_class t ON t.oid = con.conrelid
+                    WHERE t.relname = 'Modules' AND con.contype = 'u'
+                      AND (SELECT array_agg(att.attname::text ORDER BY att.attname)
+                           FROM unnest(con.conkey) k
+                           JOIN pg_attribute att ON att.attrelid = t.oid AND att.attnum = k) = ARRAY['name']::text[]
+                LOOP
+                    EXECUTE format('ALTER TABLE "Modules" DROP CONSTRAINT %I', c.conname);
+                END LOOP;
+            END $$;
+        `);
+
         // Ensure the platform email-template defaults exist (idempotent, always
         // runs — unlike the RUN_SEED-gated demo seeder — so emails never break).
         await require('./modules/notification/emailTemplate.service').seedPlatformDefaults();

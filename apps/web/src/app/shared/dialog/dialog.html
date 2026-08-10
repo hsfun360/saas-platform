@@ -11,6 +11,13 @@
       <ng-content></ng-content>
     </div>
 
+    @if (error()) {
+      <div class="dlg__error" role="alert" aria-live="assertive">
+        <span class="material-icons" aria-hidden="true">error_outline</span>
+        <span>{{ error() }}</span>
+      </div>
+    }
+
     <div class="dlg__footer">
       <ng-content select="[dialogFooter]"></ng-content>
     </div>

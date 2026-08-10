@@ -70,16 +70,16 @@ const SEED_RENAMES = [
 ];
 
 async function ensurePlatformNav() {
+    // Names are unique per audience, so key on BOTH - a tenant module that
+    // happens to share the name must never be hijacked into the platform shell.
+    // (Pre-audience rows healed to audience 'platform' before this tightened.)
     const [module, created] = await Module.findOrCreate({
-        where: { name: PLATFORM_MODULE_NAME },
+        where: { name: PLATFORM_MODULE_NAME, audience: 'platform' },
         defaults: {
             icon: 'admin_panel_settings',
             description: 'Platform control plane - subscribers, access, reference data and configuration.',
-            audience: 'platform',
         },
     });
-    // Self-heal a pre-audience row (or a manually created one).
-    if (module.audience !== 'platform') await module.update({ audience: 'platform' });
 
     const existing = await Menu.findAll({ where: { moduleId: module.id } });
     const byRoute = new Map(existing.filter((m) => m.route).map((m) => [m.route, m]));

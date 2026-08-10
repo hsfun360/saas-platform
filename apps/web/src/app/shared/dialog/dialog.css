@@ -71,6 +71,25 @@
 /* Actions stay on ONE line, right-aligned. `flex-wrap: nowrap` + the global
    `.dlg__footer .btn { width: auto }` override keep submit buttons from going
    full-width (and thus wrapping) on mobile. */
+/* Save/submit error pinned between body and footer - always visible while the
+   dialog is open (a page-level flash would sit behind the modal overlay). */
+.dlg__error {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--danger-surface);
+  color: var(--danger-text);
+  border-top: 1px solid var(--danger-border);
+  font-size: var(--font-body-2);
+}
+.dlg__error .material-icons {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
 .dlg__footer {
   flex-shrink: 0;
   display: flex;

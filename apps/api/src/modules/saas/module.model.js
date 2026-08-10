@@ -9,8 +9,11 @@ const Module = sequelize.define('Module', {
     },
     name: {
         type: DataTypes.STRING,
-        allowNull: false,
-        unique: true // e.g., "Golf Management" — base/English name + fallback
+        allowNull: false // e.g., "Golf Management" — base/English name + fallback.
+        // Unique PER AUDIENCE (composite index below), not globally: the tenant
+        // and platform catalogues are separate worlds and may reuse a name
+        // (e.g. an "Account Receivable" product module AND a platform-side
+        // "Account Receivable" for subscriber billing).
     },
     // Localized names keyed by language code, e.g. { en: 'Golf Management', ms: '...' }.
     // Edited in the Modules & Menus screen; resolved to the active language at
@@ -53,6 +56,12 @@ const Module = sequelize.define('Module', {
         allowNull: false,
         defaultValue: 'tenant' // 'tenant' | 'platform'
     }
+}, {
+    indexes: [
+        // One name per catalogue side (the legacy global unique on `name` is
+        // dropped by an idempotent boot statement in app.js).
+        { name: 'UX_Module_name_audience', unique: true, fields: ['name', 'audience'] },
+    ],
 });
 
 module.exports = Module;

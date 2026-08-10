@@ -21,7 +21,11 @@
       ✅ {{ successMessage() }}
     </div>
   }
-  @if (errorMessage()) {
+  <!-- Page-level error, for actions taken on the page itself (delete, drag
+       reorder). While a dialog is open its save errors render INSIDE the
+       dialog (the shared [error] binding) - a banner here would hide behind
+       the modal overlay. -->
+  @if (errorMessage() && !moduleDialogOpen() && !menuDialogOpen()) {
     <div role="alert" style="margin: var(--space-md) 0; padding: var(--space-sm); background: var(--danger-surface); color: var(--danger-text); border-radius: 6px; border: 1px solid var(--danger-border);">
       ❌ {{ errorMessage() }}
     </div>
@@ -266,7 +270,7 @@
 
   <!-- ============ Add / edit module dialog ============ -->
   @if (moduleDialogOpen()) {
-    <app-dialog #moduleDlg [title]="editingModuleId() ? 'Edit module' : 'Add module'" [busy]="savingModule()" [dirty]="moduleForm.dirty"
+    <app-dialog #moduleDlg [title]="editingModuleId() ? 'Edit module' : 'Add module'" [busy]="savingModule()" [dirty]="moduleForm.dirty" [error]="errorMessage()"
                 discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="cancelModuleEdit()">
       <form id="moduleForm" [formGroup]="moduleForm" (ngSubmit)="saveModule()">
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
@@ -344,7 +348,7 @@
 
   <!-- ============ Add / edit menu dialog ============ -->
   @if (menuDialogOpen()) {
-    <app-dialog #menuDlg [title]="editingMenuId() ? 'Edit menu' : 'Add menu'" [busy]="savingMenu()" [dirty]="menuForm.dirty"
+    <app-dialog #menuDlg [title]="editingMenuId() ? 'Edit menu' : 'Add menu'" [busy]="savingMenu()" [dirty]="menuForm.dirty" [error]="errorMessage()"
                 discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="cancelMenuEdit()">
       <form id="menuForm" [formGroup]="menuForm" (ngSubmit)="saveMenu()">
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">

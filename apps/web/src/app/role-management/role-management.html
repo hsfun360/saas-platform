@@ -14,7 +14,9 @@
       ✅ {{ successMessage() }}
     </div>
   }
-  @if (errorMessage()) {
+  <!-- Page-level error only while no dialog is open - dialog save errors
+       render inside the dialog via its [error] binding. -->
+  @if (errorMessage() && !roleDialogOpen()) {
     <div role="alert" aria-live="assertive" style="margin-bottom: var(--space-md); padding: var(--space-sm); background: var(--danger-surface); color: var(--danger-text); border-radius: 6px; border: 1px solid var(--danger-border);">
       ❌ {{ errorMessage() }}
     </div>
@@ -97,7 +99,7 @@
   <!-- ============ Create / edit role dialog ============ -->
   @if (roleDialogOpen()) {
     <app-dialog #roleDlg [title]="editingRoleId() ? 'Edit role' : 'New role'" [busy]="isLoading()"
-                [dirty]="roleForm.dirty"
+                [dirty]="roleForm.dirty" [error]="errorMessage()"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."
                 (close)="cancelEdit()">
