@@ -427,6 +427,17 @@ body {
   font-size: 20px;
   color: var(--text-muted);
 }
+/* Sort menu (shared/sort-menu) composes the popover classes above; these are
+   its two extras: the direction arrow on the trigger and the active-item
+   indicator pinned to the row end. */
+.sort-menu__dir {
+  font-size: 16px;
+}
+.overflow-menu__item .sort-menu__indicator {
+  margin-left: auto;
+  font-size: 18px;
+  color: var(--brand-text);
+}
 @media (max-width: 767px) {
   /* Mobile action rows are left-justified, so a right-anchored popover would
      run off the left screen edge — anchor it left instead. */

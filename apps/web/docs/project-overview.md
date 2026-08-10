@@ -610,6 +610,19 @@ For any non-trivial listing (more than a handful of rows), the **add** action an
   meta values). The field is a native `<input type="search">` with an `aria-label`, a
   leading search icon, and a clear (✕) button shown only when there's text. Keep it
   ≥ 44px tall and ≥ 16px font (so iOS doesn't zoom on focus).
+- **Sort beside the search (order).** Card lists have no column headers to click, so a
+  listing that needs ordering places the shared **`<app-sort-menu>`** (`shared/sort-menu`)
+  to the RIGHT of the search field (one flex row: search flexes, sort keeps its size).
+  The trigger always shows the active field + direction ("Outstanding ↓"); the popover
+  lists the sortable fields; clicking the active field again flips the direction - the
+  grid-header double-click, relocated to one explicit control.
+  Screens pass `[options]` (`{key, label, defaultDir}` - amounts/dates default `desc`,
+  names/codes `asc`), bind `[value]`, and apply the emitted value on `(valueChange)`:
+  client-filtered lists sort inside their existing `computed()`; server-paginated lists
+  send `sort`/`dir` as query params and reload from page one (the API whitelists the
+  keys - reference: `ar-debtors` + `DEBTOR_SORTS` in `apps/api` `debtor.controller.js`).
+  Don't build a clickable fake header row above cards - the labels align with nothing,
+  wrap badly on mobile, and mislead users into expecting a table.
 - **"New" as a bottom FAB (add).** Do **not** put the create CTA in the top toolbar - on
   a long, scrolled list a top button drifts off-screen. Use a **floating action button**
   pinned `position: fixed` bottom-right that stays reachable at any scroll position. This
