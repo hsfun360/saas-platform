@@ -73,10 +73,12 @@
                   <span class="material-icons" aria-hidden="true">edit</span>
                   Edit
                 </button>
-                @if (m.isSystem) {
-                  <!-- Mirrors Role Management's protected "System role" row: a
-                       system module is never deletable. -->
-                  <span style="color: var(--text-muted); font-size: var(--font-caption); align-self: center;">System module</span>
+                @if (m.isSystem || m.audience === 'platform') {
+                  <!-- Mirrors Role Management's protected "System role" row:
+                       system modules and the platform's own module (SaaS
+                       Administration) are never deletable - the backend
+                       rejects it, so no Delete button is shown. -->
+                  <span style="color: var(--text-muted); font-size: var(--font-caption); align-self: center;">{{ m.isSystem ? 'System module' : 'Platform module' }}</span>
                 } @else {
                   <button type="button" class="btn btn--danger btn--sm" (click)="deleteModule(m)"
                           [disabled]="deletingModuleId() === m.id" [attr.aria-label]="'Delete module ' + m.name">
