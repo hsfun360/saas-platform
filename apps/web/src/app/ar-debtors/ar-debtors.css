@@ -2,6 +2,18 @@
    primitives (.data-card / .status-chip / .saas-*) from the global styles;
    only the filter toolbar, type chip and checkbox rows are screen-specific. */
 
+/* Search + sort on one row: the search box flexes, the sort button keeps its
+   size. .saas-search brings its own bottom margin, so the row adds none. */
+.ard-search-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+.ard-search-row .saas-search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .ard-toolbar {
   display: flex;
   align-items: center;

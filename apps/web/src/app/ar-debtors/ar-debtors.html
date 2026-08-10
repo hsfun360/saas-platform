@@ -55,13 +55,17 @@
     </button>
   </div>
 
-  <div class="saas-search">
-    <span class="saas-search__icon" aria-hidden="true">🔍</span>
-    <input #ardSearchBox type="search" [value]="search()" (input)="onSearch(ardSearchBox.value)"
-           placeholder="Search by number, name or code…" aria-label="Search debtors" class="saas-search__input">
-    @if (search()) {
-      <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
-    }
+  <!-- Search + sort share one row: find on the left, order on the right. -->
+  <div class="ard-search-row">
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #ardSearchBox type="search" [value]="search()" (input)="onSearch(ardSearchBox.value)"
+             placeholder="Search by number, name or code…" aria-label="Search debtors" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+    <app-sort-menu [options]="sortOptions" [value]="sort()" (valueChange)="setSort($event)"></app-sort-menu>
   </div>
 
   @if (loading()) {

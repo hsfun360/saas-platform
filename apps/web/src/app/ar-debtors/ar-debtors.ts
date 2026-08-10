@@ -11,6 +11,7 @@ import { CanDirective } from '../shared/can.directive';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { SortMenuComponent, SortOption, SortValue } from '../shared/sort-menu/sort-menu';
 import { ArService } from '../services/ar.service';
 import { CountryService } from '../services/country.service';
 import { ArDebtor, ArOption, ArDebtorsMeta } from '../models/ar.models';
@@ -31,7 +32,7 @@ import { Country } from '../models/auth.models';
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
     RouterLink, DialogComponent, CanDirective, MoneyInputDirective, PhoneInputComponent,
-    OverflowMenuComponent, MenuItemDirective,
+    OverflowMenuComponent, MenuItemDirective, SortMenuComponent,
   ],
   templateUrl: './ar-debtors.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-debtors.css'],
@@ -50,6 +51,16 @@ export class ArDebtorsComponent implements OnInit {
   readonly search = signal('');
   readonly typeFilter = signal('');
   readonly statusFilter = signal('');
+  // Server-side sort (the listing is paginated, so sorting is a query param,
+  // not a client-side computed - see the listing-chrome sort standard).
+  // Keys mirror the API's DEBTOR_SORTS whitelist.
+  readonly sortOptions: SortOption[] = [
+    { key: 'newest', label: 'Newest', defaultDir: 'desc' },
+    { key: 'outstanding', label: 'Outstanding', defaultDir: 'desc' },
+    { key: 'creditLimit', label: 'Credit limit', defaultDir: 'desc' },
+    { key: 'terms', label: 'Terms', defaultDir: 'asc' },
+  ];
+  readonly sort = signal<SortValue>({ key: 'newest', dir: 'desc' });
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
   readonly backfilling = signal(false);
@@ -130,7 +141,14 @@ export class ArDebtorsComponent implements OnInit {
     else this.loadingMore.set(true);
     const offset = reset ? 0 : this.rows().length;
     this.service
-      .listDebtors({ q: this.search().trim(), type: this.typeFilter(), status: this.statusFilter(), offset })
+      .listDebtors({
+        q: this.search().trim(),
+        type: this.typeFilter(),
+        status: this.statusFilter(),
+        offset,
+        sort: this.sort().key,
+        dir: this.sort().dir,
+      })
       .subscribe({
         next: (res) => {
           this.rows.set(reset ? res.debtors : [...this.rows(), ...res.debtors]);
@@ -168,6 +186,11 @@ export class ArDebtorsComponent implements OnInit {
   setStatusFilter(key: string): void {
     this.statusFilter.set(key);
     this.load(true);
+  }
+
+  setSort(value: SortValue): void {
+    this.sort.set(value);
+    this.load(true); // sort changes restart pagination from the first page
   }
 
   clearFilters(): void {

@@ -23,6 +23,26 @@ const { DEBTOR_TYPES, DEBTOR_TYPE_KEYS, DEBTOR_STATUSES, DEBTOR_STATUS_KEYS } = 
 const SEARCH_LIMIT = 50;
 const OTHER_DEBTOR_NUMBERING_PURPOSE = 'ar-other-debtor';
 
+// Whitelisted sort keys for the Debtor Listing (?sort=&dir=). Balance fields
+// live on the 1:1 ar.CreditAccount pool row (intra-service), so they order via
+// a correlated subquery; NULLS LAST keeps debtors without a pool row at the
+// end either direction. terms NULL means due-immediately, so it sorts as 0.
+// Every expression here is OUR SQL - user input only ever picks a key.
+const DEBTOR_SORTS = {
+    newest: { expr: '"Debtor"."createdAt"', defaultDir: 'DESC', nulls: '' },
+    terms: { expr: 'COALESCE("Debtor"."terms", 0)', defaultDir: 'ASC', nulls: '' },
+    outstanding: {
+        expr: '(SELECT ca."outstanding" FROM "ar"."CreditAccount" ca WHERE ca."debtorId" = "Debtor"."id")',
+        defaultDir: 'DESC',
+        nulls: ' NULLS LAST',
+    },
+    creditLimit: {
+        expr: '(SELECT ca."creditLimit" FROM "ar"."CreditAccount" ca WHERE ca."debtorId" = "Debtor"."id")',
+        defaultDir: 'DESC',
+        nulls: ' NULLS LAST',
+    },
+};
+
 function str(x) { return typeof x === 'string' ? x.trim() : ''; }
 function strOrNull(x) { const s = str(x); return s || null; }
 
@@ -74,9 +94,20 @@ exports.listDebtors = async (req, res) => {
         }
 
         const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+        // Sort: whitelisted key + direction; anything unknown falls back to
+        // newest-first (the long-standing default). createdAt tiebreaker keeps
+        // pagination stable when the sort field has equal values.
+        const sortKey = DEBTOR_SORTS[str(req.query.sort)] ? str(req.query.sort) : 'newest';
+        const dirParam = str(req.query.dir).toUpperCase();
+        const sortDef = DEBTOR_SORTS[sortKey];
+        const dir = dirParam === 'ASC' || dirParam === 'DESC' ? dirParam : sortDef.defaultDir;
+        const order = [sequelize.literal(`${sortDef.expr} ${dir}${sortDef.nulls}`)];
+        if (sortKey !== 'newest') order.push(['createdAt', 'DESC']);
+
         const { rows, count } = await Debtor.findAndCountAll({
             where,
-            order: [['createdAt', 'DESC']],
+            order,
             limit: SEARCH_LIMIT,
             offset,
         });
