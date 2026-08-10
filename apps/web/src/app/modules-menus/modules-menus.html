@@ -178,11 +178,15 @@
           }
         } @else {
           <!-- TREE view (adjacency list). Drag reorders within a level; a node's
-               children render nested. Re-parent via the menu dialog's Parent field. -->
+               children render nested. Re-parent via the menu dialog's Parent
+               field - never by drag: the boundary pins the dragged row inside
+               its OWN sibling list (the closest .mm-tree-list), so it can't
+               even hover over another level/section, and the vertical lock
+               keeps it in the column. -->
           <ng-template #menuNodes let-nodes>
             <div cdkDropList [cdkDropListData]="nodes" (cdkDropListDropped)="dropMenu($event)" class="mm-tree-list">
               @for (node of nodes; track node.menu.id) {
-                <div cdkDrag class="mm-tree-node">
+                <div cdkDrag cdkDragLockAxis="y" cdkDragBoundary=".mm-tree-list" class="mm-tree-node">
                   <div class="mm-menu-row" [class.mm-row--active]="editingMenuId() === node.menu.id">
                     <button type="button" cdkDragHandle class="mm-grip" aria-label="Reorder menu">
                       <span class="material-icons" aria-hidden="true">drag_indicator</span>

@@ -604,7 +604,12 @@ export class ModulesMenusComponent implements OnInit {
 
   // Reorder menus within one level (same parent). CDK mutates the bound sibling
   // array in place; we refresh the tree signal and persist the new sequence.
+  // Cross-level drops are impossible by construction (the level lists are not
+  // connected and cdkDragBoundary pins the row inside its own list), but the
+  // guard keeps a foreign container from ever rewriting this sibling set -
+  // re-parenting goes through the menu dialog's Parent field only.
   dropMenu(event: CdkDragDrop<MenuTreeNode[]>): void {
+    if (event.previousContainer !== event.container) return;
     if (event.previousIndex === event.currentIndex) return;
     moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
     this.tree.set([...this.tree()]); // array was mutated in place — refresh view
