@@ -41,6 +41,17 @@ const Module = sequelize.define('Module', {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false
+    },
+    // Who the module serves. 'tenant' modules are the subscriber-facing catalogue
+    // (entitlable via CompanyModule; isSystem tenant modules are always entitled).
+    // 'platform' modules (SaaS Administration) exist ONLY for platform users
+    // (CompanyUser.companyId NULL): never offered to or entitled by tenants, and
+    // only platform roles can be granted their menus. Seeded at boot by
+    // ensurePlatformNav(); never deletable, base name locked (routing key).
+    audience: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+        defaultValue: 'tenant' // 'tenant' | 'platform'
     }
 });
 

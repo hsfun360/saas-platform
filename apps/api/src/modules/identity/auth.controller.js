@@ -506,14 +506,26 @@ async function buildWorkspaceMenus(roleId, companyId) {
     }
 
     if (!companyId) {
-        // System workspace: no entitlement gate. Pull the full menu set of the
-        // permitted menus' modules so ancestor sections can be resolved.
-        const moduleIds = [...new Set(permitted.map(m => m.moduleId))];
+        // System workspace: no entitlement gate - the catalogue is the
+        // platform-audience modules (SaaS Administration). The seeded
+        // "System Admin" role gets IMPLICIT full access to every platform menu
+        // (mirrors the Tenant Admin rule), so new platform screens appear
+        // without stored grants; other platform roles use their RoleMenu
+        // grants, restricted to platform-audience menus.
+        if (roleName === 'System Admin') {
+            const all = await Menu.findAll({
+                include: [{ model: Module, as: 'Module', where: { audience: 'platform' } }],
+            });
+            return { roleName, menus: all.map(m => mapMenuItem(m, true)) };
+        }
+
+        const platformPermitted = permitted.filter(m => m.Module && m.Module.audience === 'platform');
+        const moduleIds = [...new Set(platformPermitted.map(m => m.moduleId))];
         const all = moduleIds.length
             ? await Menu.findAll({ where: { moduleId: moduleIds }, include: [{ model: Module, as: 'Module' }] })
             : [];
         const allById = new Map(all.map(m => [m.id, m]));
-        return { roleName, menus: withAncestors(permitted, allById).map(m => mapMenuItem(m)) };
+        return { roleName, menus: withAncestors(platformPermitted, allById).map(m => mapMenuItem(m)) };
     }
 
     const subs = await CompanyModule.findAll({ where: { companyId }, attributes: ['moduleId'] });

@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
   Role,
+  RoleDetail,
   CreateRoleRequest,
   UpdateRoleRequest,
   CreateUserData,
@@ -62,6 +63,11 @@ export class AdminService {
 
   updateRole(id: string, roleData: UpdateRoleRequest): Observable<{ message: string; role: Role }> {
     return this.http.put<{ message: string; role: Role }>(`${this.apiBaseUrl}/roles/${id}`, roleData);
+  }
+
+  // One platform role + its exact grants (action flags) - prefills the edit dialog.
+  getRoleDetail(id: string): Observable<RoleDetail> {
+    return this.http.get<RoleDetail>(`${this.apiBaseUrl}/roles/${id}`);
   }
 
   deleteRole(id: string): Observable<{ message: string }> {

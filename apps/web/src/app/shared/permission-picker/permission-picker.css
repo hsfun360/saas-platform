@@ -1,0 +1,212 @@
+/* ============ Role-builder permission picker (shared) ============
+   One collapsible card per module: header = tri-state select-all + name +
+   "x of y selected" + chevron; body = the module's menu tree. Group menus
+   render as indented section headings (own select-all, not grantable);
+   leaves are checkbox rows with the menu description on a second line.
+   Moved here from role-management.css when the picker was shared with the
+   platform System Roles editor. All colours are theme tokens. */
+
+/* Catalogue search — icon left, optional clear (✕) right. */
+.perm-search {
+  position: relative;
+  margin-bottom: var(--space-md);
+}
+.perm-search__icon {
+  position: absolute;
+  left: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.perm-search__input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px; /* ≥16px font below avoids iOS zoom on focus */
+  padding: var(--space-sm) 40px var(--space-sm) 38px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font-size: var(--font-body);
+  background: var(--surface-card);
+  color: var(--text-primary);
+}
+.perm-search__clear {
+  position: absolute;
+  right: var(--space-xs);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.perm-search__clear:hover {
+  background: var(--surface-sunken);
+}
+
+.perm-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: var(--space-sm);
+}
+
+.perm-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--surface-sunken);
+  padding-left: var(--space-md);
+}
+
+/* The header's expand/collapse hit area: everything except the checkbox. */
+.perm-card__toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md) var(--space-sm) var(--space-xs);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary);
+  font-size: var(--font-body);
+}
+
+.perm-card__name {
+  font-weight: var(--weight-bold);
+  min-width: 0;
+}
+
+.perm-card__count {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.perm-card__toggle .material-icons {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.perm-card__body {
+  padding: var(--space-xs) var(--space-md) var(--space-sm);
+  border-top: 1px solid var(--border);
+}
+
+.perm-check {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--brand);
+}
+
+/* Grouping menu: section heading + its own select-all. */
+.perm-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  padding: var(--space-xs) 0;
+  color: var(--text-secondary);
+  font-weight: var(--weight-semibold);
+}
+
+.perm-group__name {
+  min-width: 0;
+}
+
+/* Selectable menu row: the View grant (checkbox + icon + name + description)
+   on the left, the Create/Edit/Delete refinement toggles right-aligned; the
+   toggles wrap to their own line when the row runs out of width (mobile). */
+.perm-leaf {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
+  padding: var(--space-xs) 0;
+  color: var(--text-secondary);
+}
+
+.perm-leaf__view {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+/* Keep checkbox and icon aligned with the name's first line. */
+.perm-leaf__view .perm-check,
+.perm-leaf__view .perm-row__icon {
+  margin-top: 2px;
+}
+
+/* The per-menu action toggles (only rendered while View is granted). */
+.perm-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+  margin-left: auto;
+  min-height: 44px;
+}
+
+.perm-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  cursor: pointer;
+  font-size: var(--font-caption);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.perm-action input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--brand);
+}
+
+.perm-row__icon {
+  font-size: 18px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.perm-leaf__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.perm-leaf__name {
+  color: var(--text-primary);
+}
+
+.perm-leaf__desc {
+  font-size: var(--font-body-2);
+  color: var(--text-muted);
+}
+
+.perm-summary {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--font-body-2);
+  color: var(--text-muted);
+}

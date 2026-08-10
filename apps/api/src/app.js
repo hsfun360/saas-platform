@@ -340,6 +340,11 @@ async function initializeDB() {
         // row created before the flag existed.
         await require('./modules/saas/provisioning.service').ensureSystemModules();
 
+        // Ensure the platform "SaaS Administration" Module + Menu tree exists
+        // (idempotent) and clear the master role's legacy grants - the platform
+        // shell is DB-menu-driven like every tenant module.
+        await require('./modules/saas/platformNav.seed').ensurePlatformNav();
+
         await seedDatabase();
 
     } catch (error) {

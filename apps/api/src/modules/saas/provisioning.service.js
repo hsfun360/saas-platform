@@ -43,7 +43,7 @@ async function ensureSystemModules() {
 // provisionTenant() itself.
 async function listEntitlableModules(transaction) {
     return Module.findAll({
-        where: { isSystem: false },
+        where: { isSystem: false, audience: 'tenant' },
         attributes: ['id', 'name', 'icon', 'description'],
         order: [['name', 'ASC']],
         transaction,
@@ -88,12 +88,13 @@ async function provisionTenant(
     }, { transaction });
 
     // D. Module entitlements. Only ids that exist are accepted - a bogus id in
-    // the request must not create a dangling entitlement row. System modules
-    // are ALWAYS added on top of the selection: without them the Tenant Admin
+    // the request must not create a dangling entitlement row (and platform-
+    // audience modules are never entitlable to a tenant). System modules are
+    // ALWAYS added on top of the selection: without them the Tenant Admin
     // would have no System Setup screens to manage the tenant.
     const requestedIds = Array.isArray(moduleIds) ? [...new Set(moduleIds)] : [];
     const valid = requestedIds.length > 0
-        ? await Module.findAll({ where: { id: requestedIds }, attributes: ['id'], transaction })
+        ? await Module.findAll({ where: { id: requestedIds, audience: 'tenant' }, attributes: ['id'], transaction })
         : [];
     const entitledIds = new Set(valid.map(m => m.id));
     const systemModules = await Module.findAll({ where: { isSystem: true }, attributes: ['id'], transaction });

@@ -50,14 +50,52 @@ async function wouldCreateCycle(menuId, newParentId, moduleId) {
 
 // --- 1. ROLE MANAGEMENT ---
 
+// Normalize a role's grant payload to [{ menuId, canCreate, canEdit, canDelete }],
+// same contract as the tenant role endpoints (tenant.controller.normalizeGrants):
+// `permissions` with missing flags defaulting TRUE, legacy `menuIds` = full
+// access. Deduped by menuId, last entry wins.
+function normalizeGrants(body) {
+    const byMenu = new Map();
+    if (Array.isArray(body.permissions)) {
+        for (const p of body.permissions) {
+            if (!p || typeof p.menuId !== 'string' || !p.menuId) continue;
+            byMenu.set(p.menuId, {
+                menuId: p.menuId,
+                canCreate: p.canCreate !== false,
+                canEdit: p.canEdit !== false,
+                canDelete: p.canDelete !== false,
+            });
+        }
+    } else if (Array.isArray(body.menuIds)) {
+        for (const menuId of body.menuIds) {
+            if (typeof menuId !== 'string' || !menuId) continue;
+            byMenu.set(menuId, { menuId, canCreate: true, canEdit: true, canDelete: true });
+        }
+    }
+    return [...byMenu.values()];
+}
+
+const DATA_SCOPES = ['own', 'department', 'all'];
+
+// A platform role may only be granted PLATFORM-audience menus (SaaS
+// Administration) - tenant product menus mean nothing in the SYSTEM workspace.
+async function countPlatformMenus(menuIds, transaction) {
+    return Menu.count({
+        where: { id: menuIds },
+        include: [{ model: Module, as: 'Module', where: { audience: 'platform' }, attributes: [] }],
+        transaction,
+    });
+}
+
 // POST /api/admin/roles
-// Body: { name, description?, menuIds?: string[] }
-// Creates a PLATFORM (system) role (accountId NULL) and (optionally) grants it the
-// selected menu permissions, both in a single transaction.
+// Body: { name, description?, dataScope?, permissions: [{ menuId, canCreate?, canEdit?, canDelete? }] }
+// (legacy `menuIds: string[]` still accepted = full access per menu)
+// Creates a PLATFORM (system) role (accountId NULL) and grants it the selected
+// menu permissions, both in a single transaction.
 exports.createRole = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
-        const { name, description, menuIds } = req.body;
+        const { name, description } = req.body;
 
         if (!name) {
             await transaction.rollback();
@@ -74,16 +112,30 @@ exports.createRole = async (req, res) => {
             return res.status(409).json({ message: "Role already exists for this workspace." });
         }
 
+        const grants = normalizeGrants(req.body);
+        if (grants.length > 0) {
+            const found = await countPlatformMenus(grants.map(g => g.menuId), transaction);
+            if (found !== grants.length) {
+                await transaction.rollback();
+                return res.status(400).json({ message: "One or more selected menus do not exist in the platform catalogue." });
+            }
+        }
+
+        const dataScope = typeof req.body.dataScope === 'string' ? req.body.dataScope : 'all';
+        if (!DATA_SCOPES.includes(dataScope)) {
+            await transaction.rollback();
+            return res.status(400).json({ message: "Data scope must be one of: own, department, all." });
+        }
+
         const newRole = await Role.create({
             name,
             description,
+            dataScope,
             accountId: null,
         }, { transaction });
 
-        // Grant the selected menu permissions via the RoleMenu junction table.
-        if (Array.isArray(menuIds) && menuIds.length > 0) {
-            const roleMenuData = menuIds.map(menuId => ({ roleId: newRole.id, menuId }));
-            await RoleMenu.bulkCreate(roleMenuData, { transaction });
+        if (grants.length > 0) {
+            await RoleMenu.bulkCreate(grants.map(g => ({ roleId: newRole.id, ...g })), { transaction });
         }
 
         await transaction.commit();
@@ -93,6 +145,39 @@ exports.createRole = async (req, res) => {
             await transaction.rollback();
         }
         console.error("Error creating role:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// GET /api/admin/roles/:id -> one platform role + the exact grants it holds
+// (mirrors the tenant GET /auth/account/roles/:roleId, for the edit dialog).
+exports.getRoleDetail = async (req, res) => {
+    try {
+        const role = await Role.findOne({
+            where: { id: req.params.id, accountId: null },
+            attributes: ['id', 'name', 'description', 'dataScope'],
+        });
+        if (!role) return res.status(404).json({ message: "Role not found." });
+
+        const grants = await RoleMenu.findAll({
+            where: { roleId: role.id },
+            attributes: ['menuId', 'canCreate', 'canEdit', 'canDelete'],
+        });
+        res.status(200).json({
+            id: role.id,
+            name: role.name,
+            description: role.description,
+            dataScope: role.dataScope || 'all',
+            menuIds: grants.map(g => g.menuId), // legacy shape, kept for older clients
+            permissions: grants.map(g => ({
+                menuId: g.menuId,
+                canCreate: g.canCreate,
+                canEdit: g.canEdit,
+                canDelete: g.canDelete,
+            })),
+        });
+    } catch (error) {
+        console.error("Error fetching role detail:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
@@ -120,14 +205,15 @@ exports.getRoles = async (req, res) => {
 };
 
 // PUT /api/admin/roles/:id
-// Update a system role's name/description and its menu permissions (diff-based
-// add/revoke). The seeded "System Admin" role is system-managed and rejected -
-// renaming it would break the DB-backed admin check, and narrowing its menus
-// could lock every admin out.
+// Body: { name?, description?, dataScope?, permissions: [{ menuId, canCreate?, canEdit?, canDelete? }] }
+// (legacy `menuIds: string[]` still accepted = full access per menu)
+// The seeded "System Admin" role is system-managed and rejected - renaming it
+// would break the DB-backed admin check (and it has implicit full access, so
+// there is nothing to grant).
 exports.updateRole = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
-        const { name, description, menuIds } = req.body;
+        const { name, description } = req.body;
 
         const role = await Role.findOne({ where: { id: req.params.id, accountId: null }, transaction });
         if (!role) {
@@ -151,28 +237,35 @@ exports.updateRole = async (req, res) => {
         if (typeof description === 'string') {
             role.description = description.trim() || null;
         }
+        if (typeof req.body.dataScope === 'string') {
+            if (!DATA_SCOPES.includes(req.body.dataScope)) {
+                await transaction.rollback();
+                return res.status(400).json({ message: "Data scope must be one of: own, department, all." });
+            }
+            role.dataScope = req.body.dataScope;
+        }
         await role.save({ transaction });
 
-        // Menu permissions -> exact set (validated), applied as a minimal diff.
-        if (Array.isArray(menuIds)) {
-            const desired = [...new Set(menuIds)];
-            if (desired.length > 0) {
-                const found = await Menu.count({ where: { id: desired }, transaction });
-                if (found !== desired.length) {
+        // Menu permissions -> exact set (validated against the platform
+        // catalogue), replaced whole now that each grant carries action flags
+        // (same approach as the tenant updateAccountRole).
+        if (Array.isArray(req.body.permissions) || Array.isArray(req.body.menuIds)) {
+            const grants = normalizeGrants(req.body);
+            if (grants.length > 0) {
+                const found = await countPlatformMenus(grants.map(g => g.menuId), transaction);
+                if (found !== grants.length) {
                     await transaction.rollback();
-                    return res.status(400).json({ message: "One or more selected menus do not exist." });
+                    return res.status(400).json({ message: "One or more selected menus do not exist in the platform catalogue." });
                 }
             }
-            const current = await RoleMenu.findAll({ where: { roleId: role.id }, attributes: ['menuId'], transaction });
-            const currentIds = current.map(c => c.menuId);
-            const toAdd = desired.filter(id => !currentIds.includes(id));
-            const toRemove = currentIds.filter(id => !desired.includes(id));
-            if (toAdd.length > 0) await RoleMenu.bulkCreate(toAdd.map(menuId => ({ roleId: role.id, menuId })), { transaction });
-            if (toRemove.length > 0) await RoleMenu.destroy({ where: { roleId: role.id, menuId: toRemove }, transaction });
+            await RoleMenu.destroy({ where: { roleId: role.id }, transaction });
+            if (grants.length > 0) {
+                await RoleMenu.bulkCreate(grants.map(g => ({ roleId: role.id, ...g })), { transaction });
+            }
         }
 
         await transaction.commit();
-        res.status(200).json({ message: "Role updated.", role: { id: role.id, name: role.name, description: role.description } });
+        res.status(200).json({ message: "Role updated.", role: { id: role.id, name: role.name, description: role.description, dataScope: role.dataScope } });
     } catch (error) {
         if (transaction && !transaction.finished) await transaction.rollback();
         console.error("Error updating role:", error);
@@ -220,7 +313,7 @@ exports.deleteRole = async (req, res) => {
 exports.listModules = async (req, res) => {
     try {
         const modules = await Module.findAll({
-            attributes: ['id', 'name', 'names', 'icon', 'description', 'landingRoute', 'isSystem'],
+            attributes: ['id', 'name', 'names', 'icon', 'description', 'landingRoute', 'isSystem', 'audience'],
             order: [['name', 'ASC']],
         });
         res.status(200).json(modules);
@@ -231,14 +324,14 @@ exports.listModules = async (req, res) => {
 };
 
 // GET /api/admin/menus
-// Returns every menu (grouped by module via the included Module) so the admin
-// can pick permissions when creating a system role. Unlike the tenant endpoint,
-// this is NOT filtered by company subscription.
+// The permission catalogue for the platform role builder: PLATFORM-audience
+// menus only (SaaS Administration) - a platform role manages the control
+// plane, never tenant product screens (role-separation rule).
 exports.listMenus = async (req, res) => {
     try {
         const menus = await Menu.findAll({
-            include: [{ model: Module, as: 'Module', attributes: ['name', 'icon'] }],
-            order: [['moduleId', 'ASC'], ['name', 'ASC']],
+            include: [{ model: Module, as: 'Module', attributes: ['name', 'icon'], where: { audience: 'platform' } }],
+            order: [['moduleId', 'ASC'], ['sequence', 'ASC'], ['name', 'ASC']],
         });
         res.status(200).json(menus);
     } catch (error) {
@@ -286,10 +379,10 @@ exports.updateModule = async (req, res) => {
         if (typeof req.body.name === 'string' && req.body.name.trim()) {
             const name = req.body.name.trim();
             if (name !== module.name) {
-                // A system module's base name is a code-level identifier (the
-                // boot-time isSystem stamp and frontend gating key on it) —
+                // A system/platform module's base name is a code-level identifier
+                // (the boot-time stamps and frontend gating keys on it) —
                 // localized display names stay editable, the base name does not.
-                if (module.isSystem) {
+                if (module.isSystem || module.audience === 'platform') {
                     return res.status(400).json({ message: "This is a system module - its base name cannot be changed. Edit the translated names instead." });
                 }
                 const dup = await Module.findOne({ where: { name } });
@@ -324,8 +417,10 @@ exports.deleteModule = async (req, res) => {
         }
 
         // System modules are platform infrastructure (every tenant is entitled
-        // to them by provisioning) - never deletable, like a system Role.
-        if (module.isSystem) {
+        // to them by provisioning) - never deletable, like a system Role. The
+        // platform-audience module (SaaS Administration) IS the platform's own
+        // navigation - deleting it would kill the admin shell.
+        if (module.isSystem || module.audience === 'platform') {
             await transaction.rollback();
             return res.status(400).json({ message: "This is a system module and cannot be deleted." });
         }

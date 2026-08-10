@@ -10,10 +10,12 @@ import { TranslatePipe } from '../i18n/translate.pipe';
 import { HelpButtonComponent } from '../shared/help-button/help-button';
 import { MenuItem, WorkspaceOption, MyInvitation, Language } from '../models/auth.models';
 
-// Translation keys for CODE-DEFINED nav labels (the hardcoded admin menus below +
-// the module grouping names). DB-driven menus/modules carry their own `names`
-// JSONB and don't need an entry here. Anything not listed falls back to its
-// English name. Keys live in public/i18n/*.json under the `nav.` namespace.
+// Translation keys for nav labels whose DB row has no localized `names` entry
+// for the active language (e.g. the boot-seeded SaaS Administration menus ship
+// base English names only). Resolution order is names[lang] -> this dictionary
+// -> the base name, so a subscriber-maintained translation always wins.
+// Anything not listed falls back to its English name. Keys live in
+// public/i18n/*.json under the `nav.` namespace.
 const NAV_KEYS: Record<string, string> = {
   // Modules (apps switcher / grouping)
   'SaaS Administration': 'nav.mod.saasAdmin',
@@ -186,38 +188,11 @@ export class Dashboard implements OnInit, OnDestroy {
       }));
     }
 
-    // The Tenant-Admin "System Setup" nav is now a real DB Module + Menus (added
-    // manually), delivered through the login response's `menus` (RBAC-filtered) like
-    // any product module — so it is no longer hardcoded here. See the
-    // system-setup-module-menus memory for the expected Module/Menu shape (routes,
-    // icons) if it ever needs re-seeding.
-
-    // System Admin gets the SaaS Administration (control plane) system + its menus.
-    // (Still hardcoded — not yet a DB Module.)
-    if (this.isSystemAdmin) {
-      // Modelled as an adjacency-list tree so this (the longest) sidebar stays
-      // tidy: two collapsible sections (Access, Reference data) plus two
-      // top-level items. Section headers carry no route (render as toggles).
-      const saas = { moduleName: 'SaaS Administration', moduleIcon: 'admin_panel_settings', Module: undefined };
-      this.allowedMenus.push(
-        { id: 'saas-subscribers', name: 'Subscriber Management', route: '/admin/subscribers', icon: 'groups', ...saas, parentId: null, sequence: 0 },
-        { id: 'saas-access', name: 'Access', route: '', icon: 'lock', ...saas, parentId: null, sequence: 1 },
-        { id: 'saas-roles', name: 'Roles', route: '/admin/system-roles', icon: 'badge', ...saas, parentId: 'saas-access', sequence: 0 },
-        { id: 'saas-users', name: 'Users', route: '/admin/platform-users', icon: 'person', ...saas, parentId: 'saas-access', sequence: 1 },
-        { id: 'saas-assign', name: 'Assign Role', route: '/admin/system-setup', icon: 'link', ...saas, parentId: 'saas-access', sequence: 2 },
-        { id: 'saas-unverified', name: 'Unverified Registrations', route: '/admin/unverified-users', icon: 'person_off', ...saas, parentId: 'saas-access', sequence: 3 },
-        { id: 'saas-audit', name: 'Audit Log', route: '/admin/audit-log', icon: 'history', ...saas, parentId: 'saas-access', sequence: 4 },
-        { id: 'saas-refdata', name: 'Reference data', route: '', icon: 'storage', ...saas, parentId: null, sequence: 2 },
-        { id: 'saas-countries', name: 'Countries', route: '/admin/countries', icon: 'public', ...saas, parentId: 'saas-refdata', sequence: 0 },
-        { id: 'saas-languages', name: 'Languages', route: '/admin/languages', icon: 'translate', ...saas, parentId: 'saas-refdata', sequence: 1 },
-        { id: 'saas-currencies', name: 'Currencies', route: '/admin/currencies', icon: 'payments', ...saas, parentId: 'saas-refdata', sequence: 2 },
-        { id: 'saas-config', name: 'Configuration', route: '', icon: 'settings', ...saas, parentId: null, sequence: 3 },
-        { id: 'saas-modules', name: 'Modules & Menus', route: '/admin/modules-menus', icon: 'category', ...saas, parentId: 'saas-config', sequence: 0 },
-        { id: 'saas-email-templates', name: 'Email Templates', route: '/admin/email-templates', icon: 'mail', ...saas, parentId: 'saas-config', sequence: 1 },
-        { id: 'saas-platform-tax', name: 'Platform Tax', route: '/admin/platform-tax', icon: 'receipt_long', ...saas, parentId: 'saas-config', sequence: 2 },
-        { id: 'saas-platform-profile', name: 'Platform Profile', route: '/admin/platform-profile', icon: 'store', ...saas, parentId: 'saas-config', sequence: 3 },
-      );
-    }
+    // EVERY system's nav - tenant modules AND the platform's SaaS Administration
+    // (a real DB Module, audience 'platform', boot-seeded by the API's
+    // ensurePlatformNav) - arrives through the login response's `menus`
+    // (RBAC-filtered). Nothing is hardcoded here anymore, so favorites,
+    // recents, guides and screen titles resolve on platform screens too.
 
     // Build the apps (systems) list from the granted menus, carrying each module's
     // localized names so the apps switcher can translate them.
@@ -232,7 +207,7 @@ export class Dashboard implements OnInit, OnDestroy {
     // Active system follows the URL (deep link / refresh / back-forward) so the
     // correct sidebar shows on load. We never auto-navigate here — that would
     // fight a deep link and surprise users on login.
-    const fallbackModule = this.isSystemAdmin ? 'SaaS Administration' : this.availableModules[0]?.name;
+    const fallbackModule = this.availableModules[0]?.name;
     const initialModule = this.moduleForUrl(this.router.url) || fallbackModule;
     if (initialModule) this.selectModule(initialModule, false);
 

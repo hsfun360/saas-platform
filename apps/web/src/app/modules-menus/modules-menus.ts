@@ -314,11 +314,13 @@ export class ModulesMenusComponent implements OnInit {
       description: m.description || '',
 
     });
-    // A system module's base name is a code-level identifier (mandatory-
-    // entitlement stamp + frontend gating key) - locked; translations stay
-    // editable. The backend enforces the same rule.
-    this.editingModuleIsSystem.set(!!m.isSystem);
-    if (m.isSystem) this.moduleForm.controls.name.disable();
+    // A system/platform module's base name is a code-level identifier
+    // (mandatory-entitlement stamp / platform-nav seed key + frontend gating
+    // key) - locked; translations stay editable. The backend enforces the
+    // same rule.
+    const nameLocked = !!m.isSystem || m.audience === 'platform';
+    this.editingModuleIsSystem.set(nameLocked);
+    if (nameLocked) this.moduleForm.controls.name.disable();
     else this.moduleForm.controls.name.enable();
     this.moduleDialogOpen.set(true);
   }

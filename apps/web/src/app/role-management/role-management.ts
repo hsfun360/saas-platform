@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -6,53 +6,7 @@ import { AuthService } from '../auth.service';
 import { MenuItem, Role, RoleDataScope, RoleMenuPermission } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
-
-// The action flags of one selected (View-granted) menu. A menu present in the
-// selection map = View; the flags refine Create/Edit/Delete. New grants start
-// with full access and the role builder unticks what the role shouldn't do.
-interface GrantFlags {
-  create: boolean;
-  edit: boolean;
-  delete: boolean;
-}
-
-const FULL_ACCESS: GrantFlags = { create: true, edit: true, delete: true };
-
-// A node in one module's permission tree (adjacency list over Menu.parentId).
-// A node with children is a pure grouping section — it is NOT selectable: the
-// backend re-adds ancestor sections of any granted menu at login, so a role
-// only ever needs (and only ever stores) its leaf menus.
-interface PermTreeNode {
-  menu: MenuItem;
-  children: PermTreeNode[];
-}
-
-// One module's permission tree, as loaded (unfiltered).
-interface PermModule {
-  name: string;
-  roots: PermTreeNode[];
-}
-
-// A flattened display row of the (possibly search-filtered) tree. `leafIds`
-// is the row's selectable leaf set: the leaf itself, or every leaf underneath
-// a group row — what its checkbox toggles and its tri-state derives from.
-interface PermRow {
-  id: string;
-  name: string;
-  description: string | null;
-  icon: string;
-  depth: number;
-  group: boolean;
-  leafIds: string[];
-}
-
-// A module card as rendered: filtered rows, but counts over the FULL leaf set
-// so "x of y selected" stays truthful while a search narrows the rows.
-interface PermModuleView {
-  name: string;
-  rows: PermRow[];
-  leafIds: string[];
-}
+import { FULL_ACCESS, GrantFlags, PermissionPickerComponent } from '../shared/permission-picker/permission-picker';
 
 // Account-level Role Management. A Role is just a named set of menu permissions
 // (RBAC) — NOT tied to a company. Company enters only at entitlement (module
@@ -61,12 +15,13 @@ interface PermModuleView {
 //
 // The name/description dialog is a typed Reactive Form (canonical reference:
 // platform-users); validators live on the controls and `roleForm.dirty` feeds
-// the shared dialog's unsaved-changes guard. The menu/permission checkboxes are
-// managed separately (a signal-held Set), not part of the form.
+// the shared dialog's unsaved-changes guard. The menu/permission selection is
+// the SHARED <app-permission-picker> (also used by the platform System Roles
+// editor), bound to the `selectedGrants` map signal.
 @Component({
   selector: 'app-role-management',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PermissionPickerComponent],
   templateUrl: './role-management.html',
   styleUrls: ['./role-management.css'],
 })
@@ -98,69 +53,16 @@ export class RoleManagementComponent implements OnInit {
     );
   });
 
-  // The account's entitled menu catalogue, loaded once; everything the
-  // permission picker shows derives from it.
+  // The account's entitled menu catalogue, loaded once; the picker's input.
   accountMenus = signal<MenuItem[]>([]);
   menusLoading = signal(false);
 
-  // menuId -> action flags. A key existing = the role may VIEW that menu.
+  // menuId -> action flags (the picker's two-way model). A key existing = the
+  // role may VIEW that menu. Group grants loaded from an old role are tolerated:
+  // the picker ignores them and strips them from the save payload.
   selectedGrants = signal<ReadonlyMap<string, GrantFlags>>(new Map<string, GrantFlags>());
 
-  // Live filter over the permission catalogue (menu name / description /
-  // module name). While searching, every matching card renders expanded.
-  permSearch = signal('');
-
-  // Module cards the user has expanded (all start collapsed on dialog open).
-  expandedModules = signal<ReadonlySet<string>>(new Set<string>());
-
-  // The catalogue as one permission tree per module (unfiltered).
-  readonly permModules = computed<PermModule[]>(() => this.buildModuleTrees(this.accountMenus()));
-
-  // Grouping (non-leaf) menu ids — never granted; stripped from loaded roles
-  // and from the save payload so legacy parent grants age out on next save.
-  readonly groupIds = computed<ReadonlySet<string>>(() => {
-    const ids = new Set<string>();
-    const walk = (node: PermTreeNode) => {
-      if (!node.children.length) return;
-      if (node.menu.id) ids.add(node.menu.id);
-      node.children.forEach(walk);
-    };
-    for (const mod of this.permModules()) mod.roots.forEach(walk);
-    return ids;
-  });
-
-  // The module cards as rendered: search-filtered rows, full-set counts.
-  readonly visiblePermModules = computed<PermModuleView[]>(() => {
-    const query = this.permSearch().trim().toLowerCase();
-    const view: PermModuleView[] = [];
-    for (const mod of this.permModules()) {
-      const roots = !query || mod.name.toLowerCase().includes(query)
-        ? mod.roots
-        : this.filterNodes(mod.roots, query);
-      if (!roots.length) continue;
-      view.push({
-        name: mod.name,
-        rows: this.flattenNodes(roots),
-        leafIds: mod.roots.flatMap((r) => this.leafIdsOf(r)),
-      });
-    }
-    return view;
-  });
-
-  // "N menus across M modules" — the outcome preview shown next to Save.
-  readonly selectionSummary = computed(() => {
-    const selected = this.selectedGrants();
-    let menus = 0;
-    let modules = 0;
-    for (const mod of this.permModules()) {
-      const count = mod.roots.flatMap((r) => this.leafIdsOf(r)).filter((id) => selected.has(id)).length;
-      if (count > 0) {
-        modules++;
-        menus += count;
-      }
-    }
-    return { menus, modules };
-  });
+  private readonly picker = viewChild(PermissionPickerComponent);
 
   // Edit mode: null = creating; otherwise the id of the role being edited.
   editingRoleId = signal<string | null>(null);
@@ -208,178 +110,17 @@ export class RoleManagementComponent implements OnInit {
     this.roleSearch.set('');
   }
 
-  clearPermSearch() {
-    this.permSearch.set('');
-  }
-
-  // ---------- Permission tree building (module → nested groups → leaves) ----------
-
-  // Group the flat catalogue by module (first-seen order) and build each
-  // module's adjacency tree, siblings ordered by sequence then name — the same
-  // shape the sidebar renders. A menu whose parent isn't in the set roots itself.
-  private buildModuleTrees(menus: MenuItem[]): PermModule[] {
-    const byModule = new Map<string, MenuItem[]>();
-    for (const menu of menus) {
-      const modName = menu.Module?.name || 'Uncategorized';
-      if (!byModule.has(modName)) byModule.set(modName, []);
-      byModule.get(modName)!.push(menu);
-    }
-
-    const bySeq = (a: PermTreeNode, b: PermTreeNode) =>
-      (a.menu.sequence || 0) - (b.menu.sequence || 0) || a.menu.name.localeCompare(b.menu.name);
-
-    const out: PermModule[] = [];
-    for (const [name, list] of byModule) {
-      const nodes = new Map<string, PermTreeNode>();
-      for (const m of list) if (m.id) nodes.set(m.id, { menu: m, children: [] });
-      const roots: PermTreeNode[] = [];
-      for (const m of list) {
-        if (!m.id) continue;
-        const node = nodes.get(m.id)!;
-        const parent = m.parentId ? nodes.get(m.parentId) : undefined;
-        if (parent && parent !== node) parent.children.push(node);
-        else roots.push(node);
-      }
-      const sortRec = (ns: PermTreeNode[]) => {
-        ns.sort(bySeq);
-        ns.forEach((n) => sortRec(n.children));
-      };
-      sortRec(roots);
-      out.push({ name, roots });
-    }
-    return out;
-  }
-
-  // Keep nodes whose name/description matches (whole subtree stays), or that
-  // still have matching descendants (pruned to them).
-  private filterNodes(nodes: PermTreeNode[], query: string): PermTreeNode[] {
-    const out: PermTreeNode[] = [];
-    for (const node of nodes) {
-      const text = `${node.menu.name} ${node.menu.description || ''}`.toLowerCase();
-      if (text.includes(query)) {
-        out.push(node);
-        continue;
-      }
-      const children = this.filterNodes(node.children, query);
-      if (children.length) out.push({ menu: node.menu, children });
-    }
-    return out;
-  }
-
-  // Every selectable (leaf) menu id at or under a node.
-  private leafIdsOf(node: PermTreeNode): string[] {
-    if (!node.children.length) return node.menu.id ? [node.menu.id] : [];
-    return node.children.flatMap((c) => this.leafIdsOf(c));
-  }
-
-  // Depth-first flatten of a (filtered) tree into indented display rows.
-  private flattenNodes(roots: PermTreeNode[]): PermRow[] {
-    const rows: PermRow[] = [];
-    const walk = (node: PermTreeNode, depth: number) => {
-      if (!node.menu.id) return;
-      rows.push({
-        id: node.menu.id,
-        name: node.menu.name,
-        description: node.menu.description || null,
-        icon: node.menu.icon || 'folder',
-        depth,
-        group: node.children.length > 0,
-        leafIds: this.leafIdsOf(node),
-      });
-      node.children.forEach((c) => walk(c, depth + 1));
-    };
-    roots.forEach((r) => walk(r, 0));
-    return rows;
-  }
-
-  // ---------- Selection state ----------
-
-  // Tri-state over a leaf set: drives [checked] / [indeterminate].
-  selState(leafIds: string[]): 'all' | 'some' | 'none' {
-    if (!leafIds.length) return 'none';
-    const selected = this.selectedGrants();
-    let hit = 0;
-    for (const id of leafIds) if (selected.has(id)) hit++;
-    return hit === leafIds.length ? 'all' : hit > 0 ? 'some' : 'none';
-  }
-
-  selectedIn(leafIds: string[]): number {
-    const selected = this.selectedGrants();
-    return leafIds.filter((id) => selected.has(id)).length;
-  }
-
-  isSelected(menuId: string): boolean {
-    return this.selectedGrants().has(menuId);
-  }
-
-  actionAllowed(menuId: string, action: keyof GrantFlags): boolean {
-    const flags = this.selectedGrants().get(menuId);
-    return !!flags && flags[action];
-  }
-
-  // Select-all semantics: not-yet-complete (none or some) selects the rest
-  // (new grants start as full access, already-selected rows keep their flags);
-  // fully selected clears.
-  toggleAll(leafIds: string[]) {
-    const next = new Map(this.selectedGrants());
-    const complete = leafIds.length > 0 && leafIds.every((id) => next.has(id));
-    for (const id of leafIds) {
-      if (complete) next.delete(id);
-      else if (!next.has(id)) next.set(id, { ...FULL_ACCESS });
-    }
-    this.selectedGrants.set(next);
-  }
-
-  // Flip one action flag on a selected menu (the toggle only renders while the
-  // menu's View checkbox is ticked, so the grant always exists here).
-  toggleAction(menuId: string, action: keyof GrantFlags) {
-    const current = this.selectedGrants().get(menuId);
-    if (!current) return;
-    const next = new Map(this.selectedGrants());
-    next.set(menuId, { ...current, [action]: !current[action] });
-    this.selectedGrants.set(next);
-  }
-
-  isExpanded(moduleName: string): boolean {
-    // A live search auto-expands every (matching) card.
-    return this.permSearch().trim() !== '' || this.expandedModules().has(moduleName);
-  }
-
-  toggleModuleExpanded(moduleName: string) {
-    const next = new Set(this.expandedModules());
-    if (next.has(moduleName)) next.delete(moduleName);
-    else next.add(moduleName);
-    this.expandedModules.set(next);
-  }
-
   // Show a control's validation message once the user has interacted with it
   // (or after a submit attempt marks everything touched).
   showError(control: AbstractControl): boolean {
     return control.invalid && control.touched;
   }
 
-  // Toggle a menu's View grant. Selecting starts as full access (untick
-  // actions to restrict); deselecting drops the whole grant.
-  toggleMenu(menuId: string) {
-    const next = new Map(this.selectedGrants());
-    if (next.has(menuId)) next.delete(menuId);
-    else next.set(menuId, { ...FULL_ACCESS });
-    this.selectedGrants.set(next);
-  }
-
-  // Fresh picker state on every dialog open: nothing selected, every module
-  // card collapsed, no leftover search.
-  private resetPicker() {
-    this.selectedGrants.set(new Map<string, GrantFlags>());
-    this.expandedModules.set(new Set<string>());
-    this.permSearch.set('');
-  }
-
   openCreate() {
     this.clearMessages();
     this.editingRoleId.set(null);
     this.roleForm.reset({ roleName: '', roleDescription: '', dataScope: 'all' });
-    this.resetPicker();
+    this.selectedGrants.set(new Map<string, GrantFlags>());
     this.roleDialogOpen.set(true);
   }
 
@@ -390,24 +131,20 @@ export class RoleManagementComponent implements OnInit {
     this.editingRoleId.set(role.id);
     this.roleDialogOpen.set(true);
     this.roleForm.reset({ roleName: role.name, roleDescription: role.description || '', dataScope: role.dataScope || 'all' });
-    this.resetPicker();
+    this.selectedGrants.set(new Map<string, GrantFlags>());
 
     this.editLoading.set(true);
     this.authService.getRoleDetail(role.id).subscribe({
       next: (detail) => {
         this.roleForm.reset({ roleName: detail.name, roleDescription: detail.description || '', dataScope: detail.dataScope || 'all' });
-        // Drop legacy grants to grouping menus — sections are implied by their
-        // granted children (the backend re-adds ancestors at login).
-        const groups = this.groupIds();
         const next = new Map<string, GrantFlags>();
         if (detail.permissions) {
           for (const p of detail.permissions) {
-            if (groups.has(p.menuId)) continue;
             next.set(p.menuId, { create: p.canCreate !== false, edit: p.canEdit !== false, delete: p.canDelete !== false });
           }
         } else {
           // Older backend: menu ids only = full access per menu.
-          for (const id of detail.menuIds) if (!groups.has(id)) next.set(id, { ...FULL_ACCESS });
+          for (const id of detail.menuIds) next.set(id, { ...FULL_ACCESS });
         }
         this.selectedGrants.set(next);
         this.editLoading.set(false);
@@ -424,7 +161,7 @@ export class RoleManagementComponent implements OnInit {
     this.roleDialogOpen.set(false);
     this.editingRoleId.set(null);
     this.roleForm.reset({ roleName: '', roleDescription: '', dataScope: 'all' });
-    this.resetPicker();
+    this.selectedGrants.set(new Map<string, GrantFlags>());
   }
 
   onSubmit() {
@@ -434,14 +171,9 @@ export class RoleManagementComponent implements OnInit {
       this.roleForm.markAllAsTouched(); // reveal every field's error at once
       return;
     }
-    // Grouping menus are never granted (safety net for the race where a role
-    // loaded before the catalogue did, so group ids weren't stripped yet).
-    const groups = this.groupIds();
-    const permissions: RoleMenuPermission[] = [];
-    for (const [menuId, flags] of this.selectedGrants()) {
-      if (groups.has(menuId)) continue;
-      permissions.push({ menuId, canCreate: flags.create, canEdit: flags.edit, canDelete: flags.delete });
-    }
+    // The picker owns the leaf/group knowledge - it returns only grantable
+    // (leaf) permissions, so legacy group grants age out on the next save.
+    const permissions: RoleMenuPermission[] = this.picker()?.permissions() ?? [];
     if (permissions.length === 0) {
       this.errorMessage.set('Please select at least one menu permission.');
       return;

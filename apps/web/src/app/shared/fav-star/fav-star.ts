@@ -6,8 +6,8 @@ import { FavoritesService } from '../../services/favorites.service';
 // The bookmark star beside a screen's title: click to pin/unpin the screen on
 // My Dashboard's Quick access. Drop `<app-fav-star />` inside the header <h1>,
 // right after the screenTitle - the same per-screen convention as the title
-// pipes. Renders NOTHING when the current route isn't menu-backed (hardcoded
-// admin screens, portals), so only grantable screens can be starred.
+// pipes. Renders NOTHING when the current route isn't menu-backed (portals,
+// samples), so only grantable screens can be starred.
 @Component({
   selector: 'app-fav-star',
   standalone: true,

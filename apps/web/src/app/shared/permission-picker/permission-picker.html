@@ -1,0 +1,114 @@
+@if (loading()) {
+  <p style="color: var(--text-muted);">Loading menus…</p>
+} @else if (permModules().length === 0) {
+  <p style="color: var(--text-muted);">{{ emptyMessage() }}</p>
+} @else {
+  <!-- Live filter over the whole permission catalogue. Matching module
+       cards render expanded while a query is active. -->
+  <div class="perm-search">
+    <span class="material-icons perm-search__icon" aria-hidden="true">search</span>
+    <input #permSearchBox type="search" [value]="permSearch()" (input)="permSearch.set(permSearchBox.value)"
+           placeholder="Search menus…" aria-label="Search menu permissions" class="perm-search__input">
+    @if (permSearch()) {
+      <button type="button" class="perm-search__clear" (click)="clearPermSearch()" aria-label="Clear menu search">
+        <span class="material-icons" aria-hidden="true">close</span>
+      </button>
+    }
+  </div>
+
+  @if (visiblePermModules().length === 0) {
+    <div style="text-align: center; padding: var(--space-lg) var(--space-md); color: var(--text-muted);">
+      <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: var(--border-strong);">search_off</span>
+      <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">No menus match “{{ permSearch() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearPermSearch()">Clear search</button>
+    </div>
+  }
+
+  @for (mod of visiblePermModules(); track mod.name) {
+    <div class="perm-card">
+      <div class="perm-card__header">
+        <input type="checkbox" class="perm-check"
+               [checked]="selState(mod.leafIds) === 'all'"
+               [indeterminate]="selState(mod.leafIds) === 'some'"
+               [disabled]="mod.leafIds.length === 0"
+               (change)="toggleAll(mod.leafIds)"
+               [attr.aria-label]="'Select all menus in ' + mod.name">
+        <button type="button" class="perm-card__toggle" (click)="toggleModuleExpanded(mod.name)"
+                [attr.aria-expanded]="isExpanded(mod.name)">
+          <span class="perm-card__name">{{ mod.name }}</span>
+          <span class="perm-card__count">{{ selectedIn(mod.leafIds) }} of {{ mod.leafIds.length }} selected</span>
+          <span class="material-icons" aria-hidden="true">{{ isExpanded(mod.name) ? 'expand_less' : 'expand_more' }}</span>
+        </button>
+      </div>
+
+      @if (isExpanded(mod.name)) {
+        <div class="perm-card__body">
+          @for (row of mod.rows; track row.id) {
+            @if (row.group) {
+              <!-- Grouping menu: a section heading with its own select-all,
+                   not a grantable permission (ancestors are implied). -->
+              <div class="perm-group" [style.padding-left.px]="row.depth * 24">
+                <input type="checkbox" class="perm-check"
+                       [checked]="selState(row.leafIds) === 'all'"
+                       [indeterminate]="selState(row.leafIds) === 'some'"
+                       (change)="toggleAll(row.leafIds)"
+                       [attr.aria-label]="'Select all menus in ' + row.name">
+                <span class="material-icons perm-row__icon" aria-hidden="true">{{ row.icon }}</span>
+                <span class="perm-group__name">{{ row.name }}</span>
+              </div>
+            } @else {
+              <div class="perm-leaf" [style.padding-left.px]="row.depth * 24">
+                <label class="perm-leaf__view">
+                  <input type="checkbox" class="perm-check"
+                         [checked]="isSelected(row.id)"
+                         (change)="toggleMenu(row.id)">
+                  <span class="material-icons perm-row__icon" aria-hidden="true">{{ row.icon }}</span>
+                  <span class="perm-leaf__text">
+                    <span class="perm-leaf__name">{{ row.name }}</span>
+                    @if (row.description) {
+                      <span class="perm-leaf__desc">{{ row.description }}</span>
+                    }
+                  </span>
+                </label>
+                <!-- Action refinement: shown once View is granted. New
+                     grants start as full access; untick to restrict. -->
+                @if (isSelected(row.id)) {
+                  <span class="perm-actions">
+                    <label class="perm-action">
+                      <input type="checkbox" [checked]="actionAllowed(row.id, 'create')"
+                             (change)="toggleAction(row.id, 'create')"
+                             [attr.aria-label]="'Allow create in ' + row.name">
+                      Create
+                    </label>
+                    <label class="perm-action">
+                      <input type="checkbox" [checked]="actionAllowed(row.id, 'edit')"
+                             (change)="toggleAction(row.id, 'edit')"
+                             [attr.aria-label]="'Allow edit in ' + row.name">
+                      Edit
+                    </label>
+                    <label class="perm-action">
+                      <input type="checkbox" [checked]="actionAllowed(row.id, 'delete')"
+                             (change)="toggleAction(row.id, 'delete')"
+                             [attr.aria-label]="'Allow delete in ' + row.name">
+                      Delete
+                    </label>
+                  </span>
+                }
+              </div>
+            }
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Outcome preview: what Save will grant. -->
+  <p class="perm-summary" role="status" aria-live="polite">
+    @if (selectionSummary().menus === 0) {
+      No menus selected yet.
+    } @else {
+      {{ selectionSummary().menus }} {{ selectionSummary().menus === 1 ? 'menu' : 'menus' }}
+      across {{ selectionSummary().modules }} {{ selectionSummary().modules === 1 ? 'module' : 'modules' }} selected.
+    }
+  </p>
+}

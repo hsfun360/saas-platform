@@ -61,7 +61,16 @@
                 <p class="data-card__desc">{{ role.description }}</p>
               }
               <dl class="data-card__meta">
-                <div class="meta"><dt>Menus</dt><dd>{{ role.PermittedMenus?.length || 0 }}</dd></div>
+                @if (isSystemManaged(role)) {
+                  <div class="meta"><dt>Menus</dt><dd>All (implicit)</dd></div>
+                } @else {
+                  <div class="meta"><dt>Menus</dt><dd>{{ role.PermittedMenus?.length || 0 }}</dd></div>
+                  @if (role.dataScope === 'own') {
+                    <div class="meta"><dt>Scope</dt><dd>Own records</dd></div>
+                  } @else if (role.dataScope === 'department') {
+                    <div class="meta"><dt>Scope</dt><dd>Department</dd></div>
+                  }
+                }
               </dl>
             </div>
             <div class="data-row__actions">
@@ -94,6 +103,10 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."
                 (close)="closeDialog()">
+      @if (editLoading()) {
+        <p class="cell-subtle">Loading role…</p>
+      }
+
       <form id="roleDialogForm" [formGroup]="roleForm" (ngSubmit)="onSubmit()" class="saas-form" style="padding: 0;">
         <div class="form-row">
           <div class="form-group">
@@ -110,34 +123,54 @@
           </div>
         </div>
 
-        <!-- Menu permissions (grouped by module) -->
+        <!-- Row-level data scope: WHOSE records the role may Edit/Delete.
+             Same model as tenant roles (shared .scope-* styles). -->
+        <fieldset class="scope-fieldset">
+          <legend class="scope-legend">Data scope</legend>
+          <p style="color: var(--text-muted); font-size: var(--font-body-2); margin: 0 0 var(--space-sm);">
+            Whose records this role may amend on the screens it can edit.
+          </p>
+          <label class="scope-option">
+            <input type="radio" formControlName="dataScope" value="own">
+            <span class="scope-option__text">
+              <span class="scope-option__name">Own records</span>
+              <span class="scope-option__desc">Only records this user created themselves.</span>
+            </span>
+          </label>
+          <label class="scope-option">
+            <input type="radio" formControlName="dataScope" value="department">
+            <span class="scope-option__text">
+              <span class="scope-option__name">Department (senior over junior)</span>
+              <span class="scope-option__desc">Own records, plus records created in the user's department by someone of a lower position rank. Colleagues of the same rank cannot amend each other's records.</span>
+            </span>
+          </label>
+          <label class="scope-option">
+            <input type="radio" formControlName="dataScope" value="all">
+            <span class="scope-option__text">
+              <span class="scope-option__name">All records</span>
+              <span class="scope-option__desc">Every record (no ownership restriction).</span>
+            </span>
+          </label>
+        </fieldset>
+
+        <!-- Menu permissions: the SHARED role-builder picker (tree, tri-state
+             module cards, per-menu Create/Edit/Delete toggles, summary). -->
         <div class="form-group">
           <label>Menu Permissions</label>
-          @if (menusLoading()) {
-            <p class="cell-subtle">Loading menus…</p>
-          } @else if (moduleNames.length === 0) {
-            <p class="cell-subtle">No menus available.</p>
-          } @else {
-            @for (modName of moduleNames; track modName) {
-              <div class="perm-module">
-                <div class="perm-module-title">{{ modName }}</div>
-                <div class="perm-menu-list">
-                  @for (menu of menusByModule[modName]; track menu.id) {
-                    <label class="perm-item">
-                      <input type="checkbox" [checked]="selectedMenuIds.has(menu.id)" (change)="toggleMenu(menu.id)" />
-                      <span>{{ menu.name }}</span>
-                    </label>
-                  }
-                </div>
-              </div>
-            }
-          }
+          <p class="cell-subtle" style="margin-top: 0;">
+            Ticking a menu grants viewing plus full Create / Edit / Delete — untick the actions the role should not have.
+          </p>
+          <app-permission-picker
+            [menus]="menus()"
+            [loading]="menusLoading()"
+            emptyMessage="No platform menus available."
+            [(grants)]="selectedGrants" />
         </div>
       </form>
 
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="roleDlg.requestClose()" [disabled]="roleSubmitting()">Cancel</button>
-        <button type="submit" form="roleDialogForm" class="btn btn--primary" [disabled]="roleSubmitting()">
+        <button type="submit" form="roleDialogForm" class="btn btn--primary" [disabled]="roleSubmitting() || editLoading()">
           {{ roleSubmitting() ? 'Saving…' : 'Save' }}
         </button>
       </ng-container>

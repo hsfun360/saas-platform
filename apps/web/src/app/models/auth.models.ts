@@ -267,6 +267,10 @@ export interface AdminModule {
   names?: Record<string, string>;
   icon?: string;
   description?: string | null;
+  // 'tenant' modules are the subscriber-facing catalogue; 'platform' modules
+  // (SaaS Administration) belong to platform users only and are never
+  // offered in a subscriber's entitlement picker.
+  audience?: 'tenant' | 'platform';
   // System module (like a system role): always entitled by provisioning,
   // never deletable, base name locked. Currently "System Administration".
   isSystem?: boolean;
@@ -1284,13 +1288,17 @@ export interface CreateRoleRequest {
   name: string;
   description: string;
   companyId?: string;
-  menuIds?: string[];
+  menuIds?: string[]; // legacy shape (full access per menu)
+  permissions?: RoleMenuPermission[];
+  dataScope?: RoleDataScope;
 }
 
 export interface UpdateRoleRequest {
   name?: string;
   description?: string;
-  menuIds: string[];
+  menuIds?: string[]; // legacy shape (full access per menu)
+  permissions?: RoleMenuPermission[];
+  dataScope?: RoleDataScope;
 }
 
 export interface CreateUserData {

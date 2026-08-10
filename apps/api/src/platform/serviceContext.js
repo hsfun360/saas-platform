@@ -82,6 +82,12 @@ function requireModule(moduleName) {
 // nothing (screens outside the catalogue can't be granted, so there is nothing
 // to check against - entitlement still applies).
 //
+// The SYSTEM workspace: a platform user's JWT has companyId NULL, and their
+// membership is the CompanyUser row with companyId NULL - so the same lookup
+// applies verbatim (Sequelize renders companyId: null as IS NULL). The master
+// "System Admin" role never reaches the lookup (isSystemAdmin claim bypass);
+// other platform roles are enforced per-menu like any tenant role.
+//
 // IN-PROCESS IMPLEMENTATION (monolith): looks the grant up via Control-Plane
 // models (lazy requires - same pattern as requireModule).
 // WHEN SPLIT: replace the marked block with a Control-Plane call, e.g.
@@ -94,7 +100,7 @@ function requireMenuAction(menuRoute) {
         try {
             const { userId, companyId, isSystemAdmin } = getUserContext(req);
             if (isSystemAdmin) return next(); // platform admin bypass
-            if (!userId || !companyId) {
+            if (!userId) {
                 return res.status(403).json({ message: 'No active workspace selected.' });
             }
 
@@ -104,8 +110,9 @@ function requireMenuAction(menuRoute) {
             const Menu = require('../modules/saas/menu.model');
             const RoleMenu = require('../modules/saas/roleMenu.model');
 
+            // companyId NULL = the SYSTEM workspace membership row.
             const membership = await CompanyUser.findOne({
-                where: { userId, companyId },
+                where: { userId, companyId: companyId || null, isActive: true },
                 attributes: ['roleId'],
             });
             if (!membership || !membership.roleId) {
@@ -152,7 +159,7 @@ function requireAnyMenuAction(menuRoutes) {
         try {
             const { userId, companyId, isSystemAdmin } = getUserContext(req);
             if (isSystemAdmin) return next();
-            if (!userId || !companyId) {
+            if (!userId) {
                 return res.status(403).json({ message: 'No active workspace selected.' });
             }
 
@@ -162,8 +169,9 @@ function requireAnyMenuAction(menuRoutes) {
             const RoleMenu = require('../modules/saas/roleMenu.model');
             const { Op } = require('sequelize');
 
+            // companyId NULL = the SYSTEM workspace membership row.
             const membership = await CompanyUser.findOne({
-                where: { userId, companyId },
+                where: { userId, companyId: companyId || null, isActive: true },
                 attributes: ['roleId'],
             });
             if (!membership || !membership.roleId) {

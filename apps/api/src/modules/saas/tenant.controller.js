@@ -1017,6 +1017,9 @@ exports.listAccountUsers = async (req, res) => {
 exports.listAvailableModules = async (req, res) => {
     try {
         const modules = await Module.findAll({
+            // Tenant-facing catalogue only - platform-audience modules (SaaS
+            // Administration) are never offered to a subscriber.
+            where: { audience: 'tenant' },
             attributes: ['id', 'name', 'icon', 'description', 'isSystem'],
             order: [['name', 'ASC']],
         });
@@ -1070,10 +1073,11 @@ exports.createCompany = async (req, res) => {
         }
         const trimOrNull = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 
-        // Validate the selected modules actually exist (any system module is allowed).
+        // Validate the selected modules actually exist and are tenant-facing
+        // (platform-audience modules can never be entitled to a company).
         const selectedModuleIds = Array.isArray(moduleIds) ? [...new Set(moduleIds)] : [];
         if (selectedModuleIds.length > 0) {
-            const found = await Module.count({ where: { id: selectedModuleIds }, transaction });
+            const found = await Module.count({ where: { id: selectedModuleIds, audience: 'tenant' }, transaction });
             if (found !== selectedModuleIds.length) {
                 await transaction.rollback();
                 return res.status(400).json({ message: "One or more selected modules do not exist." });
@@ -1178,9 +1182,10 @@ exports.updateCompanyModules = async (req, res) => {
 
     const transaction = await sequelize.transaction();
     try {
-        // Every requested module must exist.
+        // Every requested module must exist and be tenant-facing (platform-
+        // audience modules can never be entitled to a company).
         if (desired.length > 0) {
-            const found = await Module.count({ where: { id: desired }, transaction });
+            const found = await Module.count({ where: { id: desired, audience: 'tenant' }, transaction });
             if (found !== desired.length) {
                 await transaction.rollback();
                 return res.status(400).json({ message: "One or more selected modules do not exist." });

@@ -1,6 +1,8 @@
 // My Dashboard favorites - the caller's own starred screens in the ACTIVE
 // workspace, served under /api/auth/my/favorites (any authenticated workspace
 // user; strictly self-service, always scoped by the JWT's userId + companyId).
+// A platform session's JWT has companyId NULL - that IS the SYSTEM workspace
+// scope (UserFavorite.companyId NULL), not an error.
 
 const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
@@ -11,8 +13,8 @@ const Menu = require('./menu.model');
 exports.listMyFavorites = async (req, res) => {
     try {
         const userId = req.user?.id;
-        const companyId = req.user?.companyId;
-        if (!userId || !companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const companyId = req.user?.companyId ?? null; // NULL = SYSTEM workspace
+        if (!userId) return res.status(400).json({ message: 'Select a workspace first.' });
 
         const rows = await UserFavorite.findAll({
             where: { userId, companyId },
@@ -32,8 +34,8 @@ exports.listMyFavorites = async (req, res) => {
 exports.replaceMyFavorites = async (req, res) => {
     try {
         const userId = req.user?.id;
-        const companyId = req.user?.companyId;
-        if (!userId || !companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const companyId = req.user?.companyId ?? null; // NULL = SYSTEM workspace
+        if (!userId) return res.status(400).json({ message: 'Select a workspace first.' });
 
         const raw = Array.isArray(req.body?.menuIds) ? req.body.menuIds : null;
         if (!raw) return res.status(400).json({ message: 'menuIds must be an array.' });

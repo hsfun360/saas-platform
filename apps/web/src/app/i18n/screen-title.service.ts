@@ -13,9 +13,8 @@ import { I18nService } from './i18n.service';
 // Resolution chain (each level independently per language):
 //   menu.names[lang] -> menu.name -> the screen's hardcoded fallback
 //   menu.descriptions[lang] -> menu.description -> hardcoded fallback
-// Screens that aren't menu-backed (hardcoded SaaS Administration set, the
-// Items sample) simply keep their fallback - same permissive default as
-// PermissionsService.
+// Screens that aren't menu-backed (the Items sample, portals) simply keep
+// their fallback - same permissive default as PermissionsService.
 //
 // Route -> menu matching mirrors PermissionsService/HelpService: exact match,
 // then progressively drop trailing segments so `/x/:id` details inherit `/x`.

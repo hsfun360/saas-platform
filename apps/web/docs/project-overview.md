@@ -217,7 +217,7 @@ Subscribers maintain the per-language texts in Modules & Menus (the Translations
   `<p class="saas-subtitle">{{ 'Individual and corporate...' | screenSubtitle }}</p>`
   (pipes in `i18n/screen-title.pipe.ts`, resolution in `i18n/screen-title.service.ts`).
 - Resolution chain: `menu.names[lang]` -> `menu.name` -> the fallback argument (same for descriptions).
-  Screens that aren't menu-backed (the hardcoded SaaS Administration set, samples) just show the fallback.
+  Screens that aren't menu-backed (samples, portals) just show the fallback; the SaaS Administration set became a real DB Module (boot-seeded, audience 'platform') so platform screens resolve like any other.
 - Route -> menu matching mirrors `PermissionsService`/`HelpService` (exact, then drop trailing segments), and menus come from the login's localStorage cache - a menu rename shows after the next login, like the sidebar.
 - The service also keeps **`document.title`** (the browser tab) in step with the resolved menu name.
 - Dynamic subtitles (e.g. Public Holidays' per-country line) and dictionary-translated screens (Account Languages' `| t` keys) stay as they are - don't double-translate.
@@ -228,7 +228,7 @@ Subscribers maintain the per-language texts in Modules & Menus (the Translations
 Every menu-backed screen carries a **bookmark star** right after its title so users can pin it to My Dashboard's Quick access:
 `<h1>{{ 'Memberships' | screenTitle }}<app-fav-star /></h1>`.
 **New screens MUST include `<app-fav-star />` in the header `<h1>`** (and import `FavStarComponent` from `shared/fav-star/fav-star`) - the same per-screen convention as the screenTitle pipes.
-The component resolves the current route against the granted-menu cache and renders NOTHING on non-menu-backed screens (hardcoded admin sets, portals), so only grantable screens can be starred.
+The component resolves the current route against the granted-menu cache and renders NOTHING on non-menu-backed screens (portals, samples), so only grantable screens can be starred.
 Favorites persist server-side per user + workspace (`UserFavorite` via `GET`/`PUT /api/auth/my/favorites` - see `apps/api/docs/systems/system-administration.md`), toggled optimistically by `FavoritesService`.
 
 #### My Dashboard (/home) - the ONE home page

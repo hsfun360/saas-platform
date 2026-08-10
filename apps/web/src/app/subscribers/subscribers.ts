@@ -143,8 +143,11 @@ export class SubscribersComponent implements OnInit {
     this.modulesLoading.set(true);
     this.adminService.listModules().subscribe({
       next: (mods) => {
-        this.modules = mods;
-        this.selectedModuleIds = new Set(mods.map((m) => m.id));
+        // Tenant-facing catalogue only: the platform's own module (SaaS
+        // Administration, audience 'platform') is never entitlable.
+        const entitlable = mods.filter((m) => m.audience !== 'platform');
+        this.modules = entitlable;
+        this.selectedModuleIds = new Set(entitlable.map((m) => m.id));
         this.modulesLoading.set(false);
       },
       error: () => this.modulesLoading.set(false),

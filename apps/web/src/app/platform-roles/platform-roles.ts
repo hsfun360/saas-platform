@@ -1,41 +1,48 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AdminService } from '../services/admin.service';
 import { DialogComponent } from '../shared/dialog/dialog';
-import { Role, AdminMenu } from '../models/auth.models';
+import { Role, RoleDataScope, RoleMenuPermission, AdminMenu } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { FULL_ACCESS, GrantFlags, PermissionPickerComponent } from '../shared/permission-picker/permission-picker';
 
 // Platform (system-level) Roles — split out of the old System Setup tab strip
-// into its own screen. Lists system roles with search and creates them (FAB →
-// dialog) from the platform menu catalogue. Reuses the System Setup stylesheet.
+// into its own screen. Lists system roles with search and creates/edits them
+// (FAB → dialog) from the PLATFORM menu catalogue (the SaaS Administration
+// module; GET /admin/menus is audience-filtered server-side).
 //
-// The roleName + description fields use a typed Reactive Form (canonical reference:
-// platform-users). The menu-permission checkboxes are managed OUTSIDE the form (see
-// `selectedMenuIds`), so the FormGroup covers only the two text fields.
+// The permission selection is the SHARED <app-permission-picker> (same tree /
+// tri-state / Create-Edit-Delete toggles as tenant Role Management), and roles
+// carry a data scope — platform RBAC mirrors the tenant model exactly. The
+// seeded "System Admin" role is implicit-full-access and stays system-managed.
 @Component({
   selector: 'app-platform-roles',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PermissionPickerComponent],
   templateUrl: './platform-roles.html',
-  styleUrls: ['../system-setup/system-setup.css'],
+  // system-setup.css = the screen chrome; role-management.css = the shared
+  // data-scope fieldset styles (.scope-*).
+  styleUrls: ['../system-setup/system-setup.css', '../role-management/role-management.css'],
 })
 export class PlatformRolesComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
 
   roles = signal<Role[]>([]);
   rolesLoading = signal(false);
-  // roleName + description only; permissions live in `selectedMenuIds` below. The
+  // roleName/description/dataScope; permissions live in `selectedGrants`. The
   // edited role's id isn't an input, so it lives outside the form.
   readonly editRoleId = signal('');
   readonly roleForm = this.fb.nonNullable.group({
     roleName: ['', [Validators.required, Validators.maxLength(150)]],
     description: ['', [Validators.maxLength(255)]],
+    dataScope: ['all' as RoleDataScope],
   });
   roleSubmitting = signal(false);
   roleDialogOpen = signal(false);
   dialogMode = signal<'create' | 'edit'>('create');
+  editLoading = signal(false);
   deletingId = signal<string | null>(null);
 
   // Live filter over the loaded roles (name / description).
@@ -51,11 +58,11 @@ export class PlatformRolesComponent implements OnInit {
     );
   });
 
-  // Menu permissions for role creation (grouped by module for the UI).
-  menusByModule: { [moduleName: string]: AdminMenu[] } = {};
-  moduleNames: string[] = [];
-  selectedMenuIds = new Set<string>();
+  // The platform menu catalogue (picker input) + the two-way selection model.
+  menus = signal<AdminMenu[]>([]);
   menusLoading = signal(false);
+  selectedGrants = signal<ReadonlyMap<string, GrantFlags>>(new Map<string, GrantFlags>());
+  private readonly picker = viewChild(PermissionPickerComponent);
 
   successMessage = signal('');
   errorMessage = signal('');
@@ -82,28 +89,11 @@ export class PlatformRolesComponent implements OnInit {
     this.menusLoading.set(true);
     this.adminService.listMenus().subscribe({
       next: (menus) => {
-        this.menusByModule = {};
-        this.moduleNames = [];
-        menus.forEach((menu) => {
-          const modName = menu.Module?.name || 'Uncategorized';
-          if (!this.menusByModule[modName]) {
-            this.menusByModule[modName] = [];
-            this.moduleNames.push(modName);
-          }
-          this.menusByModule[modName].push(menu);
-        });
+        this.menus.set(menus);
         this.menusLoading.set(false);
       },
       error: () => this.menusLoading.set(false),
     });
-  }
-
-  toggleMenu(menuId: string): void {
-    if (this.selectedMenuIds.has(menuId)) {
-      this.selectedMenuIds.delete(menuId);
-    } else {
-      this.selectedMenuIds.add(menuId);
-    }
   }
 
   clearSearch(): void {
@@ -116,8 +106,9 @@ export class PlatformRolesComponent implements OnInit {
     return control.invalid && control.touched;
   }
 
-  // The seeded "System Admin" role is system-managed: it can't be edited or
-  // deleted (backend enforces this too), so the UI hides those actions.
+  // The seeded "System Admin" role is system-managed: implicit full access to
+  // every platform menu, and it can't be edited or deleted (backend enforces
+  // this too), so the UI hides those actions.
   isSystemManaged(role: Role): boolean {
     return role.name === 'System Admin';
   }
@@ -126,9 +117,8 @@ export class PlatformRolesComponent implements OnInit {
     this.clearMessages();
     this.dialogMode.set('create');
     this.editRoleId.set('');
-    this.roleForm.reset({ roleName: '', description: '' });
-    this.selectedMenuIds.clear();
-    this.loadMenus();
+    this.roleForm.reset({ roleName: '', description: '', dataScope: 'all' });
+    this.selectedGrants.set(new Map<string, GrantFlags>());
     this.roleDialogOpen.set(true);
   }
 
@@ -136,10 +126,32 @@ export class PlatformRolesComponent implements OnInit {
     this.clearMessages();
     this.dialogMode.set('edit');
     this.editRoleId.set(role.id);
-    this.roleForm.reset({ roleName: role.name, description: role.description || '' });
-    this.selectedMenuIds = new Set((role.PermittedMenus || []).map((m) => m.id));
-    this.loadMenus();
+    this.roleForm.reset({ roleName: role.name, description: role.description || '', dataScope: role.dataScope || 'all' });
+    this.selectedGrants.set(new Map<string, GrantFlags>());
     this.roleDialogOpen.set(true);
+
+    // Prefill the exact grants (action flags) from the detail endpoint.
+    this.editLoading.set(true);
+    this.adminService.getRoleDetail(role.id).subscribe({
+      next: (detail) => {
+        this.roleForm.reset({ roleName: detail.name, description: detail.description || '', dataScope: detail.dataScope || 'all' });
+        const next = new Map<string, GrantFlags>();
+        if (detail.permissions) {
+          for (const p of detail.permissions) {
+            next.set(p.menuId, { create: p.canCreate !== false, edit: p.canEdit !== false, delete: p.canDelete !== false });
+          }
+        } else {
+          for (const id of detail.menuIds) next.set(id, { ...FULL_ACCESS });
+        }
+        this.selectedGrants.set(next);
+        this.editLoading.set(false);
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to load this role for editing.');
+        this.roleDialogOpen.set(false);
+        this.editLoading.set(false);
+      },
+    });
   }
 
   closeDialog(): void {
@@ -155,13 +167,17 @@ export class PlatformRolesComponent implements OnInit {
     const value = this.roleForm.getRawValue();
     const name = value.roleName.trim();
 
-    // Permissions are managed outside the form — send them exactly as before.
-    const menuIds = Array.from(this.selectedMenuIds);
+    // The picker returns only grantable (leaf) permissions with their flags.
+    const permissions: RoleMenuPermission[] = this.picker()?.permissions() ?? [];
+    if (permissions.length === 0) {
+      this.errorMessage.set('Please select at least one menu permission.');
+      return;
+    }
     this.roleSubmitting.set(true);
 
     if (this.dialogMode() === 'edit') {
       this.adminService
-        .updateRole(this.editRoleId(), { name, description: value.description.trim(), menuIds })
+        .updateRole(this.editRoleId(), { name, description: value.description.trim(), dataScope: value.dataScope, permissions })
         .subscribe({
           next: () => {
             this.successMessage.set(`Role "${name}" updated.`);
@@ -178,10 +194,10 @@ export class PlatformRolesComponent implements OnInit {
     }
 
     this.adminService
-      .createRole({ name, description: value.description.trim(), menuIds })
+      .createRole({ name, description: value.description.trim(), dataScope: value.dataScope, permissions })
       .subscribe({
         next: () => {
-          this.successMessage.set(`Role "${name}" created with ${menuIds.length} menu permission(s).`);
+          this.successMessage.set(`Role "${name}" created with ${permissions.length} menu permission(s).`);
           this.roleSubmitting.set(false);
           this.roleDialogOpen.set(false);
           this.loadRoles();
