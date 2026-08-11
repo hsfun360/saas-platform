@@ -56,6 +56,33 @@ Key rules a maintainer must not break:
   Worker env needs `FRONTEND_BASE_URL` (email links) and optionally `OUTBOX_WORKER_URL` + self `run.invoker` (continuous slices without waiting for the sweep).
 - Aging is as-of periodEnd: debit open items age by `dueDate` (docDate fallback), allocations counted only when the settling credit document's docDate <= periodEnd, and the unapplied credit side lands in the first bucket so buckets always sum to the closing balance.
 
+## Parked design - eliminating `lookupPartyDisplay()` from the Debtor Listing (analysed 2026-08-11)
+
+Decision: KEEP the seam call for now.
+Today it is one batched, indexed, in-process read that also powers the listing's snapshot read-repair; full read-model replication becomes worthwhile only when AR actually splits onto its own database.
+Revisit in a dedicated Account Receivable session - this section is the build list for that day.
+
+After the `debtorAccount`/`name` snapshots, the listing still takes exactly three things from the seam:
+
+1. The subline chip for membership debtors: `membershipClass` (`individual`/`corporate`).
+2. The subline for member (nominee) debtors: the parent contract's number ("of GOLD26-000001").
+3. Read-repair itself - the listing can only self-heal stale snapshots because it resolves live values per page.
+
+To eliminate the call entirely:
+
+- **Columns to bring forward** (nullable BY MEANING - each is legitimately absent for the other debtor types): `membershipClass` VARCHAR(20) for membership debtors, `parentAccount` VARCHAR(64) for member debtors.
+  Both travel in the provisioning payload like `name` does.
+- **Freshness events replace read-repair** - Membership starts publishing party-change events AR consumes to update snapshots:
+  member/person name changes (refresh the personal debtor's `name`, and the contract debtor's when the person is the individual principal);
+  corporate name changes (contract debtor `name`);
+  class conversion individual <-> corporate (the CRM conversions phase makes this real - refresh `membershipClass` + `name`);
+  membership/member renumbering (refresh `debtorAccount`/`parentAccount`).
+  Every future membership feature touching names must remember the event - that recurring tax is the main cost of going event-only.
+- **Search must switch to the snapshot columns** (`debtorAccount`/`name` ILIKE on `ar.Debtor`), replacing `searchPartyIds`.
+  Known recall regressions to accept or solve: the native-script `localName` no longer matches (unless it is also snapshotted), and a query matching a nominee's name no longer surfaces the PARENT CONTRACT debtor (today's behaviour, useful because the person's charges live there).
+- **Reconciliation stays on the gateway** regardless - it is the independent truth-check comparing snapshots to the source, and between events it is the only automatic corrector.
+- Out of scope either way: `lookupPartyBilling` (statement generation) and `classifyParties` (statement scope) are separate seam reads with their own snapshot-at-generation semantics.
+
 ## Not built yet
 
 Frontend producers wiring `authorizeCharge`/`postCharge` from Golf/POS/Facility, statement PDF/email delivery, and the conversions phase of the membership CRM.
