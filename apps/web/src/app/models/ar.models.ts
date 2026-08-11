@@ -210,6 +210,14 @@ export interface ArStatementDetail {
     agingBoundaries: number[] | null;
   };
   details: ArStatementLine[];
+  columns: ArStatementColumn[] | null;
+}
+
+export type ArStatementColumnKey = 'date' | 'docNo' | 'details' | 'debit' | 'credit' | 'balance';
+
+export interface ArStatementColumn {
+  key: ArStatementColumnKey;
+  label?: string;
 }
 
 export interface ArSetting {
@@ -228,6 +236,9 @@ export interface ArSetting {
   statementShowIncurredBy: boolean;
   statementShowGeneratedNote: boolean;
   statementFooterText: string | null;
+  // Lines-table column layout: ordered VISIBLE columns (hidden = omitted);
+  // null = the standard order/labels.
+  statementColumns: ArStatementColumn[] | null;
 }
 
 export interface ArStatementRun {

@@ -52,6 +52,11 @@ const Setting = sequelize.define('ArSetting', {
     statementShowGeneratedNote: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     // Remittance advice / payment instructions printed above the footer.
     statementFooterText: { type: DataTypes.TEXT, allowNull: true },
+    // Lines-table column layout: ordered array of visible columns
+    // [{ key: 'date'|'docNo'|'details'|'debit'|'credit'|'balance', label? }].
+    // NULL = the standard order/labels. Hidden columns are simply omitted;
+    // widths scale automatically to fill the page.
+    statementColumns: { type: DataTypes.JSONB, allowNull: true },
     // Ownership stamps.
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

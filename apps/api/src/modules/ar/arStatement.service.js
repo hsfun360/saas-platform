@@ -33,6 +33,7 @@ const { cents, money } = require('./arPosting.service');
 
 const STATEMENT_CATEGORIES = ['individual', 'corporate', 'nominee', 'other'];
 const DEFAULT_AGING = [30, 60, 90, 120, 150, 180];
+const STATEMENT_COLUMN_KEYS = ['date', 'docNo', 'details', 'debit', 'credit', 'balance'];
 
 function badRequest(message) {
     const err = new Error(message);
@@ -106,6 +107,27 @@ async function saveSetting(companyId, payload, stamps) {
     if (footerText === '' || footerText === undefined) footerText = null;
     if (footerText !== null) footerText = String(footerText).slice(0, 2000);
 
+    // Column layout: ordered visible columns, known keys, no duplicates,
+    // optional label override per column. NULL/absent = the standard layout.
+    let columns = payload.statementColumns;
+    if (columns === undefined || columns === null) columns = null;
+    else {
+        if (!Array.isArray(columns) || !columns.length) {
+            throw badRequest('The statement needs at least one visible column.');
+        }
+        const seen = new Set();
+        columns = columns.map((c) => {
+            const key = c && c.key;
+            if (!STATEMENT_COLUMN_KEYS.includes(key)) throw badRequest(`Unknown statement column '${key}'.`);
+            if (seen.has(key)) throw badRequest(`Statement column '${key}' is listed twice.`);
+            seen.add(key);
+            const label = c.label !== undefined && c.label !== null && String(c.label).trim() !== ''
+                ? String(c.label).trim().slice(0, 30)
+                : null;
+            return label ? { key, label } : { key };
+        });
+    }
+
     const row = await getSetting(companyId);
     row.statementCutoffDay = cutoff;
     [row.aging1, row.aging2, row.aging3, row.aging4, row.aging5, row.aging6] = agings;
@@ -116,6 +138,7 @@ async function saveSetting(companyId, payload, stamps) {
     row.statementShowIncurredBy = payload.statementShowIncurredBy !== false;
     row.statementShowGeneratedNote = payload.statementShowGeneratedNote !== false;
     row.statementFooterText = footerText;
+    row.statementColumns = columns;
     if (!row.createdBy && stamps.createdBy) {
         row.createdBy = stamps.createdBy;
         row.createdByDepartmentId = stamps.createdByDepartmentId;
@@ -137,6 +160,7 @@ function statementLayoutOf(setting, logoUrl = null) {
         showIncurredBy: setting.statementShowIncurredBy !== false,
         showGeneratedNote: setting.statementShowGeneratedNote !== false,
         footerText: setting.statementFooterText || null,
+        columns: setting.statementColumns || null,
     };
 }
 
@@ -731,6 +755,7 @@ async function generateOne({
 
 module.exports = {
     STATEMENT_CATEGORIES,
+    STATEMENT_COLUMN_KEYS,
     getSetting,
     saveSetting,
     statementLayoutOf,

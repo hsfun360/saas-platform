@@ -112,6 +112,30 @@
                 </label>
               }
             </div>
+            <!-- Column layout: drag to reorder, untick to hide, type to rename -->
+            <div class="arsp-cols">
+              <div class="arsp-cols__head">
+                <span class="arsp-cols__title">Table columns</span>
+                <button type="button" class="btn btn--link btn--sm" (click)="resetColumns()">Reset to standard</button>
+              </div>
+              <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Drag to set the printed order, untick to hide a column (the rest stretch to fill the page), and type a heading to rename it.</p>
+              <div cdkDropList (cdkDropListDropped)="onColumnDrop($event)" class="arsp-cols__list">
+                @for (col of columnRows(); track col.key) {
+                  <div class="arsp-cols__row" cdkDrag cdkDragLockAxis="y">
+                    <span class="material-icons arsp-cols__grip" cdkDragHandle aria-hidden="true">drag_indicator</span>
+                    <label class="arsp-cols__check">
+                      <input type="checkbox" [checked]="col.visible" (change)="toggleColumnVisible(col.key)"
+                             [attr.aria-label]="'Print the ' + col.name + ' column'" />
+                      <span [class.arsp-cols__name--off]="!col.visible">{{ col.name }}</span>
+                    </label>
+                    <input type="text" class="arsp-cols__label" maxlength="30"
+                           [value]="col.label" #colLabel (input)="setColumnLabel(col.key, colLabel.value)"
+                           [placeholder]="col.name" [attr.aria-label]="'Printed heading for ' + col.name" />
+                  </div>
+                }
+              </div>
+            </div>
+
             <div class="form-group" style="margin-top: var(--space-sm);">
               <label for="arspFooter">Remittance advice / footer text</label>
               <textarea id="arspFooter" rows="3" formControlName="statementFooterText" maxlength="2000"

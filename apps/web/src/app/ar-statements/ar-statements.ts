@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -6,7 +6,26 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ArService } from '../services/ar.service';
-import { ArStatementDetail, ArStatementSummary } from '../models/ar.models';
+import { ArStatementColumn, ArStatementColumnKey, ArStatementDetail, ArStatementSummary } from '../models/ar.models';
+
+// Lines-table column catalogue (mirrors the PDF renderer's BASE_COLS: default
+// label, relative width, alignment).
+interface ViewColumn {
+  key: ArStatementColumnKey;
+  label: string;
+  weight: number;
+  right: boolean;
+}
+
+const VIEW_COL_CATALOG: Record<ArStatementColumnKey, { label: string; weight: number; right: boolean }> = {
+  date: { label: 'Date', weight: 62, right: false },
+  docNo: { label: 'Document', weight: 92, right: false },
+  details: { label: 'Details', weight: 155, right: false },
+  debit: { label: 'Debit', weight: 60, right: true },
+  credit: { label: 'Credit', weight: 60, right: true },
+  balance: { label: 'Balance', weight: 70, right: true },
+};
+const VIEW_COL_ORDER: ArStatementColumnKey[] = ['date', 'docNo', 'details', 'debit', 'credit', 'balance'];
 
 // Account Receivable → Statement Listing (generation split to its own screen
 // /ar/statement-generation on 2026-08-06). Pure query surface: month +
@@ -36,10 +55,40 @@ export class ArStatementsComponent implements OnInit {
     individual: 'Individual', corporate: 'Corporate', nominee: 'Nominee', other: 'Other Debtor',
   };
 
-  // Viewer dialog.
+  // Viewer dialog. Columns mirror the company's layout (order/hide/rename),
+  // shipped with the statement response.
   readonly viewOpen = signal(false);
   readonly viewLoading = signal(false);
   readonly view = signal<ArStatementDetail | null>(null);
+  readonly viewCols = signal<ViewColumn[]>([]);
+
+  readonly gridCols = computed(() =>
+    this.viewCols().map((c) => `minmax(0, ${c.weight}fr)`).join(' '));
+
+  // Where the Opening/Closing caption and amount anchor when columns are
+  // hidden (same rule as the PDF renderer).
+  readonly captionKey = computed<ArStatementColumnKey>(() => {
+    const cols = this.viewCols();
+    return (cols.find((c) => c.key === 'docNo') || cols.find((c) => c.key === 'details') || cols[0])?.key ?? 'docNo';
+  });
+  readonly totalKey = computed<ArStatementColumnKey>(() => {
+    const cols = this.viewCols();
+    return (cols.find((c) => c.key === 'balance') || [...cols].reverse().find((c) => c.right) || cols[cols.length - 1])?.key ?? 'balance';
+  });
+
+  private applyViewColumns(cols: ArStatementColumn[] | null): void {
+    const spec = cols && cols.length
+      ? cols.filter((c) => VIEW_COL_CATALOG[c.key])
+      : VIEW_COL_ORDER.map((key) => ({ key }) as ArStatementColumn);
+    const resolved = (spec.length ? spec : VIEW_COL_ORDER.map((key) => ({ key }) as ArStatementColumn))
+      .map((c) => ({
+        key: c.key,
+        label: c.label || VIEW_COL_CATALOG[c.key].label,
+        weight: VIEW_COL_CATALOG[c.key].weight,
+        right: VIEW_COL_CATALOG[c.key].right,
+      }));
+    this.viewCols.set(resolved);
+  }
 
   ngOnInit(): void {
     this.month.set(this.thisMonth());
@@ -78,7 +127,11 @@ export class ArStatementsComponent implements OnInit {
     this.viewOpen.set(true);
     this.viewLoading.set(true);
     this.service.getStatement(row.id).subscribe({
-      next: (res) => { this.view.set(res); this.viewLoading.set(false); },
+      next: (res) => {
+        this.applyViewColumns(res.columns);
+        this.view.set(res);
+        this.viewLoading.set(false);
+      },
       error: (err) => {
         this.viewLoading.set(false);
         this.viewOpen.set(false);

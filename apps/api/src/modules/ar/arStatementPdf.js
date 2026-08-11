@@ -29,15 +29,37 @@ const COLORS = {
     void: '#dc2626',
 };
 
-// Table geometry (A4 width 595pt - 2x48 margin = 499pt usable).
-const COLS = [
-    { key: 'date', label: 'DATE', width: 62, align: 'left' },
-    { key: 'docNo', label: 'DOCUMENT', width: 92, align: 'left' },
-    { key: 'details', label: 'DETAILS', width: 155, align: 'left' },
-    { key: 'debit', label: 'DEBIT', width: 60, align: 'right' },
-    { key: 'credit', label: 'CREDIT', width: 60, align: 'right' },
-    { key: 'balance', label: 'BALANCE', width: 70, align: 'right' },
-];
+// Lines-table column catalogue. Widths are RELATIVE weights on an A4 page
+// (595pt - 2x48 margin = 499pt usable); the resolved set is scaled to fill
+// the page, so hiding columns stretches the rest automatically.
+const BASE_COLS = {
+    date: { label: 'DATE', width: 62, align: 'left' },
+    docNo: { label: 'DOCUMENT', width: 92, align: 'left' },
+    details: { label: 'DETAILS', width: 155, align: 'left' },
+    debit: { label: 'DEBIT', width: 60, align: 'right' },
+    credit: { label: 'CREDIT', width: 60, align: 'right' },
+    balance: { label: 'BALANCE', width: 70, align: 'right' },
+};
+const DEFAULT_COL_ORDER = ['date', 'docNo', 'details', 'debit', 'credit', 'balance'];
+
+// The company's column layout (Level "1.5": reorder / hide / rename via
+// ar.Setting.statementColumns) resolved against the catalogue and scaled to
+// the usable width. Unknown keys are ignored; an empty result falls back to
+// the standard.
+function resolveColumns(layoutColumns, usable) {
+    let spec = Array.isArray(layoutColumns) && layoutColumns.length
+        ? layoutColumns.filter((c) => c && BASE_COLS[c.key])
+        : DEFAULT_COL_ORDER.map((key) => ({ key }));
+    if (!spec.length) spec = DEFAULT_COL_ORDER.map((key) => ({ key }));
+    const total = spec.reduce((s, c) => s + BASE_COLS[c.key].width, 0);
+    const factor = usable / total;
+    return spec.map((c) => ({
+        key: c.key,
+        label: (c.label || BASE_COLS[c.key].label).toUpperCase(),
+        width: BASE_COLS[c.key].width * factor,
+        align: BASE_COLS[c.key].align,
+    }));
+}
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -201,16 +223,18 @@ async function renderStatementPdf(statement, details, layout = {}) {
         }
         doc.y = Math.max(leftEnd, metaY) + 10;
 
-        // --- Lines table ---
+        // --- Lines table (columns are per-company data: order/visibility/
+        // labels from the Setting; widths auto-scale to fill the page) ---
+        const cols = resolveColumns(layout.columns, usable);
         const colX = [];
         let x = left;
-        for (const c of COLS) { colX.push(x); x += c.width; }
+        for (const c of cols) { colX.push(x); x += c.width; }
 
         const drawHeaderRow = () => {
             const y = doc.y;
             doc.rect(left, y, usable, 16).fill(bandFill);
             doc.font('Helvetica-Bold').fontSize(7.5).fillColor(bandText);
-            COLS.forEach((c, i) => {
+            cols.forEach((c, i) => {
                 doc.text(c.label, colX[i] + 4, y + 5, { width: c.width - 8, align: c.align });
             });
             doc.y = y + 16;
@@ -230,7 +254,7 @@ async function renderStatementPdf(statement, details, layout = {}) {
             doc.font(font).fontSize(8.5);
             // Measure the tallest cell to size the row (details can wrap).
             let h = 0;
-            COLS.forEach((c, i) => {
+            cols.forEach((c) => {
                 const t = cells[c.key] || '';
                 h = Math.max(h, doc.heightOfString(t, { width: c.width - 8 }));
             });
@@ -241,15 +265,20 @@ async function renderStatementPdf(statement, details, layout = {}) {
             else if (opts.band) doc.rect(left, y, usable, rowH).fill(bandFill);
             doc.font(font).fontSize(8.5)
                 .fillColor(opts.band && opts.band !== 'light' ? bandRowText : COLORS.text);
-            COLS.forEach((c, i) => {
+            cols.forEach((c, i) => {
                 doc.text(cells[c.key] || '', colX[i] + 4, y + 4, { width: c.width - 8, align: c.align });
             });
             doc.moveTo(left, y + rowH).lineTo(right, y + rowH).strokeColor(COLORS.line).lineWidth(0.5).stroke();
             doc.y = y + rowH;
         };
 
+        // Balance rows anchor their caption/amount to whichever columns are
+        // actually visible in this company's layout.
+        const captionKey = (cols.find((c) => c.key === 'docNo') || cols.find((c) => c.key === 'details') || cols[0]).key;
+        const totalKey = (cols.find((c) => c.key === 'balance') || [...cols].reverse().find((c) => c.align === 'right') || cols[cols.length - 1]).key;
+
         drawHeaderRow();
-        drawRow({ docNo: 'Opening balance', balance: statement.openingBalance }, { band: 'light', bold: true });
+        drawRow({ [captionKey]: 'Opening balance', [totalKey]: statement.openingBalance }, { band: 'light', bold: true });
         for (const l of details) {
             const detail = [
                 l.description || l.docType,
@@ -264,7 +293,7 @@ async function renderStatementPdf(statement, details, layout = {}) {
                 balance: l.balance,
             });
         }
-        drawRow({ docNo: 'Closing balance', balance: statement.closingBalance }, { band: true, bold: true });
+        drawRow({ [captionKey]: 'Closing balance', [totalKey]: statement.closingBalance }, { band: true, bold: true });
 
         // --- Aging strip (+ the unallocated credit side and the total, so the
         // row always reconciles: buckets + unallocated = balance) ---

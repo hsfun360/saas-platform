@@ -114,30 +114,52 @@
             <div class="cell-subtle">Deposit: {{ v.statement.deposit }}</div>
           </div>
         </div>
-        <div class="as-lines">
+        <div class="as-lines" [style.--as-cols]="gridCols()">
           <div class="as-line as-line--head">
-            <span>Date</span><span>Document</span><span>Details</span><span class="as-num">Debit</span><span class="as-num">Credit</span><span class="as-num">Balance</span>
+            @for (c of viewCols(); track c.key) {
+              <span [class.as-num]="c.right">{{ c.label }}</span>
+            }
           </div>
           <div class="as-line as-line--balance">
-            <span></span><span>Opening balance</span><span></span><span></span><span></span>
-            <span class="as-num">{{ v.statement.openingBalance }}</span>
+            @for (c of viewCols(); track c.key) {
+              @if (c.key === totalKey()) {
+                <span class="as-num">{{ v.statement.openingBalance }}</span>
+              } @else if (c.key === captionKey()) {
+                <span>Opening balance</span>
+              } @else {
+                <span></span>
+              }
+            }
           </div>
           @for (l of v.details; track l.id) {
             <div class="as-line">
-              <span>{{ l.docDate | localDate }}</span>
-              <span>{{ l.docNo }}</span>
-              <span>
-                {{ l.description || l.docType }}
-                @if (l.incurredByName) { <span class="cell-subtle">— {{ l.incurredByName }}</span> }
-              </span>
-              <span class="as-num">{{ l.debit !== '0.00' ? l.debit : '' }}</span>
-              <span class="as-num">{{ l.credit !== '0.00' ? l.credit : '' }}</span>
-              <span class="as-num">{{ l.balance }}</span>
+              @for (c of viewCols(); track c.key) {
+                @switch (c.key) {
+                  @case ('date') { <span>{{ l.docDate | localDate }}</span> }
+                  @case ('docNo') { <span>{{ l.docNo }}</span> }
+                  @case ('details') {
+                    <span>
+                      {{ l.description || l.docType }}
+                      @if (l.incurredByName) { <span class="cell-subtle">— {{ l.incurredByName }}</span> }
+                    </span>
+                  }
+                  @case ('debit') { <span class="as-num">{{ l.debit !== '0.00' ? l.debit : '' }}</span> }
+                  @case ('credit') { <span class="as-num">{{ l.credit !== '0.00' ? l.credit : '' }}</span> }
+                  @case ('balance') { <span class="as-num">{{ l.balance }}</span> }
+                }
+              }
             </div>
           }
           <div class="as-line as-line--balance">
-            <span></span><span>Closing balance</span><span></span><span></span><span></span>
-            <span class="as-num">{{ v.statement.closingBalance }}</span>
+            @for (c of viewCols(); track c.key) {
+              @if (c.key === totalKey()) {
+                <span class="as-num">{{ v.statement.closingBalance }}</span>
+              } @else if (c.key === captionKey()) {
+                <span>Closing balance</span>
+              } @else {
+                <span></span>
+              }
+            }
           </div>
         </div>
         <!-- Aging footer: buckets + unallocated credit + total (always

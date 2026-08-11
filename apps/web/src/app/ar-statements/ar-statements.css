@@ -63,7 +63,10 @@
 
 .as-line {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, 1.5fr) minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 0.8fr);
+  /* Column tracks follow the company's layout (set as --as-cols on the
+     container by the viewer); fallback = the standard six columns. */
+  grid-template-columns: var(--as-cols,
+    minmax(0, 62fr) minmax(0, 92fr) minmax(0, 155fr) minmax(0, 60fr) minmax(0, 60fr) minmax(0, 70fr));
   gap: var(--space-sm);
   padding: var(--space-xs) var(--space-sm);
   font-size: var(--font-body-2);

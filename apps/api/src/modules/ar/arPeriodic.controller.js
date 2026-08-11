@@ -288,6 +288,7 @@ function settingJson(row) {
         statementShowIncurredBy: row.statementShowIncurredBy,
         statementShowGeneratedNote: row.statementShowGeneratedNote,
         statementFooterText: row.statementFooterText,
+        statementColumns: row.statementColumns,
     };
 }
 
@@ -538,7 +539,10 @@ exports.getStatement = async (req, res) => {
             where: { statementId: row.id },
             order: [['lineNo', 'ASC']],
         });
-        res.status(200).json({ statement: row, details });
+        // The company's column layout rides along so the viewer mirrors the
+        // print (the listing menu need not have rights to /ar/settings).
+        const setting = await arStatement.getSetting(companyId);
+        res.status(200).json({ statement: row, details, columns: setting.statementColumns || null });
     } catch (err) {
         console.error('Error loading statement:', err);
         res.status(500).json({ message: 'Internal server error' });

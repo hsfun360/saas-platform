@@ -1,11 +1,29 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
 import { ArService } from '../services/ar.service';
-import { ArSetting } from '../models/ar.models';
+import { ArSetting, ArStatementColumn, ArStatementColumnKey } from '../models/ar.models';
+
+// The lines-table column catalogue (mirrors the PDF renderer's BASE_COLS).
+interface ColumnRow {
+  key: ArStatementColumnKey;
+  name: string;      // default label, shown as the row identity
+  visible: boolean;
+  label: string;     // override; '' = default
+}
+
+const COLUMN_CATALOG: { key: ArStatementColumnKey; name: string }[] = [
+  { key: 'date', name: 'DATE' },
+  { key: 'docNo', name: 'DOCUMENT' },
+  { key: 'details', name: 'DETAILS' },
+  { key: 'debit', name: 'DEBIT' },
+  { key: 'credit', name: 'CREDIT' },
+  { key: 'balance', name: 'BALANCE' },
+];
 
 // Account Receivable → AR Specification (split from Statement Generation
 // 2026-08-06, same role as Club Specification for Membership): the per-company
@@ -17,7 +35,7 @@ import { ArSetting } from '../models/ar.models';
   standalone: true,
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
-    CanDirective,
+    CanDirective, CdkDropList, CdkDrag, CdkDragHandle,
   ],
   templateUrl: './ar-specification.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-specification.css'],
@@ -66,6 +84,58 @@ export class ArSpecificationComponent implements OnInit {
     });
   }
 
+  // Column layout: draggable rows (order = print order; unticked = hidden;
+  // label overrides the printed heading). Kept OUTSIDE the reactive form -
+  // it's a dynamic list; Save reads it alongside the form value.
+  readonly columnRows = signal<ColumnRow[]>([]);
+
+  onColumnDrop(event: CdkDragDrop<ColumnRow[]>): void {
+    this.columnRows.update((rows) => {
+      const next = [...rows];
+      moveItemInArray(next, event.previousIndex, event.currentIndex);
+      return next;
+    });
+  }
+
+  toggleColumnVisible(key: ArStatementColumnKey): void {
+    this.columnRows.update((rows) => rows.map((r) => (r.key === key ? { ...r, visible: !r.visible } : r)));
+  }
+
+  setColumnLabel(key: ArStatementColumnKey, label: string): void {
+    this.columnRows.update((rows) => rows.map((r) => (r.key === key ? { ...r, label } : r)));
+  }
+
+  resetColumns(): void {
+    this.columnRows.set(COLUMN_CATALOG.map((c) => ({ ...c, visible: true, label: '' })));
+  }
+
+  private applyColumns(cols: ArStatementColumn[] | null): void {
+    if (!cols || !cols.length) {
+      this.resetColumns();
+      return;
+    }
+    const rows: ColumnRow[] = [];
+    for (const c of cols) {
+      const cat = COLUMN_CATALOG.find((x) => x.key === c.key);
+      if (cat) rows.push({ key: cat.key, name: cat.name, visible: true, label: c.label || '' });
+    }
+    // Hidden columns trail the list, unticked, so they can be re-enabled.
+    for (const cat of COLUMN_CATALOG) {
+      if (!rows.some((r) => r.key === cat.key)) rows.push({ ...cat, visible: false, label: '' });
+    }
+    this.columnRows.set(rows);
+  }
+
+  // null when the arrangement IS the standard (order, all visible, no labels).
+  private columnsPayload(): ArStatementColumn[] | null {
+    const rows = this.columnRows();
+    const visible = rows.filter((r) => r.visible);
+    const isStandard = visible.length === COLUMN_CATALOG.length
+      && visible.every((r, i) => r.key === COLUMN_CATALOG[i].key && !r.label.trim());
+    if (isStandard) return null;
+    return visible.map((r) => (r.label.trim() ? { key: r.key, label: r.label.trim() } : { key: r.key }));
+  }
+
   toggleSection(key: string): void {
     this.expanded.update((v) => ({ ...v, [key]: !v[key] }));
   }
@@ -96,12 +166,17 @@ export class ArSpecificationComponent implements OnInit {
       statementShowGeneratedNote: s.statementShowGeneratedNote !== false,
       statementFooterText: s.statementFooterText || '',
     });
+    this.applyColumns(s.statementColumns);
   }
 
   onSave(): void {
     this.successMessage.set('');
     this.errorMessage.set('');
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    if (!this.columnRows().some((r) => r.visible)) {
+      this.errorMessage.set('The statement needs at least one visible column.');
+      return;
+    }
     const v = this.form.getRawValue();
     // input[type=number] controls carry number | null at runtime (Angular's
     // NumberValueAccessor), '' only before first edit - normalize either way.
@@ -121,6 +196,7 @@ export class ArSpecificationComponent implements OnInit {
       statementShowIncurredBy: v.statementShowIncurredBy,
       statementShowGeneratedNote: v.statementShowGeneratedNote,
       statementFooterText: v.statementFooterText.trim() || null,
+      statementColumns: this.columnsPayload(),
     }).subscribe({
       next: (res) => {
         this.saving.set(false);
