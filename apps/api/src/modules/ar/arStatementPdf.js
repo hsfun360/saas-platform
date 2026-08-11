@@ -94,6 +94,16 @@ async function fetchLogo(url) {
     }
 }
 
+// Mix a hex colour toward white (f = 0..1 fraction of the way).
+function tintHex(hex, f) {
+    const n = parseInt(hex.slice(1), 16);
+    const mix = (c) => Math.round(c + (255 - c) * f);
+    const r = mix((n >> 16) & 255);
+    const g = mix((n >> 8) & 255);
+    const b = mix(n & 255);
+    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
 // Readable label colour on a coloured band fill.
 function textColorOn(hex) {
     const m = /^#([0-9a-fA-F]{6})$/.exec(hex || '');
@@ -113,6 +123,9 @@ async function renderStatementPdf(statement, details, layout = {}) {
     const bandFill = brand || COLORS.bandBg;
     const bandText = brand ? textColorOn(brand) : COLORS.muted;
     const bandRowText = brand ? textColorOn(brand) : COLORS.text;
+    // Light tint for the opening-balance row (a second dark band right under
+    // the dark table header read badly - user feedback 2026-08-11).
+    const bandFillLight = brand ? tintHex(brand, 0.85) : COLORS.bandBg;
     const accent = brand || COLORS.text;
     return new Promise((resolve, reject) => {
         const doc = new PDFDocument({ ...PAGE, bufferPages: true });
@@ -170,13 +183,23 @@ async function renderStatementPdf(statement, details, layout = {}) {
             doc.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.void)
                 .text('VOID', metaX, doc.y, { width: metaW, align: 'right' });
         }
-        doc.font('Helvetica').fontSize(9).fillColor(COLORS.muted)
-            .text(`Date: ${fmtDate(statement.statementDate)}`, metaX, doc.y + 2, { width: metaW, align: 'right' })
-            .text(`From: ${fmtDate(statement.periodStart)} to ${fmtDate(statement.periodEnd)}`, metaX, doc.y, { width: metaW, align: 'right' });
-        if (layout.showDeposit !== false) {
-            doc.text(`Deposit: ${statement.deposit}`, metaX, doc.y, { width: metaW, align: 'right' });
+        // Meta pair aligned at the ':' (labels right-aligned into the colon,
+        // values left-aligned after it) - a plain right-justified stack read
+        // badly (user feedback 2026-08-11).
+        doc.font('Helvetica').fontSize(9);
+        const metaLines = [['Statement Date', fmtDate(statement.statementDate)]];
+        if (layout.showDeposit !== false) metaLines.push(['Deposit', statement.deposit]);
+        const labelW = Math.max(...metaLines.map((l) => doc.widthOfString(`${l[0]}:`))) + 2;
+        const valueW = Math.max(...metaLines.map((l) => doc.widthOfString(l[1]))) + 2;
+        const blockX = right - (labelW + 5 + valueW);
+        let metaY = doc.y + 4;
+        const metaLineH = doc.currentLineHeight() + 2;
+        for (const [label, value] of metaLines) {
+            doc.fillColor(COLORS.muted).text(`${label}:`, blockX, metaY, { width: labelW, align: 'right', lineBreak: false });
+            doc.fillColor(COLORS.text).text(value, blockX + labelW + 5, metaY, { lineBreak: false });
+            metaY += metaLineH;
         }
-        doc.y = Math.max(leftEnd, doc.y) + 10;
+        doc.y = Math.max(leftEnd, metaY) + 10;
 
         // --- Lines table ---
         const colX = [];
@@ -214,8 +237,10 @@ async function renderStatementPdf(statement, details, layout = {}) {
             const rowH = Math.max(h + 8, 16);
             ensureRoom(rowH);
             const y = doc.y;
-            if (opts.band) doc.rect(left, y, usable, rowH).fill(bandFill);
-            doc.font(font).fontSize(8.5).fillColor(opts.band ? bandRowText : COLORS.text);
+            if (opts.band === 'light') doc.rect(left, y, usable, rowH).fill(bandFillLight);
+            else if (opts.band) doc.rect(left, y, usable, rowH).fill(bandFill);
+            doc.font(font).fontSize(8.5)
+                .fillColor(opts.band && opts.band !== 'light' ? bandRowText : COLORS.text);
             COLS.forEach((c, i) => {
                 doc.text(cells[c.key] || '', colX[i] + 4, y + 4, { width: c.width - 8, align: c.align });
             });
@@ -224,7 +249,7 @@ async function renderStatementPdf(statement, details, layout = {}) {
         };
 
         drawHeaderRow();
-        drawRow({ docNo: 'Opening balance', balance: statement.openingBalance }, { band: true, bold: true });
+        drawRow({ docNo: 'Opening balance', balance: statement.openingBalance }, { band: 'light', bold: true });
         for (const l of details) {
             const detail = [
                 l.description || l.docType,
