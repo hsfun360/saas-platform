@@ -158,6 +158,12 @@
       }
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="viewDlg.requestClose()">Close</button>
+        @if (view()) {
+          <button type="button" class="btn btn--primary" [disabled]="pdfDownloading()" (click)="onDownloadPdf()">
+            <span class="material-icons" aria-hidden="true">download</span>
+            {{ pdfDownloading() ? 'Preparing…' : 'Download PDF' }}
+          </button>
+        }
       </ng-container>
     </app-dialog>
   }

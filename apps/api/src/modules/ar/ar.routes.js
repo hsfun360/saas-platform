@@ -89,6 +89,7 @@ router.get('/statement-runs', requireMenuAction('/ar/statement-generation'), per
 // --- Statement Listing (its own screen/menu: /ar/statements) ---
 router.get('/statements', requireMenuAction('/ar/statements'), periodicController.listStatements);
 router.get('/statements/:id', requireMenuAction('/ar/statements'), periodicController.getStatement);
+router.get('/statements/:id/pdf', requireMenuAction('/ar/statements'), periodicController.getStatementPdf);
 router.patch('/statements/:id/void', requireMenuAction('/ar/statements'), periodicController.voidStatement);
 
 // Not-yet-built areas of the service 501 rather than 404, so a caller can tell

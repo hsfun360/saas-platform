@@ -208,4 +208,10 @@ export class ArService {
   voidStatement(id: string): Observable<{ message: string }> {
     return this.http.patch<{ message: string }>(`${this.base}/statements/${id}/void`, {});
   }
+
+  // Server-rendered Statement of Account PDF (frozen snapshots only). Fetched
+  // through HttpClient so the auth interceptor applies, then saved as a blob.
+  downloadStatementPdf(id: string): Observable<Blob> {
+    return this.http.get(`${this.base}/statements/${id}/pdf`, { responseType: 'blob' });
+  }
 }

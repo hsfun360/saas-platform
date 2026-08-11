@@ -122,6 +122,29 @@ export class ArStatementsComponent implements OnInit {
     return out;
   }
 
+  // Download the server-rendered PDF of the statement open in the viewer.
+  readonly pdfDownloading = signal(false);
+  onDownloadPdf(): void {
+    const st = this.view()?.statement;
+    if (!st || this.pdfDownloading()) return;
+    this.pdfDownloading.set(true);
+    this.service.downloadStatementPdf(st.id).subscribe({
+      next: (blob) => {
+        this.pdfDownloading.set(false);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Statement-${st.statementNo.replace(/[^A-Za-z0-9._-]/g, '_')}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => {
+        this.pdfDownloading.set(false);
+        this.errorMessage.set('Failed to download the statement PDF.');
+      },
+    });
+  }
+
   onVoid(row: ArStatementSummary): void {
     this.clearMessages();
     this.service.voidStatement(row.id).subscribe({

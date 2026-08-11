@@ -512,6 +512,34 @@ exports.getStatement = async (req, res) => {
     }
 };
 
+// GET /api/ar/statements/:id/pdf - the printable Statement of Account,
+// rendered entirely from the frozen snapshots (reprints are byte-identical).
+exports.getStatementPdf = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const row = await Statement.findOne({ where: { id: req.params.id, companyId } });
+        if (!row) return res.status(404).json({ message: 'Statement not found.' });
+        const details = await StatementDetail.findAll({
+            where: { statementId: row.id },
+            order: [['lineNo', 'ASC']],
+        });
+        const { renderStatementPdf } = require('./arStatementPdf');
+        const pdf = await renderStatementPdf(row, details);
+        const safeNo = String(row.statementNo).replace(/[^A-Za-z0-9._-]/g, '_');
+        res.status(200)
+            .set({
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': `attachment; filename="Statement-${safeNo}.pdf"`,
+                'Content-Length': pdf.length,
+            })
+            .send(pdf);
+    } catch (err) {
+        console.error('Error rendering statement PDF:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 // PATCH /api/ar/statements/:id/void - a statement is a frozen report; voiding
 // it (e.g. before a corrected re-run) never touches balances.
 exports.voidStatement = async (req, res) => {
