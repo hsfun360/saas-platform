@@ -291,8 +291,8 @@ async function processOutboxSafely() {
                                 userId: msg.payload.requestedBy,
                                 companyId: msg.payload.companyId,
                                 type: 'ar.debtor-provisioned',
-                                title: 'AR ledger account opened',
-                                body: `The AR debtor account for ${debtorLabel(msg.payload)} is ready.`,
+                                title: 'AR Account Successfully Replicated',
+                                body: `The AR debtor account for ${debtorLabel(msg.payload)} is ready to use.`,
                                 linkRoute: `/ar/debtors/${debtor.id}`,
                             });
                         } catch (nerr) {
