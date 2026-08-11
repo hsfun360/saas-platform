@@ -48,6 +48,12 @@ function fmtDate(iso) {
     return `${d} ${MONTHS[m - 1]} ${y}`;
 }
 
+// Accounting presentation: negative amounts print in brackets - (100.00).
+function fmtAmount(s) {
+    const str = String(s === null || s === undefined ? '0.00' : s);
+    return str.startsWith('-') ? `(${str.slice(1)})` : str;
+}
+
 function addressLines(a) {
     if (!a) return [];
     return [
@@ -120,45 +126,57 @@ async function renderStatementPdf(statement, details, layout = {}) {
         const usable = right - left;
         const bottom = doc.page.height - PAGE.margin - 24; // keep room for the footer
 
-        // --- Letterhead (logo shifts the text block right when present) ---
+        // --- Letterhead: logo + company identity, full width (the title moved
+        // below the divider so a long club name can never collide with it) ---
         let headX = left;
         let headW = usable;
+        let logoDrawn = false;
         if (layout.showLogo !== false && logoBuffer) {
             try {
-                doc.image(logoBuffer, left, PAGE.margin, { fit: [88, 40] });
+                doc.image(logoBuffer, left, PAGE.margin, { fit: [88, 44] });
                 headX = left + 100;
                 headW = usable - 100;
+                logoDrawn = true;
             } catch {
                 // Unsupported image format - print without the logo.
             }
         }
         doc.fillColor(accent).font('Helvetica-Bold').fontSize(14)
             .text(statement.companyName || '', headX, PAGE.margin, { width: headW });
-        doc.font('Helvetica').fontSize(8).fillColor(COLORS.muted);
+        doc.font('Helvetica').fontSize(8.5).fillColor(COLORS.muted);
+        if (statement.companyRegistrationNo) doc.text(`(${statement.companyRegistrationNo})`, { width: headW });
+        doc.fontSize(8);
         for (const line of addressLines(statement.companyAddress)) doc.text(line, { width: headW });
-
-        // Title block (right-aligned, level with the letterhead).
-        doc.font('Helvetica-Bold').fontSize(12).fillColor(accent)
-            .text('STATEMENT OF ACCOUNT', left, PAGE.margin, { width: usable, align: 'right' });
-        doc.font('Helvetica').fontSize(9).fillColor(COLORS.muted)
-            .text(statement.statementNo, { width: usable, align: 'right' })
-            .text(`Statement date ${fmtDate(statement.statementDate)}`, { width: usable, align: 'right' })
-            .text(`Period ${fmtDate(statement.periodStart)} - ${fmtDate(statement.periodEnd)}`, { width: usable, align: 'right' });
-        if (statement.status === 'void') {
-            doc.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.void)
-                .text('VOID', { width: usable, align: 'right' });
-        }
+        if (logoDrawn) doc.y = Math.max(doc.y, PAGE.margin + 48);
 
         doc.moveTo(left, doc.y + 8).lineTo(right, doc.y + 8).strokeColor(brand || COLORS.line).lineWidth(1).stroke();
         doc.y += 16;
 
-        // --- Bill-to ---
+        // --- Bill-to (left) + title with statement meta (right) ---
+        const bandTop = doc.y;
+        const leftColW = Math.floor(usable * 0.55);
         doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.text)
-            .text(`${statement.billName}${statement.debtorNo ? `  (${statement.debtorNo})` : ''}`, left, doc.y, { width: usable });
+            .text(`${statement.billName}${statement.debtorNo ? `  (${statement.debtorNo})` : ''}`, left, bandTop, { width: leftColW });
         doc.font('Helvetica').fontSize(9).fillColor(COLORS.muted);
-        for (const line of addressLines(statement.billAddress)) doc.text(line, { width: usable });
-        if (statement.contactPerson) doc.text(`Attn: ${statement.contactPerson}`, { width: usable });
-        doc.y += 10;
+        for (const line of addressLines(statement.billAddress)) doc.text(line, { width: leftColW });
+        if (statement.contactPerson) doc.text(`Attn: ${statement.contactPerson}`, { width: leftColW });
+        const leftEnd = doc.y;
+
+        const metaX = left + leftColW;
+        const metaW = usable - leftColW;
+        doc.font('Helvetica-Bold').fontSize(12).fillColor(accent)
+            .text('STATEMENT OF ACCOUNT', metaX, bandTop, { width: metaW, align: 'right' });
+        if (statement.status === 'void') {
+            doc.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.void)
+                .text('VOID', metaX, doc.y, { width: metaW, align: 'right' });
+        }
+        doc.font('Helvetica').fontSize(9).fillColor(COLORS.muted)
+            .text(`Date: ${fmtDate(statement.statementDate)}`, metaX, doc.y + 2, { width: metaW, align: 'right' })
+            .text(`From: ${fmtDate(statement.periodStart)} to ${fmtDate(statement.periodEnd)}`, metaX, doc.y, { width: metaW, align: 'right' });
+        if (layout.showDeposit !== false) {
+            doc.text(`Deposit: ${statement.deposit}`, metaX, doc.y, { width: metaW, align: 'right' });
+        }
+        doc.y = Math.max(leftEnd, doc.y) + 10;
 
         // --- Lines table ---
         const colX = [];
@@ -223,31 +241,36 @@ async function renderStatementPdf(statement, details, layout = {}) {
         }
         drawRow({ docNo: 'Closing balance', balance: statement.closingBalance }, { band: true, bold: true });
 
-        // --- Aging strip ---
+        // --- Aging strip (+ the unallocated credit side and the total, so the
+        // row always reconciles: buckets + unallocated = balance) ---
         const buckets = layout.showAging !== false ? agingBuckets(statement) : [];
         if (buckets.length) {
+            // The two summary cells get fixed wider tracks so their labels
+            // never wrap; the buckets share the rest equally.
+            const SUMMARY_W = 74;
+            const bucketW = (usable - 2 * SUMMARY_W) / buckets.length;
+            const cells = [
+                ...buckets.map((b, i) => ({ ...b, x: left + i * bucketW, w: bucketW })),
+                { label: 'UNALLOCATED', amount: fmtAmount(statement.unallocatedAmount), x: left + buckets.length * bucketW, w: SUMMARY_W },
+                { label: 'BALANCE', amount: statement.closingBalance, x: left + buckets.length * bucketW + SUMMARY_W, w: SUMMARY_W },
+            ];
             const stripH = 30;
             ensureRoom(stripH + 18);
             doc.y += 10;
             const y = doc.y;
-            const w = usable / buckets.length;
             doc.rect(left, y, usable, 14).fill(bandFill);
             doc.font('Helvetica-Bold').fontSize(7.5).fillColor(bandText);
-            buckets.forEach((b, i) => doc.text(b.label, left + i * w, y + 4, { width: w - 6, align: 'right' }));
+            cells.forEach((b) => doc.text(b.label, b.x, y + 4, { width: b.w - 6, align: 'right' }));
             doc.font('Helvetica').fontSize(8.5).fillColor(COLORS.text);
-            buckets.forEach((b, i) => doc.text(b.amount, left + i * w, y + 18, { width: w - 6, align: 'right' }));
+            cells.forEach((b) => doc.text(b.amount, b.x, y + 18, { width: b.w - 6, align: 'right' }));
             doc.rect(left, y, usable, stripH).strokeColor(COLORS.line).lineWidth(0.5).stroke();
             doc.y = y + stripH;
         }
 
-        // --- Deposit + remittance + closing notes ---
+        // --- Remittance + closing notes (deposit moved to the header meta) ---
         ensureRoom(30);
         doc.y += 8;
         doc.font('Helvetica').fontSize(8.5).fillColor(COLORS.muted);
-        if (layout.showDeposit !== false) {
-            doc.text(`Security deposit held: ${statement.deposit}`, left, doc.y, { width: usable });
-            doc.moveDown(0.6);
-        }
         if (layout.footerText) {
             doc.fillColor(COLORS.text).text(String(layout.footerText), left, doc.y, { width: usable });
             doc.moveDown(0.6);
@@ -258,13 +281,14 @@ async function renderStatementPdf(statement, details, layout = {}) {
                 .text('This is a computer-generated statement of account; no signature is required.', left, doc.y, { width: usable });
         }
 
-        // --- Page footer (page x of y) ---
+        // --- Page footer: statement number left, page counter right ---
         const range = doc.bufferedPageRange();
         for (let i = range.start; i < range.start + range.count; i += 1) {
             doc.switchToPage(i);
+            const footY = doc.page.height - PAGE.margin - 10;
             doc.font('Helvetica').fontSize(7.5).fillColor(COLORS.muted)
-                .text(`${statement.statementNo}  ·  Page ${i + 1} of ${range.count}`,
-                    left, doc.page.height - PAGE.margin - 10, { width: usable, align: 'center' });
+                .text(statement.statementNo, left, footY, { width: usable / 2, align: 'left' })
+                .text(`Page ${i + 1} of ${range.count}`, left + usable / 2, footY, { width: usable / 2, align: 'right' });
         }
 
         doc.end();
@@ -278,13 +302,14 @@ function sampleStatement({ companyName, companyAddress, boundaries }) {
     const b = (boundaries && boundaries.length ? boundaries : [30, 60, 90, 120, 150, 180]).slice(0, 6);
     const aging = new Array(7).fill('0.00');
     aging[0] = '750.00';
-    if (b.length > 1) aging[1] = '216.00';
+    if (b.length > 1) aging[1] = '316.00';
     const statement = {
         statementNo: 'ST-SAMPLE',
         statementDate: '2026-08-31',
         periodStart: '2026-08-01',
         periodEnd: '2026-08-31',
         companyName: companyName || 'Your Club Name',
+        companyRegistrationNo: '199601001234 (376546-P)',
         companyAddress: companyAddress || null,
         billName: 'Sample Member',
         debtorNo: 'MBR-000123',
@@ -294,6 +319,7 @@ function sampleStatement({ companyName, companyAddress, boundaries }) {
         openingBalance: '216.00',
         closingBalance: '966.00',
         deposit: '500.00',
+        unallocatedAmount: b.length > 1 ? '-100.00' : '216.00',
         aging1: aging[0], aging2: aging[1], aging3: aging[2], aging4: aging[3],
         aging5: aging[4], aging6: aging[5], aging7: aging[6],
         agingBoundaries: b,

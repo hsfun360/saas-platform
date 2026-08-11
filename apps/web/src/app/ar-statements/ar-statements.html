@@ -91,6 +91,9 @@
         <!-- Issuer letterhead (frozen) -->
         <div class="as-letterhead">
           <strong>{{ v.statement.companyName }}</strong>
+          @if (v.statement.companyRegistrationNo) {
+            <span class="cell-subtle">({{ v.statement.companyRegistrationNo }})</span>
+          }
           @for (line of companyAddressLines(v); track $index) {
             <span class="cell-subtle">{{ line }}</span>
           }
@@ -107,8 +110,9 @@
             }
           </div>
           <div class="as-head__period">
-            <div class="cell-subtle">Period {{ v.statement.periodStart | localDate }} – {{ v.statement.periodEnd | localDate }}</div>
-            <div class="cell-subtle">Statement date {{ v.statement.statementDate | localDate }}</div>
+            <div class="cell-subtle">Date: {{ v.statement.statementDate | localDate }}</div>
+            <div class="cell-subtle">From: {{ v.statement.periodStart | localDate }} to {{ v.statement.periodEnd | localDate }}</div>
+            <div class="cell-subtle">Deposit: {{ v.statement.deposit }}</div>
           </div>
         </div>
         <div class="as-lines">
@@ -137,24 +141,26 @@
             <span class="as-num">{{ v.statement.closingBalance }}</span>
           </div>
         </div>
-        <!-- Aging + deposit footer -->
+        <!-- Aging footer: buckets + unallocated credit + total (always
+             reconciles: buckets + unallocated = balance) -->
         @if (agingBuckets(v).length) {
           <div class="as-aging">
             <div class="as-aging__row as-aging__row--head">
               @for (bkt of agingBuckets(v); track $index) {
                 <span class="as-num">{{ bkt.label }}</span>
               }
+              <span class="as-num">Unallocated</span>
+              <span class="as-num">Balance</span>
             </div>
             <div class="as-aging__row">
               @for (bkt of agingBuckets(v); track $index) {
                 <span class="as-num">{{ bkt.amount }}</span>
               }
+              <span class="as-num">{{ bracketAmount(v.statement.unallocatedAmount) }}</span>
+              <span class="as-num">{{ v.statement.closingBalance }}</span>
             </div>
           </div>
         }
-        <div class="as-footer-meta">
-          <span class="cell-subtle">Security deposit held: <strong>{{ v.statement.deposit }}</strong></span>
-        </div>
       }
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="viewDlg.requestClose()">Close</button>

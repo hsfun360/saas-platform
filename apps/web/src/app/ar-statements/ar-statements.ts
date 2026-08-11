@@ -145,6 +145,12 @@ export class ArStatementsComponent implements OnInit {
     });
   }
 
+  // Accounting presentation: negatives in brackets, e.g. (100.00).
+  bracketAmount(s: string | null | undefined): string {
+    const str = String(s ?? '0.00');
+    return str.startsWith('-') ? `(${str.slice(1)})` : str;
+  }
+
   onVoid(row: ArStatementSummary): void {
     this.clearMessages();
     this.service.voidStatement(row.id).subscribe({

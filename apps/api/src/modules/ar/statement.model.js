@@ -91,10 +91,15 @@ const Statement = sequelize.define('Statement', {
         type: DataTypes.STRING,
         allowNull: true,
     },
-    // Issuer letterhead snapshot (the club's own name/address at generation).
+    // Issuer letterhead snapshot (the club's own name/reg-no/address at
+    // generation).
     companyName: {
         type: DataTypes.STRING,
         allowNull: false,
+    },
+    companyRegistrationNo: {
+        type: DataTypes.STRING,
+        allowNull: true,
     },
     companyAddress: {
         type: DataTypes.JSONB,
@@ -123,6 +128,17 @@ const Statement = sequelize.define('Statement', {
     agingBoundaries: {
         type: DataTypes.JSONB,
         allowNull: true,
+    },
+    // Credit side not yet applied to any item as-of periodEnd (receipts / CNs
+    // unapplied) - SIGNED (normally <= 0, printed in brackets). The aging
+    // buckets are pure debit-item aging since 2026-08-11:
+    // sum(aging1..7) + unallocatedAmount == closingBalance.
+    // (Statements generated before that folded credits into aging1 and carry
+    // 0 here - the identity still holds.)
+    unallocatedAmount: {
+        type: DataTypes.DECIMAL(21, 2),
+        allowNull: false,
+        defaultValue: 0,
     },
     // 'generated' | 'sent' | 'void'.
     status: {

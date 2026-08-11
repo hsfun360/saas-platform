@@ -432,12 +432,13 @@ async function getCompanyLetterhead(companyId) {
     if (!companyId) return null;
     const Company = require('../modules/saas/company.model');
     const c = await Company.findByPk(companyId, {
-        attributes: ['id', 'name', 'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'country', 'countryCode', 'phone', 'email', 'logo'],
+        attributes: ['id', 'name', 'registrationNumber', 'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'country', 'countryCode', 'phone', 'email', 'logo'],
     });
     if (!c) return null;
     return {
         id: c.id,
         name: c.name,
+        registrationNo: c.registrationNumber || null,
         phone: c.phone || null,
         email: c.email || null,
         logo: c.logo || null,

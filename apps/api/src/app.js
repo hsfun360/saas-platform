@@ -292,6 +292,18 @@ async function initializeDB() {
             }
 
             await sequelize.sync({ alter: true });
+
+            // Statement letterhead completion (2026-08-11): statements now
+            // snapshot the issuer registration number at generation; backfill
+            // rows from before the column existed with the CURRENT company
+            // value (best available - the data columns stay frozen).
+            await sequelize.query(
+                `UPDATE ar."Statement" s SET "companyRegistrationNo" = c."registrationNumber"
+                 FROM public."Company" c
+                 WHERE s."companyId" = c."id" AND s."companyRegistrationNo" IS NULL
+                   AND c."registrationNumber" IS NOT NULL`,
+            ).catch((err) => console.warn('Statement registrationNo backfill skipped:', err.message));
+
             await writeStoredFingerprint(sequelize, fingerprint);
             console.log('Database schema synced successfully.');
         }

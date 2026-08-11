@@ -201,8 +201,10 @@ export interface ArStatementDetail {
     billAddress: Record<string, string | null> | null;
     contactPerson: string | null;
     companyName: string;
+    companyRegistrationNo: string | null;
     companyAddress: Record<string, string | null> | null;
     deposit: string;
+    unallocatedAmount: string;
     aging1: string; aging2: string; aging3: string; aging4: string;
     aging5: string; aging6: string; aging7: string;
     agingBoundaries: number[] | null;

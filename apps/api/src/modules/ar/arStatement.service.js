@@ -653,8 +653,9 @@ async function generateOne({
     // Debit open items age by days overdue from dueDate (docDate fallback),
     // with allocations counted as-of the period end (a settlement whose credit
     // document is dated after periodEnd hadn't happened yet on this statement).
-    // The net credit side (receipts/CNs not yet applied) lands in the first
-    // bucket, so the buckets always sum exactly to the closing balance.
+    // The buckets are PURE debit-item aging (2026-08-11); the net credit side
+    // (receipts/CNs not yet applied) is carried separately as
+    // unallocatedAmount, so buckets + unallocated == closing balance.
     const docDateById = new Map();
     for (const r of ledgerRows) docDateById.set(r.id, r.docDate);
     for (const r of receiptRows) docDateById.set(r.id, r.docDate);
@@ -675,7 +676,8 @@ async function generateOne({
         const age = daysBetween(r.dueDate || r.docDate, periodEnd);
         agingC[Math.min(bucketIndex(age, boundaries), 6)] += remainC;
     }
-    agingC[0] += closingC - totalRemainC;
+    // Signed; normally <= 0 (unapplied credits reduce what is owed).
+    const unallocatedC = closingC - totalRemainC;
 
     // Deposit balance snapshot (held minus utilized, deposits up to periodEnd).
     let depositC = 0;
@@ -704,8 +706,10 @@ async function generateOne({
             billAddress,
             contactPerson,
             companyName: (letterhead && letterhead.name) || '',
+            companyRegistrationNo: (letterhead && letterhead.registrationNo) || null,
             companyAddress: (letterhead && letterhead.address) || null,
             deposit: money(depositC),
+            unallocatedAmount: money(unallocatedC),
             aging1: money(agingC[0]),
             aging2: money(agingC[1]),
             aging3: money(agingC[2]),
