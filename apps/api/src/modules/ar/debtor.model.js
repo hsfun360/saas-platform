@@ -35,6 +35,23 @@ const Debtor = sequelize.define('Debtor', {
         type: DataTypes.UUID,
         allowNull: false,
     },
+    // SORT-KEY SNAPSHOTS of the party's number + display name (columns approved
+    // 2026-08-11). The listing still DISPLAYS live values resolved through the
+    // membership seam - these exist so ORDER BY can see them; a stale snapshot
+    // can only mis-order a row, never mis-display it. Kept fresh by: the
+    // provisioning event payload (event-carried state), Other Debtor saves
+    // (same tx), the listing's read-repair, and reconciliation (stamps missing
+    // values every run, repairs drift in fix mode).
+    // Phase B (after the backfill verified zero NULLs): allowNull flips to
+    // false - a ledger account must never exist without its number and name.
+    debtorAccount: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+    },
+    name: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+    },
     // Repayment terms in days (drives Invoice/DN dueDate); null = due immediately.
     terms: {
         type: DataTypes.INTEGER,
@@ -73,6 +90,9 @@ const Debtor = sequelize.define('Debtor', {
     indexes: [
         { name: 'IDX_Debtor_Company_Type_Source', fields: ['companyId', 'debtorType', 'sourceId'], unique: true },
         { name: 'IDX_Debtor_Company_Status', fields: ['companyId', 'status'] },
+        // Sort-key indexes for the listing's ?sort=debtorAccount|name.
+        { name: 'IDX_Debtor_Company_Account', fields: ['companyId', 'debtorAccount'] },
+        { name: 'IDX_Debtor_Company_Name', fields: ['companyId', 'name'] },
     ],
 });
 

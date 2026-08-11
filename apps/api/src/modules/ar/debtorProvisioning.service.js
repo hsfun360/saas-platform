@@ -25,11 +25,18 @@ function money(value) {
 
 // Find-or-create the ledger account (Debtor + its CreditAccount pool row) for a
 // provisioning payload:
-//   { companyId, debtorType, sourceId, sourceNo?, requestedBy?, terms?,
+//   { companyId, debtorType, sourceId, sourceNo?, name?, requestedBy?, terms?,
 //     creditLimit?, sendReminders?, chargeInterest? }
+// `sourceNo` + `name` stamp the Debtor's sort-key snapshots (debtorAccount /
+// name); reconciliation and the listing read-repair fill/refresh them later if
+// the payload arrived without them.
 // Returns { debtor, created } - `created` false when the account already
 // existed (replays stay silent). Throws on a malformed payload so the outbox
 // retry/poison handling surfaces it.
+function snap(value, max) {
+    return typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null;
+}
+
 async function provisionDebtor(payload, transaction = null) {
     const { companyId, debtorType, sourceId } = payload || {};
     if (!companyId || !sourceId || !DEBTOR_TYPE_KEYS.includes(debtorType)) {
@@ -40,6 +47,8 @@ async function provisionDebtor(payload, transaction = null) {
         const [debtor, created] = await Debtor.findOrCreate({
             where: { companyId, debtorType, sourceId },
             defaults: {
+                debtorAccount: snap(payload.sourceNo, 64),
+                name: snap(payload.name, 255),
                 terms: Number.isInteger(payload.terms) ? payload.terms : null,
                 sendReminders: !!payload.sendReminders,
                 chargeInterest: !!payload.chargeInterest,
@@ -47,6 +56,16 @@ async function provisionDebtor(payload, transaction = null) {
             },
             transaction: t,
         });
+        if (!created) {
+            // Replays never overwrite AR-owned terms, but they DO fill missing
+            // sort-key snapshots (nulls only, never replacing a value) - this
+            // is what lets the idempotent backfill stamp ledger accounts that
+            // predate the debtorAccount/name columns.
+            const patch = {};
+            if (!debtor.debtorAccount && snap(payload.sourceNo, 64)) patch.debtorAccount = snap(payload.sourceNo, 64);
+            if (!debtor.name && snap(payload.name, 255)) patch.name = snap(payload.name, 255);
+            if (Object.keys(patch).length) await debtor.update(patch, { transaction: t });
+        }
         if (created) {
             // findOrCreate on CreditAccount too (not plain create): a crash
             // between the two inserts leaves a Debtor without a pool row, and

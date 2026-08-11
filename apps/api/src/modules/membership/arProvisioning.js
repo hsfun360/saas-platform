@@ -32,6 +32,31 @@ function isActiveClass(statusRow) {
 function toInt(x) { const n = Number(x); return Number.isInteger(n) ? n : null; }
 function toMoney(x) { const n = Number(x); return Number.isFinite(n) && n > 0 ? n : 0; }
 
+// Person display name: "First Last" -> native-script name -> member number.
+// Mirrors platform/membershipGateway personName so the AR snapshot matches
+// what the listing resolves live.
+function personDisplayName(member) {
+    const name = [member.firstName, member.lastName].filter(Boolean).join(' ').trim();
+    return name || member.localName || member.memberNo || null;
+}
+
+// A contract debtor's display name: the corporate name (corporate class) or
+// the individual member's own name (individual class - the contract debtor IS
+// the person). Falls back to the membership number so the payload always
+// carries SOMETHING once numbering has run.
+async function contractDisplayName(membership, transaction) {
+    if (membership.membershipClass === 'corporate') {
+        return membership.corporateName || membership.membershipNo || null;
+    }
+    const Member = require('./member.model');
+    const person = await Member.findOne({
+        where: { companyId: membership.companyId, membershipId: membership.id, memberKind: 'individual' },
+        attributes: ['firstName', 'lastName', 'localName', 'memberNo'],
+        transaction,
+    });
+    return (person && personDisplayName(person)) || membership.membershipNo || null;
+}
+
 // The contract debtor payload, seeded from the Membership credit card.
 // `requestedBy` (a userId) makes the worker notify that user when the ledger
 // account is actually opened or terminally fails - interactive saves pass it,
@@ -42,6 +67,7 @@ async function provisionContractDebtor(membership, transaction, requestedBy = nu
         debtorType: 'membership',
         sourceId: membership.id,
         sourceNo: membership.membershipNo || null,
+        name: await contractDisplayName(membership, transaction),
         requestedBy,
         terms: toInt(membership.terms),
         creditLimit: toMoney(membership.creditLimit),
@@ -58,6 +84,7 @@ async function provisionNomineeDebtor(member, membership, transaction, requested
         debtorType: 'member',
         sourceId: member.id,
         sourceNo: member.memberNo || null,
+        name: personDisplayName(member),
         requestedBy,
         terms: toInt(membership.terms),
         creditLimit: toMoney(member.creditLimit),

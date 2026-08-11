@@ -22,7 +22,9 @@
 
 const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
+const membershipGateway = require('../../platform/membershipGateway');
 const Debtor = require('./debtor.model');
+const OtherDebtor = require('./otherDebtor.model');
 const CreditAccount = require('./creditAccount.model');
 const CreditMemberLimit = require('./creditMemberLimit.model');
 const Ledger = require('./ledger.model');
@@ -35,7 +37,7 @@ const { cents, money } = require('./arPosting.service');
 // drifted counters are repaired and each discrepancy is marked fixed.
 async function reconcileCompany(companyId, { fix = false } = {}) {
     const [debtors, pools, caps, ledger, receipts, deposits, allocations] = await Promise.all([
-        Debtor.findAll({ where: { companyId }, attributes: ['id'] }),
+        Debtor.findAll({ where: { companyId }, attributes: ['id', 'debtorType', 'sourceId', 'debtorAccount', 'name'] }),
         CreditAccount.findAll({ where: { companyId } }),
         CreditMemberLimit.findAll({ where: { companyId } }),
         Ledger.findAll({ where: { companyId } }),
@@ -142,6 +144,79 @@ async function reconcileCompany(companyId, { fix = false } = {}) {
         });
     }
 
+    // --- sort-key snapshots (debtorAccount / name) ---
+    // Missing snapshots are STAMPED every run, both modes - that's additive
+    // backfill, not drift repair, and it is what fills rows that predate the
+    // columns. A snapshot that DIFFERS from the live party value is drift:
+    // reported, repaired in fix mode. A party that no longer resolves at all
+    // is reported as unresolvable (nothing to stamp - real integrity problem).
+    let snapshotsStamped = 0;
+    {
+        const ids = { membershipIds: [], memberIds: [], otherIds: [] };
+        for (const d of debtors) {
+            if (d.debtorType === 'membership') ids.membershipIds.push(d.sourceId);
+            else if (d.debtorType === 'member') ids.memberIds.push(d.sourceId);
+            else ids.otherIds.push(d.sourceId);
+        }
+        const display = await membershipGateway.lookupPartyDisplay(companyId, ids);
+        const others = ids.otherIds.length
+            ? await OtherDebtor.findAll({ where: { id: { [Op.in]: ids.otherIds } }, attributes: ['id', 'code', 'name'] })
+            : [];
+        const otherById = new Map(others.map((o) => [o.id, o]));
+
+        for (const d of debtors) {
+            let live = null;
+            if (d.debtorType === 'membership') {
+                const m = display.memberships[d.sourceId];
+                live = m ? { no: m.no, name: m.name } : null;
+            } else if (d.debtorType === 'member') {
+                const m = display.members[d.sourceId];
+                live = m ? { no: m.no, name: m.name } : null;
+            } else {
+                const o = otherById.get(d.sourceId);
+                live = o ? { no: o.code, name: o.name } : null;
+            }
+
+            if (!live) {
+                if (!d.debtorAccount || !d.name) {
+                    discrepancies.push({
+                        type: 'debtor', ref: d.id, field: 'displaySnapshot',
+                        expected: '(party unresolvable)',
+                        actual: `${d.debtorAccount || '∅'} / ${d.name || '∅'}`,
+                        fixed: false, _apply: null,
+                    });
+                }
+                continue;
+            }
+
+            const wantAccount = live.no ? String(live.no).slice(0, 64) : null;
+            const wantName = live.name ? String(live.name).slice(0, 255) : null;
+            const stamp = {};
+            if (!d.debtorAccount && wantAccount) stamp.debtorAccount = wantAccount;
+            if (!d.name && wantName) stamp.name = wantName;
+            if (Object.keys(stamp).length) {
+                await Debtor.update(stamp, { where: { id: d.id } });
+                snapshotsStamped += 1;
+            }
+            const stale = (d.debtorAccount && wantAccount && d.debtorAccount !== wantAccount)
+                || (d.name && wantName && d.name !== wantName);
+            if (stale) {
+                discrepancies.push({
+                    type: 'debtor', ref: d.debtorAccount || d.id, field: 'displaySnapshot',
+                    expected: `${wantAccount || '∅'} / ${wantName || '∅'}`,
+                    actual: `${d.debtorAccount || '∅'} / ${d.name || '∅'}`,
+                    fixed: false,
+                    _apply: async (t) => {
+                        await Debtor.update(
+                            { debtorAccount: wantAccount || d.debtorAccount, name: wantName || d.name },
+                            { where: { id: d.id }, transaction: t },
+                        );
+                    },
+                });
+            }
+        }
+    }
+
     if (fix && discrepancies.length) {
         await sequelize.transaction(async (t) => {
             // Standard lock order: every pool row first, then everything else.
@@ -149,6 +224,7 @@ async function reconcileCompany(companyId, { fix = false } = {}) {
                 where: { companyId }, transaction: t, lock: t.LOCK.UPDATE,
             });
             for (const d of discrepancies) {
+                if (!d._apply) continue; // unresolvable-party reports have no repair
                 await d._apply(t);
                 d.fixed = true;
             }
@@ -163,6 +239,7 @@ async function reconcileCompany(companyId, { fix = false } = {}) {
             receipts: receipts.length,
             deposits: deposits.length,
             personCaps: caps.length,
+            snapshotsStamped,
         },
         discrepancies,
     };

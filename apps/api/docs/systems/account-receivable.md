@@ -18,6 +18,10 @@ The full agreed design (Debtor shape, charge routing by category, credit checkin
 Key rules a maintainer must not break:
 
 - Debtor is THIN: `(companyId, debtorType 'membership'|'member'|'other', sourceId)` + credit terms/prefs. Party data stays with the party master; documents snapshot it at generation time. The pointer NEVER lives on the membership side.
+- The ONE deliberate exception to thin: `debtorAccount` + `name` (approved 2026-08-11) are SORT-KEY SNAPSHOTS of the party's number/display name, so the paged listing can `ORDER BY` them (live display data resolves through the seam AFTER the page query and cannot be ordered on).
+  The listing still displays live-resolved values - a stale snapshot can only mis-order, never mis-display.
+  Freshness: stamped from the provisioning payload (event-carried state; replays fill NULLs but never overwrite), refreshed same-tx on Other Debtor saves, read-repaired by the listing when a page's live value differs, and verified by reconciliation (missing = stamped every run; drift = reported, repaired in fix mode; unresolvable party = reported).
+  Target state: NOT NULL after the backfill (a ledger account must never exist without number + name; a provisioning payload without them fails and retries via the outbox).
 - Hot balances live in `CreditAccount` (pool) and `CreditMemberLimit` (per-person caps, row = capped person only), materialized in the same tx as every posting, pool row locked first.
 - After first provisioning, AR owns the credit terms (the membership screen shows them read-only).
 - Dependents never get debtor rows; their charges resolve to the principal at posting time.

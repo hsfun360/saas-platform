@@ -30,6 +30,11 @@ const OTHER_DEBTOR_NUMBERING_PURPOSE = 'ar-other-debtor';
 // Every expression here is OUR SQL - user input only ever picks a key.
 const DEBTOR_SORTS = {
     newest: { expr: '"Debtor"."createdAt"', defaultDir: 'DESC', nulls: '' },
+    // Number/name order by the Debtor's own sort-key snapshot columns
+    // (debtorAccount / name), stamped at provisioning and kept fresh by the
+    // read-repair below + reconciliation. LOWER() interleaves cases.
+    debtorAccount: { expr: 'LOWER("Debtor"."debtorAccount")', defaultDir: 'ASC', nulls: ' NULLS LAST' },
+    name: { expr: 'LOWER("Debtor"."name")', defaultDir: 'ASC', nulls: ' NULLS LAST' },
     terms: { expr: 'COALESCE("Debtor"."terms", 0)', defaultDir: 'ASC', nulls: '' },
     outstanding: {
         expr: '(SELECT ca."outstanding" FROM "ar"."CreditAccount" ca WHERE ca."debtorId" = "Debtor"."id")',
@@ -129,6 +134,13 @@ exports.listDebtors = async (req, res) => {
             : [];
         const poolByDebtor = new Map(pools.map((p) => [p.debtorId, p]));
 
+        // Read-repair for the sort-key snapshots: the live display values are
+        // already resolved for this page, so any row whose snapshot is missing
+        // or stale gets corrected in the background (renames self-heal on
+        // view). Never writes NULL over a value - an unresolvable party is
+        // reconciliation's business, not this request's.
+        const snapshotRepairs = [];
+
         res.status(200).json({
             total: count,
             limit: SEARCH_LIMIT,
@@ -145,6 +157,10 @@ exports.listDebtors = async (req, res) => {
                     const o = otherById.get(d.sourceId);
                     no = o ? o.code : null; name = o ? o.name : null; sub = null;
                 }
+                const patch = {};
+                if (no && no !== d.debtorAccount) patch.debtorAccount = String(no).slice(0, 64);
+                if (name && name !== d.name) patch.name = String(name).slice(0, 255);
+                if (Object.keys(patch).length) snapshotRepairs.push({ id: d.id, patch });
                 const pool = poolByDebtor.get(d.id);
                 return {
                     id: d.id,
@@ -163,6 +179,14 @@ exports.listDebtors = async (req, res) => {
                 };
             }),
         });
+
+        // Fire-and-forget - the response is already gone; a failed repair just
+        // waits for the next page view or the nightly reconciliation.
+        if (snapshotRepairs.length) {
+            Promise.allSettled(
+                snapshotRepairs.map(({ id, patch }) => Debtor.update(patch, { where: { id } })),
+            );
+        }
     } catch (error) {
         console.error('Error listing debtors:', error);
         res.status(500).json({ message: 'Internal server error' });

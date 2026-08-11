@@ -56,6 +56,8 @@ export class ArDebtorsComponent implements OnInit {
   // Keys mirror the API's DEBTOR_SORTS whitelist.
   readonly sortOptions: SortOption[] = [
     { key: 'newest', label: 'Newest', defaultDir: 'desc' },
+    { key: 'debtorAccount', label: 'Number', defaultDir: 'asc' },
+    { key: 'name', label: 'Name', defaultDir: 'asc' },
     { key: 'outstanding', label: 'Outstanding', defaultDir: 'desc' },
     { key: 'creditLimit', label: 'Credit limit', defaultDir: 'desc' },
     { key: 'terms', label: 'Terms', defaultDir: 'asc' },

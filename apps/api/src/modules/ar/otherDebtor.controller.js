@@ -118,6 +118,8 @@ exports.createOtherDebtor = async (req, res) => {
                     companyId,
                     debtorType: 'other',
                     sourceId: row.id,
+                    sourceNo: code,
+                    name: row.name,
                     terms,
                     creditLimit: Number.isFinite(creditLimit) ? creditLimit : 0,
                     sendReminders: !!req.body.sendReminders,
@@ -165,17 +167,21 @@ exports.updateOtherDebtor = async (req, res) => {
             row.updatedBy = userId;
             await row.save({ transaction: t });
 
-            if (toggling) {
-                const debtor = await Debtor.findOne({
-                    where: { companyId, debtorType: 'other', sourceId: row.id }, transaction: t,
-                });
+            const debtor = await Debtor.findOne({
+                where: { companyId, debtorType: 'other', sourceId: row.id }, transaction: t,
+            });
+            if (debtor) {
                 // Closed accounts stay closed - disable/enable only swaps
                 // active <-> suspended.
-                if (debtor && debtor.status !== 'closed') {
+                if (toggling && debtor.status !== 'closed') {
                     debtor.status = row.isActive ? 'active' : 'suspended';
                     debtor.updatedBy = userId;
-                    await debtor.save({ transaction: t });
                 }
+                // Same-tx refresh of the sort-key snapshots (AR owns this
+                // party master, so a rename lands atomically - no drift window).
+                if (debtor.debtorAccount !== row.code) debtor.debtorAccount = row.code;
+                if (debtor.name !== row.name) debtor.name = row.name;
+                if (debtor.changed()) await debtor.save({ transaction: t });
             }
         });
 
