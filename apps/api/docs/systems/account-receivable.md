@@ -55,6 +55,7 @@ Key rules a maintainer must not break:
   Completion alerts the initiator exactly once (`notifiedAt` guard): an in-app notification (header bell, `public.Notification` via `platform/notificationGateway.js`) + a templated email (`ar.statement-run-completed`, tenant-overridable, per-company SMTP).
   Worker env needs `FRONTEND_BASE_URL` (email links) and optionally `OUTBOX_WORKER_URL` + self `run.invoker` (continuous slices without waiting for the sweep).
 - Aging is as-of periodEnd: debit open items age by `dueDate` (docDate fallback), allocations counted only when the settling credit document's docDate <= periodEnd, and the unapplied credit side lands in the first bucket so buckets always sum to the closing balance.
+- PDF (2026-08-11): `GET /api/ar/statements/:id/pdf` renders the Statement of Account with pdfkit from the frozen snapshots only (reprints byte-identical; red VOID marker on voided rows); Download PDF button in the viewer dialog. `arStatementPdf.js` is the seam for emailing statements as attachments. Builtin fonts are Latin-only - bundle a Unicode TTF before CJK party names go live.
 
 ## Parked design - eliminating `lookupPartyDisplay()` from the Debtor Listing (analysed 2026-08-11)
 
@@ -85,4 +86,4 @@ To eliminate the call entirely:
 
 ## Not built yet
 
-Frontend producers wiring `authorizeCharge`/`postCharge` from Golf/POS/Facility, statement PDF/email delivery, and the conversions phase of the membership CRM.
+Frontend producers wiring `authorizeCharge`/`postCharge` from Golf/POS/Facility, statement EMAIL delivery (PDF renderer is ready as the attachment seam), and the conversions phase of the membership CRM.
