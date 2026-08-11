@@ -42,6 +42,12 @@ async function provisionDebtor(payload, transaction = null) {
     if (!companyId || !sourceId || !DEBTOR_TYPE_KEYS.includes(debtorType)) {
         throw new Error(`DebtorProvisionRequested payload invalid: ${JSON.stringify(payload)}`);
     }
+    // debtorAccount + name are NOT NULL (phase B): a payload without them
+    // cannot open a ledger account - fail so the outbox retries (the producer
+    // resends once numbering/naming exists) or poisons with a clear reason.
+    if (!snap(payload.sourceNo, 64) || !snap(payload.name, 255)) {
+        throw new Error(`DebtorProvisionRequested payload missing sourceNo/name: ${JSON.stringify(payload)}`);
+    }
 
     const run = async (t) => {
         const [debtor, created] = await Debtor.findOrCreate({
