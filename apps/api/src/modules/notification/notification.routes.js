@@ -17,11 +17,11 @@ router.get('/my', async (req, res) => {
         const { userId } = getUserContext(req);
         const [rows, unread] = await Promise.all([
             Notification.findAll({
-                where: { userId },
+                where: { userId, dismissedAt: null },
                 order: [['createdAt', 'DESC']],
                 limit: 30,
             }),
-            Notification.count({ where: { userId, readAt: null } }),
+            Notification.count({ where: { userId, readAt: null, dismissedAt: null } }),
         ]);
         res.status(200).json({
             unread,
@@ -66,6 +66,39 @@ router.post('/read-all', async (req, res) => {
         res.status(200).json({ message: 'All notifications marked as read.' });
     } catch (err) {
         console.error('Error marking notifications read:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// PATCH /api/notifications/:id/dismiss - remove one from the bell (soft-delete;
+// an unread one settles at the same time so the badge never counts a hidden row).
+router.patch('/:id/dismiss', async (req, res) => {
+    try {
+        const { userId } = getUserContext(req);
+        const row = await Notification.findOne({ where: { id: req.params.id, userId } });
+        if (!row) return res.status(404).json({ message: 'Notification not found.' });
+        if (!row.dismissedAt) {
+            row.dismissedAt = new Date();
+            if (!row.readAt) row.readAt = row.dismissedAt;
+            await row.save();
+        }
+        res.status(200).json({ message: 'Notification dismissed.' });
+    } catch (err) {
+        console.error('Error dismissing notification:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// POST /api/notifications/dismiss-all - clear the whole bell list.
+router.post('/dismiss-all', async (req, res) => {
+    try {
+        const { userId } = getUserContext(req);
+        const now = new Date();
+        await Notification.update({ readAt: now }, { where: { userId, readAt: null } });
+        await Notification.update({ dismissedAt: now }, { where: { userId, dismissedAt: null } });
+        res.status(200).json({ message: 'All notifications cleared.' });
+    } catch (err) {
+        console.error('Error dismissing notifications:', err);
         res.status(500).json({ message: 'Internal server error' });
     }
 });

@@ -45,6 +45,12 @@ const Notification = sequelize.define('Notification', {
         type: DataTypes.DATE,
         allowNull: true,
     },
+    // Soft-delete: the user dismissed it from the bell (✕ / Clear all).
+    // Dismissed rows never list again but stay for audit; NULL = visible.
+    dismissedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
 }, {
     tableName: 'Notification',
     timestamps: true,

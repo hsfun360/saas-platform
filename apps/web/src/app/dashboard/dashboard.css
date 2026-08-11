@@ -372,6 +372,44 @@
   text-align: center;
 }
 
+/* Row wrapper: the open button + the dismiss ✕ side by side (a button cannot
+   nest inside a button), reading as one hoverable row. */
+.notif-row {
+  display: flex;
+  align-items: stretch;
+}
+.notif-row .notif-item {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.notif-row__dismiss {
+  flex: 0 0 auto;
+  min-width: 40px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.notif-row__dismiss:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+.notif-row__dismiss .material-icons {
+  font-size: 18px;
+}
+
+.notif-pop__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
 .notif-item {
   align-items: flex-start;
 }

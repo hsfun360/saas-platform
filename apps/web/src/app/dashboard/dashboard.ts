@@ -375,6 +375,16 @@ export class Dashboard implements OnInit, OnDestroy {
     this.notifications.markAllRead();
   }
 
+  // Dismiss = remove from the bell (dropdown stays open - the user may be
+  // clearing several in a row).
+  dismissNotification(n: AppNotification): void {
+    this.notifications.dismiss(n.id);
+  }
+
+  clearAllNotifications(): void {
+    this.notifications.dismissAll();
+  }
+
   // --- Header language quick-switch ---
   loadLanguageOptions(): void {
     this.languageService.getMyLanguage().subscribe({

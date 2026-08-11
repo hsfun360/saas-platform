@@ -103,22 +103,35 @@
             <div class="menu-pop notif-pop" (click)="$event.stopPropagation()">
               <div class="menu-pop__title notif-pop__title">
                 <span>Notifications</span>
-                @if (notifications.unread() > 0) {
-                  <button type="button" class="notif-pop__readall" (click)="markAllNotificationsRead()">Mark all read</button>
-                }
+                <span class="notif-pop__actions">
+                  @if (notifications.unread() > 0) {
+                    <button type="button" class="notif-pop__readall" (click)="markAllNotificationsRead()">Mark all read</button>
+                  }
+                  @if (notifications.items().length > 0) {
+                    <button type="button" class="notif-pop__readall" (click)="clearAllNotifications()">Clear all</button>
+                  }
+                </span>
               </div>
               @if (notifications.items().length === 0) {
                 <div class="notif-pop__empty">No notifications yet.</div>
               } @else {
+                <!-- Row = open-button + dismiss-button SIBLINGS (a button may not
+                     nest inside a button), sharing one hover surface. -->
                 @for (n of notifications.items(); track n.id) {
-                  <button type="button" class="menu-pop__item notif-item" [class.notif-item--unread]="!n.readAt"
-                          (click)="openNotification(n)">
-                    <span class="notif-item__dot" aria-hidden="true"></span>
-                    <span class="notif-item__text">
-                      <span class="notif-item__title">{{ n.title }}</span>
-                      <span class="notif-item__body">{{ n.body }}</span>
-                    </span>
-                  </button>
+                  <div class="notif-row">
+                    <button type="button" class="menu-pop__item notif-item" [class.notif-item--unread]="!n.readAt"
+                            (click)="openNotification(n)">
+                      <span class="notif-item__dot" aria-hidden="true"></span>
+                      <span class="notif-item__text">
+                        <span class="notif-item__title">{{ n.title }}</span>
+                        <span class="notif-item__body">{{ n.body }}</span>
+                      </span>
+                    </button>
+                    <button type="button" class="notif-row__dismiss" (click)="dismissNotification(n)"
+                            [attr.aria-label]="'Dismiss notification: ' + n.title" title="Dismiss">
+                      <span class="material-icons" aria-hidden="true">close</span>
+                    </button>
+                  </div>
                 }
               }
             </div>

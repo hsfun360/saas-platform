@@ -49,4 +49,22 @@ export class NotificationService {
     this.unread.set(0);
     this.http.post(`${this.base}/read-all`, {}).subscribe({ error: () => {} });
   }
+
+  // Remove one notification from the bell (soft-delete server-side). An unread
+  // one settles at the same time so the badge stays consistent.
+  dismiss(id: string): void {
+    const target = this.items().find((n) => n.id === id);
+    if (!target) return;
+    this.items.update((list) => list.filter((n) => n.id !== id));
+    if (!target.readAt) this.unread.update((c) => Math.max(0, c - 1));
+    this.http.patch(`${this.base}/${id}/dismiss`, {}).subscribe({ error: () => {} });
+  }
+
+  // Clear the whole list (read and unread alike).
+  dismissAll(): void {
+    if (!this.items().length) return;
+    this.items.set([]);
+    this.unread.set(0);
+    this.http.post(`${this.base}/dismiss-all`, {}).subscribe({ error: () => {} });
+  }
 }
