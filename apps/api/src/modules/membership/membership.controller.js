@@ -616,6 +616,25 @@ function toMembershipListDto(ms, extra = {}) {
 const LIST_LIMIT_DEFAULT = 50;
 const LIST_LIMIT_MAX = 200;
 
+// Whitelisted sort keys for the memberships listing (?sort=&dir=). The display
+// name is the corporate name or the individual principal's person name - both
+// membership-owned tables, so name ordering is an intra-module correlated
+// subquery (mirrors the displayName resolution below). Every expression here
+// is OUR SQL - user input only ever picks a key.
+const MEMBERSHIP_SORTS = {
+    number: { expr: 'LOWER("Membership"."membershipNo")', defaultDir: 'ASC', nulls: ' NULLS LAST' },
+    name: {
+        expr: 'LOWER(COALESCE("Membership"."corporateName", '
+            + '(SELECT TRIM(coalesce(mm."firstName", \'\') || \' \' || coalesce(mm."lastName", \'\')) '
+            + 'FROM membership."Member" mm WHERE mm."membershipId" = "Membership"."id" AND mm."memberKind" = \'individual\' LIMIT 1)))',
+        defaultDir: 'ASC',
+        nulls: ' NULLS LAST',
+    },
+    joinDate: { expr: '"Membership"."joinDate"', defaultDir: 'DESC', nulls: ' NULLS LAST' },
+    expiryDate: { expr: '"Membership"."expiryDate"', defaultDir: 'ASC', nulls: ' NULLS LAST' },
+    newest: { expr: '"Membership"."createdAt"', defaultDir: 'DESC', nulls: '' },
+};
+
 // GET /api/membership/memberships?q=&class=&status=&limit=&offset= -
 // SERVER-SIDE search + pagination (a club can hold tens of thousands of
 // memberships - the browser never receives more than one page). `q` matches the
@@ -652,6 +671,16 @@ exports.listMemberships = async (req, res) => {
         const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || LIST_LIMIT_DEFAULT, 1), LIST_LIMIT_MAX);
         const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
 
+        // Sort: whitelisted key + direction; unknown keys fall back to the
+        // long-standing number order. membershipNo tiebreaker keeps pagination
+        // stable when the sort field has equal values.
+        const sortKey = MEMBERSHIP_SORTS[str(req.query.sort)] ? str(req.query.sort) : 'number';
+        const dirParam = str(req.query.dir).toUpperCase();
+        const sortDef = MEMBERSHIP_SORTS[sortKey];
+        const dir = dirParam === 'ASC' || dirParam === 'DESC' ? dirParam : sortDef.defaultDir;
+        const order = [sequelize.literal(`${sortDef.expr} ${dir}${sortDef.nulls}`)];
+        if (sortKey !== 'number') order.push(['membershipNo', 'ASC']);
+
         const [total, classCounts, rows] = await Promise.all([
             Membership.count({ where }),
             // Overall class split for the header line - independent of filters.
@@ -659,7 +688,7 @@ exports.listMemberships = async (req, res) => {
             Membership.findAll({
                 where,
                 include: [{ model: Member, as: 'Members', attributes: ['id', 'memberKind', 'firstName', 'lastName'] }],
-                order: [['membershipNo', 'ASC']],
+                order,
                 limit,
                 offset,
             }),

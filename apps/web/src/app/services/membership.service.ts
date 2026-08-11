@@ -31,12 +31,14 @@ export class MembershipService {
 
   // Server-side search + pagination (a club can hold tens of thousands of
   // memberships; the browser only ever receives one page).
-  list(opts: { q?: string; class?: string; status?: string; offset?: number } = {}): Observable<MembershipListResult> {
+  list(opts: { q?: string; class?: string; status?: string; offset?: number; sort?: string; dir?: string } = {}): Observable<MembershipListResult> {
     let params = new HttpParams();
     if (opts.q) params = params.set('q', opts.q);
     if (opts.class) params = params.set('class', opts.class);
     if (opts.status) params = params.set('status', opts.status);
     if (opts.offset) params = params.set('offset', String(opts.offset));
+    if (opts.sort) params = params.set('sort', opts.sort);
+    if (opts.dir) params = params.set('dir', opts.dir);
     return this.http.get<MembershipListResult>(this.base, { params });
   }
 

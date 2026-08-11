@@ -1,6 +1,19 @@
 /* Memberships (SRS 2.3 Phase 1) - screen-specific bits on top of the shared
    system-setup.css. All colours from theme tokens. */
 
+/* Search + sort on one row: the search box flexes, the sort button keeps its
+   size. .saas-search brings its own bottom margin, so the row adds none.
+   (Same pattern as ar-debtors - the listing-chrome sort standard.) */
+.ms-search-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+.ms-search-row .saas-search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 /* Filter toolbar: class chips + status select on one wrapping row */
 .ms-toolbar {
   display: flex;

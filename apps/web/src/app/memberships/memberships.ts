@@ -27,6 +27,7 @@ import {
   MembershipStatusOption,
 } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { SortMenuComponent, SortOption, SortValue } from '../shared/sort-menu/sort-menu';
 
 // Membership Management → Memberships (SRS 2.3 Phase 1).
 // The contract list: individual memberships (one auto-created Member) and
@@ -36,7 +37,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 @Component({
   selector: 'app-memberships',
   standalone: true,
-  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, MoneyInputDirective],
+  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, MoneyInputDirective, SortMenuComponent],
   templateUrl: './memberships.html',
   styleUrls: ['../system-setup/system-setup.css', './memberships.css'],
 })
@@ -73,6 +74,17 @@ export class MembershipsComponent implements OnInit {
   readonly search = signal('');
   readonly classFilter = signal(''); // '' | 'individual' | 'corporate'
   readonly statusFilter = signal(''); // MembershipStatus id or ''
+  // Server-side sort (paginated listing - sort travels as query params; keys
+  // mirror the API's MEMBERSHIP_SORTS whitelist). Number asc is the
+  // long-standing default order.
+  readonly sortOptions: SortOption[] = [
+    { key: 'number', label: 'Number', defaultDir: 'asc' },
+    { key: 'name', label: 'Name', defaultDir: 'asc' },
+    { key: 'joinDate', label: 'Join date', defaultDir: 'desc' },
+    { key: 'expiryDate', label: 'Expiry date', defaultDir: 'asc' },
+    { key: 'newest', label: 'Newest', defaultDir: 'desc' },
+  ];
+  readonly sort = signal<SortValue>({ key: 'number', dir: 'asc' });
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
 
@@ -382,6 +394,8 @@ export class MembershipsComponent implements OnInit {
       class: this.classFilter(),
       status: this.statusFilter(),
       offset,
+      sort: this.sort().key,
+      dir: this.sort().dir,
     }).subscribe({
       next: (res) => {
         this.rows.set(reset ? res.memberships : [...this.rows(), ...res.memberships]);
@@ -415,6 +429,11 @@ export class MembershipsComponent implements OnInit {
   setStatusFilter(statusId: string): void {
     this.statusFilter.set(statusId);
     this.load(true);
+  }
+
+  setSort(value: SortValue): void {
+    this.sort.set(value);
+    this.load(true); // sort changes restart pagination from the first page
   }
 
   // --- Typed address book (shared by the contract + person forms) ---
