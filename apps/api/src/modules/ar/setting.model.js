@@ -3,7 +3,7 @@ const { sequelize } = require('../../platform/db');
 const { AR_SCHEMA } = require('../../platform/schemas');
 
 // Setting - per-company AR options singleton (approved 2026-08-06). Maintained
-// on the Statement Generation screen.
+// on the AR Specification screen (/ar/settings).
 //
 // statementCutoffDay: the statement period rule. Day D means Statement Month
 // M defaults to (prev month's day D + 1) .. (month M's day D), clamped to
@@ -14,6 +14,12 @@ const { AR_SCHEMA } = require('../../platform/schemas');
 // left-to-right with no gaps, strictly ascending (e.g. 30,60,90,120,null,null
 // prints <=30, 31-60, 61-90, 91-120, >120). Not every company practices
 // 30/60/90, so the boundaries are user-defined, not a fixed interval.
+//
+// statement* layout options (Level 1 layout parameterization, 2026-08-11):
+// the STANDARD PDF layout stays code-maintained; these per-company options
+// brand and trim it (logo, accent colour, section toggles, remittance text).
+// Structural per-company layouts are the future Level 2 (layout-as-data,
+// EmailTemplate-style platform-default + override) - never per-company code.
 const Setting = sequelize.define('ArSetting', {
     id: {
         type: DataTypes.UUID,
@@ -35,6 +41,17 @@ const Setting = sequelize.define('ArSetting', {
     aging4: { type: DataTypes.INTEGER, allowNull: true },
     aging5: { type: DataTypes.INTEGER, allowNull: true },
     aging6: { type: DataTypes.INTEGER, allowNull: true },
+    // --- Statement layout (Level 1) ---
+    // Print the club logo (Company.logo) on the letterhead when one exists.
+    statementShowLogo: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    // '#rrggbb' accent for the title + band fills; NULL = the neutral standard.
+    statementBrandColor: { type: DataTypes.STRING(7), allowNull: true },
+    statementShowAging: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    statementShowDeposit: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    statementShowIncurredBy: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    statementShowGeneratedNote: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+    // Remittance advice / payment instructions printed above the footer.
+    statementFooterText: { type: DataTypes.TEXT, allowNull: true },
     // Ownership stamps.
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

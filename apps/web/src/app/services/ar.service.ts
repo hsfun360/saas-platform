@@ -164,6 +164,11 @@ export class ArService {
     return this.http.put<{ message: string; setting: ArSetting }>(`${this.base}/settings`, setting);
   }
 
+  // The SAVED layout options rendered on a dummy statement (screen preview).
+  previewStatementLayout(): Observable<Blob> {
+    return this.http.get(`${this.base}/settings/statement-preview`, { responseType: 'blob' });
+  }
+
   previewStatementRun(payload: {
     month: string; periodStart: string; periodEnd: string; categories: ArStatementCategory[];
   }): Observable<ArStatementRunPreview> {

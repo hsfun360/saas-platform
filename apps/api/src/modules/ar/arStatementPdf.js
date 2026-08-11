@@ -8,10 +8,17 @@
 // the same renderer is the seam for emailing monthly statements as
 // attachments later.
 //
+// Level 1 layout options (2026-08-11): the ar.Setting statement* columns brand
+// and trim this ONE standard layout per company - club logo, accent colour
+// (band fills + title, label text auto-flips white/dark by luminance),
+// section toggles, remittance text. Structural custom layouts are Level 2
+// (layout-as-data), never code forks.
+//
 // Note: the builtin Helvetica fonts cover Latin scripts only; CJK party names
 // need a bundled TTF registered here before non-Latin clubs go live.
 
 const PDFDocument = require('pdfkit');
+const axios = require('axios');
 
 const PAGE = { size: 'A4', margin: 48 };
 const COLORS = {
@@ -65,8 +72,42 @@ function agingBuckets(st) {
     return out;
 }
 
+// Best-effort logo fetch (Company.logo is a public GCS URL). Any failure -
+// missing, oversized, unsupported format - just means no logo on the print.
+async function fetchLogo(url) {
+    if (!url) return null;
+    try {
+        const res = await axios.get(url, {
+            responseType: 'arraybuffer',
+            timeout: 3000,
+            maxContentLength: 2 * 1024 * 1024,
+        });
+        return Buffer.from(res.data);
+    } catch {
+        return null;
+    }
+}
+
+// Readable label colour on a coloured band fill.
+function textColorOn(hex) {
+    const m = /^#([0-9a-fA-F]{6})$/.exec(hex || '');
+    if (!m) return COLORS.text;
+    const n = parseInt(m[1], 16);
+    const l = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+    return l > 0.55 ? COLORS.text : '#ffffff';
+}
+
 // Render to a Buffer (callers stream it or attach it to an email).
-function renderStatementPdf(statement, details) {
+// `layout` = the company's Level 1 options: { logoUrl, brandColor, showAging,
+// showDeposit, showIncurredBy, showGeneratedNote, footerText } - every field
+// optional; absent means the standard look.
+async function renderStatementPdf(statement, details, layout = {}) {
+    const logoBuffer = layout.logoUrl ? await fetchLogo(layout.logoUrl) : null;
+    const brand = /^#[0-9a-fA-F]{6}$/.test(layout.brandColor || '') ? layout.brandColor : null;
+    const bandFill = brand || COLORS.bandBg;
+    const bandText = brand ? textColorOn(brand) : COLORS.muted;
+    const bandRowText = brand ? textColorOn(brand) : COLORS.text;
+    const accent = brand || COLORS.text;
     return new Promise((resolve, reject) => {
         const doc = new PDFDocument({ ...PAGE, bufferPages: true });
         const chunks = [];
@@ -79,14 +120,25 @@ function renderStatementPdf(statement, details) {
         const usable = right - left;
         const bottom = doc.page.height - PAGE.margin - 24; // keep room for the footer
 
-        // --- Letterhead ---
-        doc.fillColor(COLORS.text).font('Helvetica-Bold').fontSize(14)
-            .text(statement.companyName || '', left, PAGE.margin, { width: usable });
+        // --- Letterhead (logo shifts the text block right when present) ---
+        let headX = left;
+        let headW = usable;
+        if (layout.showLogo !== false && logoBuffer) {
+            try {
+                doc.image(logoBuffer, left, PAGE.margin, { fit: [88, 40] });
+                headX = left + 100;
+                headW = usable - 100;
+            } catch {
+                // Unsupported image format - print without the logo.
+            }
+        }
+        doc.fillColor(accent).font('Helvetica-Bold').fontSize(14)
+            .text(statement.companyName || '', headX, PAGE.margin, { width: headW });
         doc.font('Helvetica').fontSize(8).fillColor(COLORS.muted);
-        for (const line of addressLines(statement.companyAddress)) doc.text(line, { width: usable });
+        for (const line of addressLines(statement.companyAddress)) doc.text(line, { width: headW });
 
         // Title block (right-aligned, level with the letterhead).
-        doc.font('Helvetica-Bold').fontSize(12).fillColor(COLORS.text)
+        doc.font('Helvetica-Bold').fontSize(12).fillColor(accent)
             .text('STATEMENT OF ACCOUNT', left, PAGE.margin, { width: usable, align: 'right' });
         doc.font('Helvetica').fontSize(9).fillColor(COLORS.muted)
             .text(statement.statementNo, { width: usable, align: 'right' })
@@ -97,7 +149,7 @@ function renderStatementPdf(statement, details) {
                 .text('VOID', { width: usable, align: 'right' });
         }
 
-        doc.moveTo(left, doc.y + 8).lineTo(right, doc.y + 8).strokeColor(COLORS.line).lineWidth(1).stroke();
+        doc.moveTo(left, doc.y + 8).lineTo(right, doc.y + 8).strokeColor(brand || COLORS.line).lineWidth(1).stroke();
         doc.y += 16;
 
         // --- Bill-to ---
@@ -115,8 +167,8 @@ function renderStatementPdf(statement, details) {
 
         const drawHeaderRow = () => {
             const y = doc.y;
-            doc.rect(left, y, usable, 16).fill(COLORS.bandBg);
-            doc.font('Helvetica-Bold').fontSize(7.5).fillColor(COLORS.muted);
+            doc.rect(left, y, usable, 16).fill(bandFill);
+            doc.font('Helvetica-Bold').fontSize(7.5).fillColor(bandText);
             COLS.forEach((c, i) => {
                 doc.text(c.label, colX[i] + 4, y + 5, { width: c.width - 8, align: c.align });
             });
@@ -144,8 +196,8 @@ function renderStatementPdf(statement, details) {
             const rowH = Math.max(h + 8, 16);
             ensureRoom(rowH);
             const y = doc.y;
-            if (opts.band) doc.rect(left, y, usable, rowH).fill(COLORS.bandBg);
-            doc.font(font).fontSize(8.5).fillColor(COLORS.text);
+            if (opts.band) doc.rect(left, y, usable, rowH).fill(bandFill);
+            doc.font(font).fontSize(8.5).fillColor(opts.band ? bandRowText : COLORS.text);
             COLS.forEach((c, i) => {
                 doc.text(cells[c.key] || '', colX[i] + 4, y + 4, { width: c.width - 8, align: c.align });
             });
@@ -156,8 +208,10 @@ function renderStatementPdf(statement, details) {
         drawHeaderRow();
         drawRow({ docNo: 'Opening balance', balance: statement.openingBalance }, { band: true, bold: true });
         for (const l of details) {
-            const detail = [l.description || l.docType, l.incurredByName ? `- ${l.incurredByName}` : null]
-                .filter(Boolean).join(' ');
+            const detail = [
+                l.description || l.docType,
+                layout.showIncurredBy !== false && l.incurredByName ? `- ${l.incurredByName}` : null,
+            ].filter(Boolean).join(' ');
             drawRow({
                 date: fmtDate(l.docDate),
                 docNo: l.docNo,
@@ -170,15 +224,15 @@ function renderStatementPdf(statement, details) {
         drawRow({ docNo: 'Closing balance', balance: statement.closingBalance }, { band: true, bold: true });
 
         // --- Aging strip ---
-        const buckets = agingBuckets(statement);
+        const buckets = layout.showAging !== false ? agingBuckets(statement) : [];
         if (buckets.length) {
             const stripH = 30;
             ensureRoom(stripH + 18);
             doc.y += 10;
             const y = doc.y;
             const w = usable / buckets.length;
-            doc.rect(left, y, usable, 14).fill(COLORS.bandBg);
-            doc.font('Helvetica-Bold').fontSize(7.5).fillColor(COLORS.muted);
+            doc.rect(left, y, usable, 14).fill(bandFill);
+            doc.font('Helvetica-Bold').fontSize(7.5).fillColor(bandText);
             buckets.forEach((b, i) => doc.text(b.label, left + i * w, y + 4, { width: w - 6, align: 'right' }));
             doc.font('Helvetica').fontSize(8.5).fillColor(COLORS.text);
             buckets.forEach((b, i) => doc.text(b.amount, left + i * w, y + 18, { width: w - 6, align: 'right' }));
@@ -186,14 +240,23 @@ function renderStatementPdf(statement, details) {
             doc.y = y + stripH;
         }
 
-        // --- Deposit + closing notes ---
+        // --- Deposit + remittance + closing notes ---
         ensureRoom(30);
         doc.y += 8;
-        doc.font('Helvetica').fontSize(8.5).fillColor(COLORS.muted)
-            .text(`Security deposit held: ${statement.deposit}`, left, doc.y, { width: usable });
-        doc.moveDown(0.6);
-        doc.fontSize(7.5)
-            .text('This is a computer-generated statement of account; no signature is required.', { width: usable });
+        doc.font('Helvetica').fontSize(8.5).fillColor(COLORS.muted);
+        if (layout.showDeposit !== false) {
+            doc.text(`Security deposit held: ${statement.deposit}`, left, doc.y, { width: usable });
+            doc.moveDown(0.6);
+        }
+        if (layout.footerText) {
+            doc.fillColor(COLORS.text).text(String(layout.footerText), left, doc.y, { width: usable });
+            doc.moveDown(0.6);
+            doc.fillColor(COLORS.muted);
+        }
+        if (layout.showGeneratedNote !== false) {
+            doc.fontSize(7.5)
+                .text('This is a computer-generated statement of account; no signature is required.', left, doc.y, { width: usable });
+        }
 
         // --- Page footer (page x of y) ---
         const range = doc.bufferedPageRange();
@@ -208,4 +271,41 @@ function renderStatementPdf(statement, details) {
     });
 }
 
-module.exports = { renderStatementPdf };
+// A dummy statement for the AR Specification "preview layout" download - shows
+// the saved layout options on representative content without touching real
+// debtor data. Boundaries come from the company's saved aging settings.
+function sampleStatement({ companyName, companyAddress, boundaries }) {
+    const b = (boundaries && boundaries.length ? boundaries : [30, 60, 90, 120, 150, 180]).slice(0, 6);
+    const aging = new Array(7).fill('0.00');
+    aging[0] = '750.00';
+    if (b.length > 1) aging[1] = '216.00';
+    const statement = {
+        statementNo: 'ST-SAMPLE',
+        statementDate: '2026-08-31',
+        periodStart: '2026-08-01',
+        periodEnd: '2026-08-31',
+        companyName: companyName || 'Your Club Name',
+        companyAddress: companyAddress || null,
+        billName: 'Sample Member',
+        debtorNo: 'MBR-000123',
+        billAddress: { line1: '1 Jalan Contoh', city: 'Kuala Lumpur', postcode: '50000', countryCode: 'MY' },
+        contactPerson: 'Jane Tan',
+        status: 'generated',
+        openingBalance: '216.00',
+        closingBalance: '966.00',
+        deposit: '500.00',
+        aging1: aging[0], aging2: aging[1], aging3: aging[2], aging4: aging[3],
+        aging5: aging[4], aging6: aging[5], aging7: aging[6],
+        agingBoundaries: b,
+    };
+    const details = [
+        { docDate: '2026-08-01', docNo: 'INV-000101', description: 'Monthly subscription fee', docType: 'invoice', incurredByName: 'Sample Member', debit: '270.00', credit: '0.00', balance: '486.00' },
+        { docDate: '2026-08-05', docNo: 'INV-000102', description: 'F&B charge to account', docType: 'invoice', incurredByName: 'Junior Member', debit: '480.00', credit: '0.00', balance: '966.00' },
+        { docDate: '2026-08-12', docNo: 'OR-000045', description: 'Payment received - thank you', docType: 'receipt', incurredByName: null, debit: '0.00', credit: '100.00', balance: '866.00' },
+        { docDate: '2026-08-20', docNo: 'CN-000012', description: 'Goodwill adjustment', docType: 'credit-note', incurredByName: null, debit: '0.00', credit: '0.00', balance: '866.00' },
+        { docDate: '2026-08-28', docNo: 'DN-000007', description: 'Late-payment interest', docType: 'debit-note', incurredByName: null, debit: '100.00', credit: '0.00', balance: '966.00' },
+    ];
+    return { statement, details };
+}
+
+module.exports = { renderStatementPdf, sampleStatement };

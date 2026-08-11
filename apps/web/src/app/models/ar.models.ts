@@ -218,6 +218,14 @@ export interface ArSetting {
   aging4: number | null;
   aging5: number | null;
   aging6: number | null;
+  // Statement layout (Level 1): branding + section toggles + remittance text.
+  statementShowLogo: boolean;
+  statementBrandColor: string | null;
+  statementShowAging: boolean;
+  statementShowDeposit: boolean;
+  statementShowIncurredBy: boolean;
+  statementShowGeneratedNote: boolean;
+  statementFooterText: string | null;
 }
 
 export interface ArStatementRun {

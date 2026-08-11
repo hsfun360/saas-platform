@@ -29,4 +29,53 @@ input[type='number'] {
 
 .arsp-actions {
   margin-top: var(--space-md);
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-xs);
+}
+
+/* Statement layout section */
+.arsp-layout-checks {
+  display: flex;
+  flex-direction: column;
+}
+
+.arsp-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.arsp-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+  flex-shrink: 0;
+}
+
+.arsp-brand-row {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-xs);
+}
+
+.arsp-brand-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-left: 30px;
+}
+
+.arsp-brand-pick input[type='color'] {
+  width: 56px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-input);
+  cursor: pointer;
 }

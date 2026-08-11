@@ -276,43 +276,76 @@ exports.cancel = async (req, res) => {
 // ---------------------------------------------------------------------------
 // AR Setting (statement cutoff day + aging boundaries) - Generation screen.
 
+function settingJson(row) {
+    return {
+        statementCutoffDay: row.statementCutoffDay,
+        aging1: row.aging1, aging2: row.aging2, aging3: row.aging3,
+        aging4: row.aging4, aging5: row.aging5, aging6: row.aging6,
+        statementShowLogo: row.statementShowLogo,
+        statementBrandColor: row.statementBrandColor,
+        statementShowAging: row.statementShowAging,
+        statementShowDeposit: row.statementShowDeposit,
+        statementShowIncurredBy: row.statementShowIncurredBy,
+        statementShowGeneratedNote: row.statementShowGeneratedNote,
+        statementFooterText: row.statementFooterText,
+    };
+}
+
 // GET /api/ar/settings
 exports.getArSetting = async (req, res) => {
     try {
         const { companyId } = getUserContext(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await arStatement.getSetting(companyId);
-        res.status(200).json({
-            setting: {
-                statementCutoffDay: row.statementCutoffDay,
-                aging1: row.aging1, aging2: row.aging2, aging3: row.aging3,
-                aging4: row.aging4, aging5: row.aging5, aging6: row.aging6,
-            },
-        });
+        res.status(200).json({ setting: settingJson(row) });
     } catch (err) {
         console.error('Error loading AR setting:', err);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// PUT /api/ar/settings { statementCutoffDay, aging1..aging6 }
+// PUT /api/ar/settings { statementCutoffDay, aging1..aging6, statement* layout }
 exports.saveArSetting = async (req, res) => {
     try {
         const { companyId } = getUserContext(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const placement = await getCallerPlacement(req);
         const row = await arStatement.saveSetting(companyId, req.body || {}, ownershipStamps(req, placement));
-        res.status(200).json({
-            message: 'AR settings saved.',
-            setting: {
-                statementCutoffDay: row.statementCutoffDay,
-                aging1: row.aging1, aging2: row.aging2, aging3: row.aging3,
-                aging4: row.aging4, aging5: row.aging5, aging6: row.aging6,
-            },
-        });
+        res.status(200).json({ message: 'AR settings saved.', setting: settingJson(row) });
     } catch (err) {
         if (err && err.httpStatus) return res.status(err.httpStatus).json({ message: err.message });
         console.error('Error saving AR setting:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// GET /api/ar/settings/statement-preview - the SAVED layout options rendered
+// on a dummy statement (show-expected-results for the AR Specification
+// screen; touches no real debtor data).
+exports.getStatementLayoutPreview = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const setting = await arStatement.getSetting(companyId);
+        const { getCompanyLetterhead } = require('../../platform/serviceContext');
+        const letterhead = await getCompanyLetterhead(companyId);
+        const { renderStatementPdf, sampleStatement } = require('./arStatementPdf');
+        const sample = sampleStatement({
+            companyName: letterhead && letterhead.name,
+            companyAddress: letterhead && letterhead.address,
+            boundaries: arStatement.boundariesOf(setting),
+        });
+        const layout = arStatement.statementLayoutOf(setting, letterhead ? letterhead.logo : null);
+        const pdf = await renderStatementPdf(sample.statement, sample.details, layout);
+        res.status(200)
+            .set({
+                'Content-Type': 'application/pdf',
+                'Content-Disposition': 'inline; filename="Statement-layout-preview.pdf"',
+                'Content-Length': pdf.length,
+            })
+            .send(pdf);
+    } catch (err) {
+        console.error('Error rendering statement layout preview:', err);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -524,8 +557,14 @@ exports.getStatementPdf = async (req, res) => {
             where: { statementId: row.id },
             order: [['lineNo', 'ASC']],
         });
+        // Layout is presentation, resolved at render time (the DATA stays
+        // frozen on the snapshot): the company's Level 1 options + logo.
+        const setting = await arStatement.getSetting(companyId);
+        const { getCompanyLetterhead } = require('../../platform/serviceContext');
+        const letterhead = await getCompanyLetterhead(companyId);
+        const layout = arStatement.statementLayoutOf(setting, letterhead ? letterhead.logo : null);
         const { renderStatementPdf } = require('./arStatementPdf');
-        const pdf = await renderStatementPdf(row, details);
+        const pdf = await renderStatementPdf(row, details, layout);
         const safeNo = String(row.statementNo).replace(/[^A-Za-z0-9._-]/g, '_');
         res.status(200)
             .set({

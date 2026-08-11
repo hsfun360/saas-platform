@@ -96,9 +96,26 @@ async function saveSetting(companyId, payload, stamps) {
     }
     if (agings[0] === null) throw badRequest('At least the first aging boundary is required.');
 
+    // Statement layout (Level 1): brand colour must be a #rrggbb hex or blank.
+    let brandColor = payload.statementBrandColor;
+    if (brandColor === '' || brandColor === undefined) brandColor = null;
+    if (brandColor !== null && !/^#[0-9a-fA-F]{6}$/.test(String(brandColor))) {
+        throw badRequest('Brand colour must be a 6-digit hex value like #1e3a8a (or blank for the standard look).');
+    }
+    let footerText = payload.statementFooterText;
+    if (footerText === '' || footerText === undefined) footerText = null;
+    if (footerText !== null) footerText = String(footerText).slice(0, 2000);
+
     const row = await getSetting(companyId);
     row.statementCutoffDay = cutoff;
     [row.aging1, row.aging2, row.aging3, row.aging4, row.aging5, row.aging6] = agings;
+    row.statementShowLogo = payload.statementShowLogo !== false;
+    row.statementBrandColor = brandColor;
+    row.statementShowAging = payload.statementShowAging !== false;
+    row.statementShowDeposit = payload.statementShowDeposit !== false;
+    row.statementShowIncurredBy = payload.statementShowIncurredBy !== false;
+    row.statementShowGeneratedNote = payload.statementShowGeneratedNote !== false;
+    row.statementFooterText = footerText;
     if (!row.createdBy && stamps.createdBy) {
         row.createdBy = stamps.createdBy;
         row.createdByDepartmentId = stamps.createdByDepartmentId;
@@ -106,6 +123,21 @@ async function saveSetting(companyId, payload, stamps) {
     row.updatedBy = stamps.updatedBy;
     await row.save();
     return row;
+}
+
+// The renderer's Level 1 layout object from a Setting row (+ the club logo
+// resolved by the caller through the letterhead seam).
+function statementLayoutOf(setting, logoUrl = null) {
+    return {
+        logoUrl: setting.statementShowLogo !== false ? logoUrl : null,
+        showLogo: setting.statementShowLogo !== false,
+        brandColor: setting.statementBrandColor || null,
+        showAging: setting.statementShowAging !== false,
+        showDeposit: setting.statementShowDeposit !== false,
+        showIncurredBy: setting.statementShowIncurredBy !== false,
+        showGeneratedNote: setting.statementShowGeneratedNote !== false,
+        footerText: setting.statementFooterText || null,
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -697,6 +729,7 @@ module.exports = {
     STATEMENT_CATEGORIES,
     getSetting,
     saveSetting,
+    statementLayoutOf,
     boundariesOf,
     defaultPeriod,
     validCategories,

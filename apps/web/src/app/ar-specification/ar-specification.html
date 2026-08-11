@@ -86,11 +86,52 @@
         }
       </section>
 
+      <!-- Statement layout (Level 1: brand + trim the standard PDF) -->
+      <section class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('layout')"
+                [attr.aria-expanded]="isExpanded('layout')">
+          <span class="settings-header__title">Statement layout</span>
+          <span class="settings-header__sub">Brand and trim the standard Statement of Account PDF - logo, accent colour, printed sections, remittance advice.</span>
+          <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('layout')" aria-hidden="true">expand_more</span>
+        </button>
+        @if (isExpanded('layout')) {
+          <div class="settings-body">
+            <div class="arsp-layout-checks">
+              <label class="arsp-check"><input type="checkbox" formControlName="statementShowLogo" /> Print the club logo (uses the Company logo when one is set)</label>
+              <label class="arsp-check"><input type="checkbox" formControlName="statementShowAging" /> Print the aging buckets strip</label>
+              <label class="arsp-check"><input type="checkbox" formControlName="statementShowIncurredBy" /> Show who incurred each charge on the lines</label>
+              <label class="arsp-check"><input type="checkbox" formControlName="statementShowDeposit" /> Print the security deposit held</label>
+              <label class="arsp-check"><input type="checkbox" formControlName="statementShowGeneratedNote" /> Print the "computer-generated statement" note</label>
+            </div>
+            <div class="arsp-brand-row">
+              <label class="arsp-check"><input type="checkbox" formControlName="useBrandColor" /> Use a brand accent colour</label>
+              @if (form.controls.useBrandColor.value) {
+                <label for="arspBrand" class="arsp-brand-pick">
+                  <input id="arspBrand" type="color" formControlName="statementBrandColor" />
+                  <span class="cell-subtle">Title and band fills; label text flips white or dark automatically.</span>
+                </label>
+              }
+            </div>
+            <div class="form-group" style="margin-top: var(--space-sm);">
+              <label for="arspFooter">Remittance advice / footer text</label>
+              <textarea id="arspFooter" rows="3" formControlName="statementFooterText" maxlength="2000"
+                        placeholder="e.g. Please remit payment to Maybank a/c 5123-4567-8901 (Your Club Berhad)."></textarea>
+              <small class="cell-subtle">Printed below the statement body on every statement. Blank = nothing printed.</small>
+            </div>
+          </div>
+        }
+      </section>
+
       <div class="arsp-actions">
         <button *appCan="'edit'" type="submit" class="btn btn--primary" [disabled]="saving()">
           {{ saving() ? 'Saving…' : 'Save specification' }}
         </button>
+        <button type="button" class="btn btn--secondary" [disabled]="previewing()" (click)="onPreviewLayout()">
+          <span class="material-icons" aria-hidden="true">visibility</span>
+          {{ previewing() ? 'Rendering…' : 'Preview layout (PDF)' }}
+        </button>
       </div>
+      <small class="cell-subtle">The preview renders the last SAVED options on a sample statement - save first to see changes.</small>
     </form>
   }
 

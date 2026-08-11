@@ -75,6 +75,8 @@ router.post('/interest-generations/:id/cancel', requireMenuAction('/ar/interest'
 const { requireAnyMenuAction } = require('../../platform/serviceContext');
 router.get('/settings', requireAnyMenuAction(['/ar/settings', '/ar/statement-generation']), periodicController.getArSetting);
 router.put('/settings', requireMenuAction('/ar/settings'), periodicController.saveArSetting);
+// Saved layout options rendered on a dummy statement (screen preview).
+router.get('/settings/statement-preview', requireMenuAction('/ar/settings'), periodicController.getStatementLayoutPreview);
 
 // --- Statement Generation (its own screen/menu: /ar/statement-generation) ---
 // Runs are BACKGROUND jobs: submit queues the run for the outbox worker; the

@@ -33,7 +33,7 @@ export class ArSpecificationComponent implements OnInit {
 
   // Collapsible section cards (standard: start expanded; folding never loses
   // form state - the FormGroup keeps values while the DOM is hidden).
-  readonly expanded = signal<Record<string, boolean>>({ cutoff: true, aging: true });
+  readonly expanded = signal<Record<string, boolean>>({ cutoff: true, aging: true, layout: true });
 
   readonly form = this.fb.nonNullable.group({
     // Blank = calendar month; otherwise a whole day 1..31 (pattern runs on the
@@ -45,6 +45,15 @@ export class ArSpecificationComponent implements OnInit {
     aging4: [''],
     aging5: [''],
     aging6: [''],
+    // Statement layout (Level 1).
+    statementShowLogo: [true],
+    useBrandColor: [false],
+    statementBrandColor: ['#1e3a8a'],
+    statementShowAging: [true],
+    statementShowDeposit: [true],
+    statementShowIncurredBy: [true],
+    statementShowGeneratedNote: [true],
+    statementFooterText: [''],
   });
 
   ngOnInit(): void {
@@ -78,6 +87,14 @@ export class ArSpecificationComponent implements OnInit {
       aging4: s.aging4 === null ? '' : String(s.aging4),
       aging5: s.aging5 === null ? '' : String(s.aging5),
       aging6: s.aging6 === null ? '' : String(s.aging6),
+      statementShowLogo: s.statementShowLogo !== false,
+      useBrandColor: !!s.statementBrandColor,
+      statementBrandColor: s.statementBrandColor || '#1e3a8a',
+      statementShowAging: s.statementShowAging !== false,
+      statementShowDeposit: s.statementShowDeposit !== false,
+      statementShowIncurredBy: s.statementShowIncurredBy !== false,
+      statementShowGeneratedNote: s.statementShowGeneratedNote !== false,
+      statementFooterText: s.statementFooterText || '',
     });
   }
 
@@ -97,6 +114,13 @@ export class ArSpecificationComponent implements OnInit {
       statementCutoffDay: num(v.statementCutoffDay),
       aging1: num(v.aging1), aging2: num(v.aging2), aging3: num(v.aging3),
       aging4: num(v.aging4), aging5: num(v.aging5), aging6: num(v.aging6),
+      statementShowLogo: v.statementShowLogo,
+      statementBrandColor: v.useBrandColor ? v.statementBrandColor : null,
+      statementShowAging: v.statementShowAging,
+      statementShowDeposit: v.statementShowDeposit,
+      statementShowIncurredBy: v.statementShowIncurredBy,
+      statementShowGeneratedNote: v.statementShowGeneratedNote,
+      statementFooterText: v.statementFooterText.trim() || null,
     }).subscribe({
       next: (res) => {
         this.saving.set(false);
@@ -106,6 +130,26 @@ export class ArSpecificationComponent implements OnInit {
       error: (err) => {
         this.saving.set(false);
         this.errorMessage.set(err.error?.message || 'Failed to save the AR specification.');
+      },
+    });
+  }
+
+  // Open the SAVED layout options rendered on a dummy statement in a new tab
+  // (show-expected-results before a real month is generated).
+  readonly previewing = signal(false);
+  onPreviewLayout(): void {
+    if (this.previewing()) return;
+    this.previewing.set(true);
+    this.service.previewStatementLayout().subscribe({
+      next: (blob) => {
+        this.previewing.set(false);
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      },
+      error: () => {
+        this.previewing.set(false);
+        this.errorMessage.set('Failed to render the layout preview.');
       },
     });
   }
