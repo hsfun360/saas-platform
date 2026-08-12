@@ -10,7 +10,24 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
     protocol: 'postgres',
     logging: false, // Set to true to see SQL queries in the console
+    pool: {
+        // Sized for Cloud Run: total connections = max-instances × max, plus the
+        // outbox worker, and dev+staging share one Cloud SQL instance - keep the
+        // sum under the server's max_connections.
+        max: Number(process.env.DB_POOL_MAX || 10),
+        // No warm minimum: an idle Cloud Run instance is CPU-throttled, so kept
+        // "warm" connections rot (keepalive/evict timers barely run) and are dead
+        // when traffic returns. Establishing to in-region Cloud SQL is a few ms.
+        min: 0,
+        acquire: 30000, // wait for a free connection (pool exhaustion -> loud error, not a 60s hang)
+        idle: 10000,
+        evict: 10000,
+        maxUses: 7500, // recycle connections; caps slow PG backend memory growth
+    },
     dialectOptions: {
+        // New-connection establishment timeout: if the DB is down/unreachable,
+        // fail in 5s at the TCP/TLS layer instead of hanging until `acquire`.
+        connectionTimeoutMillis: 5000,
         // TCP keepalive on every pooled connection - the external Postgres was
         // observed dropping idle/long-lived connections mid-work (ECONNRESET
         // during the boot schema sync, 2026-07-16). Probes start after 10s idle.
@@ -38,8 +55,9 @@ const connectDB = async () => {
         console.log('PostgreSQL connection established successfully.');
     } catch (error) {
         console.error('Unable to connect to the database:', error);
-        // Exit process with failure
-        //process.exit(1); 
+        // Crash rather than boot without a DB: Cloud Run then replaces the
+        // instance / fails the deploy visibly, instead of serving 500s.
+        process.exit(1);
     }
 };
 
