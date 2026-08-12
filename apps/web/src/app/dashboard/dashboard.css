@@ -80,6 +80,16 @@
   white-space: nowrap;
 }
 
+/* Smallest phones: drop the logo chip from the bar - the NAME identifies the
+   workspace better than the logo, and every freed pixel goes to it. The logo
+   still shows inside the switcher dropdown rows (.ws-logo--row unaffected). */
+@media (max-width: 479px) {
+  .ws-trigger .ws-logo,
+  .ws-trigger .ws-icon {
+    display: none;
+  }
+}
+
 /* Flat company trigger on the branded bar - no boxed pill. A subtle hover
    underlay marks it clickable; the --static variant (single-company label)
    drops the affordance and the caret entirely. White-on-dark literals are
