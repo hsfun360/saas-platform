@@ -76,15 +76,9 @@ function fmtAmount(s) {
     return str.startsWith('-') ? `(${str.slice(1)})` : str;
 }
 
-function addressLines(a) {
-    if (!a) return [];
-    return [
-        a.line1, a.line2, a.line3,
-        [a.postcode, a.city].filter(Boolean).join(' '),
-        a.state,
-        a.countryCode ? String(a.countryCode).toUpperCase() : null,
-    ].filter(Boolean);
-}
+// Address blocks follow the app-wide standard (platform/addressFormat.js):
+// postcode+city+state on one line, country as its full name.
+const { formatAddressLines } = require('../../platform/addressFormat');
 
 // The printed aging buckets, derived from the boundaries snapshotted at
 // generation (same rule as the viewer: N boundaries -> N+1 buckets).
@@ -141,6 +135,8 @@ function textColorOn(hex) {
 // optional; absent means the standard look.
 async function renderStatementPdf(statement, details, layout = {}) {
     const logoBuffer = layout.logoUrl ? await fetchLogo(layout.logoUrl) : null;
+    const companyAddrLines = await formatAddressLines(statement.companyAddress);
+    const billAddrLines = await formatAddressLines(statement.billAddress);
     const brand = /^#[0-9a-fA-F]{6}$/.test(layout.brandColor || '') ? layout.brandColor : null;
     const bandFill = brand || COLORS.bandBg;
     const bandText = brand ? textColorOn(brand) : COLORS.muted;
@@ -181,7 +177,7 @@ async function renderStatementPdf(statement, details, layout = {}) {
         doc.font('Helvetica').fontSize(8.5).fillColor(COLORS.muted);
         if (statement.companyRegistrationNo) doc.text(`(${statement.companyRegistrationNo})`, { width: headW });
         doc.fontSize(8);
-        for (const line of addressLines(statement.companyAddress)) doc.text(line, { width: headW });
+        for (const line of companyAddrLines) doc.text(line, { width: headW });
         if (logoDrawn) doc.y = Math.max(doc.y, PAGE.margin + 48);
 
         doc.moveTo(left, doc.y + 8).lineTo(right, doc.y + 8).strokeColor(brand || COLORS.line).lineWidth(1).stroke();
@@ -193,7 +189,7 @@ async function renderStatementPdf(statement, details, layout = {}) {
         doc.font('Helvetica-Bold').fontSize(10).fillColor(COLORS.text)
             .text(`${statement.billName}${statement.debtorNo ? `  (${statement.debtorNo})` : ''}`, left, bandTop, { width: leftColW });
         doc.font('Helvetica').fontSize(9).fillColor(COLORS.muted);
-        for (const line of addressLines(statement.billAddress)) doc.text(line, { width: leftColW });
+        for (const line of billAddrLines) doc.text(line, { width: leftColW });
         if (statement.contactPerson) doc.text(`Attn: ${statement.contactPerson}`, { width: leftColW });
         const leftEnd = doc.y;
 

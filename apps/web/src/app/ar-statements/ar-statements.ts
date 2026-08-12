@@ -5,6 +5,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
+import { addressLines } from '../shared/address';
 import { ArService } from '../services/ar.service';
 import { ArStatementColumn, ArStatementColumnKey, ArStatementDetail, ArStatementSummary } from '../models/ar.models';
 
@@ -143,20 +144,14 @@ export class ArStatementsComponent implements OnInit {
     this.viewOpen.set(false);
   }
 
-  private jsonAddressLines(a: Record<string, string | null> | null): string[] {
-    if (!a) return [];
-    return [a['line1'], a['line2'], a['line3'],
-      [a['postcode'], a['city']].filter(Boolean).join(' '),
-      a['state'], a['countryCode'] ? String(a['countryCode']).toUpperCase() : null]
-      .filter((x): x is string => !!x);
-  }
-
+  // Both blocks follow the app-wide address standard (shared/address.ts):
+  // postcode+city+state on one line, country full name from the API.
   addressLines(v: ArStatementDetail | null): string[] {
-    return this.jsonAddressLines(v?.statement?.billAddress ?? null);
+    return addressLines(v?.statement?.billAddress ?? null);
   }
 
   companyAddressLines(v: ArStatementDetail | null): string[] {
-    return this.jsonAddressLines(v?.statement?.companyAddress ?? null);
+    return addressLines(v?.statement?.companyAddress ?? null);
   }
 
   // The printed aging buckets: labels derive from the boundaries snapshotted

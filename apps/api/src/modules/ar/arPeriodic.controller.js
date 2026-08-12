@@ -542,7 +542,13 @@ exports.getStatement = async (req, res) => {
         // The company's column layout rides along so the viewer mirrors the
         // print (the listing menu need not have rights to /ar/settings).
         const setting = await arStatement.getSetting(companyId);
-        res.status(200).json({ statement: row, details, columns: setting.statementColumns || null });
+        // Country display names ride along (address standard: full name, never
+        // the code) so the viewer needs no country lookup of its own.
+        const { withCountryName } = require('../../platform/addressFormat');
+        const statement = row.toJSON();
+        statement.companyAddress = await withCountryName(statement.companyAddress);
+        statement.billAddress = await withCountryName(statement.billAddress);
+        res.status(200).json({ statement, details, columns: setting.statementColumns || null });
     } catch (err) {
         console.error('Error loading statement:', err);
         res.status(500).json({ message: 'Internal server error' });
