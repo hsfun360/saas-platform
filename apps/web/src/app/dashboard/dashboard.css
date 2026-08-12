@@ -261,6 +261,16 @@
   top: 100%;
   margin-top: var(--space-sm);
 }
+/* Apps switcher: wide enough that the longest module name (Membership
+   Management) stays on ONE line - a wrapped app name reads as two entries.
+   Still narrower than the smallest mobile viewport (375px) with the
+   right-anchored popover's edge gap. */
+.menu-pop--apps {
+  min-width: 300px;
+}
+.menu-pop--apps .menu-pop__item {
+  white-space: nowrap;
+}
 .menu-pop__title {
   padding: var(--space-sm);
   font-size: var(--font-caption);

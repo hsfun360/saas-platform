@@ -171,7 +171,7 @@
           </button>
 
           @if (isAppsDropdownOpen) {
-            <div class="menu-pop" (click)="$event.stopPropagation()">
+            <div class="menu-pop menu-pop--apps" (click)="$event.stopPropagation()">
               <div class="menu-pop__title">{{ 'nav.yourApps' | t }}</div>
               @for (mod of availableModules; track mod.name) {
                 <button type="button" class="menu-pop__item" (click)="selectModule(mod.name)">
