@@ -1,0 +1,141 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">{{ cfg().icon }}</span>
+      <div>
+        <h1>{{ cfg().plural | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ cfg().subtitle | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Filters: search + month + status -->
+  <div class="art-toolbar">
+    <div class="art-search">
+      <span class="material-icons" aria-hidden="true">search</span>
+      <input type="search" [value]="search()" #q (input)="onSearch(q.value)"
+             [attr.aria-label]="'Search ' + cfg().plural.toLowerCase()"
+             placeholder="Search by number or description…" />
+      @if (search()) {
+        <button type="button" class="art-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+    <input type="month" [value]="month()" #m (change)="setMonth(m.value)" aria-label="Document month" />
+    <select [value]="status()" #st (change)="setStatus(st.value)" aria-label="Status filter">
+      <option value="">All statuses</option>
+      <option value="open">Open</option>
+      <option value="settled">Settled</option>
+      <option value="void">Void</option>
+    </select>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+  } @else if (rows().length === 0) {
+    @if (search() || status()) {
+      <div class="empty-state">
+        <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+        <p>No {{ cfg().plural.toLowerCase() }} match the current filters.</p>
+        <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+      </div>
+    } @else {
+      <div class="empty-state">
+        <span class="empty-icon">📄</span>
+        <p>No {{ cfg().plural.toLowerCase() }} for this month yet. Use "New {{ cfg().label }}" to key the first one.</p>
+      </div>
+    }
+  } @else {
+    <div class="data-list">
+      @for (doc of rows(); track doc.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ doc.docNo }} — {{ doc.debtor.name || 'Unknown debtor' }}</div>
+              <div class="data-card__subline">
+                @if (doc.debtor.no) { <span class="data-card__reg">({{ doc.debtor.no }})</span> }
+                @if (doc.sourceModule !== 'ar') { <span class="art-source-chip">{{ doc.sourceModule }}</span> }
+                @if (doc.description) { <span class="cell-subtle">{{ doc.description }}</span> }
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Date</dt><dd>{{ doc.docDate | localDate }}</dd></div>
+                <div class="meta"><dt>Amount</dt><dd>{{ doc.grossAmount }}</dd></div>
+                @if (doc.status === 'open' && doc.settledAmount !== '0.00') {
+                  <div class="meta"><dt>Open</dt><dd>{{ remaining(doc) }}</dd></div>
+                }
+                @if (doc.dueDate) {
+                  <div class="meta"><dt>Due</dt><dd>{{ doc.dueDate | localDate }}</dd></div>
+                }
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              <span class="status-chip"
+                    [class.status-chip--on]="doc.status === 'open'"
+                    [class.status-chip--off]="doc.status !== 'open'">{{ doc.status }}</span>
+            </div>
+            @if (canVoid(doc)) {
+              <div class="data-row__actions">
+                <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="askVoid(doc)">Void</button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+    @if (hasMore()) {
+      <div class="art-more">
+        <button type="button" class="btn btn--secondary" (click)="loadMore()" [disabled]="loadingMore()">
+          {{ loadingMore() ? 'Loading…' : 'Load more (' + rows().length + ' of ' + total() + ')' }}
+        </button>
+      </div>
+    }
+  }
+
+  <!-- New-document FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary fab" (click)="openEntry()"
+          [attr.aria-label]="'New ' + cfg().label">
+    <span class="material-icons" aria-hidden="true">add</span> New {{ cfg().label }}
+  </button>
+
+  <!-- ============ Entry dialog (shared; starts at the debtor picker) ============ -->
+  @if (entryOpen()) {
+    <app-ar-ledger-dialog [kind]="cfg().kind"
+                          (closed)="entryOpen.set(false)"
+                          (posted)="onPosted($event)"
+                          (failed)="errorMessage.set($event)" />
+  }
+
+  <!-- ============ Void confirmation ============ -->
+  @if (voidOpen()) {
+    <app-dialog #voidDlg [title]="'Confirm void'" [busy]="voidBusy()" (close)="closeVoid()">
+      <p style="margin: 0;">
+        Void {{ cfg().label }} {{ voidRow()?.docNo }} for {{ voidRow()?.debtor?.name || 'this debtor' }}?
+        A credit-mode reversal will be posted against it.
+      </p>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="voidDlg.requestClose()" [disabled]="voidBusy()">Cancel</button>
+        <button type="button" class="btn btn--danger" (click)="confirmVoid()" [disabled]="voidBusy()">
+          {{ voidBusy() ? 'Voiding…' : 'Void' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+</div>

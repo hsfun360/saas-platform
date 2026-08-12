@@ -1,0 +1,75 @@
+/* AR Transaction screens (per-document-type listing + entry; invoice first).
+   Cards come from the global data-list standard; this file owns the filter
+   toolbar, the source chip and the load-more row. */
+
+.art-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: var(--space-md) 0;
+  flex-wrap: wrap;
+}
+
+.art-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 1 1 260px;
+  min-width: 220px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-input);
+  padding: 0 var(--space-sm);
+}
+
+.art-search .material-icons { color: var(--text-muted); }
+
+.art-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  min-height: 44px;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.art-search input:focus { outline: none; box-shadow: none; }
+
+.art-search__clear {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.art-toolbar input[type='month'],
+.art-toolbar select {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+}
+
+/* Producer chip for system-generated documents (fee runs, interest, …) */
+.art-source-chip {
+  display: inline-block;
+  padding: 2px var(--space-sm);
+  border-radius: 12px;
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--info-surface);
+  color: var(--info-text);
+}
+
+.art-more {
+  display: flex;
+  justify-content: center;
+  margin: var(--space-md) 0 var(--space-xl);
+}

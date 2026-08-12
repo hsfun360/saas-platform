@@ -11,11 +11,16 @@
 
 const express = require('express');
 const router = express.Router();
-const { verifyToken, requireModule, requireMenuAction } = require('../../platform/serviceContext');
+const { verifyToken, requireModule, requireMenuAction, requireAnyMenuAction } = require('../../platform/serviceContext');
 const debtorController = require('./debtor.controller');
 const otherDebtorController = require('./otherDebtor.controller');
 const documentController = require('./arDocument.controller');
 const periodicController = require('./arPeriodic.controller');
+
+// Menus whose screens open the shared entry dialogs (debtor picker + entry
+// meta). Extend as each per-document transaction slice lands.
+const AR_TXN_MENUS = ['/ar/invoices'];
+const AR_TXN_META_MENUS = ['/ar/debtors', ...AR_TXN_MENUS];
 
 // Liveness probe - unauthenticated, so the gateway/monitoring can check the seam.
 router.get('/health', (req, res) => res.json({ service: 'ar', status: 'ok' }));
@@ -39,7 +44,9 @@ router.patch('/other-debtors/:id', requireMenuAction('/ar/debtors'), otherDebtor
 // surface, same menu. POST maps to the menu's Create action, void PATCHes to
 // Edit, per the standard method->action mapping.
 router.get('/debtors/:id/account', requireMenuAction('/ar/debtors'), documentController.getAccount);
-router.get('/debtors/:id/account/meta', requireMenuAction('/ar/debtors'), documentController.getAccountMeta);
+// The entry dialogs' meta is shared with the per-document transaction screens
+// (they open the same dialog after picking a debtor).
+router.get('/debtors/:id/account/meta', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.getAccountMeta);
 router.get('/documents/:type/:id/allocations', requireMenuAction('/ar/debtors'), documentController.getAllocations);
 router.post('/debtors/:id/ledger', requireMenuAction('/ar/debtors'), documentController.postLedger);
 router.post('/debtors/:id/receipts', requireMenuAction('/ar/debtors'), documentController.postReceipt);
@@ -49,6 +56,17 @@ router.post('/deposits/:id/convert', requireMenuAction('/ar/debtors'), documentC
 router.patch('/ledger/:id/void', requireMenuAction('/ar/debtors'), documentController.voidLedger);
 router.patch('/receipts/:id/void', requireMenuAction('/ar/debtors'), documentController.voidReceipt);
 router.patch('/deposits/:id/void', requireMenuAction('/ar/debtors'), documentController.voidDeposit);
+
+// --- AR Transaction screens (one menu per document type - hybrid design
+// 2026-08-12: dedicated menus for RBAC granularity; the Debtor Account screen
+// keeps working account-first under '/ar/debtors'.) ---
+// The debtor picker inside each entry dialog reuses the Debtor Listing search,
+// gated on ANY of the transaction menus (grows as each slice lands).
+router.get('/debtor-options', requireAnyMenuAction(AR_TXN_META_MENUS), debtorController.listDebtors);
+// Invoice (menu '/ar/invoices'): cross-debtor listing + entry + invoice-only void.
+router.get('/invoices', requireMenuAction('/ar/invoices'), documentController.listInvoices);
+router.post('/invoices', requireMenuAction('/ar/invoices'), documentController.postInvoice);
+router.patch('/invoices/:id/void', requireMenuAction('/ar/invoices'), documentController.voidInvoice);
 
 // --- Numbering Control (AR-owned document series; split per module 2026-08-05) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');
@@ -72,7 +90,6 @@ router.post('/interest-generations/:id/cancel', requireMenuAction('/ar/interest'
 // The per-company AR options singleton (statement cutoff day + aging
 // boundaries). Reads are shared with Statement Generation (its date auto-fill
 // needs the cutoff), writes belong to the Specification screen alone.
-const { requireAnyMenuAction } = require('../../platform/serviceContext');
 router.get('/settings', requireAnyMenuAction(['/ar/settings', '/ar/statement-generation']), periodicController.getArSetting);
 router.put('/settings', requireMenuAction('/ar/settings'), periodicController.saveArSetting);
 // Saved layout options rendered on a dummy statement (screen preview).

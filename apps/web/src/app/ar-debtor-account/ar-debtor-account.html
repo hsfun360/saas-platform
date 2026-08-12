@@ -217,103 +217,13 @@
   }
 
   <!-- ============ Ledger document dialog (Invoice / DN / CN) ============ -->
+  <!-- The SHARED entry dialog (also used by the per-document transaction
+       screens); this screen presets the debtor and provides the meta. -->
   @if (ledgerOpen()) {
-    <app-dialog #ledgerDlg [title]="'New ' + kindLabel(ledgerKind())" [busy]="ledgerSaving()" [dirty]="ledgerForm.dirty"
-                discardTitle="Discard this document?"
-                discardMessage="You have started entering a document. Leaving now will discard it."
-                (close)="closeLedger()">
-      <form id="ledgerForm" [formGroup]="ledgerForm" (ngSubmit)="onSaveLedger()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-          <div class="form-group">
-            <label for="ldNo">{{ kindLabel(ledgerKind()) }} no.
-              @if (numberingMode('ar-' + ledgerKind()) === 'manual') { <span class="required">*</span> }
-            </label>
-            @if (numberingMode('ar-' + ledgerKind()) === 'auto') {
-              <input id="ldNo" type="text" value="Issued automatically" disabled />
-            } @else {
-              <input id="ldNo" type="text" formControlName="docNo" autocomplete="off" maxlength="30"
-                     [placeholder]="numberingMode('ar-' + ledgerKind()) === 'manual' ? 'Required' : 'Auto if left blank'" />
-            }
-          </div>
-          <div class="form-group">
-            <label for="ldTxn">Transaction type <span class="required">*</span></label>
-            <select id="ldTxn" formControlName="transactionTypeId"
-                    [attr.aria-invalid]="showError(ledgerForm.controls.transactionTypeId)" aria-describedby="ldTxnErr">
-              <option value="" disabled>Select a billing item…</option>
-              @for (tt of meta()?.transactionTypes; track tt.id) {
-                <option [value]="tt.id">{{ tt.transactionType }}@if (tt.description) { — {{ tt.description }}}</option>
-              }
-            </select>
-            @if (showError(ledgerForm.controls.transactionTypeId)) {
-              <p id="ldTxnErr" class="field-error" role="alert">Transaction type is required.</p>
-            }
-          </div>
-        </div>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-          <div class="form-group">
-            <label for="ldDocDate">Document date <span class="required">*</span></label>
-            <input id="ldDocDate" type="date" formControlName="docDate" />
-          </div>
-          <div class="form-group">
-            <label for="ldTrxDate">Transaction date (period) <span class="required">*</span></label>
-            <input id="ldTrxDate" type="date" formControlName="trxDate" />
-            <p class="cell-subtle" style="margin: 2px 0 0;">Accounting period — differs from the document date only when back-keying into a closed month.</p>
-          </div>
-        </div>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-          <div class="form-group">
-            <label for="ldAmount">Amount <span class="required">*</span></label>
-            <input id="ldAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount"
-                   [attr.aria-invalid]="showError(ledgerForm.controls.amount)" aria-describedby="ldAmountErr" />
-            @if (showError(ledgerForm.controls.amount)) {
-              <p id="ldAmountErr" class="field-error" role="alert">Enter an amount greater than zero.</p>
-            }
-            <p class="cell-subtle" style="margin: 2px 0 0;">Tax is applied from the transaction type's scheme.</p>
-          </div>
-          @if ((meta()?.persons || []).length > 0) {
-            <div class="form-group">
-              <label for="ldPerson">Incurred by</label>
-              <select id="ldPerson" formControlName="incurredByMemberId">
-                <option value="">— The account itself —</option>
-                @for (p of meta()?.persons; track p.id) {
-                  <option [value]="p.id">{{ p.memberNo }} — {{ p.name }} ({{ p.memberKind }})</option>
-                }
-              </select>
-            </div>
-          }
-        </div>
-        @if (ledgerKind() === 'credit-note') {
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-            <div class="form-group">
-              <label for="ldTarget">Apply against</label>
-              <select id="ldTarget" formControlName="targetLedgerId">
-                <option value="">— Leave as available credit —</option>
-                @for (doc of openDebits(); track doc.id) {
-                  <option [value]="doc.id">{{ kindLabel(doc.docKind) }} {{ doc.docNo }} — open {{ remaining(doc) }}</option>
-                }
-              </select>
-            </div>
-            <div class="form-group" style="justify-content: end;">
-              <label class="ard-check" style="margin: 0;">
-                <input type="checkbox" formControlName="fifo" /> Auto-apply remainder to oldest open items
-              </label>
-            </div>
-          </div>
-        }
-        <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
-          <div class="form-group">
-            <label for="ldDesc">Description</label>
-            <textarea id="ldDesc" formControlName="description" rows="2" wrap="off" placeholder="Optional"></textarea>
-          </div>
-        </div>
-      </form>
-      <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="ledgerDlg.requestClose()" [disabled]="ledgerSaving()">Cancel</button>
-        <button type="submit" form="ledgerForm" class="btn btn--primary" [disabled]="ledgerSaving()">
-          {{ ledgerSaving() ? 'Posting…' : 'Post' }}
-        </button>
-      </ng-container>
-    </app-dialog>
+    <app-ar-ledger-dialog [kind]="ledgerKind()" [debtor]="ledgerDebtor()" [meta]="meta()" [openDebits]="openDebits()"
+                          (closed)="ledgerOpen.set(false)"
+                          (posted)="onLedgerPosted($event)"
+                          (failed)="errorMessage.set($event)" />
   }
 
   <!-- ============ Official Receipt dialog ============ -->

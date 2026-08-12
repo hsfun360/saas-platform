@@ -7,6 +7,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { MoneyInputDirective } from '../shared/money-input.directive';
+import { ArLedgerDialogComponent, ArLedgerDialogDebtor } from '../shared/ar-ledger-dialog/ar-ledger-dialog';
 import { ArService } from '../services/ar.service';
 import { ArAccount, ArAccountMeta, ArDepositDoc, ArLedgerDoc, ArReceiptDoc } from '../models/ar.models';
 
@@ -24,7 +25,7 @@ import { ArAccount, ArAccountMeta, ArDepositDoc, ArLedgerDoc, ArReceiptDoc } fro
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, RouterLink, DialogComponent, CanDirective,
-    LocalDatePipe, MoneyInputDirective,
+    LocalDatePipe, MoneyInputDirective, ArLedgerDialogComponent,
   ],
   templateUrl: './ar-debtor-account.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-debtor-account.css'],
@@ -52,20 +53,13 @@ export class ArDebtorAccountComponent {
   readonly heldDeposits = computed(() =>
     this.openDeposits().filter((d) => Number(d.collectedAmount) > Number(d.utilizedAmount)));
 
-  // --- Ledger dialog (Invoice / DN / CN - one dialog, kind preset) ---
+  // --- Ledger dialog (Invoice / DN / CN) - the shared entry dialog with the
+  // debtor preset; this screen only tracks which kind is open.
   readonly ledgerOpen = signal(false);
   readonly ledgerKind = signal<'invoice' | 'debit-note' | 'credit-note'>('invoice');
-  readonly ledgerSaving = signal(false);
-  readonly ledgerForm = this.fb.nonNullable.group({
-    docNo: [''],
-    docDate: ['', [Validators.required]],
-    trxDate: ['', [Validators.required]],
-    transactionTypeId: ['', [Validators.required]],
-    incurredByMemberId: [''],
-    description: [''],
-    amount: [0, [Validators.required, Validators.min(0.01)]],
-    targetLedgerId: [''],
-    fifo: [false],
+  readonly ledgerDebtor = computed<ArLedgerDialogDebtor | null>(() => {
+    const a = this.account();
+    return a ? { id: a.debtor.id, no: a.debtor.no, name: a.debtor.name } : null;
   });
 
   // --- Official Receipt dialog ---
@@ -191,38 +185,16 @@ export class ArDebtorAccountComponent {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  // --- Ledger documents ---
+  // --- Ledger documents (entry via the shared dialog) ---
   openLedger(kind: 'invoice' | 'debit-note' | 'credit-note'): void {
     this.clearMessages();
     this.ledgerKind.set(kind);
-    const t = this.today();
-    this.ledgerForm.reset({
-      docNo: '', docDate: t, trxDate: t, transactionTypeId: '', incurredByMemberId: '',
-      description: '', amount: 0, targetLedgerId: '', fifo: false,
-    });
     this.ledgerOpen.set(true);
   }
-  closeLedger(): void { this.ledgerOpen.set(false); }
-  onSaveLedger(): void {
-    this.clearMessages();
-    if (this.ledgerForm.invalid) { this.ledgerForm.markAllAsTouched(); return; }
-    const f = this.ledgerForm.getRawValue();
-    this.ledgerSaving.set(true);
-    this.service.postLedger(this.debtorId, {
-      docKind: this.ledgerKind(),
-      docNo: f.docNo.trim() || null,
-      docDate: f.docDate,
-      trxDate: f.trxDate,
-      transactionTypeId: f.transactionTypeId,
-      incurredByMemberId: f.incurredByMemberId || null,
-      description: f.description.trim() || null,
-      amount: f.amount,
-      targetLedgerId: this.ledgerKind() === 'credit-note' ? (f.targetLedgerId || null) : null,
-      fifo: this.ledgerKind() === 'credit-note' ? f.fifo : false,
-    }).subscribe({
-      next: (res) => { this.successMessage.set(res.message); this.ledgerSaving.set(false); this.ledgerOpen.set(false); this.load(); },
-      error: (err) => { this.errorMessage.set(err.error?.message || 'Failed to post the document.'); this.ledgerSaving.set(false); },
-    });
+  onLedgerPosted(message: string): void {
+    this.successMessage.set(message);
+    this.ledgerOpen.set(false);
+    this.load();
   }
 
   // --- Official Receipt ---

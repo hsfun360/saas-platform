@@ -8,6 +8,7 @@ import {
   ArDebtor,
   ArDebtorListResult,
   ArDebtorsMeta,
+  ArDocListResult,
   ArInterestDetail,
   ArInterestGeneration,
   ArOtherDebtor,
@@ -101,6 +102,33 @@ export class ArService {
 
   voidLedger(id: string, payload: Record<string, unknown> = {}): Observable<{ message: string }> {
     return this.http.patch<{ message: string }>(`${this.base}/ledger/${id}/void`, payload);
+  }
+
+  // --- AR Transaction screens (per-document-type menus; invoice first) ---
+
+  // Debtor picker for the entry dialogs - the Debtor Listing search under a
+  // gate any transaction menu satisfies.
+  debtorOptions(q: string): Observable<ArDebtorListResult> {
+    let params = new HttpParams().set('status', 'active');
+    if (q) params = params.set('q', q);
+    return this.http.get<ArDebtorListResult>(`${this.base}/debtor-options`, { params });
+  }
+
+  listInvoices(opts: { month?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
+    let params = new HttpParams();
+    if (opts.month) params = params.set('month', opts.month);
+    if (opts.q) params = params.set('q', opts.q);
+    if (opts.status) params = params.set('status', opts.status);
+    if (opts.offset) params = params.set('offset', String(opts.offset));
+    return this.http.get<ArDocListResult>(`${this.base}/invoices`, { params });
+  }
+
+  postInvoice(payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string }> {
+    return this.http.post<{ message: string; id: string; docNo: string }>(`${this.base}/invoices`, payload);
+  }
+
+  voidInvoice(id: string): Observable<{ message: string }> {
+    return this.http.patch<{ message: string }>(`${this.base}/invoices/${id}/void`, {});
   }
 
   voidReceipt(id: string): Observable<{ message: string }> {

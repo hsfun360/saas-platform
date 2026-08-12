@@ -124,6 +124,33 @@ export interface ArAccount {
   deposits: ArDepositDoc[];
 }
 
+// --- AR Transaction screens (per-document-type menus; invoice first) ---
+
+export interface ArDocListRow {
+  id: string;
+  docKind: string;
+  mode: 'debit' | 'credit';
+  docNo: string;
+  docDate: string;
+  trxDate: string;
+  dueDate: string | null;
+  description: string | null;
+  sourceModule: string;
+  netAmount: string;
+  taxAmount: string;
+  grossAmount: string;
+  settledAmount: string;
+  status: 'open' | 'settled' | 'void';
+  debtor: { id: string; debtorType: string | null; no: string | null; name: string | null };
+}
+
+export interface ArDocListResult {
+  total: number;
+  limit: number;
+  offset: number;
+  documents: ArDocListRow[];
+}
+
 export interface ArAccountMeta {
   transactionTypes: ArTransactionType[];
   persons: ArPerson[];

@@ -42,6 +42,15 @@ Key rules a maintainer must not break:
 - Slice 4 - fee runs (membership side producers) and the nightly reconciliation sweep (`arReconciliation.service`, invariant checks + `?fix=1`).
 - Numbering Control: AR owns `ar.NumberingScheme` (purposes `ar-*`), screen `/ar/numbering`.
 
+## AR Transaction screens (hybrid design, 2026-08-12 - invoice first)
+
+- Each manual document type becomes its OWN menu/screen so RBAC can grant per document (a cashier keys receipts without credit-note authority): `/ar/invoices` built; Debit Note, Credit Note, Official Receipt, Refund and Deposit follow slice by slice.
+  The Debtor Account screen stays unchanged as the account-first surface under `/ar/debtors`; once all six menus exist its entry buttons will be re-gated per menu (`*appCan` against the document's menu) - that final flip is a deliberate separate step.
+- One web component serves every type (`ar-transactions`, route `data.arDocType`), and ONE shared entry dialog (`shared/ar-ledger-dialog` for Invoice/DN/CN) is used by BOTH the account screen (debtor preset) and the transaction screens (debtor picker step first - single-dialog rule: picker/entry are `@switch` views in one dialog).
+  The picker reuses the Debtor Listing search verbatim: `GET /api/ar/debtor-options` = `debtorController.listDebtors` under `requireAnyMenuAction` of the transaction menus (`AR_TXN_MENUS` in `ar.routes.js` - extend per slice); `GET /debtors/:id/account/meta` is re-gated the same way (the dialog needs billing items/persons/numbering).
+- Per-type endpoints keep the grant honest: `GET /api/ar/invoices` (cross-debtor listing: month + docNo/description search + status, newest first, seam-resolved debtor display), `POST /api/ar/invoices` (docKind FORCED server-side - the `/ar/invoices` grant cannot post other kinds; debtorId in the body), `PATCH /api/ar/invoices/:id/void` (404s non-invoice rows).
+  The kind-agnostic `POST /debtors/:id/ledger` + `PATCH /ledger/:id/void` remain `/ar/debtors`-gated for the account screen.
+
 ## Statements (enhanced 2026-08-06)
 
 - Three screens/menus: `/ar/settings` (AR Specification - the per-company options singleton, same role as Club Specification), `/ar/statement-generation` (runs), and `/ar/statements` (pure listing + viewer + void).

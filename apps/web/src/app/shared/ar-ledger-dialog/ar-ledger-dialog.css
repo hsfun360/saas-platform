@@ -1,0 +1,108 @@
+/* Shared ledger-document entry dialog (Invoice / DN / CN): the debtor picker
+   step + the chosen-debtor context line. Form styling comes from the global
+   .saas-form / .form-group standards. */
+
+.ald-pick__search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-input);
+  padding: 0 var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.ald-pick__search .material-icons { color: var(--text-muted); }
+
+.ald-pick__search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  min-height: 44px;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+}
+
+.ald-pick__search input:focus { outline: none; box-shadow: none; }
+
+.ald-pick__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.ald-pick__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.ald-pick__row:hover { background: var(--surface-hover); }
+
+.ald-pick__who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ald-pick__who span { color: var(--text-secondary); font-size: var(--font-body-2); }
+
+.ald-pick__facts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.ald-pick__type {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--info-text);
+  background: var(--info-surface);
+  border-radius: 12px;
+  padding: 2px var(--space-sm);
+}
+
+/* Chosen-debtor context line above the entry form */
+.ald-debtor {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  margin-bottom: var(--space-md);
+}
+
+.ald-debtor .material-icons { color: var(--text-muted); }
+
+.ald-debtor__name {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.ald-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--text-primary);
+  font-size: var(--font-body-2);
+}

@@ -173,6 +173,9 @@ const routes: Routes = [
       // Debtor account (documents/receipts/deposits) - the listing's detail
       // surface; route falls back to the /ar/debtors menu for RBAC/title.
       { path: 'ar/debtors/:id', loadComponent: () => import('./app/ar-debtor-account/ar-debtor-account').then((m) => m.ArDebtorAccountComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
+      // AR Transactions - one menu/screen per document type (invoice first);
+      // the same component serves every type via data.arDocType.
+      { path: 'ar/invoices', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'invoice' } },
       // Periodic processing: staged interest run + monthly statement run.
       { path: 'ar/interest', loadComponent: () => import('./app/ar-interest/ar-interest').then((m) => m.ArInterestComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
       // AR Specification - company-wide AR options (same role as Club Specification).

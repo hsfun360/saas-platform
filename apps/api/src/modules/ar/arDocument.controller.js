@@ -205,6 +205,128 @@ exports.getAllocations = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------------
+// AR Transaction screens (one menu per document type - /ar/invoices first).
+// Each type gets its own listing + entry door so RBAC can grant, e.g., invoice
+// entry without credit-note authority; the Debtor Account screen remains the
+// account-first inquiry surface sharing the same posting flows.
+
+// Resolve debtor display (no/name) for a batch of debtor rows - the same
+// seam-based resolution the Debtor Listing uses.
+async function debtorDisplayMap(companyId, debtors) {
+    const ids = { membershipIds: [], memberIds: [], otherIds: [] };
+    for (const d of debtors) {
+        if (d.debtorType === 'membership') ids.membershipIds.push(d.sourceId);
+        else if (d.debtorType === 'member') ids.memberIds.push(d.sourceId);
+        else ids.otherIds.push(d.sourceId);
+    }
+    const display = await membershipGateway.lookupPartyDisplay(companyId, ids);
+    const others = ids.otherIds.length
+        ? await OtherDebtor.findAll({ where: { id: { [Op.in]: ids.otherIds } }, attributes: ['id', 'code', 'name'] })
+        : [];
+    const otherById = new Map(others.map((o) => [o.id, o]));
+    const out = new Map();
+    for (const d of debtors) {
+        let p = null;
+        if (d.debtorType === 'membership') p = display.memberships[d.sourceId];
+        else if (d.debtorType === 'member') p = display.members[d.sourceId];
+        else {
+            const o = otherById.get(d.sourceId);
+            if (o) p = { no: o.code, name: o.name };
+        }
+        out.set(d.id, { id: d.id, debtorType: d.debtorType, no: p ? p.no : null, name: p ? p.name : null });
+    }
+    return out;
+}
+
+const LIST_LIMIT = 50;
+
+// GET /api/ar/<type route> - cross-debtor listing of one ledger document kind
+// (month + docNo/description search + status filter, newest first).
+function makeLedgerListHandler(docKind) {
+    return async (req, res) => {
+        try {
+            const { companyId } = getUserContext(req);
+            if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+
+            const where = { companyId, docKind };
+            const month = str(req.query.month);
+            if (/^\d{4}-\d{2}$/.test(month)) {
+                const [y, m] = month.split('-').map(Number);
+                const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+                where.docDate = { [Op.gte]: `${month}-01`, [Op.lte]: `${month}-${String(last).padStart(2, '0')}` };
+            }
+            const status = str(req.query.status);
+            if (['open', 'settled', 'void'].includes(status)) where.status = status;
+            const q = str(req.query.q);
+            if (q) {
+                where[Op.or] = [
+                    { docNo: { [Op.iLike]: `%${q}%` } },
+                    { description: { [Op.iLike]: `%${q}%` } },
+                ];
+            }
+            const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+
+            const { rows, count } = await Ledger.findAndCountAll({
+                where,
+                order: [['docDate', 'DESC'], ['createdAt', 'DESC']],
+                limit: LIST_LIMIT,
+                offset,
+            });
+
+            const debtorIds = [...new Set(rows.map((r) => r.debtorId))];
+            const debtors = debtorIds.length
+                ? await Debtor.findAll({ where: { id: { [Op.in]: debtorIds }, companyId } })
+                : [];
+            const displayByDebtor = await debtorDisplayMap(companyId, debtors);
+
+            res.status(200).json({
+                total: count,
+                limit: LIST_LIMIT,
+                offset,
+                documents: rows.map((r) => ({
+                    id: r.id, docKind: r.docKind, mode: r.mode, docNo: r.docNo,
+                    docDate: r.docDate, trxDate: r.trxDate, dueDate: r.dueDate,
+                    description: r.description, sourceModule: r.sourceModule,
+                    netAmount: r.netAmount, taxAmount: r.taxAmount, grossAmount: r.grossAmount,
+                    settledAmount: r.settledAmount, status: r.status,
+                    debtor: displayByDebtor.get(r.debtorId) || { id: r.debtorId, debtorType: null, no: null, name: null },
+                })),
+            });
+        } catch (err) {
+            console.error(`Error listing ${docKind} documents:`, err);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    };
+}
+
+exports.listInvoices = makeLedgerListHandler('invoice');
+
+// POST /api/ar/invoices - the Invoice screen's entry door: debtorId comes in
+// the body and docKind is forced server-side, so the '/ar/invoices' grant
+// really is invoice-only (the shared ledger endpoint stays kind-agnostic
+// under '/ar/debtors').
+exports.postInvoice = (req, res) => {
+    req.params.id = str(req.body.debtorId);
+    req.body.docKind = 'invoice';
+    return exports.postLedger(req, res);
+};
+
+// PATCH /api/ar/invoices/:id/void - void restricted to invoice rows so the
+// invoice menu's Edit grant cannot touch other document kinds.
+exports.voidInvoice = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const row = await Ledger.findOne({ where: { id: req.params.id, companyId }, attributes: ['id', 'docKind'] });
+        if (!row || row.docKind !== 'invoice') return res.status(404).json({ message: 'Invoice not found.' });
+        return exports.voidLedger(req, res);
+    } catch (err) {
+        console.error('Error voiding invoice:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// ---------------------------------------------------------------------------
 // POST /api/ar/debtors/:id/ledger - manual Invoice / Debit Note / Credit Note.
 exports.postLedger = async (req, res) => {
     try {
