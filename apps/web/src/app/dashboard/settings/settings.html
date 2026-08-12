@@ -76,7 +76,7 @@
       </div>
       <div class="settings-body">
         <label for="pref-lang" class="field-label">{{ 'language.preferred' | t }}</label>
-        <select id="pref-lang" class="field-control" [value]="currentLanguage()"
+        <select id="pref-lang" class="field-control" [value]="i18n.lang()"
                 (change)="onLanguageChange($any($event.target).value)">
           @for (l of languageOptions(); track l.languageCode) {
             <option [value]="l.languageCode">{{ l.name }}</option>

@@ -29,7 +29,10 @@ export function passwordMatchValidator(control: AbstractControl): ValidationErro
 })
 export class SettingsComponent implements OnInit {
   private readonly languageService = inject(LanguageService);
-  private readonly i18n = inject(I18nService);
+  // Public: the template binds the language select to i18n.lang() - the ONE
+  // live source of the applied language, shared with the header quick-switch
+  // (a private snapshot here went stale when the header changed it mid-visit).
+  readonly i18n = inject(I18nService);
   // Public so the template can read the current mode and switch it.
   readonly theme = inject(ThemeService);
 
@@ -42,7 +45,6 @@ export class SettingsComponent implements OnInit {
   // A signal: the list lands async, and a plain array mutated after the first
   // change-detection pass trips NG0100 under zoneless dev mode.
   readonly languageOptions = signal<Language[]>([]);
-  readonly currentLanguage = signal('');
   readonly languageMessage = signal('');
 
   // 👇 1. Add this variable to track if General Settings is open (default to true)
@@ -79,7 +81,6 @@ export class SettingsComponent implements OnInit {
     this.languageService.getMyLanguage().subscribe({
       next: (state) => {
         this.languageOptions.set(state.options);
-        this.currentLanguage.set(state.effective);
         this.i18n.setFallback(state.accountDefault); // subscriber's fallback for missing translations
       },
       error: (err) => console.error('Failed to load language options', err),
@@ -87,12 +88,11 @@ export class SettingsComponent implements OnInit {
   }
 
   onLanguageChange(code: string): void {
-    this.currentLanguage.set(code);
+    this.i18n.use(code); // apply immediately; the select tracks i18n.lang()
     this.languageMessage.set('');
     this.languageService.setMyLanguage(code).subscribe({
       next: (state) => {
-        this.currentLanguage.set(state.effective);
-        this.i18n.use(state.effective); // apply immediately across the app
+        this.i18n.use(state.effective); // settle on the server's resolution
         this.languageMessage.set(this.i18n.translate('language.saved'));
         setTimeout(() => this.languageMessage.set(''), 3000);
       },
