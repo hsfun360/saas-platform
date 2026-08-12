@@ -754,9 +754,11 @@ exports.listAccountAuditLog = async (req, res) => {
             tableName: { [Op.ne]: 'User' },
         };
         if (req.query.tableName) {
+            // Case-insensitive contains, like the platform viewer (admin.controller.js
+            // listAuditLog). No early-empty for 'User': the pattern may legitimately
+            // match other tables (e.g. CompanyUser); the Op.ne keeps User itself out.
             const t = String(req.query.tableName).trim();
-            if (t === 'User') return res.status(200).json({ rows: [], total: 0, page: 1, limit: 50 });
-            where.tableName = { [Op.and]: [{ [Op.ne]: 'User' }, { [Op.eq]: t }] };
+            where.tableName = { [Op.and]: [{ [Op.ne]: 'User' }, { [Op.iLike]: `%${t}%` }] };
         }
         if (req.query.recordId) where.recordId = String(req.query.recordId).trim();
         if (req.query.userEmail) where.userEmail = { [Op.iLike]: `%${String(req.query.userEmail).trim()}%` };
