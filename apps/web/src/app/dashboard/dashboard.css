@@ -707,19 +707,28 @@
   color: var(--brand-text);
 }
 /* Two-class selector on purpose: it must OUTRANK the generic `.label`
-   rule further down (same 0,1,0 specificity, later in file), whose
-   `white-space: nowrap` + the sidebar's hidden overflow would otherwise
-   CLIP long module names ("MEMBERSHIP MANAG..."). Here the name wraps
-   to a 2nd line instead - the banner grows, the sidebar width stays
-   the fixed 72/256px the whole shell is built around. */
+   rule further down (same 0,1,0 specificity, later in file).
+   White-space is STATE-DEPENDENT: labels hide in the 72px rail via
+   opacity only, so they still occupy layout - a `normal` name would wrap
+   into a stack of invisible 1-2 character lines and inflate the banner's
+   height (the rail icon sat visibly lower than in the expanded sidebar).
+   Rail = nowrap (one hidden clipped line, banner stays 48px like nav
+   items); expanded (pinned incl. the mobile drawer, or hover) = normal so
+   long names wrap to a 2nd line instead of clipping ("MEMBERSHIP
+   MANAG..."), the banner growing while the sidebar width stays the fixed
+   72/256px the whole shell is built around. */
 .sidebar-module .sidebar-module__name {
   font-weight: var(--weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--brand-text);
-  white-space: normal;
+  white-space: nowrap;
   line-height: 1.25;
   padding-right: var(--space-sm);
+}
+.sidebar.pinned .sidebar-module .sidebar-module__name,
+.sidebar:not(.pinned):hover .sidebar-module .sidebar-module__name {
+  white-space: normal;
 }
 
 .sidebar-nav {
