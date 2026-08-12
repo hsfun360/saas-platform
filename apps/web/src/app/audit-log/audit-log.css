@@ -33,7 +33,6 @@
   border-radius: 8px;
   box-sizing: border-box;
   font-size: var(--font-body);
-  font-family: inherit; /* form controls don't inherit the page font by default (visible on the date inputs) */
   color: var(--text-primary);
   background: var(--surface-input);
 }

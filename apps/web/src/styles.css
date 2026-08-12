@@ -13,13 +13,18 @@ body {
 /* Form controls are ALWAYS border-box so their padding/border sit INSIDE the
    width and can't push them past a container's edge. This is a global baseline
    (not just the shared .form-group classes) so even inline-styled inputs - e.g.
-   the Companies dialogs - stay within their column on mobile. */
+   the Companies dialogs - stay within their column on mobile.
+   font-family: inherit is part of the same baseline: controls don't inherit the
+   page font by default (most visible on date/month inputs and selects), and this
+   element-level rule keeps every screen-local input/select on the app font while
+   still losing to any deliberate font (e.g. the Numbering screen's monospace). */
 input,
 select,
 textarea {
   box-sizing: border-box;
   max-width: 100%;
   min-width: 0; /* allow shrinking inside grid/flex cells instead of overflowing */
+  font-family: inherit;
 }
 
 /* Reactive-form validation, global so every screen renders errors identically
