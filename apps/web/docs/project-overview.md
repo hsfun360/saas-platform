@@ -59,9 +59,12 @@ Before an action runs - especially one that creates, copies, applies, or changes
   the type scale - Body-2 14px, Caption 12px, Overline 10px - and must never carry
   primary reading content. Form inputs are always ≥ 16px (also prevents iOS zoom).
 - Form controls (`input`, `select`, `textarea`) are globally `box-sizing: border-box`
-  + `max-width: 100%` (in `styles.css`), so their padding sits inside the width and
-  they never overflow their column - this holds even for inline-styled inputs (e.g.
-  the Companies dialogs), not only the shared `.form-group` classes.
+  + `max-width: 100%` + `font-family: inherit` (in `styles.css`), so their padding sits
+  inside the width, they never overflow their column, and they render in the app font
+  rather than the browser's control font (most visible on date/month inputs and selects) -
+  this holds even for inline-styled inputs (e.g. the Companies dialogs), not only the
+  shared `.form-group` classes. A screen that genuinely wants another font on a control
+  (e.g. Numbering's monospace format field) just declares it - any class-level rule wins.
 - Add appropriate viewport meta tags
 - Test all interactive elements for touch accessibility (interactive targets ≥ 44×44px)
 
