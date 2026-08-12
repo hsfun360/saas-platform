@@ -897,7 +897,7 @@ exports.listAuditLog = async (req, res) => {
         const AuditLog = require('../../platform/auditLog.model');
 
         const where = {};
-        if (req.query.tableName) where.tableName = String(req.query.tableName).trim();
+        if (req.query.tableName) where.tableName = { [Op.iLike]: `%${String(req.query.tableName).trim()}%` };
         if (req.query.recordId) where.recordId = String(req.query.recordId).trim();
         if (req.query.userEmail) where.userEmail = { [Op.iLike]: `%${String(req.query.userEmail).trim()}%` };
         const from = req.query.from ? new Date(req.query.from) : null;
