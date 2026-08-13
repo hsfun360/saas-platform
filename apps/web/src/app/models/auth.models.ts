@@ -1292,6 +1292,30 @@ export interface EInvoiceTaxType {
   syncedAt?: string | null;  // when the row last came from LHDN's published list
 }
 
+// Malaysia LHDN e-Invoice unit type (UN/ECE Rec 20 unit of measure; MyInvois reference data).
+export interface EInvoiceUnitType {
+  code: string;          // UN/ECE code as text, e.g. 'KGM', 'H87', 'XZZ'
+  description: string;
+  isActive?: boolean;
+  syncedAt?: string | null;  // when the row last came from LHDN's published list
+}
+
+// Malaysia LHDN e-Invoice state code (MyInvois reference data for e-Invoice addresses).
+export interface EInvoiceStateCode {
+  code: string;          // LHDN code as text: '01' Johor .. '17' Not Applicable
+  description: string;
+  isActive?: boolean;
+  syncedAt?: string | null;  // when the row last came from LHDN's published list
+}
+
+// Malaysia LHDN e-Invoice payment method (MyInvois document code list).
+export interface EInvoicePaymentMethod {
+  code: string;          // LHDN code as text: '01' Cash .. '08' Others
+  description: string;
+  isActive?: boolean;
+  syncedAt?: string | null;  // when the row last came from LHDN's published list
+}
+
 // A subscriber's (Account's) currency selection: which currencies are available to
 // choose from, which are selected, and the default among them.
 export interface AccountCurrencyState {

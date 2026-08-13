@@ -50,6 +50,9 @@ const NAV_TREE = [
             { name: 'Classification Codes', route: '/admin/classification-codes', icon: 'sell', sequence: 3 },
             { name: 'MSIC Codes', route: '/admin/msic-codes', icon: 'factory', sequence: 4 },
             { name: 'e-Invoice Tax Types', route: '/admin/e-invoice-tax-types', icon: 'percent', sequence: 5 },
+            { name: 'e-Invoice Unit Types', route: '/admin/e-invoice-unit-types', icon: 'straighten', sequence: 6 },
+            { name: 'e-Invoice State Codes', route: '/admin/e-invoice-state-codes', icon: 'map', sequence: 7 },
+            { name: 'e-Invoice Payment Methods', route: '/admin/e-invoice-payment-methods', icon: 'credit_card', sequence: 8 },
         ],
     },
     {

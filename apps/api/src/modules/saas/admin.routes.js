@@ -11,6 +11,9 @@ const currencyController = require('./currency.controller');
 const classificationCodeController = require('./classificationCode.controller');
 const msicCodeController = require('./msicCode.controller');
 const eInvoiceTaxTypeController = require('./eInvoiceTaxType.controller');
+const eInvoiceUnitTypeController = require('./eInvoiceUnitType.controller');
+const eInvoiceStateCodeController = require('./eInvoiceStateCode.controller');
+const eInvoicePaymentMethodController = require('./eInvoicePaymentMethod.controller');
 const emailTemplateController = require('../notification/emailTemplate.controller');
 const taxController = require('../tax/tax.controller');
 const platformProfileController = require('./platformProfile.controller');
@@ -236,5 +239,62 @@ router.patch('/e-invoice-tax-types/:code',
 router.delete('/e-invoice-tax-types/:code',
     validate({ params: z.object({ code: eInvoiceTaxTypeKey }) }),
     eInvoiceTaxTypeController.deleteEInvoiceTaxType);
+
+// e-Invoice unit types - Malaysia LHDN MyInvois unit-of-measure reference
+// (UN/ECE Rec 20 codes; sync from LHDN's published JSON with bundled fallback,
+// list, add, edit/enable-disable, delete). Shared key rule with the siblings.
+const eInvoiceCodeKey = z.string('Code is required.').trim()
+    .regex(/^[0-9A-Za-z-]{1,20}$/, 'Code must be 1-20 letters/digits.');
+router.use('/e-invoice-unit-types', requireMenuAction('/admin/e-invoice-unit-types'));
+router.post('/e-invoice-unit-types/sync', eInvoiceUnitTypeController.syncEInvoiceUnitTypes);
+router.get('/e-invoice-unit-types', eInvoiceUnitTypeController.listAllEInvoiceUnitTypes);
+router.post('/e-invoice-unit-types',
+    validate({ body: z.object({ code: eInvoiceCodeKey, description: fields.requiredText(500) }) }),
+    eInvoiceUnitTypeController.createEInvoiceUnitType);
+router.patch('/e-invoice-unit-types/:code',
+    validate({
+        params: z.object({ code: eInvoiceCodeKey }),
+        body: z.object({ description: fields.optionalText(500), isActive: z.boolean().optional() }),
+    }),
+    eInvoiceUnitTypeController.updateEInvoiceUnitType);
+router.delete('/e-invoice-unit-types/:code',
+    validate({ params: z.object({ code: eInvoiceCodeKey }) }),
+    eInvoiceUnitTypeController.deleteEInvoiceUnitType);
+
+// e-Invoice state codes - Malaysia LHDN MyInvois state reference for e-Invoice
+// addresses ('01' Johor .. '17' Not Applicable).
+router.use('/e-invoice-state-codes', requireMenuAction('/admin/e-invoice-state-codes'));
+router.post('/e-invoice-state-codes/sync', eInvoiceStateCodeController.syncEInvoiceStateCodes);
+router.get('/e-invoice-state-codes', eInvoiceStateCodeController.listAllEInvoiceStateCodes);
+router.post('/e-invoice-state-codes',
+    validate({ body: z.object({ code: eInvoiceCodeKey, description: fields.requiredText(500) }) }),
+    eInvoiceStateCodeController.createEInvoiceStateCode);
+router.patch('/e-invoice-state-codes/:code',
+    validate({
+        params: z.object({ code: eInvoiceCodeKey }),
+        body: z.object({ description: fields.optionalText(500), isActive: z.boolean().optional() }),
+    }),
+    eInvoiceStateCodeController.updateEInvoiceStateCode);
+router.delete('/e-invoice-state-codes/:code',
+    validate({ params: z.object({ code: eInvoiceCodeKey }) }),
+    eInvoiceStateCodeController.deleteEInvoiceStateCode);
+
+// e-Invoice payment methods - Malaysia LHDN MyInvois payment-method reference
+// ('01' Cash .. '08' Others).
+router.use('/e-invoice-payment-methods', requireMenuAction('/admin/e-invoice-payment-methods'));
+router.post('/e-invoice-payment-methods/sync', eInvoicePaymentMethodController.syncEInvoicePaymentMethods);
+router.get('/e-invoice-payment-methods', eInvoicePaymentMethodController.listAllEInvoicePaymentMethods);
+router.post('/e-invoice-payment-methods',
+    validate({ body: z.object({ code: eInvoiceCodeKey, description: fields.requiredText(500) }) }),
+    eInvoicePaymentMethodController.createEInvoicePaymentMethod);
+router.patch('/e-invoice-payment-methods/:code',
+    validate({
+        params: z.object({ code: eInvoiceCodeKey }),
+        body: z.object({ description: fields.optionalText(500), isActive: z.boolean().optional() }),
+    }),
+    eInvoicePaymentMethodController.updateEInvoicePaymentMethod);
+router.delete('/e-invoice-payment-methods/:code',
+    validate({ params: z.object({ code: eInvoiceCodeKey }) }),
+    eInvoicePaymentMethodController.deleteEInvoicePaymentMethod);
 
 module.exports = router;

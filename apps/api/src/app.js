@@ -39,6 +39,9 @@ const currencyRoutes = require('./modules/saas/currency.routes');
 const classificationCodeRoutes = require('./modules/saas/classificationCode.routes');
 const msicCodeRoutes = require('./modules/saas/msicCode.routes');
 const eInvoiceTaxTypeRoutes = require('./modules/saas/eInvoiceTaxType.routes');
+const eInvoiceUnitTypeRoutes = require('./modules/saas/eInvoiceUnitType.routes');
+const eInvoiceStateCodeRoutes = require('./modules/saas/eInvoiceStateCode.routes');
+const eInvoicePaymentMethodRoutes = require('./modules/saas/eInvoicePaymentMethod.routes');
 const industryTypeRoutes = require('./modules/saas/industryType.routes');
 const salutationRoutes = require('./modules/saas/salutation.routes');
 const nationalityRoutes = require('./modules/saas/nationality.routes');
@@ -124,6 +127,9 @@ function createApp() {
     app.use('/api/classification-codes', classificationCodeRoutes);
     app.use('/api/msic-codes', msicCodeRoutes);
     app.use('/api/e-invoice-tax-types', eInvoiceTaxTypeRoutes);
+    app.use('/api/e-invoice-unit-types', eInvoiceUnitTypeRoutes);
+    app.use('/api/e-invoice-state-codes', eInvoiceStateCodeRoutes);
+    app.use('/api/e-invoice-payment-methods', eInvoicePaymentMethodRoutes);
     // Subscriber-owned reference data (active lists for product pickers).
     app.use('/api/industry-types', industryTypeRoutes);
     app.use('/api/salutations', salutationRoutes);

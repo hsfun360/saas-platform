@@ -133,6 +133,9 @@ const routes: Routes = [
       { path: 'admin/classification-codes', loadComponent: () => import('./app/classification-codes/classification-codes').then((m) => m.ClassificationCodesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/msic-codes', loadComponent: () => import('./app/msic-codes/msic-codes').then((m) => m.MsicCodesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/e-invoice-tax-types', loadComponent: () => import('./app/e-invoice-tax-types/e-invoice-tax-types').then((m) => m.EInvoiceTaxTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/e-invoice-unit-types', loadComponent: () => import('./app/e-invoice-unit-types/e-invoice-unit-types').then((m) => m.EInvoiceUnitTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/e-invoice-state-codes', loadComponent: () => import('./app/e-invoice-state-codes/e-invoice-state-codes').then((m) => m.EInvoiceStateCodesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/e-invoice-payment-methods', loadComponent: () => import('./app/e-invoice-payment-methods/e-invoice-payment-methods').then((m) => m.EInvoicePaymentMethodsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/system-setup', loadComponent: () => import('./app/system-setup/system-setup').then((m) => m.SystemSetupComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       // The catalogue maintenance is split into two grantable screens - one per
       // Module.audience - sharing one component (route data picks the side).
