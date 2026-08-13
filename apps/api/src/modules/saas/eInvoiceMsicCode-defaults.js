@@ -3,7 +3,7 @@
 // (retrieved 2026-08-13). Used as the sync fallback when the LHDN site is unreachable
 // from the server. Descriptions are trimmed; the file's one exact-duplicate row (16211)
 // is deduped; an empty MSIC Category Reference (only '00000' NOT APPLICABLE) is null.
-const DEFAULT_MSIC_CODES = [
+const DEFAULT_EINVOICE_MSIC_CODES = [
     { code: "00000", description: "NOT APPLICABLE", categoryReference: null },
     { code: "01111", description: "Growing of maize", categoryReference: "A" },
     { code: "01112", description: "Growing of leguminous crops", categoryReference: "A" },
@@ -1180,4 +1180,4 @@ const DEFAULT_MSIC_CODES = [
     { code: "99000", description: "Activities of extraterritorial organization and bodies", categoryReference: "U" },
 ];
 
-module.exports = { DEFAULT_MSIC_CODES };
+module.exports = { DEFAULT_EINVOICE_MSIC_CODES };

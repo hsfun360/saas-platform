@@ -3,12 +3,12 @@ const { sequelize } = require('../../platform/db');
 
 // e-Invoice MSIC Code reference table - the Malaysia LHDN (MyInvois) MSIC 2008
 // sub-category list (5-digit codes) describing a taxpayer's business nature and
-// activity (https://sdk.myinvois.hasil.gov.my/codes/msic-codes/). Platform-level
-// reference data like ClassificationCode: maintained by System Admins on the
-// MSIC Codes screen and consumed read-only by every Malaysian subscriber company.
+// activity (https://sdk.myinvois.hasil.gov.my/codes/e-invoice-msic-codes/). Platform-level
+// reference data like EInvoiceClassificationCode: maintained by System Admins on the
+// e-Invoice MSIC Codes screen and consumed read-only by every Malaysian subscriber company.
 // Populated via "Sync now", which fetches LHDN's published JSON and falls back
-// to a bundled snapshot (msicCode-defaults.js) when unreachable.
-const MsicCode = sequelize.define('MsicCode', {
+// to a bundled snapshot (eInvoiceMsicCode-defaults.js) when unreachable.
+const EInvoiceMsicCode = sequelize.define('EInvoiceMsicCode', {
     // LHDN 5-digit MSIC 2008 code as text (e.g. '01111'), incl. the special
     // '00000' NOT APPLICABLE row. Natural primary key; width leaves headroom.
     code: {
@@ -38,8 +38,8 @@ const MsicCode = sequelize.define('MsicCode', {
         allowNull: true,
     },
 }, {
-    tableName: 'MsicCode',
+    tableName: 'EInvoiceMsicCode',
     timestamps: true,
 });
 
-module.exports = MsicCode;
+module.exports = EInvoiceMsicCode;

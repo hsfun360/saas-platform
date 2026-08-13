@@ -1268,7 +1268,7 @@ export interface Currency {
 }
 
 // Malaysia LHDN e-Invoice classification code (MyInvois reference data).
-export interface ClassificationCode {
+export interface EInvoiceClassificationCode {
   code: string;          // LHDN 3-digit code, zero-padded text, e.g. '022'
   description: string;
   isActive?: boolean;
@@ -1276,7 +1276,7 @@ export interface ClassificationCode {
 }
 
 // Malaysia LHDN e-Invoice MSIC code (MSIC 2008 sub-category; MyInvois reference data).
-export interface MsicCode {
+export interface EInvoiceMsicCode {
   code: string;          // LHDN 5-digit code as text, e.g. '01111' ('00000' = not applicable)
   description: string;
   categoryReference?: string | null;  // MSIC 2008 section letter A-U

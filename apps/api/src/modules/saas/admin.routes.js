@@ -8,8 +8,8 @@ const adminController = require('./admin.controller');
 const countryController = require('./country.controller');
 const languageController = require('./language.controller');
 const currencyController = require('./currency.controller');
-const classificationCodeController = require('./classificationCode.controller');
-const msicCodeController = require('./msicCode.controller');
+const eInvoiceClassificationCodeController = require('./eInvoiceClassificationCode.controller');
+const eInvoiceMsicCodeController = require('./eInvoiceMsicCode.controller');
 const eInvoiceTaxTypeController = require('./eInvoiceTaxType.controller');
 const eInvoiceUnitTypeController = require('./eInvoiceUnitType.controller');
 const eInvoiceStateCodeController = require('./eInvoiceStateCode.controller');
@@ -178,45 +178,45 @@ router.delete('/currencies/:code', currencyController.deleteCurrency);
 
 // e-Invoice classification codes - Malaysia LHDN MyInvois reference maintenance
 // (sync from LHDN's published JSON with bundled fallback, list, add, edit/enable-disable, delete)
-const classificationCodeKey = z.string('Code is required.').trim()
+const eInvoiceClassificationCodeKey = z.string('Code is required.').trim()
     .regex(/^\d{3}$/, 'Code must be a 3-digit LHDN code (e.g. 022).');
-router.use('/classification-codes', requireMenuAction('/admin/classification-codes'));
-router.post('/classification-codes/sync', classificationCodeController.syncClassificationCodes);
-router.get('/classification-codes', classificationCodeController.listAllClassificationCodes);
-router.post('/classification-codes',
-    validate({ body: z.object({ code: classificationCodeKey, description: fields.requiredText(500) }) }),
-    classificationCodeController.createClassificationCode);
-router.patch('/classification-codes/:code',
+router.use('/e-invoice-classification-codes', requireMenuAction('/admin/e-invoice-classification-codes'));
+router.post('/e-invoice-classification-codes/sync', eInvoiceClassificationCodeController.syncEInvoiceClassificationCodes);
+router.get('/e-invoice-classification-codes', eInvoiceClassificationCodeController.listAllEInvoiceClassificationCodes);
+router.post('/e-invoice-classification-codes',
+    validate({ body: z.object({ code: eInvoiceClassificationCodeKey, description: fields.requiredText(500) }) }),
+    eInvoiceClassificationCodeController.createEInvoiceClassificationCode);
+router.patch('/e-invoice-classification-codes/:code',
     validate({
-        params: z.object({ code: classificationCodeKey }),
+        params: z.object({ code: eInvoiceClassificationCodeKey }),
         body: z.object({ description: fields.optionalText(500), isActive: z.boolean().optional() }),
     }),
-    classificationCodeController.updateClassificationCode);
-router.delete('/classification-codes/:code',
-    validate({ params: z.object({ code: classificationCodeKey }) }),
-    classificationCodeController.deleteClassificationCode);
+    eInvoiceClassificationCodeController.updateEInvoiceClassificationCode);
+router.delete('/e-invoice-classification-codes/:code',
+    validate({ params: z.object({ code: eInvoiceClassificationCodeKey }) }),
+    eInvoiceClassificationCodeController.deleteEInvoiceClassificationCode);
 
 // e-Invoice MSIC codes - Malaysia LHDN MyInvois business nature/activity reference
 // (sync from LHDN's published JSON with bundled fallback, list, add, edit/enable-disable, delete).
 // LHDN codes are 5-digit today; the key deliberately allows up to 20 alphanumerics
 // to match the column's headroom.
-const msicCodeKey = z.string('Code is required.').trim()
-    .regex(/^[0-9A-Za-z-]{1,20}$/, 'Code must be 1-20 letters/digits (LHDN MSIC codes are 5 digits, e.g. 01111).');
-router.use('/msic-codes', requireMenuAction('/admin/msic-codes'));
-router.post('/msic-codes/sync', msicCodeController.syncMsicCodes);
-router.get('/msic-codes', msicCodeController.listAllMsicCodes);
-router.post('/msic-codes',
-    validate({ body: z.object({ code: msicCodeKey, description: fields.requiredText(500), categoryReference: fields.optionalText(20) }) }),
-    msicCodeController.createMsicCode);
-router.patch('/msic-codes/:code',
+const eInvoiceMsicCodeKey = z.string('Code is required.').trim()
+    .regex(/^[0-9A-Za-z-]{1,20}$/, 'Code must be 1-20 letters/digits (LHDN e-Invoice MSIC codes are 5 digits, e.g. 01111).');
+router.use('/e-invoice-msic-codes', requireMenuAction('/admin/e-invoice-msic-codes'));
+router.post('/e-invoice-msic-codes/sync', eInvoiceMsicCodeController.syncEInvoiceMsicCodes);
+router.get('/e-invoice-msic-codes', eInvoiceMsicCodeController.listAllEInvoiceMsicCodes);
+router.post('/e-invoice-msic-codes',
+    validate({ body: z.object({ code: eInvoiceMsicCodeKey, description: fields.requiredText(500), categoryReference: fields.optionalText(20) }) }),
+    eInvoiceMsicCodeController.createEInvoiceMsicCode);
+router.patch('/e-invoice-msic-codes/:code',
     validate({
-        params: z.object({ code: msicCodeKey }),
+        params: z.object({ code: eInvoiceMsicCodeKey }),
         body: z.object({ description: fields.optionalText(500), categoryReference: fields.optionalText(20), isActive: z.boolean().optional() }),
     }),
-    msicCodeController.updateMsicCode);
-router.delete('/msic-codes/:code',
-    validate({ params: z.object({ code: msicCodeKey }) }),
-    msicCodeController.deleteMsicCode);
+    eInvoiceMsicCodeController.updateEInvoiceMsicCode);
+router.delete('/e-invoice-msic-codes/:code',
+    validate({ params: z.object({ code: eInvoiceMsicCodeKey }) }),
+    eInvoiceMsicCodeController.deleteEInvoiceMsicCode);
 
 // e-Invoice tax types - Malaysia LHDN MyInvois document tax-type reference
 // (sync from LHDN's published JSON with bundled fallback, list, add, edit/enable-disable, delete).

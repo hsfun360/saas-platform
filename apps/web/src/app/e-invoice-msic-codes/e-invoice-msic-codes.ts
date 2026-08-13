@@ -2,9 +2,9 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MsicCodeService } from '../services/msic-code.service';
+import { EInvoiceMsicCodeService } from '../services/e-invoice-msic-code.service';
 import { DialogComponent } from '../shared/dialog/dialog';
-import { MsicCode } from '../models/auth.models';
+import { EInvoiceMsicCode } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
@@ -40,26 +40,26 @@ const MSIC_SECTION_NAMES: Record<string, string> = {
 // System Admin: maintain the Malaysia LHDN e-Invoice MSIC code reference table
 // (MSIC 2008 sub-category, 5-digit business nature/activity codes) - sync the
 // published LHDN list, add codes manually, edit them, and enable/disable or
-// delete them. Clone of the Classification Codes screen; reuses the System
+// delete them. Clone of the e-Invoice Classification Codes screen; reuses the System
 // Setup stylesheet (shared admin-screen look).
 @Component({
-  selector: 'app-msic-codes',
+  selector: 'app-e-invoice-msic-codes',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective],
-  templateUrl: './msic-codes.html',
+  templateUrl: './e-invoice-msic-codes.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
-export class MsicCodesComponent implements OnInit {
-  private readonly msicCodeService = inject(MsicCodeService);
+export class EInvoiceMsicCodesComponent implements OnInit {
+  private readonly eInvoiceMsicCodeService = inject(EInvoiceMsicCodeService);
   private readonly fb = inject(FormBuilder);
 
-  readonly codes = signal<MsicCode[]>([]);
+  readonly codes = signal<EInvoiceMsicCode[]>([]);
   readonly loading = signal(false);
   readonly syncing = signal(false);
   readonly togglingCode = signal<string | null>(null);
   readonly deletingCode = signal<string | null>(null);
 
-  // Add-code dialog. LHDN MSIC codes are 5 digits today; the pattern allows up
+  // Add-code dialog. LHDN e-Invoice MSIC codes are 5 digits today; the pattern allows up
   // to 20 letters/digits to match the column's headroom (same as the API rule).
   readonly addOpen = signal(false);
   readonly addSaving = signal(false);
@@ -108,7 +108,7 @@ export class MsicCodesComponent implements OnInit {
   }
 
   // "C — Manufacturing" for a known section letter, the raw value otherwise.
-  sectionLabel(code: MsicCode): string {
+  sectionLabel(code: EInvoiceMsicCode): string {
     const ref = (code.categoryReference || '').trim();
     if (!ref) return '';
     const name = MSIC_SECTION_NAMES[ref];
@@ -117,7 +117,7 @@ export class MsicCodesComponent implements OnInit {
 
   load(): void {
     this.loading.set(true);
-    this.msicCodeService.listAll().subscribe({
+    this.eInvoiceMsicCodeService.listAll().subscribe({
       next: (data) => {
         this.codes.set(data);
         this.loading.set(false);
@@ -129,47 +129,47 @@ export class MsicCodesComponent implements OnInit {
   onSync(): void {
     this.clearMessages();
     this.syncing.set(true);
-    this.msicCodeService.sync().subscribe({
+    this.eInvoiceMsicCodeService.sync().subscribe({
       next: (res) => {
         this.successMessage.set(res.message);
         this.syncing.set(false);
         this.load();
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to sync MSIC codes.');
+        this.errorMessage.set(err.error?.message || 'Failed to sync e-Invoice MSIC codes.');
         this.syncing.set(false);
       },
     });
   }
 
-  toggleActive(code: MsicCode): void {
+  toggleActive(code: EInvoiceMsicCode): void {
     this.clearMessages();
     const next = !(code.isActive !== false);
     this.togglingCode.set(code.code);
-    this.msicCodeService.update(code.code, { isActive: next }).subscribe({
+    this.eInvoiceMsicCodeService.update(code.code, { isActive: next }).subscribe({
       next: () => {
         this.successMessage.set(`Code ${code.code} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingCode.set(null);
         this.load();
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to update MSIC code.');
+        this.errorMessage.set(err.error?.message || 'Failed to update e-Invoice MSIC code.');
         this.togglingCode.set(null);
       },
     });
   }
 
-  onDelete(code: MsicCode): void {
+  onDelete(code: EInvoiceMsicCode): void {
     this.clearMessages();
     this.deletingCode.set(code.code);
-    this.msicCodeService.delete(code.code).subscribe({
+    this.eInvoiceMsicCodeService.delete(code.code).subscribe({
       next: () => {
         this.successMessage.set(`Code ${code.code} deleted.`);
         this.deletingCode.set(null);
         this.load();
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to delete MSIC code.');
+        this.errorMessage.set(err.error?.message || 'Failed to delete e-Invoice MSIC code.');
         this.deletingCode.set(null);
       },
     });
@@ -202,7 +202,7 @@ export class MsicCodesComponent implements OnInit {
     const description = value.description.trim();
     const categoryReference = value.categoryReference.trim();
     this.addSaving.set(true);
-    this.msicCodeService.create({ code, description, ...(categoryReference ? { categoryReference } : {}) }).subscribe({
+    this.eInvoiceMsicCodeService.create({ code, description, ...(categoryReference ? { categoryReference } : {}) }).subscribe({
       next: () => {
         this.successMessage.set(`Code ${code} added.`);
         this.addSaving.set(false);
@@ -210,13 +210,13 @@ export class MsicCodesComponent implements OnInit {
         this.load();
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to add MSIC code.');
+        this.errorMessage.set(err.error?.message || 'Failed to add e-Invoice MSIC code.');
         this.addSaving.set(false);
       },
     });
   }
 
-  openEdit(code: MsicCode): void {
+  openEdit(code: EInvoiceMsicCode): void {
     this.clearMessages();
     this.editingCode.set(code.code);
     this.editForm.reset({
@@ -238,7 +238,7 @@ export class MsicCodesComponent implements OnInit {
     }
     const value = this.editForm.getRawValue();
     this.editSaving.set(true);
-    this.msicCodeService
+    this.eInvoiceMsicCodeService
       .update(this.editingCode(), { description: value.description.trim(), categoryReference: value.categoryReference.trim() })
       .subscribe({
         next: () => {
@@ -248,7 +248,7 @@ export class MsicCodesComponent implements OnInit {
           this.load();
         },
         error: (err) => {
-          this.errorMessage.set(err.error?.message || 'Failed to update MSIC code.');
+          this.errorMessage.set(err.error?.message || 'Failed to update e-Invoice MSIC code.');
           this.editSaving.set(false);
         },
       });

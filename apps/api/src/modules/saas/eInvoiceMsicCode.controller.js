@@ -1,13 +1,13 @@
-const MsicCode = require('./msicCode.model');
-const { DEFAULT_MSIC_CODES } = require('./msicCode-defaults');
+const EInvoiceMsicCode = require('./eInvoiceMsicCode.model');
+const { DEFAULT_EINVOICE_MSIC_CODES } = require('./eInvoiceMsicCode-defaults');
 
 // LHDN publishes the canonical MSIC sub-category list as JSON on the MyInvois SDK
 // site. Sync fetches it live; if the site is unreachable from the server, the
-// bundled snapshot (msicCode-defaults.js) is used instead and the response says
+// bundled snapshot (eInvoiceMsicCode-defaults.js) is used instead and the response says
 // so - staleness is never silent.
 const LHDN_SOURCE_URL = 'https://sdk.myinvois.hasil.gov.my/files/MSICSubCategoryCodes.json';
 
-// Normalise an MSIC code to the stored shape: trimmed (LHDN codes are
+// Normalise an e-Invoice MSIC code to the stored shape: trimmed (LHDN codes are
 // zero-padded 5-digit strings).
 function normalizeCode(code) {
     return String(code || '').trim();
@@ -40,17 +40,17 @@ async function fetchLhdnCodes() {
     }
 }
 
-// POST /api/admin/msic-codes/sync
+// POST /api/admin/e-invoice-msic-codes/sync
 // Upsert the LHDN list (live fetch, bundled fallback). Idempotent; preserves each
 // existing row's isActive flag (only description/categoryReference/syncedAt are
 // refreshed), so re-running only adds new codes and refreshes wording.
-exports.syncMsicCodes = async (req, res) => {
+exports.syncEInvoiceMsicCodes = async (req, res) => {
     try {
         let source = 'lhdn';
         let list = await fetchLhdnCodes();
         if (!list) {
             source = 'bundled';
-            list = DEFAULT_MSIC_CODES;
+            list = DEFAULT_EINVOICE_MSIC_CODES;
         }
 
         const now = new Date();
@@ -63,104 +63,104 @@ exports.syncMsicCodes = async (req, res) => {
 
         // isActive is intentionally NOT in updateOnDuplicate, so existing rows keep
         // their enabled/disabled state and new rows default to active.
-        await MsicCode.bulkCreate(records, {
+        await EInvoiceMsicCode.bulkCreate(records, {
             updateOnDuplicate: ['description', 'categoryReference', 'syncedAt', 'updatedAt'],
         });
 
         res.status(200).json({
             message: source === 'lhdn'
-                ? `Synced ${records.length} MSIC codes from LHDN.`
-                : `LHDN site unreachable - loaded ${records.length} MSIC codes from the bundled copy.`,
+                ? `Synced ${records.length} e-Invoice MSIC codes from LHDN.`
+                : `LHDN site unreachable - loaded ${records.length} e-Invoice MSIC codes from the bundled copy.`,
             total: records.length,
             source,
             syncedAt: now,
         });
     } catch (error) {
-        console.error('Error syncing MSIC codes:', error);
+        console.error('Error syncing e-Invoice MSIC codes:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// GET /api/admin/msic-codes  (System Admin maintenance - every code)
-exports.listAllMsicCodes = async (req, res) => {
+// GET /api/admin/e-invoice-msic-codes  (System Admin maintenance - every code)
+exports.listAllEInvoiceMsicCodes = async (req, res) => {
     try {
-        const codes = await MsicCode.findAll({ order: [['code', 'ASC']] });
+        const codes = await EInvoiceMsicCode.findAll({ order: [['code', 'ASC']] });
         res.status(200).json(codes);
     } catch (error) {
-        console.error('Error listing MSIC codes:', error);
+        console.error('Error listing e-Invoice MSIC codes:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// POST /api/admin/msic-codes   Body: { code, description, categoryReference? }
+// POST /api/admin/e-invoice-msic-codes   Body: { code, description, categoryReference? }
 // Manual add - for a new LHDN code published before the next sync.
-exports.createMsicCode = async (req, res) => {
+exports.createEInvoiceMsicCode = async (req, res) => {
     try {
         const code = normalizeCode(req.body.code);
         const description = String(req.body.description || '').trim();
         const categoryReference = String(req.body.categoryReference || '').trim().toUpperCase() || null;
 
-        const existing = await MsicCode.findByPk(code);
-        if (existing) return res.status(409).json({ message: `MSIC code '${code}' already exists.` });
+        const existing = await EInvoiceMsicCode.findByPk(code);
+        if (existing) return res.status(409).json({ message: `e-Invoice MSIC code '${code}' already exists.` });
 
-        const msicCode = await MsicCode.create({ code, description, categoryReference });
-        res.status(201).json({ message: 'MSIC code created.', msicCode });
+        const eInvoiceMsicCode = await EInvoiceMsicCode.create({ code, description, categoryReference });
+        res.status(201).json({ message: 'e-Invoice MSIC code created.', eInvoiceMsicCode });
     } catch (error) {
-        console.error('Error creating MSIC code:', error);
+        console.error('Error creating e-Invoice MSIC code:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// PATCH /api/admin/msic-codes/:code   Body: { description?, categoryReference?, isActive? }
-exports.updateMsicCode = async (req, res) => {
+// PATCH /api/admin/e-invoice-msic-codes/:code   Body: { description?, categoryReference?, isActive? }
+exports.updateEInvoiceMsicCode = async (req, res) => {
     try {
         const code = normalizeCode(req.params.code);
-        const msicCode = await MsicCode.findByPk(code);
-        if (!msicCode) return res.status(404).json({ message: 'MSIC code not found.' });
+        const eInvoiceMsicCode = await EInvoiceMsicCode.findByPk(code);
+        if (!eInvoiceMsicCode) return res.status(404).json({ message: 'e-Invoice MSIC code not found.' });
 
         if (typeof req.body.description === 'string' && req.body.description.trim()) {
-            msicCode.description = req.body.description.trim();
+            eInvoiceMsicCode.description = req.body.description.trim();
         }
         if (typeof req.body.categoryReference === 'string') {
-            msicCode.categoryReference = req.body.categoryReference.trim().toUpperCase() || null;
+            eInvoiceMsicCode.categoryReference = req.body.categoryReference.trim().toUpperCase() || null;
         }
-        if (typeof req.body.isActive === 'boolean') msicCode.isActive = req.body.isActive;
-        await msicCode.save();
+        if (typeof req.body.isActive === 'boolean') eInvoiceMsicCode.isActive = req.body.isActive;
+        await eInvoiceMsicCode.save();
 
-        res.status(200).json({ message: 'MSIC code updated.', msicCode });
+        res.status(200).json({ message: 'e-Invoice MSIC code updated.', eInvoiceMsicCode });
     } catch (error) {
-        console.error('Error updating MSIC code:', error);
+        console.error('Error updating e-Invoice MSIC code:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// DELETE /api/admin/msic-codes/:code
+// DELETE /api/admin/e-invoice-msic-codes/:code
 // For removing a mistaken manual add; a code in LHDN's list reappears on the next sync.
-exports.deleteMsicCode = async (req, res) => {
+exports.deleteEInvoiceMsicCode = async (req, res) => {
     try {
         const code = normalizeCode(req.params.code);
-        const msicCode = await MsicCode.findByPk(code);
-        if (!msicCode) return res.status(404).json({ message: 'MSIC code not found.' });
+        const eInvoiceMsicCode = await EInvoiceMsicCode.findByPk(code);
+        if (!eInvoiceMsicCode) return res.status(404).json({ message: 'e-Invoice MSIC code not found.' });
 
-        await msicCode.destroy();
-        res.status(200).json({ message: 'MSIC code deleted.' });
+        await eInvoiceMsicCode.destroy();
+        res.status(200).json({ message: 'e-Invoice MSIC code deleted.' });
     } catch (error) {
-        console.error('Error deleting MSIC code:', error);
+        console.error('Error deleting e-Invoice MSIC code:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// GET /api/msic-codes  (any authenticated user - active codes for pickers)
-exports.listActiveMsicCodes = async (req, res) => {
+// GET /api/e-invoice-msic-codes  (any authenticated user - active codes for pickers)
+exports.listActiveEInvoiceMsicCodes = async (req, res) => {
     try {
-        const codes = await MsicCode.findAll({
+        const codes = await EInvoiceMsicCode.findAll({
             where: { isActive: true },
             attributes: ['code', 'description', 'categoryReference'],
             order: [['code', 'ASC']],
         });
         res.status(200).json(codes);
     } catch (error) {
-        console.error('Error listing active MSIC codes:', error);
+        console.error('Error listing active e-Invoice MSIC codes:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };

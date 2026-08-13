@@ -1,8 +1,8 @@
 // Bundled Malaysia LHDN e-Invoice classification codes - a checked-in snapshot of
-// https://sdk.myinvois.hasil.gov.my/files/ClassificationCodes.json (retrieved 2026-08-13).
+// https://sdk.myinvois.hasil.gov.my/files/EInvoiceClassificationCodes.json (retrieved 2026-08-13).
 // Used as the sync fallback when the LHDN site is unreachable from the server.
 // Descriptions are trimmed (the published file carries trailing spaces).
-const DEFAULT_CLASSIFICATION_CODES = [
+const DEFAULT_EINVOICE_CLASSIFICATION_CODES = [
     { code: "001", description: "Breastfeeding equipment" },
     { code: "002", description: "Child care centres and kindergartens fees" },
     { code: "003", description: "Computer, smartphone or tablet" },
@@ -50,4 +50,4 @@ const DEFAULT_CLASSIFICATION_CODES = [
     { code: "045", description: "Self-billed - Non-monetary payment to agents, dealers or distributors" },
 ];
 
-module.exports = { DEFAULT_CLASSIFICATION_CODES };
+module.exports = { DEFAULT_EINVOICE_CLASSIFICATION_CODES };

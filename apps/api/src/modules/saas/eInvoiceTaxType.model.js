@@ -4,7 +4,7 @@ const { sequelize } = require('../../platform/db');
 // e-Invoice Tax Type reference table - the Malaysia LHDN (MyInvois) tax-type
 // code list stamped on e-Invoice documents/lines ('01' Sales Tax .. '06' Not
 // Applicable, 'E' Tax exemption; https://sdk.myinvois.hasil.gov.my/codes/tax-types/).
-// Platform-level reference data like ClassificationCode/MsicCode. Deliberately
+// Platform-level reference data like EInvoiceClassificationCode. Deliberately
 // named EInvoiceTaxType, NOT TaxType: the Tax capability's rates carry their own
 // `taxType` vocabulary (tax schema) - this is LHDN's DOCUMENT code list, not the
 // tax engine. Populated via "Sync now" (LHDN JSON, bundled fallback in

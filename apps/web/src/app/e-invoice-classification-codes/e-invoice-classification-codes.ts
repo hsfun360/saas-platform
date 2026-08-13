@@ -2,9 +2,9 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ClassificationCodeService } from '../services/classification-code.service';
+import { EInvoiceClassificationCodeService } from '../services/e-invoice-classification-code.service';
 import { DialogComponent } from '../shared/dialog/dialog';
-import { ClassificationCode } from '../models/auth.models';
+import { EInvoiceClassificationCode } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
@@ -19,17 +19,17 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 // nonNullable FormGroups, validators live on the controls, and `form.dirty`
 // feeds the shared dialog's unsaved-changes guard directly.
 @Component({
-  selector: 'app-classification-codes',
+  selector: 'app-e-invoice-classification-codes',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective],
-  templateUrl: './classification-codes.html',
+  templateUrl: './e-invoice-classification-codes.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
-export class ClassificationCodesComponent implements OnInit {
-  private readonly classificationCodeService = inject(ClassificationCodeService);
+export class EInvoiceClassificationCodesComponent implements OnInit {
+  private readonly eInvoiceClassificationCodeService = inject(EInvoiceClassificationCodeService);
   private readonly fb = inject(FormBuilder);
 
-  readonly codes = signal<ClassificationCode[]>([]);
+  readonly codes = signal<EInvoiceClassificationCode[]>([]);
   readonly loading = signal(false);
   readonly syncing = signal(false);
   readonly togglingCode = signal<string | null>(null);
@@ -79,7 +79,7 @@ export class ClassificationCodesComponent implements OnInit {
 
   load(): void {
     this.loading.set(true);
-    this.classificationCodeService.listAll().subscribe({
+    this.eInvoiceClassificationCodeService.listAll().subscribe({
       next: (data) => {
         this.codes.set(data);
         this.loading.set(false);
@@ -91,47 +91,47 @@ export class ClassificationCodesComponent implements OnInit {
   onSync(): void {
     this.clearMessages();
     this.syncing.set(true);
-    this.classificationCodeService.sync().subscribe({
+    this.eInvoiceClassificationCodeService.sync().subscribe({
       next: (res) => {
         this.successMessage.set(res.message);
         this.syncing.set(false);
         this.load();
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to sync classification codes.');
+        this.errorMessage.set(err.error?.message || 'Failed to sync e-Invoice classification codes.');
         this.syncing.set(false);
       },
     });
   }
 
-  toggleActive(code: ClassificationCode): void {
+  toggleActive(code: EInvoiceClassificationCode): void {
     this.clearMessages();
     const next = !(code.isActive !== false);
     this.togglingCode.set(code.code);
-    this.classificationCodeService.update(code.code, { isActive: next }).subscribe({
+    this.eInvoiceClassificationCodeService.update(code.code, { isActive: next }).subscribe({
       next: () => {
         this.successMessage.set(`Code ${code.code} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingCode.set(null);
         this.load();
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to update classification code.');
+        this.errorMessage.set(err.error?.message || 'Failed to update e-Invoice classification code.');
         this.togglingCode.set(null);
       },
     });
   }
 
-  onDelete(code: ClassificationCode): void {
+  onDelete(code: EInvoiceClassificationCode): void {
     this.clearMessages();
     this.deletingCode.set(code.code);
-    this.classificationCodeService.delete(code.code).subscribe({
+    this.eInvoiceClassificationCodeService.delete(code.code).subscribe({
       next: () => {
         this.successMessage.set(`Code ${code.code} deleted.`);
         this.deletingCode.set(null);
         this.load();
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to delete classification code.');
+        this.errorMessage.set(err.error?.message || 'Failed to delete e-Invoice classification code.');
         this.deletingCode.set(null);
       },
     });
@@ -163,7 +163,7 @@ export class ClassificationCodesComponent implements OnInit {
     const code = value.code.trim();
     const description = value.description.trim();
     this.addSaving.set(true);
-    this.classificationCodeService.create({ code, description }).subscribe({
+    this.eInvoiceClassificationCodeService.create({ code, description }).subscribe({
       next: () => {
         this.successMessage.set(`Code ${code} added.`);
         this.addSaving.set(false);
@@ -171,13 +171,13 @@ export class ClassificationCodesComponent implements OnInit {
         this.load();
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to add classification code.');
+        this.errorMessage.set(err.error?.message || 'Failed to add e-Invoice classification code.');
         this.addSaving.set(false);
       },
     });
   }
 
-  openEdit(code: ClassificationCode): void {
+  openEdit(code: EInvoiceClassificationCode): void {
     this.clearMessages();
     this.editingCode.set(code.code);
     this.editForm.reset({ description: code.description });
@@ -196,7 +196,7 @@ export class ClassificationCodesComponent implements OnInit {
     }
     const description = this.editForm.getRawValue().description.trim();
     this.editSaving.set(true);
-    this.classificationCodeService.update(this.editingCode(), { description }).subscribe({
+    this.eInvoiceClassificationCodeService.update(this.editingCode(), { description }).subscribe({
       next: () => {
         this.successMessage.set(`Code ${this.editingCode()} updated.`);
         this.editSaving.set(false);
@@ -204,7 +204,7 @@ export class ClassificationCodesComponent implements OnInit {
         this.load();
       },
       error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to update classification code.');
+        this.errorMessage.set(err.error?.message || 'Failed to update e-Invoice classification code.');
         this.editSaving.set(false);
       },
     });
