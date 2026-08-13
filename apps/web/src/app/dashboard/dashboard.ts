@@ -31,6 +31,7 @@ const NAV_KEYS: Record<string, string> = {
   'Languages': 'nav.languages',
   'Currencies': 'nav.currencies',
   'Classification Codes': 'nav.classificationCodes',
+  'MSIC Codes': 'nav.msicCodes',
   'Subscriber Management': 'nav.subscriberManagement',
   'Roles': 'nav.roles',
   'Users': 'nav.users',

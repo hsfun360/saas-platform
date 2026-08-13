@@ -9,6 +9,7 @@ const countryController = require('./country.controller');
 const languageController = require('./language.controller');
 const currencyController = require('./currency.controller');
 const classificationCodeController = require('./classificationCode.controller');
+const msicCodeController = require('./msicCode.controller');
 const emailTemplateController = require('../notification/emailTemplate.controller');
 const taxController = require('../tax/tax.controller');
 const platformProfileController = require('./platformProfile.controller');
@@ -190,5 +191,27 @@ router.patch('/classification-codes/:code',
 router.delete('/classification-codes/:code',
     validate({ params: z.object({ code: classificationCodeKey }) }),
     classificationCodeController.deleteClassificationCode);
+
+// e-Invoice MSIC codes - Malaysia LHDN MyInvois business nature/activity reference
+// (sync from LHDN's published JSON with bundled fallback, list, add, edit/enable-disable, delete).
+// LHDN codes are 5-digit today; the key deliberately allows up to 20 alphanumerics
+// to match the column's headroom.
+const msicCodeKey = z.string('Code is required.').trim()
+    .regex(/^[0-9A-Za-z-]{1,20}$/, 'Code must be 1-20 letters/digits (LHDN MSIC codes are 5 digits, e.g. 01111).');
+router.use('/msic-codes', requireMenuAction('/admin/msic-codes'));
+router.post('/msic-codes/sync', msicCodeController.syncMsicCodes);
+router.get('/msic-codes', msicCodeController.listAllMsicCodes);
+router.post('/msic-codes',
+    validate({ body: z.object({ code: msicCodeKey, description: fields.requiredText(500), categoryReference: fields.optionalText(20) }) }),
+    msicCodeController.createMsicCode);
+router.patch('/msic-codes/:code',
+    validate({
+        params: z.object({ code: msicCodeKey }),
+        body: z.object({ description: fields.optionalText(500), categoryReference: fields.optionalText(20), isActive: z.boolean().optional() }),
+    }),
+    msicCodeController.updateMsicCode);
+router.delete('/msic-codes/:code',
+    validate({ params: z.object({ code: msicCodeKey }) }),
+    msicCodeController.deleteMsicCode);
 
 module.exports = router;

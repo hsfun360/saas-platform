@@ -131,6 +131,7 @@ const routes: Routes = [
       { path: 'admin/languages', loadComponent: () => import('./app/languages/languages').then((m) => m.LanguagesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/currencies', loadComponent: () => import('./app/currencies/currencies').then((m) => m.CurrenciesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/classification-codes', loadComponent: () => import('./app/classification-codes/classification-codes').then((m) => m.ClassificationCodesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/msic-codes', loadComponent: () => import('./app/msic-codes/msic-codes').then((m) => m.MsicCodesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       { path: 'admin/system-setup', loadComponent: () => import('./app/system-setup/system-setup').then((m) => m.SystemSetupComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
       // The catalogue maintenance is split into two grantable screens - one per
       // Module.audience - sharing one component (route data picks the side).

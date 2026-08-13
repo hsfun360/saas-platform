@@ -1275,6 +1275,15 @@ export interface ClassificationCode {
   syncedAt?: string | null;  // when the row last came from LHDN's published list
 }
 
+// Malaysia LHDN e-Invoice MSIC code (MSIC 2008 sub-category; MyInvois reference data).
+export interface MsicCode {
+  code: string;          // LHDN 5-digit code as text, e.g. '01111' ('00000' = not applicable)
+  description: string;
+  categoryReference?: string | null;  // MSIC 2008 section letter A-U
+  isActive?: boolean;
+  syncedAt?: string | null;  // when the row last came from LHDN's published list
+}
+
 // A subscriber's (Account's) currency selection: which currencies are available to
 // choose from, which are selected, and the default among them.
 export interface AccountCurrencyState {
