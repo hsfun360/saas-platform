@@ -36,6 +36,7 @@ const countryRoutes = require('./modules/saas/country.routes');
 const languageRoutes = require('./modules/saas/language.routes');
 const languageController = require('./modules/saas/language.controller');
 const currencyRoutes = require('./modules/saas/currency.routes');
+const classificationCodeRoutes = require('./modules/saas/classificationCode.routes');
 const industryTypeRoutes = require('./modules/saas/industryType.routes');
 const salutationRoutes = require('./modules/saas/salutation.routes');
 const nationalityRoutes = require('./modules/saas/nationality.routes');
@@ -118,6 +119,7 @@ function createApp() {
     app.use('/api/countries', countryRoutes);
     app.use('/api/languages', languageRoutes);
     app.use('/api/currencies', currencyRoutes);
+    app.use('/api/classification-codes', classificationCodeRoutes);
     // Subscriber-owned reference data (active lists for product pickers).
     app.use('/api/industry-types', industryTypeRoutes);
     app.use('/api/salutations', salutationRoutes);

@@ -47,6 +47,7 @@ const NAV_TREE = [
             { name: 'Countries', route: '/admin/countries', icon: 'public', sequence: 0 },
             { name: 'Languages', route: '/admin/languages', icon: 'translate', sequence: 1 },
             { name: 'Currencies', route: '/admin/currencies', icon: 'payments', sequence: 2 },
+            { name: 'Classification Codes', route: '/admin/classification-codes', icon: 'sell', sequence: 3 },
         ],
     },
     {

@@ -1267,6 +1267,14 @@ export interface Currency {
   isDefault?: boolean;   // the caller company's default currency (company-aware endpoints)
 }
 
+// Malaysia LHDN e-Invoice classification code (MyInvois reference data).
+export interface ClassificationCode {
+  code: string;          // LHDN 3-digit code, zero-padded text, e.g. '022'
+  description: string;
+  isActive?: boolean;
+  syncedAt?: string | null;  // when the row last came from LHDN's published list
+}
+
 // A subscriber's (Account's) currency selection: which currencies are available to
 // choose from, which are selected, and the default among them.
 export interface AccountCurrencyState {

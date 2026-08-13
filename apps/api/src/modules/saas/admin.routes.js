@@ -8,6 +8,7 @@ const adminController = require('./admin.controller');
 const countryController = require('./country.controller');
 const languageController = require('./language.controller');
 const currencyController = require('./currency.controller');
+const classificationCodeController = require('./classificationCode.controller');
 const emailTemplateController = require('../notification/emailTemplate.controller');
 const taxController = require('../tax/tax.controller');
 const platformProfileController = require('./platformProfile.controller');
@@ -15,6 +16,7 @@ const platformProfileController = require('./platformProfile.controller');
 const { verifyToken } = require('../../platform/auth.middleware');
 const { isPlatformUser } = require('./rbac.middleware');
 const { requireMenuAction, requireAnyMenuAction } = require('../../platform/serviceContext');
+const { validate, fields, z } = require('../../platform/validate');
 
 // Authorization is two layers, mirroring the tenant side:
 //   1. isPlatformUser - the caller holds an ACTIVE system-level membership
@@ -168,5 +170,25 @@ router.get('/currencies', currencyController.listAllCurrencies);
 router.post('/currencies', currencyController.createCurrency);
 router.patch('/currencies/:code', currencyController.updateCurrency);
 router.delete('/currencies/:code', currencyController.deleteCurrency);
+
+// e-Invoice classification codes - Malaysia LHDN MyInvois reference maintenance
+// (sync from LHDN's published JSON with bundled fallback, list, add, edit/enable-disable, delete)
+const classificationCodeKey = z.string('Code is required.').trim()
+    .regex(/^\d{3}$/, 'Code must be a 3-digit LHDN code (e.g. 022).');
+router.use('/classification-codes', requireMenuAction('/admin/classification-codes'));
+router.post('/classification-codes/sync', classificationCodeController.syncClassificationCodes);
+router.get('/classification-codes', classificationCodeController.listAllClassificationCodes);
+router.post('/classification-codes',
+    validate({ body: z.object({ code: classificationCodeKey, description: fields.requiredText(500) }) }),
+    classificationCodeController.createClassificationCode);
+router.patch('/classification-codes/:code',
+    validate({
+        params: z.object({ code: classificationCodeKey }),
+        body: z.object({ description: fields.optionalText(500), isActive: z.boolean().optional() }),
+    }),
+    classificationCodeController.updateClassificationCode);
+router.delete('/classification-codes/:code',
+    validate({ params: z.object({ code: classificationCodeKey }) }),
+    classificationCodeController.deleteClassificationCode);
 
 module.exports = router;

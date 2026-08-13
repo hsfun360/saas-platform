@@ -1,0 +1,195 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">sell</span>
+      <div>
+        <h1>{{ 'Classification Codes' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Malaysia LHDN e-Invoice classification codes (MyInvois) used to categorise invoice lines.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Sync bar: status on the left, sync action on the right. -->
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (lastSynced()) {
+        Last synced {{ lastSynced() | localDate:'datetime' }} · {{ codes().length }} codes, {{ activeCount() }} active
+      } @else if (codes().length > 0) {
+        {{ codes().length }} codes, {{ activeCount() }} active
+      } @else {
+        Not synced yet — click "Sync now" to load the classification codes published by LHDN.
+      }
+    </span>
+    <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="onSync()" [disabled]="syncing()">
+      {{ syncing() ? 'Syncing…' : 'Sync now' }}
+    </button>
+  </div>
+
+  <!-- Live filter (code / description). -->
+  @if (!loading() && codes().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #ccSearchBox type="search" [value]="search()" (input)="search.set(ccSearchBox.value)"
+             placeholder="Search classification codes…" aria-label="Search classification codes" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading classification codes…</p></div>
+  } @else if (codes().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No classification codes yet. Use "Sync now" to load the LHDN list, or "New code" to add one.</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No classification codes match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+      @for (c of filtered(); track c.code) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ c.code }} — {{ c.description }}</div>
+              @if (!c.syncedAt) {
+                <div class="data-card__subline"><span class="data-card__reg">Manually added (not in the last LHDN sync)</span></div>
+              }
+            </div>
+            <div class="data-row__badge">
+              @if (c.isActive === false) {
+                <span class="badge badge-inactive">Disabled</span>
+              } @else {
+                <span class="badge badge-active">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">Edit</button>
+              <ng-container *appCan="'edit'">
+                <app-overflow-menu [label]="'More actions for code ' + c.code">
+                  @if (c.isActive === false) {
+                    <button type="button" appMenuItem (click)="toggleActive(c)" [disabled]="togglingCode() === c.code">
+                      <span class="material-icons" aria-hidden="true">check_circle</span>
+                      Enable
+                    </button>
+                  } @else {
+                    <button type="button" appMenuItem (click)="toggleActive(c)" [disabled]="togglingCode() === c.code">
+                      <span class="material-icons" aria-hidden="true">block</span>
+                      Disable
+                    </button>
+                  }
+                  <button *appCan="'delete'" type="button" appMenuItem (click)="onDelete(c)" [disabled]="deletingCode() === c.code">
+                    <span class="material-icons" aria-hidden="true">delete</span>
+                    Delete
+                  </button>
+                </app-overflow-menu>
+              </ng-container>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New code FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New classification code">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New code</span>
+  </button>
+
+  <!-- ============ Add code dialog ============ -->
+  @if (addOpen()) {
+    <app-dialog #addDlg [title]="'New classification code'" [busy]="addSaving()" [dirty]="addForm.dirty"
+                discardTitle="Discard this new classification code?"
+                discardMessage="You have started entering a new classification code. Leaving now will discard it."
+                (close)="closeAdd()">
+      <form id="addClassificationCodeForm" [formGroup]="addForm" (ngSubmit)="onSaveAdd()" class="saas-form" style="padding: 0;">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aCode">Code <span class="required">*</span></label>
+            <input id="aCode" type="text" formControlName="code" placeholder="e.g. 046"
+                   maxlength="3" inputmode="numeric" autocomplete="off"
+                   [attr.aria-invalid]="showError(addForm.controls.code)" aria-describedby="aCodeErr" />
+            @if (showError(addForm.controls.code)) {
+              <p id="aCodeErr" class="field-error" role="alert">
+                @if (addForm.controls.code.errors?.['required']) { Code is required. }
+                @else { Code must be a 3-digit LHDN code (e.g. 046). }
+              </p>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aDescription">Description <span class="required">*</span></label>
+            <input id="aDescription" type="text" formControlName="description" placeholder="e.g. Motor vehicle" maxlength="500"
+                   [attr.aria-invalid]="showError(addForm.controls.description)" aria-describedby="aDescErr" />
+            @if (showError(addForm.controls.description)) {
+              <p id="aDescErr" class="field-error" role="alert">Description is required.</p>
+            }
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="addDlg.requestClose()" [disabled]="addSaving()">Cancel</button>
+        <button type="submit" form="addClassificationCodeForm" class="btn btn--primary" [disabled]="addSaving()">
+          {{ addSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Edit code dialog ============ -->
+  @if (editOpen()) {
+    <app-dialog #editDlg [title]="'Edit — ' + editingCode()" [busy]="editSaving()" [dirty]="editForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes. Leaving now will discard them."
+                (close)="closeEdit()">
+      <form id="editClassificationCodeForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eCode">Code</label>
+            <input id="eCode" type="text" [value]="editingCode()" disabled />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eDescription">Description <span class="required">*</span></label>
+            <input id="eDescription" type="text" formControlName="description" placeholder="e.g. Motor vehicle" maxlength="500"
+                   [attr.aria-invalid]="showError(editForm.controls.description)" aria-describedby="eDescErr" />
+            @if (showError(editForm.controls.description)) {
+              <p id="eDescErr" class="field-error" role="alert">Description is required.</p>
+            }
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="editDlg.requestClose()" [disabled]="editSaving()">Cancel</button>
+        <button type="submit" form="editClassificationCodeForm" class="btn btn--primary" [disabled]="editSaving()">
+          {{ editSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

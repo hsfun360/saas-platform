@@ -41,6 +41,7 @@ const Invitation = require('../modules/saas/invitation.model');
 const Country = require('../modules/saas/country.model'); // standalone reference table (no associations)
 const Language = require('../modules/saas/language.model'); // reference table
 const Currency = require('../modules/saas/currency.model'); // reference table
+const ClassificationCode = require('../modules/saas/classificationCode.model'); // reference table (LHDN e-Invoice)
 const AccountCurrency = require('../modules/saas/accountCurrency.model'); // Account <-> Currency join
 const AccountLanguage = require('../modules/saas/accountLanguage.model'); // Account <-> Language join
 const CompanySmtpConfig = require('../modules/saas/companySmtpConfig.model'); // per-company outgoing SMTP (references companyId by UUID; no FK)
