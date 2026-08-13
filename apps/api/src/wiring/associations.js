@@ -47,6 +47,7 @@ const EInvoiceTaxType = require('../modules/saas/eInvoiceTaxType.model'); // ref
 const EInvoiceUnitType = require('../modules/saas/eInvoiceUnitType.model'); // reference table (LHDN e-Invoice)
 const EInvoiceStateCode = require('../modules/saas/eInvoiceStateCode.model'); // reference table (LHDN e-Invoice)
 const EInvoicePaymentMethod = require('../modules/saas/eInvoicePaymentMethod.model'); // reference table (LHDN e-Invoice)
+const EInvoiceDocumentType = require('../modules/saas/eInvoiceDocumentType.model'); // reference table (LHDN e-Invoice)
 const AccountCurrency = require('../modules/saas/accountCurrency.model'); // Account <-> Currency join
 const AccountLanguage = require('../modules/saas/accountLanguage.model'); // Account <-> Language join
 const CompanySmtpConfig = require('../modules/saas/companySmtpConfig.model'); // per-company outgoing SMTP (references companyId by UUID; no FK)

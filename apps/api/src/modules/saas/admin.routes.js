@@ -14,6 +14,7 @@ const eInvoiceTaxTypeController = require('./eInvoiceTaxType.controller');
 const eInvoiceUnitTypeController = require('./eInvoiceUnitType.controller');
 const eInvoiceStateCodeController = require('./eInvoiceStateCode.controller');
 const eInvoicePaymentMethodController = require('./eInvoicePaymentMethod.controller');
+const eInvoiceDocumentTypeController = require('./eInvoiceDocumentType.controller');
 const emailTemplateController = require('../notification/emailTemplate.controller');
 const taxController = require('../tax/tax.controller');
 const platformProfileController = require('./platformProfile.controller');
@@ -296,5 +297,23 @@ router.patch('/e-invoice-payment-methods/:code',
 router.delete('/e-invoice-payment-methods/:code',
     validate({ params: z.object({ code: eInvoiceCodeKey }) }),
     eInvoicePaymentMethodController.deleteEInvoicePaymentMethod);
+
+// e-Invoice document types - Malaysia LHDN MyInvois e-Invoice type reference
+// ('01' Invoice .. '04' Refund Note, '11'-'14' self-billed variants).
+router.use('/e-invoice-document-types', requireMenuAction('/admin/e-invoice-document-types'));
+router.post('/e-invoice-document-types/sync', eInvoiceDocumentTypeController.syncEInvoiceDocumentTypes);
+router.get('/e-invoice-document-types', eInvoiceDocumentTypeController.listAllEInvoiceDocumentTypes);
+router.post('/e-invoice-document-types',
+    validate({ body: z.object({ code: eInvoiceCodeKey, description: fields.requiredText(500) }) }),
+    eInvoiceDocumentTypeController.createEInvoiceDocumentType);
+router.patch('/e-invoice-document-types/:code',
+    validate({
+        params: z.object({ code: eInvoiceCodeKey }),
+        body: z.object({ description: fields.optionalText(500), isActive: z.boolean().optional() }),
+    }),
+    eInvoiceDocumentTypeController.updateEInvoiceDocumentType);
+router.delete('/e-invoice-document-types/:code',
+    validate({ params: z.object({ code: eInvoiceCodeKey }) }),
+    eInvoiceDocumentTypeController.deleteEInvoiceDocumentType);
 
 module.exports = router;

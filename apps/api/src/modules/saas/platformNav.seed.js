@@ -53,6 +53,7 @@ const NAV_TREE = [
             { name: 'e-Invoice Unit Types', route: '/admin/e-invoice-unit-types', icon: 'straighten', sequence: 6 },
             { name: 'e-Invoice State Codes', route: '/admin/e-invoice-state-codes', icon: 'map', sequence: 7 },
             { name: 'e-Invoice Payment Methods', route: '/admin/e-invoice-payment-methods', icon: 'credit_card', sequence: 8 },
+            { name: 'e-Invoice Document Types', route: '/admin/e-invoice-document-types', icon: 'description', sequence: 9 },
         ],
     },
     {

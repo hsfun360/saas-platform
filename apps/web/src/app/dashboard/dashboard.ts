@@ -36,6 +36,7 @@ const NAV_KEYS: Record<string, string> = {
   'e-Invoice Unit Types': 'nav.eInvoiceUnitTypes',
   'e-Invoice State Codes': 'nav.eInvoiceStateCodes',
   'e-Invoice Payment Methods': 'nav.eInvoicePaymentMethods',
+  'e-Invoice Document Types': 'nav.eInvoiceDocumentTypes',
   'Subscriber Management': 'nav.subscriberManagement',
   'Roles': 'nav.roles',
   'Users': 'nav.users',

@@ -62,6 +62,7 @@
   "nav.eInvoiceUnitTypes": "e-Invoice Unit Types",
   "nav.eInvoiceStateCodes": "e-Invoice State Codes",
   "nav.eInvoicePaymentMethods": "e-Invoice Payment Methods",
+  "nav.eInvoiceDocumentTypes": "e-Invoice Document Types",
   "nav.subscriberManagement": "Subscriber Management",
   "nav.roles": "Roles",
   "nav.users": "Users",

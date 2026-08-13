@@ -1316,6 +1316,14 @@ export interface EInvoicePaymentMethod {
   syncedAt?: string | null;  // when the row last came from LHDN's published list
 }
 
+// Malaysia LHDN e-Invoice document type (MyInvois "e-Invoice Types" code list).
+export interface EInvoiceDocumentType {
+  code: string;          // LHDN code as text: '01' Invoice .. '04' Refund Note, '11'-'14' self-billed
+  description: string;
+  isActive?: boolean;
+  syncedAt?: string | null;  // when the row last came from LHDN's published list
+}
+
 // A subscriber's (Account's) currency selection: which currencies are available to
 // choose from, which are selected, and the default among them.
 export interface AccountCurrencyState {
