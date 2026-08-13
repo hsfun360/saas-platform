@@ -58,6 +58,7 @@
   "nav.currencies": "Currencies",
   "nav.classificationCodes": "Classification Codes",
   "nav.msicCodes": "MSIC Codes",
+  "nav.eInvoiceTaxTypes": "e-Invoice Tax Types",
   "nav.subscriberManagement": "Subscriber Management",
   "nav.roles": "Roles",
   "nav.users": "Users",

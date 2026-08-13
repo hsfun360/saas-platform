@@ -10,6 +10,7 @@ const languageController = require('./language.controller');
 const currencyController = require('./currency.controller');
 const classificationCodeController = require('./classificationCode.controller');
 const msicCodeController = require('./msicCode.controller');
+const eInvoiceTaxTypeController = require('./eInvoiceTaxType.controller');
 const emailTemplateController = require('../notification/emailTemplate.controller');
 const taxController = require('../tax/tax.controller');
 const platformProfileController = require('./platformProfile.controller');
@@ -213,5 +214,27 @@ router.patch('/msic-codes/:code',
 router.delete('/msic-codes/:code',
     validate({ params: z.object({ code: msicCodeKey }) }),
     msicCodeController.deleteMsicCode);
+
+// e-Invoice tax types - Malaysia LHDN MyInvois document tax-type reference
+// (sync from LHDN's published JSON with bundled fallback, list, add, edit/enable-disable, delete).
+// LHDN codes are '01'..'06' and 'E' today; the key allows up to 20 alphanumerics
+// to match the column's headroom.
+const eInvoiceTaxTypeKey = z.string('Code is required.').trim()
+    .regex(/^[0-9A-Za-z-]{1,20}$/, "Code must be 1-20 letters/digits (LHDN tax types are '01'..'06' or 'E').");
+router.use('/e-invoice-tax-types', requireMenuAction('/admin/e-invoice-tax-types'));
+router.post('/e-invoice-tax-types/sync', eInvoiceTaxTypeController.syncEInvoiceTaxTypes);
+router.get('/e-invoice-tax-types', eInvoiceTaxTypeController.listAllEInvoiceTaxTypes);
+router.post('/e-invoice-tax-types',
+    validate({ body: z.object({ code: eInvoiceTaxTypeKey, description: fields.requiredText(500) }) }),
+    eInvoiceTaxTypeController.createEInvoiceTaxType);
+router.patch('/e-invoice-tax-types/:code',
+    validate({
+        params: z.object({ code: eInvoiceTaxTypeKey }),
+        body: z.object({ description: fields.optionalText(500), isActive: z.boolean().optional() }),
+    }),
+    eInvoiceTaxTypeController.updateEInvoiceTaxType);
+router.delete('/e-invoice-tax-types/:code',
+    validate({ params: z.object({ code: eInvoiceTaxTypeKey }) }),
+    eInvoiceTaxTypeController.deleteEInvoiceTaxType);
 
 module.exports = router;

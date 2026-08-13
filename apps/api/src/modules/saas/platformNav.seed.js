@@ -49,6 +49,7 @@ const NAV_TREE = [
             { name: 'Currencies', route: '/admin/currencies', icon: 'payments', sequence: 2 },
             { name: 'Classification Codes', route: '/admin/classification-codes', icon: 'sell', sequence: 3 },
             { name: 'MSIC Codes', route: '/admin/msic-codes', icon: 'factory', sequence: 4 },
+            { name: 'e-Invoice Tax Types', route: '/admin/e-invoice-tax-types', icon: 'percent', sequence: 5 },
         ],
     },
     {

@@ -32,6 +32,7 @@ const NAV_KEYS: Record<string, string> = {
   'Currencies': 'nav.currencies',
   'Classification Codes': 'nav.classificationCodes',
   'MSIC Codes': 'nav.msicCodes',
+  'e-Invoice Tax Types': 'nav.eInvoiceTaxTypes',
   'Subscriber Management': 'nav.subscriberManagement',
   'Roles': 'nav.roles',
   'Users': 'nav.users',

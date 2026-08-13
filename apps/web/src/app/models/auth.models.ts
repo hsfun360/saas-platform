@@ -1284,6 +1284,14 @@ export interface MsicCode {
   syncedAt?: string | null;  // when the row last came from LHDN's published list
 }
 
+// Malaysia LHDN e-Invoice tax type (MyInvois document code list, NOT the tax engine).
+export interface EInvoiceTaxType {
+  code: string;          // LHDN code as text: '01'..'06', or 'E' (tax exemption)
+  description: string;
+  isActive?: boolean;
+  syncedAt?: string | null;  // when the row last came from LHDN's published list
+}
+
 // A subscriber's (Account's) currency selection: which currencies are available to
 // choose from, which are selected, and the default among them.
 export interface AccountCurrencyState {
