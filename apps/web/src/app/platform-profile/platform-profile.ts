@@ -6,9 +6,10 @@ import { PlatformProfileService } from '../services/platform-profile.service';
 import { CountryService } from '../services/country.service';
 import { CurrencyService } from '../services/currency.service';
 import { TaxSchemeService } from '../services/tax-scheme.service';
+import { EInvoiceMsicCodeService } from '../services/e-invoice-msic-code.service';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { MoneyInputDirective } from '../shared/money-input.directive';
-import { PlatformProfile, PlatformChargeQuote, Country, Currency, TaxScheme } from '../models/auth.models';
+import { PlatformProfile, PlatformChargeQuote, Country, Currency, TaxScheme, EInvoiceMsicCode } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // SaaS Administration → Platform Profile: the platform's own "company of record" (a
@@ -32,7 +33,11 @@ export class PlatformProfileComponent implements OnInit {
   private readonly countryService = inject(CountryService);
   private readonly currencyService = inject(CurrencyService);
   private readonly taxService = inject(TaxSchemeService);
+  private readonly msicService = inject(EInvoiceMsicCodeService);
   private readonly fb = inject(FormBuilder);
+
+  // LHDN MSIC codes for the e-Invoice section's picker (datalist assist).
+  readonly msicOptions = signal<EInvoiceMsicCode[]>([]);
 
   readonly loading = signal(false);
   readonly saving = signal(false);
@@ -63,6 +68,12 @@ export class PlatformProfileComponent implements OnInit {
     state: ['', [Validators.maxLength(100)]],
     postalCode: ['', [Validators.maxLength(20)]],
     logo: [''],
+    // LHDN e-Invoice issuer identity (Malaysia MyInvois).
+    tin: ['', [Validators.maxLength(20)]],
+    msicCode: ['', [Validators.maxLength(20)]],
+    businessActivityDescription: ['', [Validators.maxLength(300)]],
+    sstRegistrationNumber: ['', [Validators.maxLength(35)]],
+    ttxRegistrationNumber: ['', [Validators.maxLength(35)]],
     countryCode: [''],
     baseCurrencyCode: [''],
     defaultTaxSchemeCode: [''],
@@ -90,6 +101,7 @@ export class PlatformProfileComponent implements OnInit {
     this.loadCountries();
     this.loadCurrencies();
     this.loadSchemes();
+    this.loadMsicCodes();
     this.load();
     this.syncSchemeState();
   }
@@ -114,6 +126,10 @@ export class PlatformProfileComponent implements OnInit {
           city: p.city || '', state: p.state || '', postalCode: p.postalCode || '',
           logo: p.logo || '', countryCode: p.countryCode || '', baseCurrencyCode: p.baseCurrencyCode || '',
           defaultTaxSchemeCode: p.defaultTaxSchemeCode || '',
+          tin: p.tin || '', msicCode: p.msicCode || '',
+          businessActivityDescription: p.businessActivityDescription || '',
+          sstRegistrationNumber: p.sstRegistrationNumber || '',
+          ttxRegistrationNumber: p.ttxRegistrationNumber || '',
         });
         this.countryCode.set(p.countryCode || '');
         this.syncSchemeState();
@@ -136,6 +152,19 @@ export class PlatformProfileComponent implements OnInit {
 
   private loadSchemes(): void {
     this.taxService.list(undefined, true).subscribe({ next: (l) => this.platformSchemes.set(l), error: () => {} });
+  }
+
+  private loadMsicCodes(): void {
+    this.msicService.listActive().subscribe({ next: (l) => this.msicOptions.set(l), error: () => {} });
+  }
+
+  // MSIC code -> business activity description assist: when a known code is
+  // picked/typed, fill the description if the user hasn't written their own.
+  onMsicChange(code: string): void {
+    const match = this.msicOptions().find((m) => m.code === code.trim().toUpperCase());
+    if (match && !this.form.getRawValue().businessActivityDescription.trim()) {
+      this.form.patchValue({ businessActivityDescription: match.description });
+    }
   }
 
   // The scheme picker is only usable once a billing country is chosen - disable it

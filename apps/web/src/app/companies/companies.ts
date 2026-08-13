@@ -4,7 +4,8 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../auth.service';
 import { CountryService } from '../services/country.service';
 import { CurrencyService } from '../services/currency.service';
-import { CompanyEntity, ModuleOption, Country, Currency } from '../models/auth.models';
+import { EInvoiceMsicCodeService } from '../services/e-invoice-msic-code.service';
+import { CompanyEntity, ModuleOption, Country, Currency, EInvoiceMsicCode } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { CompanySmtpDialogComponent } from '../company-smtp/company-smtp-dialog';
@@ -28,7 +29,12 @@ export class CompaniesComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly countryService = inject(CountryService);
   private readonly currencyService = inject(CurrencyService);
+  private readonly msicService = inject(EInvoiceMsicCodeService);
   private readonly fb = inject(FormBuilder);
+
+  // LHDN MSIC codes for the e-Invoice section's picker (datalist assist).
+  // Loaded lazily the first time the edit-details dialog opens (1174 rows).
+  readonly msicOptions = signal<EInvoiceMsicCode[]>([]);
 
   // Currencies the subscriber (account) opted into — the choices for a company's
   // default currency. Empty until loaded / if the account selected none.
@@ -120,6 +126,12 @@ export class CompaniesComponent implements OnInit {
     timezone: ['Asia/Kuala_Lumpur'],
     logo: [''],
     defaultCurrencyCode: [''],
+    // LHDN e-Invoice issuer identity (Malaysia MyInvois).
+    tin: ['', [Validators.maxLength(20)]],
+    msicCode: ['', [Validators.maxLength(20)]],
+    businessActivityDescription: ['', [Validators.maxLength(300)]],
+    sstRegistrationNumber: ['', [Validators.maxLength(35)]],
+    ttxRegistrationNumber: ['', [Validators.maxLength(35)]],
   });
 
   readonly form = this.fb.nonNullable.group({
@@ -392,7 +404,19 @@ export class CompaniesComponent implements OnInit {
       timezone: company.timezone || 'Asia/Kuala_Lumpur',
       logo: company.logo || '',
       defaultCurrencyCode: company.defaultCurrencyCode || '',
+      tin: company.tin || '',
+      msicCode: company.msicCode || '',
+      businessActivityDescription: company.businessActivityDescription || '',
+      sstRegistrationNumber: company.sstRegistrationNumber || '',
+      ttxRegistrationNumber: company.ttxRegistrationNumber || '',
     });
+    // Lazy-load the MSIC list for the e-Invoice picker (once per screen visit).
+    if (this.msicOptions().length === 0) {
+      this.msicService.listActive().subscribe({
+        next: (list) => this.msicOptions().length === 0 && this.msicOptions.set(list),
+        error: () => {}, // picker degrades to a free-text code field
+      });
+    }
     // Seed the timezone shortlist from the stored country (don't override the
     // stored timezone here - only a user country change re-derives it). If the
     // stored zone isn't in that country's list (legacy mismatch), keep it in the
@@ -423,6 +447,15 @@ export class CompaniesComponent implements OnInit {
 
   cancelEditProfile(): void {
     this.editingProfileCompanyId.set(null);
+  }
+
+  // MSIC code -> business activity description assist: when a known code is
+  // picked/typed, fill the description if the user hasn't written their own.
+  onMsicChange(code: string): void {
+    const match = this.msicOptions().find((m) => m.code === code.trim().toUpperCase());
+    if (match && !this.profileForm.getRawValue().businessActivityDescription.trim()) {
+      this.profileForm.patchValue({ businessActivityDescription: match.description });
+    }
   }
 
   onSaveProfile(companyId: string): void {

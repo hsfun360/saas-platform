@@ -446,6 +446,44 @@
             }
           </div>
         </div>
+
+        <!-- LHDN e-Invoice issuer identity (Malaysia MyInvois). -->
+        <div style="margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--border);">
+          <h3 style="margin: 0 0 var(--space-xs); font-size: var(--font-h3); color: var(--text-primary);">e-Invoice (LHDN)</h3>
+          <p style="margin: 0 0 var(--space-md); font-size: var(--font-body-2); color: var(--text-secondary);">Issuer identity for Malaysia MyInvois e-Invoices. Leave blank if this company does not issue e-Invoices.</p>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cd-tin">TIN (Tax Identification No.)</label>
+            <input id="cd-tin" type="text" formControlName="tin" placeholder="e.g. C1234567890" maxlength="20" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="cd-msic">MSIC code</label>
+            <input id="cd-msic" type="text" formControlName="msicCode" list="cd-msic-list" placeholder="e.g. 93110" maxlength="20" autocomplete="off"
+                   (change)="onMsicChange($any($event.target).value)" />
+            <datalist id="cd-msic-list">
+              @for (m of msicOptions(); track m.code) {
+                <option [value]="m.code">{{ m.description }}</option>
+              }
+            </datalist>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cd-activity">Business activity description</label>
+            <input id="cd-activity" type="text" formControlName="businessActivityDescription" placeholder="Auto-filled from the MSIC code — editable" maxlength="300" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cd-sst">SST registration no.</label>
+            <input id="cd-sst" type="text" formControlName="sstRegistrationNumber" placeholder="Blank = NA" maxlength="35" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="cd-ttx">Tourism tax (TTX) registration no.</label>
+            <input id="cd-ttx" type="text" formControlName="ttxRegistrationNumber" placeholder="Accommodation operators only" maxlength="35" autocomplete="off" />
+          </div>
+        </div>
       </form>
 
       <ng-container dialogFooter>

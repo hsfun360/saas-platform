@@ -26,6 +26,8 @@ function toDto(profile) {
             email: null, phone: null, website: null,
             addressLine1: null, addressLine2: null, city: null, state: null, postalCode: null,
             logo: null, countryCode: null, baseCurrencyCode: null, defaultTaxSchemeCode: null,
+            tin: null, msicCode: null, businessActivityDescription: null,
+            sstRegistrationNumber: null, ttxRegistrationNumber: null,
         };
     }
     return {
@@ -45,6 +47,11 @@ function toDto(profile) {
         countryCode: profile.countryCode,
         baseCurrencyCode: profile.baseCurrencyCode,
         defaultTaxSchemeCode: profile.defaultTaxSchemeCode,
+        tin: profile.tin,
+        msicCode: profile.msicCode,
+        businessActivityDescription: profile.businessActivityDescription,
+        sstRegistrationNumber: profile.sstRegistrationNumber,
+        ttxRegistrationNumber: profile.ttxRegistrationNumber,
     };
 }
 
@@ -74,10 +81,15 @@ exports.updateProfile = async (req, res) => {
             'email', 'phone', 'website',
             'addressLine1', 'addressLine2', 'city', 'state', 'postalCode',
             'logo', 'defaultTaxSchemeCode',
+            // LHDN e-Invoice issuer identity (see platformProfile.model.js).
+            'tin', 'msicCode', 'businessActivityDescription', 'sstRegistrationNumber', 'ttxRegistrationNumber',
         ];
         for (const f of textFields) {
             if (b[f] !== undefined) profile[f] = trimOrNull(b[f]);
         }
+        // e-Invoice codes are stored uppercase (matching the reference tables).
+        if (profile.tin) profile.tin = profile.tin.toUpperCase();
+        if (profile.msicCode) profile.msicCode = profile.msicCode.toUpperCase();
         // Canonical codes: alpha-2 lowercase, currency alpha-3 uppercase.
         if (b.countryCode !== undefined) {
             profile.countryCode = b.countryCode ? String(b.countryCode).trim().toLowerCase() || null : null;

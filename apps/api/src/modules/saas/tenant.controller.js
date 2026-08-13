@@ -1259,6 +1259,8 @@ exports.updateCompany = async (req, res) => {
         const fields = [
             'registrationNumber', 'taxRegistrationNumber', 'email', 'phone', 'website',
             'addressLine1', 'addressLine2', 'city', 'state', 'postalCode', 'country', 'timezone', 'logo',
+            // LHDN e-Invoice issuer identity (see company.model.js).
+            'tin', 'msicCode', 'businessActivityDescription', 'sstRegistrationNumber', 'ttxRegistrationNumber',
         ];
         for (const f of fields) {
             if (b[f] !== undefined) {
@@ -1268,6 +1270,10 @@ exports.updateCompany = async (req, res) => {
         }
         // timezone is NOT NULL — never let it be cleared.
         if (!company.timezone) company.timezone = 'Asia/Kuala_Lumpur';
+
+        // e-Invoice codes are stored uppercase (matching the reference tables).
+        if (company.tin) company.tin = company.tin.toUpperCase();
+        if (company.msicCode) company.msicCode = company.msicCode.toUpperCase();
 
         // Default currency (ISO 4217, uppercase); empty clears it.
         if (b.defaultCurrencyCode !== undefined) {

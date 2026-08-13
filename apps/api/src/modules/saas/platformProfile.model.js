@@ -39,6 +39,13 @@ const PlatformProfile = sequelize.define('PlatformProfile', {
     tradingName: { type: DataTypes.STRING, allowNull: true },
     registrationNumber: { type: DataTypes.STRING, allowNull: true },
     taxRegistrationNumber: { type: DataTypes.STRING, allowNull: true },
+    // --- LHDN e-Invoice issuer (supplier) identity (Malaysia MyInvois), for the
+    // platform's own invoices to subscribers. Same shape as Company's block. ---
+    tin: { type: DataTypes.STRING(20), allowNull: true },
+    msicCode: { type: DataTypes.STRING(20), allowNull: true },
+    businessActivityDescription: { type: DataTypes.STRING(300), allowNull: true },
+    sstRegistrationNumber: { type: DataTypes.STRING(35), allowNull: true },
+    ttxRegistrationNumber: { type: DataTypes.STRING(35), allowNull: true },
     email: { type: DataTypes.STRING, allowNull: true },
     phone: { type: DataTypes.STRING, allowNull: true },
     website: { type: DataTypes.STRING, allowNull: true },

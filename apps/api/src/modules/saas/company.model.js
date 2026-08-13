@@ -25,6 +25,24 @@ const Company = sequelize.define('Company', {
     // Core system). All nullable so sequelize.sync({ alter: true }) adds them to
     // existing rows; editable over time by a Tenant Admin. ---
     taxRegistrationNumber: { type: DataTypes.STRING, allowNull: true },
+
+    // --- LHDN e-Invoice issuer (supplier) identity (Malaysia MyInvois). All
+    // nullable: only Malaysian companies onboarding to e-Invoice fill these.
+    // The generic taxRegistrationNumber above predates this block and stays;
+    // the e-Invoice layer reads the explicit SST/TTX fields. ---
+    // Tax Identification Number (e.g. 'C1234567890').
+    tin: { type: DataTypes.STRING(20), allowNull: true },
+    // MSIC 2008 business activity code - references EInvoiceMsicCode.code by
+    // value (no cross-table FK, per the golden rules).
+    msicCode: { type: DataTypes.STRING(20), allowNull: true },
+    // Free-text business activity description LHDN wants beside the MSIC code;
+    // defaults to the picked MSIC description in the UI but stays editable.
+    businessActivityDescription: { type: DataTypes.STRING(300), allowNull: true },
+    // SST registration number; submitted as 'NA' when empty.
+    sstRegistrationNumber: { type: DataTypes.STRING(35), allowNull: true },
+    // Tourism tax registration number (accommodation operators only).
+    ttxRegistrationNumber: { type: DataTypes.STRING(35), allowNull: true },
+
     email: { type: DataTypes.STRING, allowNull: true },
     phone: { type: DataTypes.STRING, allowNull: true },
     website: { type: DataTypes.STRING, allowNull: true },

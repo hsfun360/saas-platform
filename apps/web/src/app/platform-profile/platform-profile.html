@@ -188,6 +188,45 @@
         </div>
       </section>
 
+      <!-- ===== LHDN e-Invoice issuer identity (Malaysia MyInvois) ===== -->
+      <section class="pp-section">
+        <h2 class="pp-section__title">e-Invoice (LHDN)</h2>
+        <p class="pp-section__hint">Issuer identity for Malaysia MyInvois e-Invoices the platform submits for its own invoices to subscribers.</p>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ppTin">TIN (Tax Identification No.)</label>
+            <input id="ppTin" type="text" formControlName="tin" placeholder="e.g. C1234567890" maxlength="20" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="ppMsic">MSIC code</label>
+            <input id="ppMsic" type="text" formControlName="msicCode" list="pp-msic-list" placeholder="e.g. 62011" maxlength="20" autocomplete="off"
+                   (change)="onMsicChange($any($event.target).value)" />
+            <datalist id="pp-msic-list">
+              @for (m of msicOptions(); track m.code) {
+                <option [value]="m.code">{{ m.description }}</option>
+              }
+            </datalist>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ppActivity">Business activity description</label>
+            <input id="ppActivity" type="text" formControlName="businessActivityDescription" placeholder="Auto-filled from the MSIC code — editable" maxlength="300" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ppSst">SST registration no.</label>
+            <input id="ppSst" type="text" formControlName="sstRegistrationNumber" placeholder="Blank = NA" maxlength="35" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="ppTtx">Tourism tax (TTX) registration no.</label>
+            <input id="ppTtx" type="text" formControlName="ttxRegistrationNumber" placeholder="Accommodation operators only" maxlength="35" autocomplete="off" />
+          </div>
+        </div>
+      </section>
+
       <div class="pp-actions">
         <button type="submit" class="btn btn--primary" [disabled]="saving()">
           {{ saving() ? 'Saving…' : 'Save profile' }}

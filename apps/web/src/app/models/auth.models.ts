@@ -1519,6 +1519,12 @@ export interface CompanyEntity {
   timezone?: string;
   logo?: string | null;
   defaultCurrencyCode?: string | null;
+  // LHDN e-Invoice issuer (supplier) identity - Malaysia MyInvois.
+  tin?: string | null;
+  msicCode?: string | null;
+  businessActivityDescription?: string | null;
+  sstRegistrationNumber?: string | null;
+  ttxRegistrationNumber?: string | null;
   isActive: boolean;
   createdAt?: string;
   SubscribedModules?: ModuleOption[];
@@ -1543,6 +1549,12 @@ export interface UpdateCompanyData {
   timezone?: string;
   logo?: string | null;
   defaultCurrencyCode?: string | null;
+  // LHDN e-Invoice issuer (supplier) identity - Malaysia MyInvois.
+  tin?: string;
+  msicCode?: string;
+  businessActivityDescription?: string;
+  sstRegistrationNumber?: string;
+  ttxRegistrationNumber?: string;
 }
 
 // Payload to create a new company under the caller's account.
@@ -1677,6 +1689,12 @@ export interface PlatformProfile {
   countryCode: string | null;
   baseCurrencyCode: string | null;
   defaultTaxSchemeCode: string | null;
+  // LHDN e-Invoice issuer (supplier) identity - Malaysia MyInvois.
+  tin: string | null;
+  msicCode: string | null;
+  businessActivityDescription: string | null;
+  sstRegistrationNumber: string | null;
+  ttxRegistrationNumber: string | null;
 }
 
 // One tax line of a computed charge breakdown (from the shared calculator).
