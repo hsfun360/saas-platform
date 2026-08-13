@@ -217,7 +217,7 @@
   }
 
   .assign-row__actions {
-    justify-self: start; /* bottom-left on mobile */
+    justify-self: end; /* bottom-right on mobile - app-wide action-row standard */
   }
 }
 

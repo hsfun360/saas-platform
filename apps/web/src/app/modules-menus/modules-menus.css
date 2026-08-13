@@ -196,7 +196,7 @@
       "actions";
   }
   .mm-row__actions {
-    justify-self: start;
+    justify-self: end;
   }
 }
 

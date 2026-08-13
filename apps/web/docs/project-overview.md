@@ -109,7 +109,7 @@ All UI components you generate MUST follow these patterns:
   primary CTAs on mobile (auto/content width on desktop); every button keeps a ≥ 44px
   touch target at all widths. Do **not** hand-roll one-off inline button styles.
 - **List/card row actions:** Info on the left, action buttons on the right at the same
-  level on desktop; on mobile the actions drop to a full-width row below, left-justified
+  level on desktop; on mobile the actions drop to a full-width row below, right-justified
   (see "List/card action-row layout" below).
 - **Spacing & font scale:** Use the mobile-first scales below. They are exposed
   as CSS custom properties in `src/styles.css` (`--font-*`, `--space-*`, `--weight-*`) -
@@ -333,7 +333,8 @@ Role Management, User Management). One source of truth; the container reflows by
 - **Desktop (≥ 768px):** content on the left, action buttons on the right **at the same
   level** as the content.
 - **Mobile (≤ 767px):** the actions drop to a **full-width row below the content,
-  left-justified**.
+  RIGHT-justified** - the same edge as desktop, so the eye finds actions in one
+  place at every width (standardized 2026-08-13; previously left-justified).
 
 Implement it with a CSS-grid class (named areas), **not** inline styles - the global
 mobile rule collapses any *inline* `grid-template-columns` to one column, so an inline
@@ -352,7 +353,7 @@ grid here would break on desktop. Pattern:
 
 @media (max-width: 767px) {
   .row { grid-template-columns: 1fr; grid-template-areas: "main" "actions"; }
-  .row__actions { justify-self: start; }   /* bottom-left on mobile */
+  .row__actions { justify-self: end; }   /* bottom-right on mobile - same edge as desktop */
 }
 ```
 

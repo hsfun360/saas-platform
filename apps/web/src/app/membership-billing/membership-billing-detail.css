@@ -87,7 +87,7 @@
       "main amounts"
       "actions actions";
   }
-  .mbd-item__actions { justify-self: start; }
+  .mbd-item__actions { justify-self: end; }
 }
 
 .mbd-item__title {

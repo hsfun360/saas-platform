@@ -204,7 +204,7 @@
       "actions";
   }
   .it-row__actions {
-    justify-self: start;
+    justify-self: end;
   }
 }
 

@@ -219,7 +219,7 @@
     grid-template-areas: "main" "actions";
   }
   .mem-row__actions {
-    justify-self: start;
+    justify-self: end;
   }
 }
 

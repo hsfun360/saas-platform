@@ -228,7 +228,7 @@
       "actions actions";
   }
   .tx-row__actions {
-    justify-self: start;
+    justify-self: end;
     align-self: center;
   }
 }
@@ -463,7 +463,7 @@
     grid-template-areas: "main" "actions";
   }
   .tx-rate-actions {
-    justify-self: start;
+    justify-self: end;
   }
   .tx-form-grid {
     grid-template-columns: 1fr;

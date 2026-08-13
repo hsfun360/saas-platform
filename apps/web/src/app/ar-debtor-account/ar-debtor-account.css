@@ -97,7 +97,7 @@
       "main amounts"
       "actions actions";
   }
-  .ara-doc__actions { justify-self: start; }
+  .ara-doc__actions { justify-self: end; }
 }
 
 .ara-doc--void {

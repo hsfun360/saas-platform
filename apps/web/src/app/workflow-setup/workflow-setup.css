@@ -113,7 +113,7 @@
   .wf-step__grip { grid-area: grip; }
   .wf-step__no { grid-area: no; }
   .wf-step__text { grid-area: text; }
-  .wf-step__actions { grid-area: actions; justify-self: start; }
+  .wf-step__actions { grid-area: actions; justify-self: end; }
 }
 
 .cdk-drag-preview.wf-step {

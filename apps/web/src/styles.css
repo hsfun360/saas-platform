@@ -309,7 +309,7 @@ body {
     grid-template-columns: 1fr;
     grid-template-areas: "main" "actions";
   }
-  .data-row__actions { justify-self: start; }
+  .data-row__actions { justify-self: end; }
 }
 
 /* Status-chip variant: badge pinned TOP-RIGHT, actions bottom-right (desktop) /
@@ -333,7 +333,7 @@ body {
       "main     badge"
       "actions  actions";
   }
-  .data-row--with-badge .data-row__actions { justify-self: start; }
+  .data-row--with-badge .data-row__actions { justify-self: end; }
 }
 
 /* Rows with MANY actions (4+ buttons - e.g. Companies): side-by-side needs
@@ -351,7 +351,7 @@ body {
       "main     badge"
       "actions  actions";
   }
-  .data-row--wide-actions .data-row__actions { justify-self: start; }
+  .data-row--wide-actions .data-row__actions { justify-self: end; }
 }
 
 /* Status chip — the compact overline pill (active / inactive / disabled), pinned
@@ -443,14 +443,9 @@ body {
   font-size: 18px;
   color: var(--brand-text);
 }
-@media (max-width: 767px) {
-  /* Mobile action rows are left-justified, so a right-anchored popover would
-     run off the left screen edge — anchor it left instead. */
-  .overflow-menu__pop {
-    left: 0;
-    right: auto;
-  }
-}
+/* No mobile re-anchor needed: action rows are right-justified at every width
+   (standard since 2026-08-13), so the right-anchored popover always opens
+   inward from the screen edge. */
 
 /* ============================================================== */
 /* Flash message — the ONE success/error message shown after an    */
