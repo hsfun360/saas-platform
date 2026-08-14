@@ -54,8 +54,10 @@ const CONDITION_OPS = ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'in'];
 const INSTANCE_STATUSES = ['in-progress', 'approved', 'rejected', 'cancelled'];
 
 // Task lifecycle. 'superseded' = a sibling's decision completed the step first
-// ('any' / satisfied 'count'); 'cancelled' = the instance ended upstream.
-const TASK_STATUSES = ['pending', 'approved', 'rejected', 'superseded', 'cancelled'];
+// ('any' / satisfied 'count'); 'cancelled' = the instance ended upstream;
+// 'escalated' = the step's SLA passed with escalateOnSla and the chain moved
+// to the next step (the task can no longer be acted on).
+const TASK_STATUSES = ['pending', 'approved', 'rejected', 'superseded', 'cancelled', 'escalated'];
 
 module.exports = {
     PURPOSES,

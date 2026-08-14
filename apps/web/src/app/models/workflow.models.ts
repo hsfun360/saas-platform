@@ -19,6 +19,9 @@ export interface WorkflowStep {
   requiredApprovals: number | null;
   condition: WorkflowCondition | null;
   slaHours: number | null;
+  // When slaHours passes undecided: false = one reminder to the same
+  // approvers; true = escalate to the next step in the chain.
+  escalateOnSla?: boolean;
 }
 
 export interface WorkflowDefinition {
@@ -58,6 +61,7 @@ export interface WorkflowChainPreviewStep {
   requiredApprovals: number | null;
   condition?: WorkflowCondition | null;
   slaHours?: number | null;
+  escalateOnSla?: boolean;
   approvers: string[];
 }
 

@@ -42,6 +42,7 @@ function stepDto(s) {
         requiredApprovals: s.requiredApprovals,
         condition: s.condition,
         slaHours: s.slaHours,
+        escalateOnSla: s.escalateOnSla === true,
     };
 }
 
@@ -125,6 +126,11 @@ function normalizeSteps(rawSteps) {
             const sla = Number(raw.slaHours);
             if (!Number.isInteger(sla) || sla < 1) return { error: `Step ${i + 1}: reminder hours must be a whole number of hours.` };
             row.slaHours = sla;
+        }
+        // Escalation needs a deadline to breach.
+        row.escalateOnSla = raw.escalateOnSla === true;
+        if (row.escalateOnSla && !row.slaHours) {
+            return { error: `Step ${i + 1}: escalation needs the hours-pending deadline set.` };
         }
         clean.push(row);
     }
@@ -324,6 +330,7 @@ exports.previewDefinition = async (req, res) => {
                 requiredApprovals: s.requiredApprovals,
                 condition: s.condition,
                 slaHours: s.slaHours,
+                escalateOnSla: s.escalateOnSla === true,
                 approvers: approvers.map((a) => a.name),
             });
         }

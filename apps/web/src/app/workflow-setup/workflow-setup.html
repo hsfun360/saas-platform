@@ -187,7 +187,7 @@
                     <span class="wf-step__sub">
                       {{ approverSummary(s) }} · {{ quorumLabel(s) }}
                       @if (s.condition) { · Only when {{ conditionLabel(s.condition) }} }
-                      @if (s.slaHours) { · Remind after {{ s.slaHours }}h }
+                      @if (s.slaHours) { · {{ s.escalateOnSla ? 'Escalate' : 'Remind' }} after {{ s.slaHours }}h }
                     </span>
                   </div>
                   <div class="wf-step__actions">
@@ -336,10 +336,18 @@
 
             <div class="form-row">
               <div class="form-group">
-                <label for="wsSla">Reminder after (hours)</label>
+                <label for="wsSla">If not decided within (hours)</label>
                 <input id="wsSla" type="number" inputmode="numeric" min="1" step="1" formControlName="slaHours"
-                       placeholder="No reminder" />
-                <p class="wf-hint">Approvers who have not decided get one reminder email after this many hours.</p>
+                       placeholder="No deadline" />
+                <label class="wf-check__label">
+                  <input type="checkbox" formControlName="escalateOnSla" />
+                  Escalate to the next step (instead of reminding the same approvers)
+                </label>
+                <p class="wf-hint">
+                  Without escalation, the pending approvers get one reminder (email + bell) when the deadline passes.
+                  With escalation, their tasks close as Escalated and the next step's approvers take over -
+                  the LAST step always falls back to the reminder.
+                </p>
               </div>
             </div>
           </form>

@@ -52,6 +52,12 @@ const WorkflowStep = sequelize.define('WorkflowStep', {
     condition: { type: DataTypes.JSONB, allowNull: true },
     // Reminder email (via the outbox worker) after N hours pending; NULL = none.
     slaHours: { type: DataTypes.INTEGER, allowNull: true },
+    // When slaHours passes with the step still pending: false = nag the same
+    // approvers once (reminder email); true = ESCALATE - close this step's
+    // pending tasks ('escalated') and activate the next step in the chain
+    // (2026-08-14, AR-invoice 24h escalation rule). The LAST step always falls
+    // back to the reminder - there is nobody above to escalate to.
+    escalateOnSla: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 
     // Ownership stamps (RBAC data scope).
     createdBy: { type: DataTypes.UUID, allowNull: true },

@@ -98,6 +98,7 @@ export class WorkflowSetupComponent implements OnInit {
     conditionOp: ['gte'],
     conditionValue: [''],
     slaHours: [''],
+    escalateOnSla: [false],
   });
   private readonly stepFormValue = toSignal(this.stepForm.valueChanges, { initialValue: this.stepForm.getRawValue() });
 
@@ -311,7 +312,7 @@ export class WorkflowSetupComponent implements OnInit {
       name: '', approverType: 'role', approverRoleId: '', approverDepartmentId: '',
       approverPositionId: '', approverUserId: '', approvalMode: 'any', requiredApprovals: 2,
       hasCondition: false, conditionField: this.selectedPurpose()?.contextFields[0]?.name || '',
-      conditionOp: 'gte', conditionValue: '', slaHours: '',
+      conditionOp: 'gte', conditionValue: '', slaHours: '', escalateOnSla: false,
     });
     this.dialogMode.set('step');
   }
@@ -334,6 +335,7 @@ export class WorkflowSetupComponent implements OnInit {
       conditionOp: s.condition?.op || 'gte',
       conditionValue: s.condition ? (Array.isArray(s.condition.value) ? (s.condition.value as unknown[]).join(', ') : String(s.condition.value)) : '',
       slaHours: s.slaHours === null || s.slaHours === undefined ? '' : String(s.slaHours),
+      escalateOnSla: s.escalateOnSla === true,
     });
     this.dialogMode.set('step');
   }
@@ -363,6 +365,7 @@ export class WorkflowSetupComponent implements OnInit {
       requiredApprovals: null,
       condition: null,
       slaHours: null,
+      escalateOnSla: false,
     };
 
     if (v.approverType === 'role') {
@@ -404,6 +407,11 @@ export class WorkflowSetupComponent implements OnInit {
       const sla = Number(slaRaw);
       if (!Number.isInteger(sla) || sla < 1) { this.stepError.set('Reminder must be a whole number of hours (1 or more).'); return; }
       step.slaHours = sla;
+    }
+    step.escalateOnSla = v.escalateOnSla === true;
+    if (step.escalateOnSla && !step.slaHours) {
+      this.stepError.set('Escalation needs the hours-pending deadline set.');
+      return;
     }
 
     const i = this.editingStepIndex();

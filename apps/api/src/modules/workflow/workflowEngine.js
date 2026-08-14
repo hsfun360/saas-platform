@@ -92,6 +92,7 @@ function stepSnapshot(s) {
         requiredApprovals: s.requiredApprovals,
         condition: s.condition,
         slaHours: s.slaHours,
+        escalateOnSla: s.escalateOnSla === true,
     };
 }
 
@@ -427,4 +428,6 @@ module.exports = {
     actOnTask,
     cancelInstance,
     cancelForEntity,
+    // For the SLA scan's escalation path (workflow.reminders.js).
+    activateNextStep,
 };
