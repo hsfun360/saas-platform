@@ -76,6 +76,7 @@ export interface ArLedgerDoc {
   settledAmount: string;
   status: ArDocStatus;
   reversalOfId: string | null;
+  voidReason?: string | null;
 }
 
 export interface ArReceiptDoc {
@@ -145,6 +146,7 @@ export interface ArDocListRow {
   grossAmount: string;
   settledAmount: string;
   status: ArDocStatus;
+  voidReason?: string | null;
   transactionTypeId: string;
   incurredByMemberId: string | null;
   canModify?: boolean;

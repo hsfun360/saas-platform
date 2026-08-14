@@ -135,8 +135,8 @@ export class ArService {
     return this.http.post<{ message: string; id: string; docNo?: string; status: string }>(`${this.base}/invoices/${id}/submit`, {});
   }
 
-  voidInvoice(id: string): Observable<{ message: string }> {
-    return this.http.patch<{ message: string }>(`${this.base}/invoices/${id}/void`, {});
+  voidInvoice(id: string, reason: string): Observable<{ message: string }> {
+    return this.http.patch<{ message: string }>(`${this.base}/invoices/${id}/void`, { reason });
   }
 
   voidReceipt(id: string): Observable<{ message: string }> {

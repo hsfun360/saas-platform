@@ -74,6 +74,9 @@
                 @if (doc.debtor.no) { <span class="data-card__reg">({{ doc.debtor.no }})</span> }
                 @if (doc.sourceModule !== 'ar') { <span class="art-source-chip">{{ doc.sourceModule }}</span> }
                 @if (doc.description) { <span class="cell-subtle">{{ doc.description }}</span> }
+                @if (doc.status === 'void' && doc.voidReason) {
+                  <span class="cell-subtle">Voided: {{ doc.voidReason }}</span>
+                }
               </div>
               <dl class="data-card__meta">
                 <div class="meta"><dt>Date</dt><dd>{{ doc.docDate | localDate }}</dd></div>
@@ -157,10 +160,17 @@
   <!-- ============ Void confirmation (drafts only - audit kept) ============ -->
   @if (voidOpen()) {
     <app-dialog #voidDlg [title]="'Confirm void'" [busy]="voidBusy()" (close)="closeVoid()">
-      <p style="margin: 0;">
+      <p style="margin: 0 0 var(--space-md);">
         Void {{ docRef(voidRow()!) }} for {{ voidRow()?.debtor?.name || 'this debtor' }}?
-        The draft never posted, so nothing reverses - it stays on record as Void.
+        The draft never posted, so nothing reverses - the number stays consumed and the
+        record remains as Void with your reason, for the auditor's sequence trail.
       </p>
+      <div class="form-group">
+        <label for="artVoidReason">Void reason <span class="required">*</span></label>
+        <textarea id="artVoidReason" rows="2" wrap="off" maxlength="255" #vr
+                  [value]="voidReason()" (input)="voidReason.set(vr.value)"
+                  placeholder="e.g. keyed against the wrong debtor"></textarea>
+      </div>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="voidDlg.requestClose()" [disabled]="voidBusy()">Cancel</button>
         <button type="button" class="btn btn--danger" (click)="confirmVoid()" [disabled]="voidBusy()">

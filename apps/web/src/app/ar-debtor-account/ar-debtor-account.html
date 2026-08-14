@@ -84,6 +84,7 @@
                       <strong>{{ ledgerDocRef(doc) }}</strong>
                       @if (doc.description) { <span class="cell-subtle">{{ doc.description }}</span> }
                       @if (doc.incurredBy) { <span class="cell-subtle">for {{ doc.incurredBy.name }}</span> }
+                      @if (doc.status === 'void' && doc.voidReason) { <span class="cell-subtle">Voided: {{ doc.voidReason }}</span> }
                     </div>
                     <div class="ara-doc__meta">
                       <span>{{ doc.docDate | localDate }}</span>
@@ -489,6 +490,14 @@
   @if (voidOpen()) {
     <app-dialog #voidDlg [title]="'Confirm void'" [busy]="voidBusy()" (close)="closeVoid()">
       <p style="margin: 0;">{{ voidMessage() }}</p>
+      @if (voidNeedsReason()) {
+        <div class="form-group" style="margin-top: var(--space-md);">
+          <label for="araVoidReason">Void reason <span class="required">*</span></label>
+          <textarea id="araVoidReason" rows="2" wrap="off" maxlength="255" #avr
+                    [value]="voidReason()" (input)="voidReason.set(avr.value)"
+                    placeholder="e.g. keyed against the wrong debtor"></textarea>
+        </div>
+      }
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="voidDlg.requestClose()" [disabled]="voidBusy()">Cancel</button>
         <button type="button" class="btn btn--danger" (click)="confirmVoid()" [disabled]="voidBusy()">

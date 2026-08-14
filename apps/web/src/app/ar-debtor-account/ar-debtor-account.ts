@@ -113,10 +113,13 @@ export class ArDebtorAccountComponent {
     amount: [0, [Validators.required, Validators.min(0.01)]],
   });
 
-  // --- Void confirmation (shared) ---
+  // --- Void confirmation (shared). Invoices require a reason - the number
+  // stays consumed in the gapless series and who/when/why is the audit trail.
   readonly voidOpen = signal(false);
   readonly voidBusy = signal(false);
   readonly voidMessage = signal('');
+  readonly voidReason = signal('');
+  readonly voidNeedsReason = signal(false);
   private voidAction: (() => void) | null = null;
 
   constructor() {
@@ -166,8 +169,9 @@ export class ArDebtorAccountComponent {
       : doc.status === 'pending-approval' ? 'Pending Approval'
       : doc.status === 'void' ? 'Void' : 'Posted';
   }
+  // Numbers issue at SAVE (gapless rule 2026-08-14) - every row carries one.
   ledgerDocRef(doc: ArLedgerDoc): string {
-    return doc.docNo || `DRAFT-${doc.id.slice(0, 8).toUpperCase()}`;
+    return doc.docNo || 'Draft';
   }
   // Invoices: draft-only void (posted = Credit Note). DN/CN keep the old rule
   // until their lifecycle slices land.
@@ -328,11 +332,15 @@ export class ArDebtorAccountComponent {
 
   // --- Voids (shared confirmation dialog) ---
   askVoidLedger(doc: ArLedgerDoc): void {
+    const isDraftInvoice = doc.docKind === 'invoice';
+    this.voidNeedsReason.set(isDraftInvoice);
     this.openVoid(
-      doc.mode === 'debit'
-        ? `Void ${this.kindLabel(doc.docKind)} ${doc.docNo}? A credit-mode reversal will be posted against it.`
-        : `Void ${this.kindLabel(doc.docKind)} ${doc.docNo}?`,
-      () => this.service.voidLedger(doc.id).subscribe({
+      isDraftInvoice
+        ? `Void ${this.kindLabel(doc.docKind)} ${this.ledgerDocRef(doc)}? The draft never posted - the number stays consumed and the record remains as Void with your reason.`
+        : doc.mode === 'debit'
+          ? `Void ${this.kindLabel(doc.docKind)} ${doc.docNo}? A credit-mode reversal will be posted against it.`
+          : `Void ${this.kindLabel(doc.docKind)} ${doc.docNo}?`,
+      () => this.service.voidLedger(doc.id, isDraftInvoice ? { reason: this.voidReason().trim() } : {}).subscribe({
         next: (res) => this.voidDone(res.message),
         error: (err) => this.voidFailed(err),
       }),
@@ -353,11 +361,16 @@ export class ArDebtorAccountComponent {
   private openVoid(message: string, action: () => void): void {
     this.clearMessages();
     this.voidMessage.set(message);
+    this.voidReason.set('');
     this.voidAction = action;
     this.voidOpen.set(true);
   }
   confirmVoid(): void {
     if (!this.voidAction) return;
+    if (this.voidNeedsReason() && !this.voidReason().trim()) {
+      this.errorMessage.set('Enter the void reason - it is kept for audit.');
+      return;
+    }
     this.voidBusy.set(true);
     this.voidAction();
   }

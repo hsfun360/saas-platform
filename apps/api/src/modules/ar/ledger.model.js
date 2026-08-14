@@ -50,13 +50,15 @@ const Ledger = sequelize.define('Ledger', {
         type: DataTypes.UUID,
         allowNull: true,
     },
-    // NULL while a manual document is still a draft (the gapless number is
-    // issued at posting - voided drafts never burn a number); a manual-mode
-    // draft may carry its keyed number early (reserved by the unique index -
-    // Postgres unique treats NULLs as distinct, so unnumbered drafts coexist).
+    // Issued at SAVE, inside the same transaction as the row (the GAPLESS
+    // RULE, firmed up 2026-08-14): the numbering counter is advanced under a
+    // SELECT..FOR UPDATE row lock and commits/rolls back WITH this record, so
+    // concurrent users can never duplicate a number and a rolled-back save
+    // never burns one. A voided draft KEEPS its number - the void audit
+    // (voidedAt/By/Reason) is the auditor's explanation for the sequence gap.
     docNo: {
         type: DataTypes.STRING(30),
-        allowNull: true,
+        allowNull: false,
     },
     docDate: {
         type: DataTypes.DATEONLY,
@@ -150,6 +152,11 @@ const Ledger = sequelize.define('Ledger', {
     postedBy: { type: DataTypes.UUID, allowNull: true },
     // The approval instance a submit routed through (last one on resubmits).
     workflowInstanceId: { type: DataTypes.UUID, allowNull: true },
+    // Void audit (user rule 2026-08-14): who/when/why - the auditor's trail
+    // for a consumed-but-voided number in the gapless series.
+    voidedAt: { type: DataTypes.DATE, allowNull: true },
+    voidedBy: { type: DataTypes.UUID, allowNull: true },
+    voidReason: { type: DataTypes.STRING, allowNull: true },
     // Ownership stamps. Null createdBy = system-posted (billing/interest run,
     // void reversal's allocation, producer charge).
     createdBy: { type: DataTypes.UUID, allowNull: true },

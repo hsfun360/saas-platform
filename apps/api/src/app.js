@@ -305,6 +305,16 @@ async function initializeDB() {
                 );
             }
 
+            // Invoice numbering firmed up 2026-08-14: docNo returns to NOT
+            // NULL (numbers issue at SAVE inside the draft's transaction).
+            // Any draft created during the brief nullable window gets a
+            // synthetic reference so the SET NOT NULL alter cannot abort.
+            await sequelize.query(
+                `UPDATE ar."Ledger"
+                 SET "docNo" = 'DRAFT-' || UPPER(SUBSTRING(id::text, 1, 8))
+                 WHERE "docNo" IS NULL`,
+            ).catch((err) => console.warn('Ledger draft docNo backfill skipped:', err.message));
+
             await sequelize.sync({ alter: true });
 
             // Statement letterhead completion (2026-08-11): statements now

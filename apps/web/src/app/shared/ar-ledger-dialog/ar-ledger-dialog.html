@@ -56,7 +56,8 @@
                 @if (numberingMode() === 'manual') { <span class="required">*</span> }
               </label>
               @if (numberingMode() === 'auto') {
-                <input id="ldNo" type="text" value="Issued automatically" disabled />
+                <!-- Gapless series: issued at save, immutable afterwards. -->
+                <input id="ldNo" type="text" [value]="editRow()?.docNo || 'Issued on save'" disabled />
               } @else {
                 <input id="ldNo" type="text" formControlName="docNo" autocomplete="off" maxlength="30"
                        [placeholder]="numberingMode() === 'manual' ? 'Required' : 'Auto if left blank'" />

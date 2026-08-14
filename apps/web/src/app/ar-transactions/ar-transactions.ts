@@ -26,7 +26,7 @@ interface DocTypeCfg {
   icon: string;
   subtitle: string;
   list: (service: ArService, opts: { month?: string; q?: string; status?: string; offset?: number }) => ReturnType<ArService['listInvoices']>;
-  void: (service: ArService, id: string) => ReturnType<ArService['voidInvoice']>;
+  void: (service: ArService, id: string, reason: string) => ReturnType<ArService['voidInvoice']>;
 }
 
 const DOC_TYPES: Record<string, DocTypeCfg> = {
@@ -37,7 +37,7 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
     icon: 'request_quote',
     subtitle: 'Manual invoices across all debtors — key new invoices and void unsettled ones. System-generated invoices (fee runs, interest) appear here too.',
     list: (s, opts) => s.listInvoices(opts),
-    void: (s, id) => s.voidInvoice(id),
+    void: (s, id, reason) => s.voidInvoice(id, reason),
   },
 };
 
@@ -161,9 +161,9 @@ export class ArTransactionsComponent implements OnInit {
   isEditableDraft(doc: ArDocListRow): boolean {
     return doc.status === 'draft' && doc.canModify !== false;
   }
-  // Draft reference shown until the gapless number is issued at posting.
+  // Numbers issue at SAVE (gapless rule 2026-08-14) - every row carries one.
   docRef(doc: ArDocListRow): string {
-    return doc.docNo || `DRAFT-${doc.id.slice(0, 8).toUpperCase()}`;
+    return doc.docNo || 'Draft';
   }
 
   // --- Entry / edit (the shared dialog; editRow set = edit mode) ---
@@ -232,17 +232,24 @@ export class ArTransactionsComponent implements OnInit {
     this.submitRow.set(null);
   }
 
-  // --- Void (drafts only - audit kept, no reversal) ---
+  // --- Void (drafts only - number stays consumed; who/when/why kept for
+  // audit, the auditor's explanation for the sequence gap) ---
+  readonly voidReason = signal('');
   askVoid(row: ArDocListRow): void {
     this.clearMessages();
     this.voidRow.set(row);
+    this.voidReason.set('');
     this.voidOpen.set(true);
   }
   confirmVoid(): void {
     const row = this.voidRow();
     if (!row) return;
+    if (!this.voidReason().trim()) {
+      this.errorMessage.set('Enter the void reason - it is kept for audit.');
+      return;
+    }
     this.voidBusy.set(true);
-    this.cfg().void(this.service, row.id).subscribe({
+    this.cfg().void(this.service, row.id, this.voidReason().trim()).subscribe({
       next: (res) => {
         this.successMessage.set(res.message);
         this.voidBusy.set(false);

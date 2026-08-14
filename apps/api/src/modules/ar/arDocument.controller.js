@@ -137,6 +137,7 @@ exports.getAccount = async (req, res) => {
                 sourceModule: r.sourceModule, sourceRef: r.sourceRef,
                 netAmount: r.netAmount, taxAmount: r.taxAmount, grossAmount: r.grossAmount,
                 settledAmount: r.settledAmount, status: r.status, reversalOfId: r.reversalOfId,
+                voidReason: r.voidReason,
             })),
             receipts: receipts.map((r) => ({
                 id: r.id, docKind: r.docKind, mode: r.mode, docNo: r.docNo,
@@ -300,6 +301,7 @@ function makeLedgerListHandler(docKind) {
                     description: r.description, sourceModule: r.sourceModule,
                     netAmount: r.netAmount, taxAmount: r.taxAmount, grossAmount: r.grossAmount,
                     settledAmount: r.settledAmount, status: r.status,
+                    voidReason: r.voidReason,
                     // Draft edit prefill (the shared dialog re-opens the form).
                     transactionTypeId: r.transactionTypeId, incurredByMemberId: r.incurredByMemberId,
                     canModify: canModify[i],
@@ -356,25 +358,27 @@ async function readInvoiceDraftFields(req, companyId, debtor) {
     return { dates, txnType, incurredByMemberId, amounts };
 }
 
-// The draft's number rules mirror entry: manual mode requires the number at
-// save (reserved by the unique index); auto mode defers to posting.
+// Manual-number pre-checks for a draft (auto mode issues in-tx at save).
 async function readDraftDocNo(req, companyId, { ignoreId = null } = {}) {
     const manualNo = strOrNull(req.body.docNo);
     const mode = await numberingGateway.getMode(req, 'ar-invoice');
-    if (mode === 'auto') return { docNo: null };
     if (mode === 'manual' && !manualNo) return { error: 'Invoice number is required (numbering is manual).' };
-    if (manualNo) {
+    if (mode !== 'auto' && manualNo) {
         const clash = await Ledger.findOne({
             where: { companyId, docKind: 'invoice', docNo: manualNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
             attributes: ['id'],
         });
         if (clash) return { error: `Invoice number '${manualNo}' is already in use.` };
     }
-    return { docNo: manualNo };
+    return { mode, manualNo };
 }
 
 // Create the draft row (both doors call this: the Invoice screen with
 // debtorId in the body, the Debtor Account door via postLedger below).
+// GAPLESS RULE (firmed up 2026-08-14): the number is issued INSIDE this
+// transaction - the counter's row lock serialises concurrent users (no
+// duplicates) and rolls back with a failed save (no burned numbers). A later
+// void keeps the number, explained by the void audit trail.
 async function createInvoiceDraft(req, res, companyId, debtor) {
     const fields = await readInvoiceDraftFields(req, companyId, debtor);
     if (fields.error) return res.status(400).json({ message: fields.error });
@@ -383,12 +387,13 @@ async function createInvoiceDraft(req, res, companyId, debtor) {
 
     const placement = await getCallerPlacement(req);
     const stamps = ownershipStamps(req, placement);
-    const row = await Ledger.create({
+    const issue = docNoIssuer(req, 'ar-invoice', no.manualNo);
+    const row = await sequelize.transaction(async (t) => Ledger.create({
         companyId,
         debtorId: debtor.id,
         docKind: 'invoice',
         mode: 'debit',
-        docNo: no.docNo,
+        docNo: await issue(t),
         docDate: fields.dates.docDate,
         trxDate: fields.dates.trxDate,
         dueDate: null, // computed from the debtor's terms at posting
@@ -406,8 +411,8 @@ async function createInvoiceDraft(req, res, companyId, debtor) {
         settledAmount: 0,
         status: 'draft',
         ...stamps,
-    });
-    res.status(201).json({ message: `Invoice draft saved${row.docNo ? ` (${row.docNo})` : ''}.`, id: row.id, docNo: row.docNo });
+    }, { transaction: t }));
+    res.status(201).json({ message: `Invoice ${row.docNo} saved as Open.`, id: row.id, docNo: row.docNo });
 }
 
 // POST /api/ar/invoices - save a new draft (debtorId in the body; the
@@ -457,7 +462,9 @@ exports.updateInvoiceDraft = async (req, res) => {
         if (no.error) return res.status(no.error.includes('already in use') ? 409 : 400).json({ message: no.error });
 
         Object.assign(row, {
-            docNo: no.docNo,
+            // An auto-issued number is immutable (gapless series); a manual
+            // number may be corrected while still a draft.
+            docNo: no.mode === 'auto' ? row.docNo : (no.manualNo || row.docNo),
             docDate: fields.dates.docDate,
             trxDate: fields.dates.trxDate,
             transactionTypeId: fields.txnType.id,
@@ -561,10 +568,17 @@ async function voidInvoiceRow(req, res, row) {
     if (row.status !== 'draft') {
         return res.status(400).json({ message: 'A posted invoice cannot be voided - raise a Credit Note to offset it.' });
     }
+    // The void audit (user rule 2026-08-14): the number stays consumed in the
+    // gapless series, and who/when/WHY is the auditor's trail for the gap.
+    const reason = str(req.body.reason);
+    if (!reason) return res.status(400).json({ message: 'A void reason is required (kept for audit).' });
     row.status = 'void';
-    row.updatedBy = getUserContext(req).userId;
+    row.voidedAt = new Date();
+    row.voidedBy = getUserContext(req).userId;
+    row.voidReason = reason.slice(0, 255);
+    row.updatedBy = row.voidedBy;
     await row.save();
-    return res.status(200).json({ message: `Invoice ${row.docNo || 'draft'} voided.` });
+    return res.status(200).json({ message: `Invoice ${row.docNo} voided.` });
 }
 
 // ---------------------------------------------------------------------------
