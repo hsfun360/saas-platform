@@ -1,30 +1,40 @@
 /* My Dashboard - page-specific bits; the launchpad primitives (sd-*) come from
    systems/system-dashboard.css via styleUrls. */
 
-/* My Approvals banner - the personal workflow inbox entry point. */
-.hm-approvals {
+/* My tasks - the personal workflow inbox: pending approvals as rows, each
+   opening My Approvals. Compact card list, one bordered block. */
+.hm-tasks {
   display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md);
+  flex-direction: column;
   margin-bottom: var(--space-lg);
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface-card);
+  overflow: hidden;
+}
+
+.hm-task {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border);
   text-decoration: none;
   color: var(--text-primary);
   min-height: 44px;
 }
-.hm-approvals:hover { background: var(--surface-hover); }
+.hm-task:last-child { border-bottom: none; }
+.hm-task:hover { background: var(--surface-hover); }
 
-.hm-approvals__icon {
+.hm-task__icon {
   color: var(--brand-text);
   background: var(--brand-surface, var(--surface-selected));
   border-radius: 10px;
   padding: var(--space-sm);
+  flex-shrink: 0;
 }
 
-.hm-approvals__text {
+.hm-task__text {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -32,14 +42,37 @@
   flex: 1;
 }
 
-.hm-approvals__title {
+.hm-task__title {
   font-size: var(--font-body);
   font-weight: var(--weight-semibold, 600);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.hm-approvals__sub {
+.hm-task__sub {
   font-size: var(--font-body-2);
   color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hm-task__due {
+  font-size: var(--font-caption);
+  color: var(--danger-text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* The trailing "view all / open inbox" row. */
+.hm-task--all {
+  background: var(--surface-sunken);
+}
+.hm-task--all .hm-task__title {
+  flex: 1;
+  font-size: var(--font-body-2);
+  color: var(--brand-text);
 }
 
 /* Section head with the Manage button beside the title. */

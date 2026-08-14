@@ -21,19 +21,31 @@
     }
   </section>
 
-  <!-- MY APPROVALS (pending workflow tasks assigned to me) -->
+  <!-- MY TASKS (pending workflow approvals assigned to me) -->
   @if (pendingApprovals() > 0) {
-    <section aria-label="My approvals">
-      <a class="hm-approvals" routerLink="/approvals">
-        <span class="material-icons hm-approvals__icon" aria-hidden="true">fact_check</span>
-        <span class="hm-approvals__text">
-          <span class="hm-approvals__title">
-            {{ pendingApprovals() }} approval{{ pendingApprovals() === 1 ? '' : 's' }} waiting for you
+    <section aria-label="My tasks">
+      <h2 class="sd-section-title">My tasks</h2>
+      <div class="hm-tasks">
+        @for (t of myTasks(); track t.id) {
+          <a class="hm-task" routerLink="/approvals">
+            <span class="material-icons hm-task__icon" aria-hidden="true">fact_check</span>
+            <span class="hm-task__text">
+              <span class="hm-task__title">{{ t.entityLabel || t.entityType }}</span>
+              <span class="hm-task__sub">{{ t.purposeName }} · {{ t.stepName }} · submitted {{ t.submittedAt | localDate }}@if (t.submittedBy) { by {{ t.submittedBy }}}</span>
+            </span>
+            @if (t.dueAt) { <span class="hm-task__due">due {{ t.dueAt | localDate }}</span> }
+            <span class="material-icons" aria-hidden="true">chevron_right</span>
+          </a>
+        }
+        <a class="hm-task hm-task--all" routerLink="/approvals">
+          <span class="hm-task__title">
+            {{ pendingApprovals() > myTasks().length
+                ? 'View all ' + pendingApprovals() + ' approvals waiting for you'
+                : 'Open My Approvals to decide' }}
           </span>
-          <span class="hm-approvals__sub">Open My Approvals to decide.</span>
-        </span>
-        <span class="material-icons" aria-hidden="true">chevron_right</span>
-      </a>
+          <span class="material-icons" aria-hidden="true">chevron_right</span>
+        </a>
+      </div>
     </section>
   }
 

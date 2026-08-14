@@ -11,11 +11,13 @@
 const { getCompanyProfile } = require('./serviceContext');
 
 // Create an in-app notification (the header bell). Fire-and-forget semantics
-// are the caller's choice; this just writes the row.
-async function notifyUser({ userId, companyId = null, type, title, body, linkRoute = null }) {
+// are the caller's choice; this just writes the row. Pass `transaction` when
+// the bell must appear only if the caller's business tx commits (e.g. the
+// workflow engine ringing approvers inside the submit/approve transaction).
+async function notifyUser({ userId, companyId = null, type, title, body, linkRoute = null, transaction = null }) {
     if (!userId) return null;
     const Notification = require('../modules/notification/notification.model');
-    return Notification.create({ userId, companyId, type, title, body, linkRoute });
+    return Notification.create({ userId, companyId, type, title, body, linkRoute }, { transaction });
 }
 
 // Queue a templated email to a user by id (render-at-store via the outbox).

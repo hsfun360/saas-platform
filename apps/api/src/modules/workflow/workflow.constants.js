@@ -12,10 +12,13 @@
 // can set the chain up first (the gateway simply finds no active definition
 // until then and the document auto-approves).
 const PURPOSES = [
+    // `documentRoute` = where the submitter's outcome notification links to
+    // (the document's own screen); approver notifications link to /approvals.
     {
         key: 'membership-application',
         name: 'Membership application',
         entityType: 'Membership',
+        documentRoute: '/membership/memberships',
         contextFields: [
             { name: 'amount', label: 'Entrance fee amount', type: 'number' },
             { name: 'membershipClass', label: 'Membership class (individual | corporate)', type: 'string' },
@@ -28,6 +31,7 @@ const PURPOSES = [
         key: 'ar-invoice',
         name: 'AR Invoice',
         entityType: 'ArInvoice',
+        documentRoute: '/ar/invoices',
         contextFields: [
             { name: 'amount', label: 'Invoice gross amount', type: 'number' },
             { name: 'debtorType', label: 'Debtor type (membership | member | other)', type: 'string' },

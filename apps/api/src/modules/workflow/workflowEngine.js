@@ -172,6 +172,24 @@ async function activateNextStep(instance, fromStepNo, transaction) {
             } catch (err) {
                 console.warn(`[WORKFLOW] Could not queue assignment email for ${approver.email}: ${err.message}`);
             }
+
+            // Header-bell notification for the approver (2026-08-14 - the
+            // in-app half of the approval loop; joins the tx so a rolled-back
+            // submit never rings). Same never-abort stance as the email.
+            try {
+                const { notifyUser } = require('../../platform/notificationGateway');
+                await notifyUser({
+                    userId: approver.userId,
+                    companyId: instance.companyId,
+                    type: 'workflow-task',
+                    title: `Approval needed: ${instance.entityLabel || instance.entityType}`,
+                    body: `${meta ? meta.name : instance.purpose} — step "${step.name}" is waiting for your decision.`,
+                    linkRoute: '/approvals',
+                    transaction,
+                });
+            } catch (err) {
+                console.warn(`[WORKFLOW] Could not create assignment notification for ${approver.userId}: ${err.message}`);
+            }
         }
 
         instance.currentStepNo = step.stepNo;
@@ -224,6 +242,26 @@ async function completeInstance(instance, outcome, transaction) {
             }
         } catch (err) {
             console.warn(`[WORKFLOW] Could not queue completion email: ${err.message}`);
+        }
+
+        // Submitter outcome bell (2026-08-14): links to the document's own
+        // screen when the purpose declares one, else the approvals history.
+        try {
+            const meta = purposeMeta(instance.purpose);
+            const { notifyUser } = require('../../platform/notificationGateway');
+            await notifyUser({
+                userId: instance.createdBy,
+                companyId: instance.companyId,
+                type: 'workflow-outcome',
+                title: `${meta ? meta.name : instance.purpose} ${outcome}: ${instance.entityLabel || instance.entityType}`,
+                body: outcome === 'approved'
+                    ? 'Your submission was approved and has been processed.'
+                    : 'Your submission was rejected - it is back with you to amend and resubmit.',
+                linkRoute: (meta && meta.documentRoute) || '/approvals',
+                transaction,
+            });
+        } catch (err) {
+            console.warn(`[WORKFLOW] Could not create completion notification: ${err.message}`);
         }
     }
 }

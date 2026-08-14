@@ -8,6 +8,8 @@ import {
   moveItemInArray,
 } from '@angular/cdk/drag-drop';
 import { MenuItem } from '../../models/auth.models';
+import { WorkflowMyTask } from '../../models/workflow.models';
+import { LocalDatePipe } from '../../shared/local-date.pipe';
 import { I18nService } from '../../i18n/i18n.service';
 import { HelpService } from '../../services/help.service';
 import { RecentScreensService } from '../../services/recent-screens.service';
@@ -39,7 +41,7 @@ interface FavoriteGroup {
   selector: 'app-home',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle],
+  imports: [RouterLink, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle, LocalDatePipe],
   templateUrl: './home.html',
   // system-setup.css supplies the shared .saas-container/.saas-header chrome;
   // launchpad.css the tile/hero primitives (both component-scoped).
@@ -52,15 +54,24 @@ export class HomeComponent {
   private readonly favorites = inject(FavoritesService);
   private readonly workflow = inject(WorkflowService);
 
-  // My Approvals inbox badge (person-scoped, so it belongs on this page).
-  // Silently 0 on error - the tile simply stays hidden.
+  // My Tasks (pending approvals assigned to me - person-scoped, so it belongs
+  // on this page). The card lists the first few documents awaiting a decision;
+  // silently empty on error.
   readonly pendingApprovals = signal(0);
+  readonly myTasks = signal<WorkflowMyTask[]>([]);
+  readonly TASKS_SHOWN = 5;
 
   constructor() {
     this.favorites.ensureLoaded();
-    this.workflow.countMyTasks().subscribe({
-      next: (r) => this.pendingApprovals.set(r.count),
-      error: () => this.pendingApprovals.set(0),
+    this.workflow.listMyTasks().subscribe({
+      next: (tasks) => {
+        this.pendingApprovals.set(tasks.length);
+        this.myTasks.set(tasks.slice(0, this.TASKS_SHOWN));
+      },
+      error: () => {
+        this.pendingApprovals.set(0);
+        this.myTasks.set([]);
+      },
     });
   }
 
