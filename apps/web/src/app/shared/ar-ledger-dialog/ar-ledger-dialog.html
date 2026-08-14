@@ -1,5 +1,6 @@
 <app-dialog #dlg
-            [title]="mode() === 'pick' ? 'New ' + kindLabel() + ' — select debtor' : 'New ' + kindLabel()"
+            [title]="editRow() ? 'Edit ' + kindLabel() + ' — ' + (editRow()?.docNo || 'Draft')
+                     : mode() === 'pick' ? 'New ' + kindLabel() + ' — select debtor' : 'New ' + kindLabel()"
             [busy]="saving() || metaLoading()"
             [dirty]="mode() === 'entry' && form.dirty"
             discardTitle="Discard this document?"
@@ -40,7 +41,7 @@
         <div class="ald-debtor">
           <span class="material-icons" aria-hidden="true">account_balance</span>
           <span class="ald-debtor__name"><strong>{{ who.no || '—' }}</strong> {{ who.name }}</span>
-          @if (!debtor()) {
+          @if (!debtor() && !editRow()) {
             <button type="button" class="btn btn--link btn--sm" (click)="changeDebtor()">Change</button>
           }
         </div>
@@ -139,9 +140,20 @@
   <ng-container dialogFooter>
     <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
     @if (mode() === 'entry') {
-      <button type="submit" form="arLedgerForm" class="btn btn--primary" [disabled]="saving() || metaLoading()">
-        {{ saving() ? 'Posting…' : 'Post' }}
-      </button>
+      @if (isLifecycle()) {
+        <!-- Save keeps the invoice as an editable Open draft; Submit makes it
+             financial (posts, or routes into the approval chain). -->
+        <button type="submit" form="arLedgerForm" class="btn btn--secondary" [disabled]="saving() || metaLoading()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+        <button type="button" class="btn btn--primary" (click)="onSubmit()" [disabled]="saving() || metaLoading()">
+          {{ saving() ? 'Working…' : submitLabel() }}
+        </button>
+      } @else {
+        <button type="submit" form="arLedgerForm" class="btn btn--primary" [disabled]="saving() || metaLoading()">
+          {{ saving() ? 'Posting…' : 'Post' }}
+        </button>
+      }
     }
   </ng-container>
 </app-dialog>

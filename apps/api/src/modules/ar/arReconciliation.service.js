@@ -78,6 +78,9 @@ async function reconcileCompany(companyId, { fix = false } = {}) {
     };
 
     for (const row of ledger) {
+        // Drafts / pending approvals are not financial (invoice lifecycle
+        // 2026-08-13): they carry no counters and never enter outstanding.
+        if (['draft', 'pending-approval'].includes(row.status)) continue;
         if (row.status !== 'void') {
             const remaining = cents(row.grossAmount) - cents(row.settledAmount);
             if (row.mode === 'debit') {

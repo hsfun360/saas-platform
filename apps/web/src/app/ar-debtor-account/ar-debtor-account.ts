@@ -160,6 +160,21 @@ export class ArDebtorAccountComponent {
   }
 
   // --- display helpers ---
+  // Ledger lifecycle display (2026-08-13): draft="Open", open|settled="Posted".
+  ledgerStatusLabel(doc: ArLedgerDoc): string {
+    return doc.status === 'draft' ? 'Open'
+      : doc.status === 'pending-approval' ? 'Pending Approval'
+      : doc.status === 'void' ? 'Void' : 'Posted';
+  }
+  ledgerDocRef(doc: ArLedgerDoc): string {
+    return doc.docNo || `DRAFT-${doc.id.slice(0, 8).toUpperCase()}`;
+  }
+  // Invoices: draft-only void (posted = Credit Note). DN/CN keep the old rule
+  // until their lifecycle slices land.
+  canVoidLedgerDoc(doc: ArLedgerDoc): boolean {
+    if (doc.docKind === 'invoice') return doc.status === 'draft';
+    return doc.status === 'open' && doc.settledAmount === '0.00';
+  }
   kindLabel(kind: string): string {
     return kind === 'invoice' ? 'Invoice'
       : kind === 'debit-note' ? 'Debit Note'

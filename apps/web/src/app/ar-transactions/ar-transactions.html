@@ -41,8 +41,9 @@
     <input type="month" [value]="month()" #m (change)="setMonth(m.value)" aria-label="Document month" />
     <select [value]="status()" #st (change)="setStatus(st.value)" aria-label="Status filter">
       <option value="">All statuses</option>
-      <option value="open">Open</option>
-      <option value="settled">Settled</option>
+      <option value="draft">Open</option>
+      <option value="pending-approval">Pending Approval</option>
+      <option value="posted">Posted</option>
       <option value="void">Void</option>
     </select>
   </div>
@@ -68,7 +69,7 @@
         <div class="data-card">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ doc.docNo }} — {{ doc.debtor.name || 'Unknown debtor' }}</div>
+              <div class="data-card__title">{{ docRef(doc) }} — {{ doc.debtor.name || 'Unknown debtor' }}</div>
               <div class="data-card__subline">
                 @if (doc.debtor.no) { <span class="data-card__reg">({{ doc.debtor.no }})</span> }
                 @if (doc.sourceModule !== 'ar') { <span class="art-source-chip">{{ doc.sourceModule }}</span> }
@@ -77,8 +78,8 @@
               <dl class="data-card__meta">
                 <div class="meta"><dt>Date</dt><dd>{{ doc.docDate | localDate }}</dd></div>
                 <div class="meta"><dt>Amount</dt><dd>{{ doc.grossAmount }}</dd></div>
-                @if (doc.status === 'open' && doc.settledAmount !== '0.00') {
-                  <div class="meta"><dt>Open</dt><dd>{{ remaining(doc) }}</dd></div>
+                @if (isPosted(doc)) {
+                  <div class="meta"><dt>Balance</dt><dd>{{ remaining(doc) }}</dd></div>
                 }
                 @if (doc.dueDate) {
                   <div class="meta"><dt>Due</dt><dd>{{ doc.dueDate | localDate }}</dd></div>
@@ -87,12 +88,22 @@
             </div>
             <div class="data-row__badge">
               <span class="status-chip"
-                    [class.status-chip--on]="doc.status === 'open'"
-                    [class.status-chip--off]="doc.status !== 'open'">{{ doc.status }}</span>
+                    [class.status-chip--on]="isPosted(doc)"
+                    [class.status-chip--off]="doc.status === 'void'"
+                    [class.art-chip--draft]="doc.status === 'draft'"
+                    [class.art-chip--pending]="doc.status === 'pending-approval'">{{ statusLabel(doc.status) }}</span>
             </div>
-            @if (canVoid(doc)) {
+            @if (isEditableDraft(doc)) {
               <div class="data-row__actions">
-                <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="askVoid(doc)">Void</button>
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(doc)">Edit</button>
+                <app-overflow-menu [label]="'More actions for ' + docRef(doc)">
+                  <button *appCan="'create'" type="button" appMenuItem (click)="askSubmit(doc)">
+                    <span class="material-icons" aria-hidden="true">send</span> Submit
+                  </button>
+                  <button *appCan="'edit'" type="button" appMenuItem (click)="askVoid(doc)">
+                    <span class="material-icons" aria-hidden="true">block</span> Void
+                  </button>
+                </app-overflow-menu>
               </div>
             }
           </div>
@@ -114,20 +125,41 @@
     <span class="material-icons" aria-hidden="true">add</span> New {{ cfg().label }}
   </button>
 
-  <!-- ============ Entry dialog (shared; starts at the debtor picker) ============ -->
+  <!-- ============ Entry / edit dialog (shared; new starts at the debtor picker) ============ -->
   @if (entryOpen()) {
-    <app-ar-ledger-dialog [kind]="cfg().kind"
-                          (closed)="entryOpen.set(false)"
+    <app-ar-ledger-dialog [kind]="cfg().kind" [editRow]="editRow()"
+                          (closed)="onEntryClosed()"
                           (posted)="onPosted($event)"
                           (failed)="errorMessage.set($event)" />
   }
 
-  <!-- ============ Void confirmation ============ -->
+  <!-- ============ Submit confirmation (kebab quick-submit) ============ -->
+  @if (submitOpen()) {
+    <app-dialog #submitDlg [title]="submitApproval() ? 'Submit for approval' : 'Submit ' + cfg().label" [busy]="submitBusy()" (close)="closeSubmit()">
+      <p style="margin: 0;">
+        @if (submitApproval()) {
+          Send {{ docRef(submitRow()!) }} for {{ submitRow()?.debtor?.name }} ({{ submitRow()?.grossAmount }}) into the approval chain?
+          It posts automatically once approved.
+        } @else {
+          Post {{ docRef(submitRow()!) }} for {{ submitRow()?.debtor?.name }} ({{ submitRow()?.grossAmount }})?
+          The invoice number is issued now and the amount hits the debtor's balance.
+        }
+      </p>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="submitDlg.requestClose()" [disabled]="submitBusy()">Cancel</button>
+        <button type="button" class="btn btn--primary" (click)="confirmSubmit()" [disabled]="submitBusy()">
+          {{ submitBusy() ? 'Working…' : (submitApproval() ? 'Submit for Approval' : 'Submit') }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Void confirmation (drafts only - audit kept) ============ -->
   @if (voidOpen()) {
     <app-dialog #voidDlg [title]="'Confirm void'" [busy]="voidBusy()" (close)="closeVoid()">
       <p style="margin: 0;">
-        Void {{ cfg().label }} {{ voidRow()?.docNo }} for {{ voidRow()?.debtor?.name || 'this debtor' }}?
-        A credit-mode reversal will be posted against it.
+        Void {{ docRef(voidRow()!) }} for {{ voidRow()?.debtor?.name || 'this debtor' }}?
+        The draft never posted, so nothing reverses - it stays on record as Void.
       </p>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="voidDlg.requestClose()" [disabled]="voidBusy()">Cancel</button>

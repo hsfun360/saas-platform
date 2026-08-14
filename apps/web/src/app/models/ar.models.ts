@@ -62,7 +62,7 @@ export interface ArLedgerDoc {
   id: string;
   docKind: 'invoice' | 'debit-note' | 'credit-note';
   mode: 'debit' | 'credit';
-  docNo: string;
+  docNo: string | null;
   docDate: string;
   trxDate: string;
   dueDate: string | null;
@@ -74,7 +74,7 @@ export interface ArLedgerDoc {
   taxAmount: string;
   grossAmount: string;
   settledAmount: string;
-  status: 'open' | 'settled' | 'void';
+  status: ArDocStatus;
   reversalOfId: string | null;
 }
 
@@ -126,11 +126,15 @@ export interface ArAccount {
 
 // --- AR Transaction screens (per-document-type menus; invoice first) ---
 
+// Internal status vocabulary (display maps draft->"Open", open|settled->
+// "Posted"): 'draft' and 'pending-approval' are NOT financial yet.
+export type ArDocStatus = 'draft' | 'pending-approval' | 'open' | 'settled' | 'void';
+
 export interface ArDocListRow {
   id: string;
   docKind: string;
   mode: 'debit' | 'credit';
-  docNo: string;
+  docNo: string | null;
   docDate: string;
   trxDate: string;
   dueDate: string | null;
@@ -140,7 +144,10 @@ export interface ArDocListRow {
   taxAmount: string;
   grossAmount: string;
   settledAmount: string;
-  status: 'open' | 'settled' | 'void';
+  status: ArDocStatus;
+  transactionTypeId: string;
+  incurredByMemberId: string | null;
+  canModify?: boolean;
   debtor: { id: string; debtorType: string | null; no: string | null; name: string | null };
 }
 
@@ -156,6 +163,8 @@ export interface ArAccountMeta {
   persons: ArPerson[];
   // purpose -> 'auto' | 'manual' | null
   numberingModes: Record<string, string | null>;
+  // An ar-invoice approval chain is active -> "Submit for Approval" label.
+  invoiceApproval?: boolean;
 }
 
 // --- Periodic processing (slice 3) ---

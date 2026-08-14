@@ -8,9 +8,10 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ArLedgerDialogComponent } from '../shared/ar-ledger-dialog/ar-ledger-dialog';
 import { ArService } from '../services/ar.service';
-import { ArDocListResult, ArDocListRow } from '../models/ar.models';
+import { ArDocListResult, ArDocListRow, ArDocStatus } from '../models/ar.models';
 
 // Account Receivable → per-document-type transaction screens (hybrid design
 // 2026-08-12): each document type is its OWN menu, so RBAC can grant e.g.
@@ -46,6 +47,7 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule,
     DialogComponent, CanDirective, LocalDatePipe, ArLedgerDialogComponent,
+    OverflowMenuComponent, MenuItemDirective,
   ],
   templateUrl: './ar-transactions.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-transactions.css'],
@@ -145,22 +147,92 @@ export class ArTransactionsComponent implements OnInit {
     return (Number(doc.grossAmount) - Number(doc.settledAmount)).toFixed(2);
   }
 
-  canVoid(doc: ArDocListRow): boolean {
-    return doc.status === 'open' && doc.settledAmount === '0.00';
+  // Display vocabulary: draft = "Open" (editable, not financial),
+  // open|settled = "Posted" (financial; balance shown, no Settled chip).
+  statusLabel(status: ArDocStatus): string {
+    return status === 'draft' ? 'Open'
+      : status === 'pending-approval' ? 'Pending Approval'
+      : status === 'void' ? 'Void' : 'Posted';
+  }
+  isPosted(doc: ArDocListRow): boolean {
+    return doc.status === 'open' || doc.status === 'settled';
+  }
+  // Drafts within the caller's data scope carry the row actions.
+  isEditableDraft(doc: ArDocListRow): boolean {
+    return doc.status === 'draft' && doc.canModify !== false;
+  }
+  // Draft reference shown until the gapless number is issued at posting.
+  docRef(doc: ArDocListRow): string {
+    return doc.docNo || `DRAFT-${doc.id.slice(0, 8).toUpperCase()}`;
   }
 
-  // --- Entry ---
+  // --- Entry / edit (the shared dialog; editRow set = edit mode) ---
+  readonly editRow = signal<ArDocListRow | null>(null);
   openEntry(): void {
     this.clearMessages();
+    this.editRow.set(null);
+    this.entryOpen.set(true);
+  }
+  openEdit(row: ArDocListRow): void {
+    this.clearMessages();
+    this.editRow.set(row);
     this.entryOpen.set(true);
   }
   onPosted(message: string): void {
     this.successMessage.set(message);
     this.entryOpen.set(false);
+    this.editRow.set(null);
+    this.load(true);
+  }
+  onEntryClosed(): void {
+    this.entryOpen.set(false);
+    this.editRow.set(null);
+    // A Submit that failed after its save leaves a persisted draft behind -
+    // refresh so the listing always reflects reality.
     this.load(true);
   }
 
-  // --- Void ---
+  // --- Submit (from the kebab; confirm states the concrete outcome) ---
+  readonly submitOpen = signal(false);
+  readonly submitBusy = signal(false);
+  readonly submitRow = signal<ArDocListRow | null>(null);
+  readonly submitApproval = signal(false);
+  askSubmit(row: ArDocListRow): void {
+    this.clearMessages();
+    this.submitRow.set(row);
+    this.submitOpen.set(true);
+    // Button label mirrors the dialog: approval chain vs direct post.
+    this.service.accountMeta(row.debtor.id).subscribe({
+      next: (m) => this.submitApproval.set(m.invoiceApproval === true),
+      error: () => this.submitApproval.set(false),
+    });
+  }
+  confirmSubmit(): void {
+    const row = this.submitRow();
+    if (!row) return;
+    this.submitBusy.set(true);
+    this.service.submitInvoice(row.id).subscribe({
+      next: (res) => {
+        this.successMessage.set(res.message);
+        this.submitBusy.set(false);
+        this.submitOpen.set(false);
+        this.submitRow.set(null);
+        this.load(true);
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Submit failed.');
+        this.submitBusy.set(false);
+        this.submitOpen.set(false);
+        this.submitRow.set(null);
+      },
+    });
+  }
+  closeSubmit(): void {
+    this.submitOpen.set(false);
+    this.submitRow.set(null);
+  }
+
+  // --- Void (drafts only - audit kept, no reversal) ---
   askVoid(row: ArDocListRow): void {
     this.clearMessages();
     this.voidRow.set(row);

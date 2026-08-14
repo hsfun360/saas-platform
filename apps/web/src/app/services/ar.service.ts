@@ -123,8 +123,16 @@ export class ArService {
     return this.http.get<ArDocListResult>(`${this.base}/invoices`, { params });
   }
 
-  postInvoice(payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string }> {
-    return this.http.post<{ message: string; id: string; docNo: string }>(`${this.base}/invoices`, payload);
+  postInvoice(payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string | null }> {
+    return this.http.post<{ message: string; id: string; docNo: string | null }>(`${this.base}/invoices`, payload);
+  }
+
+  updateInvoice(id: string, payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string | null }> {
+    return this.http.patch<{ message: string; id: string; docNo: string | null }>(`${this.base}/invoices/${id}`, payload);
+  }
+
+  submitInvoice(id: string): Observable<{ message: string; id: string; docNo?: string; status: string }> {
+    return this.http.post<{ message: string; id: string; docNo?: string; status: string }>(`${this.base}/invoices/${id}/submit`, {});
   }
 
   voidInvoice(id: string): Observable<{ message: string }> {

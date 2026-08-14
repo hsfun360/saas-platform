@@ -63,9 +63,14 @@ router.patch('/deposits/:id/void', requireMenuAction('/ar/debtors'), documentCon
 // The debtor picker inside each entry dialog reuses the Debtor Listing search,
 // gated on ANY of the transaction menus (grows as each slice lands).
 router.get('/debtor-options', requireAnyMenuAction(AR_TXN_META_MENUS), debtorController.listDebtors);
-// Invoice (menu '/ar/invoices'): cross-debtor listing + entry + invoice-only void.
+// Invoice (menu '/ar/invoices'): cross-debtor listing + the Save->Submit
+// lifecycle (draft entry/edit, submit-to-post-or-approval, draft-only void).
+// Submit is reachable from BOTH doors (the account screen creates invoice
+// drafts through the shared dialog too), hence the any-of gate.
 router.get('/invoices', requireMenuAction('/ar/invoices'), documentController.listInvoices);
 router.post('/invoices', requireMenuAction('/ar/invoices'), documentController.postInvoice);
+router.patch('/invoices/:id', requireMenuAction('/ar/invoices'), documentController.updateInvoiceDraft);
+router.post('/invoices/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.submitInvoice);
 router.patch('/invoices/:id/void', requireMenuAction('/ar/invoices'), documentController.voidInvoice);
 
 // --- Numbering Control (AR-owned document series; split per module 2026-08-05) ---

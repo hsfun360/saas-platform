@@ -81,7 +81,7 @@
                   <div class="ara-doc__main">
                     <div class="ara-doc__title">
                       <span class="ara-kind" [class.ara-kind--credit]="doc.mode === 'credit'">{{ kindLabel(doc.docKind) }}</span>
-                      <strong>{{ doc.docNo }}</strong>
+                      <strong>{{ ledgerDocRef(doc) }}</strong>
                       @if (doc.description) { <span class="cell-subtle">{{ doc.description }}</span> }
                       @if (doc.incurredBy) { <span class="cell-subtle">for {{ doc.incurredBy.name }}</span> }
                     </div>
@@ -94,14 +94,15 @@
                   </div>
                   <div class="ara-doc__amounts">
                     <span class="ara-doc__gross">{{ doc.grossAmount }}</span>
-                    @if (doc.status === 'open' && doc.settledAmount !== '0.00') {
-                      <span class="cell-subtle">open {{ remaining(doc) }}</span>
+                    @if ((doc.status === 'open' || doc.status === 'settled') && doc.settledAmount !== '0.00') {
+                      <span class="cell-subtle">balance {{ remaining(doc) }}</span>
                     }
                     <span class="status-chip"
-                          [class.status-chip--on]="doc.status === 'open'"
-                          [class.status-chip--off]="doc.status !== 'open'">{{ doc.status }}</span>
+                          [class.status-chip--on]="doc.status === 'open' || doc.status === 'settled'"
+                          [class.status-chip--off]="doc.status === 'void'"
+                          [class.ara-chip--pre]="doc.status === 'draft' || doc.status === 'pending-approval'">{{ ledgerStatusLabel(doc) }}</span>
                   </div>
-                  @if (doc.status === 'open' && doc.settledAmount === '0.00') {
+                  @if (canVoidLedgerDoc(doc)) {
                     <div class="ara-doc__actions">
                       <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="askVoidLedger(doc)">Void</button>
                     </div>

@@ -268,6 +268,47 @@ async function postLedgerDoc({
     return row;
 }
 
+// Post an EXISTING draft Ledger row (the Save->Submit lifecycle, 2026-08-13):
+// same lock discipline and balance effects as postLedgerDoc, but the row was
+// created earlier as a non-financial draft. Issues the gapless number now
+// (unless a manual number was keyed on the draft), computes dueDate from the
+// debtor's CURRENT terms, stamps postedAt/postedBy, and flips to 'open'.
+async function postDraftLedger({ companyId, debtor, row, issueDocNo, stamps = {}, t }) {
+    if (!['draft', 'pending-approval'].includes(row.status)) {
+        throw bizError(400, `Only a draft can be posted (this document is ${row.status}).`);
+    }
+    const grossC = cents(row.grossAmount);
+    if (grossC <= 0) throw bizError(400, 'Amount must be greater than zero.');
+
+    const pool = await lockPool(companyId, debtor.id, t);
+
+    if (!row.docNo) row.docNo = await issueDocNo(t);
+    row.dueDate = row.mode === 'debit'
+        ? (Number.isInteger(debtor.terms) ? shiftDate(row.docDate, debtor.terms) : row.docDate)
+        : null;
+    row.status = 'open';
+    row.postedAt = new Date();
+    if (stamps.updatedBy) {
+        row.postedBy = stamps.updatedBy;
+        row.updatedBy = stamps.updatedBy;
+    }
+    await row.save({ transaction: t });
+
+    if (row.mode === 'debit') {
+        await bumpOutstanding(pool, grossC, t);
+        if (row.incurredByMemberId) {
+            const person = await lockPersonRow(debtor.id, row.incurredByMemberId, t);
+            if (person) {
+                person.personalUsed = money(cents(person.personalUsed) + grossC);
+                await person.save({ transaction: t });
+            }
+        }
+    } else {
+        await bumpOutstanding(pool, -grossC, t);
+    }
+    return row;
+}
+
 // Post an Official Receipt. Optional deposit collection first (receipt ->
 // deposit), then FIFO auto-allocation of the remainder (design: allocate what
 // can be at posting time; only true excess stays unallocated).
@@ -486,6 +527,7 @@ module.exports = {
     applyAllocation,
     fifoAllocateCredit,
     postLedgerDoc,
+    postDraftLedger,
     postReceipt,
     postRefund,
     convertDeposit,

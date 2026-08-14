@@ -68,6 +68,14 @@
   color: var(--info-text);
 }
 
+/* Lifecycle chips: Open (draft) and Pending Approval are info-toned so they
+   read as "not financial yet" against the green Posted / grey Void pair. */
+.status-chip.art-chip--draft,
+.status-chip.art-chip--pending {
+  background: var(--info-surface);
+  color: var(--info-text);
+}
+
 .art-more {
   display: flex;
   justify-content: center;

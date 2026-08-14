@@ -8,6 +8,13 @@
   min-height: 0;
 }
 
+/* Pre-posted lifecycle chips (Open draft / Pending Approval): info-toned so
+   they read as "not financial yet" beside the green Posted / grey Void pair. */
+.status-chip.ara-chip--pre {
+  background: var(--info-surface);
+  color: var(--info-text);
+}
+
 /* Balance strip */
 .ara-balances {
   display: flex;

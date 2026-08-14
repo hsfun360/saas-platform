@@ -21,6 +21,19 @@ const PURPOSES = [
             { name: 'membershipClass', label: 'Membership class (individual | corporate)', type: 'string' },
         ],
     },
+    // First wired producer (2026-08-13): submitting an AR invoice draft routes
+    // here when a chain is active; approval posts the draft, rejection returns
+    // it to Open (editable).
+    {
+        key: 'ar-invoice',
+        name: 'AR Invoice',
+        entityType: 'ArInvoice',
+        contextFields: [
+            { name: 'amount', label: 'Invoice gross amount', type: 'number' },
+            { name: 'debtorType', label: 'Debtor type (membership | member | other)', type: 'string' },
+            { name: 'debtorNo', label: 'Debtor number', type: 'string' },
+        ],
+    },
 ];
 const PURPOSE_KEYS = PURPOSES.map((p) => p.key);
 

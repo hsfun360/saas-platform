@@ -6,7 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DialogComponent } from '../dialog/dialog';
 import { MoneyInputDirective } from '../money-input.directive';
 import { ArService } from '../../services/ar.service';
-import { ArAccountMeta, ArDebtor, ArLedgerDoc } from '../../models/ar.models';
+import { ArAccountMeta, ArDebtor, ArDocListRow, ArLedgerDoc } from '../../models/ar.models';
 
 // The ONE ledger-document entry dialog (Invoice / Debit Note / Credit Note),
 // shared by the Debtor Account screen (debtor known - entry only) and the
@@ -41,6 +41,8 @@ export class ArLedgerDialogComponent implements OnInit {
   readonly meta = input<ArAccountMeta | null>(null);
   // CN "apply against" candidates (account screen provides its open debits).
   readonly openDebits = input<ArLedgerDoc[]>([]);
+  // Editing an existing Open (draft) invoice: prefill + PATCH instead of POST.
+  readonly editRow = input<ArDocListRow | null>(null);
 
   readonly closed = output<void>();
   readonly posted = output<string>();
@@ -60,6 +62,10 @@ export class ArLedgerDialogComponent implements OnInit {
 
   readonly activeDebtor = computed(() => this.debtor() || this.pickedDebtor());
   readonly effMeta = computed(() => this.meta() || this.selfMeta());
+  // Invoices follow the Save (draft) -> Submit lifecycle; DN/CN still post
+  // immediately until their slices adopt it.
+  readonly isLifecycle = computed(() => this.kind() === 'invoice');
+  readonly submitLabel = computed(() => (this.effMeta()?.invoiceApproval ? 'Submit for Approval' : 'Submit'));
 
   readonly form = this.fb.nonNullable.group({
     docNo: [''],
@@ -79,6 +85,31 @@ export class ArLedgerDialogComponent implements OnInit {
 
   ngOnInit(): void {
     const t = this.today();
+    const edit = this.editRow();
+    if (edit) {
+      // Edit an existing draft: debtor fixed, form prefilled, meta self-loaded.
+      this.form.reset({
+        docNo: edit.docNo || '',
+        docDate: edit.docDate,
+        trxDate: edit.trxDate,
+        transactionTypeId: edit.transactionTypeId,
+        incurredByMemberId: edit.incurredByMemberId || '',
+        description: edit.description || '',
+        amount: Number(edit.netAmount),
+        targetLedgerId: '', fifo: false,
+      });
+      this.pickedDebtor.set({ id: edit.debtor.id, no: edit.debtor.no, name: edit.debtor.name });
+      this.mode.set('entry');
+      this.metaLoading.set(true);
+      this.service.accountMeta(edit.debtor.id).subscribe({
+        next: (m) => { this.selfMeta.set(m); this.metaLoading.set(false); },
+        error: (err) => {
+          this.metaLoading.set(false);
+          this.failed.emit(err.error?.message || 'Failed to load the entry options.');
+        },
+      });
+      return;
+    }
     this.form.reset({
       docNo: '', docDate: t, trxDate: t, transactionTypeId: '', incurredByMemberId: '',
       description: '', amount: 0, targetLedgerId: '', fifo: false,
@@ -154,14 +185,13 @@ export class ArLedgerDialogComponent implements OnInit {
     this.loadPickRows();
   }
 
-  // --- Submit ---
+  // --- Save / Submit ---
+  // Invoices: Save keeps/creates the Open draft; Submit saves first, then
+  // posts (or routes into the approval chain). DN/CN: single Post as before.
 
-  onSave(): void {
-    const debtor = this.activeDebtor();
-    if (!debtor) return;
-    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+  private payload(): Record<string, unknown> {
     const f = this.form.getRawValue();
-    const payload = {
+    return {
       docNo: f.docNo.trim() || null,
       docDate: f.docDate,
       trxDate: f.trxDate,
@@ -172,15 +202,58 @@ export class ArLedgerDialogComponent implements OnInit {
       targetLedgerId: this.kind() === 'credit-note' ? (f.targetLedgerId || null) : null,
       fifo: this.kind() === 'credit-note' ? f.fifo : false,
     };
+  }
+
+  // A new draft saved by a Submit whose submit step then failed - further
+  // saves must PATCH it, never create a duplicate.
+  private readonly savedDraftId = signal<string | null>(null);
+
+  // The save request for the current context: edit (or an already-saved new
+  // draft) -> PATCH; standalone new -> the invoice door; account-preset new ->
+  // the account door (which creates the draft server-side for invoices).
+  private saveRequest() {
+    const debtor = this.activeDebtor();
+    const editId = this.editRow()?.id || this.savedDraftId();
+    if (editId) return this.service.updateInvoice(editId, this.payload());
+    return this.debtor()
+      ? this.service.postLedger(debtor!.id, { ...this.payload(), docKind: this.kind() })
+      : this.service.postInvoice({ ...this.payload(), debtorId: debtor!.id });
+  }
+
+  onSave(): void {
+    if (!this.activeDebtor()) return;
+    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.saving.set(true);
-    const req = this.debtor()
-      ? this.service.postLedger(debtor.id, { ...payload, docKind: this.kind() })
-      : this.service.postInvoice({ ...payload, debtorId: debtor.id });
-    req.subscribe({
+    this.saveRequest().subscribe({
       next: (res) => { this.saving.set(false); this.posted.emit(res.message); },
       error: (err) => {
         this.saving.set(false);
-        this.failed.emit(err.error?.message || 'Failed to post the document.');
+        this.failed.emit(err.error?.message || 'Failed to save the document.');
+      },
+    });
+  }
+
+  onSubmit(): void {
+    if (!this.activeDebtor()) return;
+    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    this.saving.set(true);
+    this.saveRequest().subscribe({
+      next: (saved) => {
+        this.savedDraftId.set(saved.id);
+        this.form.markAsPristine(); // the draft is persisted - no discard prompt
+        this.service.submitInvoice(saved.id).subscribe({
+          next: (res) => { this.saving.set(false); this.posted.emit(res.message); },
+          error: (err) => {
+            this.saving.set(false);
+            // The draft IS saved (dialog stays open for a retry; a repeat
+            // Save/Submit PATCHes the same draft).
+            this.failed.emit(`${err.error?.message || 'Submit failed.'} The invoice stays saved as Open.`);
+          },
+        });
+      },
+      error: (err) => {
+        this.saving.set(false);
+        this.failed.emit(err.error?.message || 'Failed to save the document.');
       },
     });
   }

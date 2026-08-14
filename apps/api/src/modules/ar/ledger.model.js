@@ -50,9 +50,13 @@ const Ledger = sequelize.define('Ledger', {
         type: DataTypes.UUID,
         allowNull: true,
     },
+    // NULL while a manual document is still a draft (the gapless number is
+    // issued at posting - voided drafts never burn a number); a manual-mode
+    // draft may carry its keyed number early (reserved by the unique index -
+    // Postgres unique treats NULLs as distinct, so unnumbered drafts coexist).
     docNo: {
         type: DataTypes.STRING(30),
-        allowNull: false,
+        allowNull: true,
     },
     docDate: {
         type: DataTypes.DATEONLY,
@@ -123,12 +127,29 @@ const Ledger = sequelize.define('Ledger', {
         allowNull: false,
         defaultValue: 0,
     },
-    // 'open' | 'settled' | 'void'.
+    // Document lifecycle (manual-entry lifecycle defined 2026-08-13):
+    //   'draft'            - saved, editable, NOT financial (no balance effect,
+    //                        excluded from statements/aging/interest/allocation);
+    //                        displays as "Open" per the user's vocabulary.
+    //   'pending-approval' - submitted into an approval chain; locked, still
+    //                        not financial.
+    //   'open' | 'settled' - POSTED (financial; the engine flips open->settled
+    //                        as allocations complete - display shows "Posted"
+    //                        + the remaining balance, never a Settled chip).
+    //   'void'             - draft voided (audit kept) or posted doc reversed
+    //                        (system paths only; posted manual invoices are
+    //                        corrected with a Credit Note, never voided).
     status: {
         type: DataTypes.STRING(20),
         allowNull: false,
         defaultValue: 'open',
     },
+    // Posting audit: when the document became financial and by whom (null on
+    // system-posted rows that never were drafts).
+    postedAt: { type: DataTypes.DATE, allowNull: true },
+    postedBy: { type: DataTypes.UUID, allowNull: true },
+    // The approval instance a submit routed through (last one on resubmits).
+    workflowInstanceId: { type: DataTypes.UUID, allowNull: true },
     // Ownership stamps. Null createdBy = system-posted (billing/interest run,
     // void reversal's allocation, producer charge).
     createdBy: { type: DataTypes.UUID, allowNull: true },

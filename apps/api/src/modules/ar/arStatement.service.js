@@ -543,7 +543,13 @@ async function generateOne({
     // --- Load this debtor's posted documents up to the period end ---
     const [ledgerRows, receiptRows, depositRows] = await Promise.all([
         Ledger.findAll({
-            where: { companyId, debtorId: debtor.id, status: { [Op.ne]: 'void' }, reversalOfId: null, docDate: { [Op.lte]: periodEnd } },
+            // Drafts and pending approvals are NOT financial yet (invoice
+            // lifecycle 2026-08-13) - statements only see posted documents.
+            where: {
+                companyId, debtorId: debtor.id,
+                status: { [Op.notIn]: ['void', 'draft', 'pending-approval'] },
+                reversalOfId: null, docDate: { [Op.lte]: periodEnd },
+            },
         }),
         Receipt.findAll({
             where: { companyId, debtorId: debtor.id, status: { [Op.ne]: 'void' }, docDate: { [Op.lte]: periodEnd } },
