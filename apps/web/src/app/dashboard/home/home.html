@@ -129,38 +129,53 @@
 
   </div><!-- /hm-top -->
 
-  <!-- CONTINUE WHERE YOU LEFT OFF -->
-  @if (recentMenus().length) {
-    <section aria-label="Recently visited screens">
-      <h2 class="sd-section-title">Continue where you left off</h2>
-      <div class="sd-recent">
-        @for (m of recentMenus(); track m.route) {
-          <a class="sd-recent__chip" [routerLink]="m.route">
-            <span class="material-icons" aria-hidden="true">{{ m.icon || 'article' }}</span>
-            <span>{{ label(m) }}</span>
-          </a>
-        }
-      </div>
-    </section>
-  }
+  <!-- CONTINUE WHERE YOU LEFT OFF + HELP & GUIDES: second card pair, same
+       treatment as the top row. With only one of the two present the grid
+       collapses and it takes the full width. -->
+  @if (recentMenus().length || guideMenus().length) {
+    <div class="hm-top" [class.hm-top--single]="!recentMenus().length || !guideMenus().length">
 
-  <!-- HELP & GUIDES -->
-  @if (guideMenus().length) {
-    <section aria-label="Help and guides">
-      <h2 class="sd-section-title">Help &amp; guides</h2>
-      <div class="sd-guides">
-        <p class="sd-guides__hint">These screens have a built-in user guide — open one and use the
-          <span class="material-icons sd-guides__book" aria-hidden="true">menu_book</span> icon in the top bar.</p>
-        <div class="sd-guides__list">
-          @for (m of guideMenus(); track m.route) {
-            <a class="sd-guides__item" [routerLink]="m.route">
-              <span class="material-icons" aria-hidden="true">menu_book</span>
-              <span>{{ label(m) }}</span>
-            </a>
-          }
-        </div>
-      </div>
-    </section>
+      @if (recentMenus().length) {
+        <section class="hm-card" aria-label="Recently visited screens">
+          <div class="hm-card__head">
+            <h2 class="sd-section-title">Continue where you left off</h2>
+          </div>
+          <div class="hm-card__body">
+            <div class="sd-recent">
+              @for (m of recentMenus(); track m.route) {
+                <a class="sd-recent__chip" [routerLink]="m.route">
+                  <span class="material-icons" aria-hidden="true">{{ m.icon || 'article' }}</span>
+                  <span>{{ label(m) }}</span>
+                </a>
+              }
+            </div>
+          </div>
+        </section>
+      }
+
+      @if (guideMenus().length) {
+        <section class="hm-card" aria-label="Help and guides">
+          <div class="hm-card__head">
+            <h2 class="sd-section-title">Help &amp; guides</h2>
+          </div>
+          <div class="hm-card__body">
+            <div class="sd-guides">
+              <p class="sd-guides__hint">These screens have a built-in user guide — open one and use the
+                <span class="material-icons sd-guides__book" aria-hidden="true">menu_book</span> icon in the top bar.</p>
+              <div class="sd-guides__list">
+                @for (m of guideMenus(); track m.route) {
+                  <a class="sd-guides__item" [routerLink]="m.route">
+                    <span class="material-icons" aria-hidden="true">menu_book</span>
+                    <span>{{ label(m) }}</span>
+                  </a>
+                }
+              </div>
+            </div>
+          </div>
+        </section>
+      }
+
+    </div>
   }
 
   <!-- MANAGE QUICK ACCESS DIALOG -->

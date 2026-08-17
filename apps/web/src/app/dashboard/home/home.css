@@ -16,6 +16,11 @@
   .hm-top {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
+  /* A pair with one card missing (second row: only recents OR only guides)
+     collapses so the survivor takes the full width. */
+  .hm-top--single {
+    grid-template-columns: minmax(0, 1fr);
+  }
   /* Half-width card: favorites tiles run ONE per row (full-width rows read
      cleanly in the narrow column; grid-3's 3-up assumed the full page). */
   .hm-top .sd-tiles.grid-3 {
@@ -80,6 +85,18 @@
 }
 .hm-card__body .hm-group:last-child {
   margin-bottom: 0;
+}
+/* Inside a card body the recents/guides blocks shed their standalone
+   spacing and (for guides) border chrome - the card is the frame now. */
+.hm-card__body .sd-recent {
+  margin-bottom: 0;
+}
+.hm-card__body .sd-guides {
+  margin-bottom: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 
 /* My tasks - the personal workflow inbox: pending approvals as rows, each
