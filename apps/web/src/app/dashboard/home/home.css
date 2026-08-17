@@ -86,6 +86,11 @@
 .hm-card__body .hm-group:last-child {
   margin-bottom: 0;
 }
+/* Tile spacing matches the listing-card standard (.data-list gap) - grid-3's
+   default gap is sized for full-page tile grids, too airy inside a card. */
+.hm-card .sd-tiles.grid-3 {
+  gap: var(--space-sm);
+}
 /* Inside a card body the recents/guides blocks shed their standalone
    spacing and (for guides) border chrome - the card is the frame now. */
 .hm-card__body .sd-recent {
