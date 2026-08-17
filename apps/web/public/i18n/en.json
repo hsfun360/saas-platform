@@ -93,5 +93,24 @@
   "accountLanguages.yourList": "Your languages",
   "accountLanguages.yourListHelp": "The languages your organization offers. Click one to make it the ★ default; ✕ removes it.",
   "accountLanguages.noneSelected": "None selected yet — tick languages from the list below.",
-  "accountLanguages.defaultTag": "Default"
+  "accountLanguages.defaultTag": "Default",
+
+  "home.title": "My Dashboard",
+  "home.subtitle": "Your personal home across every system - favorites, recent screens and guides.",
+  "home.goodMorning": "Good morning",
+  "home.goodAfternoon": "Good afternoon",
+  "home.goodEvening": "Good evening",
+  "home.myTasks": "My tasks",
+  "home.tasksLoading": "We are still loading your task(s)…",
+  "home.caughtUp": "You're all caught up - nothing is waiting for your approval.",
+  "home.due": "due",
+  "home.viewAllApprovals": "View all {{count}} approvals waiting for you",
+  "home.openApprovals": "Open My Approvals to decide",
+  "home.quickAccess": "Quick access",
+  "home.manage": "Manage",
+  "home.qaEmpty": "Nothing pinned yet. Open any screen and click the star next to its title to pin it here.",
+  "home.recents": "Continue where you left off",
+  "home.guides": "Help & guides",
+  "home.guidesHint1": "These screens have a built-in user guide - open one and use the",
+  "home.guidesHint2": "icon in the top bar."
 }

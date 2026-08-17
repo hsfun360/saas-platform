@@ -93,5 +93,24 @@
   "accountLanguages.yourList": "您的语言",
   "accountLanguages.yourListHelp": "您的组织提供的语言。点击某项设为 ★ 默认；✕ 可移除。",
   "accountLanguages.noneSelected": "尚未选择 — 请从下方列表勾选语言。",
-  "accountLanguages.defaultTag": "默认"
+  "accountLanguages.defaultTag": "默认",
+
+  "home.title": "我的仪表板",
+  "home.subtitle": "跨所有系统的个人主页:收藏、最近访问的页面和使用指南。",
+  "home.goodMorning": "早上好",
+  "home.goodAfternoon": "下午好",
+  "home.goodEvening": "晚上好",
+  "home.myTasks": "我的任务",
+  "home.tasksLoading": "正在加载您的任务…",
+  "home.caughtUp": "全部处理完毕:没有等待您审批的事项。",
+  "home.due": "期限",
+  "home.viewAllApprovals": "查看全部 {{count}} 项待您审批",
+  "home.openApprovals": "打开“我的审批”进行处理",
+  "home.quickAccess": "快速访问",
+  "home.manage": "管理",
+  "home.qaEmpty": "尚未固定任何页面。打开任意页面,点击标题旁的星形图标即可固定到此处。",
+  "home.recents": "继续上次的操作",
+  "home.guides": "帮助与指南",
+  "home.guidesHint1": "以下页面内置用户指南:打开页面后,点击顶栏中的",
+  "home.guidesHint2": "图标即可查看。"
 }

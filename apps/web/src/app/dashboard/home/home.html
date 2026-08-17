@@ -5,15 +5,15 @@
     <div class="saas-header-left">
       <span class="saas-icon material-icons" aria-hidden="true">space_dashboard</span>
       <div>
-        <h1>My Dashboard</h1>
-        <p class="saas-subtitle">Your personal home across every system — favorites, recent screens and guides.</p>
+        <h1>{{ 'home.title' | t }}</h1>
+        <p class="saas-subtitle">{{ 'home.subtitle' | t }}</p>
       </div>
     </div>
   </div>
 
   <!-- GREETING -->
   <section class="sd-greeting" aria-label="Welcome">
-    <p class="sd-greeting__line">{{ greeting() }}@if (userName()) {, <strong>{{ userName() }}</strong>}.</p>
+    <p class="sd-greeting__line">{{ greeting() | t }}@if (userName()) {, <strong>{{ userName() }}</strong>}.</p>
     @if (companyName() || roleName()) {
       <p class="sd-greeting__meta">
         {{ companyName() }}@if (companyName() && roleName()) { · }{{ roleName() }}
@@ -30,7 +30,12 @@
   <!-- MY TASKS (pending workflow approvals assigned to me) -->
     <section class="hm-card hm-card--tasks" [class.hm-card--empty]="pendingApprovals() === 0" aria-label="My tasks">
       <div class="hm-card__head">
-        <h2 class="sd-section-title">My tasks</h2>
+        <h2 class="sd-section-title">
+          {{ 'home.myTasks' | t }}
+          @if (pendingApprovals() > 0) {
+            <span class="hm-group__count hm-card__count" [attr.aria-label]="pendingApprovals() + ' pending approvals'">{{ pendingApprovals() }}</span>
+          }
+        </h2>
       </div>
       @if (pendingApprovals() > 0) {
       <div class="hm-tasks">
@@ -41,23 +46,34 @@
               <span class="hm-task__title">{{ t.entityLabel || t.entityType }}</span>
               <span class="hm-task__sub">{{ t.purposeName }} · {{ t.stepName }} · submitted {{ t.submittedAt | localDate }}@if (t.submittedBy) { by {{ t.submittedBy }}}</span>
             </span>
-            @if (t.dueAt) { <span class="hm-task__due">due {{ t.dueAt | localDate }}</span> }
+            @if (t.dueAt) { <span class="hm-task__due" [class.hm-task__due--alert]="t.dueAlert">{{ 'home.due' | t }} {{ t.dueAt | localDate }}</span> }
             <span class="material-icons" aria-hidden="true">chevron_right</span>
           </a>
         }
         <a class="hm-task hm-task--all" routerLink="/approvals">
           <span class="hm-task__title">
             {{ pendingApprovals() > myTasks().length
-                ? 'View all ' + pendingApprovals() + ' approvals waiting for you'
-                : 'Open My Approvals to decide' }}
+                ? ('home.viewAllApprovals' | t: { count: pendingApprovals() })
+                : ('home.openApprovals' | t) }}
           </span>
           <span class="material-icons" aria-hidden="true">chevron_right</span>
         </a>
       </div>
-      } @else {
+      } @else if (tasksLoaded()) {
+        <!-- Celebration ONLY on a server-confirmed empty inbox. -->
         <div class="hm-tasks-empty">
           <span class="hm-tasks-empty__emoji" aria-hidden="true">🎉</span>
-          <p>You're all caught up - nothing is waiting for your approval.</p>
+          <p>{{ 'home.caughtUp' | t }}</p>
+        </div>
+      } @else {
+        <!-- Loading, or the request failed: same calm message either way, but
+             a failure surfaces the inbox link so there is an actionable path. -->
+        <div class="hm-tasks-empty">
+          <div class="spinner" aria-hidden="true"></div>
+          <p>{{ 'home.tasksLoading' | t }}</p>
+          @if (tasksError()) {
+            <a class="hm-tasks-empty__link" routerLink="/approvals">{{ 'home.openApprovals' | t }}</a>
+          }
         </div>
       }
     </section>
@@ -66,7 +82,7 @@
   <section class="hm-card" aria-label="Quick access">
     <div class="hm-card__head">
       <h2 class="sd-section-title">
-        Quick access
+        {{ 'home.quickAccess' | t }}
         <button type="button" class="hm-eye" (click)="toggleQaHidden()"
                 [attr.aria-expanded]="!qaHidden()"
                 [attr.aria-label]="qaHidden() ? 'Show quick access' : 'Hide quick access'"
@@ -76,7 +92,7 @@
       </h2>
       @if (hasFavorites() && !qaHidden()) {
         <button type="button" class="btn btn--secondary btn--sm" (click)="openManage()">
-          <span class="material-icons" aria-hidden="true">tune</span> Manage
+          <span class="material-icons" aria-hidden="true">tune</span> {{ 'home.manage' | t }}
         </button>
       }
     </div>
@@ -120,7 +136,7 @@
       } @else {
         <div class="sd-empty">
           <span class="material-icons" aria-hidden="true">star_border</span>
-          <p>Nothing pinned yet. Open any screen and click the <strong>star</strong> next to its title to pin it here.</p>
+          <p>{{ 'home.qaEmpty' | t }}</p>
         </div>
       }
       </div>
@@ -138,7 +154,7 @@
       @if (recentMenus().length) {
         <section class="hm-card" aria-label="Recently visited screens">
           <div class="hm-card__head">
-            <h2 class="sd-section-title">Continue where you left off</h2>
+            <h2 class="sd-section-title">{{ 'home.recents' | t }}</h2>
           </div>
           <div class="hm-card__body">
             <div class="sd-recent">
@@ -156,12 +172,12 @@
       @if (guideMenus().length) {
         <section class="hm-card" aria-label="Help and guides">
           <div class="hm-card__head">
-            <h2 class="sd-section-title">Help &amp; guides</h2>
+            <h2 class="sd-section-title">{{ 'home.guides' | t }}</h2>
           </div>
           <div class="hm-card__body">
             <div class="sd-guides">
-              <p class="sd-guides__hint">These screens have a built-in user guide — open one and use the
-                <span class="material-icons sd-guides__book" aria-hidden="true">menu_book</span> icon in the top bar.</p>
+              <p class="sd-guides__hint">{{ 'home.guidesHint1' | t }}
+                <span class="material-icons sd-guides__book" aria-hidden="true">menu_book</span> {{ 'home.guidesHint2' | t }}</p>
               <div class="sd-guides__list">
                 @for (m of guideMenus(); track m.route) {
                   <a class="sd-guides__item" [routerLink]="m.route">

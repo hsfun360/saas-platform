@@ -93,5 +93,24 @@
   "accountLanguages.yourList": "Bahasa Anda",
   "accountLanguages.yourListHelp": "Bahasa yang ditawarkan organisasi anda. Klik satu untuk menjadikannya ★ lalai; ✕ untuk membuang.",
   "accountLanguages.noneSelected": "Belum ada pilihan — tandakan bahasa daripada senarai di bawah.",
-  "accountLanguages.defaultTag": "Lalai"
+  "accountLanguages.defaultTag": "Lalai",
+
+  "home.title": "Papan Pemuka Saya",
+  "home.subtitle": "Halaman peribadi anda merentas setiap sistem - kegemaran, skrin terkini dan panduan.",
+  "home.goodMorning": "Selamat pagi",
+  "home.goodAfternoon": "Selamat tengah hari",
+  "home.goodEvening": "Selamat petang",
+  "home.myTasks": "Tugasan saya",
+  "home.tasksLoading": "Kami masih memuatkan tugasan anda…",
+  "home.caughtUp": "Semua selesai - tiada apa-apa menunggu kelulusan anda.",
+  "home.due": "tarikh akhir",
+  "home.viewAllApprovals": "Lihat semua {{count}} kelulusan yang menunggu anda",
+  "home.openApprovals": "Buka Kelulusan Saya untuk membuat keputusan",
+  "home.quickAccess": "Akses pantas",
+  "home.manage": "Urus",
+  "home.qaEmpty": "Belum ada yang disemat. Buka mana-mana skrin dan klik bintang di sebelah tajuknya untuk menyematkannya di sini.",
+  "home.recents": "Sambung dari tempat anda berhenti",
+  "home.guides": "Bantuan & panduan",
+  "home.guidesHint1": "Skrin ini mempunyai panduan pengguna terbina dalam - buka satu dan gunakan ikon",
+  "home.guidesHint2": "di bar atas."
 }

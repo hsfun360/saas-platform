@@ -67,6 +67,24 @@
   font-size: var(--font-body-2);
   color: var(--text-secondary);
 }
+/* Escape hatch shown when the tasks request failed. */
+.hm-tasks-empty__link {
+  font-size: var(--font-body-2);
+  color: var(--brand-text);
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.hm-tasks-empty__link:hover {
+  text-decoration: underline;
+}
+
+/* Pending count beside the My tasks title (same chip as the group counts). */
+.hm-card__count {
+  margin-left: var(--space-xs);
+  vertical-align: middle;
+}
 .hm-card__head {
   display: flex;
   align-items: center;
@@ -168,11 +186,17 @@
   white-space: nowrap;
 }
 
+/* Due date: muted by default - red is RESERVED for overdue / due within 24h
+   (dueAlert), so red keeps meaning urgency instead of decorating every row. */
 .hm-task__due {
   font-size: var(--font-caption);
-  color: var(--danger-text);
+  color: var(--text-muted);
   white-space: nowrap;
   flex-shrink: 0;
+}
+.hm-task__due--alert {
+  color: var(--danger-text);
+  font-weight: var(--weight-semibold);
 }
 
 /* The trailing "view all / open inbox" row. */

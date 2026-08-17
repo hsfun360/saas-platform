@@ -10,6 +10,7 @@ import {
 import { MenuItem } from '../../models/auth.models';
 import { WorkflowMyTask } from '../../models/workflow.models';
 import { LocalDatePipe } from '../../shared/local-date.pipe';
+import { TranslatePipe } from '../../i18n/translate.pipe';
 import { I18nService } from '../../i18n/i18n.service';
 import { HelpService } from '../../services/help.service';
 import { RecentScreensService } from '../../services/recent-screens.service';
@@ -41,7 +42,7 @@ interface FavoriteGroup {
   selector: 'app-home',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle, LocalDatePipe],
+  imports: [RouterLink, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle, LocalDatePipe, TranslatePipe],
   templateUrl: './home.html',
   // system-setup.css supplies the shared .saas-container/.saas-header chrome;
   // launchpad.css the tile/hero primitives (both component-scoped).
@@ -55,22 +56,37 @@ export class HomeComponent {
   private readonly workflow = inject(WorkflowService);
 
   // My Tasks (pending approvals assigned to me - person-scoped, so it belongs
-  // on this page). The card lists the first few documents awaiting a decision;
-  // silently empty on error.
+  // on this page). The card lists the first few documents awaiting a decision.
+  // The caught-up celebration renders ONLY after the server confirms zero -
+  // rendering it while loading (or on error) would flash a false all-clear on
+  // an approval inbox. Until then (and on error) the card shows the loading
+  // message; the error case additionally offers the My Approvals link as an
+  // actionable path.
   readonly pendingApprovals = signal(0);
-  readonly myTasks = signal<WorkflowMyTask[]>([]);
+  readonly myTasks = signal<Array<WorkflowMyTask & { dueAlert: boolean }>>([]);
+  readonly tasksLoaded = signal(false);
+  readonly tasksError = signal(false);
   readonly TASKS_SHOWN = 5;
 
   constructor() {
     this.favorites.ensureLoaded();
     this.workflow.listMyTasks().subscribe({
       next: (tasks) => {
+        // Overdue/due-within-24h rows carry the alert colour and float to the
+        // top; the rest keep their soonest-first order, no-due-date last.
+        const soon = Date.now() + 24 * 60 * 60 * 1000;
+        const dueMs = (t: WorkflowMyTask) => (t.dueAt ? new Date(t.dueAt).getTime() : Infinity);
+        const flagged = tasks.map((t) => ({ ...t, dueAlert: dueMs(t) <= soon }));
+        flagged.sort((a, b) => {
+          if (a.dueAlert !== b.dueAlert) return a.dueAlert ? -1 : 1;
+          return dueMs(a) - dueMs(b);
+        });
         this.pendingApprovals.set(tasks.length);
-        this.myTasks.set(tasks.slice(0, this.TASKS_SHOWN));
+        this.myTasks.set(flagged.slice(0, this.TASKS_SHOWN));
+        this.tasksLoaded.set(true);
       },
       error: () => {
-        this.pendingApprovals.set(0);
-        this.myTasks.set([]);
+        this.tasksError.set(true);
       },
     });
   }
@@ -91,11 +107,13 @@ export class HomeComponent {
     }
   })());
 
+  // A dictionary KEY (rendered through | t) so the greeting follows the
+  // active language like the rest of the page.
   readonly greeting = signal<string>((() => {
     const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (h < 12) return 'home.goodMorning';
+    if (h < 18) return 'home.goodAfternoon';
+    return 'home.goodEvening';
   })());
 
   // --- Granted menus (the RBAC-filtered universe this page derives from) ----
