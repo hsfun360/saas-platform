@@ -1,8 +1,63 @@
 /* My Dashboard - page-specific bits; the launchpad primitives (sd-*) come from
    systems/system-dashboard.css via styleUrls. */
 
+/* Top row: My tasks + Quick access as boxed cards - side by side on desktop
+   (three-tier standard: stacked below 1024px), each sizing independently.
+   hm-top--single (no pending tasks) collapses the grid so Quick access takes
+   the full width instead of sitting beside a ghost column. */
+.hm-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+  margin-bottom: var(--space-lg);
+}
+@media (min-width: 1024px) {
+  .hm-top {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .hm-top--single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Half-width card: the favorites grid caps at 2 tiles per row (grid-3's
+     3-up assumes the full content column). Full-width single mode keeps 3. */
+  .hm-top:not(.hm-top--single) .sd-tiles.grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* The card shell: header band + body, same token vocabulary as the
+   section-card standard (settings-card), dashboard-widget sized. */
+.hm-card {
+  min-width: 0;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.hm-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: 56px;
+  padding: var(--space-xs) var(--space-md);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+}
+.hm-card__head .sd-section-title {
+  margin: 0;
+}
+.hm-card__body {
+  padding: var(--space-md);
+}
+.hm-card__body .hm-group:last-child {
+  margin-bottom: 0;
+}
+
 /* My tasks - the personal workflow inbox: pending approvals as rows, each
-   opening My Approvals. Compact card list, one bordered block. */
+   opening My Approvals. Inside the card the list IS the body: no padding
+   wrapper, and its standalone border/radius chrome is dropped below. */
 .hm-tasks {
   display: flex;
   flex-direction: column;
@@ -11,6 +66,12 @@
   border-radius: 12px;
   background: var(--surface-card);
   overflow: hidden;
+}
+.hm-card .hm-tasks {
+  border: none;
+  border-radius: 0;
+  margin-bottom: 0;
+  background: transparent;
 }
 
 .hm-task {
@@ -75,20 +136,7 @@
   color: var(--brand-text);
 }
 
-/* Section head with the Manage button beside the title. */
-.hm-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-sm);
-}
-
-.hm-section-head .sd-section-title {
-  margin-bottom: 0;
-}
-
-/* Eye toggle beside the Quick access title - hides/shows the whole section. */
+/* Eye toggle beside the Quick access title - hides/shows the card body. */
 .hm-eye {
   display: inline-flex;
   align-items: center;
