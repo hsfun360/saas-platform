@@ -1,39 +1,66 @@
 /* My Dashboard - page-specific bits; the launchpad primitives (sd-*) come from
    systems/system-dashboard.css via styleUrls. */
 
-/* Top row: My tasks + Quick access as boxed cards - side by side on desktop
-   (three-tier standard: stacked below 1024px), each sizing independently.
-   hm-top--single (no pending tasks) collapses the grid so Quick access takes
-   the full width instead of sitting beside a ghost column. */
+/* Top row: My tasks + Quick access as boxed cards - side by side and EQUAL
+   HEIGHT on desktop (grid default stretch; the taller card sets the row).
+   Stacked below 1024px per the three-tier standard. An EMPTY task inbox
+   still shows its card on desktop (caught-up state keeps the pair balanced);
+   only the stacked tiers hide it - vertical space is precious there. */
 .hm-top {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-lg);
-  align-items: start;
   margin-bottom: var(--space-lg);
 }
 @media (min-width: 1024px) {
   .hm-top {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
-  .hm-top--single {
+  /* Half-width card: favorites tiles run ONE per row (full-width rows read
+     cleanly in the narrow column; grid-3's 3-up assumed the full page). */
+  .hm-top .sd-tiles.grid-3 {
     grid-template-columns: minmax(0, 1fr);
   }
-  /* Half-width card: the favorites grid caps at 2 tiles per row (grid-3's
-     3-up assumes the full content column). Full-width single mode keeps 3. */
-  .hm-top:not(.hm-top--single) .sd-tiles.grid-3 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 1023px) {
+  .hm-card--tasks.hm-card--empty {
+    display: none;
   }
 }
 
 /* The card shell: header band + body, same token vocabulary as the
-   section-card standard (settings-card), dashboard-widget sized. */
+   section-card standard (settings-card), dashboard-widget sized. Flex column
+   so a short card's content can fill/center within the stretched height. */
 .hm-card {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
+}
+
+/* Caught-up empty state (mirrors the My Approvals screen) - centers in the
+   space the equal-height row gives the card. */
+.hm-tasks-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-xl) var(--space-md);
+  text-align: center;
+}
+.hm-tasks-empty__emoji {
+  font-size: 40px;
+  line-height: 1;
+}
+.hm-tasks-empty p {
+  margin: 0;
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
 }
 .hm-card__head {
   display: flex;

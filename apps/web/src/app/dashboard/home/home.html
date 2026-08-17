@@ -21,17 +21,18 @@
     }
   </section>
 
-  <!-- MY TASKS + QUICK ACCESS: boxed cards, side by side on desktop. When
-       there are no tasks the grid collapses and Quick access takes the full
-       width (hm-top--single). -->
-  <div class="hm-top" [class.hm-top--single]="pendingApprovals() === 0">
+  <!-- MY TASKS + QUICK ACCESS: boxed cards, side by side and EQUAL HEIGHT on
+       desktop. An empty task inbox shows the caught-up state on desktop (the
+       card only disappears on the stacked tiers, where vertical space is
+       precious). -->
+  <div class="hm-top">
 
   <!-- MY TASKS (pending workflow approvals assigned to me) -->
-  @if (pendingApprovals() > 0) {
-    <section class="hm-card" aria-label="My tasks">
+    <section class="hm-card hm-card--tasks" [class.hm-card--empty]="pendingApprovals() === 0" aria-label="My tasks">
       <div class="hm-card__head">
         <h2 class="sd-section-title">My tasks</h2>
       </div>
+      @if (pendingApprovals() > 0) {
       <div class="hm-tasks">
         @for (t of myTasks(); track t.id) {
           <a class="hm-task" routerLink="/approvals">
@@ -53,8 +54,13 @@
           <span class="material-icons" aria-hidden="true">chevron_right</span>
         </a>
       </div>
+      } @else {
+        <div class="hm-tasks-empty">
+          <span class="hm-tasks-empty__emoji" aria-hidden="true">🎉</span>
+          <p>You're all caught up - nothing is waiting for your approval.</p>
+        </div>
+      }
     </section>
-  }
 
   <!-- QUICK ACCESS (starred screens, grouped by module) -->
   <section class="hm-card" aria-label="Quick access">
