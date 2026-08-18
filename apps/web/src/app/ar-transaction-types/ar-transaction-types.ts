@@ -1,7 +1,8 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ArService } from '../services/ar.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
@@ -24,6 +25,11 @@ import { ArOption, ArTransactionTypeMeta, ArTransactionTypeRow } from '../models
 export class ArTransactionTypesComponent implements OnInit {
   private readonly service = inject(ArService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the list re-sorts on reload, so
+  // the saved/toggled card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/ar/transaction-types';
 
   readonly rows = signal<ArTransactionTypeRow[]>([]);
   readonly meta = signal<ArTransactionTypeMeta | null>(null);
@@ -115,6 +121,8 @@ export class ArTransactionTypesComponent implements OnInit {
       next: (data) => {
         this.rows.set(data);
         this.loading.set(false);
+        // One-shot: scrolls to + flashes a just-saved record, if any.
+        this.returnScroll.consume(ArTransactionTypesComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -192,6 +200,7 @@ export class ArTransactionTypesComponent implements OnInit {
         this.successMessage.set(res.message);
         this.saving.set(false);
         this.dialogOpen.set(false);
+        this.returnScroll.remember(ArTransactionTypesComponent.LIST_PATH, res.transactionType.id);
         this.load();
       },
       error: (err) => {
@@ -209,6 +218,7 @@ export class ArTransactionTypesComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${t.transactionType} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingId.set(null);
+        this.returnScroll.remember(ArTransactionTypesComponent.LIST_PATH, t.id);
         this.load();
       },
       error: (err) => {

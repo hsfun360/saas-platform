@@ -463,6 +463,16 @@ Reference implementation: `modules-menus.ts` + `modules-menus.css` (`.mm-layout`
 `ScrollReturnService` wiring. `items` is the copyable sample; `tax-schemes` and the two
 email-template screens (list + separate edit component) follow the same pattern.
 
+**After-save return-to-row applies to DIALOG CRUD listings too (standardized 2026-08-18).**
+A dialog-based listing reloads (and often re-sorts) after Save or Enable/Disable, so the
+record the user just touched can move - losing their place exactly like the master-detail
+recreation case. Wire the same `ScrollReturnService`: tag each card with
+`[attr.data-return-id]="row.id"`, call `remember(listPath, savedId)` in the save/toggle
+success handler BEFORE `load()`, and `consume(listPath, injector)` after the reloaded list
+data lands - the saved card scrolls back into view and flashes (`.return-flash`).
+Reference implementation: `ar-transaction-types`. Older dialog CRUD screens (the
+membership masters, companies, ...) are being migrated as they are touched.
+
 #### Section tabs (responsive strip + URL-driven)
 
 For a screen split into a handful of top-level **sections** (e.g. SaaS Administration:
