@@ -126,13 +126,20 @@ async function searchPartyIds(companyId, q, { limit = 200 } = {}) {
 
 // How many Membership setups still reference an AR transaction type - the
 // AR catalog's guard before 'membership' usability can be removed from a
-// type (fee masters reference by ID, standing charges by CODE).
+// type (fee masters reference by ID, standing charges by CODE). Standing
+// charges carry no companyId - they scope through their parent MembershipType.
 async function countTransactionTypeReferences(companyId, typeId, typeCode) {
     const MembershipFee = require('../modules/membership/membershipFee.model');
+    const MembershipType = require('../modules/membership/membershipType.model');
     const MembershipTypeStandingCharge = require('../modules/membership/membershipTypeStandingCharge.model');
+    const types = await MembershipType.findAll({ where: { companyId }, attributes: ['id'] });
     const [fees, charges] = await Promise.all([
         MembershipFee.count({ where: { companyId, transactionTypeId: typeId } }),
-        MembershipTypeStandingCharge.count({ where: { companyId, transactionType: typeCode } }),
+        types.length
+            ? MembershipTypeStandingCharge.count({
+                where: { membershipTypeId: types.map((t) => t.id), transactionType: typeCode },
+            })
+            : 0,
     ]);
     return fees + charges;
 }
