@@ -269,7 +269,7 @@
                           [attr.aria-expanded]="!isGroupCollapsed(node.menu.id!)">
                     <span class="icon material-icons">{{ node.menu.icon || 'folder' }}</span>
                     <span class="label nav-group__label">{{ resolveLabel(node.menu.name, node.menu.names) }}</span>
-                    <span class="material-icons nav-group__chevron" aria-hidden="true">{{ isGroupCollapsed(node.menu.id!) ? 'expand_more' : 'expand_less' }}</span>
+                    <span class="material-icons nav-group__chevron" aria-hidden="true">{{ isGroupCollapsed(node.menu.id!) ? 'chevron_right' : 'expand_more' }}</span>
                   </button>
                   @if (!isGroupCollapsed(node.menu.id!)) {
                     <ul class="nav-group__menus">

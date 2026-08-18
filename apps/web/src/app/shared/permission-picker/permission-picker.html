@@ -37,7 +37,7 @@
                 [attr.aria-expanded]="isExpanded(mod.name)">
           <span class="perm-card__name">{{ mod.name }}</span>
           <span class="perm-card__count">{{ selectedIn(mod.leafIds) }} of {{ mod.leafIds.length }} selected</span>
-          <span class="material-icons" aria-hidden="true">{{ isExpanded(mod.name) ? 'expand_less' : 'expand_more' }}</span>
+          <span class="material-icons" aria-hidden="true">{{ isExpanded(mod.name) ? 'expand_more' : 'chevron_right' }}</span>
         </button>
       </div>
 

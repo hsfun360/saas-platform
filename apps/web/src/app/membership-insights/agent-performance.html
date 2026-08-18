@@ -105,7 +105,7 @@
               <button type="button" class="md-lb__expand" (click)="toggleChannel(ch.key)"
                       [attr.aria-expanded]="expandedChannels().has(ch.key)"
                       [attr.aria-label]="'Toggle agents of ' + ch.label">
-                <span class="material-icons" aria-hidden="true">{{ expandedChannels().has(ch.key) ? 'expand_less' : 'expand_more' }}</span>
+                <span class="material-icons" aria-hidden="true">{{ expandedChannels().has(ch.key) ? 'expand_more' : 'chevron_right' }}</span>
               </button>
               <button type="button" class="md-lb__main" (click)="drillChannel(ch)">
                 <span class="material-icons md-lb__icon" aria-hidden="true">{{ ch.icon }}</span>

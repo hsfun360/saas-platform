@@ -731,6 +731,9 @@ Deliberate exceptions - and the only ones: dedicated single-form/settings screen
 When a form/settings screen groups its content into titled sections (Settings, Club Specification), use the shared **section card** - global in `styles.css`, canonical look from the Settings screen:
 `.settings-card` (bordered card) > `.settings-header` (sunken band with `.settings-header__title` + one-line `.settings-header__sub` consequence text) > `.settings-body` (padded content).
 **The header is COLLAPSIBLE by default**: render it as `<button type="button" class="settings-header settings-header--button" [attr.aria-expanded]>` with a `.settings-header__chevron` (rotates via `--open`), and wrap the body in `@if (isExpanded(...))` - sections start expanded, and folding must never lose form state (the reactive `FormGroup` keeps every control value while its DOM is hidden).
+**Chevron direction is an app-wide standard (2026-08-17): collapsed points RIGHT (`>`), expanded points DOWN (`v`)** - the chevron points to where the content is (tucked aside vs flowing below), the convention of Windows Explorer / VS Code / GitHub.
+The `.settings-header__chevron` base icon MUST therefore be **`chevron_right`** (the `--open` rotation turns it downward); passing `expand_more` as the base produces a meaningless left-pointing chevron when open (the AR screens shipped that bug).
+Toggles that swap icons instead of rotating use `chevron_right` (collapsed) / `expand_more` (expanded) - never `expand_less`.
 This matters most on mobile, where a multi-section screen is a long single column - each card folds to its header band.
 The screen's content column follows the app-wide **1140px** cap (see "Content width" above) - a grouped-sections screen is NOT a narrow-column exception.
 Do NOT hand-roll per-screen fieldset/legend section chrome - compose these classes so every screen's section headers read the same.
