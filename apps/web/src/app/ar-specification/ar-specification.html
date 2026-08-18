@@ -36,8 +36,10 @@
       <section class="settings-card">
         <button type="button" class="settings-header settings-header--button" (click)="toggleSection('cutoff')"
                 [attr.aria-expanded]="isExpanded('cutoff')">
-          <span class="settings-header__title">Statement cutoff</span>
-          <span class="settings-header__sub">Drives the default From/To date range on Statement Generation.</span>
+          <span class="settings-header__text">
+            <span class="settings-header__title">Statement cutoff</span>
+            <span class="settings-header__sub">Drives the default From/To date range on Statement Generation.</span>
+          </span>
           <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('cutoff')" aria-hidden="true">chevron_right</span>
         </button>
         @if (isExpanded('cutoff')) {
@@ -61,8 +63,10 @@
       <section class="settings-card">
         <button type="button" class="settings-header settings-header--button" (click)="toggleSection('aging')"
                 [attr.aria-expanded]="isExpanded('aging')">
-          <span class="settings-header__title">Aging boundaries</span>
-          <span class="settings-header__sub">Upper day boundary of each statement aging bucket - N filled boundaries print N+1 buckets.</span>
+          <span class="settings-header__text">
+            <span class="settings-header__title">Aging boundaries</span>
+            <span class="settings-header__sub">Upper day boundary of each statement aging bucket - N filled boundaries print N+1 buckets.</span>
+          </span>
           <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('aging')" aria-hidden="true">chevron_right</span>
         </button>
         @if (isExpanded('aging')) {
@@ -90,8 +94,10 @@
       <section class="settings-card">
         <button type="button" class="settings-header settings-header--button" (click)="toggleSection('layout')"
                 [attr.aria-expanded]="isExpanded('layout')">
-          <span class="settings-header__title">Statement layout</span>
-          <span class="settings-header__sub">Brand and trim the standard Statement of Account PDF - logo, accent colour, printed sections, remittance advice.</span>
+          <span class="settings-header__text">
+            <span class="settings-header__title">Statement layout</span>
+            <span class="settings-header__sub">Brand and trim the standard Statement of Account PDF - logo, accent colour, printed sections, remittance advice.</span>
+          </span>
           <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('layout')" aria-hidden="true">chevron_right</span>
         </button>
         @if (isExpanded('layout')) {
@@ -150,8 +156,10 @@
       @if (membershipEntitled()) {
         <section class="settings-card">
           <button type="button" class="settings-header settings-header--button" (click)="toggleSection('integration')" [attr.aria-expanded]="isExpanded('integration')">
-            <span class="settings-header__title">Membership integration</span>
-            <span class="settings-header__sub">Does Membership bill through AR? Fee and standing-charge runs post here, collected after the statement.</span>
+            <span class="settings-header__text">
+              <span class="settings-header__title">Membership integration</span>
+              <span class="settings-header__sub">Does Membership bill through AR? Fee and standing-charge runs post here, collected after the statement.</span>
+            </span>
             <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('integration')" aria-hidden="true">chevron_right</span>
           </button>
           @if (isExpanded('integration')) {

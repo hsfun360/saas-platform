@@ -30,8 +30,10 @@
   <!-- Run card -->
   <div class="settings-card" *appCan="'create'">
     <div class="settings-header">
-      <span class="settings-header__title">Generate a month</span>
-      <span class="settings-header__sub">Only interest-chargeable overdue items on interest-enabled debtors are considered; a month already generated is skipped.</span>
+      <span class="settings-header__text">
+        <span class="settings-header__title">Generate a month</span>
+        <span class="settings-header__sub">Only interest-chargeable overdue items on interest-enabled debtors are considered; a month already generated is skipped.</span>
+      </span>
     </div>
     <div class="settings-body">
       <form [formGroup]="runForm" (ngSubmit)="onGenerate()" class="saas-form ai-run" style="padding: 0;">

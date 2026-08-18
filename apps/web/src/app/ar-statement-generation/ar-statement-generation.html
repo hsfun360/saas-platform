@@ -30,8 +30,10 @@
   <!-- Run card (cutoff day + aging boundaries live on AR Specification) -->
   <div class="settings-card" *appCan="'create'">
     <div class="settings-header">
-      <span class="settings-header__title">Generate a month</span>
-      <span class="settings-header__sub">Runs in the background after submit - you can continue with other work and will be notified (in-app + email) when it finishes. A debtor already covered for the month is REPLACED.</span>
+      <span class="settings-header__text">
+        <span class="settings-header__title">Generate a month</span>
+        <span class="settings-header__sub">Runs in the background after submit - you can continue with other work and will be notified (in-app + email) when it finishes. A debtor already covered for the month is REPLACED.</span>
+      </span>
     </div>
     <div class="settings-body">
       <form [formGroup]="runForm" (ngSubmit)="onGenerate()" class="saas-form" style="padding: 0;">

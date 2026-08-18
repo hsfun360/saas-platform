@@ -66,8 +66,10 @@
     <!-- Ledger documents -->
     <div class="settings-card">
       <button type="button" class="settings-header settings-header--button" (click)="toggleSection('ledger')" [attr.aria-expanded]="isExpanded('ledger')">
-        <span class="settings-header__title">Documents</span>
-        <span class="settings-header__sub">Invoices, debit notes and credit notes — the open-item ledger.</span>
+        <span class="settings-header__text">
+          <span class="settings-header__title">Documents</span>
+          <span class="settings-header__sub">Invoices, debit notes and credit notes — the open-item ledger.</span>
+        </span>
         <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('ledger')" aria-hidden="true">chevron_right</span>
       </button>
       @if (isExpanded('ledger')) {
@@ -119,8 +121,10 @@
     <!-- Receipts & refunds -->
     <div class="settings-card">
       <button type="button" class="settings-header settings-header--button" (click)="toggleSection('money')" [attr.aria-expanded]="isExpanded('money')">
-        <span class="settings-header__title">Receipts &amp; refunds</span>
-        <span class="settings-header__sub">Money in and out. Unallocated receipt credit reduces outstanding immediately.</span>
+        <span class="settings-header__text">
+          <span class="settings-header__title">Receipts &amp; refunds</span>
+          <span class="settings-header__sub">Money in and out. Unallocated receipt credit reduces outstanding immediately.</span>
+        </span>
         <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('money')" aria-hidden="true">chevron_right</span>
       </button>
       @if (isExpanded('money')) {
@@ -168,8 +172,10 @@
     <!-- Deposits -->
     <div class="settings-card">
       <button type="button" class="settings-header settings-header--button" (click)="toggleSection('deposits')" [attr.aria-expanded]="isExpanded('deposits')">
-        <span class="settings-header__title">Deposits</span>
-        <span class="settings-header__sub">Security deposits held as collateral — collected via Official Receipt, refunded or converted to a Credit Note.</span>
+        <span class="settings-header__text">
+          <span class="settings-header__title">Deposits</span>
+          <span class="settings-header__sub">Security deposits held as collateral — collected via Official Receipt, refunded or converted to a Credit Note.</span>
+        </span>
         <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('deposits')" aria-hidden="true">chevron_right</span>
       </button>
       @if (isExpanded('deposits')) {

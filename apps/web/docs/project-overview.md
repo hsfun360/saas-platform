@@ -729,7 +729,8 @@ Deliberate exceptions - and the only ones: dedicated single-form/settings screen
 #### Section cards with a header band (grouped settings/options) - THE standard
 
 When a form/settings screen groups its content into titled sections (Settings, Club Specification), use the shared **section card** - global in `styles.css`, canonical look from the Settings screen:
-`.settings-card` (bordered card) > `.settings-header` (sunken band with `.settings-header__title` + one-line `.settings-header__sub` consequence text) > `.settings-body` (padded content).
+`.settings-card` (bordered card) > `.settings-header` (sunken band) > `.settings-body` (padded content).
+Inside the header, title and subtitle MUST be wrapped in **`.settings-header__text`** (`<span class="settings-header__text"><span class="settings-header__title">…</span><span class="settings-header__sub">…</span></span>`) so they STACK on two lines, left-aligned, with the chevron on the right - flat title/sub siblings spread across the band on one line (the AR screens shipped that drift; standardized back 2026-08-18).
 **The header is COLLAPSIBLE by default**: render it as `<button type="button" class="settings-header settings-header--button" [attr.aria-expanded]>` with a `.settings-header__chevron` (rotates via `--open`), and wrap the body in `@if (isExpanded(...))` - sections start expanded, and folding must never lose form state (the reactive `FormGroup` keeps every control value while its DOM is hidden).
 **Chevron direction is an app-wide standard (2026-08-17): collapsed points RIGHT (`>`), expanded points DOWN (`v`)** - the chevron points to where the content is (tucked aside vs flowing below), the convention of Windows Explorer / VS Code / GitHub.
 The `.settings-header__chevron` base icon MUST therefore be **`chevron_right`** (the `--open` rotation turns it downward); passing `expand_more` as the base produces a meaningless left-pointing chevron when open (the AR screens shipped that bug).
