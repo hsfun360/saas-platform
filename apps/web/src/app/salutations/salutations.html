@@ -63,7 +63,7 @@
   } @else {
     <div class="data-list">
       @for (s of filtered(); track s.id) {
-        <div class="data-card">
+        <div class="data-card" [attr.data-return-id]="s.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <div class="data-card__title">{{ s.salutationCode }}</div>

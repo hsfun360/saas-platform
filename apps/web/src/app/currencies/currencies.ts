@@ -1,8 +1,9 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CurrencyService } from '../services/currency.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Currency } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -24,6 +25,12 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 export class CurrenciesComponent implements OnInit {
   private readonly currencyService = inject(CurrencyService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the list re-sorts on reload, so
+  // the saved/toggled card is scrolled back into view and flashed. Rows are
+  // keyed by ISO code (no surrogate id on this reference table).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/currencies';
 
   readonly currencies = signal<Currency[]>([]);
   readonly loading = signal(false);
@@ -83,6 +90,7 @@ export class CurrenciesComponent implements OnInit {
       next: (data) => {
         this.currencies.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(CurrenciesComponent.LIST_PATH, this.injector);
       },
       error: () => this.loading.set(false),
     });
@@ -112,6 +120,7 @@ export class CurrenciesComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${currency.name} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingCode.set(null);
+        this.returnScroll.remember(CurrenciesComponent.LIST_PATH, currency.code);
         this.load();
       },
       error: (err) => {
@@ -156,6 +165,7 @@ export class CurrenciesComponent implements OnInit {
           this.successMessage.set(`${name} added.`);
           this.addSaving.set(false);
           this.addOpen.set(false);
+          this.returnScroll.remember(CurrenciesComponent.LIST_PATH, code);
           this.load();
         },
         error: (err) => {
@@ -197,6 +207,7 @@ export class CurrenciesComponent implements OnInit {
           this.successMessage.set(`${name} updated.`);
           this.editSaving.set(false);
           this.editOpen.set(false);
+          this.returnScroll.remember(CurrenciesComponent.LIST_PATH, this.editingCode());
           this.load();
         },
         error: (err) => {

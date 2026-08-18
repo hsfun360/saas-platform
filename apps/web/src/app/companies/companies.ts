@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../auth.service';
 import { CountryService } from '../services/country.service';
 import { CurrencyService } from '../services/currency.service';
 import { EInvoiceMsicCodeService } from '../services/e-invoice-msic-code.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { CompanyEntity, ModuleOption, Country, Currency, EInvoiceMsicCode } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
@@ -31,6 +32,11 @@ export class CompaniesComponent implements OnInit {
   private readonly currencyService = inject(CurrencyService);
   private readonly msicService = inject(EInvoiceMsicCodeService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the reload can move the row the
+  // user just touched, so its card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/companies';
 
   // LHDN MSIC codes for the e-Invoice section's picker (datalist assist).
   // Loaded lazily the first time the edit-details dialog opens (1174 rows).
@@ -242,6 +248,7 @@ export class CompaniesComponent implements OnInit {
       next: (list) => {
         this.companies.set(list);
         this.companiesLoading.set(false);
+        this.returnScroll.consume(CompaniesComponent.LIST_PATH, this.injector);
       },
       error: () => this.companiesLoading.set(false),
     });
@@ -328,6 +335,7 @@ export class CompaniesComponent implements OnInit {
           this.selectedModuleIds.set(new Set());
           this.creating.set(false);
           this.showCreate.set(false);
+          if (res.company?.id) this.returnScroll.remember(CompaniesComponent.LIST_PATH, res.company.id);
           this.loadCompanies();
         },
         error: (err) => {
@@ -374,6 +382,7 @@ export class CompaniesComponent implements OnInit {
         this.successMessage.set(res.message || 'Modules updated.');
         this.savingModules.set(false);
         this.editingCompanyId.set(null);
+        this.returnScroll.remember(CompaniesComponent.LIST_PATH, companyId);
         this.loadCompanies();
       },
       error: (err) => {
@@ -474,6 +483,7 @@ export class CompaniesComponent implements OnInit {
         this.successMessage.set(res.message || 'Company profile updated.');
         this.savingProfile.set(false);
         this.editingProfileCompanyId.set(null);
+        this.returnScroll.remember(CompaniesComponent.LIST_PATH, companyId);
         this.loadCompanies();
       },
       error: (err) => {

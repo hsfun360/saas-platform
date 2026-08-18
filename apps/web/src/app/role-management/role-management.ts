@@ -1,8 +1,9 @@
-import { Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../auth.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { MenuItem, Role, RoleDataScope, RoleMenuPermission } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -28,6 +29,11 @@ import { FULL_ACCESS, GrantFlags, PermissionPickerComponent } from '../shared/pe
 export class RoleManagementComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the reload can move the role the
+  // user just touched, so its card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/roles';
 
   // Dialog form (name + description + data scope). nonNullable keeps controls
   // non-null; dataScope defaults to 'all' (the pre-Phase-3 behaviour).
@@ -89,6 +95,7 @@ export class RoleManagementComponent implements OnInit {
       next: (r) => {
         this.roles.set(r);
         this.rolesLoading.set(false);
+        this.returnScroll.consume(RoleManagementComponent.LIST_PATH, this.injector);
       },
       error: () => this.rolesLoading.set(false),
     });
@@ -192,6 +199,7 @@ export class RoleManagementComponent implements OnInit {
             this.successMessage.set(`Role '${res.role.name}' updated successfully!`);
             this.isLoading.set(false);
             this.cancelEdit();
+            this.returnScroll.remember(RoleManagementComponent.LIST_PATH, editingId);
             this.loadRoles();
           },
           error: (err) => {
@@ -207,6 +215,7 @@ export class RoleManagementComponent implements OnInit {
         this.successMessage.set(`Role '${res.role.name}' created successfully!`);
         this.isLoading.set(false);
         this.cancelEdit();
+        if (res.role?.id) this.returnScroll.remember(RoleManagementComponent.LIST_PATH, res.role.id);
         this.loadRoles();
       },
       error: (err) => {

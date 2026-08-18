@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -14,6 +14,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 import { SortMenuComponent, SortOption, SortValue } from '../shared/sort-menu/sort-menu';
 import { ArService } from '../services/ar.service';
 import { CountryService } from '../services/country.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ArDebtor, ArOption, ArDebtorsMeta } from '../models/ar.models';
 import { Country } from '../models/auth.models';
 
@@ -41,6 +42,12 @@ export class ArDebtorsComponent implements OnInit {
   private readonly service = inject(ArService);
   private readonly countryService = inject(CountryService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the reload can move the row the
+  // user just touched (server-side sort), so its card is scrolled back into
+  // view and flashed. Creates are exempt: the new row's debtor id isn't known.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/ar/debtors';
 
   readonly rows = signal<ArDebtor[]>([]);
   readonly total = signal(0);
@@ -89,6 +96,7 @@ export class ArDebtorsComponent implements OnInit {
   readonly otherLoading = signal(false);
   otherId = '';
   otherCode = ''; // display-only in edit mode (immutable after create)
+  otherRowId = ''; // the debtor LISTING row id (edit mode) - the return-to-row target
   readonly otherForm = this.fb.nonNullable.group({
     code: [''],
     name: ['', [Validators.required, Validators.maxLength(255)]],
@@ -157,6 +165,7 @@ export class ArDebtorsComponent implements OnInit {
           this.total.set(res.total);
           this.loading.set(false);
           this.loadingMore.set(false);
+          if (reset) this.returnScroll.consume(ArDebtorsComponent.LIST_PATH, this.injector);
         },
         error: (err) => {
           this.loading.set(false);
@@ -244,6 +253,7 @@ export class ArDebtorsComponent implements OnInit {
           this.successMessage.set(res.message);
           this.editSaving.set(false);
           this.editOpen.set(false);
+          this.returnScroll.remember(ArDebtorsComponent.LIST_PATH, row.id);
           this.load(true);
         },
         error: (err) => {
@@ -260,6 +270,7 @@ export class ArDebtorsComponent implements OnInit {
     this.otherMode.set('create');
     this.otherId = '';
     this.otherCode = '';
+    this.otherRowId = '';
     this.otherForm.reset({
       code: '', name: '', registrationNo: '', taxNo: '', contactPerson: '',
       phone: '', mobile: '', fax: '', email: '',
@@ -275,6 +286,7 @@ export class ArDebtorsComponent implements OnInit {
     this.otherMode.set('edit');
     this.otherId = row.sourceId;
     this.otherCode = row.no || '';
+    this.otherRowId = row.id;
     this.otherOpen.set(true);
     this.otherLoading.set(true);
     this.service.getOtherDebtor(row.sourceId).subscribe({
@@ -356,6 +368,7 @@ export class ArDebtorsComponent implements OnInit {
         this.successMessage.set(res.message);
         this.otherSaving.set(false);
         this.otherOpen.set(false);
+        if (this.otherRowId) this.returnScroll.remember(ArDebtorsComponent.LIST_PATH, this.otherRowId);
         this.load(true);
       },
       error: (err) => {
@@ -372,6 +385,7 @@ export class ArDebtorsComponent implements OnInit {
     this.service.updateOtherDebtor(row.sourceId, { isActive: enable }).subscribe({
       next: (res) => {
         this.successMessage.set(res.message);
+        this.returnScroll.remember(ArDebtorsComponent.LIST_PATH, row.id);
         this.load(true);
       },
       error: (err) => this.errorMessage.set(err.error?.message || 'Failed to update the Other Debtor.'),

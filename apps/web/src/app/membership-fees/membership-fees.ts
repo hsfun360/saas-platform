@@ -1,9 +1,10 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MembershipFeeService } from '../services/membership-fee.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { MoneyInputDirective } from '../shared/money-input.directive';
@@ -41,6 +42,11 @@ function round2(n: number): number {
 export class MembershipFeesComponent implements OnInit {
   private readonly service = inject(MembershipFeeService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the list re-sorts on reload, so
+  // the saved/toggled card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/membership/fees';
 
   readonly fees = signal<MembershipFee[]>([]);
   readonly intervals = signal<MembershipStatusOption[]>([]);
@@ -192,6 +198,7 @@ export class MembershipFeesComponent implements OnInit {
       next: (data) => {
         this.fees.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(MembershipFeesComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -315,10 +322,11 @@ export class MembershipFeesComponent implements OnInit {
     const id = this.editId();
     const req$ = id ? this.service.update(id, payload) : this.service.create(payload);
     req$.subscribe({
-      next: () => {
+      next: (res) => {
         this.successMessage.set(`${payload.membershipFeeCode} ${id ? 'updated' : 'added'}.`);
         this.saving.set(false);
         this.dialogOpen.set(false);
+        this.returnScroll.remember(MembershipFeesComponent.LIST_PATH, res.fee.id);
         this.load();
       },
       error: (err) => {
@@ -336,6 +344,7 @@ export class MembershipFeesComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${fee.membershipFeeCode} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingId.set(null);
+        this.returnScroll.remember(MembershipFeesComponent.LIST_PATH, fee.id);
         this.load();
       },
       error: (err) => {

@@ -1,9 +1,10 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SalutationService } from '../services/salutation.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Salutation } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -22,6 +23,11 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 export class SalutationsComponent implements OnInit {
   private readonly service = inject(SalutationService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the list re-sorts on reload, so
+  // the saved/toggled card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/salutations';
 
   readonly salutations = signal<Salutation[]>([]);
   readonly loading = signal(false);
@@ -77,6 +83,7 @@ export class SalutationsComponent implements OnInit {
       next: (data) => {
         this.salutations.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(SalutationsComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -119,10 +126,11 @@ export class SalutationsComponent implements OnInit {
     const id = this.editId();
     const req$ = id ? this.service.update(id, payload) : this.service.create(payload);
     req$.subscribe({
-      next: () => {
+      next: (res) => {
         this.successMessage.set(`${payload.salutationCode} ${id ? 'updated' : 'added'}.`);
         this.saving.set(false);
         this.dialogOpen.set(false);
+        this.returnScroll.remember(SalutationsComponent.LIST_PATH, res.salutation.id);
         this.load();
       },
       error: (err) => {
@@ -140,6 +148,7 @@ export class SalutationsComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${s.salutationCode} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingId.set(null);
+        this.returnScroll.remember(SalutationsComponent.LIST_PATH, s.id);
         this.load();
       },
       error: (err) => {

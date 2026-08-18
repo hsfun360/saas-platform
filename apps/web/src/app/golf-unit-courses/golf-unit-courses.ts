@@ -1,9 +1,10 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UnitCourseService } from '../services/unit-course.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import {
   MembershipStatusOption,
@@ -73,6 +74,11 @@ const SEQ_OPTIONS = [1, 2, 3, 4, 5];
 export class GolfUnitCoursesComponent implements OnInit {
   private readonly service = inject(UnitCourseService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the list re-sorts on reload, so
+  // the saved/toggled card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/golf/unit-courses';
 
   readonly courses = signal<UnitCourse[]>([]);
   readonly types = signal<UnitCourseTypeOption[]>([]);
@@ -203,6 +209,7 @@ export class GolfUnitCoursesComponent implements OnInit {
       next: (data) => {
         this.courses.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(GolfUnitCoursesComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -271,10 +278,11 @@ export class GolfUnitCoursesComponent implements OnInit {
     const id = this.editId();
     const request = id ? this.service.update(id, payload) : this.service.create(payload);
     request.subscribe({
-      next: () => {
+      next: (res) => {
         this.successMessage.set(`${payload.unitCourseCode} ${id ? 'updated' : 'added'}.`);
         this.saving.set(false);
         this.dialogOpen.set(false);
+        this.returnScroll.remember(GolfUnitCoursesComponent.LIST_PATH, res.unitCourse.id);
         this.load();
       },
       error: (err) => {
@@ -292,6 +300,7 @@ export class GolfUnitCoursesComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${c.unitCourseCode} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingId.set(null);
+        this.returnScroll.remember(GolfUnitCoursesComponent.LIST_PATH, c.id);
         this.load();
       },
       error: (err) => {

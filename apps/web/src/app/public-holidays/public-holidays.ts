@@ -1,10 +1,11 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { PublicHolidayService } from '../services/public-holiday.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { HolidayCountry, PublicHoliday } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -25,6 +26,11 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 export class PublicHolidaysComponent implements OnInit {
   private readonly service = inject(PublicHolidayService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the list re-sorts on reload, so
+  // the saved/toggled card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/public-holidays';
 
   readonly holidays = signal<PublicHoliday[]>([]);
   readonly countries = signal<HolidayCountry[]>([]);
@@ -124,6 +130,7 @@ export class PublicHolidaysComponent implements OnInit {
       next: (data) => {
         this.holidays.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(PublicHolidaysComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -176,10 +183,11 @@ export class PublicHolidaysComponent implements OnInit {
     const id = this.editId();
     const req$ = id ? this.service.update(id, payload) : this.service.create(payload);
     req$.subscribe({
-      next: () => {
+      next: (res) => {
         this.successMessage.set(`${payload.description} (${payload.holidayDate}) ${id ? 'updated' : 'added'}.`);
         this.saving.set(false);
         this.dialogOpen.set(false);
+        this.returnScroll.remember(PublicHolidaysComponent.LIST_PATH, res.publicHoliday.id);
         this.load();
       },
       error: (err) => {
@@ -197,6 +205,7 @@ export class PublicHolidaysComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${h.description} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingId.set(null);
+        this.returnScroll.remember(PublicHolidaysComponent.LIST_PATH, h.id);
         this.load();
       },
       error: (err) => {

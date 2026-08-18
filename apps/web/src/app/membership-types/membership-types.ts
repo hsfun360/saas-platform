@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -6,6 +6,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { MembershipTypeService } from '../services/membership-type.service';
 import { MembershipStatusService } from '../services/membership-status.service';
 import { MembershipFeeService } from '../services/membership-fee.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { MoneyInputDirective } from '../shared/money-input.directive';
@@ -54,6 +55,11 @@ export class MembershipTypesComponent implements OnInit {
   private readonly statusService = inject(MembershipStatusService);
   private readonly feeService = inject(MembershipFeeService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the list re-sorts on reload, so
+  // the saved/toggled card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/membership/types';
 
   readonly types = signal<MembershipType[]>([]);
   readonly classes = signal<MembershipStatusOption[]>([]);
@@ -301,6 +307,7 @@ export class MembershipTypesComponent implements OnInit {
       next: (data) => {
         this.types.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(MembershipTypesComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -423,6 +430,7 @@ export class MembershipTypesComponent implements OnInit {
         this.successMessage.set(res.message);
         this.feesSaving.set(false);
         this.closeFees();
+        this.returnScroll.remember(MembershipTypesComponent.LIST_PATH, type.id);
         this.load();
       },
       error: (err) => {
@@ -525,6 +533,7 @@ export class MembershipTypesComponent implements OnInit {
         this.successMessage.set(res.message);
         this.chargesSaving.set(false);
         this.closeCharges();
+        this.returnScroll.remember(MembershipTypesComponent.LIST_PATH, type.id);
         this.load();
       },
       error: (err) => {
@@ -589,10 +598,11 @@ export class MembershipTypesComponent implements OnInit {
     const id = this.editId();
     const req$ = id ? this.service.update(id, payload) : this.service.create(payload);
     req$.subscribe({
-      next: () => {
+      next: (res) => {
         this.successMessage.set(`${payload.category} ${id ? 'updated' : 'added'}.`);
         this.saving.set(false);
         this.dialogOpen.set(false);
+        this.returnScroll.remember(MembershipTypesComponent.LIST_PATH, res.type.id);
         this.load();
       },
       error: (err) => {
@@ -610,6 +620,7 @@ export class MembershipTypesComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${t.category} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingId.set(null);
+        this.returnScroll.remember(MembershipTypesComponent.LIST_PATH, t.id);
         this.load();
       },
       error: (err) => {

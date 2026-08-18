@@ -1,8 +1,9 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { GolfTransactionTypeService } from '../services/golf-transaction-type.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { GolfTransactionType, GolfTransactionTypeRate, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
@@ -39,6 +40,11 @@ const MATRIX_CELLS = [
 export class GolfTransactionTypesComponent implements OnInit {
   private readonly service = inject(GolfTransactionTypeService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the list re-sorts on reload, so
+  // the saved/toggled card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/golf/transaction-types';
 
   readonly rows = signal<GolfTransactionType[]>([]);
   readonly chargeTypes = signal<MembershipStatusOption[]>([]);
@@ -165,6 +171,7 @@ export class GolfTransactionTypesComponent implements OnInit {
       next: (data) => {
         this.rows.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(GolfTransactionTypesComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -222,6 +229,7 @@ export class GolfTransactionTypesComponent implements OnInit {
         this.successMessage.set(res.message);
         this.saving.set(false);
         this.dialogOpen.set(false);
+        this.returnScroll.remember(GolfTransactionTypesComponent.LIST_PATH, res.transactionType.id);
         this.load();
       },
       error: (err) => {
@@ -263,6 +271,7 @@ export class GolfTransactionTypesComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${t.transactionType} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingId.set(null);
+        this.returnScroll.remember(GolfTransactionTypesComponent.LIST_PATH, t.id);
         this.load();
       },
       error: (err) => {

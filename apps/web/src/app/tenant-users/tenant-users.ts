@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -6,6 +6,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { AuthService } from '../auth.service';
 import { DepartmentService } from '../services/department.service';
 import { PositionService } from '../services/position.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { AccountCompany, AccountPerson, AccountPendingInvite, Department, Position, Role } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
@@ -113,6 +114,12 @@ export class TenantUsersComponent implements OnInit {
 
   private readonly departmentService = inject(DepartmentService);
   private readonly positionService = inject(PositionService);
+  // After-save return-to-row (app standard): the reload can move the person the
+  // user just touched, so their card is scrolled back into view and flashed.
+  // (Creates/invites are exempt: those endpoints don't return the new row's id.)
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/users';
 
   constructor(private authService: AuthService) {}
 
@@ -155,6 +162,7 @@ export class TenantUsersComponent implements OnInit {
           }
         }
         this.loading.set(false);
+        this.returnScroll.consume(TenantUsersComponent.LIST_PATH, this.injector);
       },
       error: () => this.loading.set(false),
     });
@@ -207,6 +215,7 @@ export class TenantUsersComponent implements OnInit {
         next: (res) => {
           this.successMessage.set(res.message || 'Profile updated.');
           this.savingProfile.set(false);
+          this.returnScroll.remember(TenantUsersComponent.LIST_PATH, person.id);
           this.load();
         },
         error: (err) => {
@@ -271,6 +280,7 @@ export class TenantUsersComponent implements OnInit {
       next: (res) => {
         this.successMessage.set(res.message || '✅ Role updated.');
         this.pendingKey.set(null);
+        this.returnScroll.remember(TenantUsersComponent.LIST_PATH, userId);
         this.load();
       },
       error: (err) => {
@@ -290,6 +300,7 @@ export class TenantUsersComponent implements OnInit {
       next: (res) => {
         this.successMessage.set(res.message || '✅ Removed from company.');
         this.pendingKey.set(null);
+        this.returnScroll.remember(TenantUsersComponent.LIST_PATH, person.id);
         this.load();
       },
       error: (err) => {
@@ -313,6 +324,7 @@ export class TenantUsersComponent implements OnInit {
         this.addCompany[person.id] = '';
         this.addRole[person.id] = '';
         this.pendingKey.set(null);
+        this.returnScroll.remember(TenantUsersComponent.LIST_PATH, person.id);
         this.load();
       },
       error: (err) => {

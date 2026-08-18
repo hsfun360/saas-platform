@@ -45,7 +45,7 @@
     } @else {
       <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-sm);">
         @for (person of filteredPeople(); track person.id) {
-          <li style="background: var(--surface-card); border: 1px solid var(--border); border-radius: 10px; padding: var(--space-md) var(--space-lg);">
+          <li [attr.data-return-id]="person.id" style="background: var(--surface-card); border: 1px solid var(--border); border-radius: 10px; padding: var(--space-md) var(--space-lg);">
             <div class="assign-row">
               <span class="assign-row__info" style="flex-direction: column; align-items: flex-start; gap: var(--space-xs);">
                 <!-- Line 1: email. -->

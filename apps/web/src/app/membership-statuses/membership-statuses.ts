@@ -1,8 +1,9 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MembershipStatusService } from '../services/membership-status.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { MembershipStatus, MembershipStatusOption, MembershipStatusCopySource } from '../models/auth.models';
@@ -25,6 +26,11 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 export class MembershipStatusesComponent implements OnInit {
   private readonly service = inject(MembershipStatusService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the list re-sorts on reload, so
+  // the saved/toggled card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/membership/statuses';
 
   readonly statuses = signal<MembershipStatus[]>([]);
   readonly classes = signal<MembershipStatusOption[]>([]);
@@ -134,6 +140,7 @@ export class MembershipStatusesComponent implements OnInit {
       next: (data) => {
         this.statuses.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(MembershipStatusesComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -170,10 +177,11 @@ export class MembershipStatusesComponent implements OnInit {
         statusColor: f.statusColor || null,
       })
       .subscribe({
-        next: () => {
+        next: (res) => {
           this.successMessage.set(`${f.membershipStatus.trim()} added.`);
           this.addSaving.set(false);
           this.addOpen.set(false);
+          this.returnScroll.remember(MembershipStatusesComponent.LIST_PATH, res.status.id);
           this.load();
         },
         error: (err) => {
@@ -223,6 +231,7 @@ export class MembershipStatusesComponent implements OnInit {
           this.successMessage.set(`${f.membershipStatus.trim()} updated.`);
           this.editSaving.set(false);
           this.editOpen.set(false);
+          this.returnScroll.remember(MembershipStatusesComponent.LIST_PATH, this.editId);
           this.load();
         },
         error: (err) => {
@@ -240,6 +249,7 @@ export class MembershipStatusesComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${s.membershipStatus} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingId.set(null);
+        this.returnScroll.remember(MembershipStatusesComponent.LIST_PATH, s.id);
         this.load();
       },
       error: (err) => {

@@ -58,7 +58,7 @@
   } @else {
     <ul class="data-list">
       @for (company of filteredCompanies(); track company.id) {
-        <li class="data-card">
+        <li class="data-card" [attr.data-return-id]="company.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <div class="data-card__title">{{ company.name }}</div>

@@ -1,10 +1,11 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TitleService } from '../services/title.service';
 import { CountryService } from '../services/country.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Country, Title } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -24,6 +25,11 @@ export class TitlesComponent implements OnInit {
   private readonly service = inject(TitleService);
   private readonly countryService = inject(CountryService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the list re-sorts on reload, so
+  // the saved/toggled card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/titles';
 
   readonly titles = signal<Title[]>([]);
   readonly countries = signal<Country[]>([]);
@@ -95,6 +101,7 @@ export class TitlesComponent implements OnInit {
       next: (data) => {
         this.titles.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(TitlesComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -138,10 +145,11 @@ export class TitlesComponent implements OnInit {
     const id = this.editId();
     const req$ = id ? this.service.update(id, payload) : this.service.create(payload);
     req$.subscribe({
-      next: () => {
+      next: (res) => {
         this.successMessage.set(`${payload.titleCode} ${id ? 'updated' : 'added'}.`);
         this.saving.set(false);
         this.dialogOpen.set(false);
+        this.returnScroll.remember(TitlesComponent.LIST_PATH, res.title.id);
         this.load();
       },
       error: (err) => {
@@ -159,6 +167,7 @@ export class TitlesComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${t.titleCode} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingId.set(null);
+        this.returnScroll.remember(TitlesComponent.LIST_PATH, t.id);
         this.load();
       },
       error: (err) => {

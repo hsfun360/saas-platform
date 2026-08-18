@@ -1,8 +1,9 @@
-import { Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AdminService } from '../services/admin.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Role, RoleDataScope, RoleMenuPermission, AdminMenu } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -28,6 +29,11 @@ import { FULL_ACCESS, GrantFlags, PermissionPickerComponent } from '../shared/pe
 })
 export class PlatformRolesComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the reload can move the role the
+  // user just touched, so its card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/system-roles';
 
   roles = signal<Role[]>([]);
   rolesLoading = signal(false);
@@ -80,6 +86,7 @@ export class PlatformRolesComponent implements OnInit {
       next: (data) => {
         this.roles.set(data);
         this.rolesLoading.set(false);
+        this.returnScroll.consume(PlatformRolesComponent.LIST_PATH, this.injector);
       },
       error: () => this.rolesLoading.set(false),
     });
@@ -183,6 +190,7 @@ export class PlatformRolesComponent implements OnInit {
             this.successMessage.set(`Role "${name}" updated.`);
             this.roleSubmitting.set(false);
             this.roleDialogOpen.set(false);
+            this.returnScroll.remember(PlatformRolesComponent.LIST_PATH, this.editRoleId());
             this.loadRoles();
           },
           error: (err) => {
@@ -196,10 +204,11 @@ export class PlatformRolesComponent implements OnInit {
     this.adminService
       .createRole({ name, description: value.description.trim(), dataScope: value.dataScope, permissions })
       .subscribe({
-        next: () => {
+        next: (res) => {
           this.successMessage.set(`Role "${name}" created with ${permissions.length} menu permission(s).`);
           this.roleSubmitting.set(false);
           this.roleDialogOpen.set(false);
+          if (res.role?.id) this.returnScroll.remember(PlatformRolesComponent.LIST_PATH, res.role.id);
           this.loadRoles();
         },
         error: (err) => {

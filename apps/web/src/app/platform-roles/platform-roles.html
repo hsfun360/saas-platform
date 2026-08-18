@@ -53,7 +53,7 @@
   } @else {
     <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
       @for (role of filteredRoles(); track role.id) {
-        <div class="data-card">
+        <div class="data-card" [attr.data-return-id]="role.id">
           <div class="data-row">
             <div class="data-row__main">
               <div class="data-card__title">{{ role.name }}</div>

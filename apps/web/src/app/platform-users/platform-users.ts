@@ -1,8 +1,9 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AdminService } from '../services/admin.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { UserSummary } from '../models/auth.models';
@@ -27,6 +28,12 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 export class PlatformUsersComponent implements OnInit {
   private readonly adminService = inject(AdminService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the reload can move the row the
+  // user just touched, so its card is scrolled back into view and flashed.
+  // (Create is exempt: the create endpoint doesn't return the new user's id.)
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/platform-users';
 
   readonly users = signal<UserSummary[]>([]);
   readonly usersLoading = signal(false);
@@ -84,6 +91,7 @@ export class PlatformUsersComponent implements OnInit {
       next: (data) => {
         this.users.set(data);
         this.usersLoading.set(false);
+        this.returnScroll.consume(PlatformUsersComponent.LIST_PATH, this.injector);
       },
       error: () => this.usersLoading.set(false),
     });
@@ -175,6 +183,7 @@ export class PlatformUsersComponent implements OnInit {
           this.successMessage.set(`User "${value.email.trim()}" updated.`);
           this.editSubmitting.set(false);
           this.editDialogOpen.set(false);
+          this.returnScroll.remember(PlatformUsersComponent.LIST_PATH, this.editingUserId());
           this.loadUsers();
         },
         error: (err) => {
@@ -194,6 +203,7 @@ export class PlatformUsersComponent implements OnInit {
           `User "${user.email}" ${next ? 'activated' : 'deactivated'}.`,
         );
         this.togglingId.set(null);
+        this.returnScroll.remember(PlatformUsersComponent.LIST_PATH, user.id);
         this.loadUsers();
       },
       error: (err) => {

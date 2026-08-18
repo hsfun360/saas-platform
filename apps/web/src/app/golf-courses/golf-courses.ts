@@ -1,10 +1,11 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { GolfCourseService } from '../services/golf-course.service';
 import { UnitCourseService } from '../services/unit-course.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import {
   CourseClosureDay,
@@ -80,6 +81,11 @@ export class GolfCoursesComponent implements OnInit {
   private readonly service = inject(GolfCourseService);
   private readonly unitCourseService = inject(UnitCourseService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the list re-sorts on reload, so
+  // the saved/toggled card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/golf/courses';
 
   readonly courses = signal<GolfCourse[]>([]);
   readonly unitCourses = signal<UnitCourse[]>([]);
@@ -291,6 +297,7 @@ export class GolfCoursesComponent implements OnInit {
       next: (data) => {
         this.courses.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(GolfCoursesComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -388,10 +395,11 @@ export class GolfCoursesComponent implements OnInit {
     const id = this.editId();
     const request = id ? this.service.update(id, payload) : this.service.create(payload);
     request.subscribe({
-      next: () => {
+      next: (res) => {
         this.successMessage.set(`${payload.courseCode} ${id ? 'updated' : 'added'}.`);
         this.saving.set(false);
         this.dialogOpen.set(false);
+        this.returnScroll.remember(GolfCoursesComponent.LIST_PATH, res.course.id);
         this.load();
       },
       error: (err) => {
@@ -409,6 +417,7 @@ export class GolfCoursesComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${c.courseCode} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingId.set(null);
+        this.returnScroll.remember(GolfCoursesComponent.LIST_PATH, c.id);
         this.load();
       },
       error: (err) => {

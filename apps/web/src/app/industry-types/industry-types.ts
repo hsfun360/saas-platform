@@ -1,9 +1,10 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { IndustryTypeService } from '../services/industry-type.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { IndustryType } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -22,6 +23,11 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 export class IndustryTypesComponent implements OnInit {
   private readonly service = inject(IndustryTypeService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the list re-sorts on reload, so
+  // the saved/toggled card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/industry-types';
 
   readonly types = signal<IndustryType[]>([]);
   readonly loading = signal(false);
@@ -77,6 +83,7 @@ export class IndustryTypesComponent implements OnInit {
       next: (data) => {
         this.types.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(IndustryTypesComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -119,10 +126,11 @@ export class IndustryTypesComponent implements OnInit {
     const id = this.editId();
     const req$ = id ? this.service.update(id, payload) : this.service.create(payload);
     req$.subscribe({
-      next: () => {
+      next: (res) => {
         this.successMessage.set(`${payload.industryTypeCode} ${id ? 'updated' : 'added'}.`);
         this.saving.set(false);
         this.dialogOpen.set(false);
+        this.returnScroll.remember(IndustryTypesComponent.LIST_PATH, res.industryType.id);
         this.load();
       },
       error: (err) => {
@@ -140,6 +148,7 @@ export class IndustryTypesComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${t.industryTypeCode} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingId.set(null);
+        this.returnScroll.remember(IndustryTypesComponent.LIST_PATH, t.id);
         this.load();
       },
       error: (err) => {

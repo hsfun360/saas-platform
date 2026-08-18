@@ -63,7 +63,7 @@
   } @else {
     <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
       @for (f of filtered(); track f.id) {
-        <div class="data-card">
+        <div class="data-card" [attr.data-return-id]="f.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <div class="data-card__title">{{ f.membershipFeeCode }}</div>

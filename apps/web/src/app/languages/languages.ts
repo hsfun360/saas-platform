@@ -1,8 +1,9 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { LanguageService } from '../services/language.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Language } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -25,6 +26,12 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 export class LanguagesComponent implements OnInit {
   private readonly languageService = inject(LanguageService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the list re-sorts on reload, so
+  // the saved/toggled card is scrolled back into view and flashed. Rows are
+  // keyed by language code (no surrogate id on this reference table).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/languages';
 
   readonly languages = signal<Language[]>([]);
   readonly loading = signal(false);
@@ -78,6 +85,7 @@ export class LanguagesComponent implements OnInit {
       next: (data) => {
         this.languages.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(LanguagesComponent.LIST_PATH, this.injector);
       },
       error: () => this.loading.set(false),
     });
@@ -107,6 +115,7 @@ export class LanguagesComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${language.name} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingCode.set(null);
+        this.returnScroll.remember(LanguagesComponent.LIST_PATH, language.languageCode);
         this.load();
       },
       error: (err) => {
@@ -148,6 +157,7 @@ export class LanguagesComponent implements OnInit {
         this.successMessage.set(`${name} added.`);
         this.addSaving.set(false);
         this.addOpen.set(false);
+        this.returnScroll.remember(LanguagesComponent.LIST_PATH, languageCode);
         this.load();
       },
       error: (err) => {
@@ -181,6 +191,7 @@ export class LanguagesComponent implements OnInit {
         this.successMessage.set(`${name} updated.`);
         this.editSaving.set(false);
         this.editOpen.set(false);
+        this.returnScroll.remember(LanguagesComponent.LIST_PATH, this.editingCode());
         this.load();
       },
       error: (err) => {

@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -13,6 +13,7 @@ import {
 } from '@angular/forms';
 import { CountryService } from '../services/country.service';
 import { LanguageService } from '../services/language.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Country, Language } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -44,6 +45,12 @@ type TranslationGroup = FormGroup<{
 export class CountriesComponent implements OnInit {
   private readonly languageService = inject(LanguageService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the reload can move the row the
+  // user just touched, so its card is scrolled back into view and flashed.
+  // Rows are keyed by alpha-2 (no surrogate id on this reference table).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/countries';
 
   readonly countries = signal<Country[]>([]);
   readonly loading = signal(false);
@@ -107,6 +114,7 @@ export class CountriesComponent implements OnInit {
       next: (data) => {
         this.countries.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(CountriesComponent.LIST_PATH, this.injector);
       },
       error: () => this.loading.set(false),
     });
@@ -136,6 +144,7 @@ export class CountriesComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${country.name} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingCode.set(null);
+        this.returnScroll.remember(CountriesComponent.LIST_PATH, country.alpha2);
         this.load();
       },
       error: (err) => {
@@ -219,6 +228,7 @@ export class CountriesComponent implements OnInit {
           this.successMessage.set(`${this.editName()} updated.`);
           this.editSaving.set(false);
           this.editOpen.set(false);
+          this.returnScroll.remember(CountriesComponent.LIST_PATH, this.editAlpha2());
           this.load();
         },
         error: (err) => {

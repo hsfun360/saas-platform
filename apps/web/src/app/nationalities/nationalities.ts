@@ -1,9 +1,10 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NationalityService } from '../services/nationality.service';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Nationality } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -23,6 +24,11 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 export class NationalitiesComponent implements OnInit {
   private readonly service = inject(NationalityService);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app standard): the list re-sorts on reload, so
+  // the saved/toggled card is scrolled back into view and flashed.
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/nationalities';
 
   readonly nationalities = signal<Nationality[]>([]);
   readonly loading = signal(false);
@@ -78,6 +84,7 @@ export class NationalitiesComponent implements OnInit {
       next: (data) => {
         this.nationalities.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(NationalitiesComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -120,10 +127,11 @@ export class NationalitiesComponent implements OnInit {
     const id = this.editId();
     const req$ = id ? this.service.update(id, payload) : this.service.create(payload);
     req$.subscribe({
-      next: () => {
+      next: (res) => {
         this.successMessage.set(`${payload.nationalityCode} ${id ? 'updated' : 'added'}.`);
         this.saving.set(false);
         this.dialogOpen.set(false);
+        this.returnScroll.remember(NationalitiesComponent.LIST_PATH, res.nationality.id);
         this.load();
       },
       error: (err) => {
@@ -141,6 +149,7 @@ export class NationalitiesComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${n.nationalityCode} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingId.set(null);
+        this.returnScroll.remember(NationalitiesComponent.LIST_PATH, n.id);
         this.load();
       },
       error: (err) => {

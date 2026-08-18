@@ -63,7 +63,7 @@
   } @else {
     <div class="data-list">
       @for (t of filtered(); track t.id) {
-        <div class="data-card">
+        <div class="data-card" [attr.data-return-id]="t.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <div class="data-card__title">
