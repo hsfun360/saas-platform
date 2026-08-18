@@ -57,6 +57,19 @@ const Setting = sequelize.define('ArSetting', {
     // NULL = the standard order/labels. Hidden columns are simply omitted;
     // widths scale automatically to fill the page.
     statementColumns: { type: DataTypes.JSONB, allowNull: true },
+    // --- Membership integration (2026-08-15) ---
+    // Does the Membership module bill through AR (fee runs + standing charges
+    // post as AR documents, collected after the statement)? ORTHOGONAL to
+    // Club Specification's creditFacilityEnabled (frontend charge-to-account)
+    // - all four combinations are legitimate customer types. Only meaningful
+    // (and only shown) when the company is entitled to Membership Management.
+    membershipIntegration: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    // Designated catalog entries (ar.TransactionType ids): which type the
+    // interest run posts under, and which Credit Note type deposit
+    // conversions post under. Explicit configuration - selection is never
+    // inferred from a category.
+    interestTransactionTypeId: { type: DataTypes.UUID, allowNull: true },
+    depositConversionTransactionTypeId: { type: DataTypes.UUID, allowNull: true },
     // Ownership stamps.
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

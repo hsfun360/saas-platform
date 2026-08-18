@@ -8,7 +8,6 @@
 const { sequelize } = require('../../platform/db');
 const BillingSchedule = require('./billingSchedule.model');
 const BillingScheduleItem = require('./billingScheduleItem.model');
-const TransactionType = require('./transactionType.model');
 const billing = require('./billing.service');
 const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
 const { quoteTax } = require('../../platform/taxGateway');
@@ -151,10 +150,12 @@ exports.post = async (req, res) => {
             if (!item) { results.push({ id, ok: false, message: 'Not found.' }); continue; }
             if (item.status !== 'pending') { results.push({ id, ok: false, message: `Already ${item.status}.` }); continue; }
 
-            const txn = await TransactionType.findOne({ where: { id: item.transactionTypeId, companyId } });
+            // AR-owned catalog through the seam (2026-08-15): the entry must
+            // still be membership-usable at posting time.
+            const txn = await arGateway.getTransactionType(companyId, item.transactionTypeId, { module: 'membership' });
             if (!txn) {
                 item.status = 'failed';
-                item.issue = 'Transaction type not found.';
+                item.issue = 'Transaction type not found (or not opened to Membership).';
                 await item.save();
                 results.push({ id, ok: false, message: item.issue });
                 continue;

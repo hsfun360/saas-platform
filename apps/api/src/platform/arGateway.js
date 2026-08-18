@@ -42,6 +42,43 @@ async function enqueueDebtorProvisioning(payload, transaction) {
     pingOutboxWorker(transaction);
 }
 
+// --- AR-owned Transaction Type catalog (moved from Membership 2026-08-15) --
+// Producer modules and their screens read the catalog through HERE - a module
+// only ever sees entries opened to it (`usableInModules`), and the posting
+// path re-enforces the same rule. `trxClass` narrows to one document book.
+// WHEN SPLIT: GET {internalServiceUrl('ar')}/internal/transaction-types
+async function listTransactionTypes(companyId, { module = null, trxClass = null, activeOnly = true } = {}) {
+    const { Op } = require('sequelize');
+    const TransactionType = require('../modules/ar/transactionType.model');
+    const where = { companyId };
+    if (activeOnly) where.isActive = true;
+    if (trxClass) where.trxClass = trxClass;
+    if (module) where.usableInModules = { [Op.contains]: [module] };
+    const rows = await TransactionType.findAll({
+        where,
+        order: [['transactionType', 'ASC']],
+        attributes: ['id', 'transactionType', 'trxClass', 'description', 'taxSchemeCode', 'isInterestChargeable', 'usableInModules', 'isEInvoice', 'eInvoiceClassificationCode', 'isActive'],
+    });
+    return rows.map((r) => r.toJSON());
+}
+
+async function getTransactionType(companyId, id, { module = null } = {}) {
+    const TransactionType = require('../modules/ar/transactionType.model');
+    const row = await TransactionType.findOne({ where: { companyId, id } });
+    if (!row) return null;
+    if (module && !(Array.isArray(row.usableInModules) && row.usableInModules.includes(module))) return null;
+    return row.toJSON();
+}
+
+// Is Membership billing through AR for this company? (AR Specification's
+// membershipIntegration flag - fee/standing-charge runs check it before
+// generating, and postCharge enforces it for membership-sourced documents.)
+async function isMembershipIntegrationEnabled(companyId) {
+    const Setting = require('../modules/ar/setting.model');
+    const row = await Setting.findOne({ where: { companyId }, attributes: ['membershipIntegration'] });
+    return !!(row && row.membershipIntegration === true);
+}
+
 // ADVISORY credit precheck for producer charges (golf/POS/facility frontend
 // consumption): member standing + credit headroom in one call. Advisory ONLY -
 // the posting transaction re-checks under lock (race-proof), so a stale yes
@@ -79,6 +116,20 @@ async function postCharge(req, {
     if (!debtor) return { error: 'No ledger account exists for this debtor (run debtor provisioning first).' };
     if (debtor.status !== 'active') return { error: `Debtor account is ${debtor.status}.` };
 
+    // Catalog enforcement (2026-08-15): the type must be opened to the
+    // posting module, and membership-sourced documents additionally require
+    // the AR Specification's Membership-integration switch. Enforced HERE at
+    // the seam - picker filtering alone is never the gate.
+    const PRODUCER_MODULES = ['membership', 'golf', 'facility', 'pos'];
+    if (PRODUCER_MODULES.includes(sourceModule)) {
+        const type = await getTransactionType(companyId, transactionTypeId, { module: sourceModule });
+        if (!type) return { error: `The transaction type is not usable by the ${sourceModule} module.` };
+        if (!type.isActive) return { error: `Transaction type '${type.transactionType}' is inactive.` };
+        if (sourceModule === 'membership' && !(await isMembershipIntegrationEnabled(companyId))) {
+            return { error: 'Membership integration is switched off in AR Specification - membership documents cannot post to AR.' };
+        }
+    }
+
     const issueDocNo = async (t) => {
         const issued = await numberingGateway.issueNumber(req, 'ar-invoice', { transaction: t });
         if (issued && issued.number) return issued.number;
@@ -101,4 +152,11 @@ async function postCharge(req, {
     }
 }
 
-module.exports = { enqueueDebtorProvisioning, authorizeCharge, postCharge };
+module.exports = {
+    enqueueDebtorProvisioning,
+    authorizeCharge,
+    postCharge,
+    listTransactionTypes,
+    getTransactionType,
+    isMembershipIntegrationEnabled,
+};

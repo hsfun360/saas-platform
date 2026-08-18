@@ -590,6 +590,9 @@ export interface MembershipFee {
   membershipFeeCode: string;
   description?: string | null;
   taxSchemeCode?: string | null;
+  // The AR catalog entry this fee's invoices post under (AR-owned Transaction
+  // Type master since 2026-08-15; required going forward).
+  transactionTypeId?: string | null;
   amount: number;
   allowInstallment: boolean;
   noOfInstallment?: number | null;
@@ -660,7 +663,6 @@ export interface TransactionTypeMeta {
 // Picker row served to the Membership Type screen's fee/charge dialogs.
 export interface TransactionTypePickerRow {
   transactionType: string;
-  chargeType: string;
   description?: string | null;
   taxSchemeCode?: string | null;
 }

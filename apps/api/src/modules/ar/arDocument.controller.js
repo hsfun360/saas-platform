@@ -171,8 +171,16 @@ exports.getAccountMeta = async (req, res) => {
         // Whether an ar-invoice approval chain is active decides the entry
         // dialog's button label: "Submit for Approval" vs "Submit".
         const workflowGateway = require('../../platform/workflowGateway');
+        const ArTransactionType = require('./transactionType.model');
+        const types = await ArTransactionType.findAll({
+            where: { companyId, isActive: true },
+            order: [['transactionType', 'ASC']],
+            attributes: ['id', 'transactionType', 'trxClass', 'description', 'taxSchemeCode', 'isInterestChargeable'],
+        });
         res.status(200).json({
-            transactionTypes: await membershipGateway.listTransactionTypes(companyId),
+            // The AR-OWNED catalog (2026-08-15) with trxClass, so each entry
+            // dialog offers only its own document book's types.
+            transactionTypes: types.map((t) => t.toJSON()),
             persons: await membershipGateway.listDebtorPersons(companyId, debtor.debtorType, debtor.sourceId),
             numberingModes: modes,
             invoiceApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-invoice'),
@@ -332,8 +340,11 @@ async function readInvoiceDraftFields(req, companyId, debtor) {
     const amountC = parseAmount(req.body.amount);
     if (!amountC) return { error: 'Amount must be greater than zero.' };
 
-    const txnType = await membershipGateway.getTransactionType(companyId, str(req.body.transactionTypeId));
-    if (!txnType) return { error: 'Select a transaction type.' };
+    // AR's own catalog; manual invoices take invoice-class entries only.
+    const ArTransactionType = require('./transactionType.model');
+    const txnType = await ArTransactionType.findOne({ where: { companyId, id: str(req.body.transactionTypeId) || null } });
+    if (!txnType || !txnType.isActive) return { error: 'Select a transaction type.' };
+    if (txnType.trxClass !== 'invoice') return { error: 'This transaction type is not an Invoice-class item.' };
 
     const incurredByMemberId = strOrNull(req.body.incurredByMemberId);
     if (incurredByMemberId) {
@@ -598,8 +609,15 @@ exports.postLedger = async (req, res) => {
         const amountC = parseAmount(req.body.amount);
         if (!amountC) return res.status(400).json({ message: 'Amount must be greater than zero.' });
 
-        const txnType = await membershipGateway.getTransactionType(companyId, str(req.body.transactionTypeId));
-        if (!txnType) return res.status(400).json({ message: 'Select a transaction type.' });
+        // AR's own catalog; DN/CN entry takes its own class's entries (the
+        // catalog starts with invoice-class rows after the migration - create
+        // Debit Note / Credit Note class types on the AR master first).
+        const ArTransactionType = require('./transactionType.model');
+        const txnType = await ArTransactionType.findOne({ where: { companyId, id: str(req.body.transactionTypeId) || null } });
+        if (!txnType || !txnType.isActive) return res.status(400).json({ message: 'Select a transaction type.' });
+        if (txnType.trxClass !== kind.key) {
+            return res.status(400).json({ message: `This transaction type is not a ${kind.label}-class item.` });
+        }
 
         // incurredBy must be a person of THIS debtor.
         const incurredByMemberId = strOrNull(req.body.incurredByMemberId);
@@ -836,7 +854,7 @@ exports.convertDeposit = async (req, res) => {
         const amountC = parseAmount(req.body.amount);
         if (!amountC) return res.status(400).json({ message: 'Amount must be greater than zero.' });
 
-        const conversionType = await membershipGateway.ensureDepositConversionType(companyId);
+        const conversionType = await require('./catalogDefaults').depositConversionType(companyId);
         const placement = await getCallerPlacement(req);
         const stamps = ownershipStamps(req, placement);
 

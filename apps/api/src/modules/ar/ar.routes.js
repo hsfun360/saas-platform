@@ -73,6 +73,17 @@ router.patch('/invoices/:id', requireMenuAction('/ar/invoices'), documentControl
 router.post('/invoices/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.submitInvoice);
 router.patch('/invoices/:id/void', requireMenuAction('/ar/invoices'), documentController.voidInvoice);
 
+// --- Transaction Type master (AR-owned catalog since 2026-08-15; its own
+// screen/menu '/ar/transaction-types'). Membership reads it READ-ONLY through
+// arGateway - never these write endpoints.
+const transactionTypeController = require('./transactionType.controller');
+router.get('/transaction-types/meta', requireMenuAction('/ar/transaction-types'), transactionTypeController.getMeta);
+router.get('/transaction-types/tax-schemes', requireMenuAction('/ar/transaction-types'), transactionTypeController.getTaxSchemes);
+router.get('/transaction-types', requireMenuAction('/ar/transaction-types'), transactionTypeController.list);
+router.post('/transaction-types', requireMenuAction('/ar/transaction-types'), transactionTypeController.create);
+router.put('/transaction-types/:id', requireMenuAction('/ar/transaction-types'), transactionTypeController.update);
+router.patch('/transaction-types/:id', requireMenuAction('/ar/transaction-types'), transactionTypeController.setActive);
+
 // --- Numbering Control (AR-owned document series; split per module 2026-08-05) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');
 router.use(

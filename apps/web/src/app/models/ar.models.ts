@@ -49,13 +49,37 @@ export interface ArPerson {
   name: string;
 }
 
+export type ArTrxClass = 'invoice' | 'debit-note' | 'credit-note' | 'interest' | 'deposit' | 'receipt' | 'forex';
+
 export interface ArTransactionType {
   id: string;
   transactionType: string;
-  chargeType: string;
+  trxClass: ArTrxClass;
   description: string | null;
   taxSchemeCode: string | null;
   isInterestChargeable: boolean;
+}
+
+// The AR-owned Transaction Type master (moved from Membership 2026-08-15).
+export interface ArTransactionTypeRow {
+  id: string;
+  canModify?: boolean;
+  transactionType: string;
+  trxClass: ArTrxClass;
+  description: string | null;
+  taxSchemeCode: string | null;
+  isInterestChargeable: boolean;
+  usableInModules: string[];
+  isEInvoice: boolean;
+  eInvoiceClassificationCode: string | null;
+  isActive: boolean;
+}
+
+export interface ArTransactionTypeMeta {
+  trxClasses: ArOption[];
+  // Only modules the company is ENTITLED to (AR-only subscribers get none).
+  modules: ArOption[];
+  eInvoiceClassifications: { code: string; description: string | null }[];
 }
 
 export interface ArLedgerDoc {
@@ -277,6 +301,18 @@ export interface ArSetting {
   // Lines-table column layout: ordered VISIBLE columns (hidden = omitted);
   // null = the standard order/labels.
   statementColumns: ArStatementColumn[] | null;
+  // Membership integration (2026-08-15): membership bills through AR when on.
+  membershipIntegration: boolean;
+  interestTransactionTypeId: string | null;
+  depositConversionTransactionTypeId: string | null;
+}
+
+// GET /ar/settings response wrapper (entitlement + designated-type options).
+export interface ArSettingResponse {
+  setting: ArSetting;
+  membershipModuleEntitled: boolean;
+  interestTypeOptions: { id: string; transactionType: string; description: string | null }[];
+  depositConversionTypeOptions: { id: string; transactionType: string; description: string | null }[];
 }
 
 export interface ArStatementRun {

@@ -74,6 +74,35 @@ function requireModule(moduleName) {
     };
 }
 
+// Non-middleware form of the requireModule entitlement lookup. Screens use it
+// to trim cross-module controls (e.g. AR hides its Membership-integration
+// settings and module-usability flags for subscribers without that module);
+// the write endpoints re-check it server-side - hiding is never the gate.
+async function companyHasModule(companyId, moduleName) {
+    if (!companyId) return false;
+    const Module = require('../modules/saas/module.model');
+    const CompanyModule = require('../modules/saas/companyModule.model');
+    const mod = await Module.findOne({ where: { name: moduleName, audience: 'tenant' }, attributes: ['id'] });
+    if (!mod) return false;
+    return !!(await CompanyModule.findOne({ where: { companyId, moduleId: mod.id }, attributes: ['companyId'] }));
+}
+
+// Control-Plane e-Invoice reference read: is `code` a valid LHDN
+// classification code? (AR transaction types carry one when e-Invoice
+// relevant; the list itself is maintained on /admin/e-invoice-classifications.)
+async function eInvoiceClassificationCodeExists(code) {
+    if (!code) return false;
+    const EInvoiceClassificationCode = require('../modules/saas/eInvoiceClassificationCode.model');
+    return !!(await EInvoiceClassificationCode.findOne({ where: { code }, attributes: ['code'] }));
+}
+
+// The full LHDN classification list for pickers (code + description).
+async function listEInvoiceClassificationCodes() {
+    const EInvoiceClassificationCode = require('../modules/saas/eInvoiceClassificationCode.model');
+    const rows = await EInvoiceClassificationCode.findAll({ order: [['code', 'ASC']], attributes: ['code', 'description'] });
+    return rows.map((r) => ({ code: r.code, description: r.description }));
+}
+
 // --- WHAT they may DO on a screen (RBAC: role -> menu -> action) -----------
 // Express middleware: the caller's role in the active company must hold a grant
 // to the screen (Menu.route = `menuRoute`) that allows the action implied by the
@@ -619,6 +648,9 @@ module.exports = {
     getActiveCompany,
     getCompanyProfile,
     getCompanyLetterhead,
+    companyHasModule,
+    eInvoiceClassificationCodeExists,
+    listEInvoiceClassificationCodes,
     requireModule,
     requireMenuAction,
     requireAnyMenuAction,

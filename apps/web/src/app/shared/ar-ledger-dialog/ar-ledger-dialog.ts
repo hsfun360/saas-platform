@@ -62,6 +62,10 @@ export class ArLedgerDialogComponent implements OnInit {
 
   readonly activeDebtor = computed(() => this.debtor() || this.pickedDebtor());
   readonly effMeta = computed(() => this.meta() || this.selfMeta());
+  // The catalog is AR-owned with per-document classes (2026-08-15): each
+  // entry dialog offers only its own class's types.
+  readonly classTypes = computed(() =>
+    (this.effMeta()?.transactionTypes || []).filter((t) => t.trxClass === this.kind()));
   // Invoices follow the Save (draft) -> Submit lifecycle; DN/CN still post
   // immediately until their slices adopt it.
   readonly isLifecycle = computed(() => this.kind() === 'invoice');

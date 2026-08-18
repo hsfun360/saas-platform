@@ -68,7 +68,7 @@
               <select id="ldTxn" formControlName="transactionTypeId"
                       [attr.aria-invalid]="showError(form.controls.transactionTypeId)" aria-describedby="ldTxnErr">
                 <option value="" disabled>Select a billing item…</option>
-                @for (tt of effMeta()?.transactionTypes; track tt.id) {
+                @for (tt of classTypes(); track tt.id) {
                   <option [value]="tt.id">{{ tt.transactionType }}@if (tt.description) { — {{ tt.description }}}</option>
                 }
               </select>

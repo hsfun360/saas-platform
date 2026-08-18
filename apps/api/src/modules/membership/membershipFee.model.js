@@ -34,6 +34,16 @@ const MembershipFee = sequelize.define('MembershipFee', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    // The AR catalog entry this fee's invoices post under (2026-08-15: the
+    // Transaction Type master moved to AR; selection is EXPLICIT per fee, no
+    // longer inferred from a charge category). Plain UUID value reference into
+    // ar.TransactionType, validated through arGateway (membership-usable,
+    // Invoice class). NULL rows fail fee-run generation with a clear per-item
+    // error until set.
+    transactionTypeId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
     // Fee amount. For an installment fee this is the total the stages must sum to.
     // numeric(21,2) is the platform-wide standard for money columns.
     amount: {

@@ -31,6 +31,7 @@ function toFeeDto(fee, canModify = true) {
         membershipFeeCode: fee.membershipFeeCode,
         description: fee.description,
         taxSchemeCode: fee.taxSchemeCode,
+        transactionTypeId: fee.transactionTypeId,
         amount: Number(fee.amount),
         allowInstallment: fee.allowInstallment,
         noOfInstallment: fee.noOfInstallment,
@@ -89,12 +90,49 @@ function validateFeePayload(body) {
         stages.sort((a, b) => a.stageNo - b.stageNo);
     }
 
-    return { value: { membershipFeeCode, description, taxSchemeCode, amount, allowInstallment, noOfInstallment, installmentInterval, stages } };
+    // The AR catalog entry this fee's invoices post under (required going
+    // forward; existing rows may still be null until edited).
+    const transactionTypeId = typeof body.transactionTypeId === 'string' && body.transactionTypeId.trim()
+        ? body.transactionTypeId.trim() : null;
+
+    return { value: { membershipFeeCode, description, taxSchemeCode, transactionTypeId, amount, allowInstallment, noOfInstallment, installmentInterval, stages } };
+}
+
+// The picked AR catalog entry must be membership-usable + Invoice class.
+async function validateFeeTransactionType(companyId, transactionTypeId) {
+    if (!transactionTypeId) return 'Select the AR transaction type this fee posts under.';
+    const arGateway = require('../../platform/arGateway');
+    const t = await arGateway.getTransactionType(companyId, transactionTypeId, { module: 'membership' });
+    if (!t || !t.isActive || t.trxClass !== 'invoice') {
+        return 'The transaction type must be an active Invoice-class entry opened to Membership (AR → Transaction Type master).';
+    }
+    return null;
 }
 
 // GET /api/membership/fees/meta - installment interval options for the dropdown.
 exports.getMeta = async (req, res) => {
     res.status(200).json({ intervals: INSTALLMENT_INTERVALS });
+};
+
+// GET /api/membership/fees/transaction-types - the AR catalog entries a fee
+// may post under (membership-usable, Invoice class; catalog moved to AR
+// 2026-08-15). Served here so the Fees screen needs no grant on the AR menu.
+exports.getTransactionTypes = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const arGateway = require('../../platform/arGateway');
+        const rows = await arGateway.listTransactionTypes(companyId, { module: 'membership', trxClass: 'invoice' });
+        res.status(200).json(rows.map((t) => ({
+            id: t.id,
+            transactionType: t.transactionType,
+            description: t.description,
+            taxSchemeCode: t.taxSchemeCode,
+        })));
+    } catch (error) {
+        console.error('Error listing transaction types for membership fees:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 };
 
 // GET /api/membership/fees/tax-schemes - the active company's available tax
@@ -151,6 +189,9 @@ exports.createFee = async (req, res) => {
         const existing = await MembershipFee.findOne({ where: { companyId, membershipFeeCode: v.membershipFeeCode } });
         if (existing) return res.status(409).json({ message: `Membership fee '${v.membershipFeeCode}' already exists.` });
 
+        const txnErr = await validateFeeTransactionType(companyId, v.transactionTypeId);
+        if (txnErr) return res.status(400).json({ message: txnErr });
+
         // Ownership stamps: creator + their department at creation (data scope).
         const placement = await getCallerPlacement(req);
         const callerId = getUserContext(req).userId;
@@ -160,6 +201,7 @@ exports.createFee = async (req, res) => {
                 membershipFeeCode: v.membershipFeeCode,
                 description: v.description,
                 taxSchemeCode: v.taxSchemeCode,
+                transactionTypeId: v.transactionTypeId,
                 amount: v.amount,
                 allowInstallment: v.allowInstallment,
                 noOfInstallment: v.noOfInstallment,
@@ -213,6 +255,9 @@ exports.updateFee = async (req, res) => {
             if (clash) return res.status(409).json({ message: `Membership fee '${v.membershipFeeCode}' already exists.` });
         }
 
+        const txnErr = await validateFeeTransactionType(companyId, v.transactionTypeId);
+        if (txnErr) return res.status(400).json({ message: txnErr });
+
         // Preserve each stage's posted flag by stage number when rebuilding.
         const postedByStage = new Map((fee.Stages || []).map((s) => [s.stageNo, s.isPosted]));
 
@@ -220,6 +265,7 @@ exports.updateFee = async (req, res) => {
             fee.membershipFeeCode = v.membershipFeeCode;
             fee.description = v.description;
             fee.taxSchemeCode = v.taxSchemeCode;
+            fee.transactionTypeId = v.transactionTypeId;
             fee.amount = v.amount;
             fee.allowInstallment = v.allowInstallment;
             fee.noOfInstallment = v.noOfInstallment;

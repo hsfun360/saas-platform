@@ -128,8 +128,38 @@ async function saveSetting(companyId, payload, stamps) {
         });
     }
 
+    // Membership integration (2026-08-15): only saveable when the company is
+    // entitled to Membership Management - hiding the card is never the gate.
+    let membershipIntegration = null; // null = leave unchanged
+    if (payload.membershipIntegration !== undefined) {
+        const { companyHasModule } = require('../../platform/serviceContext');
+        if (!(await companyHasModule(companyId, 'Membership Management'))) {
+            if (payload.membershipIntegration === true) {
+                throw badRequest('Your workspace is not subscribed to Membership Management.');
+            }
+            membershipIntegration = false;
+        } else {
+            membershipIntegration = payload.membershipIntegration === true;
+        }
+    }
+    // Designated catalog entries for AR-generated documents: class-checked.
+    const TransactionType = require('./transactionType.model');
+    async function designated(id, klass, label) {
+        if (id === undefined) return undefined; // leave unchanged
+        if (id === null || id === '') return null;
+        const t = await TransactionType.findOne({ where: { companyId, id } });
+        if (!t || !t.isActive) throw badRequest(`Select an active ${label} transaction type.`);
+        if (t.trxClass !== klass) throw badRequest(`The ${label} type must be a ${klass.replace('-', ' ')}-class entry.`);
+        return t.id;
+    }
+    const interestTypeId = await designated(payload.interestTransactionTypeId, 'interest', 'Interest');
+    const depConvTypeId = await designated(payload.depositConversionTransactionTypeId, 'credit-note', 'Deposit-conversion');
+
     const row = await getSetting(companyId);
     row.statementCutoffDay = cutoff;
+    if (membershipIntegration !== null) row.membershipIntegration = membershipIntegration;
+    if (interestTypeId !== undefined) row.interestTransactionTypeId = interestTypeId;
+    if (depConvTypeId !== undefined) row.depositConversionTransactionTypeId = depConvTypeId;
     [row.aging1, row.aging2, row.aging3, row.aging4, row.aging5, row.aging6] = agings;
     row.statementShowLogo = payload.statementShowLogo !== false;
     row.statementBrandColor = brandColor;

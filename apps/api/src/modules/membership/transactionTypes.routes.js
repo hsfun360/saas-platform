@@ -1,15 +1,17 @@
-// Transaction Type master file. Mounted at /api/membership/transaction-types
-// behind verifyToken + requireModule + requireMenuAction('/membership/transaction-types').
+// Transaction Type - READ-ONLY membership view (the catalog moved to AR
+// 2026-08-15; writes live on /api/ar/transaction-types). Mounted at
+// /api/membership/transaction-types behind verifyToken + requireModule +
+// requireMenuAction('/membership/transaction-types').
 
 const express = require('express');
 const router = express.Router();
 const controller = require('./transactionType.controller');
 
-router.get('/meta', controller.getMeta);
-router.get('/tax-schemes', controller.getTaxSchemes);
 router.get('/', controller.list);
-router.post('/', controller.create);
-router.put('/:id', controller.update);
-router.patch('/:id', controller.setActive);
+
+// The old write endpoints are permanently gone - point callers at the AR master.
+router.use((req, res) => res.status(410).json({
+    message: 'The Transaction Type master moved to Account Receivable (/ar/transaction-types).',
+}));
 
 module.exports = router;

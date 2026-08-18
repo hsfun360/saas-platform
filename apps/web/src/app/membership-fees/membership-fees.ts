@@ -45,6 +45,7 @@ export class MembershipFeesComponent implements OnInit {
   readonly fees = signal<MembershipFee[]>([]);
   readonly intervals = signal<MembershipStatusOption[]>([]);
   readonly taxSchemes = signal<TaxSchemeRef[]>([]);
+  readonly typeOptions = signal<{ id: string; transactionType: string; description: string | null; taxSchemeCode: string | null }[]>([]);
   readonly countrySet = signal(true);
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);
@@ -60,6 +61,9 @@ export class MembershipFeesComponent implements OnInit {
   readonly form = this.fb.nonNullable.group({
     membershipFeeCode: ['', [Validators.required, Validators.maxLength(50)]],
     description: ['', [Validators.maxLength(200)]],
+    // The AR catalog entry this fee's invoices post under (catalog moved to
+    // AR 2026-08-15; required going forward).
+    transactionTypeId: ['', [Validators.required]],
     taxSchemeCode: [''],
     amount: [0, [Validators.required, Validators.min(0)]],
     allowInstallment: [false],
@@ -120,6 +124,7 @@ export class MembershipFeesComponent implements OnInit {
   ngOnInit(): void {
     this.loadMeta();
     this.loadTaxSchemes();
+    this.loadTransactionTypes();
     this.load();
   }
 
@@ -164,6 +169,13 @@ export class MembershipFeesComponent implements OnInit {
     });
   }
 
+  loadTransactionTypes(): void {
+    this.service.transactionTypes().subscribe({
+      next: (rows) => this.typeOptions.set(rows),
+      error: () => {},
+    });
+  }
+
   loadTaxSchemes(): void {
     this.service.taxSchemes().subscribe({
       next: (r) => {
@@ -196,6 +208,7 @@ export class MembershipFeesComponent implements OnInit {
     this.form.reset({
       membershipFeeCode: '',
       description: '',
+      transactionTypeId: '',
       taxSchemeCode: '',
       amount: 0,
       allowInstallment: false,
@@ -212,6 +225,7 @@ export class MembershipFeesComponent implements OnInit {
     this.form.reset({
       membershipFeeCode: fee.membershipFeeCode,
       description: fee.description || '',
+      transactionTypeId: fee.transactionTypeId || '',
       taxSchemeCode: fee.taxSchemeCode || '',
       amount: Number(fee.amount ?? 0),
       allowInstallment: !!fee.allowInstallment,
@@ -265,6 +279,7 @@ export class MembershipFeesComponent implements OnInit {
     const payload: Partial<MembershipFee> = {
       membershipFeeCode: v.membershipFeeCode.trim(),
       description: v.description.trim() || null,
+      transactionTypeId: v.transactionTypeId || null,
       taxSchemeCode: v.taxSchemeCode || null,
       amount,
       allowInstallment: v.allowInstallment,

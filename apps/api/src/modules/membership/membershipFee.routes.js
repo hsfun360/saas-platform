@@ -6,6 +6,7 @@ const controller = require('./membershipFee.controller');
 // (requireModule('Membership Management')) are applied by the parent router.
 router.get('/meta', controller.getMeta);
 router.get('/tax-schemes', controller.getTaxSchemes);
+router.get('/transaction-types', controller.getTransactionTypes);
 router.get('/', controller.listFees);
 router.post('/', controller.createFee);
 router.put('/:id', controller.updateFee);

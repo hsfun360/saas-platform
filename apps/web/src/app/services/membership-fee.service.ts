@@ -21,6 +21,12 @@ export class MembershipFeeService {
     return this.http.get<{ schemes: TaxSchemeRef[]; countrySet: boolean }>(`${this.base}/tax-schemes`);
   }
 
+  // The AR catalog entries a fee may post under (membership-usable, Invoice
+  // class; the Transaction Type master moved to AR 2026-08-15).
+  transactionTypes(): Observable<{ id: string; transactionType: string; description: string | null; taxSchemeCode: string | null }[]> {
+    return this.http.get<{ id: string; transactionType: string; description: string | null; taxSchemeCode: string | null }[]>(`${this.base}/transaction-types`);
+  }
+
   list(): Observable<MembershipFee[]> {
     return this.http.get<MembershipFee[]>(this.base);
   }

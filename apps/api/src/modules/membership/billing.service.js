@@ -31,7 +31,6 @@ const MembershipStatus = require('./membershipStatus.model');
 const MembershipFee = require('./membershipFee.model');
 const MembershipType = require('./membershipType.model');
 const MembershipTypeStandingCharge = require('./membershipTypeStandingCharge.model');
-const TransactionType = require('./transactionType.model');
 const BillingSchedule = require('./billingSchedule.model');
 const BillingScheduleItem = require('./billingScheduleItem.model');
 
@@ -58,6 +57,14 @@ function chargeAppliesInMonth(charge, billMonth, anniversaryMonth) {
 
 // Generate one schedule + its items. Returns { schedule, generated, warnings }.
 async function generateSchedule({ companyId, billingType, periodMonth, docDate, trxDate, stamps }) {
+    // Membership bills through AR only when AR Specification says so
+    // (2026-08-15). Clubs without the integration collect fees at the front
+    // desk - the run refuses early with the reason, never half-generates.
+    const arGateway = require('../../platform/arGateway');
+    if (!(await arGateway.isMembershipIntegrationEnabled(companyId))) {
+        throw bizError(400, 'Membership integration is switched off in AR Specification - fee and standing-charge runs cannot post to AR.');
+    }
+
     const existing = await BillingSchedule.findOne({
         where: { companyId, billingType, periodMonth, status: { [Op.ne]: 'cancelled' } },
         attributes: ['id', 'status'],
@@ -78,12 +85,9 @@ async function generateSchedule({ companyId, billingType, periodMonth, docDate, 
     const items = [];
 
     if (billingType === 'membership-fee') {
-        // The billing item every membership-fee Invoice posts under.
-        const feeTxnType = await TransactionType.findOne({
-            where: { companyId, chargeType: 'membership-fee', isActive: true },
-            order: [['transactionType', 'ASC']],
-        });
-        if (!feeTxnType) throw bizError(400, 'Create an active membership-fee Transaction Type first.');
+        // 2026-08-15: each fee master row names its AR catalog entry
+        // explicitly (MembershipFee.transactionTypeId) - resolved per fee
+        // below; a fee without one becomes a per-item error, never a guess.
 
         const fees = await MembershipFee.findAll({ where: { companyId } });
         const feeById = new Map(fees.map((f) => [f.id, f]));
@@ -100,6 +104,10 @@ async function generateSchedule({ companyId, billingType, periodMonth, docDate, 
             const fee = feeById.get(ms.membershipFeeId);
             if (!fee || fee.isActive === false) { warnings.push(`${ms.membershipNo}: membership fee not found or disabled`); continue; }
             if (cents(fee.amount) <= 0) continue;
+            if (!fee.transactionTypeId) {
+                warnings.push(`${ms.membershipNo}: fee '${fee.membershipFeeCode}' has no AR transaction type set (Membership Fee master)`);
+                continue;
+            }
 
             items.push({
                 companyId,
@@ -108,7 +116,7 @@ async function generateSchedule({ companyId, billingType, periodMonth, docDate, 
                 incurredByMemberId: ms.membershipClass === 'individual'
                     ? (individualByMembership.get(ms.id) || null) : null,
                 debtorTarget: 'membership',
-                transactionTypeId: feeTxnType.id,
+                transactionTypeId: fee.transactionTypeId,
                 description: `${fee.membershipFeeCode} - Membership fee ${label} (${ms.membershipNo})`,
                 amount: money(cents(fee.amount)),
                 status: 'pending',
@@ -127,7 +135,9 @@ async function generateSchedule({ companyId, billingType, periodMonth, docDate, 
             if (!chargesByTypeStatus.has(key)) chargesByTypeStatus.set(key, []);
             chargesByTypeStatus.get(key).push(c);
         }
-        const txnTypes = await TransactionType.findAll({ where: { companyId } });
+        // The AR-owned catalog through the seam: membership-usable entries only.
+        const arGateway = require('../../platform/arGateway');
+        const txnTypes = await arGateway.listTransactionTypes(companyId, { module: 'membership' });
         const txnByCode = new Map(txnTypes.map((t) => [t.transactionType, t]));
         const membershipById = new Map(memberships.map((m) => [m.id, m]));
         const members = await Member.findAll({ where: { companyId, memberKind: { [Op.in]: ['individual', 'nominee'] } } });

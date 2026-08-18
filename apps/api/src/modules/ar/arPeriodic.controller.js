@@ -235,7 +235,7 @@ exports.confirm = async (req, res) => {
         const ids = Array.isArray(req.body.ids) ? req.body.ids.filter((x) => typeof x === 'string') : [];
         if (!ids.length) return res.status(400).json({ message: 'Select at least one generation to confirm.' });
 
-        const interestType = await membershipGateway.ensureInterestType(companyId);
+        const interestType = await require('./catalogDefaults').interestType(companyId);
         const placement = await getCallerPlacement(req);
         const stamps = ownershipStamps(req, placement);
 
@@ -289,6 +289,9 @@ function settingJson(row) {
         statementShowGeneratedNote: row.statementShowGeneratedNote,
         statementFooterText: row.statementFooterText,
         statementColumns: row.statementColumns,
+        membershipIntegration: row.membershipIntegration === true,
+        interestTransactionTypeId: row.interestTransactionTypeId,
+        depositConversionTransactionTypeId: row.depositConversionTransactionTypeId,
     };
 }
 
@@ -298,7 +301,20 @@ exports.getArSetting = async (req, res) => {
         const { companyId } = getUserContext(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await arStatement.getSetting(companyId);
-        res.status(200).json({ setting: settingJson(row) });
+        // Entitlement trims the Membership-integration card for AR-only
+        // subscribers; the designated-type pickers get their class options.
+        const { companyHasModule } = require('../../platform/serviceContext');
+        const ArTransactionType = require('./transactionType.model');
+        const [interestOptions, cnOptions] = await Promise.all([
+            ArTransactionType.findAll({ where: { companyId, trxClass: 'interest', isActive: true }, order: [['transactionType', 'ASC']], attributes: ['id', 'transactionType', 'description'] }),
+            ArTransactionType.findAll({ where: { companyId, trxClass: 'credit-note', isActive: true }, order: [['transactionType', 'ASC']], attributes: ['id', 'transactionType', 'description'] }),
+        ]);
+        res.status(200).json({
+            setting: settingJson(row),
+            membershipModuleEntitled: await companyHasModule(companyId, 'Membership Management'),
+            interestTypeOptions: interestOptions.map((t) => t.toJSON()),
+            depositConversionTypeOptions: cnOptions.map((t) => t.toJSON()),
+        });
     } catch (err) {
         console.error('Error loading AR setting:', err);
         res.status(500).json({ message: 'Internal server error' });

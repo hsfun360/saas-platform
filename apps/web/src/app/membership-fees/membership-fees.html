@@ -151,6 +151,23 @@
 
         <div class="form-row">
           <div class="form-group">
+            <label for="fTxnType">AR transaction type <span class="required">*</span></label>
+            <select id="fTxnType" formControlName="transactionTypeId"
+                    [attr.aria-invalid]="showError(form.controls.transactionTypeId)" aria-describedby="fTxnTypeErr">
+              <option value="">— Select —</option>
+              @for (t of typeOptions(); track t.id) {
+                <option [value]="t.id">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
+              }
+            </select>
+            @if (showError(form.controls.transactionTypeId)) {
+              <p id="fTxnTypeErr" class="field-error" role="alert">Select the AR transaction type this fee posts under.</p>
+            }
+            <span class="mf-hint">The catalog entry this fee's invoices post under (maintained on AR → Transaction Type; must be Invoice-class and opened to Membership).</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
             <label for="fDesc">Description</label>
             <textarea id="fDesc" formControlName="description" rows="2" wrap="off" placeholder="Optional summary" maxlength="200"
                       [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="fDescErr"></textarea>

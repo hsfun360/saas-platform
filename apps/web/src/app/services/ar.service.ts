@@ -13,7 +13,10 @@ import {
   ArInterestGeneration,
   ArOtherDebtor,
   ArSetting,
+  ArSettingResponse,
   ArStatementCategory,
+  ArTransactionTypeMeta,
+  ArTransactionTypeRow,
   ArStatementDetail,
   ArStatementRun,
   ArStatementRunPreview,
@@ -192,12 +195,38 @@ export class ArService {
 
   // --- AR settings + statement generation (its own screen) ---
 
-  getArSetting(): Observable<{ setting: ArSetting }> {
-    return this.http.get<{ setting: ArSetting }>(`${this.base}/settings`);
+  getArSetting(): Observable<ArSettingResponse> {
+    return this.http.get<ArSettingResponse>(`${this.base}/settings`);
   }
 
-  saveArSetting(setting: ArSetting): Observable<{ message: string; setting: ArSetting }> {
+  saveArSetting(setting: Partial<ArSetting>): Observable<{ message: string; setting: ArSetting }> {
     return this.http.put<{ message: string; setting: ArSetting }>(`${this.base}/settings`, setting);
+  }
+
+  // --- Transaction Type master (AR-owned catalog since 2026-08-15) ---
+
+  transactionTypeMeta(): Observable<ArTransactionTypeMeta> {
+    return this.http.get<ArTransactionTypeMeta>(`${this.base}/transaction-types/meta`);
+  }
+
+  transactionTypeTaxSchemes(): Observable<{ schemes: { taxSchemeCode: string; name: string | null }[]; countrySet: boolean }> {
+    return this.http.get<{ schemes: { taxSchemeCode: string; name: string | null }[]; countrySet: boolean }>(`${this.base}/transaction-types/tax-schemes`);
+  }
+
+  listTransactionTypes(): Observable<ArTransactionTypeRow[]> {
+    return this.http.get<ArTransactionTypeRow[]>(`${this.base}/transaction-types`);
+  }
+
+  createTransactionType(payload: Record<string, unknown>): Observable<{ message: string; transactionType: ArTransactionTypeRow }> {
+    return this.http.post<{ message: string; transactionType: ArTransactionTypeRow }>(`${this.base}/transaction-types`, payload);
+  }
+
+  updateTransactionType(id: string, payload: Record<string, unknown>): Observable<{ message: string; transactionType: ArTransactionTypeRow }> {
+    return this.http.put<{ message: string; transactionType: ArTransactionTypeRow }>(`${this.base}/transaction-types/${id}`, payload);
+  }
+
+  setTransactionTypeActive(id: string, isActive: boolean): Observable<{ message: string; transactionType: ArTransactionTypeRow }> {
+    return this.http.patch<{ message: string; transactionType: ArTransactionTypeRow }>(`${this.base}/transaction-types/${id}`, { isActive });
   }
 
   // The SAVED layout options rendered on a dummy statement (screen preview).

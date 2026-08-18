@@ -1,0 +1,221 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">receipt_long</span>
+      <div>
+        <h1>{{ 'Transaction Type' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The AR billing and receipting catalog — each entry belongs to a document class, carries the tax scheme, and can be opened to producer modules.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (rows().length > 0) {
+        {{ rows().length }} transaction types, {{ activeCount() }} active
+      } @else {
+        No transaction types yet — use "New transaction type" to add one.
+      }
+    </span>
+  </div>
+
+  <!-- Live filter -->
+  @if (!loading() && rows().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #ttSearchBox type="search" [value]="search()" (input)="search.set(ttSearchBox.value)"
+             placeholder="Search transaction types…" aria-label="Search transaction types" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading transaction types…</p></div>
+  } @else if (rows().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No transaction types yet. Use "New transaction type" to add one (e.g. OTH — Miscellaneous Fee under Invoice, CASH — Cash under Receipt).</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No transaction types match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (t of filtered(); track t.id) {
+        <div class="data-card">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ t.transactionType }}</div>
+              <div class="data-card__subline">
+                <span class="mt-chip">{{ trxClassLabel(t.trxClass) }}</span>
+                @for (m of t.usableInModules; track m) {
+                  <span class="mt-chip">{{ moduleLabel(m) }}</span>
+                }
+                @if (t.isEInvoice) { <span class="mt-chip">e-Invoice {{ t.eInvoiceClassificationCode }}</span> }
+                @if (t.description) { <span class="data-card__reg">{{ t.description }}</span> }
+              </div>
+              @if (t.taxSchemeCode) {
+                <dl class="data-card__meta">
+                  <div class="meta"><dt>Tax scheme</dt><dd>{{ taxSchemeName(t.taxSchemeCode) }}</dd></div>
+                </dl>
+              }
+            </div>
+            <div class="data-row__badge">
+              @if (t.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              @if (t.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">Edit</button>
+                @if (t.isActive === false) {
+                  <button *appCan="'edit'" type="button" class="btn btn--success btn--sm" (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                    {{ togglingId() === t.id ? 'Saving…' : 'Enable' }}
+                  </button>
+                } @else {
+                  <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                    {{ togglingId() === t.id ? 'Saving…' : 'Disable' }}
+                  </button>
+                }
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New transaction type FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New transaction type">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New transaction type</span>
+  </button>
+
+  <!-- ============ Add / edit dialog ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this transaction type. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="attForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="attCode">Transaction Type <span class="required">*</span></label>
+            <input id="attCode" type="text" formControlName="transactionType" placeholder="e.g. OTH" autocomplete="off" maxlength="50"
+                   [attr.aria-invalid]="showError(form.controls.transactionType)" aria-describedby="attCodeErr" />
+            @if (showError(form.controls.transactionType)) {
+              <p id="attCodeErr" class="field-error" role="alert">
+                @if (form.controls.transactionType.errors?.['required']) { Transaction type is required. }
+                @else { Use 50 characters or fewer. }
+              </p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="attClass">Transaction Class <span class="required">*</span></label>
+            <select id="attClass" formControlName="trxClass"
+                    [attr.aria-invalid]="showError(form.controls.trxClass)" aria-describedby="attClassErr">
+              <option value="">— Select —</option>
+              @for (c of trxClasses(); track c.key) {
+                <option [value]="c.key">{{ c.label }}</option>
+              }
+            </select>
+            @if (showError(form.controls.trxClass)) {
+              <p id="attClassErr" class="field-error" role="alert">Select the transaction class.</p>
+            }
+            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Which document's entry screen may use this item — Receipt covers debtor payments and refund methods.</p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="attDesc">Description</label>
+            <input id="attDesc" type="text" formControlName="description" placeholder="e.g. Miscellaneous Fee" maxlength="255" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="attTax">Tax Scheme</label>
+            <select id="attTax" formControlName="taxSchemeCode">
+              <option value="">— None —</option>
+              @for (s of taxSchemes(); track s.taxSchemeCode) {
+                <option [value]="s.taxSchemeCode">{{ s.taxSchemeCode }}@if (s.name) { — {{ s.name }}}</option>
+              }
+            </select>
+            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The single source of tax for this item — every consumer inherits it.</p>
+          </div>
+        </div>
+        @if (modules().length > 0) {
+          <div class="form-row">
+            <div class="form-group">
+              <span style="font-weight: var(--weight-semibold);">Usable by modules</span>
+              @for (m of modules(); track m.key) {
+                <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
+                  <input type="checkbox" [checked]="isModuleSelected(m.key)" (change)="toggleModule(m.key)"
+                         style="width: 18px; height: 18px; accent-color: var(--brand);" />
+                  {{ m.label }}
+                </label>
+              }
+              <p class="cell-subtle" style="margin: 0;">Which producer modules may post with this entry (e.g. Membership fee runs). Unticked everywhere = AR-only.</p>
+            </div>
+          </div>
+        }
+        <div class="form-row">
+          <div class="form-group">
+            <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
+              <input type="checkbox" formControlName="isInterestChargeable" style="width: 18px; height: 18px; accent-color: var(--brand);" />
+              Charge late-payment interest on overdue items
+            </label>
+            <p class="cell-subtle" style="margin: 0;">The AR interest run only considers overdue documents of interest-chargeable billing items.</p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
+              <input type="checkbox" formControlName="isEInvoice" style="width: 18px; height: 18px; accent-color: var(--brand);" />
+              e-Invoice relevant (LHDN MyInvois)
+            </label>
+            @if (form.controls.isEInvoice.value) {
+              <label for="attEinv">Classification code <span class="required">*</span></label>
+              <select id="attEinv" formControlName="eInvoiceClassificationCode">
+                <option value="">— Select —</option>
+                @for (c of meta()?.eInvoiceClassifications; track c.code) {
+                  <option [value]="c.code">{{ c.code }}@if (c.description) { — {{ c.description }}}</option>
+                }
+              </select>
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Snapshotted onto document lines for the e-Invoice submission. Maintain the list under e-Invoice Classifications.</p>
+            }
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="attForm" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

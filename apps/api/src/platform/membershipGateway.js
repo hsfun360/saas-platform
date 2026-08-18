@@ -120,44 +120,21 @@ async function searchPartyIds(companyId, q, { limit = 200 } = {}) {
     return { membershipIds: [...membershipIds], memberIds };
 }
 
-// --- Billing-item catalog reads (AR document entry) -----------------------
-// The membership Transaction Type catalog is the SINGLE tax source for AR
-// documents; AR reads it through this seam and snapshots tax at posting.
+// --- Membership references into the AR-owned catalog ----------------------
+// The Transaction Type catalog moved to AR (2026-08-15) - membership reads it
+// through arGateway now; this seam only answers how membership still USES it.
 
-async function listTransactionTypes(companyId) {
-    const TransactionType = require('../modules/membership/transactionType.model');
-    const rows = await TransactionType.findAll({
-        where: { companyId, isActive: true },
-        order: [['transactionType', 'ASC']],
-        attributes: ['id', 'transactionType', 'chargeType', 'description', 'taxSchemeCode', 'isInterestChargeable'],
-    });
-    return rows.map((r) => r.toJSON());
-}
-
-async function getTransactionType(companyId, id) {
-    const TransactionType = require('../modules/membership/transactionType.model');
-    const row = await TransactionType.findOne({ where: { companyId, id } });
-    return row ? row.toJSON() : null;
-}
-
-// The non-taxable "Deposit Conversion" transaction type every conversion CN
-// posts under (auto-seeded per company on first use; editable like any
-// catalog row afterwards).
-async function ensureDepositConversionType(companyId) {
-    const TransactionType = require('../modules/membership/transactionType.model');
-    const [row] = await TransactionType.findOrCreate({
-        where: { companyId, transactionType: 'DEPCONV' },
-        defaults: {
-            companyId,
-            transactionType: 'DEPCONV',
-            chargeType: 'miscellaneous',
-            description: 'Deposit conversion',
-            taxSchemeCode: null,
-            isInterestChargeable: false,
-            isActive: true,
-        },
-    });
-    return row.toJSON();
+// How many Membership setups still reference an AR transaction type - the
+// AR catalog's guard before 'membership' usability can be removed from a
+// type (fee masters reference by ID, standing charges by CODE).
+async function countTransactionTypeReferences(companyId, typeId, typeCode) {
+    const MembershipFee = require('../modules/membership/membershipFee.model');
+    const MembershipTypeStandingCharge = require('../modules/membership/membershipTypeStandingCharge.model');
+    const [fees, charges] = await Promise.all([
+        MembershipFee.count({ where: { companyId, transactionTypeId: typeId } }),
+        MembershipTypeStandingCharge.count({ where: { companyId, transactionType: typeCode } }),
+    ]);
+    return fees + charges;
 }
 
 // The persons whose consumption can be stamped on a debtor's documents
@@ -181,27 +158,6 @@ async function listDebtorPersons(companyId, debtorType, sourceId) {
         attributes: ['id', 'memberNo', 'memberKind', 'firstName', 'lastName', 'localName'],
     });
     return rows.map((r) => ({ id: r.id, memberNo: r.memberNo, memberKind: r.memberKind, name: personName(r) }));
-}
-
-// The non-compounding "Interest" transaction type the interest run posts its
-// summary Debit Notes under (auto-seeded per company on first run; the club
-// edits tax/description like any catalog row - flipping isInterestChargeable
-// on would deliberately enable interest-on-interest).
-async function ensureInterestType(companyId) {
-    const TransactionType = require('../modules/membership/transactionType.model');
-    const [row] = await TransactionType.findOrCreate({
-        where: { companyId, transactionType: 'INTEREST' },
-        defaults: {
-            companyId,
-            transactionType: 'INTEREST',
-            chargeType: 'miscellaneous',
-            description: 'Late-payment interest',
-            taxSchemeCode: null,
-            isInterestChargeable: false,
-            isActive: true,
-        },
-    });
-    return row.toJSON();
 }
 
 // Billing name + address snapshot for a debtor's statement (frozen onto
@@ -281,10 +237,7 @@ async function classifyParties(companyId, { membershipIds = [], memberIds = [] }
 module.exports = {
     lookupPartyDisplay,
     searchPartyIds,
-    listTransactionTypes,
-    getTransactionType,
-    ensureDepositConversionType,
-    ensureInterestType,
+    countTransactionTypeReferences,
     listDebtorPersons,
     lookupPartyBilling,
     classifyParties,

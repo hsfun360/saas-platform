@@ -29,6 +29,34 @@ const DEBTOR_STATUSES = [
 const DEBTOR_TYPE_KEYS = DEBTOR_TYPES.map((t) => t.key);
 const DEBTOR_STATUS_KEYS = DEBTOR_STATUSES.map((s) => s.key);
 
+// --- Transaction Type catalog (AR-owned since 2026-08-15) ---
+
+// Which document book a Transaction Type belongs to. Each entry screen
+// filters its own class; 'receipt' covers debtor payments AND refund methods
+// (one money-movement vocabulary); 'deposit' = deposit BILLING; 'forex' is
+// the future slot for exchange gain/loss on foreign-currency receipts.
+const TRX_CLASSES = [
+    { key: 'invoice', label: 'Invoice' },
+    { key: 'debit-note', label: 'Debit Note' },
+    { key: 'credit-note', label: 'Credit Note' },
+    { key: 'interest', label: 'Interest' },
+    { key: 'deposit', label: 'Deposit' },
+    { key: 'receipt', label: 'Receipt' },
+    { key: 'forex', label: 'Forex' },
+];
+const TRX_CLASS_KEYS = TRX_CLASSES.map((c) => c.key);
+
+// Producer modules a Transaction Type can be opened to (usableInModules).
+// The UI offers only modules the company is entitled to; the posting seam
+// enforces membership of this list. Golf/Facility/POS activate as their
+// charge-to-account flows wire in.
+const AR_MODULE_KEYS = [
+    { key: 'membership', label: 'Membership', moduleName: 'Membership Management' },
+    { key: 'golf', label: 'Golf', moduleName: 'Golf Management' },
+    { key: 'facility', label: 'Facility', moduleName: 'Facility Management' },
+    { key: 'pos', label: 'POS', moduleName: 'POS' },
+];
+
 // --- Document ledger (slice 2) ---
 
 // Ledger documents (open-item side). mode is FIXED per kind except the
@@ -65,6 +93,9 @@ const LEDGER_DOC_KIND_KEYS = LEDGER_DOC_KINDS.map((k) => k.key);
 const RECEIPT_DOC_KIND_KEYS = RECEIPT_DOC_KINDS.map((k) => k.key);
 
 module.exports = {
+    TRX_CLASSES,
+    TRX_CLASS_KEYS,
+    AR_MODULE_KEYS,
     DEBTOR_TYPES,
     DEBTOR_STATUSES,
     DEBTOR_TYPE_KEYS,

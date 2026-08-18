@@ -67,10 +67,11 @@ export class MembershipTypesComponent implements OnInit {
   // Membership Fee master / absentee function, never on joining); standing
   // charges show standing-charges only.
   readonly txTypes = signal<TransactionTypePickerRow[]>([]);
-  readonly joiningFeeTxTypes = computed(() =>
-    this.txTypes().filter((t) => t.chargeType !== 'membership-fee' && t.chargeType !== 'absentee-fee'));
-  readonly standingTxTypes = computed(() =>
-    this.txTypes().filter((t) => t.chargeType === 'standing-charges'));
+  // The catalog moved to AR (2026-08-15): both pickers now offer every
+  // membership-usable Invoice-class entry (the old charge-category split is
+  // gone - the class + module usability on the AR master is the filter).
+  readonly joiningFeeTxTypes = computed(() => this.txTypes());
+  readonly standingTxTypes = computed(() => this.txTypes());
   // Additional-fee lines (Category Details - Fee) - generated/edited in place,
   // saved atomically with the type. Row edits mark the form dirty by hand.
   readonly feeLines = signal<FeeLineRow[]>([]);

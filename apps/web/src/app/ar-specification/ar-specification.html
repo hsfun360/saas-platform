@@ -146,6 +146,52 @@
         }
       </section>
 
+      <!-- ======== Membership integration (entitled companies only) ======== -->
+      @if (membershipEntitled()) {
+        <section class="settings-card">
+          <button type="button" class="settings-header settings-header--button" (click)="toggleSection('integration')" [attr.aria-expanded]="isExpanded('integration')">
+            <span class="settings-header__title">Membership integration</span>
+            <span class="settings-header__sub">Does Membership bill through AR? Fee and standing-charge runs post here, collected after the statement.</span>
+            <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('integration')" aria-hidden="true">expand_more</span>
+          </button>
+          @if (isExpanded('integration')) {
+            <div class="settings-body">
+              <div class="form-group">
+                <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
+                  <input type="checkbox" formControlName="membershipIntegration" style="width: 18px; height: 18px; accent-color: var(--brand);" />
+                  Membership bills through AR (fee runs and standing charges post as AR documents)
+                </label>
+                <small class="cell-subtle">
+                  Off = fees are collected at the membership front desk (cash/card) and the runs refuse to post.
+                  Independent of Club Specification's credit facility - that switch governs frontend charge-to-account.
+                </small>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label for="arspInterestType">Interest run posts under</label>
+                  <select id="arspInterestType" formControlName="interestTransactionTypeId">
+                    <option value="">— Seeded INTEREST type —</option>
+                    @for (t of interestTypeOptions(); track t.id) {
+                      <option [value]="t.id">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="arspDepConvType">Deposit conversions post under</label>
+                  <select id="arspDepConvType" formControlName="depositConversionTransactionTypeId">
+                    <option value="">— Seeded DEPCONV type —</option>
+                    @for (t of depConvTypeOptions(); track t.id) {
+                      <option [value]="t.id">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              <small class="cell-subtle">Interest-class and Credit-Note-class entries of the Transaction Type master. Blank = the seeded defaults.</small>
+            </div>
+          }
+        </section>
+      }
+
       <div class="arsp-actions">
         <button *appCan="'edit'" type="submit" class="btn btn--primary" [disabled]="saving()">
           {{ saving() ? 'Saving…' : 'Save specification' }}

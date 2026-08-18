@@ -328,6 +328,79 @@ async function initializeDB() {
                    AND c."registrationNumber" IS NOT NULL`,
             ).catch((err) => console.warn('Statement registrationNo backfill skipped:', err.message));
 
+            // Transaction Type catalog moved to AR (2026-08-15, user decision:
+            // AR owns the billing/receipting catalog; membership consumes it
+            // through arGateway). One-shot, guarded by the OLD table's
+            // existence; ids are PRESERVED so every reference (posted Ledger
+            // rows, standing charges by code, fee masters) stays valid.
+            const [[oldTxnTable]] = await sequelize.query(
+                `SELECT to_regclass('membership."TransactionType"') AS t`,
+            );
+            if (oldTxnTable && oldTxnTable.t) {
+                // 1. Copy id-preserving. trxClass: seeded INTEREST -> interest,
+                //    DEPCONV -> credit-note, everything else was a billing item
+                //    -> invoice. All copied rows open to membership (they were
+                //    membership's catalog).
+                await sequelize.query(
+                    `INSERT INTO ar."TransactionType"
+                        (id, "companyId", "transactionType", "trxClass", description,
+                         "taxSchemeCode", "isInterestChargeable", "usableInModules",
+                         "isEInvoice", "eInvoiceClassificationCode", "isActive",
+                         "createdBy", "createdByDepartmentId", "updatedBy", "createdAt", "updatedAt")
+                     SELECT id, "companyId", "transactionType",
+                            CASE "transactionType"
+                                WHEN 'INTEREST' THEN 'interest'
+                                WHEN 'DEPCONV' THEN 'credit-note'
+                                ELSE 'invoice'
+                            END,
+                            description, "taxSchemeCode", "isInterestChargeable",
+                            '["membership"]'::jsonb, false, NULL, "isActive",
+                            "createdBy", "createdByDepartmentId", "updatedBy", "createdAt", "updatedAt"
+                     FROM membership."TransactionType" o
+                     WHERE NOT EXISTS (SELECT 1 FROM ar."TransactionType" n WHERE n.id = o.id)`,
+                );
+                // 2. Fee masters now reference their type EXPLICITLY - seed each
+                //    company's fees with the old auto-pick (first active
+                //    membership-fee-category type) so fee runs keep working.
+                await sequelize.query(
+                    `UPDATE membership."MembershipFee" f
+                     SET "transactionTypeId" = (
+                         SELECT o.id FROM membership."TransactionType" o
+                         WHERE o."companyId" = f."companyId"
+                           AND o."chargeType" = 'membership-fee' AND o."isActive"
+                         ORDER BY o."transactionType" LIMIT 1)
+                     WHERE f."transactionTypeId" IS NULL`,
+                );
+                // 3. Companies already billing through AR keep doing so:
+                //    integration ON where fee runs exist (creating the Setting
+                //    row when the company never opened AR Specification);
+                //    designated types from the copied seeded rows.
+                await sequelize.query(
+                    `INSERT INTO ar."Setting" (id, "companyId", "membershipIntegration", "createdAt", "updatedAt")
+                     SELECT gen_random_uuid(), b."companyId", true, now(), now()
+                     FROM (SELECT DISTINCT "companyId" FROM membership."BillingSchedule") b
+                     WHERE NOT EXISTS (SELECT 1 FROM ar."Setting" s WHERE s."companyId" = b."companyId")`,
+                );
+                await sequelize.query(
+                    `UPDATE ar."Setting" s SET "membershipIntegration" = true
+                     WHERE EXISTS (SELECT 1 FROM membership."BillingSchedule" b WHERE b."companyId" = s."companyId")`,
+                );
+                await sequelize.query(
+                    `UPDATE ar."Setting" s
+                     SET "interestTransactionTypeId" = (SELECT id FROM ar."TransactionType" t WHERE t."companyId" = s."companyId" AND t."transactionType" = 'INTEREST')
+                     WHERE s."interestTransactionTypeId" IS NULL`,
+                );
+                await sequelize.query(
+                    `UPDATE ar."Setting" s
+                     SET "depositConversionTransactionTypeId" = (SELECT id FROM ar."TransactionType" t WHERE t."companyId" = s."companyId" AND t."transactionType" = 'DEPCONV')
+                     WHERE s."depositConversionTransactionTypeId" IS NULL`,
+                );
+                // 4. Drop the old table (user decision: immediately after the
+                //    verified copy - same-transactionless boot, copy above ran).
+                await sequelize.query('DROP TABLE membership."TransactionType"');
+                console.log('Transaction Type catalog migrated to ar."TransactionType" (old membership table dropped).');
+            }
+
             await writeStoredFingerprint(sequelize, fingerprint);
             console.log('Database schema synced successfully.');
         }

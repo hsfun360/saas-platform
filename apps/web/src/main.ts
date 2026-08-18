@@ -185,6 +185,9 @@ const routes: Routes = [
       { path: 'ar/invoices', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'invoice' } },
       // Periodic processing: staged interest run + monthly statement run.
       { path: 'ar/interest', loadComponent: () => import('./app/ar-interest/ar-interest').then((m) => m.ArInterestComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
+      // AR Master File Setup - the AR-owned Transaction Type catalog (moved
+      // from Membership 2026-08-15; the membership route is a read-only view).
+      { path: 'ar/transaction-types', loadComponent: () => import('./app/ar-transaction-types/ar-transaction-types').then((m) => m.ArTransactionTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
       // AR Specification - company-wide AR options (same role as Club Specification).
       { path: 'ar/settings', loadComponent: () => import('./app/ar-specification/ar-specification').then((m) => m.ArSpecificationComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
       { path: 'ar/statement-generation', loadComponent: () => import('./app/ar-statement-generation/ar-statement-generation').then((m) => m.ArStatementGenerationComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },

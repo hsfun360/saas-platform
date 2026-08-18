@@ -51,7 +51,14 @@ export class ArSpecificationComponent implements OnInit {
 
   // Collapsible section cards (standard: start expanded; folding never loses
   // form state - the FormGroup keeps values while the DOM is hidden).
-  readonly expanded = signal<Record<string, boolean>>({ cutoff: true, aging: true, layout: true });
+  readonly expanded = signal<Record<string, boolean>>({ cutoff: true, aging: true, layout: true, integration: true });
+
+  // Membership integration (2026-08-15): shown ONLY when the company is
+  // entitled to Membership Management (AR-only subscribers never see it);
+  // the API enforces the same server-side.
+  readonly membershipEntitled = signal(false);
+  readonly interestTypeOptions = signal<{ id: string; transactionType: string; description: string | null }[]>([]);
+  readonly depConvTypeOptions = signal<{ id: string; transactionType: string; description: string | null }[]>([]);
 
   readonly form = this.fb.nonNullable.group({
     // Blank = calendar month; otherwise a whole day 1..31 (pattern runs on the
@@ -72,11 +79,21 @@ export class ArSpecificationComponent implements OnInit {
     statementShowIncurredBy: [true],
     statementShowGeneratedNote: [true],
     statementFooterText: [''],
+    // Membership integration.
+    membershipIntegration: [false],
+    interestTransactionTypeId: [''],
+    depositConversionTransactionTypeId: [''],
   });
 
   ngOnInit(): void {
     this.service.getArSetting().subscribe({
-      next: (res) => { this.applySetting(res.setting); this.loading.set(false); },
+      next: (res) => {
+        this.membershipEntitled.set(res.membershipModuleEntitled === true);
+        this.interestTypeOptions.set(res.interestTypeOptions || []);
+        this.depConvTypeOptions.set(res.depositConversionTypeOptions || []);
+        this.applySetting(res.setting);
+        this.loading.set(false);
+      },
       error: (err) => {
         this.loading.set(false);
         this.errorMessage.set(err.error?.message || 'Failed to load the AR specification.');
@@ -165,6 +182,9 @@ export class ArSpecificationComponent implements OnInit {
       statementShowIncurredBy: s.statementShowIncurredBy !== false,
       statementShowGeneratedNote: s.statementShowGeneratedNote !== false,
       statementFooterText: s.statementFooterText || '',
+      membershipIntegration: s.membershipIntegration === true,
+      interestTransactionTypeId: s.interestTransactionTypeId || '',
+      depositConversionTransactionTypeId: s.depositConversionTransactionTypeId || '',
     });
     this.applyColumns(s.statementColumns);
   }
@@ -197,6 +217,13 @@ export class ArSpecificationComponent implements OnInit {
       statementShowGeneratedNote: v.statementShowGeneratedNote,
       statementFooterText: v.statementFooterText.trim() || null,
       statementColumns: this.columnsPayload(),
+      // Membership-integration fields travel only for entitled companies -
+      // the API rejects them otherwise.
+      ...(this.membershipEntitled() ? {
+        membershipIntegration: v.membershipIntegration,
+        interestTransactionTypeId: v.interestTransactionTypeId || null,
+        depositConversionTransactionTypeId: v.depositConversionTransactionTypeId || null,
+      } : {}),
     }).subscribe({
       next: (res) => {
         this.saving.set(false);

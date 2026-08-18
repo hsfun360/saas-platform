@@ -4,7 +4,6 @@ const MembershipTypeFee = require('./membershipTypeFee.model');
 const MembershipTypeStandingCharge = require('./membershipTypeStandingCharge.model');
 const MembershipStatus = require('./membershipStatus.model');
 const MembershipFee = require('./membershipFee.model');
-const TransactionType = require('./transactionType.model');
 const {
     getUserContext,
     listAccountCurrencies,
@@ -166,23 +165,18 @@ function normalizeStandingCharges(body) {
     return { value: rows };
 }
 
-// Every picked transaction type must exist in the company's Transaction Type
-// master, be ACTIVE, and carry one of the charge types the consumer allows
-// (Joining fees: everything EXCEPT membership-fee/absentee-fee; Standing
-// charges: standing-charges only).
-async function validateTransactionTypes(companyId, codes, allowedChargeTypes, consumerLabel) {
+// Every picked transaction type must exist in the AR-owned catalog
+// (2026-08-15), be ACTIVE, Invoice-class, and opened to the membership module
+// (usableInModules) - membership reads the catalog through arGateway only.
+async function validateTransactionTypes(companyId, codes, _allowedChargeTypes, consumerLabel) {
     const unique = [...new Set(codes)];
     if (!unique.length) return null;
-    const found = await TransactionType.findAll({
-        where: { companyId, transactionType: unique, isActive: true },
-        attributes: ['transactionType', 'chargeType'],
-    });
-    const byCode = new Map(found.map((t) => [t.transactionType, t.chargeType]));
+    const arGateway = require('../../platform/arGateway');
+    const usable = await arGateway.listTransactionTypes(companyId, { module: 'membership', trxClass: 'invoice' });
+    const byCode = new Set(usable.map((t) => t.transactionType));
     for (const code of unique) {
-        const chargeType = byCode.get(code);
-        if (!chargeType) return `Transaction type '${code}' was not found (or is disabled) in the Transaction Type master.`;
-        if (!allowedChargeTypes.includes(chargeType)) {
-            return `Transaction type '${code}' has the wrong charge type for ${consumerLabel}.`;
+        if (!byCode.has(code)) {
+            return `Transaction type '${code}' is not an active Invoice-class entry opened to Membership (AR → Transaction Type master) - required for ${consumerLabel}.`;
         }
     }
     return null;
@@ -329,22 +323,22 @@ exports.getCurrencies = async (req, res) => {
     }
 };
 
-// GET /api/membership/types/transaction-types - the company's ACTIVE Transaction
-// Type master rows for the Joining-fees / Standing-charges pickers (served here
-// so the Types screen needs no grant on the Transaction Type menu). The client
-// filters by chargeType per dialog; taxSchemeCode is shown read-only (tax is
+// GET /api/membership/types/transaction-types - the membership-usable
+// Invoice-class entries of the AR-OWNED catalog (2026-08-15), for the
+// Joining-fees / Standing-charges pickers (served here so the Types screen
+// needs no grant on the AR menu). taxSchemeCode is shown read-only (tax is
 // single-sourced from the transaction type).
 exports.getTransactionTypes = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-
-        const rows = await TransactionType.findAll({
-            where: { companyId, isActive: true },
-            attributes: ['transactionType', 'chargeType', 'description', 'taxSchemeCode'],
-            order: [['transactionType', 'ASC']],
-        });
-        res.status(200).json(rows);
+        const arGateway = require('../../platform/arGateway');
+        const rows = await arGateway.listTransactionTypes(companyId, { module: 'membership', trxClass: 'invoice' });
+        res.status(200).json(rows.map((t) => ({
+            transactionType: t.transactionType,
+            description: t.description,
+            taxSchemeCode: t.taxSchemeCode,
+        })));
     } catch (error) {
         console.error('Error listing transaction types for membership types:', error);
         res.status(500).json({ message: 'Internal server error' });
