@@ -54,6 +54,14 @@ export class ArTransactionTypesComponent implements OnInit {
 
   readonly trxClasses = computed<ArOption[]>(() => this.meta()?.trxClasses || []);
   readonly modules = computed<ArOption[]>(() => this.meta()?.modules || []);
+  // LHDN descriptions are TEXT and can run past 255 chars (e.g. code 038) - a
+  // native <option> with the full text blows the select apart, so the picker
+  // shows a truncated label; the meta list is also crash-safe when absent.
+  readonly einvOptions = computed(() =>
+    (this.meta()?.eInvoiceClassifications || []).map((c) => ({
+      code: c.code,
+      label: `${c.code} — ${(c.description || '').length > 80 ? (c.description || '').slice(0, 80) + '…' : (c.description || '')}`,
+    })));
 
   readonly filtered = computed(() => {
     const q = this.search().trim().toLowerCase();

@@ -200,8 +200,8 @@
               <label for="attEinv">Classification code <span class="required">*</span></label>
               <select id="attEinv" formControlName="eInvoiceClassificationCode">
                 <option value="">— Select —</option>
-                @for (c of meta()?.eInvoiceClassifications; track c.code) {
-                  <option [value]="c.code">{{ c.code }}@if (c.description) { — {{ c.description }}}</option>
+                @for (c of einvOptions(); track c.code) {
+                  <option [value]="c.code" [title]="c.label">{{ c.label }}</option>
                 }
               </select>
               <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Snapshotted onto document lines for the e-Invoice submission. Maintain the list under e-Invoice Classifications.</p>

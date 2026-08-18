@@ -96,10 +96,15 @@ async function eInvoiceClassificationCodeExists(code) {
     return !!(await EInvoiceClassificationCode.findOne({ where: { code }, attributes: ['code'] }));
 }
 
-// The full LHDN classification list for pickers (code + description).
+// The ACTIVE LHDN classification list for pickers (code + description; the
+// descriptions are TEXT and can run very long - display layers truncate).
 async function listEInvoiceClassificationCodes() {
     const EInvoiceClassificationCode = require('../modules/saas/eInvoiceClassificationCode.model');
-    const rows = await EInvoiceClassificationCode.findAll({ order: [['code', 'ASC']], attributes: ['code', 'description'] });
+    const rows = await EInvoiceClassificationCode.findAll({
+        where: { isActive: true },
+        order: [['code', 'ASC']],
+        attributes: ['code', 'description'],
+    });
     return rows.map((r) => ({ code: r.code, description: r.description }));
 }
 
