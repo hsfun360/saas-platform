@@ -134,11 +134,13 @@
       <form id="attForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
         <div class="form-row">
           <div class="form-group">
-            <span style="font-weight: var(--weight-semibold);">Transaction Class</span>
-            <div style="display: flex; align-items: center; gap: var(--space-sm); min-height: 44px;">
-              <span class="mt-chip">{{ trxClassLabel(dialogClass()) }}</span>
+            <label for="attClass">Transaction Class</label>
+            <!-- Locked value shown as a disabled input so it reads like every
+                 other field (the Other Debtor "Issued automatically" pattern). -->
+            <div style="display: flex; align-items: center; gap: var(--space-sm);">
+              <input id="attClass" type="text" [value]="trxClassLabel(dialogClass())" disabled style="flex: 1; min-width: 0;" />
               @if (!editId()) {
-                <button type="button" class="btn btn--secondary btn--sm" (click)="changeClass()">Change</button>
+                <button type="button" class="btn btn--secondary" (click)="changeClass()">Change</button>
               }
             </div>
           </div>
