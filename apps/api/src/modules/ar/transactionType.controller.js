@@ -65,18 +65,24 @@ async function normalizeBody(req, companyId, body) {
     // rather than trusted from the client. For invoices: only known keys, only
     // modules the company is entitled to (hiding in the UI is never the gate).
     const requested = trxClass === 'invoice' && Array.isArray(body.usableInModules)
-        ? body.usableInModules.map((k) => str(k)).filter(Boolean)
+        ? [...new Set(body.usableInModules.map((k) => str(k)).filter(Boolean))]
         : [];
     const known = AR_MODULE_KEYS.map((m) => m.key);
     if (requested.some((k) => !known.includes(k))) return { error: 'Unknown module in the usability list.' };
+    // Single-module rule (2026-08-19): an entry belongs to at most ONE
+    // producer module - each module keeps its own catalog entries.
+    if (requested.length > 1) return { error: 'An entry can be usable by one module only - pick a single module.' };
     const entitled = await entitledModuleKeys(companyId);
     const notEntitled = requested.filter((k) => !entitled.includes(k));
     if (notEntitled.length) {
         return { error: `Your workspace is not subscribed to: ${notEntitled.join(', ')}.` };
     }
 
-    const isEInvoice = body.isEInvoice === true;
-    const eInvoiceClassificationCode = str(body.eInvoiceClassificationCode) || null;
+    // Receipt-class entries are payment/refund METHODS: they never charge
+    // late-payment interest and are not e-Invoice documents themselves, so
+    // those flags are forced off regardless of payload.
+    const isEInvoice = trxClass !== 'receipt' && body.isEInvoice === true;
+    const eInvoiceClassificationCode = trxClass === 'receipt' ? null : str(body.eInvoiceClassificationCode) || null;
     if (isEInvoice && !eInvoiceClassificationCode) {
         return { error: 'An e-Invoice classification code is required when the item is e-Invoice relevant.' };
     }
@@ -91,8 +97,8 @@ async function normalizeBody(req, companyId, body) {
             description: typeof body.description === 'string' ? body.description.trim() || null : null,
             // Receipts record money coming in - they never levy tax themselves.
             taxSchemeCode: trxClass === 'receipt' ? null : str(body.taxSchemeCode) || null,
-            isInterestChargeable: body.isInterestChargeable === true,
-            usableInModules: [...new Set(requested)],
+            isInterestChargeable: trxClass !== 'receipt' && body.isInterestChargeable === true,
+            usableInModules: requested,
             isEInvoice,
             eInvoiceClassificationCode: isEInvoice ? eInvoiceClassificationCode : eInvoiceClassificationCode,
         },

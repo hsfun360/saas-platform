@@ -180,45 +180,52 @@
         @if (dialogClass() === 'invoice' && modules().length > 0) {
           <div class="form-row">
             <div class="form-group">
-              <span style="font-weight: var(--weight-semibold);">Usable by modules</span>
+              <span style="font-weight: var(--weight-semibold);">Usable by module</span>
+              <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
+                <input type="radio" name="attModule" [checked]="selectedModule() === ''" (change)="pickModule('')"
+                       style="width: 18px; height: 18px; accent-color: var(--brand);" />
+                None — AR internal only
+              </label>
               @for (m of modules(); track m.key) {
                 <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
-                  <input type="checkbox" [checked]="isModuleSelected(m.key)" (change)="toggleModule(m.key)"
+                  <input type="radio" name="attModule" [checked]="selectedModule() === m.key" (change)="pickModule(m.key)"
                          style="width: 18px; height: 18px; accent-color: var(--brand);" />
                   {{ m.label }}
                 </label>
               }
-              <p class="cell-subtle" style="margin: 0;">Which producer modules may post with this entry (e.g. Membership fee runs). Unticked everywhere = AR-only.</p>
+              <p class="cell-subtle" style="margin: 0;">The single producer module that may post with this entry (e.g. Membership fee runs).</p>
             </div>
           </div>
         }
-        <div class="form-row">
-          <div class="form-group">
-            <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
-              <input type="checkbox" formControlName="isInterestChargeable" style="width: 18px; height: 18px; accent-color: var(--brand);" />
-              Charge late-payment interest on overdue items
-            </label>
-            <p class="cell-subtle" style="margin: 0;">The AR interest run only considers overdue documents of interest-chargeable billing items.</p>
+        @if (dialogClass() !== 'receipt') {
+          <div class="form-row">
+            <div class="form-group">
+              <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
+                <input type="checkbox" formControlName="isInterestChargeable" style="width: 18px; height: 18px; accent-color: var(--brand);" />
+                Charge late-payment interest on overdue items
+              </label>
+              <p class="cell-subtle" style="margin: 0;">The AR interest run only considers overdue documents of interest-chargeable billing items.</p>
+            </div>
           </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
-              <input type="checkbox" formControlName="isEInvoice" style="width: 18px; height: 18px; accent-color: var(--brand);" />
-              e-Invoice relevant (LHDN MyInvois)
-            </label>
-            @if (form.controls.isEInvoice.value) {
-              <label for="attEinv">Classification code <span class="required">*</span></label>
-              <select id="attEinv" formControlName="eInvoiceClassificationCode">
-                <option value="">— Select —</option>
-                @for (c of einvOptions(); track c.code) {
-                  <option [value]="c.code" [title]="c.label">{{ c.label }}</option>
-                }
-              </select>
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Snapshotted onto document lines for the e-Invoice submission. Maintain the list under e-Invoice Classifications.</p>
-            }
+          <div class="form-row">
+            <div class="form-group">
+              <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
+                <input type="checkbox" formControlName="isEInvoice" style="width: 18px; height: 18px; accent-color: var(--brand);" />
+                e-Invoice relevant (LHDN MyInvois)
+              </label>
+              @if (form.controls.isEInvoice.value) {
+                <label for="attEinv">Classification code <span class="required">*</span></label>
+                <select id="attEinv" formControlName="eInvoiceClassificationCode">
+                  <option value="">— Select —</option>
+                  @for (c of einvOptions(); track c.code) {
+                    <option [value]="c.code" [title]="c.label">{{ c.label }}</option>
+                  }
+                </select>
+                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Snapshotted onto document lines for the e-Invoice submission. Maintain the list under e-Invoice Classifications.</p>
+              }
+            </div>
           </div>
-        </div>
+        }
       </form>
       }
 

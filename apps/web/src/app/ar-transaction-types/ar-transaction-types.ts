@@ -46,9 +46,10 @@ export class ArTransactionTypesComponent implements OnInit {
   // never applies to Receipts. Edit skips the picker (class is fixed).
   readonly dialogView = signal<'class' | 'form'>('form');
   readonly dialogClass = signal('');
-  // Module usability checkboxes (per ENTITLED module) live outside the form
-  // group because the module list is dynamic.
-  readonly selectedModules = signal<Set<string>>(new Set());
+  // Module usability radio (ENTITLED modules only) lives outside the form
+  // group because the module list is dynamic. Single-choice since 2026-08-19:
+  // an entry belongs to at most ONE producer module ('' = AR internal only).
+  readonly selectedModule = signal('');
 
   readonly form = this.fb.nonNullable.group({
     transactionType: ['', [Validators.required, Validators.maxLength(50)]],
@@ -140,15 +141,9 @@ export class ArTransactionTypesComponent implements OnInit {
     });
   }
 
-  isModuleSelected(key: string): boolean {
-    return this.selectedModules().has(key);
-  }
-
-  toggleModule(key: string): void {
-    const next = new Set(this.selectedModules());
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    this.selectedModules.set(next);
+  pickModule(key: string): void {
+    if (this.selectedModule() === key) return;
+    this.selectedModule.set(key);
     this.form.markAsDirty();
   }
 
@@ -157,7 +152,7 @@ export class ArTransactionTypesComponent implements OnInit {
     this.editId.set(null);
     this.dialogClass.set('');
     this.dialogView.set('class');
-    this.selectedModules.set(new Set());
+    this.selectedModule.set('');
     this.form.reset({
       transactionType: '', description: '', taxSchemeCode: '',
       isInterestChargeable: false, isEInvoice: false, eInvoiceClassificationCode: '',
@@ -169,8 +164,10 @@ export class ArTransactionTypesComponent implements OnInit {
   // fields that class uses; class-specific values are cleared on a switch.
   pickClass(key: string): void {
     if (this.dialogClass() !== key) {
-      this.selectedModules.set(new Set());
-      if (key === 'receipt') this.form.patchValue({ taxSchemeCode: '' });
+      this.selectedModule.set('');
+      if (key === 'receipt') {
+        this.form.patchValue({ taxSchemeCode: '', isInterestChargeable: false, isEInvoice: false, eInvoiceClassificationCode: '' });
+      }
     }
     this.dialogClass.set(key);
     this.dialogView.set('form');
@@ -185,7 +182,7 @@ export class ArTransactionTypesComponent implements OnInit {
     this.editId.set(t.id);
     this.dialogClass.set(t.trxClass);
     this.dialogView.set('form');
-    this.selectedModules.set(new Set(t.usableInModules || []));
+    this.selectedModule.set((t.usableInModules || [])[0] || '');
     this.form.reset({
       transactionType: t.transactionType,
       description: t.description || '',
@@ -214,13 +211,14 @@ export class ArTransactionTypesComponent implements OnInit {
       transactionType: v.transactionType.trim(),
       trxClass: cls,
       description: v.description.trim() || null,
-      // Class-conditional fields: tax never applies to Receipts, module
-      // usability only to Invoices (the API forces the same).
+      // Class-conditional fields: Receipts are payment methods (no tax, no
+      // interest, no e-Invoice), module usability is Invoice-only and holds
+      // at most ONE module (the API forces the same shape).
       taxSchemeCode: cls === 'receipt' ? null : v.taxSchemeCode || null,
-      isInterestChargeable: v.isInterestChargeable,
-      usableInModules: cls === 'invoice' ? [...this.selectedModules()] : [],
-      isEInvoice: v.isEInvoice,
-      eInvoiceClassificationCode: v.eInvoiceClassificationCode || null,
+      isInterestChargeable: cls !== 'receipt' && v.isInterestChargeable,
+      usableInModules: cls === 'invoice' && this.selectedModule() ? [this.selectedModule()] : [],
+      isEInvoice: cls !== 'receipt' && v.isEInvoice,
+      eInvoiceClassificationCode: cls === 'receipt' ? null : v.eInvoiceClassificationCode || null,
     };
 
     this.saving.set(true);
