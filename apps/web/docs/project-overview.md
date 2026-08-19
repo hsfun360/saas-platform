@@ -391,10 +391,13 @@ The shared implementation is **`.data-row--with-badge`** (compose as
 chip + SSO brand icon next to the email) and `companies.css` (`.company-summary`).
 
 **Rows never show more than TWO action controls: one visible primary + an overflow ("kebab") menu.**
-When a row accumulates 3+ actions, keep the ONE action users reach for most as a visible `.btn--secondary .btn--sm` button and fold the rest into the shared **`<app-overflow-menu>`** (`shared/overflow-menu`) - a `⋮` trigger that opens a token-based popover.
-Project each action as `<button type="button" appMenuItem (click)="…">` (icon span + label); the component owns the a11y (aria-haspopup/expanded, role=menu, arrow-key focus, Esc-close-and-refocus, outside-click close) and its styles are global in `styles.css` (`.overflow-menu*`).
+The visible one is the action users reach for most (usually **Edit**, `.btn--secondary .btn--sm`); **every other action goes in the kebab - even when there is only ONE more** (a lone Enable/Disable still folds in; clarified 2026-08-19 on `ar-transaction-types`).
+A second visible button next to Edit is the drift this standard kills - two rows with "Edit + something" pairs never look consistent across screens.
+Fold the rest into the shared **`<app-overflow-menu>`** (`shared/overflow-menu`) - a `⋮` trigger that opens a token-based popover.
+Project each action as `<button type="button" appMenuItem (click)="…">` (icon span + label; Enable uses `check_circle`, Disable uses `block` - menu items carry intent by icon, not button colour); the component owns the a11y (aria-haspopup/expanded, role=menu, arrow-key focus, Esc-close-and-refocus, outside-click close) and its styles are global in `styles.css` (`.overflow-menu*`).
 Pass a per-row accessible label, e.g. `[label]="'More actions for ' + row.name"`.
-Reference: `companies.html` (Edit details visible; Edit modules / Email (SMTP) / Weekend days in the kebab).
+The Enable/Disable **colour pair rule** above applies to screens still showing the toggle as a visible button - those migrate to the kebab as they are touched.
+Reference: `companies.html` (Edit details visible; Edit modules / Email (SMTP) / Weekend days in the kebab) and `ar-transaction-types.html` (Edit visible; Enable/Disable in the kebab).
 
 **Legacy escape hatch: `.data-row--wide-actions`** (for a row that must keep 3-4 visible buttons).
 Side-by-side needs ~700px of CARD width, which depends on the sidebar state (a pinned 256px sidebar at a 1024px viewport leaves the info column ~180px - titles wrap mid-word), so a viewport media query cannot catch it.

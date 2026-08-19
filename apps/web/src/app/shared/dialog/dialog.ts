@@ -2,9 +2,11 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  Injector,
   OnDestroy,
   afterNextRender,
   effect,
+  inject,
   input,
   output,
   signal,
@@ -92,6 +94,7 @@ export class DialogComponent implements OnDestroy {
   // True while the in-dialog "discard?" confirmation is shown over the form.
   readonly confirming = signal(false);
 
+  private readonly injector = inject(Injector);
   private readonly panel = viewChild.required<ElementRef<HTMLElement>>('panel');
   private readonly keepBtn = viewChild<ElementRef<HTMLElement>>('keepBtn');
   // Captured at construction (during the click that opened the dialog) so focus
@@ -244,10 +247,28 @@ export class DialogComponent implements OnDestroy {
     );
   }
 
-  // Prefer the first real field over the ✕ button for initial focus.
+  // Initial focus lands on the first form FIELD (input/select/textarea) so the
+  // user can start typing immediately — buttons that happen to precede the
+  // first field (e.g. a "Change" chip action) don't steal it. Falls back to
+  // the first non-✕ focusable, then the ✕.
   private firstFocusable(): HTMLElement | null {
-    const all = this.focusables();
-    return all.find((el) => !el.classList.contains('dlg__close')) ?? all[0] ?? null;
+    const all = this.focusables().filter((el) => !el.classList.contains('dlg__close'));
+    return (
+      all.find((el) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) ??
+      all[0] ??
+      this.focusables()[0] ??
+      null
+    );
+  }
+
+  // For multi-step flows (one dialog + view signal): the dialog only focuses on
+  // OPEN, so after a view swap the screen calls this to land focus on the new
+  // view's first field once it has rendered.
+  focusFirstField(): void {
+    afterNextRender(
+      () => (this.firstFocusable() ?? this.panel().nativeElement).focus(),
+      { injector: this.injector },
+    );
   }
 }
 

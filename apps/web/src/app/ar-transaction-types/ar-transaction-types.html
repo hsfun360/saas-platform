@@ -91,15 +91,12 @@
             <div class="data-row__actions">
               @if (t.canModify !== false) {
                 <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">Edit</button>
-                @if (t.isActive === false) {
-                  <button *appCan="'edit'" type="button" class="btn btn--success btn--sm" (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
-                    {{ togglingId() === t.id ? 'Saving…' : 'Enable' }}
+                <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + t.transactionType">
+                  <button type="button" appMenuItem (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                    <span class="material-icons" aria-hidden="true">{{ t.isActive === false ? 'check_circle' : 'block' }}</span>
+                    {{ togglingId() === t.id ? 'Saving…' : (t.isActive === false ? 'Enable' : 'Disable') }}
                   </button>
-                } @else {
-                  <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
-                    {{ togglingId() === t.id ? 'Saving…' : 'Disable' }}
-                  </button>
-                }
+                </app-overflow-menu>
               }
             </div>
           </div>

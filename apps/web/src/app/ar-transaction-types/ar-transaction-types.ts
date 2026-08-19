@@ -1,10 +1,11 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ArService } from '../services/ar.service';
 import { DialogComponent } from '../shared/dialog/dialog';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { CanDirective } from '../shared/can.directive';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ArOption, ArTransactionTypeMeta, ArTransactionTypeRow } from '../models/ar.models';
@@ -17,7 +18,7 @@ import { ArOption, ArTransactionTypeMeta, ArTransactionTypeRow } from '../models
 @Component({
   selector: 'app-ar-transaction-types',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, CanDirective],
   templateUrl: './ar-transaction-types.html',
   // membership-types.css supplies the shared .mt-chip pill.
   styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css'],
@@ -36,6 +37,8 @@ export class ArTransactionTypesComponent implements OnInit {
   readonly taxSchemes = signal<{ taxSchemeCode: string; name: string | null }[]>([]);
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);
+
+  private readonly dlgRef = viewChild(DialogComponent);
 
   readonly dialogOpen = signal(false);
   readonly saving = signal(false);
@@ -170,10 +173,14 @@ export class ArTransactionTypesComponent implements OnInit {
     }
     this.dialogClass.set(key);
     this.dialogView.set('form');
+    // The picked class button is destroyed with the view swap - land focus on
+    // the Transaction Type field so the user can type straight away.
+    this.dlgRef()?.focusFirstField();
   }
 
   changeClass(): void {
     this.dialogView.set('class');
+    this.dlgRef()?.focusFirstField();
   }
 
   openEdit(t: ArTransactionTypeRow): void {
