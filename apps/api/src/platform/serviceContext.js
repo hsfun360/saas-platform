@@ -25,6 +25,72 @@ function getUserContext(req) {
     };
 }
 
+// --- Per-request memoization (performance seam) ----------------------------
+// Control-Plane facts about the SAME company (basics, entitlements) are asked
+// for by several helpers within one request; without memoization each helper
+// pays its own query. This scope caches those facts for the LIFETIME OF ONE
+// REQUEST only - no TTL, no cross-request staleness - via AsyncLocalStorage
+// (same mechanism as auditContext), so helper signatures stay unchanged.
+// Outside an HTTP request (boot, worker jobs) there is no scope and lookups
+// fall through uncached. WHEN SPLIT: this cache wraps the Control-Plane HTTP
+// calls instead - callers still unchanged.
+const { AsyncLocalStorage } = require('async_hooks');
+const requestScope = new AsyncLocalStorage();
+
+// Express middleware - mount once, early (app.js).
+function requestContextMiddleware(req, res, next) {
+    requestScope.run(new Map(), () => next());
+}
+
+// Memoize an async fact for the current request. The PROMISE is cached so
+// concurrent lookups share one query; a rejection is evicted so a transient
+// DB error doesn't poison the rest of the request.
+function requestMemo(key, fetcher) {
+    const cache = requestScope.getStore();
+    if (!cache) return Promise.resolve().then(fetcher);
+    if (!cache.has(key)) {
+        const p = Promise.resolve().then(fetcher);
+        p.catch(() => cache.delete(key));
+        cache.set(key, p);
+    }
+    return cache.get(key);
+}
+
+// The company's basic Control-Plane facts, one PK read per request.
+function getCompanyBasics(companyId) {
+    if (!companyId) return Promise.resolve(null);
+    return requestMemo(`companyBasics:${companyId}`, async () => {
+        const Company = require('../modules/saas/company.model');
+        const c = await Company.findByPk(companyId, { attributes: ['id', 'accountId', 'name', 'countryCode'] });
+        if (!c) return null;
+        return {
+            id: c.id,
+            accountId: c.accountId || null,
+            name: c.name,
+            countryCode: c.countryCode ? String(c.countryCode).toLowerCase() : null,
+        };
+    });
+}
+
+// The tenant module catalogue (name -> id), once per request.
+function getTenantModuleCatalog() {
+    return requestMemo('tenantModuleCatalog', async () => {
+        const Module = require('../modules/saas/module.model');
+        const rows = await Module.findAll({ where: { audience: 'tenant' }, attributes: ['id', 'name'] });
+        return new Map(rows.map((m) => [m.name, m.id]));
+    });
+}
+
+// The company's subscribed moduleIds, once per request.
+function getCompanyModuleIds(companyId) {
+    if (!companyId) return Promise.resolve(new Set());
+    return requestMemo(`companyModuleIds:${companyId}`, async () => {
+        const CompanyModule = require('../modules/saas/companyModule.model');
+        const rows = await CompanyModule.findAll({ where: { companyId }, attributes: ['moduleId'] });
+        return new Set(rows.map((r) => r.moduleId));
+    });
+}
+
 // --- ARE they entitled ----------------------------------------------------
 // Express middleware: the caller's active company must be subscribed to
 // `moduleName` (a Control-Plane concern). System admins bypass.
@@ -47,22 +113,16 @@ function requireModule(moduleName) {
             }
 
             // ----- in-process entitlement lookup (Control-Plane owned) -----
-            const Module = require('../modules/saas/module.model');
-            const CompanyModule = require('../modules/saas/companyModule.model');
-
             // Entitlement is a TENANT concern; module names are unique per
-            // audience, so pin the lookup to the tenant catalogue - a
+            // audience, so the lookup pins to the tenant catalogue - a
             // same-named platform module must never shadow the product module
-            // and break its subscribers.
-            const mod = await Module.findOne({ where: { name: moduleName, audience: 'tenant' }, attributes: ['id'] });
-            if (!mod) {
+            // and break its subscribers. Catalogue + the company's module set
+            // are per-request memoized, so repeat checks cost no extra query.
+            const moduleId = (await getTenantModuleCatalog()).get(moduleName);
+            if (!moduleId) {
                 return res.status(403).json({ message: `The "${moduleName}" module is not available.` });
             }
-            const subscribed = await CompanyModule.findOne({
-                where: { companyId, moduleId: mod.id },
-                attributes: ['companyId'],
-            });
-            if (!subscribed) {
+            if (!(await getCompanyModuleIds(companyId)).has(moduleId)) {
                 return res.status(403).json({ message: `Your workspace is not subscribed to ${moduleName}.` });
             }
             return next();
@@ -80,11 +140,9 @@ function requireModule(moduleName) {
 // the write endpoints re-check it server-side - hiding is never the gate.
 async function companyHasModule(companyId, moduleName) {
     if (!companyId) return false;
-    const Module = require('../modules/saas/module.model');
-    const CompanyModule = require('../modules/saas/companyModule.model');
-    const mod = await Module.findOne({ where: { name: moduleName, audience: 'tenant' }, attributes: ['id'] });
-    if (!mod) return false;
-    return !!(await CompanyModule.findOne({ where: { companyId, moduleId: mod.id }, attributes: ['companyId'] }));
+    const moduleId = (await getTenantModuleCatalog()).get(moduleName);
+    if (!moduleId) return false;
+    return (await getCompanyModuleIds(companyId)).has(moduleId);
 }
 
 // Control-Plane e-Invoice reference read: is `code` a valid LHDN
@@ -427,10 +485,8 @@ async function listSubscriptionCompanies(req) {
 async function getActiveAccountId(req) {
     const { companyId } = getUserContext(req);
     if (!companyId) return null;
-
-    const Company = require('../modules/saas/company.model');
-    const current = await Company.findByPk(companyId, { attributes: ['accountId'] });
-    return current ? current.accountId : null;
+    const basics = await getCompanyBasics(companyId);
+    return basics ? basics.accountId : null;
 }
 
 // --- WHICH company is the caller's workspace -------------------------------
@@ -452,11 +508,9 @@ async function getActiveCompany(req) {
 // caller JWT (e.g. the member-portal registration link, whose signed token names
 // the company). WHEN SPLIT: same Control-Plane GET as getActiveCompany.
 async function getCompanyProfile(companyId) {
-    if (!companyId) return null;
-    const Company = require('../modules/saas/company.model');
-    const company = await Company.findByPk(companyId, { attributes: ['id', 'accountId', 'name'] });
-    if (!company) return null;
-    return { id: company.id, accountId: company.accountId || null, name: company.name };
+    const basics = await getCompanyBasics(companyId);
+    if (!basics) return null;
+    return { id: basics.id, accountId: basics.accountId, name: basics.name };
 }
 
 // Issuer letterhead for documents a product service prints/snapshots (e.g. the
@@ -491,10 +545,8 @@ async function getCompanyLetterhead(companyId) {
 // behaviour (e.g. LHDN MyInvois e-Invoice fields for Malaysia) keys off this
 // through the seam. WHEN SPLIT: a Control-Plane GET.
 async function getCompanyCountryCode(companyId) {
-    if (!companyId) return null;
-    const Company = require('../modules/saas/company.model');
-    const c = await Company.findByPk(companyId, { attributes: ['countryCode'] });
-    return (c && c.countryCode) ? String(c.countryCode).toLowerCase() : null;
+    const basics = await getCompanyBasics(companyId);
+    return basics ? basics.countryCode : null;
 }
 
 // --- WHO is the platform (the invoice issuer) -----------------------------
@@ -658,6 +710,7 @@ function internalServiceUrl(serviceName) {
 
 module.exports = {
     verifyToken,        // re-exported so services import auth from one seam
+    requestContextMiddleware, // per-request memoization scope (mount once in app.js)
     getUserContext,
     getActiveAccountId,
     getActiveCompany,

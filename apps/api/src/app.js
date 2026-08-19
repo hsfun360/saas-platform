@@ -110,6 +110,9 @@ function createApp() {
     // Audit who-context (verified identity + ip + requestId on AsyncLocalStorage)
     // so the global audit hooks can attribute every DB change to its request.
     app.use(require('./platform/auditContext').auditContextMiddleware);
+    // Per-request memoization of Control-Plane facts (company basics,
+    // entitlements) - serviceContext helpers share one query per request.
+    app.use(require('./platform/serviceContext').requestContextMiddleware);
     // Explicit JSON body cap (matches the express default, stated on purpose):
     // no JSON endpoint needs more; file uploads (avatars, membership import
     // Excel) go through multer with their own limits, not this parser.
