@@ -60,9 +60,13 @@ async function normalizeBody(req, companyId, body) {
     const trxClass = str(body.trxClass);
     if (!TRX_CLASS_KEYS.includes(trxClass)) return { error: 'Select a valid transaction class.' };
 
-    // Module usability: only known keys, only modules the company is entitled
-    // to (hiding in the UI is never the gate).
-    const requested = Array.isArray(body.usableInModules) ? body.usableInModules.map((k) => str(k)).filter(Boolean) : [];
+    // Module usability applies to INVOICE-class entries only (producer charges
+    // always post as invoices); other document books get an empty list forced
+    // rather than trusted from the client. For invoices: only known keys, only
+    // modules the company is entitled to (hiding in the UI is never the gate).
+    const requested = trxClass === 'invoice' && Array.isArray(body.usableInModules)
+        ? body.usableInModules.map((k) => str(k)).filter(Boolean)
+        : [];
     const known = AR_MODULE_KEYS.map((m) => m.key);
     if (requested.some((k) => !known.includes(k))) return { error: 'Unknown module in the usability list.' };
     const entitled = await entitledModuleKeys(companyId);
@@ -85,7 +89,8 @@ async function normalizeBody(req, companyId, body) {
             transactionType,
             trxClass,
             description: typeof body.description === 'string' ? body.description.trim() || null : null,
-            taxSchemeCode: str(body.taxSchemeCode) || null,
+            // Receipts record money coming in - they never levy tax themselves.
+            taxSchemeCode: trxClass === 'receipt' ? null : str(body.taxSchemeCode) || null,
             isInterestChargeable: body.isInterestChargeable === true,
             usableInModules: [...new Set(requested)],
             isEInvoice,

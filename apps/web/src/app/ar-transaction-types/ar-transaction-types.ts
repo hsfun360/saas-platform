@@ -40,13 +40,18 @@ export class ArTransactionTypesComponent implements OnInit {
   readonly dialogOpen = signal(false);
   readonly saving = signal(false);
   readonly editId = signal<string | null>(null);
+  // Class-first flow (single dialog + view signal, per the single-dialog rule):
+  // New opens the class picker view, and only the fields that apply to the
+  // picked class are shown - Usable-by-modules is Invoice-only, Tax Scheme
+  // never applies to Receipts. Edit skips the picker (class is fixed).
+  readonly dialogView = signal<'class' | 'form'>('form');
+  readonly dialogClass = signal('');
   // Module usability checkboxes (per ENTITLED module) live outside the form
   // group because the module list is dynamic.
   readonly selectedModules = signal<Set<string>>(new Set());
 
   readonly form = this.fb.nonNullable.group({
     transactionType: ['', [Validators.required, Validators.maxLength(50)]],
-    trxClass: ['', [Validators.required]],
     description: ['', [Validators.maxLength(255)]],
     taxSchemeCode: [''],
     isInterestChargeable: [false],
@@ -89,7 +94,11 @@ export class ArTransactionTypesComponent implements OnInit {
   });
   readonly activeCount = computed(() => this.rows().filter((t) => t.isActive !== false).length);
 
-  readonly dialogTitle = computed(() => (this.editId() ? 'Edit transaction type' : 'New transaction type'));
+  readonly dialogTitle = computed(() => {
+    if (this.editId()) return 'Edit transaction type';
+    if (this.dialogView() === 'class') return 'New transaction type';
+    return `New transaction type for ${this.trxClassLabel(this.dialogClass())}`;
+  });
 
   ngOnInit(): void {
     this.service.transactionTypeMeta().subscribe({ next: (m) => this.meta.set(m), error: () => {} });
@@ -146,21 +155,39 @@ export class ArTransactionTypesComponent implements OnInit {
   openAdd(): void {
     this.clearMessages();
     this.editId.set(null);
+    this.dialogClass.set('');
+    this.dialogView.set('class');
     this.selectedModules.set(new Set());
     this.form.reset({
-      transactionType: '', trxClass: '', description: '', taxSchemeCode: '',
+      transactionType: '', description: '', taxSchemeCode: '',
       isInterestChargeable: false, isEInvoice: false, eInvoiceClassificationCode: '',
     });
     this.dialogOpen.set(true);
   }
 
+  // Class picked (or re-picked via "Change") - reveal the form with only the
+  // fields that class uses; class-specific values are cleared on a switch.
+  pickClass(key: string): void {
+    if (this.dialogClass() !== key) {
+      this.selectedModules.set(new Set());
+      if (key === 'receipt') this.form.patchValue({ taxSchemeCode: '' });
+    }
+    this.dialogClass.set(key);
+    this.dialogView.set('form');
+  }
+
+  changeClass(): void {
+    this.dialogView.set('class');
+  }
+
   openEdit(t: ArTransactionTypeRow): void {
     this.clearMessages();
     this.editId.set(t.id);
+    this.dialogClass.set(t.trxClass);
+    this.dialogView.set('form');
     this.selectedModules.set(new Set(t.usableInModules || []));
     this.form.reset({
       transactionType: t.transactionType,
-      trxClass: t.trxClass,
       description: t.description || '',
       taxSchemeCode: t.taxSchemeCode || '',
       isInterestChargeable: t.isInterestChargeable === true,
@@ -180,14 +207,18 @@ export class ArTransactionTypesComponent implements OnInit {
       this.form.markAllAsTouched();
       return;
     }
+    const cls = this.dialogClass();
+    if (!cls) return; // form view is unreachable without a class, but stay safe
     const v = this.form.getRawValue();
     const payload = {
       transactionType: v.transactionType.trim(),
-      trxClass: v.trxClass,
+      trxClass: cls,
       description: v.description.trim() || null,
-      taxSchemeCode: v.taxSchemeCode || null,
+      // Class-conditional fields: tax never applies to Receipts, module
+      // usability only to Invoices (the API forces the same).
+      taxSchemeCode: cls === 'receipt' ? null : v.taxSchemeCode || null,
       isInterestChargeable: v.isInterestChargeable,
-      usableInModules: [...this.selectedModules()],
+      usableInModules: cls === 'invoice' ? [...this.selectedModules()] : [],
       isEInvoice: v.isEInvoice,
       eInvoiceClassificationCode: v.eInvoiceClassificationCode || null,
     };
