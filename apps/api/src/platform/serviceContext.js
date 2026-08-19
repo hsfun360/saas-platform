@@ -487,6 +487,16 @@ async function getCompanyLetterhead(companyId) {
     };
 }
 
+// The company's ISO alpha-2 country (lowercase) or null. Country-specific
+// behaviour (e.g. LHDN MyInvois e-Invoice fields for Malaysia) keys off this
+// through the seam. WHEN SPLIT: a Control-Plane GET.
+async function getCompanyCountryCode(companyId) {
+    if (!companyId) return null;
+    const Company = require('../modules/saas/company.model');
+    const c = await Company.findByPk(companyId, { attributes: ['countryCode'] });
+    return (c && c.countryCode) ? String(c.countryCode).toLowerCase() : null;
+}
+
 // --- WHO is the platform (the invoice issuer) -----------------------------
 // The platform's own "company of record" singleton: its billing country + default
 // tax scheme (anchors the platform's own tax) and its issuer identity (invoice
@@ -653,6 +663,7 @@ module.exports = {
     getActiveCompany,
     getCompanyProfile,
     getCompanyLetterhead,
+    getCompanyCountryCode,
     companyHasModule,
     eInvoiceClassificationCodeExists,
     listEInvoiceClassificationCodes,

@@ -13,7 +13,14 @@ const {
     annotateCanModify,
     companyHasModule,
     eInvoiceClassificationCodeExists,
+    getCompanyCountryCode,
 } = require('../../platform/serviceContext');
+
+// LHDN MyInvois is a Malaysian mandate - e-Invoice fields only apply to
+// companies whose country is Malaysia.
+async function eInvoiceApplicable(companyId) {
+    return (await getCompanyCountryCode(companyId)) === 'my';
+}
 const { listCompanyTaxSchemes } = require('../../platform/taxGateway');
 const { TRX_CLASSES, TRX_CLASS_KEYS, AR_MODULE_KEYS } = require('./ar.constants');
 
@@ -80,9 +87,11 @@ async function normalizeBody(req, companyId, body) {
 
     // Receipt-class entries are payment/refund METHODS: they never charge
     // late-payment interest and are not e-Invoice documents themselves, so
-    // those flags are forced off regardless of payload.
-    const isEInvoice = trxClass !== 'receipt' && body.isEInvoice === true;
-    const eInvoiceClassificationCode = trxClass === 'receipt' ? null : str(body.eInvoiceClassificationCode) || null;
+    // those flags are forced off regardless of payload. e-Invoice is also a
+    // Malaysian (LHDN MyInvois) mandate - forced off for any other country.
+    const einvAllowed = trxClass !== 'receipt' && (await eInvoiceApplicable(companyId));
+    const isEInvoice = einvAllowed && body.isEInvoice === true;
+    const eInvoiceClassificationCode = einvAllowed ? str(body.eInvoiceClassificationCode) || null : null;
     if (isEInvoice && !eInvoiceClassificationCode) {
         return { error: 'An e-Invoice classification code is required when the item is e-Invoice relevant.' };
     }
@@ -136,11 +145,15 @@ exports.getMeta = async (req, res) => {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const entitled = await entitledModuleKeys(companyId);
+        const einv = await eInvoiceApplicable(companyId);
         const { listEInvoiceClassificationCodes } = require('../../platform/serviceContext');
         res.status(200).json({
             trxClasses: TRX_CLASSES,
             modules: AR_MODULE_KEYS.filter((m) => entitled.includes(m.key)).map((m) => ({ key: m.key, label: m.label })),
-            eInvoiceClassifications: await listEInvoiceClassificationCodes(),
+            // Malaysia-only (LHDN MyInvois): non-MY companies get no e-Invoice
+            // section, so the classification list isn't shipped either.
+            eInvoiceApplicable: einv,
+            eInvoiceClassifications: einv ? await listEInvoiceClassificationCodes() : [],
         });
     } catch (error) {
         console.error('Error loading transaction type meta:', error);

@@ -79,6 +79,9 @@ export interface ArTransactionTypeMeta {
   trxClasses: ArOption[];
   // Only modules the company is ENTITLED to (AR-only subscribers get none).
   modules: ArOption[];
+  // LHDN MyInvois is Malaysia-only: false hides the e-Invoice section (and
+  // the classification list arrives empty).
+  eInvoiceApplicable: boolean;
   eInvoiceClassifications: { code: string; description: string | null }[];
 }
 
