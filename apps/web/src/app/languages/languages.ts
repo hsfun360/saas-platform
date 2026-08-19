@@ -7,6 +7,7 @@ import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Language } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
 // System Admin: maintain the language reference table - load a bundled default
 // set, add languages manually, rename them, and enable/disable or delete them.
@@ -19,7 +20,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 @Component({
   selector: 'app-languages',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './languages.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

@@ -7,6 +7,7 @@ import { PositionService } from '../services/position.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { Position, PositionDefault } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
 // System Setup → Positions. Subscriber-owned position ladder: one list per
 // Account, shared by every company; assigned to users per company in User
@@ -18,7 +19,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 @Component({
   selector: 'app-positions',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './positions.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

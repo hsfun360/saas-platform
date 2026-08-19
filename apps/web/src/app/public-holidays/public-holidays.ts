@@ -9,6 +9,7 @@ import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { HolidayCountry, PublicHoliday } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
 // System Setup → Public Holidays. Subscriber-owned reference data, scoped by
 // country: the Tenant Admin maintains one holiday calendar per country their
@@ -19,7 +20,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 @Component({
   selector: 'app-public-holidays',
   standalone: true,
-  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './public-holidays.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

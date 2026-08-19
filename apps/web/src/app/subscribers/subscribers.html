@@ -87,9 +87,12 @@
                       [attr.aria-label]="'Edit ' + sub.subscriberName">
                 Edit
               </button>
-              <button type="button" class="btn btn--secondary btn--sm" (click)="manageAdmin(sub)">
-                {{ managingAccountId === sub.id ? 'Close' : 'Manage Admin' }}
-              </button>
+              <app-overflow-menu [label]="'More actions for ' + sub.subscriberName">
+                <button type="button" appMenuItem (click)="manageAdmin(sub)">
+                  <span class="material-icons" aria-hidden="true">admin_panel_settings</span>
+                  {{ managingAccountId === sub.id ? 'Close' : 'Manage Admin' }}
+                </button>
+              </app-overflow-menu>
             </div>
           </div>
 

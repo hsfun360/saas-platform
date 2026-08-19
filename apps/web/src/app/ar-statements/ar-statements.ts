@@ -5,6 +5,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { addressLines } from '../shared/address';
 import { ArService } from '../services/ar.service';
 import { ArStatementColumn, ArStatementColumnKey, ArStatementDetail, ArStatementSummary } from '../models/ar.models';
@@ -37,7 +38,7 @@ const VIEW_COL_ORDER: ArStatementColumnKey[] = ['date', 'docNo', 'details', 'deb
   standalone: true,
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule,
-    DialogComponent, CanDirective, LocalDatePipe,
+    DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective,
   ],
   templateUrl: './ar-statements.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-statements.css'],

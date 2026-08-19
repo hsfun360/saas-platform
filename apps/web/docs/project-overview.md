@@ -396,7 +396,9 @@ A second visible button next to Edit is the drift this standard kills - two rows
 Fold the rest into the shared **`<app-overflow-menu>`** (`shared/overflow-menu`) - a `⋮` trigger that opens a token-based popover.
 Project each action as `<button type="button" appMenuItem (click)="…">` (icon span + label; Enable uses `check_circle`, Disable uses `block` - menu items carry intent by icon, not button colour); the component owns the a11y (aria-haspopup/expanded, role=menu, arrow-key focus, Esc-close-and-refocus, outside-click close) and its styles are global in `styles.css` (`.overflow-menu*`).
 Pass a per-row accessible label, e.g. `[label]="'More actions for ' + row.name"`.
-The Enable/Disable **colour pair rule** above applies to screens still showing the toggle as a visible button - those migrate to the kebab as they are touched.
+**Rolled out app-wide 2026-08-19**: every listing row now shows one visible primary + kebab (Edit on masters; Review/View/Details/Resume on the billing/import/statement screens).
+The ONE deliberate exemption is the Approvals task row, whose visible Approve/Reject pair is a decision UI, not record CRUD - don't fold it.
+The Enable/Disable **colour pair rule** above now applies only to non-row contexts (e.g. a detail pane's single state button); row toggles live in the kebab with `check_circle`/`block` icons.
 Reference: `companies.html` (Edit details visible; Edit modules / Email (SMTP) / Weekend days in the kebab) and `ar-transaction-types.html` (Edit visible; Enable/Disable in the kebab).
 
 **Legacy escape hatch: `.data-row--wide-actions`** (for a row that must keep 3-4 visible buttons).

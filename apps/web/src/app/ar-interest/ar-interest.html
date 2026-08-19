@@ -116,7 +116,12 @@
             <div class="data-row__actions">
               <button type="button" class="btn btn--secondary btn--sm" (click)="openDetail(g)">Details</button>
               @if (g.status === 'pending') {
-                <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="onCancel(g)">Cancel</button>
+                <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + (g.debtor?.no || 'debtor')">
+                  <button type="button" appMenuItem (click)="onCancel(g)">
+                    <span class="material-icons" aria-hidden="true">cancel</span>
+                    Cancel
+                  </button>
+                </app-overflow-menu>
               }
             </div>
           </div>

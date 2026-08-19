@@ -91,10 +91,12 @@
               </div>
               <div class="data-row__actions">
                 <button type="button" class="btn btn--secondary btn--sm" (click)="open(b)">Review</button>
-                <button type="button" class="btn btn--danger btn--sm" *appCan="'delete'"
-                        (click)="deleteBatch(b)" [disabled]="deletingId() === b.id">
-                  {{ deletingId() === b.id ? 'Deleting…' : 'Delete' }}
-                </button>
+                <app-overflow-menu *appCan="'delete'" [label]="'More actions for ' + (b.fileName || 'import.xlsx')">
+                  <button type="button" appMenuItem (click)="deleteBatch(b)" [disabled]="deletingId() === b.id">
+                    <span class="material-icons" aria-hidden="true">delete</span>
+                    {{ deletingId() === b.id ? 'Deleting…' : 'Delete' }}
+                  </button>
+                </app-overflow-menu>
               </div>
             </div>
           </div>

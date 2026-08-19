@@ -7,6 +7,7 @@ import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ImportBatchDetail, ImportBatchSummary, ImportMigrateResult, ImportRow } from '../models/auth.models';
 
 // Membership Management → Membership Import. Upload a two-sheet Excel file
@@ -20,7 +21,7 @@ import { ImportBatchDetail, ImportBatchSummary, ImportMigrateResult, ImportRow }
 @Component({
   selector: 'app-membership-import',
   standalone: true,
-  imports: [CommonModule, CanDirective, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent],
+  imports: [CommonModule, CanDirective, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './membership-import.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-import.css'],
 })

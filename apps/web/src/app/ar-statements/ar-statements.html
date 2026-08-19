@@ -73,7 +73,12 @@
             <div class="data-row__actions">
               <button type="button" class="btn btn--secondary btn--sm" (click)="openView(s)">View</button>
               @if (s.status !== 'void') {
-                <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="onVoid(s)">Void</button>
+                <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + s.statementNo">
+                  <button type="button" appMenuItem (click)="onVoid(s)">
+                    <span class="material-icons" aria-hidden="true">cancel</span>
+                    Void
+                  </button>
+                </app-overflow-menu>
               }
             </div>
           </div>

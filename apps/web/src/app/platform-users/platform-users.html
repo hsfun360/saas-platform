@@ -87,17 +87,12 @@
             </div>
             <div class="data-row__actions">
               <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(u)">Edit</button>
-              @if (u.isActive === false) {
-                <button type="button" class="btn btn--secondary btn--sm" (click)="toggleStatus(u)"
-                        [disabled]="togglingId() === u.id">
-                  {{ togglingId() === u.id ? 'Saving…' : 'Activate' }}
+              <app-overflow-menu [label]="'More actions for ' + u.email">
+                <button type="button" appMenuItem (click)="toggleStatus(u)" [disabled]="togglingId() === u.id">
+                  <span class="material-icons" aria-hidden="true">{{ u.isActive === false ? 'check_circle' : 'block' }}</span>
+                  {{ togglingId() === u.id ? 'Saving…' : (u.isActive === false ? 'Activate' : 'Deactivate') }}
                 </button>
-              } @else {
-                <button type="button" class="btn btn--danger btn--sm" (click)="toggleStatus(u)"
-                        [disabled]="togglingId() === u.id">
-                  {{ togglingId() === u.id ? 'Saving…' : 'Deactivate' }}
-                </button>
-              }
+              </app-overflow-menu>
             </div>
           </div>
         </div>

@@ -82,9 +82,12 @@
               </div>
               <div class="data-row__actions">
                 <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(a)">Edit</button>
-                <button type="button" class="btn btn--sm" [class.btn--danger]="a.isEnabled" [class.btn--success]="!a.isEnabled" (click)="toggleEnabled(a)" [disabled]="togglingId() === a.id">
-                  {{ togglingId() === a.id ? 'Saving…' : (a.isEnabled ? 'Disable' : 'Enable') }}
-                </button>
+                <app-overflow-menu [label]="'More actions for ' + a.taxSchemeCode">
+                  <button type="button" appMenuItem (click)="toggleEnabled(a)" [disabled]="togglingId() === a.id">
+                    <span class="material-icons" aria-hidden="true">{{ a.isEnabled ? 'block' : 'check_circle' }}</span>
+                    {{ togglingId() === a.id ? 'Saving…' : (a.isEnabled ? 'Disable' : 'Enable') }}
+                  </button>
+                </app-overflow-menu>
               </div>
             </div>
 

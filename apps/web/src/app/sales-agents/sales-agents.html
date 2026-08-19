@@ -80,17 +80,19 @@
             </div>
             @if (r.canModify !== false) {
               <div class="data-row__actions">
-                @if (!r.portalLinked && r.isActive) {
-                  <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm"
-                          (click)="invite(r)" [disabled]="invitingId() === r.id">
-                    {{ invitingId() === r.id ? 'Sending…' : 'Invite to login' }}
-                  </button>
-                }
                 <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(r)">Edit</button>
-                <button *appCan="'edit'" type="button" class="btn btn--sm"
-                        [class.btn--danger]="r.isActive" [class.btn--success]="!r.isActive" (click)="toggleActive(r)">
-                  {{ r.isActive ? 'Disable' : 'Enable' }}
-                </button>
+                <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + r.name">
+                  @if (!r.portalLinked && r.isActive) {
+                    <button type="button" appMenuItem (click)="invite(r)" [disabled]="invitingId() === r.id">
+                      <span class="material-icons" aria-hidden="true">mail</span>
+                      {{ invitingId() === r.id ? 'Sending…' : 'Invite to login' }}
+                    </button>
+                  }
+                  <button type="button" appMenuItem (click)="toggleActive(r)">
+                    <span class="material-icons" aria-hidden="true">{{ r.isActive ? 'block' : 'check_circle' }}</span>
+                    {{ r.isActive ? 'Disable' : 'Enable' }}
+                  </button>
+                </app-overflow-menu>
               </div>
             }
           </div>

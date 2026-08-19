@@ -28,6 +28,7 @@ import {
 } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { SortMenuComponent, SortOption, SortValue } from '../shared/sort-menu/sort-menu';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
 // Membership Management → Memberships (SRS 2.3 Phase 1).
 // The contract list: individual memberships (one auto-created Member) and
@@ -37,7 +38,7 @@ import { SortMenuComponent, SortOption, SortValue } from '../shared/sort-menu/so
 @Component({
   selector: 'app-memberships',
   standalone: true,
-  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, MoneyInputDirective, SortMenuComponent],
+  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, MoneyInputDirective, SortMenuComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './memberships.html',
   styleUrls: ['../system-setup/system-setup.css', './memberships.css'],
 })

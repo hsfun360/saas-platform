@@ -8,6 +8,7 @@ import { NumberingModule, NumberingService } from '../services/numbering.service
 import { DialogComponent } from '../shared/dialog/dialog';
 import { NumberingScheme, NumberingToken, MembershipStatusOption } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
 // Numbering Control - per-company document numbering, ONE screen instance per
 // OWNING MODULE (split 2026-08-05): /membership/numbering and /ar/numbering
@@ -18,7 +19,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 @Component({
   selector: 'app-numbering',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './numbering.html',
   styleUrls: ['../system-setup/system-setup.css', './numbering.css'],
 })

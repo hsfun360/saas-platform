@@ -7,6 +7,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { BillingService } from '../services/billing.service';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { BillingSchedule } from '../models/billing.models';
 
 // Membership → Billing Schedules (fee runs). Generate the Membership Fee /
@@ -17,7 +18,7 @@ import { BillingSchedule } from '../models/billing.models';
   standalone: true,
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
-    RouterLink, CanDirective, LocalDatePipe,
+    RouterLink, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective,
   ],
   templateUrl: './membership-billing.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-billing.css'],

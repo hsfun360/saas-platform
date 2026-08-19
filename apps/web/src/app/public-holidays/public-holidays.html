@@ -115,15 +115,12 @@
             </div>
             <div class="data-row__actions">
               <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(h)">Edit</button>
-              @if (h.isActive === false) {
-                <button type="button" class="btn btn--success btn--sm" (click)="toggleActive(h)" [disabled]="togglingId() === h.id">
-                  {{ togglingId() === h.id ? 'Saving…' : 'Enable' }}
+              <app-overflow-menu [label]="'More actions for ' + h.description">
+                <button type="button" appMenuItem (click)="toggleActive(h)" [disabled]="togglingId() === h.id">
+                  <span class="material-icons" aria-hidden="true">{{ h.isActive === false ? 'check_circle' : 'block' }}</span>
+                  {{ togglingId() === h.id ? 'Saving…' : (h.isActive === false ? 'Enable' : 'Disable') }}
                 </button>
-              } @else {
-                <button type="button" class="btn btn--danger btn--sm" (click)="toggleActive(h)" [disabled]="togglingId() === h.id">
-                  {{ togglingId() === h.id ? 'Saving…' : 'Disable' }}
-                </button>
-              }
+              </app-overflow-menu>
             </div>
           </div>
         </div>

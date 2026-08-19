@@ -12,6 +12,7 @@ import { CanDirective } from '../shared/can.directive';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import { ClubSettings, Currency, MembershipType, MembershipStatus, MembershipFee, MembershipStatusOption, TaxSchemeRef, TransactionTypePickerRow } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
 // Editable joining-fee row (amounts kept as strings for the inputs). The
 // transaction type comes from the Transaction Type master and carries the tax.
@@ -46,7 +47,7 @@ const MONTH_NAMES = [
 @Component({
   selector: 'app-membership-types',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './membership-types.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-types.css'],
 })

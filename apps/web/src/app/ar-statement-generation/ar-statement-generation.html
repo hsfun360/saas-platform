@@ -137,7 +137,12 @@
                 @if (r.status === 'failed' || r.status === 'cancelled') {
                   <button type="button" class="btn btn--primary btn--sm" (click)="onResume(r)">Resume</button>
                 } @else {
-                  <button type="button" class="btn btn--danger btn--sm" (click)="onCancelRun(r)">Cancel</button>
+                  <app-overflow-menu [label]="'More actions for ' + monthLabel(r.statementMonth)">
+                    <button type="button" appMenuItem (click)="onCancelRun(r)">
+                      <span class="material-icons" aria-hidden="true">cancel</span>
+                      Cancel
+                    </button>
+                  </app-overflow-menu>
                 }
               </div>
             }

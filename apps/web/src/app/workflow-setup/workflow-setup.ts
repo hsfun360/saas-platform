@@ -16,6 +16,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CanDirective } from '../shared/can.directive';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
 // System Setup → Workflow Setup (/admin/workflows). The approval-chain
 // designer: one definition per document type (purpose) per scope (all
@@ -41,6 +42,7 @@ type DialogMode = 'definition' | 'step' | 'preview';
   imports: [
     CommonModule, ReactiveFormsModule, DialogComponent, FavStarComponent,
     ScreenTitlePipe, ScreenSubtitlePipe, CanDirective,
+    OverflowMenuComponent, MenuItemDirective,
     CdkDropList, CdkDrag, CdkDragHandle,
   ],
   templateUrl: './workflow-setup.html',

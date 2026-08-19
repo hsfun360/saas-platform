@@ -71,10 +71,12 @@
             @if (r.canModify !== false) {
               <div class="data-row__actions">
                 <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(r)">Edit</button>
-                <button *appCan="'edit'" type="button" class="btn btn--sm"
-                        [class.btn--danger]="r.isActive" [class.btn--success]="!r.isActive" (click)="toggleActive(r)">
-                  {{ r.isActive ? 'Disable' : 'Enable' }}
-                </button>
+                <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + r.agencyName">
+                  <button type="button" appMenuItem (click)="toggleActive(r)">
+                    <span class="material-icons" aria-hidden="true">{{ r.isActive ? 'block' : 'check_circle' }}</span>
+                    {{ r.isActive ? 'Disable' : 'Enable' }}
+                  </button>
+                </app-overflow-menu>
               </div>
             }
           </div>

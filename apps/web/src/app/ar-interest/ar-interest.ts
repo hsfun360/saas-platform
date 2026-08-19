@@ -6,6 +6,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ArService } from '../services/ar.service';
 import { ArInterestDetail, ArInterestGeneration } from '../models/ar.models';
 
@@ -19,7 +20,7 @@ import { ArInterestDetail, ArInterestGeneration } from '../models/ar.models';
   standalone: true,
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
-    DialogComponent, CanDirective, LocalDatePipe,
+    DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective,
   ],
   templateUrl: './ar-interest.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-interest.css'],

@@ -91,15 +91,12 @@
                    may not amend (canModify=false) — hide the actions entirely. -->
               @if (f.canModify !== false) {
                 <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(f)">Edit</button>
-                @if (f.isActive === false) {
-                  <button *appCan="'edit'" type="button" class="btn btn--success btn--sm" (click)="toggleActive(f)" [disabled]="togglingId() === f.id">
-                    {{ togglingId() === f.id ? 'Saving…' : 'Enable' }}
+                <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + f.membershipFeeCode">
+                  <button type="button" appMenuItem (click)="toggleActive(f)" [disabled]="togglingId() === f.id">
+                    <span class="material-icons" aria-hidden="true">{{ f.isActive === false ? 'check_circle' : 'block' }}</span>
+                    {{ togglingId() === f.id ? 'Saving…' : (f.isActive === false ? 'Enable' : 'Disable') }}
                   </button>
-                } @else {
-                  <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="toggleActive(f)" [disabled]="togglingId() === f.id">
-                    {{ togglingId() === f.id ? 'Saving…' : 'Disable' }}
-                  </button>
-                }
+                </app-overflow-menu>
               }
             </div>
           </div>

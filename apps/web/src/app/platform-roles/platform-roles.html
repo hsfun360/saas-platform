@@ -78,10 +78,12 @@
                 <span class="badge">System-managed</span>
               } @else {
                 <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(role)">Edit</button>
-                <button type="button" class="btn btn--danger btn--sm" (click)="onDelete(role)"
-                        [disabled]="deletingId() === role.id">
-                  {{ deletingId() === role.id ? 'Deleting…' : 'Delete' }}
-                </button>
+                <app-overflow-menu [label]="'More actions for ' + role.name">
+                  <button type="button" appMenuItem (click)="onDelete(role)" [disabled]="deletingId() === role.id">
+                    <span class="material-icons" aria-hidden="true">delete</span>
+                    {{ deletingId() === role.id ? 'Deleting…' : 'Delete' }}
+                  </button>
+                </app-overflow-menu>
               }
             </div>
           </div>
