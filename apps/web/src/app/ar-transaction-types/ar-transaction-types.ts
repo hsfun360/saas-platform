@@ -95,11 +95,10 @@ export class ArTransactionTypesComponent implements OnInit {
   });
   readonly activeCount = computed(() => this.rows().filter((t) => t.isActive !== false).length);
 
-  readonly dialogTitle = computed(() => {
-    if (this.editId()) return 'Edit transaction type';
-    if (this.dialogView() === 'class') return 'New transaction type';
-    return `New transaction type for ${this.trxClassLabel(this.dialogClass())}`;
-  });
+  // The chosen class shows in the form's Transaction Class field, not the title.
+  readonly dialogTitle = computed(() =>
+    this.editId() ? 'Edit transaction type' : 'New transaction type',
+  );
 
   ngOnInit(): void {
     this.service.transactionTypeMeta().subscribe({ next: (m) => this.meta.set(m), error: () => {} });
