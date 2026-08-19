@@ -12,11 +12,22 @@ import {
 } from '@angular/core';
 
 // Reusable modal dialog: a popup that covers the whole viewport (full-screen on
-// mobile, centred card on desktop) so the content reads as its own screen. It
-// owns the chrome (overlay, title bar, scrollable body, fixed footer) and the
-// accessibility behaviour required by docs/coding-standards.md — focus moves in
-// on open, is trapped while open, Esc closes, and focus returns to the trigger
-// on close.
+// mobile) so the content reads as its own screen. It owns the chrome (overlay,
+// title bar, scrollable body, fixed footer) and the accessibility behaviour
+// required by docs/coding-standards.md — focus moves in on open, is trapped
+// while open, Esc closes, and focus returns to the trigger on close.
+//
+// Two desktop presentations, chosen by [variant]:
+// - 'drawer' (the standard for create/edit FORMS): a full-height panel that
+//   slides in from the RIGHT edge at the ONE standard width, 800px — form
+//   fields fill the panel instead of swimming in a wide centred box, and
+//   desktop matches the full-screen feel users get on mobile. There is
+//   deliberately NO per-screen width option (a 'size' input was removed when
+//   the user standardized on one width, 2026-08-19) — every drawer is 800px
+//   so screens never drift.
+// - 'center' (the default): the centred card — for short interrupting
+//   decisions and non-form content where a slide-in would feel wrong.
+// Both collapse to the same edge-to-edge full-screen on mobile.
 //
 // Unsaved-changes guard (opt-in): bind [dirty] to whether the projected form
 // currently holds unsaved edits — `form.dirty` for a reactive FormGroup, or
@@ -59,6 +70,8 @@ import {
 })
 export class DialogComponent implements OnDestroy {
   readonly title = input.required<string>();
+  // Desktop presentation — see the class comment. Mobile is identical for both.
+  readonly variant = input<'center' | 'drawer'>('center');
   readonly busy = input(false); // while true, the ✕ and Esc are inert (mid-save)
   readonly close = output<void>();
   // NOTE: save/submit errors are NOT a dialog concern - they use the global

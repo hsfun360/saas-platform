@@ -1,5 +1,7 @@
-<div class="dlg-overlay" (keydown)="onKeydown($event)" (focusin)="onFocusIn($event)">
-  <div class="dlg" role="dialog" aria-modal="true" [attr.aria-label]="title()" tabindex="-1" #panel>
+<div class="dlg-overlay" [class.dlg-overlay--drawer]="variant() === 'drawer'"
+     (keydown)="onKeydown($event)" (focusin)="onFocusIn($event)">
+  <div class="dlg" [class.dlg--drawer]="variant() === 'drawer'"
+       role="dialog" aria-modal="true" [attr.aria-label]="title()" tabindex="-1" #panel>
     <header class="dlg__header">
       <h2 class="dlg__title">{{ title() }}</h2>
       <button type="button" class="dlg__close" (click)="requestClose()" [disabled]="busy()" aria-label="Close">

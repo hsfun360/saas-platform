@@ -234,7 +234,8 @@
 
   <!-- ============ Other Debtor dialog (create + edit via mode) ============ -->
   @if (otherOpen()) {
-    <app-dialog #otherDlg [title]="otherMode() === 'create' ? 'New Other Debtor' : 'Edit — ' + otherCode" [busy]="otherSaving()" [dirty]="otherForm.dirty"
+    <app-dialog #otherDlg variant="drawer"
+                [title]="otherMode() === 'create' ? 'New Other Debtor' : 'Edit — ' + otherCode" [busy]="otherSaving()" [dirty]="otherForm.dirty"
                 [discardTitle]="otherMode() === 'create' ? 'Discard this new Other Debtor?' : 'Discard your changes?'"
                 [discardMessage]="otherMode() === 'create' ? 'You have started entering a new Other Debtor. Leaving now will discard it.' : 'You have unsaved changes. Leaving now will discard them.'"
                 (close)="closeOther()">

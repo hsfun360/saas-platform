@@ -660,11 +660,27 @@ For any non-trivial listing (more than a handful of rows), the **add** action an
   form that expands at the top of the list (on a scrolled mobile list it appears off-screen
   and the user thinks nothing happened). Use one of:
   - the shared **`<app-dialog>`** (`src/app/shared/dialog`) - a popup that's full-screen on
-    mobile (edge-to-edge, over header + bottom nav) and a centred card on desktop; overlay
-    at `z-index: 1200` (above the header). It owns the chrome (title bar, **scrollable
-    body**, **fixed one-line footer**) and the a11y (see below), so screens just project
-    content. **Don't hand-roll a modal** - reuse this. Reference: `companies.ts` (create +
-    edit-modules + edit-details dialogs) and `modules-menus.ts` (module + menu dialogs).
+    mobile (edge-to-edge, over header + bottom nav); overlay at `z-index: 1200` (above the
+    header). It owns the chrome (title bar, **scrollable body**, **fixed one-line footer**)
+    and the a11y (see below), so screens just project content. **Don't hand-roll a modal** -
+    reuse this. Reference: `companies.ts` (create + edit-modules + edit-details dialogs) and
+    `modules-menus.ts` (module + menu dialogs).
+    - **Desktop presentation is the `[variant]` input, and create/edit FORM dialogs use
+      `variant="drawer"` (standardized 2026-08-19)**: a full-height panel that slides in
+      from the RIGHT edge at the ONE standard width, **800px** (~350px per column for
+      two-field rows), page context dimmed but visible behind. There is deliberately **no
+      per-screen width option** - a `size` input existed briefly and was removed when the
+      user standardized on one width, so drawers never drift (the width is NOT the 1140px
+      content cap on purpose: that would hide the page behind the panel and stretch fields
+      past comfortable reading width). Mobile is unaffected - both variants render the same
+      edge-to-edge full screen. Reference: `ar-transaction-types` and the `ar-debtors`
+      Other Debtor dialog.
+    - The **default `variant="center"`** (centred card) stays for short interrupting
+      decisions and non-form content - confirmations, pickers, result reports - where a
+      slide-in drawer would feel wrong. The in-dialog discard confirmation stays centred in
+      both variants.
+    - Older form dialogs still on the centred card are migrated to the drawer as their
+      screens are touched.
   - or a **routed screen** (`/section/new`) that the mobile sliding-pane covers the list
     with - for master–detail screens this falls out of the existing URL-state pattern.
     Reference: `items.ts` (`/items/new`); for a tabbed screen, jump to the create tab

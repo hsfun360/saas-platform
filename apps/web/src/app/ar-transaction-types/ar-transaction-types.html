@@ -116,7 +116,7 @@
 
   <!-- ============ Add / edit dialog ============ -->
   @if (dialogOpen()) {
-    <app-dialog #dlg [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this transaction type. Leaving now will discard them."
                 (close)="closeDialog()">

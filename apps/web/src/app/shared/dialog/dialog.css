@@ -83,6 +83,40 @@
   background: var(--surface-card);
 }
 
+/* Drawer variant — the desktop standard for create/edit forms. The overlay
+   pins the panel to the RIGHT edge; the panel takes the full viewport height
+   at the ONE standard width, 800px (~350px per column for two-field rows).
+   Deliberately NOT the 1140px card/content cap: at that width the page
+   context behind the drawer disappears and form fields stretch past
+   comfortable reading width. Slides in from the right. */
+.dlg-overlay--drawer {
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
+}
+.dlg--drawer {
+  width: min(800px, 100%);
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  border-radius: 0;
+  animation: dlg-drawer-in 0.25s ease;
+}
+@keyframes dlg-drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dlg--drawer { animation: none; }
+}
+/* Breathing room: the fixed-width panel can afford a more generous horizontal
+   gutter than the space-constrained centred card (~416px of field width). */
+@media (min-width: 768px) {
+  .dlg--drawer .dlg__header { padding: var(--space-lg) var(--space-xl); }
+  .dlg--drawer .dlg__body { padding: var(--space-xl); }
+  .dlg--drawer .dlg__footer { padding: var(--space-md) var(--space-xl); }
+}
+
 /* Discard-changes confirmation — a small card layered over the whole panel so
    the form behind it can't be touched until the user chooses. */
 .dlg__confirm {
@@ -121,12 +155,15 @@
   gap: var(--space-sm);
 }
 
-/* Full-screen on mobile: the dialog IS the screen, edge to edge. */
+/* Full-screen on mobile: the dialog IS the screen, edge to edge. The width
+   override also covers the drawer variant — its 480px cap must not leave a
+   scrim strip on 480-767px viewports. */
 @media (max-width: 767px) {
   .dlg-overlay {
     padding: 0;
   }
   .dlg {
+    width: 100%;
     max-width: none;
     max-height: none;
     height: 100%;
