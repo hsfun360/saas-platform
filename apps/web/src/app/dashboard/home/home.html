@@ -196,7 +196,7 @@
 
   <!-- MANAGE QUICK ACCESS DIALOG -->
   @if (manageOpen()) {
-    <app-dialog #dlg title="Manage quick access" [dirty]="manageDirty()" (close)="manageOpen.set(false)"
+    <app-dialog #dlg variant="drawer" title="Manage quick access" [dirty]="manageDirty()" (close)="manageOpen.set(false)"
                 discardTitle="Discard your changes?"
                 discardMessage="The new order has not been saved and will be lost if you leave.">
       <p class="hm-mg__hint">Drag a system block to reorder the systems, drag a screen to reorder it within its system, or remove it. My Dashboard shows them in this order.</p>

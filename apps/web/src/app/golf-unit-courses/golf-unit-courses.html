@@ -135,7 +135,7 @@
 
   <!-- ============ Add / edit dialog ============ -->
   @if (dialogOpen()) {
-    <app-dialog #ucDlg [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+    <app-dialog #ucDlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
                 discardTitle="Discard this unit course?"
                 discardMessage="You have unsaved changes on this unit course. Leaving now will discard them."
                 (close)="closeDialog()">
@@ -231,7 +231,7 @@
 
   <!-- ============ Holes dialog (spec 2.2.2) ============ -->
   @if (holesOpen()) {
-    <app-dialog #holesDlg [title]="holesTitle()" [busy]="holesSaving()" [dirty]="holesDirty()"
+    <app-dialog #holesDlg variant="drawer" [title]="holesTitle()" [busy]="holesSaving()" [dirty]="holesDirty()"
                 discardTitle="Discard hole changes?"
                 discardMessage="You have unsaved hole changes. Leaving now will discard them."
                 (close)="closeHoles()">
@@ -282,7 +282,7 @@
 
   <!-- ============ Tee boxes dialog (spec 2.2.3) ============ -->
   @if (teesOpen()) {
-    <app-dialog #teesDlg [title]="teesTitle()" [busy]="teesSaving()" [dirty]="teesDirty()"
+    <app-dialog #teesDlg variant="drawer" [title]="teesTitle()" [busy]="teesSaving()" [dirty]="teesDirty()"
                 discardTitle="Discard tee box changes?"
                 discardMessage="You have unsaved tee box changes. Leaving now will discard them."
                 (close)="closeTees()">

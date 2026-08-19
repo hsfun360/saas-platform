@@ -113,7 +113,7 @@
 
   <!-- ============ Create user dialog ============ -->
   @if (userDialogOpen()) {
-    <app-dialog #createUserDlg title="Create user" [busy]="userSubmitting()"
+    <app-dialog #createUserDlg variant="drawer" title="Create user" [busy]="userSubmitting()"
                 [dirty]="createForm.dirty"
                 discardTitle="Discard this new user?"
                 discardMessage="You have started entering a new user. Leaving now will discard it."
@@ -179,7 +179,7 @@
 
   <!-- ============ Edit user dialog ============ -->
   @if (editDialogOpen()) {
-    <app-dialog #editUserDlg title="Edit user" [busy]="editSubmitting()"
+    <app-dialog #editUserDlg variant="drawer" title="Edit user" [busy]="editSubmitting()"
                 [dirty]="editForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."

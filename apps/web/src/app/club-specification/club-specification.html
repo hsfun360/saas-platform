@@ -206,7 +206,7 @@
 
   <!-- ============ Configure numbering format dialog ============ -->
   @if (configOpen()) {
-    <app-dialog #dlg title="Membership number format" [busy]="configSaving()" [dirty]="configForm.dirty"
+    <app-dialog #dlg variant="drawer" title="Membership number format" [busy]="configSaving()" [dirty]="configForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to the number format. Leaving now will discard them."
                 (close)="configOpen.set(false)">

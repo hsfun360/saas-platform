@@ -136,7 +136,7 @@
 
   <!-- ============ Add / edit dialog ============ -->
   @if (dialogOpen()) {
-    <app-dialog #dlg [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this membership type. Leaving now will discard them."
                 (close)="closeDialog()">
@@ -316,7 +316,7 @@
 
   <!-- ============ Joining fees dialog (A) ============ -->
   @if (feesOpen()) {
-    <app-dialog #feesDlg [title]="'Joining fees — ' + (feesType()?.category || '')" [busy]="feesSaving()" [dirty]="feesDirty()"
+    <app-dialog #feesDlg variant="drawer" [title]="'Joining fees — ' + (feesType()?.category || '')" [busy]="feesSaving()" [dirty]="feesDirty()"
                 discardTitle="Discard joining-fee changes?"
                 discardMessage="You have unsaved changes to these joining fees. Leaving now will discard them."
                 (close)="closeFees()">
@@ -392,7 +392,7 @@
 
   <!-- ============ Standing charges dialog (B) ============ -->
   @if (chargesOpen()) {
-    <app-dialog #chargesDlg [title]="'Standing charges — ' + (chargesType()?.category || '')" [busy]="chargesSaving()" [dirty]="chargesDirty()"
+    <app-dialog #chargesDlg variant="drawer" [title]="'Standing charges — ' + (chargesType()?.category || '')" [busy]="chargesSaving()" [dirty]="chargesDirty()"
                 discardTitle="Discard standing-charge changes?"
                 discardMessage="You have unsaved changes to these standing charges. Leaving now will discard them."
                 (close)="closeCharges()">

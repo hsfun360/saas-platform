@@ -390,7 +390,7 @@
 
   <!-- ============ Membership dialog (add / edit) ============ -->
   @if (membershipOpen()) {
-    <app-dialog #msDlg [title]="membershipDialogTitle()" [busy]="membershipSaving()"
+    <app-dialog #msDlg variant="drawer" [title]="membershipDialogTitle()" [busy]="membershipSaving()"
                 [dirty]="membershipForm.dirty || memberForm.dirty"
                 discardTitle="Discard this membership?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
@@ -746,7 +746,7 @@
 
   <!-- ============ Member dialog (new nominee / new dependent / edit) ============ -->
   @if (memberDialogMode()) {
-    <app-dialog #memDlg [title]="memberDialogTitle()" [busy]="memberSaving()"
+    <app-dialog #memDlg variant="drawer" [title]="memberDialogTitle()" [busy]="memberSaving()"
                 [dirty]="memberForm.dirty || memberMetaForm.dirty"
                 discardTitle="Discard this member?"
                 discardMessage="You have unsaved changes to this member. Leaving now will discard them."

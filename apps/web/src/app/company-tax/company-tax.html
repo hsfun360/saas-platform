@@ -114,7 +114,7 @@
 
   <!-- ============ Edit adoption dialog ============ -->
   @if (editOpen() && editScheme(); as a) {
-    <app-dialog #ctDlg [title]="'Company tax — ' + a.taxSchemeCode" [busy]="editSaving()" [dirty]="editForm.dirty"
+    <app-dialog #ctDlg variant="drawer" [title]="'Company tax — ' + a.taxSchemeCode" [busy]="editSaving()" [dirty]="editForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
                 (close)="closeEdit()">

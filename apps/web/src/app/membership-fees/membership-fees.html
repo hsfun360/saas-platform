@@ -116,7 +116,7 @@
 
   <!-- ============ Add / edit dialog ============ -->
   @if (dialogOpen()) {
-    <app-dialog #feeDlg [title]="dialogTitle()" [busy]="saving()"
+    <app-dialog #feeDlg variant="drawer" [title]="dialogTitle()" [busy]="saving()"
                 [dirty]="form.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."

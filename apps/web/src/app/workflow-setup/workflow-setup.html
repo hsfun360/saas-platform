@@ -108,7 +108,7 @@
 
   <!-- ============ Single dialog: definition / step / preview ============ -->
   @if (dialogOpen()) {
-    <app-dialog #dlg [title]="dialogTitle()" [busy]="saving()" [dirty]="dialogDirty()"
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="dialogDirty()"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this approval workflow. Leaving now will discard them."
                 (close)="closeDialog()">

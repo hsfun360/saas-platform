@@ -236,7 +236,7 @@
 
   <!-- ============ Official Receipt dialog ============ -->
   @if (receiptOpen()) {
-    <app-dialog #receiptDlg [title]="'New Official Receipt'" [busy]="receiptSaving()" [dirty]="receiptForm.dirty"
+    <app-dialog #receiptDlg variant="drawer" [title]="'New Official Receipt'" [busy]="receiptSaving()" [dirty]="receiptForm.dirty"
                 discardTitle="Discard this receipt?"
                 discardMessage="You have started entering a receipt. Leaving now will discard it."
                 (close)="closeReceipt()">
@@ -317,7 +317,7 @@
 
   <!-- ============ Refund dialog ============ -->
   @if (refundOpen()) {
-    <app-dialog #refundDlg [title]="'New Refund'" [busy]="refundSaving()" [dirty]="refundForm.dirty"
+    <app-dialog #refundDlg variant="drawer" [title]="'New Refund'" [busy]="refundSaving()" [dirty]="refundForm.dirty"
                 discardTitle="Discard this refund?"
                 discardMessage="You have started entering a refund. Leaving now will discard it."
                 (close)="closeRefund()">
@@ -401,7 +401,7 @@
 
   <!-- ============ Deposit dialog ============ -->
   @if (depositOpen()) {
-    <app-dialog #depositDlg [title]="'New Deposit'" [busy]="depositSaving()" [dirty]="depositForm.dirty"
+    <app-dialog #depositDlg variant="drawer" [title]="'New Deposit'" [busy]="depositSaving()" [dirty]="depositForm.dirty"
                 discardTitle="Discard this deposit?"
                 discardMessage="You have started entering a deposit. Leaving now will discard it."
                 (close)="closeDeposit()">
@@ -454,7 +454,7 @@
 
   <!-- ============ Convert-deposit dialog ============ -->
   @if (convertOpen()) {
-    <app-dialog #convertDlg [title]="'Convert Deposit — ' + (convertDeposit()?.docNo || '')" [busy]="convertSaving()" [dirty]="convertForm.dirty"
+    <app-dialog #convertDlg variant="drawer" [title]="'Convert Deposit — ' + (convertDeposit()?.docNo || '')" [busy]="convertSaving()" [dirty]="convertForm.dirty"
                 discardTitle="Discard this conversion?"
                 discardMessage="You have started a deposit conversion. Leaving now will discard it."
                 (close)="closeConvert()">

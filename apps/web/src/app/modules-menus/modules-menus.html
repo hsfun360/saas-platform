@@ -273,7 +273,7 @@
 
   <!-- ============ Add / edit module dialog ============ -->
   @if (moduleDialogOpen()) {
-    <app-dialog #moduleDlg [title]="editingModuleId() ? 'Edit module' : 'Add module'" [busy]="savingModule()" [dirty]="moduleForm.dirty"
+    <app-dialog #moduleDlg variant="drawer" [title]="editingModuleId() ? 'Edit module' : 'Add module'" [busy]="savingModule()" [dirty]="moduleForm.dirty"
                 discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="cancelModuleEdit()">
       <form id="moduleForm" [formGroup]="moduleForm" (ngSubmit)="saveModule()">
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
@@ -351,7 +351,7 @@
 
   <!-- ============ Add / edit menu dialog ============ -->
   @if (menuDialogOpen()) {
-    <app-dialog #menuDlg [title]="editingMenuId() ? 'Edit menu' : 'Add menu'" [busy]="savingMenu()" [dirty]="menuForm.dirty"
+    <app-dialog #menuDlg variant="drawer" [title]="editingMenuId() ? 'Edit menu' : 'Add menu'" [busy]="savingMenu()" [dirty]="menuForm.dirty"
                 discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="cancelMenuEdit()">
       <form id="menuForm" [formGroup]="menuForm" (ngSubmit)="saveMenu()">
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">

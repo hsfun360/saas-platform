@@ -116,7 +116,7 @@
 
   <!-- ============ Create company dialog ============ -->
   @if (showCreate()) {
-    <app-dialog #createDlg title="New company" [busy]="creating()"
+    <app-dialog #createDlg variant="drawer" title="New company" [busy]="creating()"
                 [dirty]="form.dirty"
                 discardTitle="Discard this new company?"
                 discardMessage="You have started entering a new company. Leaving now will discard it."
@@ -283,7 +283,7 @@
 
   <!-- ============ Edit modules dialog ============ -->
   @if (editingCompanyId(); as cid) {
-    <app-dialog [title]="'Edit modules — ' + (editingCompany()?.name || '')" [busy]="savingModules()" (close)="cancelEditModules()">
+    <app-dialog variant="drawer" [title]="'Edit modules — ' + (editingCompany()?.name || '')" [busy]="savingModules()" (close)="cancelEditModules()">
       <div style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary); margin-bottom: var(--space-sm);">
         Modules ({{ editCount() }} selected)
       </div>
@@ -319,7 +319,7 @@
 
   <!-- ============ Edit details dialog ============ -->
   @if (editingProfileCompanyId(); as pid) {
-    <app-dialog #detailsDlg [title]="'Edit details — ' + (editingProfileCompany()?.name || '')" [busy]="savingProfile()"
+    <app-dialog #detailsDlg variant="drawer" [title]="'Edit details — ' + (editingProfileCompany()?.name || '')" [busy]="savingProfile()"
                 [dirty]="profileForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this company. Leaving now will discard them."

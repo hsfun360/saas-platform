@@ -1,4 +1,4 @@
-<app-dialog #dlg
+<app-dialog #dlg variant="drawer"
             [title]="editRow() ? 'Edit ' + kindLabel() + ' — ' + (editRow()?.docNo || 'Draft')
                      : mode() === 'pick' ? 'New ' + kindLabel() + ' — select debtor' : 'New ' + kindLabel()"
             [busy]="saving() || metaLoading()"

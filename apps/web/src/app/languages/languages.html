@@ -109,7 +109,7 @@
 
   <!-- ============ Add language dialog ============ -->
   @if (addOpen()) {
-    <app-dialog #addDlg [title]="'New language'" [busy]="addSaving()" [dirty]="addForm.dirty"
+    <app-dialog #addDlg variant="drawer" [title]="'New language'" [busy]="addSaving()" [dirty]="addForm.dirty"
                 discardTitle="Discard this new language?"
                 discardMessage="You have started entering a new language. Leaving now will discard it."
                 (close)="closeAdd()">
@@ -148,7 +148,7 @@
 
   <!-- ============ Edit language dialog ============ -->
   @if (editOpen()) {
-    <app-dialog #editDlg [title]="'Edit — ' + editingCode()" [busy]="editSaving()" [dirty]="editForm.dirty"
+    <app-dialog #editDlg variant="drawer" [title]="'Edit — ' + editingCode()" [busy]="editSaving()" [dirty]="editForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
                 (close)="closeEdit()">

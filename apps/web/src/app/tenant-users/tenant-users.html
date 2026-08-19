@@ -111,7 +111,7 @@
 
   <!-- ============ Create user dialog ============ -->
   @if (createDialogOpen()) {
-    <app-dialog #createUserDlg title="Create user" [busy]="creating()"
+    <app-dialog #createUserDlg variant="drawer" title="Create user" [busy]="creating()"
                 [dirty]="createForm.dirty"
                 discardTitle="Discard this new user?"
                 discardMessage="You have started entering a new user. Leaving now will discard it."
@@ -196,7 +196,7 @@
 
   <!-- ============ Invite collaborator dialog ============ -->
   @if (inviteDialogOpen()) {
-    <app-dialog #inviteDlg title="Invite collaborator" [busy]="inviting()"
+    <app-dialog #inviteDlg variant="drawer" title="Invite collaborator" [busy]="inviting()"
                 [dirty]="inviteForm.dirty"
                 discardTitle="Discard this new invitation?"
                 discardMessage="You have started entering a new invitation. Leaving now will discard it."
@@ -252,7 +252,7 @@
 
   <!-- ============ Edit user — companies & roles ============ -->
   @if (editPerson(); as person) {
-    <app-dialog [title]="'Edit — ' + person.email" (close)="closeEdit()">
+    <app-dialog variant="drawer" [title]="'Edit — ' + person.email" (close)="closeEdit()">
       <!-- Profile (global user fields) — only when account-scoped editable. -->
       @if (person.profileEditable) {
         <form [formGroup]="editProfileForm" (ngSubmit)="onSaveProfile()">

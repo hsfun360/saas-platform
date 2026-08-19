@@ -234,7 +234,7 @@
 
   <!-- ============ Scheme add/edit dialog ============ -->
   @if (schemeDialogOpen()) {
-    <app-dialog #schemeDlg [title]="schemeEditId ? ('Edit — ' + schemeForm.controls.taxSchemeCode.value) : 'New tax scheme'"
+    <app-dialog #schemeDlg variant="drawer" [title]="schemeEditId ? ('Edit — ' + schemeForm.controls.taxSchemeCode.value) : 'New tax scheme'"
                 [busy]="schemeSaving()" [dirty]="schemeForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."
@@ -320,7 +320,7 @@
 
   <!-- ============ Rate add/edit dialog ============ -->
   @if (rateDialogOpen()) {
-    <app-dialog #rateDlg [title]="rateEditId ? ('Edit rate — ' + rateForm.controls.taxCode.value) : 'Add rate line'"
+    <app-dialog #rateDlg variant="drawer" [title]="rateEditId ? ('Edit rate — ' + rateForm.controls.taxCode.value) : 'Add rate line'"
                 [busy]="rateSaving()" [dirty]="rateForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."

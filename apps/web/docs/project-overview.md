@@ -682,8 +682,12 @@ For any non-trivial listing (more than a handful of rows), the **add** action an
       decisions and non-form content - confirmations, pickers, result reports - where a
       slide-in drawer would feel wrong. The in-dialog discard confirmation stays centred in
       both variants.
-    - Older form dialogs still on the centred card are migrated to the drawer as their
-      screens are touched.
+    - **Rolled out app-wide 2026-08-19**: every create/edit/manage form dialog passes
+      `variant="drawer"`. The deliberate centred survivors are the decision/confirm
+      dialogs (approvals decision, Confirm void, Submit for approval, Confirm statement
+      run), the viewers (Statement view, Interest detail, the Memberships "Members"
+      list), and the preview/selection pickers (Load defaults/Copy dialogs,
+      Reconciliation) - when adding a dialog, pick by that same split.
   - or a **routed screen** (`/section/new`) that the mobile sliding-pane covers the list
     with - for master–detail screens this falls out of the existing URL-state pattern.
     Reference: `items.ts` (`/items/new`); for a tabbed screen, jump to the create tab

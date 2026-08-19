@@ -145,7 +145,7 @@
 
   <!-- ============ Create subscriber dialog ============ -->
   @if (createDialogOpen()) {
-    <app-dialog #createSubDlg title="New subscriber" [busy]="creating()"
+    <app-dialog #createSubDlg variant="drawer" title="New subscriber" [busy]="creating()"
                 [dirty]="createForm.dirty"
                 discardTitle="Discard this new subscriber?"
                 discardMessage="You have started entering a new subscriber. Leaving now will discard it."
@@ -264,7 +264,7 @@
 
   <!-- ============ Edit subscriber dialog ============ -->
   @if (editDialogOpen()) {
-    <app-dialog #editSubDlg title="Edit subscriber" [busy]="updating()"
+    <app-dialog #editSubDlg variant="drawer" title="Edit subscriber" [busy]="updating()"
                 [dirty]="editForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."

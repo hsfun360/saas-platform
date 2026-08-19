@@ -119,7 +119,7 @@
 
   <!-- ============ Add tax type dialog ============ -->
   @if (addOpen()) {
-    <app-dialog #addDlg [title]="'New e-Invoice tax type'" [busy]="addSaving()" [dirty]="addForm.dirty"
+    <app-dialog #addDlg variant="drawer" [title]="'New e-Invoice tax type'" [busy]="addSaving()" [dirty]="addForm.dirty"
                 discardTitle="Discard this new tax type?"
                 discardMessage="You have started entering a new tax type. Leaving now will discard it."
                 (close)="closeAdd()">
@@ -161,7 +161,7 @@
 
   <!-- ============ Edit tax type dialog ============ -->
   @if (editOpen()) {
-    <app-dialog #editDlg [title]="'Edit — ' + editingCode()" [busy]="editSaving()" [dirty]="editForm.dirty"
+    <app-dialog #editDlg variant="drawer" [title]="'Edit — ' + editingCode()" [busy]="editSaving()" [dirty]="editForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
                 (close)="closeEdit()">

@@ -102,7 +102,7 @@
 
   <!-- ============ Create / edit role dialog ============ -->
   @if (roleDialogOpen()) {
-    <app-dialog #roleDlg [title]="editingRoleId() ? 'Edit role' : 'New role'" [busy]="isLoading()"
+    <app-dialog #roleDlg variant="drawer" [title]="editingRoleId() ? 'Edit role' : 'New role'" [busy]="isLoading()"
                 [dirty]="roleForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."

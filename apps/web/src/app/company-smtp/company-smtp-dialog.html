@@ -1,4 +1,4 @@
-<app-dialog #smtpDlg [title]="'Email delivery (SMTP) — ' + company().name" [busy]="saving() || removing()" [dirty]="form.dirty"
+<app-dialog #smtpDlg variant="drawer" [title]="'Email delivery (SMTP) — ' + company().name" [busy]="saving() || removing()" [dirty]="form.dirty"
             discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="onClose()">
   @if (loading()) {
     <p style="color: var(--text-muted);">Loading…</p>

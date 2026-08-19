@@ -1,4 +1,4 @@
-<app-dialog #wkDlg [title]="'Weekend days — ' + company().name" [busy]="saving()" [dirty]="form.dirty"
+<app-dialog #wkDlg variant="drawer" [title]="'Weekend days — ' + company().name" [busy]="saving()" [dirty]="form.dirty"
             discardTitle="Discard your changes?" discardMessage="You have unsaved weekend-day changes. Leaving now will discard them." (close)="onClose()">
   @if (loading()) {
     <p style="color: var(--text-muted);">Loading…</p>

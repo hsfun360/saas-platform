@@ -89,7 +89,7 @@
   </button>
 
   @if (dialogOpen()) {
-    <app-dialog #dlg [title]="editRow() ? 'Edit agency' : 'New agency'" [busy]="saving()"
+    <app-dialog #dlg variant="drawer" [title]="editRow() ? 'Edit agency' : 'New agency'" [busy]="saving()"
                 [dirty]="form.dirty" (close)="close()">
       <form id="agencyForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
         <details class="dlg-sec" open>

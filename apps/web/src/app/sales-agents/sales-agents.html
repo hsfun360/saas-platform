@@ -105,7 +105,7 @@
   </button>
 
   @if (dialogOpen()) {
-    <app-dialog #dlg [title]="editRow() ? 'Edit agent' : 'New agent'" [busy]="saving()"
+    <app-dialog #dlg variant="drawer" [title]="editRow() ? 'Edit agent' : 'New agent'" [busy]="saving()"
                 [dirty]="form.dirty" (close)="close()">
       <form id="agentForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
