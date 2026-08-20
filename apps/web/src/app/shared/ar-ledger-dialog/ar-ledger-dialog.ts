@@ -42,8 +42,10 @@ export class ArLedgerDialogComponent implements OnInit {
   // CN "apply against" candidates (account screen provides its open debits;
   // standalone/edit modes read them from the self-loaded meta instead).
   readonly openDebits = input<ArLedgerDoc[]>([]);
-  // Raise-CN from a posted document: pre-select this open debit as the target.
+  // Raise-CN from a posted document: pre-select this open debit as the target
+  // and seed the amount with its remaining balance (still editable).
   readonly presetTargetId = input<string | null>(null);
+  readonly presetAmount = input<number | null>(null);
   // Editing an existing Open (draft): prefill + PATCH instead of POST.
   readonly editRow = input<ArDocListRow | null>(null);
 
@@ -130,7 +132,7 @@ export class ArLedgerDialogComponent implements OnInit {
     }
     this.form.reset({
       docNo: '', docDate: t, trxDate: t, transactionTypeId: '',
-      description: '', amount: 0,
+      description: '', amount: this.presetAmount() ?? 0,
       // Raise-CN pre-selects the source document as the apply-against target.
       targetLedgerId: this.presetTargetId() || '', fifo: false,
     });

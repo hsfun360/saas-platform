@@ -151,6 +151,7 @@
   @if (raiseCnFor(); as srcDoc) {
     <app-ar-ledger-dialog [kind]="'credit-note'" [debtor]="srcDoc.debtor"
                           [presetTargetId]="srcDoc.id"
+                          [presetAmount]="remainingNum(srcDoc)"
                           (closed)="onRaiseCnClosed()"
                           (posted)="onRaiseCnPosted($event)"
                           (failed)="errorMessage.set($event)" />

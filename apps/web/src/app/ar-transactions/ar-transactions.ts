@@ -301,7 +301,16 @@ export class ArTransactionsComponent implements OnInit {
   }
   openRaiseCn(row: ArDocListRow): void {
     this.clearMessages();
+    // Nothing left to offset (fully allocated, or a credit-mode reversal
+    // row): a CN against it is meaningless - say so instead of opening.
+    if (this.remainingNum(row) <= 0 || row.mode !== 'debit') {
+      this.errorMessage.set(`${this.docRef(row)} is already fully allocated - there is no balance left to offset with a Credit Note.`);
+      return;
+    }
     this.raiseCnFor.set(row);
+  }
+  remainingNum(row: ArDocListRow): number {
+    return Number(row.grossAmount) - Number(row.settledAmount);
   }
   onRaiseCnPosted(message: string): void {
     this.successMessage.set(message);
