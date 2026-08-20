@@ -73,7 +73,7 @@ router.patch('/invoices/:id', requireMenuAction('/ar/invoices'), documentControl
 router.post('/invoices/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.submitInvoice);
 router.patch('/invoices/:id/void', requireMenuAction('/ar/invoices'), documentController.voidInvoice);
 // Credit Note (menu '/ar/credit-notes'): same Save->Submit lifecycle; the
-// draft carries its allocation intent (apply-against / FIFO), resolved at
+// draft carries its allocation intent (apply-against target), resolved at
 // posting. Raise-CN on the Invoices screen gates on THIS menu's create grant.
 router.get('/credit-notes', requireMenuAction('/ar/credit-notes'), documentController.listCreditNotes);
 router.post('/credit-notes', requireMenuAction('/ar/credit-notes'), documentController.postCreditNote);

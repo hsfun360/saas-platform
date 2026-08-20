@@ -275,8 +275,8 @@ async function postLedgerDoc({
 // debtor's CURRENT terms, stamps postedAt/postedBy, and flips to 'open'.
 // Credit drafts (CN lifecycle 2026-08-20) then resolve their stored
 // allocation intent: the applyToLedgerId target if it is STILL an open debit
-// (settled/voided since entry -> skipped, CN stays available credit), then
-// FIFO when applyFifo is set.
+// (settled/voided since entry -> skipped, CN stays available credit). No
+// FIFO for manual adjustments (user rule) - that is receipt behaviour.
 async function postDraftLedger({ companyId, debtor, row, issueDocNo, stamps = {}, t }) {
     if (!['draft', 'pending-approval'].includes(row.status)) {
         throw bizError(400, `Only a draft can be posted (this document is ${row.status}).`);
@@ -321,7 +321,6 @@ async function postDraftLedger({ companyId, debtor, row, issueDocNo, stamps = {}
                 }
             }
         }
-        if (row.applyFifo) await fifoAllocateCredit({ companyId, pool, creditType: 'ledger', creditRow: row, stamps, t });
     }
     return row;
 }

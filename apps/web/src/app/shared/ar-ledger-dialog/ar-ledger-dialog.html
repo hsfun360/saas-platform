@@ -107,17 +107,19 @@
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
               <div class="form-group">
                 <label for="ldTarget">Apply against</label>
-                <select id="ldTarget" formControlName="targetLedgerId">
-                  <option value="">— Leave as available credit —</option>
-                  @for (doc of effOpenDebits(); track doc.id) {
-                    <option [value]="doc.id">{{ kindLabel(doc.docKind) }} {{ doc.docNo }} — open {{ remaining(doc) }}</option>
-                  }
-                </select>
-              </div>
-              <div class="form-group" style="justify-content: end;">
-                <label class="ald-check" style="margin: 0;">
-                  <input type="checkbox" formControlName="fifo" /> Auto-apply remainder to oldest open items
-                </label>
+                @if (targetLocked()) {
+                  <!-- Raise-CN: the action means "offset THAT document" - the
+                       target is fixed (raise a free CN from the CN screen). -->
+                  <input id="ldTarget" type="text" disabled [value]="lockedTargetLabel()" />
+                } @else {
+                  <select id="ldTarget" formControlName="targetLedgerId">
+                    <option value="">— Leave as available credit —</option>
+                    @for (doc of effOpenDebits(); track doc.id) {
+                      <option [value]="doc.id">{{ kindLabel(doc.docKind) }} {{ doc.docNo }} — open {{ remaining(doc) }}</option>
+                    }
+                  </select>
+                  <p class="cell-subtle" style="margin: 2px 0 0;">No target — the amount stays on the account as available credit.</p>
+                }
               </div>
             </div>
           }

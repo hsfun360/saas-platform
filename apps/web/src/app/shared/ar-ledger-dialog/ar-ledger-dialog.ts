@@ -95,7 +95,6 @@ export class ArLedgerDialogComponent implements OnInit {
     description: [''],
     amount: [0, [Validators.required, Validators.min(0.01)]],
     targetLedgerId: [''],
-    fifo: [false],
   });
 
   constructor() {
@@ -116,7 +115,6 @@ export class ArLedgerDialogComponent implements OnInit {
         amount: Number(edit.netAmount),
         // CN drafts carry their allocation intent (resolved at posting).
         targetLedgerId: edit.applyToLedgerId || '',
-        fifo: edit.applyFifo === true,
       });
       this.pickedDebtor.set({ id: edit.debtor.id, no: edit.debtor.no, name: edit.debtor.name });
       this.mode.set('entry');
@@ -134,7 +132,7 @@ export class ArLedgerDialogComponent implements OnInit {
       docNo: '', docDate: t, trxDate: t, transactionTypeId: '',
       description: '', amount: this.presetAmount() ?? 0,
       // Raise-CN pre-selects the source document as the apply-against target.
-      targetLedgerId: this.presetTargetId() || '', fifo: false,
+      targetLedgerId: this.presetTargetId() || '',
     });
     // A preset debtor starts straight in entry mode - self-loading the meta
     // when the opener didn't supply it (e.g. Raise-CN from a listing row);
@@ -233,8 +231,17 @@ export class ArLedgerDialogComponent implements OnInit {
       description: f.description.trim() || null,
       amount: f.amount,
       targetLedgerId: this.kind() === 'credit-note' ? (f.targetLedgerId || null) : null,
-      fifo: this.kind() === 'credit-note' ? f.fifo : false,
     };
+  }
+
+  // Raise-CN locks the target (the action's meaning IS "offset that
+  // document"); the generic New flow keeps it selectable.
+  targetLocked(): boolean {
+    return !!this.presetTargetId() && !this.editRow();
+  }
+  lockedTargetLabel(): string {
+    const target = this.effOpenDebits().find((d) => d.id === this.presetTargetId());
+    return target ? `${this.kindLabel(target.docKind)} ${target.docNo} — open ${this.remaining(target)}` : 'Selected document';
   }
 
   // A new draft saved by a Submit whose submit step then failed - further

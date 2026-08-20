@@ -175,9 +175,8 @@ export interface ArDocListRow {
   status: ArDocStatus;
   voidReason?: string | null;
   transactionTypeId: string;
-  // CN drafts: the allocation intent, for edit prefill.
+  // CN drafts: the allocation intent (apply-against target), for edit prefill.
   applyToLedgerId?: string | null;
-  applyFifo?: boolean;
   canModify?: boolean;
   debtor: { id: string; debtorType: string | null; no: string | null; name: string | null };
 }

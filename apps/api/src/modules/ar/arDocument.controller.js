@@ -325,9 +325,9 @@ function makeLedgerListHandler(docKind) {
                     settledAmount: r.settledAmount, status: r.status,
                     voidReason: r.voidReason,
                     // Draft edit prefill (the shared dialog re-opens the form;
-                    // applyTo*/applyFifo = a CN draft's allocation intent).
+                    // applyToLedgerId = a CN draft's allocation intent).
                     transactionTypeId: r.transactionTypeId,
-                    applyToLedgerId: r.applyToLedgerId, applyFifo: r.applyFifo === true,
+                    applyToLedgerId: r.applyToLedgerId,
                     canModify: canModify[i],
                     debtor: displayByDebtor.get(r.debtorId) || { id: r.debtorId, debtorType: null, no: null, name: null },
                 })),
@@ -379,13 +379,12 @@ async function readDraftFields(req, companyId, debtor, lk) {
 
     // Credit Note allocation INTENT (resolved at posting, not at save): the
     // target must be an open debit of THIS debtor right now - the posting-time
-    // re-check tolerates it settling in between.
+    // re-check tolerates it settling in between. No FIFO for adjustments
+    // (user rule 2026-08-20): an adjustment always knows its document.
     let applyToLedgerId = null;
-    let applyFifo = false;
     let cnTarget = null;
     if (lk.docKind === 'credit-note') {
         applyToLedgerId = strOrNull(req.body.targetLedgerId);
-        applyFifo = req.body.fifo === true;
         if (applyToLedgerId) {
             cnTarget = await Ledger.findOne({
                 where: { id: applyToLedgerId, debtorId: debtor.id, mode: 'debit', status: 'open' },
@@ -410,14 +409,14 @@ async function readDraftFields(req, companyId, debtor, lk) {
 
     // A targeted CN must not exceed the target's remaining balance (user rule
     // 2026-08-20) - checked GROSS (tax included), since the gross is what
-    // allocates. Untargeted/FIFO CNs stay uncapped (available credit).
+    // allocates. Untargeted CNs stay uncapped (available credit).
     if (cnTarget) {
         const remainingC = posting.cents(cnTarget.grossAmount) - posting.cents(cnTarget.settledAmount);
         if (amounts.grossC > remainingC) {
             return { error: `Credit note amount (gross ${posting.money(amounts.grossC)}) exceeds the balance of ${cnTarget.docNo} (${posting.money(remainingC)}).` };
         }
     }
-    return { dates, txnType, amounts, applyToLedgerId, applyFifo };
+    return { dates, txnType, amounts, applyToLedgerId };
 }
 
 // Manual-number pre-checks for a draft (auto mode issues in-tx at save).
@@ -469,7 +468,6 @@ async function createDraft(req, res, companyId, debtor, lk) {
         sourceModule: 'ar',
         sourceRef: 'manual',
         applyToLedgerId: fields.applyToLedgerId,
-        applyFifo: fields.applyFifo,
         netAmount: posting.money(fields.amounts.netC),
         taxSchemeCode: fields.amounts.taxSchemeCode,
         taxRate: fields.amounts.taxRate,
@@ -544,7 +542,6 @@ function makeUpdateDraft(lk) {
             description: strOrNull(req.body.description),
             incurredByMemberId: null, // manual documents belong to the account itself
             applyToLedgerId: fields.applyToLedgerId,
-            applyFifo: fields.applyFifo,
             netAmount: posting.money(fields.amounts.netC),
             taxSchemeCode: fields.amounts.taxSchemeCode,
             taxRate: fields.amounts.taxRate,
@@ -747,8 +744,9 @@ exports.postLedger = async (req, res) => {
                 // is stamped only by producer modules (user rule 2026-08-20).
                 incurredByMemberId: null,
                 sourceModule: 'ar', sourceRef: 'manual',
-                amounts, stamps, targetLedger,
-                fifo: kind.key === 'credit-note' && req.body.fifo === true,
+                // No FIFO for manual adjustments (user rule 2026-08-20) -
+                // postLedgerDoc's fifo stays for the deposit-conversion CN.
+                amounts, stamps, targetLedger, fifo: false,
                 t,
             }));
         } catch (e) {
