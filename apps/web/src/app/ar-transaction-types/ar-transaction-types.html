@@ -121,11 +121,12 @@
         <!-- Step 1 (create only): pick the document class - it decides which
              fields the form shows at all. -->
         <div class="saas-form" style="padding: 0;">
-          <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Pick the document class this item belongs to — Receipt covers debtor payments and refund methods.</p>
+          <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Pick the document class this item belongs to — it decides which fields the form shows.</p>
           <div style="display: grid; gap: var(--space-sm);">
             @for (c of trxClasses(); track c.key) {
-              <button type="button" class="btn btn--secondary" style="justify-content: flex-start; min-height: 44px;" (click)="pickClass(c.key)">
-                {{ c.label }}
+              <button type="button" class="btn btn--secondary dlg-pick" (click)="pickClass(c.key)">
+                <span class="material-icons" aria-hidden="true">{{ trxClassIcons[c.key] || 'receipt_long' }}</span>
+                <span class="dlg-pick__text"><strong>{{ c.label }}</strong>@if (trxClassHints[c.key]) { — {{ trxClassHints[c.key] }}}</span>
               </button>
             }
           </div>

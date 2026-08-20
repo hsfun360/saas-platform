@@ -117,6 +117,28 @@ export class ArTransactionTypesComponent implements OnInit {
     return this.trxClasses().find((c) => c.key === key)?.label || key;
   }
 
+  // Consequence caption + icon per document class, for the class-picker step
+  // (the shared .dlg-pick standard - same shape as the New membership picker).
+  readonly trxClassHints: Record<string, string> = {
+    invoice: 'bills charges to the debtor’s account.',
+    'debit-note': 'an adjustment that increases what the debtor owes.',
+    'credit-note': 'an adjustment that reduces what the debtor owes.',
+    interest: 'late-payment interest posted by the monthly interest run.',
+    deposit: 'security deposits held as collateral.',
+    receipt: 'debtor payments and refund methods.',
+    forex: 'exchange-rate gain or loss entries.',
+  };
+
+  readonly trxClassIcons: Record<string, string> = {
+    invoice: 'request_quote',
+    'debit-note': 'add_circle',
+    'credit-note': 'remove_circle',
+    interest: 'percent',
+    deposit: 'savings',
+    receipt: 'payments',
+    forex: 'currency_exchange',
+  };
+
   moduleLabel(key: string): string {
     return this.modules().find((m) => m.key === key)?.label || key;
   }

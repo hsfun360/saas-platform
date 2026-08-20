@@ -406,13 +406,13 @@
         <div class="saas-form" style="padding: 0;">
           <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Who holds this membership? The form shows only the fields that apply.</p>
           <div style="display: grid; gap: var(--space-sm);">
-            <button type="button" class="btn btn--secondary" style="justify-content: flex-start; min-height: 44px;" (click)="pickClass('individual')">
+            <button type="button" class="btn btn--secondary dlg-pick" (click)="pickClass('individual')">
               <span class="material-icons" aria-hidden="true">person</span>
-              <span style="text-align: left; white-space: normal;"><strong>Individual</strong> — one person holds the membership; their profile is captured now.</span>
+              <span class="dlg-pick__text"><strong>Individual</strong> — one person holds the membership; their profile is captured now.</span>
             </button>
-            <button type="button" class="btn btn--secondary" style="justify-content: flex-start; min-height: 44px;" (click)="pickClass('corporate')">
+            <button type="button" class="btn btn--secondary dlg-pick" (click)="pickClass('corporate')">
               <span class="material-icons" aria-hidden="true">business</span>
-              <span style="text-align: left; white-space: normal;"><strong>Corporate</strong> — a company holds the membership; nominees are added after saving.</span>
+              <span class="dlg-pick__text"><strong>Corporate</strong> — a company holds the membership; nominees are added after saving.</span>
             </button>
           </div>
         </div>

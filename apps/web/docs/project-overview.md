@@ -765,6 +765,15 @@ The screen's content column follows the app-wide **1140px** cap (see "Content wi
 Do NOT hand-roll per-screen fieldset/legend section chrome - compose these classes so every screen's section headers read the same.
 Reference implementation: `club-specification.html` (`toggleSection`/`isExpanded` signal record) and `dashboard/settings`.
 
+#### Dialog class-picker step (create flows) - THE standard
+
+When a create dialog starts by asking the record's CLASS before showing the form (AR Transaction Type, New membership), every picker uses the shared **`.dlg-pick`** option row - global in `styles.css` - so the typography is identical across screens by construction:
+`<button class="btn btn--secondary dlg-pick">` > a leading Material icon > `<span class="dlg-pick__text"><strong>Name</strong> — consequence caption.</span>`.
+The class NAME is semibold (`<strong>`, the same weight as every button label) in `--brand-text`; the em-dash caption is regular weight in `--text-secondary`; everything is `--font-body` from `.btn`.
+Every option carries a one-line consequence caption (show-expected-results) and an icon; do NOT inline-style these buttons or ship a caption-less picker.
+Mechanics stay per the single-dialog standard: the picker is a VIEW inside the one `<app-dialog>` (mode signal + `@if`/`@switch`), the footer shows Cancel only on the picker step, the chosen class then renders in the form as a disabled input with a Change button gated on pristine forms.
+Reference implementations: `memberships.html` (Individual/Corporate) and `ar-transaction-types.html` (document classes).
+
 #### Field focus highlight - ON the field, never a floating ring
 
 When a form field (input / select / textarea) receives focus, the highlight sits **on the field itself**: the border turns `--brand` and a soft `--focus-glow` halo hugs that border.

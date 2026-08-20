@@ -819,6 +819,31 @@ textarea:focus {
   line-height: 1;
 }
 
+/* Dialog class-picker step — THE standard for the first view of a create
+   dialog where the user declares the record's class before the form shows
+   (AR Transaction Type, New membership). One option per row, composed as
+   class="btn btn--secondary dlg-pick": an optional leading Material icon,
+   the class NAME in <strong> (semibold - the same weight as every button
+   label), then an em-dash consequence caption in regular weight. Typography
+   is identical across every picker by construction - do not inline-style
+   these buttons per screen. */
+.dlg-pick {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.dlg-pick .dlg-pick__text {
+  white-space: normal;
+  min-width: 0;
+  font-weight: var(--weight-regular);
+  color: var(--text-secondary);
+}
+
+.dlg-pick strong {
+  font-weight: var(--weight-semibold);
+  color: var(--brand-text);
+}
+
 /* Section card with a header band — THE standard for grouped settings/options
    on a form or settings screen (canonical look: the Settings screen; also
    Club Specification). Moved here from dashboard/settings/settings.css so
