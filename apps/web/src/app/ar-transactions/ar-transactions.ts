@@ -11,7 +11,8 @@ import { LocalDatePipe } from '../shared/local-date.pipe';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ArLedgerDialogComponent } from '../shared/ar-ledger-dialog/ar-ledger-dialog';
 import { ArService } from '../services/ar.service';
-import { ArDocListResult, ArDocListRow, ArDocStatus } from '../models/ar.models';
+import { PermissionsService } from '../services/permissions.service';
+import { ArAccountMeta, ArDocListResult, ArDocListRow, ArDocStatus } from '../models/ar.models';
 
 // Account Receivable → per-document-type transaction screens (hybrid design
 // 2026-08-12): each document type is its OWN menu, so RBAC can grant e.g.
@@ -25,7 +26,11 @@ interface DocTypeCfg {
   plural: string;      // fallback screen title
   icon: string;
   subtitle: string;
+  // What Submit's direct-post confirm says the posting will DO.
+  postText: string;
   list: (service: ArService, opts: { month?: string; q?: string; status?: string; offset?: number }) => ReturnType<ArService['listInvoices']>;
+  submit: (service: ArService, id: string) => ReturnType<ArService['submitInvoice']>;
+  approvalOf: (m: ArAccountMeta) => boolean;
   void: (service: ArService, id: string, reason: string) => ReturnType<ArService['voidInvoice']>;
 }
 
@@ -36,8 +41,23 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
     plural: 'Invoices',
     icon: 'request_quote',
     subtitle: 'Manual invoices across all debtors — key new invoices and void unsettled ones. System-generated invoices (fee runs, interest) appear here too.',
+    postText: 'The invoice number is issued now and the amount hits the debtor’s balance.',
     list: (s, opts) => s.listInvoices(opts),
+    submit: (s, id) => s.submitInvoice(id),
+    approvalOf: (m) => m.invoiceApproval === true,
     void: (s, id, reason) => s.voidInvoice(id, reason),
+  },
+  'credit-note': {
+    kind: 'credit-note',
+    label: 'Credit Note',
+    plural: 'Credit Notes',
+    icon: 'remove_circle',
+    subtitle: 'Credit notes across all debtors — reduce what a debtor owes, applied against an open document or left as available credit.',
+    postText: 'The credit note number is issued now, the amount reduces the debtor’s balance, and the apply-against choice takes effect.',
+    list: (s, opts) => s.listCreditNotes(opts),
+    submit: (s, id) => s.submitCreditNote(id),
+    approvalOf: (m) => m.creditNoteApproval === true,
+    void: (s, id, reason) => s.voidCreditNote(id, reason),
   },
 };
 
@@ -55,6 +75,7 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
 export class ArTransactionsComponent implements OnInit {
   private readonly service = inject(ArService);
   private readonly route = inject(ActivatedRoute);
+  private readonly permissions = inject(PermissionsService);
 
   readonly cfg = signal<DocTypeCfg>(DOC_TYPES['invoice']);
 
@@ -203,7 +224,7 @@ export class ArTransactionsComponent implements OnInit {
     this.submitOpen.set(true);
     // Button label mirrors the dialog: approval chain vs direct post.
     this.service.accountMeta(row.debtor.id).subscribe({
-      next: (m) => this.submitApproval.set(m.invoiceApproval === true),
+      next: (m) => this.submitApproval.set(this.cfg().approvalOf(m)),
       error: () => this.submitApproval.set(false),
     });
   }
@@ -211,7 +232,7 @@ export class ArTransactionsComponent implements OnInit {
     const row = this.submitRow();
     if (!row) return;
     this.submitBusy.set(true);
-    this.service.submitInvoice(row.id).subscribe({
+    this.cfg().submit(this.service, row.id).subscribe({
       next: (res) => {
         this.successMessage.set(res.message);
         this.submitBusy.set(false);
@@ -268,6 +289,28 @@ export class ArTransactionsComponent implements OnInit {
   closeVoid(): void {
     this.voidOpen.set(false);
     this.voidRow.set(null);
+  }
+
+  // --- Raise Credit Note (posted invoices only; user rule 2026-08-13:
+  // posted invoices are never voided - a CN offsets them). Gated on the
+  // CREDIT NOTE menu's create grant, not this screen's.
+  readonly raiseCnFor = signal<ArDocListRow | null>(null);
+  canRaiseCn(doc: ArDocListRow): boolean {
+    return this.cfg().kind === 'invoice' && this.isPosted(doc)
+      && this.permissions.can('create', '/ar/credit-notes');
+  }
+  openRaiseCn(row: ArDocListRow): void {
+    this.clearMessages();
+    this.raiseCnFor.set(row);
+  }
+  onRaiseCnPosted(message: string): void {
+    this.successMessage.set(message);
+    this.raiseCnFor.set(null);
+    this.load(true);
+  }
+  onRaiseCnClosed(): void {
+    this.raiseCnFor.set(null);
+    this.load(true);
   }
 
   private clearMessages(): void {

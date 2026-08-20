@@ -60,6 +60,14 @@ Key rules a maintainer must not break:
 - Membership consumers go through **arGateway** (`listTransactionTypes`/`getTransactionType` with module+class filters): fee master rows carry an explicit `MembershipFee.transactionTypeId` (backfilled from the old auto-pick at migration), standing charges keep code references resolved against the catalog, `countTransactionTypeReferences` (membershipGateway) blocks removing 'membership' usability while setups still reference a type.
 - Boot migration (one-shot, old-table-guarded): copy id-preserving with trxClass mapped by code (INTEREST->interest, DEPCONV->credit-note, else invoice) + `usableInModules ['membership']`, backfill fee masters + Setting rows (`membershipIntegration=true` where fee runs exist), then **DROP membership."TransactionType"** (user decision: immediately).
 
+## Credit Note slice (2026-08-20 - second transaction screen)
+
+- `/ar/credit-notes` menu/screen (same `ar-transactions` component via route data) with the SAME Save->Submit lifecycle as invoices, generalized in `LIFECYCLE_KINDS` (arDocument.controller): draft entry/edit, gapless `ar-credit-note` numbering at save, draft-only void with reason, submit -> posted directly or through the `ar-credit-note` workflow purpose (registered alongside ar-invoice; approval posts, rejection returns to Open).
+- **Allocation intent on the draft**: new `ar.Ledger` columns `applyToLedgerId` (the open debit to apply against) + `applyFifo` - captured at entry, RESOLVED AT POSTING (which may be after approval). If the target got settled/voided in between, the CN posts as available credit (no error). `postDraftLedger` applies the intent on credit rows.
+- The account meta now ships the debtor's `openDebits` (+ `creditNoteApproval` flag) so the standalone CN dialog offers "Apply against" after picking a debtor.
+- **Raise Credit Note** kebab on POSTED invoice rows (posted invoices are never voided): opens the CN dialog with the debtor preset and the source invoice pre-selected as the target; gated on the CN menu's create grant (`can('create','/ar/credit-notes')`), not the invoice screen's.
+- Voids: CN DRAFTS void like invoice drafts (reason, audit); a POSTED unallocated CN keeps the account-door reversal void (deposit-conversion CN void/restore relies on it). DN keeps immediate posting until its slice.
+
 ## Invoice lifecycle (defined 2026-08-13 - Save / Submit / approval)
 
 - User-defined lifecycle for MANUAL invoices: **Save -> `draft`** (screen label "Open": editable by the creator or a superior per data scope, voidable with audit, NOT financial - no balance effect, excluded from statements/aging/interest/allocation/reconciliation) -> **Submit -> posted**, either directly or through the **`ar-invoice` approval chain** (`pending-approval` while in flight; approved posts automatically, rejected/recalled returns to `draft`).

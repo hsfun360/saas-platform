@@ -109,7 +109,7 @@
                 <label for="ldTarget">Apply against</label>
                 <select id="ldTarget" formControlName="targetLedgerId">
                   <option value="">— Leave as available credit —</option>
-                  @for (doc of openDebits(); track doc.id) {
+                  @for (doc of effOpenDebits(); track doc.id) {
                     <option [value]="doc.id">{{ kindLabel(doc.docKind) }} {{ doc.docNo }} — open {{ remaining(doc) }}</option>
                   }
                 </select>

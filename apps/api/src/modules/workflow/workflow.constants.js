@@ -38,6 +38,20 @@ const PURPOSES = [
             { name: 'debtorNo', label: 'Debtor number', type: 'string' },
         ],
     },
+    // Credit Note adopted the same lifecycle 2026-08-20: approval posts the
+    // draft (resolving its stored allocation intent), rejection returns it
+    // to Open.
+    {
+        key: 'ar-credit-note',
+        name: 'AR Credit Note',
+        entityType: 'ArCreditNote',
+        documentRoute: '/ar/credit-notes',
+        contextFields: [
+            { name: 'amount', label: 'Credit note gross amount', type: 'number' },
+            { name: 'debtorType', label: 'Debtor type (membership | member | other)', type: 'string' },
+            { name: 'debtorNo', label: 'Debtor number', type: 'string' },
+        ],
+    },
 ];
 const PURPOSE_KEYS = PURPOSES.map((p) => p.key);
 

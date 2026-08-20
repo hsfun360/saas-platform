@@ -39,9 +39,12 @@ export class ArLedgerDialogComponent implements OnInit {
   readonly debtor = input<ArLedgerDialogDebtor | null>(null);
   // Entry meta provided by the account screen; self-loaded after a pick.
   readonly meta = input<ArAccountMeta | null>(null);
-  // CN "apply against" candidates (account screen provides its open debits).
+  // CN "apply against" candidates (account screen provides its open debits;
+  // standalone/edit modes read them from the self-loaded meta instead).
   readonly openDebits = input<ArLedgerDoc[]>([]);
-  // Editing an existing Open (draft) invoice: prefill + PATCH instead of POST.
+  // Raise-CN from a posted document: pre-select this open debit as the target.
+  readonly presetTargetId = input<string | null>(null);
+  // Editing an existing Open (draft): prefill + PATCH instead of POST.
   readonly editRow = input<ArDocListRow | null>(null);
 
   readonly closed = output<void>();
@@ -66,10 +69,21 @@ export class ArLedgerDialogComponent implements OnInit {
   // entry dialog offers only its own class's types.
   readonly classTypes = computed(() =>
     (this.effMeta()?.transactionTypes || []).filter((t) => t.trxClass === this.kind()));
-  // Invoices follow the Save (draft) -> Submit lifecycle; DN/CN still post
-  // immediately until their slices adopt it.
-  readonly isLifecycle = computed(() => this.kind() === 'invoice');
-  readonly submitLabel = computed(() => (this.effMeta()?.invoiceApproval ? 'Submit for Approval' : 'Submit'));
+  // Invoices (2026-08-13) and Credit Notes (2026-08-20) follow the Save
+  // (draft) -> Submit lifecycle; DN still posts immediately until its slice.
+  readonly isLifecycle = computed(() => this.kind() === 'invoice' || this.kind() === 'credit-note');
+  readonly submitLabel = computed(() => {
+    const m = this.effMeta();
+    const approval = this.kind() === 'credit-note' ? m?.creditNoteApproval : m?.invoiceApproval;
+    return approval ? 'Submit for Approval' : 'Submit';
+  });
+  // "Apply against" choices: the account screen's live ledger when provided,
+  // else the open debits shipped on the self-loaded meta.
+  readonly effOpenDebits = computed<ArLedgerDoc[]>(() => {
+    const provided = this.openDebits();
+    if (provided.length) return provided;
+    return (this.effMeta()?.openDebits || []) as unknown as ArLedgerDoc[];
+  });
 
   readonly form = this.fb.nonNullable.group({
     docNo: [''],
@@ -98,7 +112,9 @@ export class ArLedgerDialogComponent implements OnInit {
         transactionTypeId: edit.transactionTypeId,
         description: edit.description || '',
         amount: Number(edit.netAmount),
-        targetLedgerId: '', fifo: false,
+        // CN drafts carry their allocation intent (resolved at posting).
+        targetLedgerId: edit.applyToLedgerId || '',
+        fifo: edit.applyFifo === true,
       });
       this.pickedDebtor.set({ id: edit.debtor.id, no: edit.debtor.no, name: edit.debtor.name });
       this.mode.set('entry');
@@ -114,12 +130,26 @@ export class ArLedgerDialogComponent implements OnInit {
     }
     this.form.reset({
       docNo: '', docDate: t, trxDate: t, transactionTypeId: '',
-      description: '', amount: 0, targetLedgerId: '', fifo: false,
+      description: '', amount: 0,
+      // Raise-CN pre-selects the source document as the apply-against target.
+      targetLedgerId: this.presetTargetId() || '', fifo: false,
     });
-    // A preset debtor (account screen) starts straight in entry mode;
+    // A preset debtor starts straight in entry mode - self-loading the meta
+    // when the opener didn't supply it (e.g. Raise-CN from a listing row);
     // standalone starts at the debtor picker.
-    if (this.debtor()) {
+    const preset = this.debtor();
+    if (preset) {
       this.mode.set('entry');
+      if (!this.meta()) {
+        this.metaLoading.set(true);
+        this.service.accountMeta(preset.id).subscribe({
+          next: (m) => { this.selfMeta.set(m); this.metaLoading.set(false); },
+          error: (err) => {
+            this.metaLoading.set(false);
+            this.failed.emit(err.error?.message || 'Failed to load the entry options.');
+          },
+        });
+      }
     } else {
       this.mode.set('pick');
       this.loadPickRows();
@@ -210,15 +240,23 @@ export class ArLedgerDialogComponent implements OnInit {
   private readonly savedDraftId = signal<string | null>(null);
 
   // The save request for the current context: edit (or an already-saved new
-  // draft) -> PATCH; standalone new -> the invoice door; account-preset new ->
-  // the account door (which creates the draft server-side for invoices).
+  // draft) -> PATCH; standalone new -> the kind's own door; account-preset
+  // new -> the account door (which creates drafts for lifecycle kinds).
   private saveRequest() {
     const debtor = this.activeDebtor();
+    const cn = this.kind() === 'credit-note';
     const editId = this.editRow()?.id || this.savedDraftId();
-    if (editId) return this.service.updateInvoice(editId, this.payload());
-    return this.debtor()
-      ? this.service.postLedger(debtor!.id, { ...this.payload(), docKind: this.kind() })
+    if (editId) {
+      return cn ? this.service.updateCreditNote(editId, this.payload())
+        : this.service.updateInvoice(editId, this.payload());
+    }
+    if (this.debtor()) return this.service.postLedger(debtor!.id, { ...this.payload(), docKind: this.kind() });
+    return cn ? this.service.postCreditNote({ ...this.payload(), debtorId: debtor!.id })
       : this.service.postInvoice({ ...this.payload(), debtorId: debtor!.id });
+  }
+
+  private submitRequest(id: string) {
+    return this.kind() === 'credit-note' ? this.service.submitCreditNote(id) : this.service.submitInvoice(id);
   }
 
   onSave(): void {
@@ -242,13 +280,13 @@ export class ArLedgerDialogComponent implements OnInit {
       next: (saved) => {
         this.savedDraftId.set(saved.id);
         this.form.markAsPristine(); // the draft is persisted - no discard prompt
-        this.service.submitInvoice(saved.id).subscribe({
+        this.submitRequest(saved.id).subscribe({
           next: (res) => { this.saving.set(false); this.posted.emit(res.message); },
           error: (err) => {
             this.saving.set(false);
             // The draft IS saved (dialog stays open for a retry; a repeat
             // Save/Submit PATCHes the same draft).
-            this.failed.emit(`${err.error?.message || 'Submit failed.'} The invoice stays saved as Open.`);
+            this.failed.emit(`${err.error?.message || 'Submit failed.'} The ${this.kindLabel().toLowerCase()} stays saved as Open.`);
           },
         });
       },

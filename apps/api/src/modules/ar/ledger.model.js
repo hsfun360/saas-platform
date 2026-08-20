@@ -146,6 +146,13 @@ const Ledger = sequelize.define('Ledger', {
         allowNull: false,
         defaultValue: 'open',
     },
+    // Credit Note DRAFTS only (CN lifecycle, 2026-08-20): the allocation
+    // INTENT captured at entry and resolved at POSTING (which may be after an
+    // approval chain). applyToLedgerId = the open debit to offset ("Apply
+    // against"); applyFifo = spread FIFO across open debits. If the target is
+    // settled/voided by posting time, the CN posts as available credit.
+    applyToLedgerId: { type: DataTypes.UUID, allowNull: true },
+    applyFifo: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     // Posting audit: when the document became financial and by whom (null on
     // system-posted rows that never were drafts).
     postedAt: { type: DataTypes.DATE, allowNull: true },

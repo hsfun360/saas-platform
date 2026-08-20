@@ -19,7 +19,7 @@ const periodicController = require('./arPeriodic.controller');
 
 // Menus whose screens open the shared entry dialogs (debtor picker + entry
 // meta). Extend as each per-document transaction slice lands.
-const AR_TXN_MENUS = ['/ar/invoices'];
+const AR_TXN_MENUS = ['/ar/invoices', '/ar/credit-notes'];
 const AR_TXN_META_MENUS = ['/ar/debtors', ...AR_TXN_MENUS];
 
 // Liveness probe - unauthenticated, so the gateway/monitoring can check the seam.
@@ -72,6 +72,14 @@ router.post('/invoices', requireMenuAction('/ar/invoices'), documentController.p
 router.patch('/invoices/:id', requireMenuAction('/ar/invoices'), documentController.updateInvoiceDraft);
 router.post('/invoices/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.submitInvoice);
 router.patch('/invoices/:id/void', requireMenuAction('/ar/invoices'), documentController.voidInvoice);
+// Credit Note (menu '/ar/credit-notes'): same Save->Submit lifecycle; the
+// draft carries its allocation intent (apply-against / FIFO), resolved at
+// posting. Raise-CN on the Invoices screen gates on THIS menu's create grant.
+router.get('/credit-notes', requireMenuAction('/ar/credit-notes'), documentController.listCreditNotes);
+router.post('/credit-notes', requireMenuAction('/ar/credit-notes'), documentController.postCreditNote);
+router.patch('/credit-notes/:id', requireMenuAction('/ar/credit-notes'), documentController.updateCreditNoteDraft);
+router.post('/credit-notes/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.submitCreditNote);
+router.patch('/credit-notes/:id/void', requireMenuAction('/ar/credit-notes'), documentController.voidCreditNote);
 
 // --- Transaction Type master (AR-owned catalog since 2026-08-15; its own
 // screen/menu '/ar/transaction-types'). Membership reads it READ-ONLY through

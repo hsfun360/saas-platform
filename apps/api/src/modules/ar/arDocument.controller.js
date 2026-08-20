@@ -179,12 +179,25 @@ exports.getAccountMeta = async (req, res) => {
             order: [['transactionType', 'ASC']],
             attributes: ['id', 'transactionType', 'trxClass', 'description', 'taxSchemeCode', 'isInterestChargeable'],
         });
+        // The debtor's OPEN DEBITS - the CN entry's "Apply against" choices
+        // (the account screen has its own ledger; the standalone CN dialog
+        // reads them from here after picking the debtor).
+        const openDebits = await Ledger.findAll({
+            where: { debtorId: debtor.id, mode: 'debit', status: 'open' },
+            order: [['docDate', 'ASC'], ['createdAt', 'ASC']],
+            attributes: ['id', 'docKind', 'docNo', 'grossAmount', 'settledAmount'],
+        });
         res.status(200).json({
             // The AR-OWNED catalog (2026-08-15) with trxClass, so each entry
             // dialog offers only its own document book's types.
             transactionTypes: types.map((t) => t.toJSON()),
             numberingModes: modes,
             invoiceApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-invoice'),
+            creditNoteApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-credit-note'),
+            openDebits: openDebits.map((d) => ({
+                id: d.id, docKind: d.docKind, docNo: d.docNo,
+                grossAmount: d.grossAmount, settledAmount: d.settledAmount,
+            })),
         });
     } catch (err) {
         console.error('Error loading debtor account meta:', err);
@@ -311,8 +324,10 @@ function makeLedgerListHandler(docKind) {
                     netAmount: r.netAmount, taxAmount: r.taxAmount, grossAmount: r.grossAmount,
                     settledAmount: r.settledAmount, status: r.status,
                     voidReason: r.voidReason,
-                    // Draft edit prefill (the shared dialog re-opens the form).
+                    // Draft edit prefill (the shared dialog re-opens the form;
+                    // applyTo*/applyFifo = a CN draft's allocation intent).
                     transactionTypeId: r.transactionTypeId,
+                    applyToLedgerId: r.applyToLedgerId, applyFifo: r.applyFifo === true,
                     canModify: canModify[i],
                     debtor: displayByDebtor.get(r.debtorId) || { id: r.debtorId, debtorType: null, no: null, name: null },
                 })),
@@ -325,6 +340,7 @@ function makeLedgerListHandler(docKind) {
 }
 
 exports.listInvoices = makeLedgerListHandler('invoice');
+exports.listCreditNotes = makeLedgerListHandler('credit-note');
 
 // ---------------------------------------------------------------------------
 // Invoice lifecycle (defined 2026-08-13): Save -> 'draft' ("Open" on screen,
@@ -332,20 +348,51 @@ exports.listInvoices = makeLedgerListHandler('invoice');
 // the ar-invoice approval chain ('pending-approval' until the outcome).
 // Posted invoices are immutable: corrected with a Credit Note, never voided.
 
+// The manual document kinds that follow the Save -> Submit draft lifecycle
+// (invoice since 2026-08-13; credit-note adopted it 2026-08-20). Each keys its
+// own numbering series, workflow purpose and catalog class.
+const LIFECYCLE_KINDS = {
+    invoice: {
+        docKind: 'invoice', mode: 'debit', label: 'Invoice',
+        numberingPurpose: 'ar-invoice', workflowPurpose: 'ar-invoice', trxClass: 'invoice',
+    },
+    'credit-note': {
+        docKind: 'credit-note', mode: 'credit', label: 'Credit Note',
+        numberingPurpose: 'ar-credit-note', workflowPurpose: 'ar-credit-note', trxClass: 'credit-note',
+    },
+};
+
 // Validate + tax-quote the draft's editable fields (shared by create + edit).
 // Tax is quoted at save with onDate = docDate - schemes are effective-dated,
 // so the snapshot is deterministic and posting needs no re-quote.
-async function readInvoiceDraftFields(req, companyId, debtor) {
+async function readDraftFields(req, companyId, debtor, lk) {
     const dates = parseDates(req.body);
     if (dates.error) return { error: dates.error };
     const amountC = parseAmount(req.body.amount);
     if (!amountC) return { error: 'Amount must be greater than zero.' };
 
-    // AR's own catalog; manual invoices take invoice-class entries only.
+    // AR's own catalog; each document book takes its own class's entries only.
     const ArTransactionType = require('./transactionType.model');
     const txnType = await ArTransactionType.findOne({ where: { companyId, id: str(req.body.transactionTypeId) || null } });
     if (!txnType || !txnType.isActive) return { error: 'Select a transaction type.' };
-    if (txnType.trxClass !== 'invoice') return { error: 'This transaction type is not an Invoice-class item.' };
+    if (txnType.trxClass !== lk.trxClass) return { error: `This transaction type is not a ${lk.label}-class item.` };
+
+    // Credit Note allocation INTENT (resolved at posting, not at save): the
+    // target must be an open debit of THIS debtor right now - the posting-time
+    // re-check tolerates it settling in between.
+    let applyToLedgerId = null;
+    let applyFifo = false;
+    if (lk.docKind === 'credit-note') {
+        applyToLedgerId = strOrNull(req.body.targetLedgerId);
+        applyFifo = req.body.fifo === true;
+        if (applyToLedgerId) {
+            const target = await Ledger.findOne({
+                where: { id: applyToLedgerId, debtorId: debtor.id, mode: 'debit', status: 'open' },
+                attributes: ['id'],
+            });
+            if (!target) return { error: 'The target document is not an open debit of this debtor.' };
+        }
+    }
 
     let amounts = { netC: amountC, taxC: 0, grossC: amountC, taxSchemeCode: null, taxRate: null };
     if (txnType.taxSchemeCode) {
@@ -359,44 +406,44 @@ async function readInvoiceDraftFields(req, companyId, debtor) {
             taxRate: q.lines.reduce((s, l) => s + Number(l.taxRate || 0), 0).toFixed(4),
         };
     }
-    return { dates, txnType, amounts };
+    return { dates, txnType, amounts, applyToLedgerId, applyFifo };
 }
 
 // Manual-number pre-checks for a draft (auto mode issues in-tx at save).
-async function readDraftDocNo(req, companyId, { ignoreId = null } = {}) {
+async function readDraftDocNo(req, companyId, lk, { ignoreId = null } = {}) {
     const manualNo = strOrNull(req.body.docNo);
-    const mode = await numberingGateway.getMode(req, 'ar-invoice');
-    if (mode === 'manual' && !manualNo) return { error: 'Invoice number is required (numbering is manual).' };
+    const mode = await numberingGateway.getMode(req, lk.numberingPurpose);
+    if (mode === 'manual' && !manualNo) return { error: `${lk.label} number is required (numbering is manual).` };
     if (mode !== 'auto' && manualNo) {
         const clash = await Ledger.findOne({
-            where: { companyId, docKind: 'invoice', docNo: manualNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
+            where: { companyId, docKind: lk.docKind, docNo: manualNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
             attributes: ['id'],
         });
-        if (clash) return { error: `Invoice number '${manualNo}' is already in use.` };
+        if (clash) return { error: `${lk.label} number '${manualNo}' is already in use.` };
     }
     return { mode, manualNo };
 }
 
-// Create the draft row (both doors call this: the Invoice screen with
+// Create the draft row (both doors call this: the per-document screen with
 // debtorId in the body, the Debtor Account door via postLedger below).
 // GAPLESS RULE (firmed up 2026-08-14): the number is issued INSIDE this
 // transaction - the counter's row lock serialises concurrent users (no
 // duplicates) and rolls back with a failed save (no burned numbers). A later
 // void keeps the number, explained by the void audit trail.
-async function createInvoiceDraft(req, res, companyId, debtor) {
-    const fields = await readInvoiceDraftFields(req, companyId, debtor);
+async function createDraft(req, res, companyId, debtor, lk) {
+    const fields = await readDraftFields(req, companyId, debtor, lk);
     if (fields.error) return res.status(400).json({ message: fields.error });
-    const no = await readDraftDocNo(req, companyId);
+    const no = await readDraftDocNo(req, companyId, lk);
     if (no.error) return res.status(no.error.includes('already in use') ? 409 : 400).json({ message: no.error });
 
     const placement = await getCallerPlacement(req);
     const stamps = ownershipStamps(req, placement);
-    const issue = docNoIssuer(req, 'ar-invoice', no.manualNo);
+    const issue = docNoIssuer(req, lk.numberingPurpose, no.manualNo);
     const row = await sequelize.transaction(async (t) => Ledger.create({
         companyId,
         debtorId: debtor.id,
-        docKind: 'invoice',
-        mode: 'debit',
+        docKind: lk.docKind,
+        mode: lk.mode,
         docNo: await issue(t),
         docDate: fields.dates.docDate,
         trxDate: fields.dates.trxDate,
@@ -410,44 +457,50 @@ async function createInvoiceDraft(req, res, companyId, debtor) {
         incurredByMemberId: null,
         sourceModule: 'ar',
         sourceRef: 'manual',
+        applyToLedgerId: fields.applyToLedgerId,
+        applyFifo: fields.applyFifo,
         netAmount: posting.money(fields.amounts.netC),
         taxSchemeCode: fields.amounts.taxSchemeCode,
         taxRate: fields.amounts.taxRate,
         taxAmount: posting.money(fields.amounts.taxC),
         grossAmount: posting.money(fields.amounts.grossC),
-        isInterestChargeable: fields.txnType.isInterestChargeable === true,
+        isInterestChargeable: lk.mode === 'debit' && fields.txnType.isInterestChargeable === true,
         settledAmount: 0,
         status: 'draft',
         ...stamps,
     }, { transaction: t }));
-    res.status(201).json({ message: `Invoice ${row.docNo} saved as Open.`, id: row.id, docNo: row.docNo });
+    res.status(201).json({ message: `${lk.label} ${row.docNo} saved as Open.`, id: row.id, docNo: row.docNo });
 }
 
-// POST /api/ar/invoices - save a new draft (debtorId in the body; the
-// '/ar/invoices' grant is invoice-only by construction).
-exports.postInvoice = async (req, res) => {
-    try {
-        const { companyId } = getUserContext(req);
-        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const debtor = await Debtor.findOne({ where: { id: str(req.body.debtorId), companyId } });
-        if (!debtor) return res.status(404).json({ message: 'Debtor not found.' });
-        return await createInvoiceDraft(req, res, companyId, debtor);
-    } catch (err) {
-        console.error('Error saving invoice draft:', err);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-};
+// POST /api/ar/<kind route> - save a new draft (debtorId in the body; each
+// screen's grant is kind-specific by construction).
+function makeCreateDoor(lk) {
+    return async (req, res) => {
+        try {
+            const { companyId } = getUserContext(req);
+            if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+            const debtor = await Debtor.findOne({ where: { id: str(req.body.debtorId), companyId } });
+            if (!debtor) return res.status(404).json({ message: 'Debtor not found.' });
+            return await createDraft(req, res, companyId, debtor, lk);
+        } catch (err) {
+            console.error(`Error saving ${lk.label.toLowerCase()} draft:`, err);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    };
+}
+exports.postInvoice = makeCreateDoor(LIFECYCLE_KINDS.invoice);
+exports.postCreditNote = makeCreateDoor(LIFECYCLE_KINDS['credit-note']);
 
-// Load an invoice row + its debtor, enforcing the caller's data scope
-// (own / department / all - "the user or their superior").
-async function loadOwnedInvoice(req, res) {
+// Load a lifecycle document row + its debtor, enforcing the caller's data
+// scope (own / department / all - "the user or their superior").
+async function loadOwnedDoc(req, res, lk) {
     const { companyId } = getUserContext(req);
     if (!companyId) { res.status(400).json({ message: 'Select a workspace first.' }); return null; }
-    const row = await Ledger.findOne({ where: { id: req.params.id, companyId, docKind: 'invoice' } });
-    if (!row) { res.status(404).json({ message: 'Invoice not found.' }); return null; }
+    const row = await Ledger.findOne({ where: { id: req.params.id, companyId, docKind: lk.docKind } });
+    if (!row) { res.status(404).json({ message: `${lk.label} not found.` }); return null; }
     const { canModifyRecord } = require('../../platform/serviceContext');
     if (!(await canModifyRecord(req, row))) {
-        res.status(403).json({ message: 'This invoice belongs to another user (outside your data scope).' });
+        res.status(403).json({ message: `This ${lk.label.toLowerCase()} belongs to another user (outside your data scope).` });
         return null;
     }
     const debtor = await Debtor.findOne({ where: { id: row.debtorId, companyId } });
@@ -455,18 +508,19 @@ async function loadOwnedInvoice(req, res) {
     return { companyId, row, debtor };
 }
 
-// PATCH /api/ar/invoices/:id - edit a draft (drafts only; posted is immutable).
-exports.updateInvoiceDraft = async (req, res) => {
+// PATCH /api/ar/<kind route>/:id - edit a draft (drafts only; posted is immutable).
+function makeUpdateDraft(lk) {
+    return async (req, res) => {
     try {
-        const loaded = await loadOwnedInvoice(req, res);
+        const loaded = await loadOwnedDoc(req, res, lk);
         if (!loaded) return;
         const { companyId, row, debtor } = loaded;
         if (row.status !== 'draft') {
-            return res.status(400).json({ message: `Only an Open (draft) invoice can be edited (this one is ${row.status}).` });
+            return res.status(400).json({ message: `Only an Open (draft) ${lk.label.toLowerCase()} can be edited (this one is ${row.status}).` });
         }
-        const fields = await readInvoiceDraftFields(req, companyId, debtor);
+        const fields = await readDraftFields(req, companyId, debtor, lk);
         if (fields.error) return res.status(400).json({ message: fields.error });
-        const no = await readDraftDocNo(req, companyId, { ignoreId: row.id });
+        const no = await readDraftDocNo(req, companyId, lk, { ignoreId: row.id });
         if (no.error) return res.status(no.error.includes('already in use') ? 409 : 400).json({ message: no.error });
 
         Object.assign(row, {
@@ -478,36 +532,42 @@ exports.updateInvoiceDraft = async (req, res) => {
             transactionTypeId: fields.txnType.id,
             description: strOrNull(req.body.description),
             incurredByMemberId: null, // manual documents belong to the account itself
+            applyToLedgerId: fields.applyToLedgerId,
+            applyFifo: fields.applyFifo,
             netAmount: posting.money(fields.amounts.netC),
             taxSchemeCode: fields.amounts.taxSchemeCode,
             taxRate: fields.amounts.taxRate,
             taxAmount: posting.money(fields.amounts.taxC),
             grossAmount: posting.money(fields.amounts.grossC),
-            isInterestChargeable: fields.txnType.isInterestChargeable === true,
+            isInterestChargeable: lk.mode === 'debit' && fields.txnType.isInterestChargeable === true,
             updatedBy: getUserContext(req).userId,
         });
         await row.save();
-        res.status(200).json({ message: 'Invoice draft updated.', id: row.id, docNo: row.docNo });
+        res.status(200).json({ message: `${lk.label} draft updated.`, id: row.id, docNo: row.docNo });
     } catch (err) {
-        console.error('Error updating invoice draft:', err);
+        console.error(`Error updating ${lk.label.toLowerCase()} draft:`, err);
         res.status(500).json({ message: 'Internal server error' });
     }
-};
+    };
+}
+exports.updateInvoiceDraft = makeUpdateDraft(LIFECYCLE_KINDS.invoice);
+exports.updateCreditNoteDraft = makeUpdateDraft(LIFECYCLE_KINDS['credit-note']);
 
-// POST /api/ar/invoices/:id/submit - make the draft financial: through the
-// ar-invoice approval chain when one is active (-> 'pending-approval'), else
-// posted immediately. Numbering is issued at the actual posting.
-exports.submitInvoice = async (req, res) => {
+// POST /api/ar/<kind route>/:id/submit - make the draft financial: through
+// the kind's approval chain when one is active (-> 'pending-approval'), else
+// posted immediately (a CN then resolves its stored allocation intent).
+function makeSubmit(lk) {
+    return async (req, res) => {
     try {
-        const loaded = await loadOwnedInvoice(req, res);
+        const loaded = await loadOwnedDoc(req, res, lk);
         if (!loaded) return;
         const { companyId, row, debtor } = loaded;
         if (row.status !== 'draft') {
-            return res.status(400).json({ message: `Only an Open (draft) invoice can be submitted (this one is ${row.status}).` });
+            return res.status(400).json({ message: `Only an Open (draft) ${lk.label.toLowerCase()} can be submitted (this one is ${row.status}).` });
         }
-        const mode = await numberingGateway.getMode(req, 'ar-invoice');
+        const mode = await numberingGateway.getMode(req, lk.numberingPurpose);
         if (mode === 'manual' && !row.docNo) {
-            return res.status(400).json({ message: 'Invoice number is required before submitting (numbering is manual).' });
+            return res.status(400).json({ message: `${lk.label} number is required before submitting (numbering is manual).` });
         }
 
         const placement = await getCallerPlacement(req);
@@ -518,9 +578,9 @@ exports.submitInvoice = async (req, res) => {
 
         let outcome;
         await sequelize.transaction(async (t) => {
-            const wf = await workflowGateway.startWorkflow(req, 'ar-invoice', {
+            const wf = await workflowGateway.startWorkflow(req, lk.workflowPurpose, {
                 entityId: row.id,
-                entityLabel: `Invoice ${row.docNo || 'draft'} — ${who.name || who.no || 'debtor'} (${posting.money(posting.cents(row.grossAmount))})`,
+                entityLabel: `${lk.label} ${row.docNo || 'draft'} — ${who.name || who.no || 'debtor'} (${posting.money(posting.cents(row.grossAmount))})`,
                 context: {
                     amount: Number(row.grossAmount),
                     debtorType: debtor.debtorType,
@@ -538,43 +598,53 @@ exports.submitInvoice = async (req, res) => {
             }
             await posting.postDraftLedger({
                 companyId, debtor, row,
-                issueDocNo: docNoIssuer(req, 'ar-invoice', row.docNo),
+                issueDocNo: docNoIssuer(req, lk.numberingPurpose, row.docNo),
                 stamps, t,
             });
             outcome = { pending: false };
         });
         res.status(200).json(outcome.pending
-            ? { message: 'Invoice submitted for approval.', id: row.id, status: row.status }
-            : { message: `Invoice ${row.docNo} posted.`, id: row.id, docNo: row.docNo, status: row.status });
+            ? { message: `${lk.label} submitted for approval.`, id: row.id, status: row.status }
+            : { message: `${lk.label} ${row.docNo} posted.`, id: row.id, docNo: row.docNo, status: row.status });
     } catch (err) {
         if (err && err.httpStatus) return res.status(err.httpStatus).json({ message: err.message });
-        console.error('Error submitting invoice:', err);
+        console.error(`Error submitting ${lk.label.toLowerCase()}:`, err);
         res.status(500).json({ message: 'Internal server error' });
     }
-};
+    };
+}
+exports.submitInvoice = makeSubmit(LIFECYCLE_KINDS.invoice);
+exports.submitCreditNote = makeSubmit(LIFECYCLE_KINDS['credit-note']);
 
-// PATCH /api/ar/invoices/:id/void - drafts only (audit kept, no reversal;
-// the draft never touched a balance). Posted invoices are corrected with a
-// Credit Note; pending approvals must complete (or be recalled) first.
-exports.voidInvoice = async (req, res) => {
-    try {
-        const loaded = await loadOwnedInvoice(req, res);
-        if (!loaded) return;
-        const { row } = loaded;
-        return voidInvoiceRow(req, res, row);
-    } catch (err) {
-        console.error('Error voiding invoice:', err);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-};
+// PATCH /api/ar/<kind route>/:id/void - drafts only (audit kept, no reversal;
+// the draft never touched a balance). Posted documents stay immutable;
+// pending approvals must complete (or be recalled) first.
+function makeVoid(lk) {
+    return async (req, res) => {
+        try {
+            const loaded = await loadOwnedDoc(req, res, lk);
+            if (!loaded) return;
+            const { row } = loaded;
+            return voidDraftRow(req, res, row, lk);
+        } catch (err) {
+            console.error(`Error voiding ${lk.label.toLowerCase()}:`, err);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    };
+}
+exports.voidInvoice = makeVoid(LIFECYCLE_KINDS.invoice);
+exports.voidCreditNote = makeVoid(LIFECYCLE_KINDS['credit-note']);
 
-async function voidInvoiceRow(req, res, row) {
-    if (row.status === 'void') return res.status(400).json({ message: 'This invoice is already void.' });
+async function voidDraftRow(req, res, row, lk) {
+    const label = lk.label;
+    if (row.status === 'void') return res.status(400).json({ message: `This ${label.toLowerCase()} is already void.` });
     if (row.status === 'pending-approval') {
-        return res.status(400).json({ message: 'This invoice is awaiting approval - it must be approved or rejected first.' });
+        return res.status(400).json({ message: `This ${label.toLowerCase()} is awaiting approval - it must be approved or rejected first.` });
     }
     if (row.status !== 'draft') {
-        return res.status(400).json({ message: 'A posted invoice cannot be voided - raise a Credit Note to offset it.' });
+        return res.status(400).json({ message: lk.docKind === 'invoice'
+            ? 'A posted invoice cannot be voided - raise a Credit Note to offset it.'
+            : `A posted ${label.toLowerCase()} cannot be voided.` });
     }
     // The void audit (user rule 2026-08-14): the number stays consumed in the
     // gapless series, and who/when/WHY is the auditor's trail for the gap.
@@ -586,7 +656,7 @@ async function voidInvoiceRow(req, res, row) {
     row.voidReason = reason.slice(0, 255);
     row.updatedBy = row.voidedBy;
     await row.save();
-    return res.status(200).json({ message: `Invoice ${row.docNo} voided.` });
+    return res.status(200).json({ message: `${label} ${row.docNo} voided.` });
 }
 
 // ---------------------------------------------------------------------------
@@ -598,9 +668,9 @@ exports.postLedger = async (req, res) => {
 
         const kind = LEDGER_DOC_KINDS.find((k) => k.key === str(req.body.docKind));
         if (!kind) return res.status(400).json({ message: 'Select the document kind.' });
-        // Invoices follow the Save->Submit draft lifecycle on BOTH doors
-        // (2026-08-13); DN/CN keep immediate posting until their slices land.
-        if (kind.key === 'invoice') return await createInvoiceDraft(req, res, companyId, debtor);
+        // Lifecycle kinds (invoice 2026-08-13, credit-note 2026-08-20) follow
+        // Save->Submit on BOTH doors; DN keeps immediate posting until its slice.
+        if (LIFECYCLE_KINDS[kind.key]) return await createDraft(req, res, companyId, debtor, LIFECYCLE_KINDS[kind.key]);
         const dates = parseDates(req.body);
         if (dates.error) return res.status(400).json({ message: dates.error });
         const amountC = parseAmount(req.body.amount);
@@ -877,8 +947,14 @@ exports.voidLedger = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await Ledger.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Document not found.' });
-        // Invoices: draft-only void (posted = Credit Note territory).
-        if (row.docKind === 'invoice') return await voidInvoiceRow(req, res, row);
+        // Invoices: draft-only void (posted = Credit Note territory). CN
+        // DRAFTS void the same way; a POSTED CN falls through to the
+        // reversal path below (unallocated-only - this is also how a
+        // deposit-conversion CN void restores the deposit's held balance).
+        if (row.docKind === 'invoice') return await voidDraftRow(req, res, row, LIFECYCLE_KINDS.invoice);
+        if (row.docKind === 'credit-note' && ['draft', 'pending-approval', 'void'].includes(row.status)) {
+            return await voidDraftRow(req, res, row, LIFECYCLE_KINDS['credit-note']);
+        }
         const debtor = await Debtor.findOne({ where: { id: row.debtorId, companyId } });
         if (!debtor) return res.status(404).json({ message: 'Debtor not found.' });
 

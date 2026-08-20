@@ -17,55 +17,61 @@
 
 const purposeRegistry = require('../modules/workflow/purposeRegistry');
 
-// --- ar-invoice (first wired producer, 2026-08-13) -------------------------
+// --- AR draft lifecycle documents (invoice 2026-08-13, credit-note
+// 2026-08-20) ---------------------------------------------------------------
 // Submit routed the draft to 'pending-approval'; the outcome lands here.
-//   approved  -> post the draft (number issued now, balance effects applied)
+//   approved  -> post the draft (number issued now, balance effects applied;
+//                a CN then resolves its stored allocation intent)
 //   rejected  -> back to 'draft' ("Open") so the submitter can amend/resubmit
 //   cancelled -> back to 'draft' (submitter recalled it)
-// Posting is small (one row + two counter updates under the pool lock), so it
+// Posting is small (one row + counter updates under the pool lock), so it
 // stays inside the completing transaction per the execution-flow agreement.
-purposeRegistry.register('ar-invoice', {
-    onApproved: async ({ entityId, instance, transaction }) => {
-        const Ledger = require('../modules/ar/ledger.model');
-        const Debtor = require('../modules/ar/debtor.model');
-        const posting = require('../modules/ar/arPosting.service');
-        const numberingGateway = require('../platform/numberingGateway');
+function registerArLedgerPurpose(purpose, docKind, synthPrefix) {
+    purposeRegistry.register(purpose, {
+        onApproved: async ({ entityId, instance, transaction }) => {
+            const Ledger = require('../modules/ar/ledger.model');
+            const Debtor = require('../modules/ar/debtor.model');
+            const posting = require('../modules/ar/arPosting.service');
+            const numberingGateway = require('../platform/numberingGateway');
 
-        const row = await Ledger.findOne({
-            where: { id: entityId, companyId: instance.companyId, docKind: 'invoice', status: 'pending-approval' },
-            transaction,
-        });
-        if (!row) return; // already handled / voided out-of-band - never fail the approval
-        const debtor = await Debtor.findOne({ where: { id: row.debtorId, companyId: instance.companyId }, transaction });
-        if (!debtor) return;
+            const row = await Ledger.findOne({
+                where: { id: entityId, companyId: instance.companyId, docKind, status: 'pending-approval' },
+                transaction,
+            });
+            if (!row) return; // already handled / voided out-of-band - never fail the approval
+            const debtor = await Debtor.findOne({ where: { id: row.debtorId, companyId: instance.companyId }, transaction });
+            if (!debtor) return;
 
-        await posting.postDraftLedger({
-            companyId: instance.companyId,
-            debtor,
-            row,
-            issueDocNo: async (t) => {
-                const issued = await numberingGateway.issueNumberForCompany(instance.companyId, 'ar-invoice', { transaction: t });
-                if (issued && issued.number) return issued.number;
-                return `INV-${Date.now().toString(36).toUpperCase()}`;
-            },
-            stamps: { updatedBy: instance.submitterUserId || null },
-            t: transaction,
-        });
-    },
-    onRejected: async ({ entityId, instance, transaction }) => {
-        const Ledger = require('../modules/ar/ledger.model');
-        await Ledger.update(
-            { status: 'draft' },
-            { where: { id: entityId, companyId: instance.companyId, docKind: 'invoice', status: 'pending-approval' }, transaction },
-        );
-    },
-    onCancelled: async ({ entityId, instance, transaction }) => {
-        const Ledger = require('../modules/ar/ledger.model');
-        await Ledger.update(
-            { status: 'draft' },
-            { where: { id: entityId, companyId: instance.companyId, docKind: 'invoice', status: 'pending-approval' }, transaction },
-        );
-    },
-});
+            await posting.postDraftLedger({
+                companyId: instance.companyId,
+                debtor,
+                row,
+                issueDocNo: async (t) => {
+                    const issued = await numberingGateway.issueNumberForCompany(instance.companyId, purpose, { transaction: t });
+                    if (issued && issued.number) return issued.number;
+                    return `${synthPrefix}-${Date.now().toString(36).toUpperCase()}`;
+                },
+                stamps: { updatedBy: instance.submitterUserId || null },
+                t: transaction,
+            });
+        },
+        onRejected: async ({ entityId, instance, transaction }) => {
+            const Ledger = require('../modules/ar/ledger.model');
+            await Ledger.update(
+                { status: 'draft' },
+                { where: { id: entityId, companyId: instance.companyId, docKind, status: 'pending-approval' }, transaction },
+            );
+        },
+        onCancelled: async ({ entityId, instance, transaction }) => {
+            const Ledger = require('../modules/ar/ledger.model');
+            await Ledger.update(
+                { status: 'draft' },
+                { where: { id: entityId, companyId: instance.companyId, docKind, status: 'pending-approval' }, transaction },
+            );
+        },
+    });
+}
+registerArLedgerPurpose('ar-invoice', 'invoice', 'INV');
+registerArLedgerPurpose('ar-credit-note', 'credit-note', 'CN');
 
 module.exports = {};

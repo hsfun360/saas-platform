@@ -173,10 +173,13 @@ export class ArDebtorAccountComponent {
   ledgerDocRef(doc: ArLedgerDoc): string {
     return doc.docNo || 'Draft';
   }
-  // Invoices: draft-only void (posted = Credit Note). DN/CN keep the old rule
-  // until their lifecycle slices land.
+  // Invoices: draft-only void (posted = Credit Note territory). CN drafts
+  // void like invoice drafts (lifecycle 2026-08-20); a POSTED unallocated CN
+  // keeps the reversal void (deposit-conversion CNs rely on it). DN keeps
+  // the old rule until its lifecycle slice lands.
   canVoidLedgerDoc(doc: ArLedgerDoc): boolean {
     if (doc.docKind === 'invoice') return doc.status === 'draft';
+    if (doc.docKind === 'credit-note' && doc.status === 'draft') return true;
     return doc.status === 'open' && doc.settledAmount === '0.00';
   }
   kindLabel(kind: string): string {
@@ -332,15 +335,17 @@ export class ArDebtorAccountComponent {
 
   // --- Voids (shared confirmation dialog) ---
   askVoidLedger(doc: ArLedgerDoc): void {
-    const isDraftInvoice = doc.docKind === 'invoice';
-    this.voidNeedsReason.set(isDraftInvoice);
+    // Draft void (reason required for audit): invoices always route there
+    // server-side; CN drafts too since the CN lifecycle (2026-08-20).
+    const isDraftVoid = doc.docKind === 'invoice' || (doc.docKind === 'credit-note' && doc.status === 'draft');
+    this.voidNeedsReason.set(isDraftVoid);
     this.openVoid(
-      isDraftInvoice
+      isDraftVoid
         ? `Void ${this.kindLabel(doc.docKind)} ${this.ledgerDocRef(doc)}? The draft never posted - the number stays consumed and the record remains as Void with your reason.`
         : doc.mode === 'debit'
           ? `Void ${this.kindLabel(doc.docKind)} ${doc.docNo}? A credit-mode reversal will be posted against it.`
           : `Void ${this.kindLabel(doc.docKind)} ${doc.docNo}?`,
-      () => this.service.voidLedger(doc.id, isDraftInvoice ? { reason: this.voidReason().trim() } : {}).subscribe({
+      () => this.service.voidLedger(doc.id, isDraftVoid ? { reason: this.voidReason().trim() } : {}).subscribe({
         next: (res) => this.voidDone(res.message),
         error: (err) => this.voidFailed(err),
       }),

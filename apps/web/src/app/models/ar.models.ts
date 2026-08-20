@@ -175,6 +175,9 @@ export interface ArDocListRow {
   status: ArDocStatus;
   voidReason?: string | null;
   transactionTypeId: string;
+  // CN drafts: the allocation intent, for edit prefill.
+  applyToLedgerId?: string | null;
+  applyFifo?: boolean;
   canModify?: boolean;
   debtor: { id: string; debtorType: string | null; no: string | null; name: string | null };
 }
@@ -190,8 +193,11 @@ export interface ArAccountMeta {
   transactionTypes: ArTransactionType[];
   // purpose -> 'auto' | 'manual' | null
   numberingModes: Record<string, string | null>;
-  // An ar-invoice approval chain is active -> "Submit for Approval" label.
+  // An approval chain is active for the kind -> "Submit for Approval" label.
   invoiceApproval?: boolean;
+  creditNoteApproval?: boolean;
+  // The debtor's open debits - the CN entry's "Apply against" choices.
+  openDebits?: { id: string; docKind: string; docNo: string | null; grossAmount: string; settledAmount: string }[];
 }
 
 // --- Periodic processing (slice 3) ---

@@ -142,6 +142,32 @@ export class ArService {
     return this.http.patch<{ message: string }>(`${this.base}/invoices/${id}/void`, { reason });
   }
 
+  // Credit Note lifecycle (same shape as invoices; own menu/grants).
+  listCreditNotes(opts: { month?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
+    let params = new HttpParams();
+    if (opts.month) params = params.set('month', opts.month);
+    if (opts.q) params = params.set('q', opts.q);
+    if (opts.status) params = params.set('status', opts.status);
+    if (opts.offset) params = params.set('offset', String(opts.offset));
+    return this.http.get<ArDocListResult>(`${this.base}/credit-notes`, { params });
+  }
+
+  postCreditNote(payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string | null }> {
+    return this.http.post<{ message: string; id: string; docNo: string | null }>(`${this.base}/credit-notes`, payload);
+  }
+
+  updateCreditNote(id: string, payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string | null }> {
+    return this.http.patch<{ message: string; id: string; docNo: string | null }>(`${this.base}/credit-notes/${id}`, payload);
+  }
+
+  submitCreditNote(id: string): Observable<{ message: string; id: string; docNo?: string; status: string }> {
+    return this.http.post<{ message: string; id: string; docNo?: string; status: string }>(`${this.base}/credit-notes/${id}/submit`, {});
+  }
+
+  voidCreditNote(id: string, reason: string): Observable<{ message: string }> {
+    return this.http.patch<{ message: string }>(`${this.base}/credit-notes/${id}/void`, { reason });
+  }
+
   voidReceipt(id: string): Observable<{ message: string }> {
     return this.http.patch<{ message: string }>(`${this.base}/receipts/${id}/void`, {});
   }

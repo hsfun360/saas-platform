@@ -273,6 +273,10 @@ async function postLedgerDoc({
 // created earlier as a non-financial draft. Issues the gapless number now
 // (unless a manual number was keyed on the draft), computes dueDate from the
 // debtor's CURRENT terms, stamps postedAt/postedBy, and flips to 'open'.
+// Credit drafts (CN lifecycle 2026-08-20) then resolve their stored
+// allocation intent: the applyToLedgerId target if it is STILL an open debit
+// (settled/voided since entry -> skipped, CN stays available credit), then
+// FIFO when applyFifo is set.
 async function postDraftLedger({ companyId, debtor, row, issueDocNo, stamps = {}, t }) {
     if (!['draft', 'pending-approval'].includes(row.status)) {
         throw bizError(400, `Only a draft can be posted (this document is ${row.status}).`);
@@ -305,6 +309,19 @@ async function postDraftLedger({ companyId, debtor, row, issueDocNo, stamps = {}
         }
     } else {
         await bumpOutstanding(pool, -grossC, t);
+        if (row.applyToLedgerId) {
+            const target = await Ledger.findOne({
+                where: { id: row.applyToLedgerId, debtorId: debtor.id, mode: 'debit', status: 'open' },
+                transaction: t,
+            });
+            if (target) {
+                const take = Math.min(grossC, debitCapacity('ledger', target));
+                if (take > 0) {
+                    await applyAllocation({ companyId, creditType: 'ledger', creditRow: row, debitType: 'ledger', debitRow: target, amountCents: take, stamps, pool, t });
+                }
+            }
+        }
+        if (row.applyFifo) await fifoAllocateCredit({ companyId, pool, creditType: 'ledger', creditRow: row, stamps, t });
     }
     return row;
 }
