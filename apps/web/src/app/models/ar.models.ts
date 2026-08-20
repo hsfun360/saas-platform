@@ -175,7 +175,6 @@ export interface ArDocListRow {
   status: ArDocStatus;
   voidReason?: string | null;
   transactionTypeId: string;
-  incurredByMemberId: string | null;
   canModify?: boolean;
   debtor: { id: string; debtorType: string | null; no: string | null; name: string | null };
 }
@@ -189,7 +188,6 @@ export interface ArDocListResult {
 
 export interface ArAccountMeta {
   transactionTypes: ArTransactionType[];
-  persons: ArPerson[];
   // purpose -> 'auto' | 'manual' | null
   numberingModes: Record<string, string | null>;
   // An ar-invoice approval chain is active -> "Submit for Approval" label.

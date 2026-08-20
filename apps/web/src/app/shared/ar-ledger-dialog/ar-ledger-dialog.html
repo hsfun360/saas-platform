@@ -98,17 +98,10 @@
               }
               <p class="cell-subtle" style="margin: 2px 0 0;">Tax is applied from the transaction type's scheme.</p>
             </div>
-            @if ((effMeta()?.persons || []).length > 0) {
-              <div class="form-group">
-                <label for="ldPerson">Incurred by</label>
-                <select id="ldPerson" formControlName="incurredByMemberId">
-                  <option value="">— The account itself —</option>
-                  @for (p of effMeta()?.persons; track p.id) {
-                    <option [value]="p.id">{{ p.memberNo }} — {{ p.name }} ({{ p.memberKind }})</option>
-                  }
-                </select>
-              </div>
-            }
+            <!-- No Incurred-by picker (user rule 2026-08-20): a manual AR
+                 document belongs to the selected account itself. Per-person
+                 charges only arrive from producer modules via the posting
+                 seam, which stamps incurredBy for statement display. -->
           </div>
           @if (kind() === 'credit-note') {
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">

@@ -158,7 +158,9 @@ exports.getAccount = async (req, res) => {
 };
 
 // GET /api/ar/debtors/:id/account/meta - the entry dialogs' pickers: billing
-// items (Transaction Types), persons, numbering modes per document series.
+// items (Transaction Types) and numbering modes per document series. (The
+// persons list was dropped 2026-08-20 with the manual Incurred-by picker -
+// incurredBy is stamped only by producer modules at the posting seam.)
 exports.getAccountMeta = async (req, res) => {
     try {
         const { error, companyId, debtor } = await loadDebtor(req);
@@ -181,7 +183,6 @@ exports.getAccountMeta = async (req, res) => {
             // The AR-OWNED catalog (2026-08-15) with trxClass, so each entry
             // dialog offers only its own document book's types.
             transactionTypes: types.map((t) => t.toJSON()),
-            persons: await membershipGateway.listDebtorPersons(companyId, debtor.debtorType, debtor.sourceId),
             numberingModes: modes,
             invoiceApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-invoice'),
         });
@@ -311,7 +312,7 @@ function makeLedgerListHandler(docKind) {
                     settledAmount: r.settledAmount, status: r.status,
                     voidReason: r.voidReason,
                     // Draft edit prefill (the shared dialog re-opens the form).
-                    transactionTypeId: r.transactionTypeId, incurredByMemberId: r.incurredByMemberId,
+                    transactionTypeId: r.transactionTypeId,
                     canModify: canModify[i],
                     debtor: displayByDebtor.get(r.debtorId) || { id: r.debtorId, debtorType: null, no: null, name: null },
                 })),
@@ -346,14 +347,6 @@ async function readInvoiceDraftFields(req, companyId, debtor) {
     if (!txnType || !txnType.isActive) return { error: 'Select a transaction type.' };
     if (txnType.trxClass !== 'invoice') return { error: 'This transaction type is not an Invoice-class item.' };
 
-    const incurredByMemberId = strOrNull(req.body.incurredByMemberId);
-    if (incurredByMemberId) {
-        const persons = await membershipGateway.listDebtorPersons(companyId, debtor.debtorType, debtor.sourceId);
-        if (!persons.some((p) => p.id === incurredByMemberId)) {
-            return { error: 'The selected person does not belong to this debtor.' };
-        }
-    }
-
     let amounts = { netC: amountC, taxC: 0, grossC: amountC, taxSchemeCode: null, taxRate: null };
     if (txnType.taxSchemeCode) {
         const q = await quoteTax(req, { taxSchemeCode: txnType.taxSchemeCode, amount: amountC / 100, onDate: dates.docDate });
@@ -366,7 +359,7 @@ async function readInvoiceDraftFields(req, companyId, debtor) {
             taxRate: q.lines.reduce((s, l) => s + Number(l.taxRate || 0), 0).toFixed(4),
         };
     }
-    return { dates, txnType, incurredByMemberId, amounts };
+    return { dates, txnType, amounts };
 }
 
 // Manual-number pre-checks for a draft (auto mode issues in-tx at save).
@@ -410,7 +403,11 @@ async function createInvoiceDraft(req, res, companyId, debtor) {
         dueDate: null, // computed from the debtor's terms at posting
         transactionTypeId: fields.txnType.id,
         description: strOrNull(req.body.description),
-        incurredByMemberId: fields.incurredByMemberId,
+        // Manual AR documents belong to the ACCOUNT itself (user rule
+        // 2026-08-20): incurredBy is stamped only by producer modules via
+        // arGateway.postCharge - a nominee's charge is keyed on the
+        // nominee's own debtor account, never "on behalf of".
+        incurredByMemberId: null,
         sourceModule: 'ar',
         sourceRef: 'manual',
         netAmount: posting.money(fields.amounts.netC),
@@ -480,7 +477,7 @@ exports.updateInvoiceDraft = async (req, res) => {
             trxDate: fields.dates.trxDate,
             transactionTypeId: fields.txnType.id,
             description: strOrNull(req.body.description),
-            incurredByMemberId: fields.incurredByMemberId,
+            incurredByMemberId: null, // manual documents belong to the account itself
             netAmount: posting.money(fields.amounts.netC),
             taxSchemeCode: fields.amounts.taxSchemeCode,
             taxRate: fields.amounts.taxRate,
@@ -619,15 +616,6 @@ exports.postLedger = async (req, res) => {
             return res.status(400).json({ message: `This transaction type is not a ${kind.label}-class item.` });
         }
 
-        // incurredBy must be a person of THIS debtor.
-        const incurredByMemberId = strOrNull(req.body.incurredByMemberId);
-        if (incurredByMemberId) {
-            const persons = await membershipGateway.listDebtorPersons(companyId, debtor.debtorType, debtor.sourceId);
-            if (!persons.some((p) => p.id === incurredByMemberId)) {
-                return res.status(400).json({ message: 'The selected person does not belong to this debtor.' });
-            }
-        }
-
         // CN: optional specific target document.
         let targetLedger = null;
         const targetLedgerId = strOrNull(req.body.targetLedgerId);
@@ -674,7 +662,9 @@ exports.postLedger = async (req, res) => {
                 transactionTypeId: txnType.id,
                 isInterestChargeable: txnType.isInterestChargeable === true,
                 description: strOrNull(req.body.description),
-                incurredByMemberId,
+                // Manual AR documents belong to the account itself; incurredBy
+                // is stamped only by producer modules (user rule 2026-08-20).
+                incurredByMemberId: null,
                 sourceModule: 'ar', sourceRef: 'manual',
                 amounts, stamps, targetLedger,
                 fifo: kind.key === 'credit-note' && req.body.fifo === true,

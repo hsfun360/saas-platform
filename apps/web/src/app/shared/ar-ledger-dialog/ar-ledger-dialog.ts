@@ -76,7 +76,6 @@ export class ArLedgerDialogComponent implements OnInit {
     docDate: ['', [Validators.required]],
     trxDate: ['', [Validators.required]],
     transactionTypeId: ['', [Validators.required]],
-    incurredByMemberId: [''],
     description: [''],
     amount: [0, [Validators.required, Validators.min(0.01)]],
     targetLedgerId: [''],
@@ -97,7 +96,6 @@ export class ArLedgerDialogComponent implements OnInit {
         docDate: edit.docDate,
         trxDate: edit.trxDate,
         transactionTypeId: edit.transactionTypeId,
-        incurredByMemberId: edit.incurredByMemberId || '',
         description: edit.description || '',
         amount: Number(edit.netAmount),
         targetLedgerId: '', fifo: false,
@@ -115,7 +113,7 @@ export class ArLedgerDialogComponent implements OnInit {
       return;
     }
     this.form.reset({
-      docNo: '', docDate: t, trxDate: t, transactionTypeId: '', incurredByMemberId: '',
+      docNo: '', docDate: t, trxDate: t, transactionTypeId: '',
       description: '', amount: 0, targetLedgerId: '', fifo: false,
     });
     // A preset debtor (account screen) starts straight in entry mode;
@@ -200,7 +198,6 @@ export class ArLedgerDialogComponent implements OnInit {
       docDate: f.docDate,
       trxDate: f.trxDate,
       transactionTypeId: f.transactionTypeId,
-      incurredByMemberId: f.incurredByMemberId || null,
       description: f.description.trim() || null,
       amount: f.amount,
       targetLedgerId: this.kind() === 'credit-note' ? (f.targetLedgerId || null) : null,
