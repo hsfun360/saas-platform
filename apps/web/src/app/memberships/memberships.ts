@@ -266,11 +266,22 @@ export class MembershipsComponent implements OnInit {
     return !!(t?.isTermMembership && t.termMonths);
   });
 
-  // Add mode: the picked type's class. Edit mode: the record's class.
+  // Add mode: the class picked on the dialog's first step (like the AR
+  // Transaction Type class picker) - declared BEFORE the form shows, so the
+  // form opens in its final shape instead of morphing when a type is chosen.
+  // Edit mode: the record's class (immutable).
+  readonly pickedClass = signal<'' | 'individual' | 'corporate'>('');
+
   readonly dialogClass = computed(() => {
     const editing = this.editMembership();
     if (editing) return editing.membershipClass;
-    return this.selectedType()?.membershipClass || '';
+    return this.pickedClass();
+  });
+
+  // The add dialog's type picker offers only the picked class's active types.
+  readonly classTypes = computed(() => {
+    const cls = this.pickedClass();
+    return (this.options()?.types || []).filter((t) => t.membershipClass === cls);
   });
 
   readonly autoNumbering = computed(() => this.meta()?.numberingMode === 'auto');
@@ -305,7 +316,9 @@ export class MembershipsComponent implements OnInit {
 
   readonly membershipDialogTitle = computed(() => {
     const editing = this.editMembership();
-    return editing ? `Edit — ${editing.membershipNo}` : 'New membership';
+    if (editing) return `Edit — ${editing.membershipNo}`;
+    const cls = this.pickedClass();
+    return cls ? `New ${this.classLabel(cls).toLowerCase()} membership` : 'New membership';
   });
 
   readonly memberDialogTitle = computed(() => {
@@ -527,7 +540,23 @@ export class MembershipsComponent implements OnInit {
     this.setAddresses(this.msAddressArray, []);
     this.membershipForm.markAsPristine();
     this.resetMemberForm();
+    // Step 1: declare Individual vs Corporate first (AR Transaction Type
+    // pattern) - the form then opens in its final shape and the type picker
+    // lists only that class.
+    this.pickedClass.set('');
     this.membershipOpen.set(true);
+  }
+
+  pickClass(cls: 'individual' | 'corporate'): void {
+    this.pickedClass.set(cls);
+  }
+
+  // Back to the class picker - offered only while both forms are pristine, so
+  // a mis-click never costs entered data.
+  changeClass(): void {
+    this.pickedClass.set('');
+    // Clear anything a previously chosen type may have defaulted.
+    this.membershipForm.patchValue({ membershipTypeId: '', membershipStatusId: '', membershipFeeId: '', creditLimit: null });
   }
 
   // The list row is slim - fetch the full contract before opening the dialog.

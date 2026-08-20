@@ -400,11 +400,39 @@
                 discardTitle="Discard this membership?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
                 (close)="closeMembership()">
+      @if (!editMembership() && !pickedClass()) {
+        <!-- Step 1 (create only): declare WHO holds the membership - it
+             decides the whole shape of the form (AR Transaction Type pattern). -->
+        <div class="saas-form" style="padding: 0;">
+          <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Who holds this membership? The form shows only the fields that apply.</p>
+          <div style="display: grid; gap: var(--space-sm);">
+            <button type="button" class="btn btn--secondary" style="justify-content: flex-start; min-height: 44px;" (click)="pickClass('individual')">
+              <span class="material-icons" aria-hidden="true">person</span>
+              <span style="text-align: left; white-space: normal;"><strong>Individual</strong> — one person holds the membership; their profile is captured now.</span>
+            </button>
+            <button type="button" class="btn btn--secondary" style="justify-content: flex-start; min-height: 44px;" (click)="pickClass('corporate')">
+              <span class="material-icons" aria-hidden="true">business</span>
+              <span style="text-align: left; white-space: normal;"><strong>Corporate</strong> — a company holds the membership; nominees are added after saving.</span>
+            </button>
+          </div>
+        </div>
+      } @else {
       <form id="membershipForm" [formGroup]="membershipForm" (ngSubmit)="onSaveMembership()" class="saas-form" style="padding: 0;">
 
         <details class="dlg-sec" open>
         <summary><h3 class="dlg-section">Contract</h3></summary>
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="msClass">Class</label>
+            <!-- Locked value shown as a disabled input so it reads like every
+                 other field (the AR Transaction Class standard). -->
+            <div style="display: flex; align-items: center; gap: var(--space-sm);">
+              <input id="msClass" type="text" [value]="classLabel(dialogClass())" disabled style="flex: 1; min-width: 0;" />
+              @if (!editMembership() && membershipForm.pristine && memberForm.pristine) {
+                <button type="button" class="btn btn--secondary" (click)="changeClass()">Change</button>
+              }
+            </div>
+          </div>
           <div class="form-group">
             <label for="msType">Membership type <span class="required">*</span></label>
             @if (editMembership()) {
@@ -413,8 +441,8 @@
               <select id="msType" formControlName="membershipTypeId"
                       [attr.aria-invalid]="showError(membershipForm.controls.membershipTypeId)" aria-describedby="msTypeErr">
                 <option value="">— Select a type —</option>
-                @for (t of options()?.types; track t.id) {
-                  <option [value]="t.id">{{ t.category }}@if (t.description) { — {{ t.description }}} ({{ classLabel(t.membershipClass) }})</option>
+                @for (t of classTypes(); track t.id) {
+                  <option [value]="t.id">{{ t.category }}@if (t.description) { — {{ t.description }}}</option>
                 }
               </select>
               @if (showError(membershipForm.controls.membershipTypeId)) {
@@ -657,12 +685,15 @@
           </details>
         }
       </form>
+      }
 
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="msDlg.requestClose()" [disabled]="membershipSaving()">Cancel</button>
-        <button type="submit" form="membershipForm" class="btn btn--primary" [disabled]="membershipSaving()">
-          {{ membershipSaving() ? 'Saving…' : 'Save' }}
-        </button>
+        @if (editMembership() || pickedClass()) {
+          <button type="submit" form="membershipForm" class="btn btn--primary" [disabled]="membershipSaving()">
+            {{ membershipSaving() ? 'Saving…' : 'Save' }}
+          </button>
+        }
       </ng-container>
     </app-dialog>
   }
