@@ -382,15 +382,16 @@ async function readDraftFields(req, companyId, debtor, lk) {
     // re-check tolerates it settling in between.
     let applyToLedgerId = null;
     let applyFifo = false;
+    let cnTarget = null;
     if (lk.docKind === 'credit-note') {
         applyToLedgerId = strOrNull(req.body.targetLedgerId);
         applyFifo = req.body.fifo === true;
         if (applyToLedgerId) {
-            const target = await Ledger.findOne({
+            cnTarget = await Ledger.findOne({
                 where: { id: applyToLedgerId, debtorId: debtor.id, mode: 'debit', status: 'open' },
-                attributes: ['id'],
+                attributes: ['id', 'docNo', 'grossAmount', 'settledAmount'],
             });
-            if (!target) return { error: 'The target document is not an open debit of this debtor.' };
+            if (!cnTarget) return { error: 'The target document is not an open debit of this debtor.' };
         }
     }
 
@@ -405,6 +406,16 @@ async function readDraftFields(req, companyId, debtor, lk) {
             taxSchemeCode: txnType.taxSchemeCode,
             taxRate: q.lines.reduce((s, l) => s + Number(l.taxRate || 0), 0).toFixed(4),
         };
+    }
+
+    // A targeted CN must not exceed the target's remaining balance (user rule
+    // 2026-08-20) - checked GROSS (tax included), since the gross is what
+    // allocates. Untargeted/FIFO CNs stay uncapped (available credit).
+    if (cnTarget) {
+        const remainingC = posting.cents(cnTarget.grossAmount) - posting.cents(cnTarget.settledAmount);
+        if (amounts.grossC > remainingC) {
+            return { error: `Credit note amount (gross ${posting.money(amounts.grossC)}) exceeds the balance of ${cnTarget.docNo} (${posting.money(remainingC)}).` };
+        }
     }
     return { dates, txnType, amounts, applyToLedgerId, applyFifo };
 }

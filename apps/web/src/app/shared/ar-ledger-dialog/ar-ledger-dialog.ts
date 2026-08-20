@@ -261,9 +261,27 @@ export class ArLedgerDialogComponent implements OnInit {
     return this.kind() === 'credit-note' ? this.service.submitCreditNote(id) : this.service.submitInvoice(id);
   }
 
+  // A targeted CN cannot exceed the target's remaining balance (user rule
+  // 2026-08-20). Client check on the keyed (net) amount for instant feedback;
+  // the API re-checks GROSS (tax included) authoritatively.
+  private cnAmountError(): string | null {
+    if (this.kind() !== 'credit-note') return null;
+    const f = this.form.getRawValue();
+    if (!f.targetLedgerId) return null;
+    const target = this.effOpenDebits().find((d) => d.id === f.targetLedgerId);
+    if (!target) return null;
+    const remaining = Number(target.grossAmount) - Number(target.settledAmount);
+    if ((Number(f.amount) || 0) > remaining + 0.000001) {
+      return `The credit note amount cannot exceed the balance of ${target.docNo} (${remaining.toFixed(2)}).`;
+    }
+    return null;
+  }
+
   onSave(): void {
     if (!this.activeDebtor()) return;
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    const capErr = this.cnAmountError();
+    if (capErr) { this.failed.emit(capErr); return; }
     this.saving.set(true);
     this.saveRequest().subscribe({
       next: (res) => { this.saving.set(false); this.posted.emit(res.message); },
@@ -277,6 +295,8 @@ export class ArLedgerDialogComponent implements OnInit {
   onSubmit(): void {
     if (!this.activeDebtor()) return;
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    const capErr = this.cnAmountError();
+    if (capErr) { this.failed.emit(capErr); return; }
     this.saving.set(true);
     this.saveRequest().subscribe({
       next: (saved) => {
