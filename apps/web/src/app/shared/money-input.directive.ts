@@ -25,7 +25,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
     '(input)': 'handleInput()',
     '(blur)': 'handleBlur()',
     '(focus)': 'handleFocus()',
-    '(mouseup)': 'handleMouseUp($event)',
+    '(mousedown)': 'handleMouseDown($event)',
     '(wheel)': 'handleWheel($event)',
   },
 })
@@ -71,21 +71,20 @@ export class MoneyInputDirective implements ControlValueAccessor {
 
   // Select-all on focus, for CLICK and TAB alike (user standard 2026-08-20):
   // the seeded "0.00" is highlighted so typing replaces it - never a caret
-  // parked behind the zeros. A click fires focus then mouseup; the browser's
-  // default mouseup would collapse the selection back to a caret, so the FIRST
-  // mouseup after a select-on-focus is suppressed (subsequent clicks position
-  // the caret normally, the field being already focused).
-  private selectOnMouseUp = false;
-
+  // parked behind the zeros. The FOCUSING click is taken over entirely at
+  // mousedown (preventDefault stops the browser's own caret/selection
+  // handling; focus+select is done by hand), so once the field is focused
+  // every further click is fully native - ONE click places the caret.
+  // (An earlier version suppressed mouseup instead, which left the browser's
+  // selection state armed and cost an extra click to land the cursor.)
   handleFocus(): void {
     this.el.select();
-    this.selectOnMouseUp = true;
   }
 
-  handleMouseUp(event: MouseEvent): void {
-    if (this.selectOnMouseUp) {
+  handleMouseDown(event: MouseEvent): void {
+    if (document.activeElement !== this.el) {
       event.preventDefault();
-      this.selectOnMouseUp = false;
+      this.el.focus(); // triggers handleFocus -> select-all
     }
   }
 
