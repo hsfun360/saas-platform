@@ -125,7 +125,8 @@ export class ArTransactionTypesComponent implements OnInit {
     'credit-note': 'an adjustment that reduces what the debtor owes.',
     interest: 'late-payment interest posted by the monthly interest run.',
     deposit: 'security deposits held as collateral.',
-    receipt: 'debtor payments and refund methods.',
+    receipt: 'methods of collecting debtor payments.',
+    refund: 'methods of paying money back to the debtor.',
     forex: 'exchange-rate gain or loss entries.',
   };
 
@@ -134,10 +135,15 @@ export class ArTransactionTypesComponent implements OnInit {
     'debit-note': 'add_circle',
     'credit-note': 'remove_circle',
     interest: 'percent',
-    deposit: 'savings',
+    deposit: 'account_balance',
     receipt: 'payments',
+    refund: 'assignment_return',
     forex: 'currency_exchange',
   };
+
+  // Receipt/Refund entries are payment METHODS: no tax scheme, no interest
+  // flag, no e-Invoice fields (the API forces the same shape).
+  readonly isPaymentClass = computed(() => this.dialogClass() === 'receipt' || this.dialogClass() === 'refund');
 
   moduleLabel(key: string): string {
     return this.modules().find((m) => m.key === key)?.label || key;
@@ -189,7 +195,7 @@ export class ArTransactionTypesComponent implements OnInit {
   pickClass(key: string): void {
     if (this.dialogClass() !== key) {
       this.selectedModule.set('');
-      if (key === 'receipt') {
+      if (key === 'receipt' || key === 'refund') {
         this.form.patchValue({ taxSchemeCode: '', isInterestChargeable: false, isEInvoice: false, eInvoiceClassificationCode: '' });
       }
     }
@@ -239,14 +245,14 @@ export class ArTransactionTypesComponent implements OnInit {
       transactionType: v.transactionType.trim(),
       trxClass: cls,
       description: v.description.trim() || null,
-      // Class-conditional fields: Receipts are payment methods (no tax, no
-      // interest, no e-Invoice), module usability is Invoice-only and holds
-      // at most ONE module (the API forces the same shape).
-      taxSchemeCode: cls === 'receipt' ? null : v.taxSchemeCode || null,
-      isInterestChargeable: cls !== 'receipt' && v.isInterestChargeable,
+      // Class-conditional fields: Receipt/Refund are payment methods (no tax,
+      // no interest, no e-Invoice), module usability is Invoice-only and
+      // holds at most ONE module (the API forces the same shape).
+      taxSchemeCode: this.isPaymentClass() ? null : v.taxSchemeCode || null,
+      isInterestChargeable: !this.isPaymentClass() && v.isInterestChargeable,
       usableInModules: cls === 'invoice' && this.selectedModule() ? [this.selectedModule()] : [],
-      isEInvoice: cls !== 'receipt' && v.isEInvoice,
-      eInvoiceClassificationCode: cls === 'receipt' ? null : v.eInvoiceClassificationCode || null,
+      isEInvoice: !this.isPaymentClass() && v.isEInvoice,
+      eInvoiceClassificationCode: this.isPaymentClass() ? null : v.eInvoiceClassificationCode || null,
     };
 
     this.saving.set(true);

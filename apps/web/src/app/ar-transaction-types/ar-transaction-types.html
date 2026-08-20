@@ -163,7 +163,7 @@
             <input id="attDesc" type="text" formControlName="description" placeholder="e.g. Miscellaneous Fee" maxlength="255" />
           </div>
         </div>
-        @if (dialogClass() !== 'receipt') {
+        @if (!isPaymentClass()) {
           <div class="form-row">
             <div class="form-group">
               <label for="attTax">Tax Scheme</label>
@@ -197,7 +197,7 @@
             </div>
           </div>
         }
-        @if (dialogClass() !== 'receipt') {
+        @if (!isPaymentClass()) {
           <div class="form-row">
             <div class="form-group">
               <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">

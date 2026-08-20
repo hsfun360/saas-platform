@@ -32,9 +32,12 @@ const DEBTOR_STATUS_KEYS = DEBTOR_STATUSES.map((s) => s.key);
 // --- Transaction Type catalog (AR-owned since 2026-08-15) ---
 
 // Which document book a Transaction Type belongs to. Each entry screen
-// filters its own class; 'receipt' covers debtor payments AND refund methods
-// (one money-movement vocabulary); 'deposit' = deposit BILLING; 'forex' is
-// the future slot for exchange gain/loss on foreign-currency receipts.
+// filters its own class; 'receipt' = debtor payment (collection) methods and
+// 'refund' = refund methods - SPLIT 2026-08-20 (user rule): collection and
+// refund are separate menus/grants, and refunds may require workflow approval
+// while receipts do not, so their vocabularies must be separately grantable.
+// 'deposit' = deposit BILLING; 'forex' is the future slot for exchange
+// gain/loss on foreign-currency receipts.
 const TRX_CLASSES = [
     { key: 'invoice', label: 'Invoice' },
     { key: 'debit-note', label: 'Debit Note' },
@@ -42,8 +45,13 @@ const TRX_CLASSES = [
     { key: 'interest', label: 'Interest' },
     { key: 'deposit', label: 'Deposit' },
     { key: 'receipt', label: 'Receipt' },
+    { key: 'refund', label: 'Refund' },
     { key: 'forex', label: 'Forex' },
 ];
+
+// Payment-method classes (money movement, not billing): no tax scheme, no
+// interest flag, no e-Invoice fields on their catalog entries.
+const PAYMENT_TRX_CLASSES = ['receipt', 'refund'];
 const TRX_CLASS_KEYS = TRX_CLASSES.map((c) => c.key);
 
 // Producer modules a Transaction Type can be opened to (usableInModules).
@@ -95,6 +103,7 @@ const RECEIPT_DOC_KIND_KEYS = RECEIPT_DOC_KINDS.map((k) => k.key);
 module.exports = {
     TRX_CLASSES,
     TRX_CLASS_KEYS,
+    PAYMENT_TRX_CLASSES,
     AR_MODULE_KEYS,
     DEBTOR_TYPES,
     DEBTOR_STATUSES,

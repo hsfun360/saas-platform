@@ -22,7 +22,7 @@ async function eInvoiceApplicable(companyId) {
     return (await getCompanyCountryCode(companyId)) === 'my';
 }
 const { listCompanyTaxSchemes } = require('../../platform/taxGateway');
-const { TRX_CLASSES, TRX_CLASS_KEYS, AR_MODULE_KEYS } = require('./ar.constants');
+const { TRX_CLASSES, TRX_CLASS_KEYS, PAYMENT_TRX_CLASSES, AR_MODULE_KEYS } = require('./ar.constants');
 
 function companyIdOf(req) {
     return getUserContext(req).companyId || null;
@@ -85,11 +85,12 @@ async function normalizeBody(req, companyId, body) {
         return { error: `Your workspace is not subscribed to: ${notEntitled.join(', ')}.` };
     }
 
-    // Receipt-class entries are payment/refund METHODS: they never charge
+    // Receipt/Refund-class entries are payment METHODS: they never charge
     // late-payment interest and are not e-Invoice documents themselves, so
     // those flags are forced off regardless of payload. e-Invoice is also a
     // Malaysian (LHDN MyInvois) mandate - forced off for any other country.
-    const einvAllowed = trxClass !== 'receipt' && (await eInvoiceApplicable(companyId));
+    const isPaymentClass = PAYMENT_TRX_CLASSES.includes(trxClass);
+    const einvAllowed = !isPaymentClass && (await eInvoiceApplicable(companyId));
     const isEInvoice = einvAllowed && body.isEInvoice === true;
     const eInvoiceClassificationCode = einvAllowed ? str(body.eInvoiceClassificationCode) || null : null;
     if (isEInvoice && !eInvoiceClassificationCode) {
@@ -104,9 +105,9 @@ async function normalizeBody(req, companyId, body) {
             transactionType,
             trxClass,
             description: typeof body.description === 'string' ? body.description.trim() || null : null,
-            // Receipts record money coming in - they never levy tax themselves.
-            taxSchemeCode: trxClass === 'receipt' ? null : str(body.taxSchemeCode) || null,
-            isInterestChargeable: trxClass !== 'receipt' && body.isInterestChargeable === true,
+            // Payment methods move money - they never levy tax themselves.
+            taxSchemeCode: isPaymentClass ? null : str(body.taxSchemeCode) || null,
+            isInterestChargeable: !isPaymentClass && body.isInterestChargeable === true,
             usableInModules: requested,
             isEInvoice,
             eInvoiceClassificationCode: isEInvoice ? eInvoiceClassificationCode : eInvoiceClassificationCode,
