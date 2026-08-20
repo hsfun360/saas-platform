@@ -24,7 +24,7 @@ const { LEDGER_DOC_KINDS, DEPOSIT_NUMBERING_PURPOSE } = require('./ar.constants'
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SYNTHETIC_PREFIX = {
     'ar-invoice': 'INV', 'ar-debit-note': 'DN', 'ar-credit-note': 'CN',
-    'ar-receipt': 'OR', 'ar-refund': 'RF', 'ar-deposit': 'DEP',
+    'ar-interest': 'INT', 'ar-receipt': 'OR', 'ar-refund': 'RF', 'ar-deposit': 'DEP',
 };
 
 function str(x) { return typeof x === 'string' ? x.trim() : ''; }

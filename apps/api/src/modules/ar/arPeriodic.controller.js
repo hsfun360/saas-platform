@@ -188,11 +188,14 @@ async function confirmOne(req, companyId, id, interestType, stamps) {
     }
 
     const issueDocNo = async (t) => {
-        const issued = await numberingGateway.issueNumber(req, 'ar-debit-note', { transaction: t });
+        // Interest documents number under their OWN series (ar-interest,
+        // added 2026-08-20 to sync numbering with the transaction classes) -
+        // no longer borrowed from the Debit Note series.
+        const issued = await numberingGateway.issueNumber(req, 'ar-interest', { transaction: t });
         if (issued && issued.number) return issued.number;
         // Synthetic fallback: bulk confirms can land in the same millisecond,
         // so suffix with the generation id to stay unique.
-        return `DN-${Date.now().toString(36).toUpperCase()}-${gen.id.slice(0, 4).toUpperCase()}`;
+        return `INT-${Date.now().toString(36).toUpperCase()}-${gen.id.slice(0, 4).toUpperCase()}`;
     };
 
     try {

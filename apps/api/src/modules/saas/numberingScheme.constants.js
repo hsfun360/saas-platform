@@ -22,13 +22,16 @@ const RESET_RULES = [
 const MEMBERSHIP_NUMBERING_PURPOSES = [
     { key: 'membership', label: 'Membership No.' },
 ];
+// Ordered to mirror the AR transaction CLASS list (invoice, DN, CN, interest,
+// deposit, receipt, refund) so the two vocabularies read in step.
 const AR_NUMBERING_PURPOSES = [
     { key: 'ar-invoice', label: 'Invoice No.' },
     { key: 'ar-debit-note', label: 'Debit Note No.' },
     { key: 'ar-credit-note', label: 'Credit Note No.' },
+    { key: 'ar-interest', label: 'Interest No.' },
+    { key: 'ar-deposit', label: 'Deposit No.' },
     { key: 'ar-receipt', label: 'Official Receipt No.' },
     { key: 'ar-refund', label: 'Refund No.' },
-    { key: 'ar-deposit', label: 'Deposit No.' },
     { key: 'ar-statement', label: 'Statement No.' },
     { key: 'ar-other-debtor', label: 'Other Debtor Code' },
 ];
