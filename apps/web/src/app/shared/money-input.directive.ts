@@ -24,6 +24,9 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
   host: {
     '(input)': 'handleInput()',
     '(blur)': 'handleBlur()',
+    '(focus)': 'handleFocus()',
+    '(mouseup)': 'handleMouseUp($event)',
+    '(wheel)': 'handleWheel($event)',
   },
 })
 export class MoneyInputDirective implements ControlValueAccessor {
@@ -65,6 +68,34 @@ export class MoneyInputDirective implements ControlValueAccessor {
   }
 
   // ---- host events ----
+
+  // Select-all on focus, for CLICK and TAB alike (user standard 2026-08-20):
+  // the seeded "0.00" is highlighted so typing replaces it - never a caret
+  // parked behind the zeros. A click fires focus then mouseup; the browser's
+  // default mouseup would collapse the selection back to a caret, so the FIRST
+  // mouseup after a select-on-focus is suppressed (subsequent clicks position
+  // the caret normally, the field being already focused).
+  private selectOnMouseUp = false;
+
+  handleFocus(): void {
+    this.el.select();
+    this.selectOnMouseUp = true;
+  }
+
+  handleMouseUp(event: MouseEvent): void {
+    if (this.selectOnMouseUp) {
+      event.preventDefault();
+      this.selectOnMouseUp = false;
+    }
+  }
+
+  // Amounts are typed, never stepped: kill the scroll-wheel increment a
+  // focused number input gets by default (an accidental wheel over a money
+  // field must not change the figure). The spin buttons are hidden by the
+  // global input[appMoney] CSS in styles.css.
+  handleWheel(event: WheelEvent): void {
+    if (document.activeElement === this.el) event.preventDefault();
+  }
 
   handleInput(): void {
     this.onChange(this.parse(this.el.value));

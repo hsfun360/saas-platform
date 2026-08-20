@@ -615,6 +615,19 @@ body {
   background: var(--danger-surface);
 }
 
+/* Money inputs (the appMoney directive): NO spin control, ever - amounts are
+   typed, never stepped by arrows (app standard 2026-08-20). The directive
+   also selects the value on focus and blocks wheel-stepping. */
+input[appMoney]::-webkit-outer-spin-button,
+input[appMoney]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[appMoney] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* ============================================================== */
 /* Accessibility: visible keyboard focus (WCAG 2.4.7)             */
 /* Shown only for keyboard navigation, not mouse clicks.          */

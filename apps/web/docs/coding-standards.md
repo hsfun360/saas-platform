@@ -74,6 +74,8 @@ Template-driven forms have no reliable central dirty/validity signal, which is e
 - **Money/amount fields are masked to two decimals** with the shared `appMoney` directive (`shared/money-input.directive.ts`), on top of `type="number" inputmode="decimal" min="0" step="0.01"`.
   The field always displays `0.00`-style values (seeded, and re-formatted on blur - never while typing) while the form value stays a plain number.
   With `formControlName` the directive is the ControlValueAccessor; for row inputs kept outside a FormGroup, bind `appMoney [moneyValue]="row.amount"` and keep the existing `(input)` handler.
+  **Focus selects the whole value** - click and Tab alike highlight the seeded `0.00` so typing replaces it (the directive suppresses the first mouseup so a click can't collapse the selection to a caret behind the zeros).
+  **Never a spin control on an amount** (user standard 2026-08-20): the global `input[appMoney]` CSS in `styles.css` hides the up/down arrows and the directive blocks scroll-wheel stepping - amounts are typed, never stepped.
   Reference: `membership-fees` (both modes: the fee Amount control + the installment stage rows).
 - **Dates display in the DEVICE's regional format** via the shared `localDate` pipe (`shared/local-date.pipe.ts`): `{{ row.joinDate | localDate }}`, with `:'datetime'` for timestamps and `:'weekday'` where the day name matters.
   It wraps `Intl.DateTimeFormat` with the locale left to the browser/OS (no locale data in the bundle), follows the device's 12/24-hour clock, and parses date-only `YYYY-MM-DD` strings as LOCAL dates (avoiding the UTC off-by-one-day trap).
