@@ -89,7 +89,7 @@
     <section class="md-card md-card--wide" aria-label="Membership movement">
       <div class="md-card__head">
         <h2>Membership movement</h2>
-        <span class="md-card__note">new joins vs contractual expiries, monthly</span>
+        <span class="md-card__note">new joins vs term expiries, monthly</span>
       </div>
       @if (movement().length) {
         <app-dash-chart [options]="movementOptions()" [height]="280" (chartClick)="onMovementClick($event)"></app-dash-chart>
@@ -114,7 +114,7 @@
     <section class="md-card" aria-label="Membership type breakdown">
       <div class="md-card__head">
         <h2>Membership type</h2>
-        <span class="md-card__note">contracts per type</span>
+        <span class="md-card__note">memberships per type</span>
       </div>
       @if (typeBuckets().length) {
         <app-dash-chart [options]="typeOptions()" [height]="chartHeight(typeBuckets())" (chartClick)="onTypeClick($event)"></app-dash-chart>
