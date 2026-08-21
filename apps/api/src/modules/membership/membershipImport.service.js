@@ -81,10 +81,14 @@ const MEMBERSHIP_COLUMNS = [
 
 const MEMBER_COLUMNS = [
     { header: 'Membership No *', key: 'membershipNo', hint: 'Must match a row on the Memberships sheet' },
-    { header: 'Member No', key: 'memberNo', hint: 'Blank = derived (individual: the membership no; dependent/nominee: parent-A, -B, ...)' },
+    { header: 'Member No', key: 'memberNo', hint: 'Blank = derived (individual: the membership no; dependent/nominee: principal-A, -B, ...)' },
     { header: 'Kind *', key: 'kind', hint: 'individual | nominee | dependent' },
     { header: 'Dependent Type', key: 'dependentType', hint: 'spouse | son | daughter | ward' },
-    { header: 'Parent Member No', key: 'parentMemberNo', hint: 'The member a dependent hangs under; blank on an individual membership = its member' },
+    // Terminology standard (user decision 2026-08-20): the individual member
+    // or nominee that dependents belong to is THE PRINCIPAL - matching the
+    // Member.principalMemberId column. The old header stays as an alias so
+    // previously downloaded templates keep importing.
+    { header: 'Principal Member No', key: 'parentMemberNo', aliases: ['Parent Member No'], hint: 'The principal (individual member or nominee) the dependent belongs to; blank on an individual membership = its member' },
     { header: 'Status', key: 'status', hint: 'Blank = follows the membership' },
     { header: 'Salutation Code', key: 'salutationCode' },
     { header: 'Title Code', key: 'titleCode' },
@@ -178,7 +182,13 @@ function normHeader(h) {
 // matched by name so extra/reordered columns don't break the file.
 function parseSheet(ws, cols) {
     if (!ws) return null;
-    const byHeader = new Map(cols.map((c) => [normHeader(c.header), c.key]));
+    // Headers match by name; a column's `aliases` (renamed headers) keep old
+    // downloaded templates importable.
+    const byHeader = new Map();
+    for (const c of cols) {
+        byHeader.set(normHeader(c.header), c.key);
+        for (const a of c.aliases || []) byHeader.set(normHeader(a), c.key);
+    }
     const colKeys = {}; // column index -> our key
     ws.getRow(1).eachCell((cell, colNo) => {
         const key = byHeader.get(normHeader(cellText(cell)));
@@ -430,11 +440,11 @@ async function validateStagedRows(companyId, memberships, members, lookups, numb
             if (r.data.kind !== 'dependent') continue;
             if (r.data.parentMemberNo) {
                 const p = principals.get(r.data.parentMemberNo.toLowerCase());
-                if (!p) r.issues.push({ level: 'error', message: `Parent Member No '${r.data.parentMemberNo}' is not an individual/nominee row of this membership.` });
+                if (!p) r.issues.push({ level: 'error', message: `Principal Member No '${r.data.parentMemberNo}' is not a principal (individual/nominee) row of this membership.` });
             } else if (cls === 'individual') {
-                if (individuals.length !== 1) r.issues.push({ level: 'error', message: 'Cannot resolve the parent member.' });
+                if (individuals.length !== 1) r.issues.push({ level: 'error', message: 'Cannot resolve the principal member.' });
             } else {
-                r.issues.push({ level: 'error', message: 'Parent Member No is required for a dependent on a corporate membership.' });
+                r.issues.push({ level: 'error', message: 'Principal Member No is required for a dependent on a corporate membership.' });
             }
         }
     }
@@ -703,7 +713,7 @@ async function migrateOne(req, companyId, msRow, memberRows, lookups, numberingM
             let principal;
             if (r.data.parentMemberNo) principal = createdByNo.get(r.data.parentMemberNo.toLowerCase());
             else principal = principals.find((p) => p.data.kind === 'individual')?.__created;
-            if (!principal) throw migError(`Dependent row ${r.rowNo}: parent member not found.`);
+            if (!principal) throw migError(`Dependent row ${r.rowNo}: principal member not found.`);
             await createMember(r, 'dependent', principal.id, principal.memberNo);
         }
 

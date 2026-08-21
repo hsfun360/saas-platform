@@ -326,7 +326,7 @@ export class MembershipsComponent implements OnInit {
     if (mode === 'nominee') return 'New nominee';
     if (mode === 'dependent') {
       const p = this.dependentPrincipal();
-      return `New dependent — under ${p ? this.memberName(p) : ''}`;
+      return `New dependent — principal: ${p ? this.memberName(p) : ''}`;
     }
     const m = this.editMember();
     return m ? `Edit — ${this.memberName(m)}` : 'Edit member';
