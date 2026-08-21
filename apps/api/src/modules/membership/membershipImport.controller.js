@@ -58,7 +58,9 @@ exports.uploadBatch = async (req, res) => {
 
         const lookups = await service.loadLookups(companyId);
         const numberingMode = await numberingGateway.getMode(req, 'membership');
-        await service.validateStagedRows(companyId, memberships, members, lookups, numberingMode);
+        const { getSettings } = require('./membershipSetting.service');
+        const settings = await getSettings(companyId);
+        await service.validateStagedRows(companyId, memberships, members, lookups, numberingMode, settings);
 
         const stamps = await stampsOf(req);
         const batch = await MembershipImportBatch.create({

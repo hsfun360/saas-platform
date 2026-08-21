@@ -288,9 +288,11 @@ async function loadLookups(companyId) {
 
 // Validate everything; mutates each staged row object ({ data, issues }).
 // `numberingMode`: 'auto' | 'manual' | null (null behaves as manual).
-async function validateStagedRows(companyId, memberships, members, lookups, numberingMode) {
+// `settings` = the Club Specification DTO (credit facility warnings).
+async function validateStagedRows(companyId, memberships, members, lookups, numberingMode, settings = null) {
     const err = (row, message) => row.issues.push({ level: 'error', message });
     const warn = (row, message) => row.issues.push({ level: 'warning', message });
+    const creditOn = !settings || settings.creditFacilityEnabled !== false;
 
     // --- membership sheet ---
     const byNo = new Map(); // membershipNo(lower) -> staged membership row
@@ -325,6 +327,11 @@ async function validateStagedRows(companyId, memberships, members, lookups, numb
         if (d.statementMode && !STATEMENT_MODE_KEYS.includes(low(d.statementMode))) err(row, `Statement Mode must be one of: ${STATEMENT_MODE_KEYS.join(', ')}.`);
         if (asNumber(d.creditLimit) === undefined || (asNumber(d.creditLimit) ?? 0) < 0) err(row, 'Credit Limit must be a non-negative number.');
         if (d.terms && (!Number.isInteger(asNumber(d.terms)) || asNumber(d.terms) < 0)) err(row, 'Terms must be a whole number of days.');
+        // Credit facility off -> migration forces the credit terms off; warn
+        // so the review screen shows the filled columns will be ignored.
+        if (!creditOn && (d.creditFlag || d.creditLimit || d.terms || d.statementMode || asBool(d.sendReminders) || asBool(d.chargeInterest))) {
+            warn(row, 'The club has no credit facility - the credit columns are ignored and the credit limit is stored as 0.');
+        }
 
         for (const [label, key] of [['Sales Agent Code', 'salesAgentCode'], ['Followup Agent Code', 'followupAgentCode']]) {
             if (d[key] && !lookups.agentByCode.get(d[key].toLowerCase())) err(row, `${label} '${d[key]}' not found.`);
@@ -390,6 +397,9 @@ async function validateStagedRows(companyId, memberships, members, lookups, numb
             if (d[key] && asDate(d[key]) === undefined) err(row, `${label} must be a valid date (YYYY-MM-DD).`);
         }
         if (asNumber(d.creditLimit) === undefined || (asNumber(d.creditLimit) ?? 0) < 0) err(row, 'Credit Limit must be a non-negative number.');
+        if (!creditOn && d.creditLimit) {
+            warn(row, 'The club has no credit facility - Credit Limit is ignored and stored as 0.');
+        }
         if (d.status && !lookups.statusByName.get(d.status.toLowerCase())) err(row, `Status '${d.status}' not found.`);
 
         if (d.memberNo) {
@@ -576,14 +586,20 @@ async function migrateOne(req, companyId, msRow, memberRows, lookups, numberingM
     if (!expiryDate && type.isTermMembership && type.termMonths) {
         expiryDate = defaultTermExpiry(joinDate, type.termMonths);
     }
-    let creditLimit = asNumber(d.creditLimit);
-    if (creditLimit === null && type.creditLimit != null) creditLimit = Number(type.creditLimit);
-
     const agentOf = (code) => (code ? lookups.agentByCode.get(code.toLowerCase()) : null);
 
-    // Club Specification: the child-number suffix patterns for derived numbers.
+    // Club Specification: child-number suffix patterns + the credit facility.
     const { getSettings } = require('./membershipSetting.service');
     const settings = await getSettings(companyId);
+
+    // Credit facility gate - same rule as every manual create/update path
+    // (membership.controller forceCreditTermsOff): no facility -> credit terms
+    // are forced off and credit limit stores 0, the type default not applied.
+    // Legacy spreadsheet credit values are deliberately NOT preserved - they
+    // would seed AR's CreditAccount at debtor provisioning.
+    const creditOn = settings.creditFacilityEnabled !== false;
+    let creditLimit = creditOn ? asNumber(d.creditLimit) : 0;
+    if (creditOn && creditLimit === null && type.creditLimit != null) creditLimit = Number(type.creditLimit);
 
     return sequelize.transaction(async (t) => {
         let membershipNo = d.membershipNo || null;
@@ -609,12 +625,12 @@ async function migrateOne(req, companyId, msRow, memberRows, lookups, numberingM
             joinDate,
             expiryDate,
             billingDate: cls === 'corporate' ? asDate(d.billingDate) || null : null,
-            creditFlag: cls === 'individual' ? low(d.creditFlag) : null,
+            creditFlag: creditOn && cls === 'individual' ? low(d.creditFlag) : null,
             creditLimit,
-            terms: asNumber(d.terms),
-            statementMode: low(d.statementMode),
-            sendReminders: asBool(d.sendReminders),
-            chargeInterest: asBool(d.chargeInterest),
+            terms: creditOn ? asNumber(d.terms) : null,
+            statementMode: creditOn ? low(d.statementMode) : null,
+            sendReminders: creditOn && asBool(d.sendReminders),
+            chargeInterest: creditOn && asBool(d.chargeInterest),
             monthlyFee: asBool(d.monthlyFee),
             yearlyFee: asBool(d.yearlyFee),
             certificateNo: d.certificateNo || null,
@@ -663,6 +679,8 @@ async function migrateOne(req, companyId, msRow, memberRows, lookups, numberingM
             const rd = r.data;
             const memberStatus = rd.status ? lookups.statusByName.get(rd.status.toLowerCase()) : status;
             const profile = profileFromRow(rd);
+            // Credit facility gate (same as manual member create/update).
+            if (!creditOn) profile.creditLimit = 0;
             if (kind === 'dependent' && !EXPIRING_DEPENDENT_TYPES.includes(low(rd.dependentType))) profile.expiryDate = null;
 
             let memberNo = rd.memberNo || null;
