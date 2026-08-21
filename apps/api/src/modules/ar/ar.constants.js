@@ -12,9 +12,12 @@
 //                their contract debtor carries everything. Dependents never
 //                get a debtor row (their charges land on the principal).
 //   other      - a city-ledger debtor owned by AR itself (OtherDebtor id).
+// Labels are the user-facing vocabulary (standard 2026-08-20): a 'member'
+// ledger account only ever belongs to a NOMINEE (individual members share the
+// membership debtor, dependents never get one), so it reads "Nominee".
 const DEBTOR_TYPES = [
     { key: 'membership', label: 'Membership' },
-    { key: 'member', label: 'Member' },
+    { key: 'member', label: 'Nominee' },
     { key: 'other', label: 'Other Debtor' },
 ];
 

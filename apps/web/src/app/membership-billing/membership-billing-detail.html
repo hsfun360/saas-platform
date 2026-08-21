@@ -78,7 +78,7 @@
                 {{ i.description }}
               </div>
               <div class="mbd-item__meta">
-                <span>{{ i.debtorTarget === 'membership' ? 'Membership debtor' : 'Personal debtor' }}</span>
+                <span>{{ i.debtorTarget === 'membership' ? 'Membership debtor' : 'Nominee debtor' }}</span>
                 @if (i.postedDocNo) { <span>Invoice {{ i.postedDocNo }}</span> }
                 @if (i.issue) { <span class="mbd-issue">{{ i.issue }}</span> }
               </div>
