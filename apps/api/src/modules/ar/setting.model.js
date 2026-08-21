@@ -70,6 +70,19 @@ const Setting = sequelize.define('ArSetting', {
     // inferred from a category.
     interestTransactionTypeId: { type: DataTypes.UUID, allowNull: true },
     depositConversionTransactionTypeId: { type: DataTypes.UUID, allowNull: true },
+    // --- Multi-currency (step 1 of the multicurrency AR design, 2026-08-21) ---
+    // Gate for foreign-currency Other Debtor accounts (currency per debtor
+    // ACCOUNT, never per document - the open-item engine stays single-unit per
+    // account). Off = every currency control stays hidden and every account is
+    // in the company's base currency (Company.defaultCurrencyCode, which must
+    // be set before this can be switched on). Same gate pattern as Club
+    // Specification's creditFacilityEnabled.
+    multiCurrencyEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    // Designated Forex-class catalog entries the realized exchange gain / loss
+    // on foreign-currency allocations is classified under (GL-facing; never a
+    // debtor-facing document). Explicit configuration, never inferred.
+    fxGainTransactionTypeId: { type: DataTypes.UUID, allowNull: true },
+    fxLossTransactionTypeId: { type: DataTypes.UUID, allowNull: true },
     // Ownership stamps.
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

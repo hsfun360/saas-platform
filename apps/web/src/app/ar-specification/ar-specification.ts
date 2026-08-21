@@ -6,7 +6,7 @@ import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
 import { ArService } from '../services/ar.service';
-import { ArSetting, ArStatementColumn, ArStatementColumnKey } from '../models/ar.models';
+import { ArDesignatedTypeOption, ArSetting, ArStatementColumn, ArStatementColumnKey } from '../models/ar.models';
 
 // The lines-table column catalogue (mirrors the PDF renderer's BASE_COLS).
 interface ColumnRow {
@@ -51,14 +51,20 @@ export class ArSpecificationComponent implements OnInit {
 
   // Collapsible section cards (standard: start expanded; folding never loses
   // form state - the FormGroup keeps values while the DOM is hidden).
-  readonly expanded = signal<Record<string, boolean>>({ cutoff: true, aging: true, layout: true, integration: true });
+  readonly expanded = signal<Record<string, boolean>>({ cutoff: true, aging: true, layout: true, integration: true, currency: true });
 
   // Membership integration (2026-08-15): shown ONLY when the company is
   // entitled to Membership Management (AR-only subscribers never see it);
   // the API enforces the same server-side.
   readonly membershipEntitled = signal(false);
-  readonly interestTypeOptions = signal<{ id: string; transactionType: string; description: string | null }[]>([]);
-  readonly depConvTypeOptions = signal<{ id: string; transactionType: string; description: string | null }[]>([]);
+  readonly interestTypeOptions = signal<ArDesignatedTypeOption[]>([]);
+  readonly depConvTypeOptions = signal<ArDesignatedTypeOption[]>([]);
+
+  // Multi-currency (2026-08-21): the toggle needs the company's default
+  // currency (= the AR base currency) - null keeps it off with a pointer to
+  // the Companies screen; the API enforces the same prerequisite.
+  readonly baseCurrencyCode = signal<string | null>(null);
+  readonly forexTypeOptions = signal<ArDesignatedTypeOption[]>([]);
 
   readonly form = this.fb.nonNullable.group({
     // Blank = calendar month; otherwise a whole day 1..31 (pattern runs on the
@@ -83,6 +89,10 @@ export class ArSpecificationComponent implements OnInit {
     membershipIntegration: [false],
     interestTransactionTypeId: [''],
     depositConversionTransactionTypeId: [''],
+    // Multi-currency.
+    multiCurrencyEnabled: [false],
+    fxGainTransactionTypeId: [''],
+    fxLossTransactionTypeId: [''],
   });
 
   ngOnInit(): void {
@@ -91,7 +101,12 @@ export class ArSpecificationComponent implements OnInit {
         this.membershipEntitled.set(res.membershipModuleEntitled === true);
         this.interestTypeOptions.set(res.interestTypeOptions || []);
         this.depConvTypeOptions.set(res.depositConversionTypeOptions || []);
+        this.baseCurrencyCode.set(res.baseCurrencyCode || null);
+        this.forexTypeOptions.set(res.forexTypeOptions || []);
         this.applySetting(res.setting);
+        // No base currency = the toggle cannot be switched on (reactive-forms
+        // way: disable the control, never the DOM attribute).
+        if (!res.baseCurrencyCode) this.form.controls.multiCurrencyEnabled.disable();
         this.loading.set(false);
       },
       error: (err) => {
@@ -185,6 +200,9 @@ export class ArSpecificationComponent implements OnInit {
       membershipIntegration: s.membershipIntegration === true,
       interestTransactionTypeId: s.interestTransactionTypeId || '',
       depositConversionTransactionTypeId: s.depositConversionTransactionTypeId || '',
+      multiCurrencyEnabled: s.multiCurrencyEnabled === true,
+      fxGainTransactionTypeId: s.fxGainTransactionTypeId || '',
+      fxLossTransactionTypeId: s.fxLossTransactionTypeId || '',
     });
     this.applyColumns(s.statementColumns);
   }
@@ -224,6 +242,11 @@ export class ArSpecificationComponent implements OnInit {
         interestTransactionTypeId: v.interestTransactionTypeId || null,
         depositConversionTransactionTypeId: v.depositConversionTransactionTypeId || null,
       } : {}),
+      // Multi-currency: the toggle only travels as ON when the base currency
+      // exists (the control is disabled otherwise, and the API re-checks).
+      multiCurrencyEnabled: !!this.baseCurrencyCode() && v.multiCurrencyEnabled,
+      fxGainTransactionTypeId: v.fxGainTransactionTypeId || null,
+      fxLossTransactionTypeId: v.fxLossTransactionTypeId || null,
     }).subscribe({
       next: (res) => {
         this.saving.set(false);

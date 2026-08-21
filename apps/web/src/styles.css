@@ -507,6 +507,13 @@ body {
   border: 1px solid var(--danger-border);
   color: var(--danger-text);
 }
+/* Informational variant (neutral notes such as "feature switched off");
+   mostly composed with .flash--static. */
+.flash-info {
+  background: var(--info-surface);
+  border: 1px solid var(--info-border);
+  color: var(--info-text);
+}
 .flash-icon {
   font-size: 18px;
   line-height: 1;

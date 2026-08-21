@@ -1,0 +1,16 @@
+/* Exchange Rates - composes the global listing primitives; only the rate
+   readouts are screen-local. */
+
+/* The "1 USD = 4.7100 MYR" chip reads as a figure: tabular digits so rows
+   line up when scanning down the list. */
+.xr-rate {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Live conversion preview under the Rate field (show-expected-results). */
+.xr-preview {
+  display: block;
+  margin-top: var(--space-xs);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}

@@ -35,6 +35,28 @@ input[type='number'] {
   margin-bottom: var(--space-xs);
 }
 
+/* Multi-currency section: the base-currency line (prerequisite readout) */
+.arsp-base {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+}
+
+.arsp-base .material-icons {
+  font-size: 20px;
+  color: var(--brand-text);
+}
+
+.arsp-base--missing {
+  color: var(--danger-text);
+}
+
+.arsp-base--missing .material-icons {
+  color: var(--danger-text);
+}
+
 /* Statement layout section */
 .arsp-layout-checks {
   display: flex;

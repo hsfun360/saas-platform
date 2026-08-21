@@ -155,11 +155,30 @@ async function saveSetting(companyId, payload, stamps) {
     const interestTypeId = await designated(payload.interestTransactionTypeId, 'interest', 'Interest');
     const depConvTypeId = await designated(payload.depositConversionTransactionTypeId, 'credit-note', 'Deposit-conversion');
 
+    // Multi-currency (2026-08-21): switching it ON requires the company's base
+    // currency - every base-equivalent amount is expressed in it. Hiding the
+    // card is never the gate, so the prerequisite is enforced here too.
+    let multiCurrencyEnabled = null; // null = leave unchanged
+    if (payload.multiCurrencyEnabled !== undefined) {
+        multiCurrencyEnabled = payload.multiCurrencyEnabled === true;
+        if (multiCurrencyEnabled) {
+            const { getCompanyBaseCurrency } = require('../../platform/serviceContext');
+            if (!(await getCompanyBaseCurrency(companyId))) {
+                throw badRequest('Set the company default currency (Companies screen) before enabling multi-currency - it becomes the AR base currency.');
+            }
+        }
+    }
+    const fxGainTypeId = await designated(payload.fxGainTransactionTypeId, 'forex', 'Exchange-gain');
+    const fxLossTypeId = await designated(payload.fxLossTransactionTypeId, 'forex', 'Exchange-loss');
+
     const row = await getSetting(companyId);
     row.statementCutoffDay = cutoff;
     if (membershipIntegration !== null) row.membershipIntegration = membershipIntegration;
     if (interestTypeId !== undefined) row.interestTransactionTypeId = interestTypeId;
     if (depConvTypeId !== undefined) row.depositConversionTransactionTypeId = depConvTypeId;
+    if (multiCurrencyEnabled !== null) row.multiCurrencyEnabled = multiCurrencyEnabled;
+    if (fxGainTypeId !== undefined) row.fxGainTransactionTypeId = fxGainTypeId;
+    if (fxLossTypeId !== undefined) row.fxLossTransactionTypeId = fxLossTypeId;
     [row.aging1, row.aging2, row.aging3, row.aging4, row.aging5, row.aging6] = agings;
     row.statementShowLogo = payload.statementShowLogo !== false;
     row.statementBrandColor = brandColor;

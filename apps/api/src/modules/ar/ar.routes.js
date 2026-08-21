@@ -100,6 +100,16 @@ router.post('/transaction-types', requireMenuAction('/ar/transaction-types'), tr
 router.put('/transaction-types/:id', requireMenuAction('/ar/transaction-types'), transactionTypeController.update);
 router.patch('/transaction-types/:id', requireMenuAction('/ar/transaction-types'), transactionTypeController.setActive);
 
+// --- Exchange Rates (multicurrency step 1, 2026-08-21; its own screen/menu
+// '/ar/exchange-rates'). Effective-dated foreign-currency rates against the
+// company base currency; every body/query/params part runs through validate().
+const exchangeRateController = require('./exchangeRate.controller');
+router.get('/exchange-rates/meta', requireMenuAction('/ar/exchange-rates'), exchangeRateController.getMeta);
+router.get('/exchange-rates', requireMenuAction('/ar/exchange-rates'), exchangeRateController.validateList, exchangeRateController.list);
+router.post('/exchange-rates', requireMenuAction('/ar/exchange-rates'), exchangeRateController.validateCreate, exchangeRateController.create);
+router.put('/exchange-rates/:id', requireMenuAction('/ar/exchange-rates'), exchangeRateController.validateUpdate, exchangeRateController.update);
+router.delete('/exchange-rates/:id', requireMenuAction('/ar/exchange-rates'), exchangeRateController.validateId, exchangeRateController.remove);
+
 // --- Numbering Control (AR-owned document series; split per module 2026-08-05) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');
 router.use(

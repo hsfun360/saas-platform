@@ -1,0 +1,197 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">currency_exchange</span>
+      <div>
+        <h1>{{ 'Exchange Rates' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Effective-dated rates for foreign-currency debtor accounts - one unit of the foreign currency expressed in the company base currency.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Prerequisite / gate notes (permanent contextual notes, not transient) -->
+  @if (meta() && !baseCurrency()) {
+    <div class="flash flash-error flash--static" role="status">
+      <span class="flash-icon">⚠️</span>
+      <span>Set the company default currency on the Companies screen first - rates are expressed against it, so none can be keyed until then.</span>
+    </div>
+  } @else if (meta() && !multiCurrencyEnabled()) {
+    <div class="flash flash-info flash--static" role="status">
+      <span class="flash-icon">ℹ️</span>
+      <span>Multi-currency is switched off in AR Specification. Rates keyed here are kept, and start defaulting onto documents once it is enabled.</span>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (rows().length > 0) {
+        {{ rows().length }} rate{{ rows().length === 1 ? '' : 's' }} across {{ currencyCount() }} currenc{{ currencyCount() === 1 ? 'y' : 'ies' }}@if (baseCurrency()) {, against {{ baseCurrency() }}}
+      } @else {
+        No exchange rates yet — use "New exchange rate" to add one.
+      }
+    </span>
+  </div>
+
+  <!-- Live filter -->
+  @if (!loading() && rows().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #xrSearchBox type="search" [value]="search()" (input)="search.set(xrSearchBox.value)"
+             placeholder="Search by currency or date…" aria-label="Search exchange rates" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading exchange rates…</p></div>
+  } @else if (rows().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No exchange rates yet. Use "New exchange rate" to add one (e.g. USD effective 1 Aug = 4.71 {{ baseCurrency() || 'base' }}).</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No exchange rates match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (r of filtered(); track r.id) {
+        <div class="data-card" [attr.data-return-id]="r.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ r.currencyCode }}@if (currencyName(r.currencyCode)) { <span class="data-card__reg">— {{ currencyName(r.currencyCode) }}</span> }</div>
+              <div class="data-card__subline">
+                <span class="mt-chip xr-rate">1 {{ r.currencyCode }} = {{ fmtRate(r.rate) }} {{ baseCurrency() || '' }}</span>
+                <span class="data-card__reg">Effective {{ r.effectiveDate | localDate }}</span>
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (isCurrent(r)) {
+                <span class="status-chip status-chip--on">Current</span>
+              } @else if (isUpcoming(r)) {
+                <span class="status-chip status-chip--off">Upcoming</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              @if (r.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(r)">Edit</button>
+                <app-overflow-menu *appCan="'delete'" [label]="'More actions for ' + r.currencyCode + ' rate effective ' + r.effectiveDate">
+                  <button type="button" appMenuItem (click)="askDelete(r)">
+                    <span class="material-icons" aria-hidden="true">delete</span>
+                    Delete
+                  </button>
+                </app-overflow-menu>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New exchange rate FAB (needs the base currency + a foreign currency to key) -->
+  @if (baseCurrency() && currencies().length > 0) {
+    <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New exchange rate">
+      <span class="material-icons" aria-hidden="true">add</span>
+      <span>New exchange rate</span>
+    </button>
+  }
+
+  <!-- ============ Add / edit / delete dialog (one instance, view-switched) ============ -->
+  @if (dialogOpen()) {
+    @if (dialogView() === 'delete') {
+      <app-dialog #dlg title="Delete exchange rate" [busy]="saving()" (close)="closeDialog()">
+        <p style="margin: 0 0 var(--space-sm);">
+          Delete the <strong>{{ deleteTarget()?.currencyCode }}</strong> rate effective <strong>{{ deleteTarget()?.effectiveDate | localDate }}</strong>
+          ({{ '1 ' + deleteTarget()?.currencyCode + ' = ' + fmtRate(deleteTarget()?.rate || '0') + ' ' + (baseCurrency() || '') }})?
+        </p>
+        <p class="cell-subtle" style="margin: 0;">Documents keep the rate they were posted with - deleting only changes what new documents default to.</p>
+        <ng-container dialogFooter>
+          <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+          <button type="button" class="btn btn--danger" (click)="confirmDelete()" [disabled]="saving()">
+            {{ saving() ? 'Deleting…' : 'Delete rate' }}
+          </button>
+        </ng-container>
+      </app-dialog>
+    } @else {
+      <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+                  discardTitle="Discard your changes?"
+                  discardMessage="You have unsaved changes to this exchange rate. Leaving now will discard them."
+                  (close)="closeDialog()">
+        <form id="xrForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="xrCurrency">Currency <span class="required">*</span></label>
+              @if (editId()) {
+                <input id="xrCurrency" type="text" [value]="form.controls.currencyCode.value + (currencyName(form.controls.currencyCode.value) ? ' — ' + currencyName(form.controls.currencyCode.value) : '')" disabled />
+              } @else {
+                <select id="xrCurrency" formControlName="currencyCode"
+                        [attr.aria-invalid]="showError(form.controls.currencyCode)" aria-describedby="xrCurrencyErr">
+                  @for (c of currencies(); track c.code) {
+                    <option [value]="c.code">{{ c.code }} — {{ c.name }}</option>
+                  }
+                </select>
+                @if (showError(form.controls.currencyCode)) {
+                  <p id="xrCurrencyErr" class="field-error" role="alert">Pick a currency.</p>
+                }
+              }
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Foreign currencies from your subscription's currency set; the base currency ({{ baseCurrency() }}) needs no rate.</p>
+            </div>
+            <div class="form-group">
+              <label for="xrDate">Effective from <span class="required">*</span></label>
+              <input id="xrDate" type="date" formControlName="effectiveDate"
+                     [attr.aria-invalid]="showError(form.controls.effectiveDate)" aria-describedby="xrDateErr" />
+              @if (showError(form.controls.effectiveDate)) {
+                <p id="xrDateErr" class="field-error" role="alert">Effective date is required.</p>
+              }
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="xrRate">Rate <span class="required">*</span></label>
+              <input id="xrRate" type="text" inputmode="decimal" formControlName="rate" placeholder="e.g. 4.71" autocomplete="off" maxlength="22"
+                     [attr.aria-invalid]="showError(form.controls.rate)" aria-describedby="xrRateErr" />
+              @if (showError(form.controls.rate)) {
+                <p id="xrRateErr" class="field-error" role="alert">
+                  @if (form.controls.rate.errors?.['required']) { Rate is required. }
+                  @else { Enter a positive decimal with at most 10 decimal places. }
+                </p>
+              }
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">
+                How many {{ baseCurrency() }} one unit of the foreign currency buys.
+                @if (previewLine()) { <strong class="xr-preview">{{ previewLine() }}</strong> }
+              </p>
+            </div>
+          </div>
+        </form>
+
+        <ng-container dialogFooter>
+          <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+          <button type="submit" form="xrForm" class="btn btn--primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save' }}
+          </button>
+        </ng-container>
+      </app-dialog>
+    }
+  }
+</div>

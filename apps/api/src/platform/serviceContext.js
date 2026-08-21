@@ -61,13 +61,15 @@ function getCompanyBasics(companyId) {
     if (!companyId) return Promise.resolve(null);
     return requestMemo(`companyBasics:${companyId}`, async () => {
         const Company = require('../modules/saas/company.model');
-        const c = await Company.findByPk(companyId, { attributes: ['id', 'accountId', 'name', 'countryCode'] });
+        const c = await Company.findByPk(companyId, { attributes: ['id', 'accountId', 'name', 'countryCode', 'defaultCurrencyCode'] });
         if (!c) return null;
         return {
             id: c.id,
             accountId: c.accountId || null,
             name: c.name,
             countryCode: c.countryCode ? String(c.countryCode).toLowerCase() : null,
+            // ISO 4217 alpha-3 (e.g. 'MYR'); null until the company picks one.
+            defaultCurrencyCode: c.defaultCurrencyCode ? String(c.defaultCurrencyCode).toUpperCase() : null,
         };
     });
 }
@@ -549,6 +551,15 @@ async function getCompanyCountryCode(companyId) {
     return basics ? basics.countryCode : null;
 }
 
+// The company's BASE currency (ISO 4217 alpha-3, uppercase) or null when the
+// company never picked a default. Multi-currency features (AR foreign-currency
+// debtors, exchange rates) key off this; composes the memoized basics so it
+// costs no extra query. WHEN SPLIT: a Control-Plane GET.
+async function getCompanyBaseCurrency(companyId) {
+    const basics = await getCompanyBasics(companyId);
+    return basics ? basics.defaultCurrencyCode : null;
+}
+
 // --- WHO is the platform (the invoice issuer) -----------------------------
 // The platform's own "company of record" singleton: its billing country + default
 // tax scheme (anchors the platform's own tax) and its issuer identity (invoice
@@ -717,6 +728,7 @@ module.exports = {
     getCompanyProfile,
     getCompanyLetterhead,
     getCompanyCountryCode,
+    getCompanyBaseCurrency,
     companyHasModule,
     eInvoiceClassificationCodeExists,
     listEInvoiceClassificationCodes,

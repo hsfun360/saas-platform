@@ -9,6 +9,8 @@ import {
   ArDebtorListResult,
   ArDebtorsMeta,
   ArDocListResult,
+  ArExchangeRate,
+  ArExchangeRateMeta,
   ArInterestDetail,
   ArInterestGeneration,
   ArOtherDebtor,
@@ -275,6 +277,28 @@ export class ArService {
 
   setTransactionTypeActive(id: string, isActive: boolean): Observable<{ message: string; transactionType: ArTransactionTypeRow }> {
     return this.http.patch<{ message: string; transactionType: ArTransactionTypeRow }>(`${this.base}/transaction-types/${id}`, { isActive });
+  }
+
+  // --- Exchange Rates (multicurrency step 1, 2026-08-21) ---
+
+  exchangeRateMeta(): Observable<ArExchangeRateMeta> {
+    return this.http.get<ArExchangeRateMeta>(`${this.base}/exchange-rates/meta`);
+  }
+
+  listExchangeRates(): Observable<ArExchangeRate[]> {
+    return this.http.get<ArExchangeRate[]>(`${this.base}/exchange-rates`);
+  }
+
+  createExchangeRate(payload: { currencyCode: string; effectiveDate: string; rate: number }): Observable<{ message: string; exchangeRate: ArExchangeRate }> {
+    return this.http.post<{ message: string; exchangeRate: ArExchangeRate }>(`${this.base}/exchange-rates`, payload);
+  }
+
+  updateExchangeRate(id: string, payload: { effectiveDate: string; rate: number }): Observable<{ message: string; exchangeRate: ArExchangeRate }> {
+    return this.http.put<{ message: string; exchangeRate: ArExchangeRate }>(`${this.base}/exchange-rates/${id}`, payload);
+  }
+
+  deleteExchangeRate(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.base}/exchange-rates/${id}`);
   }
 
   // The SAVED layout options rendered on a dummy statement (screen preview).

@@ -295,6 +295,9 @@ function settingJson(row) {
         membershipIntegration: row.membershipIntegration === true,
         interestTransactionTypeId: row.interestTransactionTypeId,
         depositConversionTransactionTypeId: row.depositConversionTransactionTypeId,
+        multiCurrencyEnabled: row.multiCurrencyEnabled === true,
+        fxGainTransactionTypeId: row.fxGainTransactionTypeId,
+        fxLossTransactionTypeId: row.fxLossTransactionTypeId,
     };
 }
 
@@ -306,17 +309,28 @@ exports.getArSetting = async (req, res) => {
         const row = await arStatement.getSetting(companyId);
         // Entitlement trims the Membership-integration card for AR-only
         // subscribers; the designated-type pickers get their class options.
-        const { companyHasModule } = require('../../platform/serviceContext');
+        const { companyHasModule, getCompanyBaseCurrency } = require('../../platform/serviceContext');
         const ArTransactionType = require('./transactionType.model');
-        const [interestOptions, cnOptions] = await Promise.all([
-            ArTransactionType.findAll({ where: { companyId, trxClass: 'interest', isActive: true }, order: [['transactionType', 'ASC']], attributes: ['id', 'transactionType', 'description'] }),
-            ArTransactionType.findAll({ where: { companyId, trxClass: 'credit-note', isActive: true }, order: [['transactionType', 'ASC']], attributes: ['id', 'transactionType', 'description'] }),
+        const designatedOptions = (trxClass) => ArTransactionType.findAll({
+            where: { companyId, trxClass, isActive: true },
+            order: [['transactionType', 'ASC']],
+            attributes: ['id', 'transactionType', 'description'],
+        });
+        const [interestOptions, cnOptions, forexOptions, baseCurrencyCode] = await Promise.all([
+            designatedOptions('interest'),
+            designatedOptions('credit-note'),
+            designatedOptions('forex'),
+            getCompanyBaseCurrency(companyId),
         ]);
         res.status(200).json({
             setting: settingJson(row),
             membershipModuleEntitled: await companyHasModule(companyId, 'Membership Management'),
             interestTypeOptions: interestOptions.map((t) => t.toJSON()),
             depositConversionTypeOptions: cnOptions.map((t) => t.toJSON()),
+            // Multi-currency card: the AR base currency (null = the prerequisite
+            // is missing, the toggle stays off) + Forex-class designations.
+            baseCurrencyCode,
+            forexTypeOptions: forexOptions.map((t) => t.toJSON()),
         });
     } catch (err) {
         console.error('Error loading AR setting:', err);

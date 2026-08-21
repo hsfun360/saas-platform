@@ -200,6 +200,68 @@
         </section>
       }
 
+      <!-- ======== Multi-currency (foreign-currency Other Debtor accounts) ======== -->
+      <section class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('currency')" [attr.aria-expanded]="isExpanded('currency')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Multi-currency</span>
+            <span class="settings-header__sub">Open Other Debtor accounts in a foreign currency - each account is denominated in one currency; rates convert to the base currency for reporting.</span>
+          </span>
+          <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('currency')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('currency')) {
+          <div class="settings-body">
+            <!-- Prerequisite first (show-expected-results): the base currency
+                 every foreign amount is converted into. -->
+            @if (baseCurrencyCode()) {
+              <p class="arsp-base" style="margin: 0 0 var(--space-xs);">
+                <span class="material-icons" aria-hidden="true">currency_exchange</span>
+                Base currency: <strong>{{ baseCurrencyCode() }}</strong>
+                <span class="cell-subtle">(the company default currency)</span>
+              </p>
+            } @else {
+              <p class="arsp-base arsp-base--missing" style="margin: 0 0 var(--space-xs);">
+                <span class="material-icons" aria-hidden="true">warning</span>
+                Set the company default currency on the Companies screen first - it becomes the AR base currency.
+              </p>
+            }
+            <div class="form-group">
+              <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
+                <input type="checkbox" formControlName="multiCurrencyEnabled"
+                       style="width: 18px; height: 18px; accent-color: var(--brand);" />
+                Enable multi-currency (Other Debtor accounts may be opened in a foreign currency)
+              </label>
+              <small class="cell-subtle">
+                Off = every account is in {{ baseCurrencyCode() || 'the base currency' }} and no currency controls are shown.
+                Membership and Nominee accounts always stay in the base currency; a foreign-currency customer gets its own Other Debtor account per currency.
+                Maintain the rates under Exchange Rates.
+              </small>
+            </div>
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-group">
+                <label for="arspFxGain">Exchange gain posts under</label>
+                <select id="arspFxGain" formControlName="fxGainTransactionTypeId">
+                  <option value="">— Not set —</option>
+                  @for (t of forexTypeOptions(); track t.id) {
+                    <option [value]="t.id">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
+                  }
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="arspFxLoss">Exchange loss posts under</label>
+                <select id="arspFxLoss" formControlName="fxLossTransactionTypeId">
+                  <option value="">— Not set —</option>
+                  @for (t of forexTypeOptions(); track t.id) {
+                    <option [value]="t.id">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
+                  }
+                </select>
+              </div>
+            </div>
+            <small class="cell-subtle">Forex-class entries of the Transaction Type master. Realized gain or loss arises when a receipt settles a foreign-currency document at a different rate; it is classified under these entries for the GL, never posted to the debtor.</small>
+          </div>
+        }
+      </section>
+
       <div class="arsp-actions">
         <button *appCan="'edit'" type="submit" class="btn btn--primary" [disabled]="saving()">
           {{ saving() ? 'Saving…' : 'Save specification' }}

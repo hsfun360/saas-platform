@@ -319,14 +319,49 @@ export interface ArSetting {
   membershipIntegration: boolean;
   interestTransactionTypeId: string | null;
   depositConversionTransactionTypeId: string | null;
+  // Multi-currency (2026-08-21): foreign-currency Other Debtor accounts; the
+  // Forex-class types realized exchange gain/loss is classified under.
+  multiCurrencyEnabled: boolean;
+  fxGainTransactionTypeId: string | null;
+  fxLossTransactionTypeId: string | null;
+}
+
+export interface ArDesignatedTypeOption {
+  id: string;
+  transactionType: string;
+  description: string | null;
 }
 
 // GET /ar/settings response wrapper (entitlement + designated-type options).
 export interface ArSettingResponse {
   setting: ArSetting;
   membershipModuleEntitled: boolean;
-  interestTypeOptions: { id: string; transactionType: string; description: string | null }[];
-  depositConversionTypeOptions: { id: string; transactionType: string; description: string | null }[];
+  interestTypeOptions: ArDesignatedTypeOption[];
+  depositConversionTypeOptions: ArDesignatedTypeOption[];
+  // The AR base currency (Company default); null = prerequisite missing, the
+  // multi-currency toggle cannot be switched on.
+  baseCurrencyCode: string | null;
+  forexTypeOptions: ArDesignatedTypeOption[];
+}
+
+// --- Exchange Rates (multicurrency step 1) ---
+
+// 1 unit of currencyCode = `rate` units of the company base currency.
+export interface ArExchangeRate {
+  id: string;
+  canModify?: boolean;
+  currencyCode: string;
+  effectiveDate: string;
+  // DECIMAL(21,10) arrives as a string.
+  rate: string;
+  updatedAt?: string;
+}
+
+export interface ArExchangeRateMeta {
+  baseCurrencyCode: string | null;
+  multiCurrencyEnabled: boolean;
+  // The subscriber's currency set minus the base currency.
+  currencies: { code: string; name: string; symbol: string | null }[];
 }
 
 export interface ArStatementRun {

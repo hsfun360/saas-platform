@@ -133,6 +133,23 @@ To eliminate the call entirely:
 - **Reconciliation stays on the gateway** regardless - it is the independent truth-check comparing snapshots to the source, and between events it is the only automatic corrector.
 - Out of scope either way: `lookupPartyBilling` (statement generation) and `classifyParties` (statement scope) are separate seam reads with their own snapshot-at-generation semantics.
 
+## Multi-currency for Other Debtors (design 2026-08-21; step 1 built)
+
+The design decision that drives everything: **currency per debtor ACCOUNT, never per document.**
+An Other Debtor account is denominated in exactly one currency, so every document, receipt, deposit and allocation on it shares that unit and the open-item engine (FIFO, allocation, `CreditAccount.outstanding`, credit limit, aging, statements, interest) stays single-unit per account - cross-currency allocation never arises.
+Membership and Nominee accounts always stay in the base currency; a foreign-currency customer that also needs a local account gets a second Other Debtor record.
+Base-currency equivalents are stored per row (later steps) for reporting, tax and GL; the only multicurrency arithmetic is realized exchange gain/loss when a receipt's rate differs from the invoice's rate.
+
+- **Base currency** = `Company.defaultCurrencyCode`, read through `serviceContext.getCompanyBaseCurrency` (composes the memoized company basics - no extra query).
+  Multi-currency cannot be switched on until it is set.
+- **Step 1 (built):** `ar.Setting.multiCurrencyEnabled` gate (same pattern as Club Spec's `creditFacilityEnabled`: off = no currency controls anywhere) + `fxGainTransactionTypeId` / `fxLossTransactionTypeId` (Forex-class designations; gain/loss is GL-facing, never a debtor document); the **Multi-currency** card on AR Specification (prerequisite readout, toggle disabled without a base currency, the two pickers).
+  NEW `ar.ExchangeRate` (`companyId`, `currencyCode` alpha-3, `effectiveDate`, `rate` DECIMAL(21,10), stamps; UNIQUE company+currency+date): 1 unit of the foreign currency = `rate` units of base; lookup = latest `effectiveDate <= docDate`.
+  Documents will SNAPSHOT the rate they used, so editing/deleting a rate only changes future defaults - that is why delete is allowed.
+  Screen `/ar/exchange-rates` (its own menu; standard listing: search, card per rate with a Current/Upcoming chip, drawer dialog with a live "1 USD = 4.7100 MYR" preview, kebab Delete with confirm, scroll-return); API `GET /exchange-rates/meta` (base + subscriber's foreign currencies + gate), `GET/POST /exchange-rates`, `PUT/DELETE /exchange-rates/:id`, every part Zod-validated, currency must be in the subscriber set and not the base.
+- **Remaining steps (in order):** (2) `OtherDebtor.currencyCode` + `Debtor.currencyCode` (denormalized like the sort-key snapshots; membership/member = base; locked once documents exist) with backfill to base; (3) `currencyCode` / `exchangeRate` / base-equivalent columns on `Ledger` (net/tax/gross - SST and MyInvois want base tax), `Receipt`, `Deposit`, + rate fields in the entry dialogs (rate auto-filled at docDate, editable on drafts, frozen at posting); (4) `Allocation.fxGainLoss` computed at allocation + reconciliation assertions; (5) listing/statement/interest currency snapshots and display polish.
+  Posting must validate document currency == account currency; `arGateway.postCharge` rejects mismatches.
+  Out of scope by decision: per-document currency on one account, month-end revaluation (a later report over base equivalents), Membership fee currencies.
+
 ## Not built yet
 
-Frontend producers wiring `authorizeCharge`/`postCharge` from Golf/POS/Facility, statement EMAIL delivery (PDF renderer is ready as the attachment seam), and the conversions phase of the membership CRM.
+Frontend producers wiring `authorizeCharge`/`postCharge` from Golf/POS/Facility, statement EMAIL delivery (PDF renderer is ready as the attachment seam), the conversions phase of the membership CRM, and multi-currency steps 2-5 above.
