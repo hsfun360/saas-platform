@@ -53,6 +53,20 @@ const Debtor = sequelize.define('Debtor', {
         type: DataTypes.STRING(255),
         allowNull: false,
     },
+    // The ACCOUNT currency (ISO 4217 alpha-3; multicurrency step 2, 2026-08-21).
+    // Currency lives per debtor account, never per document: every document,
+    // receipt, deposit and allocation on the account shares this unit, so the
+    // open-item engine stays single-unit per account. Membership/member
+    // accounts always carry the company base currency; only Other Debtor
+    // accounts may be opened in a foreign one (AR Spec multiCurrencyEnabled).
+    // Denormalized here like the sort-key snapshots so posting and the listing
+    // never resolve through the party master; immutable once any document
+    // exists on the account. Nullable only for the backfill window (boot
+    // stamps the company default onto NULLs; readers treat NULL as base).
+    currencyCode: {
+        type: DataTypes.STRING(3),
+        allowNull: true,
+    },
     // Repayment terms in days (drives Invoice/DN dueDate); null = due immediately.
     terms: {
         type: DataTypes.INTEGER,
@@ -94,6 +108,8 @@ const Debtor = sequelize.define('Debtor', {
         // Sort-key indexes for the listing's ?sort=debtorAccount|name.
         { name: 'IDX_Debtor_Company_Account', fields: ['companyId', 'debtorAccount'] },
         { name: 'IDX_Debtor_Company_Name', fields: ['companyId', 'name'] },
+        // Listing filter by account currency.
+        { name: 'IDX_Debtor_Company_Currency', fields: ['companyId', 'currencyCode'] },
     ],
 });
 

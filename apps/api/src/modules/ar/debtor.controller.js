@@ -19,6 +19,7 @@ const { getUserContext, canModifyRecord } = require('../../platform/serviceConte
 const membershipGateway = require('../../platform/membershipGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const { DEBTOR_TYPES, DEBTOR_TYPE_KEYS, DEBTOR_STATUSES, DEBTOR_STATUS_KEYS } = require('./ar.constants');
+const { getMultiCurrencyState, effectiveCurrency } = require('./arCurrency.service');
 
 const SEARCH_LIMIT = 50;
 const OTHER_DEBTOR_NUMBERING_PURPOSE = 'ar-other-debtor';
@@ -55,11 +56,20 @@ function strOrNull(x) { const s = str(x); return s || null; }
 // mode (drives whether the dialog's Code field is keyed or auto).
 exports.getMeta = async (req, res) => {
     try {
-        const mode = await numberingGateway.getMode(req, OTHER_DEBTOR_NUMBERING_PURPOSE);
+        const { companyId } = getUserContext(req);
+        const [mode, currency] = await Promise.all([
+            numberingGateway.getMode(req, OTHER_DEBTOR_NUMBERING_PURPOSE),
+            getMultiCurrencyState(req, companyId),
+        ]);
         res.status(200).json({
             debtorTypes: DEBTOR_TYPES,
             debtorStatuses: DEBTOR_STATUSES,
             otherDebtorNumberingMode: mode, // 'auto' | 'manual' | null
+            // Multi-currency (step 2): gate + base + the pickable set (empty
+            // when off, so the screen shows no currency controls at all).
+            multiCurrencyEnabled: currency.enabled,
+            baseCurrencyCode: currency.baseCurrencyCode,
+            currencies: currency.currencies,
         });
     } catch (error) {
         console.error('Error loading AR meta:', error);
@@ -81,6 +91,14 @@ exports.listDebtors = async (req, res) => {
         if (type && DEBTOR_TYPE_KEYS.includes(type)) where.debtorType = type;
         const status = str(req.query.status);
         if (status && DEBTOR_STATUS_KEYS.includes(status)) where.status = status;
+        // Currency filter (step 2): the base currency also matches the
+        // not-yet-stamped NULL rows (NULL reads as base).
+        const { getCompanyBaseCurrency } = require('../../platform/serviceContext');
+        const baseCurrencyCode = await getCompanyBaseCurrency(companyId);
+        const currency = str(req.query.currency).toUpperCase();
+        if (/^[A-Z]{3}$/.test(currency)) {
+            where.currencyCode = currency === baseCurrencyCode ? { [Op.or]: [currency, null] } : currency;
+        }
 
         const q = str(req.query.q);
         if (q) {
@@ -173,6 +191,7 @@ exports.listDebtors = async (req, res) => {
                     sendReminders: d.sendReminders,
                     chargeInterest: d.chargeInterest,
                     status: d.status,
+                    currencyCode: effectiveCurrency(d.currencyCode, baseCurrencyCode),
                     creditLimit: pool ? pool.creditLimit : '0.00',
                     outstanding: pool ? pool.outstanding : '0.00',
                     createdAt: d.createdAt,

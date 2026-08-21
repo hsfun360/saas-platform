@@ -38,6 +38,9 @@
 
     <!-- Balances -->
     <div class="ara-balances">
+      @if (a.multiCurrencyEnabled && a.debtor.currencyCode) {
+        <div class="ara-balance"><span class="ara-balance__label">Currency</span><span class="ara-balance__value">{{ a.debtor.currencyCode }}</span></div>
+      }
       <div class="ara-balance"><span class="ara-balance__label">Outstanding</span><span class="ara-balance__value">{{ a.balances.outstanding }}</span></div>
       <div class="ara-balance"><span class="ara-balance__label">Credit limit</span><span class="ara-balance__value">{{ a.balances.creditLimit }}</span></div>
       <div class="ara-balance"><span class="ara-balance__label">Terms</span><span class="ara-balance__value">{{ a.debtor.terms !== null ? a.debtor.terms + ' days' : 'Immediate' }}</span></div>

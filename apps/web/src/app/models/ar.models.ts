@@ -6,12 +6,23 @@ export interface ArOption {
   label: string;
 }
 
+export interface ArCurrencyOption {
+  code: string;
+  name: string;
+  symbol: string | null;
+  isBase?: boolean;
+}
+
 export interface ArDebtorsMeta {
   debtorTypes: ArOption[];
   debtorStatuses: ArOption[];
   // 'auto' | 'manual' | null - drives whether the Other Debtor dialog's Code
   // field is keyed in or issued by Numbering Control.
   otherDebtorNumberingMode: string | null;
+  // Multi-currency (step 2): off = no currency controls on the screen at all.
+  multiCurrencyEnabled: boolean;
+  baseCurrencyCode: string | null;
+  currencies: ArCurrencyOption[];
 }
 
 export interface ArDebtor {
@@ -27,6 +38,8 @@ export interface ArDebtor {
   sendReminders: boolean;
   chargeInterest: boolean;
   status: 'active' | 'suspended' | 'closed';
+  // The ACCOUNT currency (ISO 4217); every amount on the account is in it.
+  currencyCode: string | null;
   // DECIMAL(21,2) columns arrive as strings.
   creditLimit: string;
   outstanding: string;
@@ -135,6 +148,7 @@ export interface ArDepositDoc {
 }
 
 export interface ArAccount {
+  multiCurrencyEnabled?: boolean;
   debtor: {
     id: string;
     debtorType: string;
@@ -145,6 +159,7 @@ export interface ArAccount {
     sendReminders: boolean;
     chargeInterest: boolean;
     status: string;
+    currencyCode?: string | null;
   };
   balances: { creditLimit: string; outstanding: string };
   personCaps: Array<{ memberId: string; person: ArPerson | null; personalLimit: string; personalUsed: string }>;
@@ -407,6 +422,10 @@ export interface ArOtherDebtor {
   postcode: string | null;
   countryCode: string | null;
   remarks: string | null;
+  // Account currency (step 2) + whether it may still change (false once the
+  // account has any document).
+  currencyCode?: string | null;
+  currencyLocked?: boolean;
   isActive: boolean;
   debtorId?: string | null;
   canModify?: boolean;

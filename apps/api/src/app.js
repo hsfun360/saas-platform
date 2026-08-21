@@ -320,6 +320,24 @@ async function initializeDB() {
 
             await sequelize.sync({ alter: true });
 
+            // Multicurrency step 2 (2026-08-21): every ledger account carries
+            // its currency. Accounts from before the column existed are in the
+            // company base currency by definition - stamp it once (NULLs only;
+            // companies without a default currency stay NULL = base, and get
+            // stamped the first boot after one is set). Idempotent.
+            await sequelize.query(
+                `UPDATE ar."Debtor" d SET "currencyCode" = UPPER(c."defaultCurrencyCode")
+                 FROM public."Company" c
+                 WHERE d."companyId" = c."id" AND d."currencyCode" IS NULL
+                   AND c."defaultCurrencyCode" IS NOT NULL`,
+            ).catch((err) => console.warn('Debtor currency backfill skipped:', err.message));
+            await sequelize.query(
+                `UPDATE ar."OtherDebtor" o SET "currencyCode" = UPPER(c."defaultCurrencyCode")
+                 FROM public."Company" c
+                 WHERE o."companyId" = c."id" AND o."currencyCode" IS NULL
+                   AND c."defaultCurrencyCode" IS NOT NULL`,
+            ).catch((err) => console.warn('OtherDebtor currency backfill skipped:', err.message));
+
             // Statement letterhead completion (2026-08-11): statements now
             // snapshot the issuer registration number at generation; backfill
             // rows from before the column existed with the CURRENT company

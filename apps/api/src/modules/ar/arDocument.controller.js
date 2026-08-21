@@ -113,11 +113,19 @@ exports.getAccount = async (req, res) => {
         const persons = await membershipGateway.listDebtorPersons(companyId, debtor.debtorType, debtor.sourceId);
         const personById = new Map(persons.map((p) => [p.id, p]));
 
+        // Account currency (multicurrency step 2): shipped with the gate so the
+        // screen labels balances only when the company actually runs more
+        // than one currency.
+        const { getMultiCurrencyState, effectiveCurrency } = require('./arCurrency.service');
+        const currencyState = await getMultiCurrencyState(req, companyId);
+
         res.status(200).json({
+            multiCurrencyEnabled: currencyState.enabled,
             debtor: {
                 id: debtor.id, debtorType: debtor.debtorType, sourceId: debtor.sourceId,
                 no, name, terms: debtor.terms, sendReminders: debtor.sendReminders,
                 chargeInterest: debtor.chargeInterest, status: debtor.status,
+                currencyCode: effectiveCurrency(debtor.currencyCode, currencyState.baseCurrencyCode),
             },
             balances: {
                 creditLimit: pool ? pool.creditLimit : '0.00',

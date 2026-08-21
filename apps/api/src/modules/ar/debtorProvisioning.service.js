@@ -15,6 +15,7 @@ const { sequelize } = require('../../platform/db');
 const Debtor = require('./debtor.model');
 const CreditAccount = require('./creditAccount.model');
 const { DEBTOR_TYPE_KEYS } = require('./ar.constants');
+const { getCompanyBaseCurrency } = require('../../platform/serviceContext');
 
 // Coerce a payload money value to a non-negative 2dp string for DECIMAL(21,2).
 function money(value) {
@@ -49,12 +50,21 @@ async function provisionDebtor(payload, transaction = null) {
         throw new Error(`DebtorProvisionRequested payload missing sourceNo/name: ${JSON.stringify(payload)}`);
     }
 
+    // Account currency (multicurrency step 2): membership/member accounts are
+    // ALWAYS in the company base currency; an Other Debtor account may carry
+    // the (already validated) currency the controller resolved. Null when the
+    // company has no default currency yet (single-currency legacy = base).
+    const currencyCode = debtorType === 'other' && typeof payload.currencyCode === 'string' && payload.currencyCode.trim()
+        ? payload.currencyCode.trim().toUpperCase()
+        : await getCompanyBaseCurrency(companyId);
+
     const run = async (t) => {
         const [debtor, created] = await Debtor.findOrCreate({
             where: { companyId, debtorType, sourceId },
             defaults: {
                 debtorAccount: snap(payload.sourceNo, 64),
                 name: snap(payload.name, 255),
+                currencyCode,
                 terms: Number.isInteger(payload.terms) ? payload.terms : null,
                 sendReminders: !!payload.sendReminders,
                 chargeInterest: !!payload.chargeInterest,
@@ -70,6 +80,9 @@ async function provisionDebtor(payload, transaction = null) {
             const patch = {};
             if (!debtor.debtorAccount && snap(payload.sourceNo, 64)) patch.debtorAccount = snap(payload.sourceNo, 64);
             if (!debtor.name && snap(payload.name, 255)) patch.name = snap(payload.name, 255);
+            // Pre-multicurrency accounts: stamp the currency once (never
+            // overwrite - a set currency is immutable).
+            if (!debtor.currencyCode && currencyCode) patch.currencyCode = currencyCode;
             if (Object.keys(patch).length) await debtor.update(patch, { transaction: t });
         }
         if (created) {

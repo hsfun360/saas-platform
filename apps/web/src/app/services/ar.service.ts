@@ -40,11 +40,12 @@ export class ArService {
 
   // Server-side search + pagination (party masters are searched server-side
   // through the membership seam; the browser only ever receives one page).
-  listDebtors(opts: { q?: string; type?: string; status?: string; offset?: number; sort?: string; dir?: string } = {}): Observable<ArDebtorListResult> {
+  listDebtors(opts: { q?: string; type?: string; status?: string; currency?: string; offset?: number; sort?: string; dir?: string } = {}): Observable<ArDebtorListResult> {
     let params = new HttpParams();
     if (opts.q) params = params.set('q', opts.q);
     if (opts.type) params = params.set('type', opts.type);
     if (opts.status) params = params.set('status', opts.status);
+    if (opts.currency) params = params.set('currency', opts.currency);
     if (opts.offset) params = params.set('offset', String(opts.offset));
     if (opts.sort) params = params.set('sort', opts.sort);
     if (opts.dir) params = params.set('dir', opts.dir);

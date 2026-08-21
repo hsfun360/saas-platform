@@ -74,6 +74,24 @@
   color: var(--text-secondary);
 }
 
+/* Account-currency chip (multi-currency mode only): quiet for the base
+   currency, brand-tinted for a foreign-currency account so it stands out. */
+.ard-ccy-chip {
+  display: inline-block;
+  padding: 2px var(--space-sm);
+  border-radius: 12px;
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.5px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+
+.ard-ccy-chip--foreign {
+  background: var(--brand-surface);
+  color: var(--brand-text);
+}
+
 /* Pagination footer under the list */
 .ard-pager {
   display: flex;

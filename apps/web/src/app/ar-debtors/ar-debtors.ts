@@ -58,6 +58,14 @@ export class ArDebtorsComponent implements OnInit {
   readonly search = signal('');
   readonly typeFilter = signal('');
   readonly statusFilter = signal('');
+  // Multi-currency (step 2): the currency filter + every currency control
+  // only exist while the AR Spec gate is on (meta ships an empty set otherwise).
+  readonly currencyFilter = signal('');
+  readonly multiCurrency = computed(() => this.meta()?.multiCurrencyEnabled === true);
+  readonly baseCurrency = computed(() => this.meta()?.baseCurrencyCode || '');
+  readonly currencies = computed(() => this.meta()?.currencies || []);
+  // Edit mode: the account already has documents - currency is immutable.
+  readonly otherCurrencyLocked = signal(false);
   // Server-side sort (the listing is paginated, so sorting is a query param,
   // not a client-side computed - see the listing-chrome sort standard).
   // Keys mirror the API's DEBTOR_SORTS whitelist.
@@ -115,6 +123,8 @@ export class ArDebtorsComponent implements OnInit {
     postcode: ['', [Validators.maxLength(20)]],
     countryCode: [''],
     remarks: [''],
+    // Account currency (multi-currency only; preset to the base currency).
+    currencyCode: [''],
     // Ledger seeding (create mode only; afterwards edited via the ledger dialog).
     terms: [null as number | null],
     creditLimit: [0],
@@ -155,6 +165,7 @@ export class ArDebtorsComponent implements OnInit {
         q: this.search().trim(),
         type: this.typeFilter(),
         status: this.statusFilter(),
+        currency: this.currencyFilter(),
         offset,
         sort: this.sort().key,
         dir: this.sort().dir,
@@ -199,6 +210,11 @@ export class ArDebtorsComponent implements OnInit {
     this.load(true);
   }
 
+  setCurrencyFilter(code: string): void {
+    this.currencyFilter.set(code);
+    this.load(true);
+  }
+
   setSort(value: SortValue): void {
     this.sort.set(value);
     this.load(true); // sort changes restart pagination from the first page
@@ -208,8 +224,11 @@ export class ArDebtorsComponent implements OnInit {
     this.search.set('');
     this.typeFilter.set('');
     this.statusFilter.set('');
+    this.currencyFilter.set('');
     this.load(true);
   }
+
+  readonly hasFilter = computed(() => !!(this.search() || this.typeFilter() || this.statusFilter() || this.currencyFilter()));
 
   // --- Ledger account (credit terms) ---
 
@@ -271,13 +290,17 @@ export class ArDebtorsComponent implements OnInit {
     this.otherId = '';
     this.otherCode = '';
     this.otherRowId = '';
+    this.otherCurrencyLocked.set(false);
     this.otherForm.reset({
       code: '', name: '', registrationNo: '', taxNo: '', contactPerson: '',
       phone: '', mobile: '', fax: '', email: '',
       address1: '', address2: '', address3: '', city: '', state: '', postcode: '',
       countryCode: '', remarks: '',
+      // Currency always defaults to the company's base (user rule).
+      currencyCode: this.baseCurrency(),
       terms: null, creditLimit: 0, sendReminders: false, chargeInterest: false,
     });
+    this.otherForm.controls.currencyCode.enable();
     this.otherOpen.set(true);
   }
 
@@ -311,8 +334,14 @@ export class ArDebtorsComponent implements OnInit {
           postcode: o.postcode || '',
           countryCode: o.countryCode || '',
           remarks: o.remarks || '',
+          currencyCode: o.currencyCode || this.baseCurrency(),
           terms: null, creditLimit: 0, sendReminders: false, chargeInterest: false,
         });
+        // Immutable once the account has documents (reactive-forms way:
+        // disable the control; getRawValue still carries it).
+        this.otherCurrencyLocked.set(o.currencyLocked === true);
+        if (o.currencyLocked) this.otherForm.controls.currencyCode.disable();
+        else this.otherForm.controls.currencyCode.enable();
         this.otherLoading.set(false);
       },
       error: (err) => {
@@ -351,6 +380,9 @@ export class ArDebtorsComponent implements OnInit {
       postcode: f.postcode.trim() || null,
       countryCode: f.countryCode || null,
       remarks: f.remarks.trim() || null,
+      // Currency travels only in multi-currency mode and only while it may
+      // still change (the API refuses a change on an account with documents).
+      ...(this.multiCurrency() && !this.otherCurrencyLocked() ? { currencyCode: f.currencyCode || this.baseCurrency() } : {}),
     };
     this.otherSaving.set(true);
     const req = this.otherMode() === 'create'

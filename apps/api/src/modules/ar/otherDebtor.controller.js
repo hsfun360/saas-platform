@@ -12,6 +12,7 @@ const { provisionDebtor } = require('./debtorProvisioning.service');
 const { getUserContext, getCallerPlacement, canModifyRecord } = require('../../platform/serviceContext');
 const numberingGateway = require('../../platform/numberingGateway');
 const { OTHER_DEBTOR_NUMBERING_PURPOSE } = require('./debtor.controller');
+const { resolveOtherDebtorCurrency, accountHasDocuments, getMultiCurrencyState, effectiveCurrency } = require('./arCurrency.service');
 
 function str(x) { return typeof x === 'string' ? x.trim() : ''; }
 function strOrNull(x) { const s = str(x); return s || null; }
@@ -59,7 +60,19 @@ exports.getOtherDebtor = async (req, res) => {
         if (!row) return res.status(404).json({ message: 'Other Debtor not found.' });
         const debtor = await Debtor.findOne({ where: { companyId, debtorType: 'other', sourceId: row.id } });
         const canModify = await canModifyRecord(req, row);
-        res.status(200).json({ otherDebtor: { ...row.toJSON(), debtorId: debtor ? debtor.id : null, canModify } });
+        // Account currency (NULL reads as base) + whether it may still change
+        // (immutable once any document exists on the account).
+        const state = await getMultiCurrencyState(req, companyId);
+        const currencyLocked = debtor ? await accountHasDocuments(debtor.id) : false;
+        res.status(200).json({
+            otherDebtor: {
+                ...row.toJSON(),
+                currencyCode: effectiveCurrency(debtor ? debtor.currencyCode : row.currencyCode, state.baseCurrencyCode),
+                currencyLocked,
+                debtorId: debtor ? debtor.id : null,
+                canModify,
+            },
+        });
     } catch (error) {
         console.error('Error loading other debtor:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -102,6 +115,9 @@ exports.createOtherDebtor = async (req, res) => {
 
         let created;
         try {
+            // Account currency: the requested foreign currency only while the
+            // AR Spec gate is on and it is in the subscriber's set; else base.
+            const currencyCode = await resolveOtherDebtorCurrency(req, companyId, req.body.currencyCode);
             created = await sequelize.transaction(async (t) => {
                 if (mode === 'auto') {
                     const issued = await numberingGateway.issueNumber(req, OTHER_DEBTOR_NUMBERING_PURPOSE, { transaction: t });
@@ -111,7 +127,7 @@ exports.createOtherDebtor = async (req, res) => {
                     if (clash) throw httpError(409, `Debtor code '${code}' is already in use.`);
                 }
 
-                const row = await OtherDebtor.create({ companyId, code, ...parsed.value, ...stamps }, { transaction: t });
+                const row = await OtherDebtor.create({ companyId, code, ...parsed.value, currencyCode, ...stamps }, { transaction: t });
                 // Same-tx ledger account (in-process is fine INSIDE the ar module;
                 // the outbox path is for cross-service producers).
                 const { debtor } = await provisionDebtor({
@@ -120,6 +136,7 @@ exports.createOtherDebtor = async (req, res) => {
                     sourceId: row.id,
                     sourceNo: code,
                     name: row.name,
+                    currencyCode,
                     terms,
                     creditLimit: Number.isFinite(creditLimit) ? creditLimit : 0,
                     sendReminders: !!req.body.sendReminders,
@@ -161,15 +178,34 @@ exports.updateOtherDebtor = async (req, res) => {
 
         const toggling = 'isActive' in req.body && !!req.body.isActive !== row.isActive;
 
+        // Account currency change (multicurrency step 2): validated against the
+        // gate + subscriber set, and refused once the account has documents.
+        let nextCurrency; // undefined = leave unchanged
+        if ('currencyCode' in req.body) {
+            nextCurrency = await resolveOtherDebtorCurrency(req, companyId, req.body.currencyCode);
+        }
+
         await sequelize.transaction(async (t) => {
             Object.assign(row, parsed.value);
             if ('isActive' in req.body) row.isActive = !!req.body.isActive;
             row.updatedBy = userId;
-            await row.save({ transaction: t });
 
             const debtor = await Debtor.findOne({
                 where: { companyId, debtorType: 'other', sourceId: row.id }, transaction: t,
             });
+            if (nextCurrency !== undefined) {
+                const current = effectiveCurrency(debtor ? debtor.currencyCode : row.currencyCode, nextCurrency);
+                if (debtor && nextCurrency !== current && (await accountHasDocuments(debtor.id, t))) {
+                    throw httpError(409, `The ${row.code} account already has documents in ${current} - its currency can no longer change. Open a separate Other Debtor for ${nextCurrency}.`);
+                }
+                row.currencyCode = nextCurrency;
+                if (debtor && debtor.currencyCode !== nextCurrency) {
+                    debtor.currencyCode = nextCurrency;
+                    debtor.updatedBy = userId;
+                }
+            }
+            await row.save({ transaction: t });
+
             if (debtor) {
                 // Closed accounts stay closed - disable/enable only swaps
                 // active <-> suspended.
@@ -187,6 +223,7 @@ exports.updateOtherDebtor = async (req, res) => {
 
         res.status(200).json({ message: `Other Debtor ${row.code} updated.`, otherDebtor: row });
     } catch (error) {
+        if (error && error.httpStatus) return res.status(error.httpStatus).json({ message: error.message });
         console.error('Error updating other debtor:', error);
         res.status(500).json({ message: 'Internal server error' });
     }

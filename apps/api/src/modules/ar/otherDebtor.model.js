@@ -45,6 +45,11 @@ const OtherDebtor = sequelize.define('OtherDebtor', {
     state: { type: DataTypes.STRING, allowNull: true },
     postcode: { type: DataTypes.STRING(20), allowNull: true },
     countryCode: { type: DataTypes.STRING(2), allowNull: true },
+    // Billing currency of this party's ledger account (ISO 4217 alpha-3;
+    // multicurrency step 2). Mirrors ar.Debtor.currencyCode - the Debtor copy
+    // is what the engine reads; this one is the party-master record of it.
+    // Nullable only for the backfill window (NULL reads as the base currency).
+    currencyCode: { type: DataTypes.STRING(3), allowNull: true },
     remarks: { type: DataTypes.TEXT, allowNull: true },
     // Disable rather than delete - the ledger account and its documents remain.
     isActive: {
