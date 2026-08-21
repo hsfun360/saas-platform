@@ -136,7 +136,7 @@ exports.create = async (req, res) => {
         if (curErr) return res.status(400).json({ message: curErr });
 
         const clash = await ExchangeRate.findOne({ where: { companyId, currencyCode: code, effectiveDate: date } });
-        if (clash) return res.status(409).json({ message: `A ${code} rate effective ${date} already exists - edit that row instead.` });
+        if (clash) return res.status(409).json({ message: `A ${code} rate already exists for that effective date - edit that row instead.` });
 
         const placement = await getCallerPlacement(req);
         const callerId = getUserContext(req).userId;
@@ -149,7 +149,9 @@ exports.create = async (req, res) => {
             createdByDepartmentId: placement.departmentId,
             updatedBy: callerId,
         });
-        res.status(201).json({ message: `${code} rate effective ${date} saved.`, exchangeRate: toDto(row) });
+        // Flash text carries no raw ISO date (date display standard) - the
+        // card the screen scrolls back to shows it localized.
+        res.status(201).json({ message: `${code} rate saved.`, exchangeRate: toDto(row) });
     } catch (error) {
         console.error('Error creating exchange rate:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -172,13 +174,13 @@ exports.update = async (req, res) => {
             const clash = await ExchangeRate.findOne({
                 where: { companyId, currencyCode: row.currencyCode, effectiveDate: date, id: { [Op.ne]: row.id } },
             });
-            if (clash) return res.status(409).json({ message: `A ${row.currencyCode} rate effective ${date} already exists.` });
+            if (clash) return res.status(409).json({ message: `A ${row.currencyCode} rate already exists for that effective date.` });
         }
         row.effectiveDate = date;
         row.rate = value.toFixed(10);
         row.updatedBy = getUserContext(req).userId;
         await row.save();
-        res.status(200).json({ message: `${row.currencyCode} rate effective ${date} updated.`, exchangeRate: toDto(row) });
+        res.status(200).json({ message: `${row.currencyCode} rate updated.`, exchangeRate: toDto(row) });
     } catch (error) {
         console.error('Error updating exchange rate:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -197,7 +199,7 @@ exports.remove = async (req, res) => {
             return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         }
         await row.destroy();
-        res.status(200).json({ message: `${row.currencyCode} rate effective ${row.effectiveDate} deleted.` });
+        res.status(200).json({ message: `${row.currencyCode} rate deleted.` });
     } catch (error) {
         console.error('Error deleting exchange rate:', error);
         res.status(500).json({ message: 'Internal server error' });

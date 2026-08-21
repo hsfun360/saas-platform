@@ -79,7 +79,7 @@
         <div class="data-card" [attr.data-return-id]="r.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ r.currencyCode }}@if (currencyName(r.currencyCode)) { <span class="data-card__reg">— {{ currencyName(r.currencyCode) }}</span> }</div>
+              <div class="data-card__title">{{ r.currencyCode }}@if (currencyName(r.currencyCode)) {<span class="data-card__reg">&nbsp;— {{ currencyName(r.currencyCode) }}</span>}</div>
               <div class="data-card__subline">
                 <span class="mt-chip xr-rate">1 {{ r.currencyCode }} = {{ fmtRate(r.rate) }} {{ baseCurrency() || '' }}</span>
                 <span class="data-card__reg">Effective {{ r.effectiveDate | localDate }}</span>
