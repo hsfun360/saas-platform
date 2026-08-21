@@ -118,7 +118,8 @@ export interface ArReceiptDoc {
   description: string | null;
   amount: string;
   allocatedAmount: string;
-  status: 'open' | 'void';
+  // 'draft' = manual receipt saved, not yet financial (lifecycle 2026-08-20).
+  status: 'draft' | 'open' | 'void';
 }
 
 export interface ArDepositDoc {
@@ -177,6 +178,10 @@ export interface ArDocListRow {
   transactionTypeId: string;
   // CN drafts: the allocation intent (apply-against target), for edit prefill.
   applyToLedgerId?: string | null;
+  // Receipt rows: payment-method snapshot + draft intent, for edit prefill.
+  paymentMethod?: string | null;
+  paymentRef?: string | null;
+  collectDepositId?: string | null;
   canModify?: boolean;
   debtor: { id: string; debtorType: string | null; no: string | null; name: string | null };
 }
@@ -197,6 +202,9 @@ export interface ArAccountMeta {
   creditNoteApproval?: boolean;
   // The debtor's open debits - the CN entry's "Apply against" choices.
   openDebits?: { id: string; docKind: string; docNo: string | null; grossAmount: string; settledAmount: string }[];
+  // The debtor's collectable deposits - the Receipt entry's optional
+  // "Collect deposit" choices.
+  openDeposits?: { id: string; docNo: string | null; amount: string; collectedAmount: string }[];
 }
 
 // --- Periodic processing (slice 3) ---

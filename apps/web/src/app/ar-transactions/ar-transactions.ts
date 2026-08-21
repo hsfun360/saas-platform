@@ -10,6 +10,7 @@ import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ArLedgerDialogComponent } from '../shared/ar-ledger-dialog/ar-ledger-dialog';
+import { ArReceiptDialogComponent } from '../shared/ar-receipt-dialog/ar-receipt-dialog';
 import { ArService } from '../services/ar.service';
 import { PermissionsService } from '../services/permissions.service';
 import { ArAccountMeta, ArDocListResult, ArDocListRow, ArDocStatus } from '../models/ar.models';
@@ -21,11 +22,16 @@ import { ArAccountMeta, ArDocListResult, ArDocListRow, ArDocStatus } from '../mo
 // types via route data (invoice first; the other five follow slice by slice).
 // The Debtor Account screen stays as the account-first inquiry surface.
 interface DocTypeCfg {
-  kind: 'invoice' | 'debit-note' | 'credit-note';
+  kind: 'invoice' | 'debit-note' | 'credit-note' | 'receipt';
   label: string;       // singular, e.g. 'Invoice'
   plural: string;      // fallback screen title
   icon: string;
   subtitle: string;
+  // Which shared entry dialog the type uses (receipts have their own fields).
+  dialog: 'ledger' | 'receipt';
+  // Whether the kind can route through an approval chain (receipts never do -
+  // user rule 2026-08-20: collections carry no workflow).
+  hasApproval: boolean;
   // What Submit's direct-post confirm says the posting will DO.
   postText: string;
   list: (service: ArService, opts: { month?: string; q?: string; status?: string; offset?: number }) => ReturnType<ArService['listInvoices']>;
@@ -41,6 +47,8 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
     plural: 'Invoices',
     icon: 'request_quote',
     subtitle: 'Manual invoices across all debtors — key new invoices and void unsettled ones. System-generated invoices (fee runs, interest) appear here too.',
+    dialog: 'ledger',
+    hasApproval: true,
     postText: 'The invoice number is issued now and the amount hits the debtor’s balance.',
     list: (s, opts) => s.listInvoices(opts),
     submit: (s, id) => s.submitInvoice(id),
@@ -53,11 +61,27 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
     plural: 'Credit Notes',
     icon: 'remove_circle',
     subtitle: 'Credit notes across all debtors — reduce what a debtor owes, applied against an open document or left as available credit.',
+    dialog: 'ledger',
+    hasApproval: true,
     postText: 'The credit note number is issued now, the amount reduces the debtor’s balance, and the apply-against choice takes effect.',
     list: (s, opts) => s.listCreditNotes(opts),
     submit: (s, id) => s.submitCreditNote(id),
     approvalOf: (m) => m.creditNoteApproval === true,
     void: (s, id, reason) => s.voidCreditNote(id, reason),
+  },
+  receipt: {
+    kind: 'receipt',
+    label: 'Official Receipt',
+    plural: 'Official Receipts',
+    icon: 'payments',
+    subtitle: 'Official receipts across all debtors — collect debtor payments, optionally paying in a billed deposit; the money settles open items oldest first.',
+    dialog: 'receipt',
+    hasApproval: false,
+    postText: 'The receipt number is issued now, the money reduces the debtor’s balance, and it settles open items oldest first.',
+    list: (s, opts) => s.listReceipts(opts),
+    submit: (s, id) => s.submitReceipt(id),
+    approvalOf: () => false,
+    void: (s, id, reason) => s.voidReceipt(id, reason),
   },
 };
 
@@ -67,7 +91,7 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule,
     DialogComponent, CanDirective, LocalDatePipe, ArLedgerDialogComponent,
-    OverflowMenuComponent, MenuItemDirective,
+    ArReceiptDialogComponent, OverflowMenuComponent, MenuItemDirective,
   ],
   templateUrl: './ar-transactions.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-transactions.css'],
@@ -189,6 +213,12 @@ export class ArTransactionsComponent implements OnInit {
 
   // --- Entry / edit (the shared dialog; editRow set = edit mode) ---
   readonly editRow = signal<ArDocListRow | null>(null);
+  // Narrowing for the ledger dialog's [kind] input (receipts use their own
+  // dialog, so this branch never renders for them).
+  ledgerKind(): 'invoice' | 'debit-note' | 'credit-note' {
+    const k = this.cfg().kind;
+    return k === 'receipt' ? 'invoice' : k;
+  }
   openEntry(): void {
     this.clearMessages();
     this.editRow.set(null);
@@ -221,8 +251,11 @@ export class ArTransactionsComponent implements OnInit {
   askSubmit(row: ArDocListRow): void {
     this.clearMessages();
     this.submitRow.set(row);
+    this.submitApproval.set(false);
     this.submitOpen.set(true);
-    // Button label mirrors the dialog: approval chain vs direct post.
+    // Button label mirrors the dialog: approval chain vs direct post
+    // (receipts never route through approval - no lookup needed).
+    if (!this.cfg().hasApproval) return;
     this.service.accountMeta(row.debtor.id).subscribe({
       next: (m) => this.submitApproval.set(this.cfg().approvalOf(m)),
       error: () => this.submitApproval.set(false),

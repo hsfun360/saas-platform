@@ -69,6 +69,15 @@ Key rules a maintainer must not break:
 - **Raise Credit Note** kebab on POSTED invoice rows (posted invoices are never voided): opens the CN dialog with the debtor preset and the source invoice pre-selected as the target; gated on the CN menu's create grant (`can('create','/ar/credit-notes')`), not the invoice screen's.
 - Voids: CN DRAFTS void like invoice drafts (reason, audit); a POSTED unallocated CN keeps the account-door reversal void (deposit-conversion CN void/restore relies on it). DN keeps immediate posting until its slice.
 
+## Official Receipt slice (2026-08-21 - third transaction screen)
+
+- `/ar/receipts` menu/screen (same `ar-transactions` component; its OWN entry dialog `shared/ar-receipt-dialog` - receipts have payment fields, not billing fields). Save -> `ar.Receipt` draft (status 'draft', gapless `ar-receipt` number at save, editable, draft-only void WITH reason) -> **Submit posts DIRECTLY** - collections carry NO approval chain (user rule 2026-08-20; the Refund slice will). Both doors unified: the Debtor Account door (`POST /debtors/:id/receipts`) also creates drafts through the shared dialog now.
+- **Payment method = a Receipt-class Transaction Type** (new `Receipt.transactionTypeId`; `paymentMethod` keeps the type CODE as display snapshot; legacy rows keep their free text). The catalog's receipt class is finally consumed.
+- **Deposit-collection intent on the draft** (new `Receipt.collectDepositId`, like the CN's apply-target): resolved at posting - pays the billed deposit in first, then the remainder **always FIFO-allocates** across open items (receipt behaviour; the old autoAllocate opt-out was dropped - excess beyond open items stays as available credit per the 2026-08-04 design). New columns also: postedAt/postedBy/voidedAt/voidedBy/voidReason.
+- Account meta ships `openDeposits` (billed, not fully collected) for the dialog's Collect-deposit picker; the deposit row's "Collect" button pre-selects it (`presetDepositId`).
+- Listing (`GET /receipts`) is shaped like the ledger listings (grossAmount=amount, settledAmount=allocated -> the Balance column shows the unallocated credit); no Pending-Approval status.
+- Draft exclusions wired: statements pull receipts with status 'open' only, reconciliation skips drafts, refund FIFO funding already filtered 'open'.
+
 ## Invoice lifecycle (defined 2026-08-13 - Save / Submit / approval)
 
 - User-defined lifecycle for MANUAL invoices: **Save -> `draft`** (screen label "Open": editable by the creator or a superior per data scope, voidable with audit, NOT financial - no balance effect, excluded from statements/aging/interest/allocation/reconciliation) -> **Submit -> posted**, either directly or through the **`ar-invoice` approval chain** (`pending-approval` while in flight; approved posts automatically, rejected/recalled returns to `draft`).

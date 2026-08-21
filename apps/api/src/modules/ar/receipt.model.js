@@ -50,10 +50,18 @@ const Receipt = sequelize.define('Receipt', {
         type: DataTypes.DATEONLY,
         allowNull: false,
     },
-    // Free vocabulary for now (cash/card/bank...); a payment module refines later.
+    // The Receipt-class Transaction Type this payment was collected under
+    // (the AR catalog's payment-method vocabulary, 2026-08-20). Null on
+    // legacy/system rows; paymentMethod snapshots the type CODE for display.
+    transactionTypeId: { type: DataTypes.UUID, allowNull: true },
+    // Payment-method display snapshot (the type code; free text on legacy rows).
     paymentMethod: { type: DataTypes.STRING, allowNull: true },
     // Cheque no / bank reference / terminal slip.
     paymentRef: { type: DataTypes.STRING, allowNull: true },
+    // Receipt DRAFTS only (receipt lifecycle 2026-08-20): the deposit this
+    // collection should pay in, captured at entry and resolved at POSTING
+    // (a deposit closed in between -> the amount FIFO-allocates instead).
+    collectDepositId: { type: DataTypes.UUID, allowNull: true },
     description: { type: DataTypes.STRING, allowNull: true },
     amount: {
         type: DataTypes.DECIMAL(21, 2),
@@ -66,12 +74,25 @@ const Receipt = sequelize.define('Receipt', {
     },
     sourceModule: { type: DataTypes.STRING(20), allowNull: true },
     sourceRef: { type: DataTypes.STRING(100), allowNull: true },
-    // 'open' | 'void'.
+    // 'draft' | 'open' | 'void' (receipt lifecycle 2026-08-20): 'draft' =
+    // saved manual receipt, editable, NOT financial (no balance effect, no
+    // allocation, excluded from statements/refund funding); Submit posts it
+    // to 'open' DIRECTLY - receipts carry no approval chain (user rule:
+    // collections need no workflow; refunds will). Refund rows stay
+    // 'open' | 'void' only.
     status: {
         type: DataTypes.STRING(20),
         allowNull: false,
         defaultValue: 'open',
     },
+    // Posting audit (null on system/legacy rows that never were drafts).
+    postedAt: { type: DataTypes.DATE, allowNull: true },
+    postedBy: { type: DataTypes.UUID, allowNull: true },
+    // Void audit (drafts void with a reason - the gapless-series trail;
+    // posted receipts keep the allocation-free flip).
+    voidedAt: { type: DataTypes.DATE, allowNull: true },
+    voidedBy: { type: DataTypes.UUID, allowNull: true },
+    voidReason: { type: DataTypes.STRING, allowNull: true },
     // Ownership stamps.
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

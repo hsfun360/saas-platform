@@ -187,6 +187,13 @@ exports.getAccountMeta = async (req, res) => {
             order: [['docDate', 'ASC'], ['createdAt', 'ASC']],
             attributes: ['id', 'docKind', 'docNo', 'grossAmount', 'settledAmount'],
         });
+        // The debtor's collectable DEPOSITS - the Receipt entry's optional
+        // "Collect deposit" choices (billed amount not yet fully paid in).
+        const openDeposits = (await Deposit.findAll({
+            where: { debtorId: debtor.id, status: 'open' },
+            order: [['docDate', 'ASC'], ['createdAt', 'ASC']],
+            attributes: ['id', 'docNo', 'amount', 'collectedAmount'],
+        })).filter((d) => Number(d.amount) > Number(d.collectedAmount));
         res.status(200).json({
             // The AR-OWNED catalog (2026-08-15) with trxClass, so each entry
             // dialog offers only its own document book's types.
@@ -197,6 +204,9 @@ exports.getAccountMeta = async (req, res) => {
             openDebits: openDebits.map((d) => ({
                 id: d.id, docKind: d.docKind, docNo: d.docNo,
                 grossAmount: d.grossAmount, settledAmount: d.settledAmount,
+            })),
+            openDeposits: openDeposits.map((d) => ({
+                id: d.id, docNo: d.docNo, amount: d.amount, collectedAmount: d.collectedAmount,
             })),
         });
     } catch (err) {
@@ -668,6 +678,249 @@ async function voidDraftRow(req, res, row, lk) {
 }
 
 // ---------------------------------------------------------------------------
+// Official Receipt lifecycle (2026-08-20): Save -> 'draft' ("Open", editable,
+// NOT financial) -> Submit -> posted DIRECTLY (user rule: collections carry
+// no approval chain - the Refund slice will). Payment method = a Receipt-class
+// Transaction Type from the AR catalog (replaces the free-text vocabulary);
+// the deposit-collection choice is stored on the draft and resolved at
+// posting, after which the remainder FIFO-allocates (receipt behaviour).
+
+async function readReceiptDraftFields(req, companyId, debtor) {
+    const dates = parseDates(req.body);
+    if (dates.error) return { error: dates.error };
+    const amountC = parseAmount(req.body.amount);
+    if (!amountC) return { error: 'Amount must be greater than zero.' };
+
+    const ArTransactionType = require('./transactionType.model');
+    const txnType = await ArTransactionType.findOne({ where: { companyId, id: str(req.body.transactionTypeId) || null } });
+    if (!txnType || !txnType.isActive) return { error: 'Select a payment method.' };
+    if (txnType.trxClass !== 'receipt') return { error: 'This transaction type is not a Receipt-class payment method.' };
+
+    const collectDepositId = strOrNull(req.body.collectDepositId);
+    if (collectDepositId) {
+        const dep = await Deposit.findOne({
+            where: { id: collectDepositId, debtorId: debtor.id, status: 'open' },
+            attributes: ['id'],
+        });
+        if (!dep) return { error: 'The deposit is not open on this debtor.' };
+    }
+    return { dates, txnType, amountC, collectDepositId };
+}
+
+async function readReceiptDocNo(req, companyId, { ignoreId = null } = {}) {
+    const manualNo = strOrNull(req.body.docNo);
+    const mode = await numberingGateway.getMode(req, 'ar-receipt');
+    if (mode === 'manual' && !manualNo) return { error: 'Receipt number is required (numbering is manual).' };
+    if (mode !== 'auto' && manualNo) {
+        const clash = await Receipt.findOne({
+            where: { companyId, docKind: 'receipt', docNo: manualNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
+            attributes: ['id'],
+        });
+        if (clash) return { error: `Receipt number '${manualNo}' is already in use.` };
+    }
+    return { mode, manualNo };
+}
+
+// Create the draft row (both doors: the Receipt screen with debtorId in the
+// body, the Debtor Account door via postReceipt below). Gapless rule: the
+// number issues INSIDE this transaction.
+async function createReceiptDraft(req, res, companyId, debtor) {
+    const fields = await readReceiptDraftFields(req, companyId, debtor);
+    if (fields.error) return res.status(400).json({ message: fields.error });
+    const no = await readReceiptDocNo(req, companyId);
+    if (no.error) return res.status(no.error.includes('already in use') ? 409 : 400).json({ message: no.error });
+
+    const placement = await getCallerPlacement(req);
+    const stamps = ownershipStamps(req, placement);
+    const issue = docNoIssuer(req, 'ar-receipt', no.manualNo);
+    const row = await sequelize.transaction(async (t) => Receipt.create({
+        companyId,
+        debtorId: debtor.id,
+        docKind: 'receipt',
+        mode: 'credit',
+        docNo: await issue(t),
+        docDate: fields.dates.docDate,
+        trxDate: fields.dates.trxDate,
+        transactionTypeId: fields.txnType.id,
+        paymentMethod: fields.txnType.transactionType, // display snapshot of the code
+        paymentRef: strOrNull(req.body.paymentRef),
+        description: strOrNull(req.body.description),
+        collectDepositId: fields.collectDepositId,
+        amount: posting.money(fields.amountC),
+        allocatedAmount: 0,
+        sourceModule: 'ar',
+        sourceRef: 'manual',
+        status: 'draft',
+        ...stamps,
+    }, { transaction: t }));
+    res.status(201).json({ message: `Official Receipt ${row.docNo} saved as Open.`, id: row.id, docNo: row.docNo });
+}
+
+// POST /api/ar/receipts - the standalone Receipt screen's door.
+exports.createReceipt = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const debtor = await Debtor.findOne({ where: { id: str(req.body.debtorId), companyId } });
+        if (!debtor) return res.status(404).json({ message: 'Debtor not found.' });
+        return await createReceiptDraft(req, res, companyId, debtor);
+    } catch (err) {
+        console.error('Error saving receipt draft:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// Load a receipt row + its debtor, enforcing the caller's data scope.
+async function loadOwnedReceipt(req, res) {
+    const { companyId } = getUserContext(req);
+    if (!companyId) { res.status(400).json({ message: 'Select a workspace first.' }); return null; }
+    const row = await Receipt.findOne({ where: { id: req.params.id, companyId, docKind: 'receipt' } });
+    if (!row) { res.status(404).json({ message: 'Receipt not found.' }); return null; }
+    const { canModifyRecord } = require('../../platform/serviceContext');
+    if (!(await canModifyRecord(req, row))) {
+        res.status(403).json({ message: 'This receipt belongs to another user (outside your data scope).' });
+        return null;
+    }
+    const debtor = await Debtor.findOne({ where: { id: row.debtorId, companyId } });
+    if (!debtor) { res.status(404).json({ message: 'Debtor not found.' }); return null; }
+    return { companyId, row, debtor };
+}
+
+// PATCH /api/ar/receipts/:id - edit a draft (drafts only; posted is immutable).
+exports.updateReceiptDraft = async (req, res) => {
+    try {
+        const loaded = await loadOwnedReceipt(req, res);
+        if (!loaded) return;
+        const { companyId, row, debtor } = loaded;
+        if (row.status !== 'draft') {
+            return res.status(400).json({ message: `Only an Open (draft) receipt can be edited (this one is ${row.status}).` });
+        }
+        const fields = await readReceiptDraftFields(req, companyId, debtor);
+        if (fields.error) return res.status(400).json({ message: fields.error });
+        const no = await readReceiptDocNo(req, companyId, { ignoreId: row.id });
+        if (no.error) return res.status(no.error.includes('already in use') ? 409 : 400).json({ message: no.error });
+
+        Object.assign(row, {
+            docNo: no.mode === 'auto' ? row.docNo : (no.manualNo || row.docNo),
+            docDate: fields.dates.docDate,
+            trxDate: fields.dates.trxDate,
+            transactionTypeId: fields.txnType.id,
+            paymentMethod: fields.txnType.transactionType,
+            paymentRef: strOrNull(req.body.paymentRef),
+            description: strOrNull(req.body.description),
+            collectDepositId: fields.collectDepositId,
+            amount: posting.money(fields.amountC),
+            updatedBy: getUserContext(req).userId,
+        });
+        await row.save();
+        res.status(200).json({ message: 'Receipt draft updated.', id: row.id, docNo: row.docNo });
+    } catch (err) {
+        console.error('Error updating receipt draft:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/ar/receipts/:id/submit - post the draft directly (no workflow:
+// user rule 2026-08-20, collections carry no approval chain).
+exports.submitReceipt = async (req, res) => {
+    try {
+        const loaded = await loadOwnedReceipt(req, res);
+        if (!loaded) return;
+        const { companyId, row, debtor } = loaded;
+        if (row.status !== 'draft') {
+            return res.status(400).json({ message: `Only an Open (draft) receipt can be submitted (this one is ${row.status}).` });
+        }
+        const mode = await numberingGateway.getMode(req, 'ar-receipt');
+        if (mode === 'manual' && !row.docNo) {
+            return res.status(400).json({ message: 'Receipt number is required before submitting (numbering is manual).' });
+        }
+        const placement = await getCallerPlacement(req);
+        const stamps = ownershipStamps(req, placement);
+        try {
+            await sequelize.transaction(async (t) => posting.postDraftReceipt({
+                companyId, debtor, row,
+                issueDocNo: docNoIssuer(req, 'ar-receipt', row.docNo),
+                stamps, t,
+            }));
+        } catch (e) {
+            if (e && e.httpStatus) return res.status(e.httpStatus).json({ message: e.message });
+            throw e;
+        }
+        res.status(200).json({ message: `Official Receipt ${row.docNo} posted.`, id: row.id, docNo: row.docNo, status: row.status });
+    } catch (err) {
+        console.error('Error submitting receipt:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// GET /api/ar/receipts - cross-debtor Official Receipt listing, shaped like
+// the ledger listings so the one transaction screen renders it (grossAmount =
+// amount, settledAmount = allocated; Balance column = unallocated credit).
+exports.listReceipts = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+
+        const where = { companyId, docKind: 'receipt' };
+        const month = str(req.query.month);
+        if (/^\d{4}-\d{2}$/.test(month)) {
+            const [y, m] = month.split('-').map(Number);
+            const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+            where.docDate = { [Op.gte]: `${month}-01`, [Op.lte]: `${month}-${String(last).padStart(2, '0')}` };
+        }
+        const status = str(req.query.status);
+        if (status === 'posted') where.status = 'open';
+        else if (['draft', 'open', 'void'].includes(status)) where.status = status;
+        const q = str(req.query.q);
+        if (q) {
+            where[Op.or] = [
+                { docNo: { [Op.iLike]: `%${q}%` } },
+                { description: { [Op.iLike]: `%${q}%` } },
+                { paymentRef: { [Op.iLike]: `%${q}%` } },
+            ];
+        }
+        const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+
+        const { rows, count } = await Receipt.findAndCountAll({
+            where,
+            order: [['docDate', 'DESC'], ['createdAt', 'DESC']],
+            limit: LIST_LIMIT,
+            offset,
+        });
+        const debtorIds = [...new Set(rows.map((r) => r.debtorId))];
+        const debtors = debtorIds.length
+            ? await Debtor.findAll({ where: { id: { [Op.in]: debtorIds }, companyId } })
+            : [];
+        const displayByDebtor = await debtorDisplayMap(companyId, debtors);
+        const { annotateCanModify } = require('../../platform/serviceContext');
+        const canModify = await annotateCanModify(req, rows);
+
+        res.status(200).json({
+            total: count,
+            limit: LIST_LIMIT,
+            offset,
+            documents: rows.map((r, i) => ({
+                id: r.id, docKind: r.docKind, mode: r.mode, docNo: r.docNo,
+                docDate: r.docDate, trxDate: r.trxDate, dueDate: null,
+                description: r.description, sourceModule: r.sourceModule || 'ar',
+                netAmount: r.amount, taxAmount: '0.00', grossAmount: r.amount,
+                settledAmount: r.allocatedAmount, status: r.status,
+                voidReason: r.voidReason,
+                // Draft edit prefill.
+                transactionTypeId: r.transactionTypeId,
+                paymentMethod: r.paymentMethod, paymentRef: r.paymentRef,
+                collectDepositId: r.collectDepositId,
+                canModify: canModify[i],
+                debtor: displayByDebtor.get(r.debtorId) || { id: r.debtorId, debtorType: null, no: null, name: null },
+            })),
+        });
+    } catch (err) {
+        console.error('Error listing receipts:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// ---------------------------------------------------------------------------
 // POST /api/ar/debtors/:id/ledger - manual Invoice / Debit Note / Credit Note.
 exports.postLedger = async (req, res) => {
     try {
@@ -760,56 +1013,16 @@ exports.postLedger = async (req, res) => {
     }
 };
 
-// POST /api/ar/debtors/:id/receipts - Official Receipt (optionally collecting
-// a deposit first; the remainder FIFO-allocates unless autoAllocate=false).
+// POST /api/ar/debtors/:id/receipts - the Debtor Account door. Since the
+// receipt lifecycle (2026-08-20) BOTH doors create drafts through the shared
+// dialog; Submit posts (deposit-collection intent + FIFO resolve then).
 exports.postReceipt = async (req, res) => {
     try {
         const { error, companyId, debtor } = await loadDebtor(req);
         if (error) return res.status(error.status).json({ message: error.message });
-        const dates = parseDates(req.body);
-        if (dates.error) return res.status(400).json({ message: dates.error });
-        const amountC = parseAmount(req.body.amount);
-        if (!amountC) return res.status(400).json({ message: 'Amount must be greater than zero.' });
-
-        let depositRow = null;
-        const depositId = strOrNull(req.body.depositId);
-        if (depositId) {
-            depositRow = await Deposit.findOne({ where: { id: depositId, debtorId: debtor.id, status: 'open' } });
-            if (!depositRow) return res.status(400).json({ message: 'Deposit not found (or not open) on this debtor.' });
-        }
-
-        const manualNo = strOrNull(req.body.docNo);
-        const mode = await numberingGateway.getMode(req, 'ar-receipt');
-        if (mode !== 'auto' && manualNo && await receiptNoInUse(companyId, 'receipt', manualNo)) {
-            return res.status(409).json({ message: `Receipt number '${manualNo}' is already in use.` });
-        }
-        if (mode === 'manual' && !manualNo) {
-            return res.status(400).json({ message: 'Receipt number is required (numbering is manual).' });
-        }
-
-        const placement = await getCallerPlacement(req);
-        const stamps = ownershipStamps(req, placement);
-
-        let row;
-        try {
-            row = await sequelize.transaction(async (t) => posting.postReceipt({
-                companyId, debtor,
-                issueDocNo: docNoIssuer(req, 'ar-receipt', manualNo),
-                docDate: dates.docDate, trxDate: dates.trxDate,
-                paymentMethod: strOrNull(req.body.paymentMethod),
-                paymentRef: strOrNull(req.body.paymentRef),
-                description: strOrNull(req.body.description),
-                amountC, depositRow,
-                autoAllocate: req.body.autoAllocate !== false,
-                stamps, t,
-            }));
-        } catch (e) {
-            if (e && e.httpStatus) return res.status(e.httpStatus).json({ message: e.message });
-            throw e;
-        }
-        res.status(201).json({ message: `Official Receipt ${row.docNo} posted.`, id: row.id, docNo: row.docNo });
+        return await createReceiptDraft(req, res, companyId, debtor);
     } catch (err) {
-        console.error('Error posting receipt:', err);
+        console.error('Error saving receipt draft:', err);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -1003,6 +1216,26 @@ exports.voidReceipt = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await Receipt.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Receipt not found.' });
+
+        // Receipt DRAFTS void like ledger drafts (never financial): a REASON
+        // is kept for audit - the gapless-series trail (receipt lifecycle
+        // 2026-08-20). Posted receipts keep the allocation-free flip below.
+        if (row.docKind === 'receipt' && row.status === 'draft') {
+            const { canModifyRecord } = require('../../platform/serviceContext');
+            if (!(await canModifyRecord(req, row))) {
+                return res.status(403).json({ message: 'This receipt belongs to another user (outside your data scope).' });
+            }
+            const reason = str(req.body.reason);
+            if (!reason) return res.status(400).json({ message: 'A void reason is required (kept for audit).' });
+            row.status = 'void';
+            row.voidedAt = new Date();
+            row.voidedBy = getUserContext(req).userId;
+            row.voidReason = reason.slice(0, 255);
+            row.updatedBy = row.voidedBy;
+            await row.save();
+            return res.status(200).json({ message: `Official Receipt ${row.docNo} voided.` });
+        }
+        if (row.status === 'void') return res.status(400).json({ message: 'This receipt is already void.' });
 
         const placement = await getCallerPlacement(req);
         const stamps = ownershipStamps(req, placement);

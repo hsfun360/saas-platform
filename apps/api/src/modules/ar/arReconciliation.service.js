@@ -104,6 +104,9 @@ async function reconcileCompany(companyId, { fix = false } = {}) {
     }
 
     for (const row of receipts) {
+        // Draft receipts (lifecycle 2026-08-20) are not financial: no counters,
+        // never in outstanding - same as ledger drafts above.
+        if (row.status === 'draft') continue;
         if (row.status !== 'void' && row.docKind === 'receipt') {
             bump(expOutstanding, row.debtorId, -(cents(row.amount) - cents(row.allocatedAmount)));
         }

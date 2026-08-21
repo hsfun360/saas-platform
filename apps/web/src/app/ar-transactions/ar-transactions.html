@@ -42,7 +42,7 @@
     <select [value]="status()" #st (change)="setStatus(st.value)" aria-label="Status filter">
       <option value="">All statuses</option>
       <option value="draft">Open</option>
-      <option value="pending-approval">Pending Approval</option>
+      @if (cfg().hasApproval) { <option value="pending-approval">Pending Approval</option> }
       <option value="posted">Posted</option>
       <option value="void">Void</option>
     </select>
@@ -140,10 +140,17 @@
 
   <!-- ============ Entry / edit dialog (shared; new starts at the debtor picker) ============ -->
   @if (entryOpen()) {
-    <app-ar-ledger-dialog [kind]="cfg().kind" [editRow]="editRow()"
-                          (closed)="onEntryClosed()"
-                          (posted)="onPosted($event)"
-                          (failed)="errorMessage.set($event)" />
+    @if (cfg().dialog === 'receipt') {
+      <app-ar-receipt-dialog [editRow]="editRow()"
+                             (closed)="onEntryClosed()"
+                             (posted)="onPosted($event)"
+                             (failed)="errorMessage.set($event)" />
+    } @else {
+      <app-ar-ledger-dialog [kind]="ledgerKind()" [editRow]="editRow()"
+                            (closed)="onEntryClosed()"
+                            (posted)="onPosted($event)"
+                            (failed)="errorMessage.set($event)" />
+    }
   }
 
   <!-- ============ Raise Credit Note (from a posted invoice row): debtor

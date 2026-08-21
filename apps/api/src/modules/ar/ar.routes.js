@@ -19,7 +19,7 @@ const periodicController = require('./arPeriodic.controller');
 
 // Menus whose screens open the shared entry dialogs (debtor picker + entry
 // meta). Extend as each per-document transaction slice lands.
-const AR_TXN_MENUS = ['/ar/invoices', '/ar/credit-notes'];
+const AR_TXN_MENUS = ['/ar/invoices', '/ar/credit-notes', '/ar/receipts'];
 const AR_TXN_META_MENUS = ['/ar/debtors', ...AR_TXN_MENUS];
 
 // Liveness probe - unauthenticated, so the gateway/monitoring can check the seam.
@@ -54,7 +54,7 @@ router.post('/debtors/:id/refunds', requireMenuAction('/ar/debtors'), documentCo
 router.post('/debtors/:id/deposits', requireMenuAction('/ar/debtors'), documentController.postDeposit);
 router.post('/deposits/:id/convert', requireMenuAction('/ar/debtors'), documentController.convertDeposit);
 router.patch('/ledger/:id/void', requireMenuAction('/ar/debtors'), documentController.voidLedger);
-router.patch('/receipts/:id/void', requireMenuAction('/ar/debtors'), documentController.voidReceipt);
+router.patch('/receipts/:id/void', requireAnyMenuAction(['/ar/debtors', '/ar/receipts']), documentController.voidReceipt);
 router.patch('/deposits/:id/void', requireMenuAction('/ar/debtors'), documentController.voidDeposit);
 
 // --- AR Transaction screens (one menu per document type - hybrid design
@@ -80,6 +80,14 @@ router.post('/credit-notes', requireMenuAction('/ar/credit-notes'), documentCont
 router.patch('/credit-notes/:id', requireMenuAction('/ar/credit-notes'), documentController.updateCreditNoteDraft);
 router.post('/credit-notes/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.submitCreditNote);
 router.patch('/credit-notes/:id/void', requireMenuAction('/ar/credit-notes'), documentController.voidCreditNote);
+// Official Receipt (menu '/ar/receipts'): Save->Submit lifecycle, but Submit
+// posts DIRECTLY - collections carry no approval chain (user rule
+// 2026-08-20). Payment methods = Receipt-class catalog entries; the void
+// route below (account door) covers drafts (reason) and posted flips alike.
+router.get('/receipts', requireMenuAction('/ar/receipts'), documentController.listReceipts);
+router.post('/receipts', requireMenuAction('/ar/receipts'), documentController.createReceipt);
+router.patch('/receipts/:id', requireMenuAction('/ar/receipts'), documentController.updateReceiptDraft);
+router.post('/receipts/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.submitReceipt);
 
 // --- Transaction Type master (AR-owned catalog since 2026-08-15; its own
 // screen/menu '/ar/transaction-types'). Membership reads it READ-ONLY through

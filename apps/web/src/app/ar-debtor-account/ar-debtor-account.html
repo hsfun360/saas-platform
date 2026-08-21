@@ -154,9 +154,9 @@
                     }
                     <span class="status-chip"
                           [class.status-chip--on]="doc.status === 'open'"
-                          [class.status-chip--off]="doc.status !== 'open'">{{ doc.status }}</span>
+                          [class.status-chip--off]="doc.status !== 'open'">{{ receiptStatusLabel(doc) }}</span>
                   </div>
-                  @if (doc.docKind === 'receipt' && doc.status === 'open' && doc.allocatedAmount === '0.00') {
+                  @if (doc.docKind === 'receipt' && (doc.status === 'draft' || (doc.status === 'open' && doc.allocatedAmount === '0.00'))) {
                     <div class="ara-doc__actions">
                       <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="askVoidReceipt(doc)">Void</button>
                     </div>
@@ -234,85 +234,15 @@
                           (failed)="errorMessage.set($event)" />
   }
 
-  <!-- ============ Official Receipt dialog ============ -->
+  <!-- ============ Official Receipt dialog (SHARED - receipt lifecycle
+       2026-08-20: Save = Open draft, Submit posts directly; payment methods
+       come from the Receipt-class catalog). ============ -->
   @if (receiptOpen()) {
-    <app-dialog #receiptDlg variant="drawer" [title]="'New Official Receipt'" [busy]="receiptSaving()" [dirty]="receiptForm.dirty"
-                discardTitle="Discard this receipt?"
-                discardMessage="You have started entering a receipt. Leaving now will discard it."
-                (close)="closeReceipt()">
-      <form id="receiptForm" [formGroup]="receiptForm" (ngSubmit)="onSaveReceipt()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-          <div class="form-group">
-            <label for="rcNo">Receipt no. @if (numberingMode('ar-receipt') === 'manual') { <span class="required">*</span> }</label>
-            @if (numberingMode('ar-receipt') === 'auto') {
-              <input id="rcNo" type="text" value="Issued automatically" disabled />
-            } @else {
-              <input id="rcNo" type="text" formControlName="docNo" autocomplete="off" maxlength="30"
-                     [placeholder]="numberingMode('ar-receipt') === 'manual' ? 'Required' : 'Auto if left blank'" />
-            }
-          </div>
-          <div class="form-group">
-            <label for="rcAmount">Amount <span class="required">*</span></label>
-            <input id="rcAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount"
-                   [attr.aria-invalid]="showError(receiptForm.controls.amount)" aria-describedby="rcAmountErr" />
-            @if (showError(receiptForm.controls.amount)) {
-              <p id="rcAmountErr" class="field-error" role="alert">Enter an amount greater than zero.</p>
-            }
-          </div>
-        </div>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-          <div class="form-group">
-            <label for="rcDocDate">Document date <span class="required">*</span></label>
-            <input id="rcDocDate" type="date" formControlName="docDate" />
-          </div>
-          <div class="form-group">
-            <label for="rcTrxDate">Transaction date (period) <span class="required">*</span></label>
-            <input id="rcTrxDate" type="date" formControlName="trxDate" />
-          </div>
-        </div>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-          <div class="form-group">
-            <label for="rcMethod">Payment method</label>
-            <input id="rcMethod" type="text" formControlName="paymentMethod" autocomplete="off" placeholder="cash / card / bank" />
-          </div>
-          <div class="form-group">
-            <label for="rcRef">Payment reference</label>
-            <input id="rcRef" type="text" formControlName="paymentRef" autocomplete="off" placeholder="Cheque / bank ref" />
-          </div>
-        </div>
-        @if (openDeposits().length > 0) {
-          <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
-            <div class="form-group">
-              <label for="rcDeposit">Collect deposit</label>
-              <select id="rcDeposit" formControlName="depositId">
-                <option value="">— No deposit collection —</option>
-                @for (d of openDeposits(); track d.id) {
-                  <option [value]="d.id">{{ d.docNo }} — required {{ d.amount }}, collected {{ d.collectedAmount }}</option>
-                }
-              </select>
-              <p class="cell-subtle" style="margin: 2px 0 0;">The receipt funds the deposit first; any remainder settles open items.</p>
-            </div>
-          </div>
-        }
-        <div class="form-row">
-          <label class="ard-check">
-            <input type="checkbox" formControlName="autoAllocate" /> Auto-apply to oldest open items (FIFO)
-          </label>
-        </div>
-        <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
-          <div class="form-group">
-            <label for="rcDesc">Description</label>
-            <textarea id="rcDesc" formControlName="description" rows="2" wrap="off" placeholder="Optional"></textarea>
-          </div>
-        </div>
-      </form>
-      <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="receiptDlg.requestClose()" [disabled]="receiptSaving()">Cancel</button>
-        <button type="submit" form="receiptForm" class="btn btn--primary" [disabled]="receiptSaving()">
-          {{ receiptSaving() ? 'Posting…' : 'Post' }}
-        </button>
-      </ng-container>
-    </app-dialog>
+    <app-ar-receipt-dialog [debtor]="ledgerDebtor()" [meta]="meta()"
+                           [presetDepositId]="receiptDepositId()"
+                           (closed)="receiptOpen.set(false)"
+                           (posted)="onReceiptPosted($event)"
+                           (failed)="errorMessage.set($event)" />
   }
 
   <!-- ============ Refund dialog ============ -->

@@ -352,6 +352,49 @@ async function postReceipt({
     return row;
 }
 
+// Post an EXISTING draft Receipt row (receipt lifecycle 2026-08-20): same
+// effects as postReceipt but the row was created earlier as a non-financial
+// draft. Issues the gapless number if missing, flips to 'open' with the
+// posting audit, reduces pool outstanding, then resolves the stored deposit-
+// collection intent (deposit closed since entry -> skipped) and FIFO-
+// allocates the remainder (receipt behaviour - payments spread oldest-first).
+async function postDraftReceipt({ companyId, debtor, row, issueDocNo, stamps = {}, t }) {
+    if (row.status !== 'draft') {
+        throw bizError(400, `Only a draft can be posted (this receipt is ${row.status}).`);
+    }
+    const amountC = cents(row.amount);
+    if (amountC <= 0) throw bizError(400, 'Amount must be greater than zero.');
+
+    const pool = await lockPool(companyId, debtor.id, t);
+
+    if (!row.docNo) row.docNo = await issueDocNo(t);
+    row.status = 'open';
+    row.postedAt = new Date();
+    if (stamps.updatedBy) {
+        row.postedBy = stamps.updatedBy;
+        row.updatedBy = stamps.updatedBy;
+    }
+    await row.save({ transaction: t });
+    await bumpOutstanding(pool, -amountC, t);
+
+    if (row.collectDepositId) {
+        const Deposit = require('./deposit.model');
+        const depositRow = await Deposit.findOne({
+            where: { id: row.collectDepositId, debtorId: debtor.id, status: 'open' },
+            transaction: t,
+            lock: t.LOCK.UPDATE,
+        });
+        if (depositRow) {
+            const take = Math.min(amountC, debitCapacity('deposit', depositRow));
+            if (take > 0) {
+                await applyAllocation({ companyId, creditType: 'receipt', creditRow: row, debitType: 'deposit', debitRow: depositRow, amountCents: take, stamps, pool, t });
+            }
+        }
+    }
+    await fifoAllocateCredit({ companyId, pool, creditType: 'receipt', creditRow: row, stamps, t });
+    return row;
+}
+
 // Post a Refund (money out). A refund must be FULLY funded at posting: from a
 // deposit's held balance, or from unallocated receipt credit (oldest first).
 async function postRefund({
@@ -545,6 +588,7 @@ module.exports = {
     postLedgerDoc,
     postDraftLedger,
     postReceipt,
+    postDraftReceipt,
     postRefund,
     convertDeposit,
     voidLedgerDoc,

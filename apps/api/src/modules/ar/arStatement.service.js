@@ -582,7 +582,9 @@ async function generateOne({
             },
         }),
         Receipt.findAll({
-            where: { companyId, debtorId: debtor.id, status: { [Op.ne]: 'void' }, docDate: { [Op.lte]: periodEnd } },
+            // 'open' only: excludes void AND draft receipts (drafts are not
+            // financial - receipt lifecycle 2026-08-20).
+            where: { companyId, debtorId: debtor.id, status: 'open', docDate: { [Op.lte]: periodEnd } },
         }),
         Deposit.findAll({
             where: { companyId, debtorId: debtor.id, status: { [Op.ne]: 'void' }, docDate: { [Op.lte]: periodEnd } },

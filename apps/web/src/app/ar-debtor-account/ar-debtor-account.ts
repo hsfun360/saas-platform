@@ -8,6 +8,7 @@ import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import { ArLedgerDialogComponent, ArLedgerDialogDebtor } from '../shared/ar-ledger-dialog/ar-ledger-dialog';
+import { ArReceiptDialogComponent } from '../shared/ar-receipt-dialog/ar-receipt-dialog';
 import { ArService } from '../services/ar.service';
 import { ArAccount, ArAccountMeta, ArDepositDoc, ArLedgerDoc, ArReceiptDoc } from '../models/ar.models';
 
@@ -25,7 +26,7 @@ import { ArAccount, ArAccountMeta, ArDepositDoc, ArLedgerDoc, ArReceiptDoc } fro
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, RouterLink, DialogComponent, CanDirective,
-    LocalDatePipe, MoneyInputDirective, ArLedgerDialogComponent,
+    LocalDatePipe, MoneyInputDirective, ArLedgerDialogComponent, ArReceiptDialogComponent,
   ],
   templateUrl: './ar-debtor-account.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-debtor-account.css'],
@@ -62,20 +63,10 @@ export class ArDebtorAccountComponent {
     return a ? { id: a.debtor.id, no: a.debtor.no, name: a.debtor.name } : null;
   });
 
-  // --- Official Receipt dialog ---
+  // --- Official Receipt dialog (shared component; the deposit "Collect"
+  // button pre-selects that deposit for collection) ---
   readonly receiptOpen = signal(false);
-  readonly receiptSaving = signal(false);
-  readonly receiptForm = this.fb.nonNullable.group({
-    docNo: [''],
-    docDate: ['', [Validators.required]],
-    trxDate: ['', [Validators.required]],
-    amount: [0, [Validators.required, Validators.min(0.01)]],
-    paymentMethod: [''],
-    paymentRef: [''],
-    description: [''],
-    depositId: [''],
-    autoAllocate: [true],
-  });
+  readonly receiptDepositId = signal<string | null>(null);
 
   // --- Refund dialog ---
   readonly refundOpen = signal(false);
@@ -173,6 +164,10 @@ export class ArDebtorAccountComponent {
   ledgerDocRef(doc: ArLedgerDoc): string {
     return doc.docNo || 'Draft';
   }
+  // Receipt lifecycle display (2026-08-20): draft="Open", open="Posted".
+  receiptStatusLabel(doc: ArReceiptDoc): string {
+    return doc.status === 'draft' ? 'Open' : doc.status === 'open' ? 'Posted' : doc.status;
+  }
   // Invoices: draft-only void (posted = Credit Note territory). CN drafts
   // void like invoice drafts (lifecycle 2026-08-20); a POSTED unallocated CN
   // keeps the reversal void (deposit-conversion CNs rely on it). DN keeps
@@ -219,36 +214,17 @@ export class ArDebtorAccountComponent {
     this.load();
   }
 
-  // --- Official Receipt ---
+  // --- Official Receipt (the SHARED dialog since the receipt lifecycle
+  // 2026-08-20 - Save = Open draft, Submit posts directly) ---
   openReceipt(depositId = ''): void {
     this.clearMessages();
-    const t = this.today();
-    this.receiptForm.reset({
-      docNo: '', docDate: t, trxDate: t, amount: 0, paymentMethod: '', paymentRef: '',
-      description: '', depositId, autoAllocate: true,
-    });
+    this.receiptDepositId.set(depositId || null);
     this.receiptOpen.set(true);
   }
-  closeReceipt(): void { this.receiptOpen.set(false); }
-  onSaveReceipt(): void {
-    this.clearMessages();
-    if (this.receiptForm.invalid) { this.receiptForm.markAllAsTouched(); return; }
-    const f = this.receiptForm.getRawValue();
-    this.receiptSaving.set(true);
-    this.service.postReceipt(this.debtorId, {
-      docNo: f.docNo.trim() || null,
-      docDate: f.docDate,
-      trxDate: f.trxDate,
-      amount: f.amount,
-      paymentMethod: f.paymentMethod.trim() || null,
-      paymentRef: f.paymentRef.trim() || null,
-      description: f.description.trim() || null,
-      depositId: f.depositId || null,
-      autoAllocate: f.autoAllocate,
-    }).subscribe({
-      next: (res) => { this.successMessage.set(res.message); this.receiptSaving.set(false); this.receiptOpen.set(false); this.load(); },
-      error: (err) => { this.errorMessage.set(err.error?.message || 'Failed to post the receipt.'); this.receiptSaving.set(false); },
-    });
+  onReceiptPosted(message: string): void {
+    this.successMessage.set(message);
+    this.receiptOpen.set(false);
+    this.load();
   }
 
   // --- Refund ---
@@ -352,12 +328,21 @@ export class ArDebtorAccountComponent {
     );
   }
   askVoidReceipt(doc: ArReceiptDoc): void {
-    this.openVoid(`Void Official Receipt ${doc.docNo}?`, () => this.service.voidReceipt(doc.id).subscribe({
+    // Receipt DRAFTS void with a reason (gapless-series audit, lifecycle
+    // 2026-08-20); posted unallocated receipts keep the plain flip.
+    const isDraft = doc.status === 'draft';
+    this.voidNeedsReason.set(isDraft);
+    this.openVoid(
+      isDraft
+        ? `Void Official Receipt ${doc.docNo}? The draft never posted - the number stays consumed and the record remains as Void with your reason.`
+        : `Void Official Receipt ${doc.docNo}?`,
+      () => this.service.voidReceipt(doc.id, isDraft ? this.voidReason().trim() : undefined).subscribe({
       next: (res) => this.voidDone(res.message),
       error: (err) => this.voidFailed(err),
     }));
   }
   askVoidDeposit(doc: ArDepositDoc): void {
+    this.voidNeedsReason.set(false);
     this.openVoid(`Void Deposit ${doc.docNo}?`, () => this.service.voidDeposit(doc.id).subscribe({
       next: (res) => this.voidDone(res.message),
       error: (err) => this.voidFailed(err),

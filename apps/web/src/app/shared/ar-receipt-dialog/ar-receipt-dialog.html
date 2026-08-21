@@ -1,0 +1,146 @@
+<app-dialog #dlg variant="drawer"
+            [title]="editRow() ? 'Edit Official Receipt — ' + (editRow()?.docNo || 'Draft')
+                     : mode() === 'pick' ? 'New Official Receipt — select debtor' : 'New Official Receipt'"
+            [busy]="saving() || metaLoading()"
+            [dirty]="mode() === 'entry' && form.dirty"
+            discardTitle="Discard this receipt?"
+            discardMessage="You have started entering a receipt. Leaving now will discard it."
+            (close)="closed.emit()">
+  @switch (mode()) {
+    @case ('pick') {
+      <div class="ald-pick">
+        <div class="ald-pick__search">
+          <span class="material-icons" aria-hidden="true">search</span>
+          <input type="search" [value]="pickSearch()" #pickInput (input)="onPickSearch(pickInput.value)"
+                 placeholder="Search by number, name or code…" aria-label="Search debtors" />
+        </div>
+        @if (pickLoading()) {
+          <div class="loading-state"><div class="spinner"></div><p>Searching…</p></div>
+        } @else if (pickRows().length === 0) {
+          <p class="cell-subtle">No active debtors match. Refine the search.</p>
+        } @else {
+          <div class="ald-pick__list" role="listbox" aria-label="Matching debtors">
+            @for (d of pickRows(); track d.id) {
+              <button type="button" class="ald-pick__row" (click)="pick(d)">
+                <span class="ald-pick__who">
+                  <strong>{{ d.no || '—' }}</strong>
+                  <span>{{ d.name || 'Unnamed' }}</span>
+                </span>
+                <span class="ald-pick__facts">
+                  <span class="ald-pick__type">{{ d.debtorType }}</span>
+                  <span class="cell-subtle">outstanding {{ d.outstanding }}</span>
+                </span>
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
+    @case ('entry') {
+      @if (activeDebtor(); as who) {
+        <div class="ald-debtor">
+          <span class="material-icons" aria-hidden="true">account_balance</span>
+          <span class="ald-debtor__name"><strong>{{ who.no || '—' }}</strong> {{ who.name }}</span>
+          @if (!debtor() && !editRow()) {
+            <button type="button" class="btn btn--link btn--sm" (click)="changeDebtor()">Change</button>
+          }
+        </div>
+      }
+      @if (metaLoading()) {
+        <div class="loading-state"><div class="spinner"></div><p>Loading entry options…</p></div>
+      } @else {
+        <form id="arReceiptForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-group">
+              <label for="rcNo">Receipt no.
+                @if (numberingMode() === 'manual') { <span class="required">*</span> }
+              </label>
+              @if (numberingMode() === 'auto') {
+                <!-- Gapless series: issued at save, immutable afterwards. -->
+                <input id="rcNo" type="text" [value]="editRow()?.docNo || 'Issued on save'" disabled />
+              } @else {
+                <input id="rcNo" type="text" formControlName="docNo" autocomplete="off" maxlength="30"
+                       [placeholder]="numberingMode() === 'manual' ? 'Required' : 'Auto if left blank'" />
+              }
+            </div>
+            <div class="form-group">
+              <label for="rcMethod">Payment method <span class="required">*</span></label>
+              <select id="rcMethod" formControlName="transactionTypeId"
+                      [attr.aria-invalid]="showError(form.controls.transactionTypeId)" aria-describedby="rcMethodErr">
+                <option value="" disabled>Select a payment method…</option>
+                @for (tt of methodTypes(); track tt.id) {
+                  <option [value]="tt.id">{{ tt.transactionType }}@if (tt.description) { — {{ tt.description }}}</option>
+                }
+              </select>
+              @if (showError(form.controls.transactionTypeId)) {
+                <p id="rcMethodErr" class="field-error" role="alert">Payment method is required.</p>
+              }
+              @if (methodTypes().length === 0) {
+                <p class="cell-subtle" style="margin: 2px 0 0;">No Receipt-class entries yet — create payment methods (e.g. CASH) on the AR Transaction Type master.</p>
+              }
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-group">
+              <label for="rcDocDate">Document date <span class="required">*</span></label>
+              <input id="rcDocDate" type="date" formControlName="docDate" />
+            </div>
+            <div class="form-group">
+              <label for="rcTrxDate">Transaction date (period) <span class="required">*</span></label>
+              <input id="rcTrxDate" type="date" formControlName="trxDate" />
+              <p class="cell-subtle" style="margin: 2px 0 0;">Accounting period — differs from the document date only when back-keying into a closed month.</p>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-group">
+              <label for="rcAmount">Amount <span class="required">*</span></label>
+              <input id="rcAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount"
+                     [attr.aria-invalid]="showError(form.controls.amount)" aria-describedby="rcAmountErr" />
+              @if (showError(form.controls.amount)) {
+                <p id="rcAmountErr" class="field-error" role="alert">Enter an amount greater than zero.</p>
+              }
+            </div>
+            <div class="form-group">
+              <label for="rcRef">Payment reference</label>
+              <input id="rcRef" type="text" formControlName="paymentRef" autocomplete="off" maxlength="100"
+                     placeholder="Cheque no / bank ref / slip" />
+            </div>
+          </div>
+          @if (openDeposits().length > 0) {
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-group">
+                <label for="rcDeposit">Collect deposit</label>
+                <select id="rcDeposit" formControlName="collectDepositId">
+                  <option value="">— No deposit collection —</option>
+                  @for (d of openDeposits(); track d.id) {
+                    <option [value]="d.id">{{ depositLabel(d) }}</option>
+                  }
+                </select>
+                <p class="cell-subtle" style="margin: 2px 0 0;">Pays the billed deposit in first; the remainder settles open items, oldest first.</p>
+              </div>
+            </div>
+          }
+          <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
+            <div class="form-group">
+              <label for="rcDesc">Description</label>
+              <textarea id="rcDesc" formControlName="description" rows="2" wrap="off" placeholder="Optional"></textarea>
+            </div>
+          </div>
+        </form>
+      }
+    }
+  }
+  <ng-container dialogFooter>
+    <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+    @if (mode() === 'entry') {
+      <!-- Save keeps the receipt as an editable Open draft; Submit posts it
+           immediately - collections carry no approval chain (user rule). -->
+      <button type="submit" form="arReceiptForm" class="btn btn--secondary" [disabled]="saving() || metaLoading()">
+        {{ saving() ? 'Saving…' : 'Save' }}
+      </button>
+      <button type="button" class="btn btn--primary" (click)="onSubmit()" [disabled]="saving() || metaLoading()">
+        {{ saving() ? 'Working…' : 'Submit' }}
+      </button>
+    }
+  </ng-container>
+</app-dialog>
