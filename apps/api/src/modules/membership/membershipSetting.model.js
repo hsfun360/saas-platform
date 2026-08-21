@@ -49,6 +49,19 @@ const MembershipSetting = sequelize.define('MembershipSetting', {
         allowNull: false,
         defaultValue: true,
     },
+    // Child member number suffix patterns (see childNumbering.js): one
+    // separator char + 'A' | '1' | '01' | '001' | '0001'. Nominees suffix off
+    // the membership number, dependents off their principal's member number.
+    nomineeNoSuffix: {
+        type: DataTypes.STRING(6),
+        allowNull: false,
+        defaultValue: '-A',
+    },
+    dependentNoSuffix: {
+        type: DataTypes.STRING(6),
+        allowNull: false,
+        defaultValue: '-A',
+    },
     // Which sales channels the club uses (commercial clubs only). They gate the
     // agent-kind choices and the salesperson pickers on membership entry.
     salesAgencyEnabled: {

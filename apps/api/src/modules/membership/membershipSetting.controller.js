@@ -54,8 +54,9 @@ exports.getSettings = async (req, res) => {
 };
 
 // PUT /api/membership/settings
-// Body: { clubType, isCommittee, creditFacilityEnabled, salesAgencyEnabled,
-//         salesExternalEnabled, salesInternalEnabled, isMembershipAutoNumber }
+// Body: { clubType, isCommittee, creditFacilityEnabled, nomineeNoSuffix,
+//         dependentNoSuffix, salesAgencyEnabled, salesExternalEnabled,
+//         salesInternalEnabled, isMembershipAutoNumber }
 exports.updateSettings = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
@@ -71,6 +72,18 @@ exports.updateSettings = async (req, res) => {
         // Absent means "leave enabled" (`!== false`), so a client built before
         // this flag existed cannot silently switch the credit facility off.
         row.creditFacilityEnabled = req.body.creditFacilityEnabled !== false;
+
+        // Child number suffix patterns - validated per childNumbering.js;
+        // absent leaves the stored value (older clients cannot reset them).
+        const { validateSuffixPattern } = require('./childNumbering');
+        for (const key of ['nomineeNoSuffix', 'dependentNoSuffix']) {
+            if (typeof req.body[key] === 'string' && req.body[key].trim()) {
+                const pattern = req.body[key].trim();
+                const err = validateSuffixPattern(pattern);
+                if (err) return res.status(400).json({ message: `${key === 'nomineeNoSuffix' ? 'Nominee' : 'Dependent'} suffix: ${err}` });
+                row[key] = pattern;
+            }
+        }
         // Committee clubs have no sales agents - the flags are forced false.
         row.salesAgencyEnabled = !isCommittee && req.body.salesAgencyEnabled === true;
         row.salesExternalEnabled = !isCommittee && req.body.salesExternalEnabled === true;

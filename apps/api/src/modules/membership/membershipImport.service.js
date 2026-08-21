@@ -81,7 +81,7 @@ const MEMBERSHIP_COLUMNS = [
 
 const MEMBER_COLUMNS = [
     { header: 'Membership No *', key: 'membershipNo', hint: 'Must match a row on the Memberships sheet' },
-    { header: 'Member No', key: 'memberNo', hint: 'Blank = derived (individual: the membership no; dependent/nominee: principal-A, -B, ...)' },
+    { header: 'Member No', key: 'memberNo', hint: 'Blank = derived (individual: the membership no; nominee/dependent: per the Club Specification suffix rules, e.g. principal-A or principal-01)' },
     { header: 'Kind *', key: 'kind', hint: 'individual | nominee | dependent' },
     { header: 'Dependent Type', key: 'dependentType', hint: 'spouse | son | daughter | ward' },
     // Terminology standard (user decision 2026-08-20): the individual member
@@ -531,20 +531,18 @@ function migError(message) {
     return e;
 }
 
-// The next free '<parentNo>-X' suffix, considering DB rows AND numbers already
-// taken inside this migration transaction.
-async function nextChildNo(companyId, parentNo, takenInTx, transaction) {
+// The next child number under `principalNo` per the club's configured suffix
+// pattern (childNumbering.js), considering DB rows AND numbers already taken
+// inside this migration transaction.
+async function nextChildNo(companyId, principalNo, pattern, takenInTx, transaction) {
+    const { parseSuffixPattern, escapeLike, deriveChildNo } = require('./childNumbering');
+    const { separator } = parseSuffixPattern(pattern);
     const existing = await Member.findAll({
-        where: { companyId, memberNo: { [Op.like]: `${parentNo}-%` } },
+        where: { companyId, memberNo: { [Op.like]: `${escapeLike(`${principalNo}${separator}`)}%` } },
         attributes: ['memberNo'],
         transaction,
     });
-    const taken = new Set([...existing.map((m) => m.memberNo.toUpperCase()), ...takenInTx].map((s) => s.toUpperCase()));
-    for (let i = 0; i < 26; i++) {
-        const candidate = `${parentNo}-${String.fromCharCode(65 + i)}`;
-        if (!taken.has(candidate.toUpperCase())) return candidate;
-    }
-    return `${parentNo}-${taken.size + 1}`;
+    return deriveChildNo(principalNo, pattern, [...existing.map((m) => m.memberNo), ...takenInTx]);
 }
 
 async function assertNumberFree(companyId, no, transaction) {
@@ -582,6 +580,10 @@ async function migrateOne(req, companyId, msRow, memberRows, lookups, numberingM
     if (creditLimit === null && type.creditLimit != null) creditLimit = Number(type.creditLimit);
 
     const agentOf = (code) => (code ? lookups.agentByCode.get(code.toLowerCase()) : null);
+
+    // Club Specification: the child-number suffix patterns for derived numbers.
+    const { getSettings } = require('./membershipSetting.service');
+    const settings = await getSettings(companyId);
 
     return sequelize.transaction(async (t) => {
         let membershipNo = d.membershipNo || null;
@@ -666,7 +668,10 @@ async function migrateOne(req, companyId, msRow, memberRows, lookups, numberingM
             let memberNo = rd.memberNo || null;
             if (!memberNo) {
                 if (kind === 'individual') memberNo = membershipNo;
-                else memberNo = await nextChildNo(companyId, parentNo || membershipNo, takenInTx, t);
+                else {
+                    const pattern = kind === 'nominee' ? settings.nomineeNoSuffix : settings.dependentNoSuffix;
+                    memberNo = await nextChildNo(companyId, parentNo || membershipNo, pattern, takenInTx, t);
+                }
             }
             if (memberNo !== membershipNo || kind !== 'individual') await assertNumberFree(companyId, memberNo, t);
             takenInTx.push(memberNo);

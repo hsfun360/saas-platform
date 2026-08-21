@@ -192,6 +192,44 @@
               <button type="button" class="btn btn--secondary" (click)="openConfig()">Configure format…</button>
             </div>
           }
+
+          <!-- Child member numbers: nominees/dependents suffix off their
+               principal's number - the rule per kind is the club's choice. -->
+          <div class="cs-suffix">
+            <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">
+              Nominee and dependent numbers are derived from their principal's number plus a suffix.
+              Letters fill the first free slot; numeric styles always count upward and never reuse a removed number.
+            </p>
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-group">
+                <label for="csNomSep">Nominee suffix</label>
+                <div style="display: flex; gap: var(--space-sm);">
+                  <select id="csNomSep" formControlName="nomineeSep" aria-label="Nominee suffix separator" style="flex: 0 0 40%;">
+                    @for (s of suffixSeparators; track s.key) { <option [value]="s.key">{{ s.label }}</option> }
+                  </select>
+                  <select formControlName="nomineeStyle" aria-label="Nominee suffix numbering" style="flex: 1; min-width: 0;">
+                    @for (s of suffixStyles; track s.key) { <option [value]="s.key">{{ s.label }}</option> }
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="csDepSep">Dependent suffix</label>
+                <div style="display: flex; gap: var(--space-sm);">
+                  <select id="csDepSep" formControlName="dependentSep" aria-label="Dependent suffix separator" style="flex: 0 0 40%;">
+                    @for (s of suffixSeparators; track s.key) { <option [value]="s.key">{{ s.label }}</option> }
+                  </select>
+                  <select formControlName="dependentStyle" aria-label="Dependent suffix numbering" style="flex: 1; min-width: 0;">
+                    @for (s of suffixStyles; track s.key) { <option [value]="s.key">{{ s.label }}</option> }
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="nb-preview">
+              <span class="nb-preview__label">First numbers will look like</span>
+              <span class="nb-preview__value">{{ suffixPreview().nominee }}</span>
+              <span class="nb-hint">nominee · their dependent {{ suffixPreview().nomineeDependent }} · an individual's dependent {{ suffixPreview().individualDependent }}</span>
+            </div>
+          </div>
         </div>
         }
       </section>

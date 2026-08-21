@@ -713,6 +713,11 @@ export interface ClubSettings {
   clubType: 'golf' | 'leisure' | 'others';
   isCommittee: boolean;
   creditFacilityEnabled: boolean;
+  // Child member number suffix patterns: one separator char + A|1|01|001|0001,
+  // e.g. '-A', '.001', '/01'. Nominees suffix off the membership number,
+  // dependents off their principal's member number.
+  nomineeNoSuffix: string;
+  dependentNoSuffix: string;
   salesAgencyEnabled: boolean;
   salesExternalEnabled: boolean;
   salesInternalEnabled: boolean;

@@ -463,18 +463,19 @@ async function resolveStatus(companyId, statusId) {
     return MembershipStatus.findOne({ where: { id: statusId, companyId } });
 }
 
-// The next free '<parentNo>-X' letter suffix for a nominee/dependent number.
-async function suggestChildNo(companyId, parentNo) {
+// The next child number under `principalNo`, following the club's configured
+// suffix pattern for `kind` ('nominee' | 'dependent') - see childNumbering.js.
+// Letters = first free A..Z; numeric = strictly increasing (never reissued).
+async function suggestChildNo(companyId, principalNo, kind) {
+    const { parseSuffixPattern, escapeLike, deriveChildNo } = require('./childNumbering');
+    const settings = await getSettings(companyId);
+    const pattern = kind === 'nominee' ? settings.nomineeNoSuffix : settings.dependentNoSuffix;
+    const { separator } = parseSuffixPattern(pattern);
     const existing = await Member.findAll({
-        where: { companyId, memberNo: { [Op.like]: `${parentNo}-%` } },
+        where: { companyId, memberNo: { [Op.like]: `${escapeLike(`${principalNo}${separator}`)}%` } },
         attributes: ['memberNo'],
     });
-    const taken = new Set(existing.map((m) => m.memberNo.toUpperCase()));
-    for (let i = 0; i < 26; i++) {
-        const candidate = `${parentNo}-${String.fromCharCode(65 + i)}`;
-        if (!taken.has(candidate.toUpperCase())) return candidate;
-    }
-    return `${parentNo}-${existing.length + 1}`;
+    return deriveChildNo(principalNo, pattern, existing.map((m) => m.memberNo));
 }
 
 async function memberNoInUse(companyId, memberNo, excludeId = null, transaction = null) {
@@ -1075,7 +1076,10 @@ exports.debtorBackfill = async (req, res) => {
 // Members under a membership (nominees + dependents + profile edits)
 
 // GET /api/membership/memberships/:id/members/suggest-no?parentNo= - the next
-// free child number for the Add-nominee / Add-dependent forms.
+// child number for the Add-nominee / Add-dependent forms. The KIND is inferred:
+// on a corporate membership a principalNo equal to the contract number means a
+// nominee is being added; anything else (a member's own number, or any
+// principal on an individual membership) is a dependent.
 exports.suggestMemberNo = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
@@ -1083,7 +1087,10 @@ exports.suggestMemberNo = async (req, res) => {
 
         const parentNo = strOrNull(req.query.parentNo);
         if (!parentNo) return res.status(400).json({ message: 'parentNo is required.' });
-        res.status(200).json({ memberNo: await suggestChildNo(companyId, parentNo) });
+        const ms = await Membership.findOne({ where: { id: req.params.id, companyId }, attributes: ['membershipNo', 'membershipClass'] });
+        if (!ms) return res.status(404).json({ message: 'Membership not found.' });
+        const kind = ms.membershipClass === 'corporate' && parentNo.toUpperCase() === ms.membershipNo.toUpperCase() ? 'nominee' : 'dependent';
+        res.status(200).json({ memberNo: await suggestChildNo(companyId, parentNo, kind) });
     } catch (error) {
         console.error('Error suggesting member number:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -1128,7 +1135,7 @@ exports.createNominee = async (req, res) => {
         const status = await resolveStatus(companyId, statusId);
         if (!status) return res.status(400).json({ message: 'Member status not found.' });
 
-        let memberNo = strOrNull(req.body.memberNo) || await suggestChildNo(companyId, ms.membershipNo);
+        let memberNo = strOrNull(req.body.memberNo) || await suggestChildNo(companyId, ms.membershipNo, 'nominee');
         if (await memberNoInUse(companyId, memberNo)) {
             return res.status(409).json({ message: `Member number '${memberNo}' is already in use.` });
         }
@@ -1202,7 +1209,7 @@ exports.createDependent = async (req, res) => {
         const status = await resolveStatus(companyId, statusId);
         if (!status) return res.status(400).json({ message: 'Member status not found.' });
 
-        let memberNo = strOrNull(req.body.memberNo) || await suggestChildNo(companyId, principal.memberNo);
+        let memberNo = strOrNull(req.body.memberNo) || await suggestChildNo(companyId, principal.memberNo, 'dependent');
         if (await memberNoInUse(companyId, memberNo)) {
             return res.status(409).json({ message: `Member number '${memberNo}' is already in use.` });
         }

@@ -55,16 +55,55 @@ export class ClubSpecificationComponent implements OnInit {
     others: 'Any other profile (fitness centers etc.). Golfing options are hidden.',
   };
 
+  // Child-number suffix vocab: separator + numbering style compose the stored
+  // pattern (e.g. '.' + '001' -> '.001'). Kept as paired selects so the club
+  // reads exactly what each choice produces.
+  readonly suffixSeparators = [
+    { key: '-', label: '- (dash)' },
+    { key: '/', label: '/ (slash)' },
+    { key: '.', label: '. (dot)' },
+    { key: '#', label: '# (hash)' },
+  ];
+  readonly suffixStyles = [
+    { key: 'A', label: 'Letters (A, B, C…)' },
+    { key: '1', label: 'Numbers (1, 2, 3…)' },
+    { key: '01', label: 'Numbers, 2 digits (01, 02…)' },
+    { key: '001', label: 'Numbers, 3 digits (001, 002…)' },
+    { key: '0001', label: 'Numbers, 4 digits (0001, 0002…)' },
+  ];
+
   readonly form = this.fb.nonNullable.group({
     clubType: this.fb.nonNullable.control<'golf' | 'leisure' | 'others'>('golf', [Validators.required]),
     isCommittee: [false],
     creditFacilityEnabled: [true],
+    nomineeSep: ['-'],
+    nomineeStyle: ['A'],
+    dependentSep: ['-'],
+    dependentStyle: ['A'],
     salesAgencyEnabled: [true],
     salesExternalEnabled: [true],
     salesInternalEnabled: [true],
     isMembershipAutoNumber: [false],
   });
   readonly formValue = toSignal(this.form.valueChanges, { initialValue: this.form.getRawValue() });
+
+  // Live suffix preview (show-expected-results): the first child numbers a
+  // club would see under the current choices, nominee chain included.
+  readonly suffixPreview = computed(() => {
+    const v = this.formValue();
+    const nominee = `CORP-0001${v.nomineeSep}${v.nomineeStyle}`;
+    return {
+      nominee,
+      nomineeDependent: `${nominee}${v.dependentSep}${v.dependentStyle}`,
+      individualDependent: `IND-0001${v.dependentSep}${v.dependentStyle}`,
+    };
+  });
+
+  // '-A' -> { sep: '-', style: 'A' } with defensive fallback to the default.
+  private splitSuffix(pattern: string | undefined): { sep: string; style: string } {
+    const p = pattern && pattern.length >= 2 ? pattern : '-A';
+    return { sep: p[0], style: p.slice(1) };
+  }
 
   // --- Configure dialog (the auto-number format; Numbering Control underneath) ---
   readonly configOpen = signal(false);
@@ -113,10 +152,16 @@ export class ClubSpecificationComponent implements OnInit {
       this.tokens.set(data.meta.numbering?.tokens || []);
     }
     this.numbering.set(data.numbering);
+    const nominee = this.splitSuffix(data.settings.nomineeNoSuffix);
+    const dependent = this.splitSuffix(data.settings.dependentNoSuffix);
     this.form.reset({
       clubType: data.settings.clubType,
       isCommittee: data.settings.isCommittee,
       creditFacilityEnabled: data.settings.creditFacilityEnabled !== false,
+      nomineeSep: nominee.sep,
+      nomineeStyle: nominee.style,
+      dependentSep: dependent.sep,
+      dependentStyle: dependent.style,
       salesAgencyEnabled: data.settings.salesAgencyEnabled,
       salesExternalEnabled: data.settings.salesExternalEnabled,
       salesInternalEnabled: data.settings.salesInternalEnabled,
@@ -144,7 +189,12 @@ export class ClubSpecificationComponent implements OnInit {
       return;
     }
     this.saving.set(true);
-    this.service.save(this.form.getRawValue()).subscribe({
+    const f = this.form.getRawValue();
+    this.service.save({
+      ...f,
+      nomineeNoSuffix: `${f.nomineeSep}${f.nomineeStyle}`,
+      dependentNoSuffix: `${f.dependentSep}${f.dependentStyle}`,
+    }).subscribe({
       next: (res) => {
         this.saving.set(false);
         this.successMessage.set(res.message);

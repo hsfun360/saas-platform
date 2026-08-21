@@ -11,6 +11,8 @@ const SETTING_DEFAULTS = {
     clubType: 'golf',
     isCommittee: false,
     creditFacilityEnabled: true,
+    nomineeNoSuffix: '-A',
+    dependentNoSuffix: '-A',
     salesAgencyEnabled: true,
     salesExternalEnabled: true,
     salesInternalEnabled: true,
@@ -21,6 +23,8 @@ function toSettingsDto(row) {
         clubType: row.clubType,
         isCommittee: row.isCommittee,
         creditFacilityEnabled: row.creditFacilityEnabled,
+        nomineeNoSuffix: row.nomineeNoSuffix || '-A',
+        dependentNoSuffix: row.dependentNoSuffix || '-A',
         // A committee club has no sales channels, whatever the columns hold.
         salesAgencyEnabled: row.isCommittee ? false : row.salesAgencyEnabled,
         salesExternalEnabled: row.isCommittee ? false : row.salesExternalEnabled,
