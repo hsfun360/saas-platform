@@ -56,6 +56,11 @@ const Deposit = sequelize.define('Deposit', {
         allowNull: false,
         defaultValue: 0,
     },
+    // Multicurrency (step 3): account currency + the rate when the deposit was
+    // billed + base equivalent of `amount`. Nullable for the backfill window.
+    currencyCode: { type: DataTypes.STRING(3), allowNull: true },
+    exchangeRate: { type: DataTypes.DECIMAL(21, 10), allowNull: true },
+    baseAmount: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
     // 'open' | 'closed' | 'void'.
     status: {
         type: DataTypes.STRING(20),

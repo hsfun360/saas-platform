@@ -25,6 +25,9 @@ const Ledger = require('./ledger.model');
 const Receipt = require('./receipt.model');
 const Allocation = require('./allocation.model');
 const { LEDGER_DOC_KINDS, ALLOCATION_PAIRS } = require('./ar.constants');
+// Multicurrency (step 3): every row that enters the ledger is stamped with
+// its account currency + the frozen rate + base equivalents through ONE seam.
+const { resolveDocumentFx, ledgerFxColumns, amountFxColumns } = require('./arCurrency.service');
 
 // --- money helpers (integer cents) ---
 function cents(v) { return Math.round(Number(v || 0) * 100); }
@@ -189,17 +192,23 @@ function maybeCloseDeposit(deposit) {
 // specific debit (bypasses FIFO) and `fifo` sweeps the remainder.
 // `enforceCredit` is for PRODUCER charges (frontend consumption) - manual
 // Finance postings bill reality and are never blocked by the limit.
+// Multicurrency: `exchangeRate` is an optional keyed rate (foreign accounts);
+// `fx` is an already-resolved { currencyCode, exchangeRate } (void reversals
+// reuse the original document's rate so the pair nets to zero in base).
 async function postLedgerDoc({
     companyId, debtor, docKind, mode = null, reversalOfId = null,
     issueDocNo, docDate, trxDate, transactionTypeId, isInterestChargeable = false,
     description = null, incurredByMemberId = null, sourceModule, sourceRef,
-    amounts, stamps = {}, targetLedger = null, fifo = false, enforceCredit = false, t,
+    amounts, stamps = {}, targetLedger = null, fifo = false, enforceCredit = false,
+    exchangeRate = null, fx = null, t,
 }) {
     const kind = ledgerKindDef(docKind);
     if (!kind) throw bizError(400, 'Invalid ledger document kind.');
     const rowMode = mode || kind.mode;
     const grossC = amounts.grossC;
     if (grossC <= 0) throw bizError(400, 'Amount must be greater than zero.');
+
+    const fxUsed = fx || await resolveDocumentFx({ companyId, debtor, docDate, requestedRate: exchangeRate, transaction: t });
 
     const pool = await lockPool(companyId, debtor.id, t);
 
@@ -239,6 +248,7 @@ async function postLedgerDoc({
         taxRate: amounts.taxRate != null ? amounts.taxRate : null,
         taxAmount: money(amounts.taxC),
         grossAmount: money(grossC),
+        ...ledgerFxColumns(fxUsed, amounts),
         isInterestChargeable: rowMode === 'debit' ? !!isInterestChargeable : false,
         settledAmount: 0,
         status: 'open',
@@ -287,6 +297,13 @@ async function postDraftLedger({ companyId, debtor, row, issueDocNo, stamps = {}
     const pool = await lockPool(companyId, debtor.id, t);
 
     if (!row.docNo) row.docNo = await issueDocNo(t);
+    // A draft saved before its account's rate existed (pre-multicurrency, or
+    // keyed with no rate in the table yet) gets the rate NOW - frozen from
+    // here on. Drafts saved with a rate keep it.
+    if (!row.exchangeRate) {
+        const fxNow = await resolveDocumentFx({ companyId, debtor, docDate: row.docDate, transaction: t });
+        Object.assign(row, ledgerFxColumns(fxNow, { netC: cents(row.netAmount), taxC: cents(row.taxAmount), grossC }));
+    }
     row.dueDate = row.mode === 'debit'
         ? (Number.isInteger(debtor.terms) ? shiftDate(row.docDate, debtor.terms) : row.docDate)
         : null;
@@ -330,16 +347,19 @@ async function postDraftLedger({ companyId, debtor, row, issueDocNo, stamps = {}
 // can be at posting time; only true excess stays unallocated).
 async function postReceipt({
     companyId, debtor, issueDocNo, docDate, trxDate, paymentMethod, paymentRef,
-    description = null, amountC, depositRow = null, autoAllocate = true, stamps = {}, t,
+    description = null, amountC, depositRow = null, autoAllocate = true, stamps = {}, exchangeRate = null, t,
 }) {
     if (amountC <= 0) throw bizError(400, 'Amount must be greater than zero.');
+    const fx = await resolveDocumentFx({ companyId, debtor, docDate, requestedRate: exchangeRate, transaction: t });
     const pool = await lockPool(companyId, debtor.id, t);
     const docNo = await issueDocNo(t);
     const row = await Receipt.create({
         companyId, debtorId: debtor.id, docKind: 'receipt', mode: 'credit',
         docNo, docDate, trxDate: trxDate || docDate,
         paymentMethod: paymentMethod || null, paymentRef: paymentRef || null, description,
-        amount: money(amountC), allocatedAmount: 0, status: 'open', ...stamps,
+        amount: money(amountC), allocatedAmount: 0, status: 'open',
+        ...amountFxColumns(fx, amountC),
+        ...stamps,
     }, { transaction: t });
     await bumpOutstanding(pool, -amountC, t);
 
@@ -368,6 +388,11 @@ async function postDraftReceipt({ companyId, debtor, row, issueDocNo, stamps = {
     const pool = await lockPool(companyId, debtor.id, t);
 
     if (!row.docNo) row.docNo = await issueDocNo(t);
+    // Rate frozen at save; a draft that predates its account's rate gets it now.
+    if (!row.exchangeRate) {
+        const fxNow = await resolveDocumentFx({ companyId, debtor, docDate: row.docDate, transaction: t });
+        Object.assign(row, amountFxColumns(fxNow, amountC));
+    }
     row.status = 'open';
     row.postedAt = new Date();
     if (stamps.updatedBy) {
@@ -399,16 +424,19 @@ async function postDraftReceipt({ companyId, debtor, row, issueDocNo, stamps = {
 // deposit's held balance, or from unallocated receipt credit (oldest first).
 async function postRefund({
     companyId, debtor, issueDocNo, docDate, trxDate, paymentMethod, paymentRef,
-    description = null, amountC, depositRow = null, stamps = {}, t,
+    description = null, amountC, depositRow = null, stamps = {}, exchangeRate = null, t,
 }) {
     if (amountC <= 0) throw bizError(400, 'Amount must be greater than zero.');
+    const fx = await resolveDocumentFx({ companyId, debtor, docDate, requestedRate: exchangeRate, transaction: t });
     const pool = await lockPool(companyId, debtor.id, t);
     const docNo = await issueDocNo(t);
     const row = await Receipt.create({
         companyId, debtorId: debtor.id, docKind: 'refund', mode: 'debit',
         docNo, docDate, trxDate: trxDate || docDate,
         paymentMethod: paymentMethod || null, paymentRef: paymentRef || null, description,
-        amount: money(amountC), allocatedAmount: 0, status: 'open', ...stamps,
+        amount: money(amountC), allocatedAmount: 0, status: 'open',
+        ...amountFxColumns(fx, amountC),
+        ...stamps,
     }, { transaction: t });
 
     if (depositRow) {
@@ -483,6 +511,9 @@ async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxD
                 netC: cents(row.netAmount), taxC: cents(row.taxAmount), grossC: cents(row.grossAmount),
                 taxSchemeCode: row.taxSchemeCode, taxRate: row.taxRate,
             },
+            // The reversal reuses the ORIGINAL rate so the pair nets to zero in
+            // base currency too (a pre-multicurrency row resolves normally).
+            fx: row.exchangeRate ? { currencyCode: row.currencyCode, exchangeRate: Number(row.exchangeRate), isBase: Number(row.exchangeRate) === 1 } : null,
             stamps, targetLedger: row, t,
         });
         row.status = 'void';

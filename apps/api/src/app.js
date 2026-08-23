@@ -338,6 +338,31 @@ async function initializeDB() {
                    AND c."defaultCurrencyCode" IS NOT NULL`,
             ).catch((err) => console.warn('OtherDebtor currency backfill skipped:', err.message));
 
+            // Multicurrency step 3 (2026-08-21): every document carries its
+            // account currency + frozen rate + base equivalents. Pre-existing
+            // rows: currency from the account (falling back to the company
+            // default), and base-currency rows get rate 1 + base == amounts.
+            // Foreign-currency rows from before the rate existed keep a NULL
+            // rate - they resolve at re-save / posting. Idempotent.
+            for (const [table, baseCols] of [
+                ['Ledger', '"baseNetAmount" = x."netAmount", "baseTaxAmount" = x."taxAmount", "baseGrossAmount" = x."grossAmount"'],
+                ['Receipt', '"baseAmount" = x."amount"'],
+                ['Deposit', '"baseAmount" = x."amount"'],
+            ]) {
+                await sequelize.query(
+                    `UPDATE ar."${table}" x SET "currencyCode" = COALESCE(d."currencyCode", UPPER(c."defaultCurrencyCode"))
+                     FROM ar."Debtor" d JOIN public."Company" c ON c."id" = d."companyId"
+                     WHERE x."debtorId" = d."id" AND x."currencyCode" IS NULL
+                       AND COALESCE(d."currencyCode", c."defaultCurrencyCode") IS NOT NULL`,
+                ).catch((err) => console.warn(`${table} currency backfill skipped:`, err.message));
+                await sequelize.query(
+                    `UPDATE ar."${table}" x SET "exchangeRate" = 1, ${baseCols}
+                     FROM public."Company" c
+                     WHERE x."companyId" = c."id" AND x."exchangeRate" IS NULL
+                       AND x."currencyCode" = UPPER(c."defaultCurrencyCode")`,
+                ).catch((err) => console.warn(`${table} base-rate backfill skipped:`, err.message));
+            }
+
             // Statement letterhead completion (2026-08-11): statements now
             // snapshot the issuer registration number at generation; backfill
             // rows from before the column existed with the CURRENT company

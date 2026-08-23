@@ -116,6 +116,16 @@ async function postCharge(req, {
     if (!debtor) return { error: 'No ledger account exists for this debtor (run debtor provisioning first).' };
     if (debtor.status !== 'active') return { error: `Debtor account is ${debtor.status}.` };
 
+    // Multicurrency (step 3): producer charges are priced in the company BASE
+    // currency (fee schemes, frontend tariffs); an account in another
+    // currency cannot take them - the document must be in the account's
+    // currency, never silently relabelled.
+    const { getCompanyBaseCurrency } = require('./serviceContext');
+    const base = await getCompanyBaseCurrency(companyId);
+    if (base && debtor.currencyCode && debtor.currencyCode !== base) {
+        return { error: `This ledger account is in ${debtor.currencyCode}; producer charges post in ${base} only - key it as an AR document on the account.` };
+    }
+
     // Catalog enforcement (2026-08-15): the type must be opened to the
     // posting module, and membership-sourced documents additionally require
     // the AR Specification's Membership-integration switch. Enforced HERE at

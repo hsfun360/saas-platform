@@ -41,6 +41,7 @@
         <div class="ald-debtor">
           <span class="material-icons" aria-hidden="true">account_balance</span>
           <span class="ald-debtor__name"><strong>{{ who.no || '—' }}</strong> {{ who.name }}</span>
+          @if (isForeign()) { <span class="ald-debtor__ccy">{{ fxCurrency()?.code }} account</span> }
           @if (!debtor() && !editRow()) {
             <button type="button" class="btn btn--link btn--sm" (click)="changeDebtor()">Change</button>
           }
@@ -96,12 +97,29 @@
               @if (showError(form.controls.amount)) {
                 <p id="ldAmountErr" class="field-error" role="alert">Enter an amount greater than zero.</p>
               }
-              <p class="cell-subtle" style="margin: 2px 0 0;">Tax is applied from the transaction type's scheme.</p>
+              <p class="cell-subtle" style="margin: 2px 0 0;">Tax is applied from the transaction type's scheme.@if (isForeign()) { Amount in {{ fxCurrency()?.code }}.}</p>
             </div>
             <!-- No Incurred-by picker (user rule 2026-08-20): a manual AR
                  document belongs to the selected account itself. Per-person
                  charges only arrive from producer modules via the posting
                  seam, which stamps incurredBy for statement display. -->
+            @if (isForeign()) {
+              <!-- Multicurrency (step 3): the rate to base, frozen on the row.
+                   A RATE, not money - typed as a decimal, never stepped. -->
+              <div class="form-group">
+                <label for="ldRate">Exchange rate <span class="required">*</span></label>
+                <input id="ldRate" type="text" inputmode="decimal" formControlName="exchangeRate" autocomplete="off" maxlength="22"
+                       placeholder="From Exchange Rates at the document date"
+                       [attr.aria-invalid]="showError(form.controls.exchangeRate)" aria-describedby="ldRateErr" />
+                @if (showError(form.controls.exchangeRate)) {
+                  <p id="ldRateErr" class="field-error" role="alert">Enter a positive decimal with at most 10 decimal places.</p>
+                }
+                <p class="cell-subtle" style="margin: 2px 0 0;">
+                  1 {{ fxCurrency()?.code }} = rate {{ fxCurrency()?.baseCurrencyCode }}. Defaults from Exchange Rates at the document date; editable while Open, frozen on posting.
+                  @if (baseEquivalent()) { <strong class="ald-fx-base">≈ {{ baseEquivalent() }} {{ fxCurrency()?.baseCurrencyCode }}</strong> (before tax) }
+                </p>
+              </div>
+            }
           </div>
           @if (kind() === 'credit-note') {
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">

@@ -61,9 +61,108 @@ function effectiveCurrency(code, baseCurrencyCode) {
     return code || baseCurrencyCode || null;
 }
 
+// --- Document exchange rates (step 3) ---------------------------------------
+// Every document on an account is in the ACCOUNT's currency; what varies per
+// document is the RATE to base (frozen on the row). Base-currency accounts
+// always carry rate 1, so single-currency companies never see a rate.
+
+const RATE_RE = /^\d+(\.\d{1,10})?$/;
+
+// A keyed rate from a request body: undefined/null/'' = none; otherwise must
+// be a positive decimal with at most 10 places. Returns a Number or throws.
+function parseRequestedRate(value) {
+    if (value === undefined || value === null || value === '') return null;
+    const text = String(value).trim();
+    if (!RATE_RE.test(text) || !(Number(text) > 0)) {
+        throw httpError(400, 'Exchange rate must be a positive decimal with at most 10 decimal places.');
+    }
+    return Number(text);
+}
+
+// The company's rate for a currency on a date: latest effectiveDate <= onDate.
+async function lookupRate(companyId, currencyCode, onDate, transaction = null) {
+    const ExchangeRate = require('./exchangeRate.model');
+    const { Op } = require('sequelize');
+    const row = await ExchangeRate.findOne({
+        where: { companyId, currencyCode, effectiveDate: { [Op.lte]: onDate } },
+        order: [['effectiveDate', 'DESC']],
+        attributes: ['rate', 'effectiveDate'],
+        transaction,
+    });
+    return row ? Number(row.rate) : null;
+}
+
+// The currency's full rate history for the entry dialogs (they default the
+// rate per document date client-side; the server re-resolves when none is
+// keyed). Small per currency by nature.
+async function listRates(companyId, currencyCode) {
+    const ExchangeRate = require('./exchangeRate.model');
+    const rows = await ExchangeRate.findAll({
+        where: { companyId, currencyCode },
+        order: [['effectiveDate', 'ASC']],
+        attributes: ['effectiveDate', 'rate'],
+    });
+    return rows.map((r) => ({ effectiveDate: r.effectiveDate, rate: r.rate }));
+}
+
+// THE resolution every document door calls before stamping a row:
+//   { currencyCode, exchangeRate (Number), isBase }
+// - base-currency account (or no base configured) -> rate 1, no lookup;
+// - foreign account -> the keyed rate when given, else the rate table at
+//   docDate; none -> a 400 that names what to do.
+async function resolveDocumentFx({ companyId, debtor, docDate, requestedRate = null, transaction = null }) {
+    const baseCurrencyCode = await getCompanyBaseCurrency(companyId);
+    const currencyCode = effectiveCurrency(debtor.currencyCode, baseCurrencyCode);
+    if (!currencyCode || !baseCurrencyCode || currencyCode === baseCurrencyCode) {
+        return { currencyCode, exchangeRate: 1, isBase: true };
+    }
+    const keyed = parseRequestedRate(requestedRate);
+    if (keyed) return { currencyCode, exchangeRate: keyed, isBase: false };
+    const tableRate = await lookupRate(companyId, currencyCode, docDate, transaction);
+    if (!tableRate) {
+        throw httpError(400, `No ${currencyCode} exchange rate is effective on ${docDate} - add one under Exchange Rates or key the rate on the document.`);
+    }
+    return { currencyCode, exchangeRate: tableRate, isBase: false };
+}
+
+// Integer-cents conversion at the row's rate (half-up on the base cent).
+function baseCents(cents, exchangeRate) {
+    return Math.round(Number(cents) * Number(exchangeRate));
+}
+
+const money = (c) => (c / 100).toFixed(2);
+const rateText = (r) => Number(r).toFixed(10);
+
+// The stamp for a Ledger row from its cents + resolved fx.
+function ledgerFxColumns(fx, { netC, taxC, grossC }) {
+    return {
+        currencyCode: fx.currencyCode,
+        exchangeRate: rateText(fx.exchangeRate),
+        baseNetAmount: money(baseCents(netC, fx.exchangeRate)),
+        baseTaxAmount: money(baseCents(taxC, fx.exchangeRate)),
+        baseGrossAmount: money(baseCents(grossC, fx.exchangeRate)),
+    };
+}
+
+// The stamp for a Receipt / Deposit row (single amount).
+function amountFxColumns(fx, amountC) {
+    return {
+        currencyCode: fx.currencyCode,
+        exchangeRate: rateText(fx.exchangeRate),
+        baseAmount: money(baseCents(amountC, fx.exchangeRate)),
+    };
+}
+
 module.exports = {
     getMultiCurrencyState,
     resolveOtherDebtorCurrency,
     accountHasDocuments,
     effectiveCurrency,
+    parseRequestedRate,
+    lookupRate,
+    listRates,
+    resolveDocumentFx,
+    baseCents,
+    ledgerFxColumns,
+    amountFxColumns,
 };

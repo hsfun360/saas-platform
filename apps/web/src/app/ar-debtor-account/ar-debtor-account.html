@@ -277,13 +277,31 @@
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="rfDocDate">Document date <span class="required">*</span></label>
-            <input id="rfDocDate" type="date" formControlName="docDate" />
+            <input id="rfDocDate" type="date" formControlName="docDate" #rfDocDateInput (change)="onRefundDateChange(rfDocDateInput.value)" />
           </div>
           <div class="form-group">
             <label for="rfTrxDate">Transaction date (period) <span class="required">*</span></label>
             <input id="rfTrxDate" type="date" formControlName="trxDate" />
           </div>
         </div>
+        @if (isForeign()) {
+          <!-- Multicurrency (step 3): the rate at payout on a foreign account. -->
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-group">
+              <label for="rfRate">Exchange rate <span class="required">*</span></label>
+              <input id="rfRate" type="text" inputmode="decimal" formControlName="exchangeRate" autocomplete="off" maxlength="22"
+                     placeholder="From Exchange Rates at the document date" (input)="onRefundRateKeyed()"
+                     [attr.aria-invalid]="showError(refundForm.controls.exchangeRate)" aria-describedby="rfRateErr" />
+              @if (showError(refundForm.controls.exchangeRate)) {
+                <p id="rfRateErr" class="field-error" role="alert">Enter a positive decimal with at most 10 decimal places.</p>
+              }
+              <p class="cell-subtle" style="margin: 2px 0 0;">
+                Amount in {{ fxCurrency()?.code }}; 1 {{ fxCurrency()?.code }} = rate {{ fxCurrency()?.baseCurrencyCode }}.
+                @if (refundBaseEquivalent()) { <strong>≈ {{ refundBaseEquivalent() }} {{ fxCurrency()?.baseCurrencyCode }}</strong> paid out }
+              </p>
+            </div>
+          </div>
+        }
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="rfSource">Funded from</label>
@@ -361,13 +379,31 @@
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="dpDocDate">Document date <span class="required">*</span></label>
-            <input id="dpDocDate" type="date" formControlName="docDate" />
+            <input id="dpDocDate" type="date" formControlName="docDate" #dpDocDateInput (change)="onDepositDateChange(dpDocDateInput.value)" />
           </div>
           <div class="form-group">
             <label for="dpTrxDate">Transaction date (period) <span class="required">*</span></label>
             <input id="dpTrxDate" type="date" formControlName="trxDate" />
           </div>
         </div>
+        @if (isForeign()) {
+          <!-- Multicurrency (step 3): the rate when the deposit is billed. -->
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-group">
+              <label for="dpRate">Exchange rate <span class="required">*</span></label>
+              <input id="dpRate" type="text" inputmode="decimal" formControlName="exchangeRate" autocomplete="off" maxlength="22"
+                     placeholder="From Exchange Rates at the document date" (input)="onDepositRateKeyed()"
+                     [attr.aria-invalid]="showError(depositForm.controls.exchangeRate)" aria-describedby="dpRateErr" />
+              @if (showError(depositForm.controls.exchangeRate)) {
+                <p id="dpRateErr" class="field-error" role="alert">Enter a positive decimal with at most 10 decimal places.</p>
+              }
+              <p class="cell-subtle" style="margin: 2px 0 0;">
+                Amount in {{ fxCurrency()?.code }}; 1 {{ fxCurrency()?.code }} = rate {{ fxCurrency()?.baseCurrencyCode }}.
+                @if (depositBaseEquivalent()) { <strong>≈ {{ depositBaseEquivalent() }} {{ fxCurrency()?.baseCurrencyCode }}</strong> }
+              </p>
+            </div>
+          </div>
+        }
         <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
           <div class="form-group">
             <label for="dpDesc">Description</label>

@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subject, debounceTime } from 'rxjs';
@@ -8,6 +8,7 @@ import { MoneyInputDirective } from '../money-input.directive';
 import { ArService } from '../../services/ar.service';
 import { ArAccountMeta, ArDebtor, ArDocListRow } from '../../models/ar.models';
 import { ArLedgerDialogDebtor } from '../ar-ledger-dialog/ar-ledger-dialog';
+import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate, arTrimRate } from '../ar-fx';
 
 // The Official Receipt entry dialog (receipt lifecycle 2026-08-20), shared by
 // the Debtor Account screen (debtor preset) and the standalone Receipt screen
@@ -70,10 +71,40 @@ export class ArReceiptDialogComponent implements OnInit {
     amount: [0, [Validators.required, Validators.min(0.01)]],
     collectDepositId: [''],
     description: [''],
+    // Multicurrency (step 3): the rate at collection on a foreign account
+    // (the keyed amount is in the account currency; base = what hit the till).
+    exchangeRate: ['', [Validators.pattern(AR_RATE_PATTERN)]],
   });
+
+  // --- Multicurrency (step 3) - same mechanics as the ledger dialog ---
+  readonly fxCurrency = computed(() => this.effMeta()?.currency || null);
+  readonly isForeign = computed(() => { const c = this.fxCurrency(); return !!c && !c.isBase && !!c.code; });
+  private readonly amountSig = signal<number | null>(0);
+  private readonly rateSig = signal('');
+  private readonly docDateSig = signal('');
+  private readonly rateTouched = signal(false);
+  readonly baseEquivalent = computed(() => arBaseEquivalent(this.amountSig(), this.rateSig()));
 
   constructor() {
     this.pickQuery$.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => this.loadPickRows());
+    this.form.controls.amount.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => this.amountSig.set(v));
+    this.form.controls.docDate.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => this.docDateSig.set(v));
+    this.form.controls.exchangeRate.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => {
+      this.rateSig.set(v);
+      this.rateTouched.set(true);
+    });
+    effect(() => {
+      if (!this.isForeign() || this.rateTouched()) return;
+      const r = arRateForDate(this.fxCurrency(), this.docDateSig());
+      this.form.controls.exchangeRate.setValue(r, { emitEvent: false });
+      this.rateSig.set(r);
+    });
+  }
+
+  private syncFxSignals(): void {
+    this.amountSig.set(this.form.controls.amount.value);
+    this.docDateSig.set(this.form.controls.docDate.value);
+    this.rateSig.set(this.form.controls.exchangeRate.value);
   }
 
   ngOnInit(): void {
@@ -89,7 +120,10 @@ export class ArReceiptDialogComponent implements OnInit {
         amount: Number(edit.netAmount),
         collectDepositId: edit.collectDepositId || '',
         description: edit.description || '',
-      });
+        exchangeRate: arTrimRate(edit.exchangeRate),
+      }, { emitEvent: false });
+      this.rateTouched.set(!!edit.exchangeRate);
+      this.syncFxSignals();
       this.pickedDebtor.set({ id: edit.debtor.id, no: edit.debtor.no, name: edit.debtor.name });
       this.mode.set('entry');
       this.loadMeta(edit.debtor.id);
@@ -100,7 +134,10 @@ export class ArReceiptDialogComponent implements OnInit {
       paymentRef: '', amount: 0,
       collectDepositId: this.presetDepositId() || '',
       description: '',
-    });
+      exchangeRate: '',
+    }, { emitEvent: false });
+    this.rateTouched.set(false);
+    this.syncFxSignals();
     const preset = this.debtor();
     if (preset) {
       this.mode.set('entry');
@@ -183,6 +220,7 @@ export class ArReceiptDialogComponent implements OnInit {
       amount: f.amount,
       collectDepositId: f.collectDepositId || null,
       description: f.description.trim() || null,
+      ...(this.isForeign() ? { exchangeRate: f.exchangeRate.trim() || null } : {}),
     };
   }
 

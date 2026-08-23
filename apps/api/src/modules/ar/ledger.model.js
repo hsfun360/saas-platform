@@ -117,6 +117,20 @@ const Ledger = sequelize.define('Ledger', {
         type: DataTypes.DECIMAL(21, 2),
         allowNull: false,
     },
+    // --- Multicurrency (step 3, 2026-08-21) ---
+    // The document is in its ACCOUNT's currency (Debtor.currencyCode); these
+    // columns snapshot that currency, the rate used (1 foreign unit = rate
+    // base units, frozen at save for drafts / at posting for system rows -
+    // never re-resolved), and the base-currency equivalents of net / tax /
+    // gross (SST and MyInvois both report tax in base). Base rows carry rate 1
+    // and base == document amounts. Nullable only for the backfill window:
+    // boot stamps pre-multicurrency rows; a foreign draft saved before the
+    // rate existed gets its rate at re-save or posting.
+    currencyCode: { type: DataTypes.STRING(3), allowNull: true },
+    exchangeRate: { type: DataTypes.DECIMAL(21, 10), allowNull: true },
+    baseNetAmount: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
+    baseTaxAmount: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
+    baseGrossAmount: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
     // Snapshot from the Transaction Type at posting: does the interest run
     // consider this item when overdue? (Debit rows only.)
     isInterestChargeable: {

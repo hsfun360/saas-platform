@@ -117,6 +117,9 @@ export interface ArLedgerDoc {
   status: ArDocStatus;
   reversalOfId: string | null;
   voidReason?: string | null;
+  currencyCode?: string | null;
+  exchangeRate?: string | null;
+  baseGrossAmount?: string | null;
 }
 
 export interface ArReceiptDoc {
@@ -133,6 +136,9 @@ export interface ArReceiptDoc {
   allocatedAmount: string;
   // 'draft' = manual receipt saved, not yet financial (lifecycle 2026-08-20).
   status: 'draft' | 'open' | 'void';
+  currencyCode?: string | null;
+  exchangeRate?: string | null;
+  baseAmount?: string | null;
 }
 
 export interface ArDepositDoc {
@@ -145,6 +151,9 @@ export interface ArDepositDoc {
   collectedAmount: string;
   utilizedAmount: string;
   status: 'open' | 'closed' | 'void';
+  currencyCode?: string | null;
+  exchangeRate?: string | null;
+  baseAmount?: string | null;
 }
 
 export interface ArAccount {
@@ -190,6 +199,10 @@ export interface ArDocListRow {
   settledAmount: string;
   status: ArDocStatus;
   voidReason?: string | null;
+  // Multicurrency (step 3): account currency + the frozen rate + base gross.
+  currencyCode?: string | null;
+  exchangeRate?: string | null;
+  baseGrossAmount?: string | null;
   transactionTypeId: string;
   // CN drafts: the allocation intent (apply-against target), for edit prefill.
   applyToLedgerId?: string | null;
@@ -208,7 +221,19 @@ export interface ArDocListResult {
   documents: ArDocListRow[];
 }
 
+// The entry dialogs' account-currency block (multicurrency step 3): the
+// account's currency, the company base, and - for a FOREIGN account - the
+// currency's rate history so the Exchange rate field defaults per document
+// date client-side.
+export interface ArAccountCurrency {
+  code: string | null;
+  baseCurrencyCode: string | null;
+  isBase: boolean;
+  rates: { effectiveDate: string; rate: string }[];
+}
+
 export interface ArAccountMeta {
+  currency?: ArAccountCurrency;
   transactionTypes: ArTransactionType[];
   // purpose -> 'auto' | 'manual' | null
   numberingModes: Record<string, string | null>;

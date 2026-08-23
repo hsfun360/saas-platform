@@ -99,6 +99,25 @@
   color: var(--text-primary);
 }
 
+/* Multicurrency (step 3): the foreign-account chip in the debtor band and the
+   base-equivalent readout under the Exchange rate field. */
+.ald-debtor__ccy {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--brand-text);
+  background: var(--brand-surface);
+  border-radius: 12px;
+  padding: 2px var(--space-sm);
+  white-space: nowrap;
+}
+
+.ald-fx-base {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
 .ald-check {
   display: flex;
   align-items: center;

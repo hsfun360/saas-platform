@@ -72,6 +72,13 @@ const Receipt = sequelize.define('Receipt', {
         allowNull: false,
         defaultValue: 0,
     },
+    // Multicurrency (step 3): the account currency, the rate at collection /
+    // payout (frozen; this is how "paid MYR for a USD invoice" works - the
+    // USD amount is keyed with the day's rate, baseAmount = what hit the
+    // till) and the base-currency equivalent. Nullable for the backfill window.
+    currencyCode: { type: DataTypes.STRING(3), allowNull: true },
+    exchangeRate: { type: DataTypes.DECIMAL(21, 10), allowNull: true },
+    baseAmount: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
     sourceModule: { type: DataTypes.STRING(20), allowNull: true },
     sourceRef: { type: DataTypes.STRING(100), allowNull: true },
     // 'draft' | 'open' | 'void' (receipt lifecycle 2026-08-20): 'draft' =

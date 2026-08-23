@@ -20,6 +20,26 @@ const membershipGateway = require('../../platform/membershipGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const { quoteTax } = require('../../platform/taxGateway');
 const { LEDGER_DOC_KINDS, DEPOSIT_NUMBERING_PURPOSE } = require('./ar.constants');
+// Multicurrency (step 3): documents are in the ACCOUNT currency; drafts
+// freeze their rate at save (keyed, else the rate table at docDate).
+const arCurrency = require('./arCurrency.service');
+
+// The rate resolution for a draft/entry body: { fx } or { error } (a 400
+// message naming what to do - no rate in the table, malformed keyed rate).
+async function readFx(companyId, debtor, docDate, body) {
+    try {
+        const fx = await arCurrency.resolveDocumentFx({ companyId, debtor, docDate, requestedRate: body.exchangeRate });
+        return { fx };
+    } catch (e) {
+        if (e && e.httpStatus) return { error: e.message };
+        throw e;
+    }
+}
+
+// The fx fields every document DTO ships (listing rows, account books).
+function fxDto(r) {
+    return { currencyCode: r.currencyCode, exchangeRate: r.exchangeRate };
+}
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SYNTHETIC_PREFIX = {
@@ -146,17 +166,20 @@ exports.getAccount = async (req, res) => {
                 netAmount: r.netAmount, taxAmount: r.taxAmount, grossAmount: r.grossAmount,
                 settledAmount: r.settledAmount, status: r.status, reversalOfId: r.reversalOfId,
                 voidReason: r.voidReason,
+                ...fxDto(r), baseGrossAmount: r.baseGrossAmount,
             })),
             receipts: receipts.map((r) => ({
                 id: r.id, docKind: r.docKind, mode: r.mode, docNo: r.docNo,
                 docDate: r.docDate, trxDate: r.trxDate,
                 paymentMethod: r.paymentMethod, paymentRef: r.paymentRef, description: r.description,
                 amount: r.amount, allocatedAmount: r.allocatedAmount, status: r.status,
+                ...fxDto(r), baseAmount: r.baseAmount,
             })),
             deposits: deposits.map((d) => ({
                 id: d.id, docNo: d.docNo, docDate: d.docDate, trxDate: d.trxDate,
                 description: d.description, amount: d.amount,
                 collectedAmount: d.collectedAmount, utilizedAmount: d.utilizedAmount, status: d.status,
+                ...fxDto(d), baseAmount: d.baseAmount,
             })),
         });
     } catch (err) {
@@ -202,7 +225,21 @@ exports.getAccountMeta = async (req, res) => {
             order: [['docDate', 'ASC'], ['createdAt', 'ASC']],
             attributes: ['id', 'docNo', 'amount', 'collectedAmount'],
         })).filter((d) => Number(d.amount) > Number(d.collectedAmount));
+        // Account currency for the entry dialogs (multicurrency step 3): the
+        // code, the base, and - for a FOREIGN account - the currency's rate
+        // history so the Exchange rate field defaults per document date
+        // client-side (the server re-resolves when none is keyed).
+        const fxState = await arCurrency.getMultiCurrencyState(req, companyId);
+        const accountCurrency = arCurrency.effectiveCurrency(debtor.currencyCode, fxState.baseCurrencyCode);
+        const isBase = !accountCurrency || !fxState.baseCurrencyCode || accountCurrency === fxState.baseCurrencyCode;
+        const currency = {
+            code: accountCurrency,
+            baseCurrencyCode: fxState.baseCurrencyCode,
+            isBase,
+            rates: isBase ? [] : await arCurrency.listRates(companyId, accountCurrency),
+        };
         res.status(200).json({
+            currency,
             // The AR-OWNED catalog (2026-08-15) with trxClass, so each entry
             // dialog offers only its own document book's types.
             transactionTypes: types.map((t) => t.toJSON()),
@@ -342,6 +379,7 @@ function makeLedgerListHandler(docKind) {
                     netAmount: r.netAmount, taxAmount: r.taxAmount, grossAmount: r.grossAmount,
                     settledAmount: r.settledAmount, status: r.status,
                     voidReason: r.voidReason,
+                    ...fxDto(r), baseGrossAmount: r.baseGrossAmount,
                     // Draft edit prefill (the shared dialog re-opens the form;
                     // applyToLedgerId = a CN draft's allocation intent).
                     transactionTypeId: r.transactionTypeId,
@@ -434,7 +472,11 @@ async function readDraftFields(req, companyId, debtor, lk) {
             return { error: `Credit note amount (gross ${posting.money(amounts.grossC)}) exceeds the balance of ${cnTarget.docNo} (${posting.money(remainingC)}).` };
         }
     }
-    return { dates, txnType, amounts, applyToLedgerId };
+
+    // Exchange rate frozen at save (keyed, else the table at docDate).
+    const fxRead = await readFx(companyId, debtor, dates.docDate, req.body);
+    if (fxRead.error) return { error: fxRead.error };
+    return { dates, txnType, amounts, applyToLedgerId, fx: fxRead.fx };
 }
 
 // Manual-number pre-checks for a draft (auto mode issues in-tx at save).
@@ -491,6 +533,7 @@ async function createDraft(req, res, companyId, debtor, lk) {
         taxRate: fields.amounts.taxRate,
         taxAmount: posting.money(fields.amounts.taxC),
         grossAmount: posting.money(fields.amounts.grossC),
+        ...arCurrency.ledgerFxColumns(fields.fx, fields.amounts),
         isInterestChargeable: lk.mode === 'debit' && fields.txnType.isInterestChargeable === true,
         settledAmount: 0,
         status: 'draft',
@@ -565,6 +608,7 @@ function makeUpdateDraft(lk) {
             taxRate: fields.amounts.taxRate,
             taxAmount: posting.money(fields.amounts.taxC),
             grossAmount: posting.money(fields.amounts.grossC),
+            ...arCurrency.ledgerFxColumns(fields.fx, fields.amounts),
             isInterestChargeable: lk.mode === 'debit' && fields.txnType.isInterestChargeable === true,
             updatedBy: getUserContext(req).userId,
         });
@@ -712,7 +756,9 @@ async function readReceiptDraftFields(req, companyId, debtor) {
         });
         if (!dep) return { error: 'The deposit is not open on this debtor.' };
     }
-    return { dates, txnType, amountC, collectDepositId };
+    const fxRead = await readFx(companyId, debtor, dates.docDate, req.body);
+    if (fxRead.error) return { error: fxRead.error };
+    return { dates, txnType, amountC, collectDepositId, fx: fxRead.fx };
 }
 
 async function readReceiptDocNo(req, companyId, { ignoreId = null } = {}) {
@@ -755,6 +801,7 @@ async function createReceiptDraft(req, res, companyId, debtor) {
         description: strOrNull(req.body.description),
         collectDepositId: fields.collectDepositId,
         amount: posting.money(fields.amountC),
+        ...arCurrency.amountFxColumns(fields.fx, fields.amountC),
         allocatedAmount: 0,
         sourceModule: 'ar',
         sourceRef: 'manual',
@@ -818,6 +865,7 @@ exports.updateReceiptDraft = async (req, res) => {
             description: strOrNull(req.body.description),
             collectDepositId: fields.collectDepositId,
             amount: posting.money(fields.amountC),
+            ...arCurrency.amountFxColumns(fields.fx, fields.amountC),
             updatedBy: getUserContext(req).userId,
         });
         await row.save();
@@ -914,6 +962,7 @@ exports.listReceipts = async (req, res) => {
                 netAmount: r.amount, taxAmount: '0.00', grossAmount: r.amount,
                 settledAmount: r.allocatedAmount, status: r.status,
                 voidReason: r.voidReason,
+                ...fxDto(r), baseGrossAmount: r.baseAmount,
                 // Draft edit prefill.
                 transactionTypeId: r.transactionTypeId,
                 paymentMethod: r.paymentMethod, paymentRef: r.paymentRef,
@@ -1008,6 +1057,7 @@ exports.postLedger = async (req, res) => {
                 // No FIFO for manual adjustments (user rule 2026-08-20) -
                 // postLedgerDoc's fifo stays for the deposit-conversion CN.
                 amounts, stamps, targetLedger, fifo: false,
+                exchangeRate: req.body.exchangeRate,
                 t,
             }));
         } catch (e) {
@@ -1074,7 +1124,9 @@ exports.postRefund = async (req, res) => {
                 paymentMethod: strOrNull(req.body.paymentMethod),
                 paymentRef: strOrNull(req.body.paymentRef),
                 description: strOrNull(req.body.description),
-                amountC, depositRow, stamps, t,
+                amountC, depositRow, stamps,
+                exchangeRate: req.body.exchangeRate,
+                t,
             }));
         } catch (e) {
             if (e && e.httpStatus) return res.status(e.httpStatus).json({ message: e.message });
@@ -1108,6 +1160,9 @@ exports.postDeposit = async (req, res) => {
             return res.status(400).json({ message: 'Deposit number is required (numbering is manual).' });
         }
 
+        const fxRead = await readFx(companyId, debtor, dates.docDate, req.body);
+        if (fxRead.error) return res.status(400).json({ message: fxRead.error });
+
         const placement = await getCallerPlacement(req);
         const stamps = ownershipStamps(req, placement);
         const issue = docNoIssuer(req, DEPOSIT_NUMBERING_PURPOSE, manualNo);
@@ -1118,6 +1173,7 @@ exports.postDeposit = async (req, res) => {
             docDate: dates.docDate, trxDate: dates.trxDate,
             description: strOrNull(req.body.description),
             amount: posting.money(amountC),
+            ...arCurrency.amountFxColumns(fxRead.fx, amountC),
             collectedAmount: 0, utilizedAmount: 0, status: 'open',
             ...stamps,
         }, { transaction: t }));

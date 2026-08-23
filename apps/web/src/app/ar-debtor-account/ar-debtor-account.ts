@@ -11,6 +11,7 @@ import { ArLedgerDialogComponent, ArLedgerDialogDebtor } from '../shared/ar-ledg
 import { ArReceiptDialogComponent } from '../shared/ar-receipt-dialog/ar-receipt-dialog';
 import { ArService } from '../services/ar.service';
 import { ArAccount, ArAccountMeta, ArDepositDoc, ArLedgerDoc, ArReceiptDoc } from '../models/ar.models';
+import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate } from '../shared/ar-fx';
 
 // Account Receivable → Debtor Account (the Debtor Listing's detail surface,
 // same '/ar/debtors' menu). Shows the ledger account's balances and its three
@@ -81,6 +82,7 @@ export class ArDebtorAccountComponent {
     description: [''],
     fundSource: ['credit'],
     depositId: [''],
+    exchangeRate: ['', [Validators.pattern(AR_RATE_PATTERN)]],
   });
 
   // --- Deposit dialog (open a deposit) ---
@@ -92,7 +94,35 @@ export class ArDebtorAccountComponent {
     trxDate: ['', [Validators.required]],
     amount: [0, [Validators.required, Validators.min(0.01)]],
     description: [''],
+    exchangeRate: ['', [Validators.pattern(AR_RATE_PATTERN)]],
   });
+
+  // --- Multicurrency (step 3) for the two inline forms (refund / deposit):
+  // the rate field shows on a FOREIGN account, defaulting from the account
+  // currency's rate history at the document date until the user keys one.
+  readonly fxCurrency = computed(() => this.meta()?.currency || null);
+  readonly isForeign = computed(() => { const c = this.fxCurrency(); return !!c && !c.isBase && !!c.code; });
+  private refundRateTouched = false;
+  private depositRateTouched = false;
+
+  private defaultRate(docDate: string): string {
+    return arRateForDate(this.fxCurrency(), docDate);
+  }
+
+  // Payload fragment: only a foreign account sends a rate.
+  private fxPayload(rate: string): Record<string, unknown> {
+    return this.isForeign() ? { exchangeRate: rate.trim() || null } : {};
+  }
+
+  refundBaseEquivalent(): string {
+    const f = this.refundForm.getRawValue();
+    return arBaseEquivalent(f.amount, f.exchangeRate);
+  }
+
+  depositBaseEquivalent(): string {
+    const f = this.depositForm.getRawValue();
+    return arBaseEquivalent(f.amount, f.exchangeRate);
+  }
 
   // --- Convert-deposit dialog ---
   readonly convertOpen = signal(false);
@@ -234,9 +264,16 @@ export class ArDebtorAccountComponent {
     this.refundForm.reset({
       docNo: '', docDate: t, trxDate: t, amount: 0, paymentMethod: '', paymentRef: '',
       description: '', fundSource: 'credit', depositId: '',
+      exchangeRate: this.defaultRate(t),
     });
+    this.refundRateTouched = false;
     this.refundOpen.set(true);
   }
+  onRefundDateChange(docDate: string): void {
+    if (this.refundRateTouched || !this.isForeign()) return;
+    this.refundForm.controls.exchangeRate.setValue(this.defaultRate(docDate), { emitEvent: false });
+  }
+  onRefundRateKeyed(): void { this.refundRateTouched = true; }
   closeRefund(): void { this.refundOpen.set(false); }
   onSaveRefund(): void {
     this.clearMessages();
@@ -256,6 +293,7 @@ export class ArDebtorAccountComponent {
       paymentRef: f.paymentRef.trim() || null,
       description: f.description.trim() || null,
       depositId: f.fundSource === 'deposit' ? f.depositId : null,
+      ...this.fxPayload(f.exchangeRate),
     }).subscribe({
       next: (res) => { this.successMessage.set(res.message); this.refundSaving.set(false); this.refundOpen.set(false); this.load(); },
       error: (err) => { this.errorMessage.set(err.error?.message || 'Failed to post the refund.'); this.refundSaving.set(false); },
@@ -266,9 +304,15 @@ export class ArDebtorAccountComponent {
   openDeposit(): void {
     this.clearMessages();
     const t = this.today();
-    this.depositForm.reset({ docNo: '', docDate: t, trxDate: t, amount: 0, description: '' });
+    this.depositForm.reset({ docNo: '', docDate: t, trxDate: t, amount: 0, description: '', exchangeRate: this.defaultRate(t) });
+    this.depositRateTouched = false;
     this.depositOpen.set(true);
   }
+  onDepositDateChange(docDate: string): void {
+    if (this.depositRateTouched || !this.isForeign()) return;
+    this.depositForm.controls.exchangeRate.setValue(this.defaultRate(docDate), { emitEvent: false });
+  }
+  onDepositRateKeyed(): void { this.depositRateTouched = true; }
   closeDeposit(): void { this.depositOpen.set(false); }
   onSaveDeposit(): void {
     this.clearMessages();
@@ -281,6 +325,7 @@ export class ArDebtorAccountComponent {
       trxDate: f.trxDate,
       amount: f.amount,
       description: f.description.trim() || null,
+      ...this.fxPayload(f.exchangeRate),
     }).subscribe({
       next: (res) => { this.successMessage.set(res.message); this.depositSaving.set(false); this.depositOpen.set(false); this.load(); },
       error: (err) => { this.errorMessage.set(err.error?.message || 'Failed to open the deposit.'); this.depositSaving.set(false); },

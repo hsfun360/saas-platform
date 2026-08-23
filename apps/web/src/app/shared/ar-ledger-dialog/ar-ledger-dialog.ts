@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subject, debounceTime } from 'rxjs';
@@ -7,6 +7,7 @@ import { DialogComponent } from '../dialog/dialog';
 import { MoneyInputDirective } from '../money-input.directive';
 import { ArService } from '../../services/ar.service';
 import { ArAccountMeta, ArDebtor, ArDocListRow, ArLedgerDoc } from '../../models/ar.models';
+import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate, arTrimRate } from '../ar-fx';
 
 // The ONE ledger-document entry dialog (Invoice / Debit Note / Credit Note),
 // shared by the Debtor Account screen (debtor known - entry only) and the
@@ -95,10 +96,47 @@ export class ArLedgerDialogComponent implements OnInit {
     description: [''],
     amount: [0, [Validators.required, Validators.min(0.01)]],
     targetLedgerId: [''],
+    // Multicurrency (step 3): the rate to base on a FOREIGN-currency account
+    // (1 account unit = rate base units). Defaults from the account
+    // currency's rate history at the document date; editable while Open.
+    exchangeRate: ['', [Validators.pattern(AR_RATE_PATTERN)]],
   });
+
+  // --- Multicurrency (step 3) ---
+  readonly fxCurrency = computed(() => this.effMeta()?.currency || null);
+  readonly isForeign = computed(() => { const c = this.fxCurrency(); return !!c && !c.isBase && !!c.code; });
+  // Form mirrors (computed cannot read a FormControl): amount, rate, docDate.
+  private readonly amountSig = signal<number | null>(0);
+  private readonly rateSig = signal('');
+  private readonly docDateSig = signal('');
+  // Once the user keys a rate (or a draft carries one) the date no longer
+  // re-defaults it.
+  private readonly rateTouched = signal(false);
+  readonly baseEquivalent = computed(() => arBaseEquivalent(this.amountSig(), this.rateSig()));
 
   constructor() {
     this.pickQuery$.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => this.loadPickRows());
+    this.form.controls.amount.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => this.amountSig.set(v));
+    this.form.controls.docDate.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => this.docDateSig.set(v));
+    this.form.controls.exchangeRate.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => {
+      this.rateSig.set(v);
+      this.rateTouched.set(true);
+    });
+    // Default the rate from the table whenever the document date moves and
+    // the user has not keyed one (programmatic set: no valueChanges event).
+    effect(() => {
+      if (!this.isForeign() || this.rateTouched()) return;
+      const r = arRateForDate(this.fxCurrency(), this.docDateSig());
+      this.form.controls.exchangeRate.setValue(r, { emitEvent: false });
+      this.rateSig.set(r);
+    });
+  }
+
+  // Re-sync the mirrors after a programmatic reset (reset emits no events here).
+  private syncFxSignals(): void {
+    this.amountSig.set(this.form.controls.amount.value);
+    this.docDateSig.set(this.form.controls.docDate.value);
+    this.rateSig.set(this.form.controls.exchangeRate.value);
   }
 
   ngOnInit(): void {
@@ -115,7 +153,12 @@ export class ArLedgerDialogComponent implements OnInit {
         amount: Number(edit.netAmount),
         // CN drafts carry their allocation intent (resolved at posting).
         targetLedgerId: edit.applyToLedgerId || '',
-      });
+        exchangeRate: arTrimRate(edit.exchangeRate),
+      }, { emitEvent: false });
+      // A draft with a frozen-at-save rate keeps it; one saved before its
+      // rate existed defaults from the table like a new document.
+      this.rateTouched.set(!!edit.exchangeRate);
+      this.syncFxSignals();
       this.pickedDebtor.set({ id: edit.debtor.id, no: edit.debtor.no, name: edit.debtor.name });
       this.mode.set('entry');
       this.metaLoading.set(true);
@@ -133,7 +176,10 @@ export class ArLedgerDialogComponent implements OnInit {
       description: '', amount: this.presetAmount() ?? 0,
       // Raise-CN pre-selects the source document as the apply-against target.
       targetLedgerId: this.presetTargetId() || '',
-    });
+      exchangeRate: '',
+    }, { emitEvent: false });
+    this.rateTouched.set(false);
+    this.syncFxSignals();
     // A preset debtor starts straight in entry mode - self-loading the meta
     // when the opener didn't supply it (e.g. Raise-CN from a listing row);
     // standalone starts at the debtor picker.
@@ -231,6 +277,9 @@ export class ArLedgerDialogComponent implements OnInit {
       description: f.description.trim() || null,
       amount: f.amount,
       targetLedgerId: this.kind() === 'credit-note' ? (f.targetLedgerId || null) : null,
+      // Foreign-currency account only: the keyed rate (blank = the API takes
+      // the Exchange Rates table at the document date, or refuses clearly).
+      ...(this.isForeign() ? { exchangeRate: f.exchangeRate.trim() || null } : {}),
     };
   }
 
