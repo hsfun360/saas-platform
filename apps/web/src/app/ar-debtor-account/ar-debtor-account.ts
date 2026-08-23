@@ -239,6 +239,8 @@ export class ArDebtorAccountComponent {
     this.ledgerOpen.set(true);
   }
   onLedgerPosted(message: string): void {
+    // A failed attempt's error must not outlive the save that followed it.
+    this.errorMessage.set('');
     this.successMessage.set(message);
     this.ledgerOpen.set(false);
     this.load();
@@ -252,6 +254,7 @@ export class ArDebtorAccountComponent {
     this.receiptOpen.set(true);
   }
   onReceiptPosted(message: string): void {
+    this.errorMessage.set('');
     this.successMessage.set(message);
     this.receiptOpen.set(false);
     this.load();

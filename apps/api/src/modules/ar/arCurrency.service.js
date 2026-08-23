@@ -120,7 +120,9 @@ async function resolveDocumentFx({ companyId, debtor, docDate, requestedRate = n
     if (keyed) return { currencyCode, exchangeRate: keyed, isBase: false };
     const tableRate = await lookupRate(companyId, currencyCode, docDate, transaction);
     if (!tableRate) {
-        throw httpError(400, `No ${currencyCode} exchange rate is effective on ${docDate} - add one under Exchange Rates or key the rate on the document.`);
+        // No raw ISO date in user-facing text (date display standard) - the
+        // user is looking at the document date field as this shows.
+        throw httpError(400, `No ${currencyCode} exchange rate is effective on the document date - add one under Exchange Rates or key the rate on the document.`);
     }
     return { currencyCode, exchangeRate: tableRate, isBase: false };
 }

@@ -230,6 +230,8 @@ export class ArTransactionsComponent implements OnInit {
     this.entryOpen.set(true);
   }
   onPosted(message: string): void {
+    // A failed attempt's error must not outlive the save that followed it.
+    this.errorMessage.set('');
     this.successMessage.set(message);
     this.entryOpen.set(false);
     this.editRow.set(null);
@@ -346,6 +348,7 @@ export class ArTransactionsComponent implements OnInit {
     return Number(row.grossAmount) - Number(row.settledAmount);
   }
   onRaiseCnPosted(message: string): void {
+    this.errorMessage.set('');
     this.successMessage.set(message);
     this.raiseCnFor.set(null);
     this.load(true);
