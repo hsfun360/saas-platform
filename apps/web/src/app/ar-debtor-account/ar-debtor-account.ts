@@ -205,7 +205,12 @@ export class ArDebtorAccountComponent {
   canVoidLedgerDoc(doc: ArLedgerDoc): boolean {
     if (doc.docKind === 'invoice') return doc.status === 'draft';
     if (doc.docKind === 'credit-note' && doc.status === 'draft') return true;
-    return doc.status === 'open' && doc.settledAmount === '0.00';
+    return doc.status === 'open' && Number(doc.balanceAmount) === Number(doc.grossAmount);
+  }
+
+  // Any allocation has reduced the balance below the gross.
+  hasAllocations(doc: ArLedgerDoc): boolean {
+    return Number(doc.balanceAmount) < Number(doc.grossAmount);
   }
   kindLabel(kind: string): string {
     return kind === 'invoice' ? 'Invoice'
@@ -215,7 +220,7 @@ export class ArDebtorAccountComponent {
       : kind === 'refund' ? 'Refund' : kind;
   }
   remaining(doc: ArLedgerDoc): string {
-    return (Number(doc.grossAmount) - Number(doc.settledAmount)).toFixed(2);
+    return Number(doc.balanceAmount).toFixed(2);
   }
   unallocated(doc: ArReceiptDoc): string {
     return (Number(doc.amount) - Number(doc.allocatedAmount)).toFixed(2);

@@ -31,6 +31,15 @@ Key rules a maintainer must not break:
   `trxDate` is the accounting-period (GL) date - defaults to `docDate`, but a forgotten last-month document keyed after the period closed keeps last month's `docDate` with a current-month `trxDate`.
   Aging/statements bucket by `docDate`/`dueDate`; financial-period reporting buckets by `trxDate`.
 
+## Ledger balance counter - `balanceAmount` (renamed 2026-08-24)
+
+`ar.Ledger` stores the REMAINING balance, not the allocated-so-far amount (user decision: the stored counter reads the way the screens do).
+`balanceAmount` = `grossAmount` at creation (drafts included; a draft edit keeps it in step with the gross), reduced by every allocation until 0, at which point `status` flips to `settled`.
+For debit rows it is the unsettled balance; for credit rows the credit not yet applied out.
+Allocation rows stay the auditable truth: reconciliation asserts `balanceAmount == grossAmount - SUM(allocations)`; the void guard is `balanceAmount == grossAmount` (no allocations yet).
+A one-shot boot migration converted existing rows (`balanceAmount = grossAmount - settledAmount`) before the alter-sync dropped the old column.
+`Receipt.allocatedAmount` and the Deposit counters keep their original direction; the receipts LISTING derives `balanceAmount` for its ledger-shaped rows.
+
 ## Built so far
 
 - Slice 1 - masters: `Debtor`, `OtherDebtor` (AR-owned city-ledger party master), `CreditAccount`, `CreditMemberLimit`.
@@ -75,7 +84,7 @@ Key rules a maintainer must not break:
 - **Payment method = a Receipt-class Transaction Type** (new `Receipt.transactionTypeId`; `paymentMethod` keeps the type CODE as display snapshot; legacy rows keep their free text). The catalog's receipt class is finally consumed.
 - **Deposit-collection intent on the draft** (new `Receipt.collectDepositId`, like the CN's apply-target): resolved at posting - pays the billed deposit in first, then the remainder **always FIFO-allocates** across open items (receipt behaviour; the old autoAllocate opt-out was dropped - excess beyond open items stays as available credit per the 2026-08-04 design). New columns also: postedAt/postedBy/voidedAt/voidedBy/voidReason.
 - Account meta ships `openDeposits` (billed, not fully collected) for the dialog's Collect-deposit picker; the deposit row's "Collect" button pre-selects it (`presetDepositId`).
-- Listing (`GET /receipts`) is shaped like the ledger listings (grossAmount=amount, settledAmount=allocated -> the Balance column shows the unallocated credit); no Pending-Approval status.
+- Listing (`GET /receipts`) is shaped like the ledger listings (grossAmount=amount, balanceAmount=unallocated credit -> the Balance column); no Pending-Approval status.
 - Draft exclusions wired: statements pull receipts with status 'open' only, reconciliation skips drafts, refund FIFO funding already filtered 'open'.
 
 ## Invoice lifecycle (defined 2026-08-13 - Save / Submit / approval)

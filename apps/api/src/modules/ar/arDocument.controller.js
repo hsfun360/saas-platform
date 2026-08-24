@@ -164,7 +164,7 @@ exports.getAccount = async (req, res) => {
                 incurredBy: r.incurredByMemberId ? (personById.get(r.incurredByMemberId) || null) : null,
                 sourceModule: r.sourceModule, sourceRef: r.sourceRef,
                 netAmount: r.netAmount, taxAmount: r.taxAmount, grossAmount: r.grossAmount,
-                settledAmount: r.settledAmount, status: r.status, reversalOfId: r.reversalOfId,
+                balanceAmount: r.balanceAmount, status: r.status, reversalOfId: r.reversalOfId,
                 voidReason: r.voidReason,
                 ...fxDto(r), baseGrossAmount: r.baseGrossAmount,
             })),
@@ -216,7 +216,7 @@ exports.getAccountMeta = async (req, res) => {
         const openDebits = await Ledger.findAll({
             where: { debtorId: debtor.id, mode: 'debit', status: 'open' },
             order: [['docDate', 'ASC'], ['createdAt', 'ASC']],
-            attributes: ['id', 'docKind', 'docNo', 'grossAmount', 'settledAmount'],
+            attributes: ['id', 'docKind', 'docNo', 'grossAmount', 'balanceAmount'],
         });
         // The debtor's collectable DEPOSITS - the Receipt entry's optional
         // "Collect deposit" choices (billed amount not yet fully paid in).
@@ -248,7 +248,7 @@ exports.getAccountMeta = async (req, res) => {
             creditNoteApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-credit-note'),
             openDebits: openDebits.map((d) => ({
                 id: d.id, docKind: d.docKind, docNo: d.docNo,
-                grossAmount: d.grossAmount, settledAmount: d.settledAmount,
+                grossAmount: d.grossAmount, balanceAmount: d.balanceAmount,
             })),
             openDeposits: openDeposits.map((d) => ({
                 id: d.id, docNo: d.docNo, amount: d.amount, collectedAmount: d.collectedAmount,
@@ -377,7 +377,7 @@ function makeLedgerListHandler(docKind) {
                     docDate: r.docDate, trxDate: r.trxDate, dueDate: r.dueDate,
                     description: r.description, sourceModule: r.sourceModule,
                     netAmount: r.netAmount, taxAmount: r.taxAmount, grossAmount: r.grossAmount,
-                    settledAmount: r.settledAmount, status: r.status,
+                    balanceAmount: r.balanceAmount, status: r.status,
                     voidReason: r.voidReason,
                     ...fxDto(r), baseGrossAmount: r.baseGrossAmount,
                     // Draft edit prefill (the shared dialog re-opens the form;
@@ -444,7 +444,7 @@ async function readDraftFields(req, companyId, debtor, lk) {
         if (applyToLedgerId) {
             cnTarget = await Ledger.findOne({
                 where: { id: applyToLedgerId, debtorId: debtor.id, mode: 'debit', status: 'open' },
-                attributes: ['id', 'docNo', 'grossAmount', 'settledAmount'],
+                attributes: ['id', 'docNo', 'grossAmount', 'balanceAmount'],
             });
             if (!cnTarget) return { error: 'The target document is not an open debit of this debtor.' };
         }
@@ -467,7 +467,7 @@ async function readDraftFields(req, companyId, debtor, lk) {
     // 2026-08-20) - checked GROSS (tax included), since the gross is what
     // allocates. Untargeted CNs stay uncapped (available credit).
     if (cnTarget) {
-        const remainingC = posting.cents(cnTarget.grossAmount) - posting.cents(cnTarget.settledAmount);
+        const remainingC = posting.cents(cnTarget.balanceAmount);
         if (amounts.grossC > remainingC) {
             return { error: `Credit note amount (gross ${posting.money(amounts.grossC)}) exceeds the balance of ${cnTarget.docNo} (${posting.money(remainingC)}).` };
         }
@@ -535,7 +535,7 @@ async function createDraft(req, res, companyId, debtor, lk) {
         grossAmount: posting.money(fields.amounts.grossC),
         ...arCurrency.ledgerFxColumns(fields.fx, fields.amounts),
         isInterestChargeable: lk.mode === 'debit' && fields.txnType.isInterestChargeable === true,
-        settledAmount: 0,
+        balanceAmount: posting.money(fields.amounts.grossC),
         status: 'draft',
         ...stamps,
     }, { transaction: t }));
@@ -608,6 +608,8 @@ function makeUpdateDraft(lk) {
             taxRate: fields.amounts.taxRate,
             taxAmount: posting.money(fields.amounts.taxC),
             grossAmount: posting.money(fields.amounts.grossC),
+            // A draft has no allocations, so its balance tracks its gross.
+            balanceAmount: posting.money(fields.amounts.grossC),
             ...arCurrency.ledgerFxColumns(fields.fx, fields.amounts),
             isInterestChargeable: lk.mode === 'debit' && fields.txnType.isInterestChargeable === true,
             updatedBy: getUserContext(req).userId,
@@ -911,7 +913,7 @@ exports.submitReceipt = async (req, res) => {
 
 // GET /api/ar/receipts - cross-debtor Official Receipt listing, shaped like
 // the ledger listings so the one transaction screen renders it (grossAmount =
-// amount, settledAmount = allocated; Balance column = unallocated credit).
+// amount, balanceAmount = unallocated credit).
 exports.listReceipts = async (req, res) => {
     try {
         const { companyId } = getUserContext(req);
@@ -960,7 +962,7 @@ exports.listReceipts = async (req, res) => {
                 docDate: r.docDate, trxDate: r.trxDate, dueDate: null,
                 description: r.description, sourceModule: r.sourceModule || 'ar',
                 netAmount: r.amount, taxAmount: '0.00', grossAmount: r.amount,
-                settledAmount: r.allocatedAmount, status: r.status,
+                balanceAmount: posting.money(posting.cents(r.amount) - posting.cents(r.allocatedAmount)), status: r.status,
                 voidReason: r.voidReason,
                 ...fxDto(r), baseGrossAmount: r.baseAmount,
                 // Draft edit prefill.

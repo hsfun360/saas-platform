@@ -66,7 +66,7 @@ async function generateInterest({ companyId, periodMonth, cutoffDate, ratePercen
             let overdueC = 0;
             let interestC = 0;
             for (const item of items) {
-                const remainingC = cents(item.grossAmount) - cents(item.settledAmount);
+                const remainingC = cents(item.balanceAmount);
                 if (remainingC <= 0) continue;
                 // Flat monthly rate, half-up per line.
                 const lineInterestC = Math.round((remainingC * Number(ratePercent)) / 100);

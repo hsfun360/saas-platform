@@ -100,7 +100,7 @@
                   </div>
                   <div class="ara-doc__amounts">
                     <span class="ara-doc__gross">{{ doc.grossAmount }}</span>
-                    @if ((doc.status === 'open' || doc.status === 'settled') && doc.settledAmount !== '0.00') {
+                    @if ((doc.status === 'open' || doc.status === 'settled') && hasAllocations(doc)) {
                       <span class="cell-subtle">balance {{ remaining(doc) }}</span>
                     }
                     <span class="status-chip"

@@ -318,6 +318,26 @@ async function initializeDB() {
                  WHERE "docNo" IS NULL`,
             ).catch((err) => console.warn('Ledger draft docNo backfill skipped:', err.message));
 
+            // balanceAmount rename (user decision 2026-08-24): ar.Ledger stores
+            // the REMAINING balance (gross at creation, reduced to 0 by
+            // allocations) instead of the allocated-so-far settledAmount. The
+            // value must be converted BEFORE the alter-sync drops the old
+            // column. Idempotent; skipped entirely once settledAmount is gone.
+            const [[ledgerCols]] = await sequelize.query(
+                `SELECT
+                    EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ar' AND table_name = 'Ledger' AND column_name = 'settledAmount') AS has_old,
+                    EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ar' AND table_name = 'Ledger' AND column_name = 'balanceAmount') AS has_new`,
+            ).catch(() => [[null]]);
+            if (ledgerCols && ledgerCols.has_old) {
+                if (!ledgerCols.has_new) {
+                    await sequelize.query('ALTER TABLE ar."Ledger" ADD COLUMN "balanceAmount" numeric(21,2)');
+                }
+                await sequelize.query(
+                    `UPDATE ar."Ledger" SET "balanceAmount" = "grossAmount" - "settledAmount"
+                     WHERE "balanceAmount" IS NULL`,
+                );
+            }
+
             await sequelize.sync({ alter: true });
 
             // Multicurrency step 2 (2026-08-21): every ledger account carries

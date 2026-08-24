@@ -113,7 +113,9 @@ export interface ArLedgerDoc {
   netAmount: string;
   taxAmount: string;
   grossAmount: string;
-  settledAmount: string;
+  // The REMAINING balance (gross at creation, reduced to 0 by allocations;
+  // renamed from settledAmount, user decision 2026-08-24).
+  balanceAmount: string;
   status: ArDocStatus;
   reversalOfId: string | null;
   voidReason?: string | null;
@@ -196,7 +198,8 @@ export interface ArDocListRow {
   netAmount: string;
   taxAmount: string;
   grossAmount: string;
-  settledAmount: string;
+  // Remaining balance (receipt rows: the unallocated credit).
+  balanceAmount: string;
   status: ArDocStatus;
   voidReason?: string | null;
   // Multicurrency (step 3): account currency + the frozen rate + base gross.
@@ -241,7 +244,7 @@ export interface ArAccountMeta {
   invoiceApproval?: boolean;
   creditNoteApproval?: boolean;
   // The debtor's open debits - the CN entry's "Apply against" choices.
-  openDebits?: { id: string; docKind: string; docNo: string | null; grossAmount: string; settledAmount: string }[];
+  openDebits?: { id: string; docKind: string; docNo: string | null; grossAmount: string; balanceAmount: string }[];
   // The debtor's collectable deposits - the Receipt entry's optional
   // "Collect deposit" choices.
   openDeposits?: { id: string; docNo: string | null; amount: string; collectedAmount: string }[];

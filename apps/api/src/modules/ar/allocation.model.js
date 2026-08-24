@@ -15,7 +15,7 @@ const { AR_SCHEMA } = require('../../platform/schemas');
 //
 // UNIQUE on the 4-col pair: re-allocating the same pair UPDATES the row (the
 // audit log keeps history). Reconciliation asserts the materialized counters
-// (settledAmount / allocatedAmount / collectedAmount / utilizedAmount /
+// (balanceAmount / allocatedAmount / collectedAmount / utilizedAmount /
 // outstanding / personalUsed) against these rows.
 const Allocation = sequelize.define('Allocation', {
     id: {

@@ -10,7 +10,7 @@
 //                            - SUM(non-void credit Ledger unapplied)
 //                            - SUM(non-void Receipt unallocated)
 //   cap.personalUsed        == SUM(person's non-void debit Ledger remaining)
-//   ledger.settledAmount    == SUM(Allocation rows on that row's side)
+//   ledger.balanceAmount    == grossAmount - SUM(Allocation rows on that row's side)
 //   receipt.allocatedAmount == SUM(Allocation rows on its side)
 //   deposit.collectedAmount == SUM(receipt->deposit allocations)
 //   deposit.utilizedAmount  == SUM(deposit->refund allocations)
@@ -82,7 +82,7 @@ async function reconcileCompany(companyId, { fix = false } = {}) {
         // 2026-08-13): they carry no counters and never enter outstanding.
         if (['draft', 'pending-approval'].includes(row.status)) continue;
         if (row.status !== 'void') {
-            const remaining = cents(row.grossAmount) - cents(row.settledAmount);
+            const remaining = cents(row.balanceAmount);
             if (row.mode === 'debit') {
                 bump(expOutstanding, row.debtorId, remaining);
                 if (row.incurredByMemberId) bump(expPersonal, `${row.debtorId}:${row.incurredByMemberId}`, remaining);
@@ -97,9 +97,9 @@ async function reconcileCompany(companyId, { fix = false } = {}) {
         // Counter vs the allocation web (void rows must sit at their frozen
         // amounts too - a void with allocations would itself be drift).
         const side = row.mode === 'debit' ? allocByDebit : allocByCredit;
-        const expected = side.get(`ledger:${row.id}`) || 0;
-        note('ledger', row.docNo, 'settledAmount', expected, cents(row.settledAmount), async (t) => {
-            await Ledger.update({ settledAmount: money(expected) }, { where: { id: row.id }, transaction: t });
+        const expectedBalance = cents(row.grossAmount) - (side.get(`ledger:${row.id}`) || 0);
+        note('ledger', row.docNo, 'balanceAmount', expectedBalance, cents(row.balanceAmount), async (t) => {
+            await Ledger.update({ balanceAmount: money(expectedBalance) }, { where: { id: row.id }, transaction: t });
         });
     }
 

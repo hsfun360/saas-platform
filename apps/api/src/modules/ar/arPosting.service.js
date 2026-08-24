@@ -75,13 +75,13 @@ async function bumpOutstanding(pool, deltaCents, t) {
 // Available capacity of a credit-side document, in cents.
 function creditCapacity(type, row) {
     if (type === 'receipt') return cents(row.amount) - cents(row.allocatedAmount);
-    if (type === 'ledger') return cents(row.grossAmount) - cents(row.settledAmount);
+    if (type === 'ledger') return cents(row.balanceAmount);
     return cents(row.collectedAmount) - cents(row.utilizedAmount); // deposit held
 }
 
 // Open capacity of a debit-side document, in cents.
 function debitCapacity(type, row) {
-    if (type === 'ledger') return cents(row.grossAmount) - cents(row.settledAmount);
+    if (type === 'ledger') return cents(row.balanceAmount);
     if (type === 'refund') return cents(row.amount) - cents(row.allocatedAmount);
     return cents(row.amount) - cents(row.collectedAmount); // deposit collection
 }
@@ -118,8 +118,9 @@ async function applyAllocation({ companyId, creditType, creditRow, debitType, de
         creditRow.allocatedAmount = money(cents(creditRow.allocatedAmount) + amountCents);
         await creditRow.save({ transaction: t });
     } else if (creditType === 'ledger') {
-        creditRow.settledAmount = money(cents(creditRow.settledAmount) + amountCents);
-        if (cents(creditRow.settledAmount) >= cents(creditRow.grossAmount)) creditRow.status = 'settled';
+        // balanceAmount counts DOWN (gross at creation -> 0 = settled).
+        creditRow.balanceAmount = money(cents(creditRow.balanceAmount) - amountCents);
+        if (cents(creditRow.balanceAmount) <= 0) creditRow.status = 'settled';
         await creditRow.save({ transaction: t });
     } else {
         creditRow.utilizedAmount = money(cents(creditRow.utilizedAmount) + amountCents);
@@ -129,8 +130,8 @@ async function applyAllocation({ companyId, creditType, creditRow, debitType, de
 
     // Debit side counters (+ personal cap release for settled ledger items).
     if (debitType === 'ledger') {
-        debitRow.settledAmount = money(cents(debitRow.settledAmount) + amountCents);
-        if (cents(debitRow.settledAmount) >= cents(debitRow.grossAmount)) debitRow.status = 'settled';
+        debitRow.balanceAmount = money(cents(debitRow.balanceAmount) - amountCents);
+        if (cents(debitRow.balanceAmount) <= 0) debitRow.status = 'settled';
         await debitRow.save({ transaction: t });
         if (debitRow.incurredByMemberId) {
             const person = await lockPersonRow(debitRow.debtorId, debitRow.incurredByMemberId, t);
@@ -250,7 +251,7 @@ async function postLedgerDoc({
         grossAmount: money(grossC),
         ...ledgerFxColumns(fxUsed, amounts),
         isInterestChargeable: rowMode === 'debit' ? !!isInterestChargeable : false,
-        settledAmount: 0,
+        balanceAmount: money(grossC),
         status: 'open',
         ...stamps,
     }, { transaction: t });
@@ -497,7 +498,7 @@ async function convertDeposit({ companyId, debtor, deposit, amountC, transaction
 //   credit rows -> plain flip to 'void' (nothing was applied out).
 async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxDate, stamps = {}, t }) {
     if (row.status === 'void') throw bizError(400, 'This document is already void.');
-    if (cents(row.settledAmount) !== 0) {
+    if (cents(row.balanceAmount) !== cents(row.grossAmount)) {
         throw bizError(400, 'This document has allocations - correct it with a Credit Note instead of voiding.');
     }
     if (row.mode === 'debit') {

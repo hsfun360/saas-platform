@@ -189,7 +189,7 @@ export class ArTransactionsComponent implements OnInit {
   }
 
   remaining(doc: ArDocListRow): string {
-    return (Number(doc.grossAmount) - Number(doc.settledAmount)).toFixed(2);
+    return Number(doc.balanceAmount).toFixed(2);
   }
 
   // Display vocabulary: draft = "Open" (editable, not financial),
@@ -345,7 +345,7 @@ export class ArTransactionsComponent implements OnInit {
     this.raiseCnFor.set(row);
   }
   remainingNum(row: ArDocListRow): number {
-    return Number(row.grossAmount) - Number(row.settledAmount);
+    return Number(row.balanceAmount);
   }
   onRaiseCnPosted(message: string): void {
     this.errorMessage.set('');

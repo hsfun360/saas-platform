@@ -217,7 +217,7 @@ export class ArLedgerDialogComponent implements OnInit {
   }
 
   remaining(doc: ArLedgerDoc): string {
-    return (Number(doc.grossAmount) - Number(doc.settledAmount)).toFixed(2);
+    return Number(doc.balanceAmount).toFixed(2);
   }
 
   numberingMode(): string | null {
@@ -326,7 +326,7 @@ export class ArLedgerDialogComponent implements OnInit {
     if (!f.targetLedgerId) return null;
     const target = this.effOpenDebits().find((d) => d.id === f.targetLedgerId);
     if (!target) return null;
-    const remaining = Number(target.grossAmount) - Number(target.settledAmount);
+    const remaining = Number(target.balanceAmount);
     if ((Number(f.amount) || 0) > remaining + 0.000001) {
       return `The credit note amount cannot exceed the balance of ${target.docNo} (${remaining.toFixed(2)}).`;
     }

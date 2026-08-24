@@ -18,9 +18,11 @@ const { AR_SCHEMA } = require('../../platform/schemas');
 // keeps last month's docDate with a current-month trxDate).
 //
 // Amounts are tax-snapshotted at posting (taxSchemeCode/taxRate frozen; the
-// Transaction Type catalog is the single tax source). settledAmount is the
-// materialized offset counter: for debit rows the portion settled by credits,
-// for credit rows the portion applied out - remaining = gross - settled.
+// Transaction Type catalog is the single tax source). balanceAmount is the
+// materialized REMAINING counter (renamed from settledAmount, user decision
+// 2026-08-24): initialized at grossAmount and reduced by every allocation
+// until 0 (status flips to 'settled'). For debit rows it is the unsettled
+// balance; for credit rows the credit not yet applied out.
 const Ledger = sequelize.define('Ledger', {
     id: {
         type: DataTypes.UUID,
@@ -138,10 +140,12 @@ const Ledger = sequelize.define('Ledger', {
         allowNull: false,
         defaultValue: false,
     },
-    settledAmount: {
+    // The document's remaining balance: = grossAmount at creation, minus every
+    // allocation, down to 0. The stored truth is the Allocation rows -
+    // reconciliation asserts balance == gross - SUM(allocations).
+    balanceAmount: {
         type: DataTypes.DECIMAL(21, 2),
         allowNull: false,
-        defaultValue: 0,
     },
     // Document lifecycle (manual-entry lifecycle defined 2026-08-13):
     //   'draft'            - saved, editable, NOT financial (no balance effect,
