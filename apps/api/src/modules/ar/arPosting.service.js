@@ -123,7 +123,10 @@ async function applyAllocation({ companyId, creditType, creditRow, debitType, de
     } else if (creditType === 'ledger') {
         // balanceAmount counts DOWN (gross at creation -> 0 = settled).
         creditRow.balanceAmount = money(cents(creditRow.balanceAmount) - amountCents);
-        if (cents(creditRow.balanceAmount) <= 0) creditRow.status = 'settled';
+        if (cents(creditRow.balanceAmount) <= 0) {
+            creditRow.status = 'settled';
+            await require('./taxLedger.service').syncStatus({ docType: creditRow.docKind, docId: creditRow.id, status: 'settled', t });
+        }
         await creditRow.save({ transaction: t });
     } else {
         // Deposit utilization (refund funding): the held balance drops.
@@ -135,7 +138,10 @@ async function applyAllocation({ companyId, creditType, creditRow, debitType, de
     // Debit side counters (+ personal cap release for settled ledger items).
     if (debitType === 'ledger') {
         debitRow.balanceAmount = money(cents(debitRow.balanceAmount) - amountCents);
-        if (cents(debitRow.balanceAmount) <= 0) debitRow.status = 'settled';
+        if (cents(debitRow.balanceAmount) <= 0) {
+            debitRow.status = 'settled';
+            await require('./taxLedger.service').syncStatus({ docType: debitRow.docKind, docId: debitRow.id, status: 'settled', t });
+        }
         await debitRow.save({ transaction: t });
         if (debitRow.incurredByMemberId) {
             const person = await lockPersonRow(debitRow.debtorId, debitRow.incurredByMemberId, t);
@@ -323,6 +329,7 @@ async function postDraftLedger({ companyId, debtor, row, issueDocNo, stamps = {}
         row.updatedBy = stamps.updatedBy;
     }
     await row.save({ transaction: t });
+    await require('./taxLedger.service').syncStatus({ docType: row.docKind, docId: row.id, status: row.status, t });
 
     if (row.mode === 'debit') {
         await bumpOutstanding(pool, grossC, t);
@@ -533,12 +540,14 @@ async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxD
         row.status = 'void';
         if (stamps.updatedBy) row.updatedBy = stamps.updatedBy;
         await row.save({ transaction: t });
+        await require('./taxLedger.service').syncStatus({ docType: row.docKind, docId: row.id, status: 'void', t });
         return reversal;
     }
     const pool = await lockPool(companyId, debtor.id, t);
     row.status = 'void';
     if (stamps.updatedBy) row.updatedBy = stamps.updatedBy;
     await row.save({ transaction: t });
+    await require('./taxLedger.service').syncStatus({ docType: row.docKind, docId: row.id, status: 'void', t });
     await bumpOutstanding(pool, cents(row.grossAmount), t);
 
     // A deposit-conversion CN (sourceModule 'ar', sourceRef = the Deposit id)

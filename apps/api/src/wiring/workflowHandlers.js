@@ -57,17 +57,20 @@ function registerArLedgerPurpose(purpose, docKind, synthPrefix) {
         },
         onRejected: async ({ entityId, instance, transaction }) => {
             const Ledger = require('../modules/ar/ledger.model');
-            await Ledger.update(
+            const [n] = await Ledger.update(
                 { status: 'draft' },
                 { where: { id: entityId, companyId: instance.companyId, docKind, status: 'pending-approval' }, transaction },
             );
+            // Keep the tax-breakdown status mirror in step (ar.TaxLedger).
+            if (n) await require('../modules/ar/taxLedger.service').syncStatus({ docType: docKind, docId: entityId, status: 'draft', t: transaction });
         },
         onCancelled: async ({ entityId, instance, transaction }) => {
             const Ledger = require('../modules/ar/ledger.model');
-            await Ledger.update(
+            const [n] = await Ledger.update(
                 { status: 'draft' },
                 { where: { id: entityId, companyId: instance.companyId, docKind, status: 'pending-approval' }, transaction },
             );
+            if (n) await require('../modules/ar/taxLedger.service').syncStatus({ docType: docKind, docId: entityId, status: 'draft', t: transaction });
         },
     });
 }

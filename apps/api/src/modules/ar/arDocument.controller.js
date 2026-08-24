@@ -682,6 +682,7 @@ function makeSubmit(lk) {
                 row.workflowInstanceId = wf.instanceId;
                 row.updatedBy = stamps.updatedBy;
                 await row.save({ transaction: t });
+                await require('./taxLedger.service').syncStatus({ docType: row.docKind, docId: row.id, status: row.status, t });
                 outcome = { pending: true };
                 return;
             }
@@ -745,6 +746,7 @@ async function voidDraftRow(req, res, row, lk) {
     row.voidReason = reason.slice(0, 255);
     row.updatedBy = row.voidedBy;
     await row.save();
+    await require('./taxLedger.service').syncStatus({ docType: row.docKind, docId: row.id, status: 'void' });
     return res.status(200).json({ message: `${label} ${row.docNo} voided.` });
 }
 

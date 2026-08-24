@@ -35,6 +35,19 @@ const TaxLedger = sequelize.define('ArTaxLedger', {
         type: DataTypes.STRING(20),
         allowNull: false,
     },
+    // Parent-row mirrors (user request 2026-08-24) so tax reporting filters
+    // and signs lines WITHOUT joining ar.Ledger: `mode` ('debit' | 'credit')
+    // is immutable with its document; `status` follows the parent through
+    // every lifecycle transition (draft | pending-approval | open | settled |
+    // void), kept in step by taxLedger.service.syncStatus at each flip.
+    mode: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+    },
+    status: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+    },
     // The ar.Ledger row this line explains (intra-service value reference).
     docId: {
         type: DataTypes.UUID,

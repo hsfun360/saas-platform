@@ -18,6 +18,10 @@ function rowsFromQuote({ companyId, row, quote, stamps }) {
         companyId,
         docType: row.docKind,
         docId: row.id,
+        // Parent-row mirrors: mode never changes; status follows the parent
+        // through syncStatus below.
+        mode: row.mode,
+        status: row.status,
         lineNo: i + 1,
         taxSchemeCode: quote.scheme ? quote.scheme.taxSchemeCode : row.taxSchemeCode,
         taxCode: l.taxCode,
@@ -57,6 +61,8 @@ async function copyTaxLines({ fromRow, toRow, stamps = {}, t }) {
         companyId: l.companyId,
         docType: toRow.docKind,
         docId: toRow.id,
+        mode: toRow.mode,
+        status: toRow.status,
         lineNo: l.lineNo,
         taxSchemeCode: l.taxSchemeCode,
         taxCode: l.taxCode,
@@ -74,4 +80,12 @@ async function copyTaxLines({ fromRow, toRow, stamps = {}, t }) {
     })), { transaction: t });
 }
 
-module.exports = { replaceTaxLines, copyTaxLines };
+// Mirror a parent Ledger status transition onto its lines (called from every
+// place the parent's status is written: post, settle, void, submit-to-
+// approval and the workflow's back-to-draft outcomes). No-op for documents
+// without lines.
+async function syncStatus({ docType, docId, status, t = null }) {
+    await TaxLedger.update({ status }, { where: { docType, docId }, transaction: t });
+}
+
+module.exports = { replaceTaxLines, copyTaxLines, syncStatus };
