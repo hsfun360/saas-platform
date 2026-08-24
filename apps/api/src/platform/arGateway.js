@@ -98,10 +98,12 @@ async function authorizeCharge(params) {
 // `enforceCredit` stays false for billing runs (billing reality is never
 // blocked by the limit); frontend consumption will pass true.
 // WHEN SPLIT: POST {internalServiceUrl('ar')}/internal/charges
+// `taxQuote` is the producer's full tax quote (per-component lines) - frozen
+// into ar.TaxLedger alongside the posted document when provided.
 async function postCharge(req, {
     debtorType, sourceId, docDate, trxDate, transactionTypeId, isInterestChargeable,
     description, incurredByMemberId, sourceModule, sourceRef, amounts, stamps,
-    enforceCredit = false,
+    enforceCredit = false, taxQuote = null,
 }) {
     const { getUserContext } = require('./serviceContext');
     const { companyId } = getUserContext(req);
@@ -147,14 +149,20 @@ async function postCharge(req, {
     };
 
     try {
-        const row = await sequelize.transaction(async (t) => posting.postLedgerDoc({
-            companyId, debtor, docKind: 'invoice', issueDocNo,
-            docDate, trxDate, transactionTypeId,
-            isInterestChargeable: isInterestChargeable === true,
-            description, incurredByMemberId: incurredByMemberId || null,
-            sourceModule, sourceRef,
-            amounts, stamps: stamps || {}, enforceCredit, t,
-        }));
+        const row = await sequelize.transaction(async (t) => {
+            const posted = await posting.postLedgerDoc({
+                companyId, debtor, docKind: 'invoice', issueDocNo,
+                docDate, trxDate, transactionTypeId,
+                isInterestChargeable: isInterestChargeable === true,
+                description, incurredByMemberId: incurredByMemberId || null,
+                sourceModule, sourceRef,
+                amounts, stamps: stamps || {}, enforceCredit, t,
+            });
+            await require('../modules/ar/taxLedger.service').replaceTaxLines({
+                companyId, row: posted, quote: taxQuote, stamps: stamps || {}, t,
+            });
+            return posted;
+        });
         return { id: row.id, docNo: row.docNo };
     } catch (e) {
         if (e && e.httpStatus) return { error: e.message };

@@ -53,6 +53,9 @@ function toLine(c, taxableAmount, taxAmount) {
     const claimableAmount = c.isClaimable ? round2((taxAmount * Number(c.claimPercentage || 0)) / 100) : 0;
     return {
         taxCode: c.taxCode,
+        // Descriptive label ('Tax' | 'Service Charge') passed through for
+        // consumers that snapshot the breakdown (e.g. ar.TaxLedger).
+        taxType: c.taxType || 'Tax',
         taxRate: Number(c.taxRate),
         taxPriority: c.taxPriority,
         taxableAmount: round2(taxableAmount),

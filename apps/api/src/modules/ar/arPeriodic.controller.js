@@ -175,9 +175,11 @@ async function confirmOne(req, companyId, id, interestType, stamps) {
 
     const amountC = posting.cents(gen.interestAmount);
     let amounts = { netC: amountC, taxC: 0, grossC: amountC, taxSchemeCode: null, taxRate: null };
+    let taxQuote = null;
     if (interestType.taxSchemeCode) {
         const q = await quoteTax(req, { taxSchemeCode: interestType.taxSchemeCode, amount: amountC / 100, onDate: gen.cutoffDate });
         if (!q) return { id, ok: false, message: `Tax scheme '${interestType.taxSchemeCode}' could not be resolved.` };
+        taxQuote = q;
         amounts = {
             netC: posting.cents(q.net),
             taxC: posting.cents(q.taxTotal),
@@ -216,6 +218,8 @@ async function confirmOne(req, companyId, id, interestType, stamps) {
                 stamps,
                 t,
             });
+            // Freeze the quote's per-component breakdown with the posting.
+            await require('./taxLedger.service').replaceTaxLines({ companyId, row, quote: taxQuote, stamps, t });
             gen.status = 'confirmed';
             gen.postedLedgerId = row.id;
             gen.updatedBy = stamps.updatedBy;

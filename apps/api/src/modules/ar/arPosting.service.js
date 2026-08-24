@@ -527,6 +527,9 @@ async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxD
             fx: row.exchangeRate ? { currencyCode: row.currencyCode, exchangeRate: Number(row.exchangeRate), isBase: Number(row.exchangeRate) === 1 } : null,
             stamps, targetLedger: row, t,
         });
+        // The reversal mirrors the original's frozen tax breakdown (same
+        // amounts, same rate - ar.TaxLedger lines are copied, never requoted).
+        await require('./taxLedger.service').copyTaxLines({ fromRow: row, toRow: reversal, stamps, t });
         row.status = 'void';
         if (stamps.updatedBy) row.updatedBy = stamps.updatedBy;
         await row.save({ transaction: t });

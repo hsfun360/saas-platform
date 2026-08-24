@@ -451,9 +451,11 @@ async function readDraftFields(req, companyId, debtor, lk) {
     }
 
     let amounts = { netC: amountC, taxC: 0, grossC: amountC, taxSchemeCode: null, taxRate: null };
+    let taxQuote = null; // full quote (per-component lines) frozen into ar.TaxLedger
     if (txnType.taxSchemeCode) {
         const q = await quoteTax(req, { taxSchemeCode: txnType.taxSchemeCode, amount: amountC / 100, onDate: dates.docDate });
         if (!q) return { error: `Tax scheme '${txnType.taxSchemeCode}' could not be resolved for this company.` };
+        taxQuote = q;
         amounts = {
             netC: posting.cents(q.net),
             taxC: posting.cents(q.taxTotal),
@@ -476,7 +478,7 @@ async function readDraftFields(req, companyId, debtor, lk) {
     // Exchange rate frozen at save (keyed, else the table at docDate).
     const fxRead = await readFx(companyId, debtor, dates.docDate, req.body);
     if (fxRead.error) return { error: fxRead.error };
-    return { dates, txnType, amounts, applyToLedgerId, fx: fxRead.fx };
+    return { dates, txnType, amounts, applyToLedgerId, fx: fxRead.fx, taxQuote };
 }
 
 // Manual-number pre-checks for a draft (auto mode issues in-tx at save).
@@ -509,7 +511,9 @@ async function createDraft(req, res, companyId, debtor, lk) {
     const placement = await getCallerPlacement(req);
     const stamps = ownershipStamps(req, placement);
     const issue = docNoIssuer(req, lk.numberingPurpose, no.manualNo);
-    const row = await sequelize.transaction(async (t) => Ledger.create({
+    const taxLedger = require('./taxLedger.service');
+    const row = await sequelize.transaction(async (t) => {
+        const created = await Ledger.create({
         companyId,
         debtorId: debtor.id,
         docKind: lk.docKind,
@@ -538,7 +542,12 @@ async function createDraft(req, res, companyId, debtor, lk) {
         balanceAmount: posting.money(fields.amounts.grossC),
         status: 'draft',
         ...stamps,
-    }, { transaction: t }));
+        }, { transaction: t });
+        // Freeze the quote's per-component breakdown WITH the tax snapshot
+        // (Save-time rule, 2026-08-24) - the lines explain taxAmount.
+        await taxLedger.replaceTaxLines({ companyId, row: created, quote: fields.taxQuote, stamps, t });
+        return created;
+    });
     res.status(201).json({ message: `${lk.label} ${row.docNo} saved as Open.`, id: row.id, docNo: row.docNo });
 }
 
@@ -614,7 +623,15 @@ function makeUpdateDraft(lk) {
             isInterestChargeable: lk.mode === 'debit' && fields.txnType.isInterestChargeable === true,
             updatedBy: getUserContext(req).userId,
         });
-        await row.save();
+        const taxLedger = require('./taxLedger.service');
+        const placement = await getCallerPlacement(req);
+        const stamps = ownershipStamps(req, placement);
+        await sequelize.transaction(async (t) => {
+            await row.save({ transaction: t });
+            // Re-freeze the breakdown with the re-quoted snapshot (a switch to
+            // a tax-free type clears the stale lines).
+            await taxLedger.replaceTaxLines({ companyId, row, quote: fields.taxQuote, stamps, t });
+        });
         res.status(200).json({ message: `${lk.label} draft updated.`, id: row.id, docNo: row.docNo });
     } catch (err) {
         console.error(`Error updating ${lk.label.toLowerCase()} draft:`, err);
@@ -1020,9 +1037,11 @@ exports.postLedger = async (req, res) => {
 
         // Tax snapshot from the Transaction Type's scheme (single tax source).
         let amounts = { netC: amountC, taxC: 0, grossC: amountC, taxSchemeCode: null, taxRate: null };
+        let taxQuote = null;
         if (txnType.taxSchemeCode) {
             const q = await quoteTax(req, { taxSchemeCode: txnType.taxSchemeCode, amount: amountC / 100, onDate: dates.docDate });
             if (!q) return res.status(400).json({ message: `Tax scheme '${txnType.taxSchemeCode}' could not be resolved for this company.` });
+            taxQuote = q;
             amounts = {
                 netC: posting.cents(q.net),
                 taxC: posting.cents(q.taxTotal),
@@ -1047,23 +1066,28 @@ exports.postLedger = async (req, res) => {
 
         let row;
         try {
-            row = await sequelize.transaction(async (t) => posting.postLedgerDoc({
-                companyId, debtor, docKind: kind.key,
-                issueDocNo: docNoIssuer(req, kind.numberingPurpose, manualNo),
-                docDate: dates.docDate, trxDate: dates.trxDate,
-                transactionTypeId: txnType.id,
-                isInterestChargeable: txnType.isInterestChargeable === true,
-                description: strOrNull(req.body.description),
-                // Manual AR documents belong to the account itself; incurredBy
-                // is stamped only by producer modules (user rule 2026-08-20).
-                incurredByMemberId: null,
-                sourceModule: 'ar', sourceRef: 'manual',
-                // No FIFO for manual adjustments (user rule 2026-08-20) -
-                // postLedgerDoc's fifo stays for the deposit-conversion CN.
-                amounts, stamps, targetLedger, fifo: false,
-                exchangeRate: req.body.exchangeRate,
-                t,
-            }));
+            const taxLedger = require('./taxLedger.service');
+            row = await sequelize.transaction(async (t) => {
+                const posted = await posting.postLedgerDoc({
+                    companyId, debtor, docKind: kind.key,
+                    issueDocNo: docNoIssuer(req, kind.numberingPurpose, manualNo),
+                    docDate: dates.docDate, trxDate: dates.trxDate,
+                    transactionTypeId: txnType.id,
+                    isInterestChargeable: txnType.isInterestChargeable === true,
+                    description: strOrNull(req.body.description),
+                    // Manual AR documents belong to the account itself; incurredBy
+                    // is stamped only by producer modules (user rule 2026-08-20).
+                    incurredByMemberId: null,
+                    sourceModule: 'ar', sourceRef: 'manual',
+                    // No FIFO for manual adjustments (user rule 2026-08-20) -
+                    // postLedgerDoc's fifo stays for the deposit-conversion CN.
+                    amounts, stamps, targetLedger, fifo: false,
+                    exchangeRate: req.body.exchangeRate,
+                    t,
+                });
+                await taxLedger.replaceTaxLines({ companyId, row: posted, quote: taxQuote, stamps, t });
+                return posted;
+            });
         } catch (e) {
             if (e && e.httpStatus) return res.status(e.httpStatus).json({ message: e.message });
             throw e;

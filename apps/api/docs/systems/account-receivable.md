@@ -31,6 +31,20 @@ Key rules a maintainer must not break:
   `trxDate` is the accounting-period (GL) date - defaults to `docDate`, but a forgotten last-month document keyed after the period closed keeps last month's `docDate` with a current-month `trxDate`.
   Aging/statements bucket by `docDate`/`dueDate`; financial-period reporting buckets by `trxDate`.
 
+## Tax breakdown - `ar.TaxLedger` (2026-08-24)
+
+One row per rate component of the scheme behind a Ledger document's tax snapshot, frozen from the tax quote at the moment the document's tax amounts are written (the Save-time rule, user decision 2026-08-24):
+
+- Manual drafts (Invoice/CN via `readDraftFields`, DN door): lines written in the same transaction as the row at Save; every draft EDIT re-quotes and replaces them (a switch to a tax-free type clears them); posting changes nothing - no re-quote happens at post.
+- System documents write lines at their posting-time creation: the interest run, and producer charges through `arGateway.postCharge` (new optional `taxQuote` param; the membership fee run passes its quote).
+- A posted debit's VOID copies the original's lines onto the reversal row (same amounts, same frozen fx - never requoted); a voided draft keeps its lines (audit).
+- Deposit-conversion CNs and receipts are taxless - no lines. Documents from before the table have header-only tax (no backfill; the quotes are history).
+
+Shape: `docType` mirrors `Ledger.docKind` (user decision; Deposit joins later if deposit billing becomes taxable), `docId`, `lineNo` (computation order), scheme/component snapshots (`taxSchemeCode`, `taxCode`, `taxType`, `taxPriority`, `taxRate`), document-currency `taxableAmount`/`taxAmount` + claimable pair, and base-currency `baseTaxableAmount`/`baseTaxAmount`/`baseClaimableAmount` at the document's frozen exchange rate.
+The priority semantics come from the Tax calculator's pinned tiers: same priority = parallel on the tier base; a later tier's `taxableAmount` = net + earlier tiers' tax (tax-on-tax - e.g. SC 10% on 200.00 at p1, SST 8% on 220.00 at p2).
+Invariant: SUM(lines.taxAmount) == the parent row's `taxAmount` (also per-line `taxType` now passes through `computeTax`).
+Writers live in `taxLedger.service.js` (`replaceTaxLines` / `copyTaxLines`) - no other module writes the table.
+
 ## Remaining-balance counters (renamed 2026-08-24)
 
 Every materialized document counter stores what REMAINS, not what was applied (user decision: the stored counter reads the way the screens do).

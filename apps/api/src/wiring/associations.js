@@ -66,6 +66,7 @@ const CompanyWeekendDay = require('../modules/saas/companyWeekendDay.model'); //
 const MembershipNumberingScheme = require('../modules/membership/numberingScheme.model');
 const ArNumberingScheme = require('../modules/ar/numberingScheme.model');
 const ArExchangeRate = require('../modules/ar/exchangeRate.model'); // AR-owned effective-dated FX rates vs the company base currency (companyId + Currency.code value refs; no associations)
+const ArTaxLedger = require('../modules/ar/taxLedger.model'); // per-component tax breakdown frozen behind each Ledger document's tax snapshot (docType/docId value ref to ar.Ledger; no associations)
 const UserFavorite = require('../modules/saas/userFavorite.model'); // My Dashboard starred screens per user+workspace (userId/companyId/menuId value refs; no associations)
 // Product tier (Membership Management). Master files reference companyId by plain
 // UUID (no cross-service FK), per the golden rules. Intra-service parent-child

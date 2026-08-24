@@ -164,6 +164,7 @@ exports.post = async (req, res) => {
             // Tax snapshot from the billing item's scheme (single tax source).
             const amountC = billing.cents(item.amount);
             let amounts = { netC: amountC, taxC: 0, grossC: amountC, taxSchemeCode: null, taxRate: null };
+            let taxQuote = null; // per-component lines, frozen into ar.TaxLedger by the seam
             if (txn.taxSchemeCode) {
                 const q = await quoteTax(req, { taxSchemeCode: txn.taxSchemeCode, amount: amountC / 100, onDate: schedule.docDate });
                 if (!q) {
@@ -173,6 +174,7 @@ exports.post = async (req, res) => {
                     results.push({ id, ok: false, message: item.issue });
                     continue;
                 }
+                taxQuote = q;
                 amounts = {
                     netC: billing.cents(q.net),
                     taxC: billing.cents(q.taxTotal),
@@ -194,6 +196,7 @@ exports.post = async (req, res) => {
                 sourceModule: 'membership',
                 sourceRef: item.id,
                 amounts,
+                taxQuote,
                 stamps,
             });
             if (posted.error) {
