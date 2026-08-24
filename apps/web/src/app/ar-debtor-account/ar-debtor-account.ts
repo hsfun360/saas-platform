@@ -53,7 +53,7 @@ export class ArDebtorAccountComponent {
   readonly openDeposits = computed(() =>
     (this.account()?.deposits || []).filter((d) => d.status === 'open'));
   readonly heldDeposits = computed(() =>
-    this.openDeposits().filter((d) => Number(d.collectedAmount) > Number(d.utilizedAmount)));
+    this.openDeposits().filter((d) => Number(d.heldAmount) > 0));
 
   // --- Ledger dialog (Invoice / DN / CN) - the shared entry dialog with the
   // debtor preset; this screen only tracks which kind is open.
@@ -223,10 +223,26 @@ export class ArDebtorAccountComponent {
     return Number(doc.balanceAmount).toFixed(2);
   }
   unallocated(doc: ArReceiptDoc): string {
-    return (Number(doc.amount) - Number(doc.allocatedAmount)).toFixed(2);
+    return Number(doc.balanceAmount).toFixed(2);
   }
   held(d: ArDepositDoc): string {
-    return (Number(d.collectedAmount) - Number(d.utilizedAmount)).toFixed(2);
+    return Number(d.heldAmount).toFixed(2);
+  }
+  // Collected so far derives from the remaining counters (amount - balance).
+  collected(d: ArDepositDoc): string {
+    return (Number(d.amount) - Number(d.balanceAmount)).toFixed(2);
+  }
+  // A posted receipt is voidable only while nothing has been allocated.
+  receiptUntouched(doc: ArReceiptDoc): boolean {
+    return Number(doc.balanceAmount) === Number(doc.amount);
+  }
+  // Collect stays available while the billed amount is not fully paid in.
+  canCollect(d: ArDepositDoc): boolean {
+    return Number(d.balanceAmount) > 0;
+  }
+  // A deposit is voidable only before its first collection.
+  depositUntouched(d: ArDepositDoc): boolean {
+    return Number(d.balanceAmount) === Number(d.amount);
   }
   numberingMode(purpose: string): string | null {
     return this.meta()?.numberingModes?.[purpose] ?? null;

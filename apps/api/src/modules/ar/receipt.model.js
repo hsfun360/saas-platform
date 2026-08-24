@@ -7,11 +7,12 @@ const { AR_SCHEMA } = require('../../platform/schemas');
 // and Refund (mode 'debit', money out). No tax columns - tax lives on ledger
 // documents; a receipt just moves money.
 //
-// allocatedAmount is materialized: for a receipt, the portion applied out
-// (to ledger debits, deposits, or refunds - unallocated = amount - allocated;
-// unallocated credit reduces the pool outstanding immediately); for a refund
-// it must equal `amount` at posting - a refund is always fully funded by
-// allocations from receipt credit or a deposit.
+// balanceAmount is the materialized REMAINING counter (renamed from
+// allocatedAmount, user decision 2026-08-24): initialized at `amount` and
+// reduced by every allocation until 0. For a receipt it is the UNALLOCATED
+// credit (which reduces the pool outstanding immediately); for a refund the
+// UNFUNDED portion - a refund must reach 0 within its posting transaction
+// (always fully funded by receipt credit or a deposit).
 //
 // docDate = occurrence date; trxDate = accounting-period date (see Ledger).
 const Receipt = sequelize.define('Receipt', {
@@ -67,10 +68,10 @@ const Receipt = sequelize.define('Receipt', {
         type: DataTypes.DECIMAL(21, 2),
         allowNull: false,
     },
-    allocatedAmount: {
+    // Remaining balance: = amount at creation, minus every allocation, to 0.
+    balanceAmount: {
         type: DataTypes.DECIMAL(21, 2),
         allowNull: false,
-        defaultValue: 0,
     },
     // Multicurrency (step 3): the account currency, the rate at collection /
     // payout (frozen; this is how "paid MYR for a USD invoice" works - the

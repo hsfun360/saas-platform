@@ -31,14 +31,22 @@ Key rules a maintainer must not break:
   `trxDate` is the accounting-period (GL) date - defaults to `docDate`, but a forgotten last-month document keyed after the period closed keeps last month's `docDate` with a current-month `trxDate`.
   Aging/statements bucket by `docDate`/`dueDate`; financial-period reporting buckets by `trxDate`.
 
-## Ledger balance counter - `balanceAmount` (renamed 2026-08-24)
+## Remaining-balance counters (renamed 2026-08-24)
 
-`ar.Ledger` stores the REMAINING balance, not the allocated-so-far amount (user decision: the stored counter reads the way the screens do).
-`balanceAmount` = `grossAmount` at creation (drafts included; a draft edit keeps it in step with the gross), reduced by every allocation until 0, at which point `status` flips to `settled`.
-For debit rows it is the unsettled balance; for credit rows the credit not yet applied out.
-Allocation rows stay the auditable truth: reconciliation asserts `balanceAmount == grossAmount - SUM(allocations)`; the void guard is `balanceAmount == grossAmount` (no allocations yet).
-A one-shot boot migration converted existing rows (`balanceAmount = grossAmount - settledAmount`) before the alter-sync dropped the old column.
-`Receipt.allocatedAmount` and the Deposit counters keep their original direction; the receipts LISTING derives `balanceAmount` for its ledger-shaped rows.
+Every materialized document counter stores what REMAINS, not what was applied (user decision: the stored counter reads the way the screens do).
+One-shot boot migrations converted existing rows before the alter-sync dropped the old columns; Allocation rows stay the auditable truth and reconciliation asserts every identity below (repair writes the remaining value).
+
+- `Ledger.balanceAmount` (was settledAmount) = `grossAmount` at creation (drafts included; a draft edit keeps it in step with the gross), minus every allocation, to 0 -> `status` flips to `settled`.
+  Debit rows: the unsettled balance; credit rows: the credit not yet applied out.
+  Void guard: `balanceAmount == grossAmount` (no allocations yet).
+  Identity: `balanceAmount == grossAmount - SUM(allocations)`.
+- `Receipt.balanceAmount` (was allocatedAmount, inverted) = `amount` at creation, minus every allocation.
+  Receipts: the unallocated credit (what reduces pool outstanding); refunds: the UNFUNDED portion - the posting transaction must drive it to 0.
+  Void guard: `balanceAmount == amount`.
+  Identity: `balanceAmount == amount - SUM(allocations)`.
+- `Deposit.balanceAmount` + `Deposit.heldAmount` (were collectedAmount/utilizedAmount): `balanceAmount` = still to collect (= `amount` at creation, reduced by receipt->deposit allocations); `heldAmount` = the held balance (rises with collections, falls with refund allocations and conversion CNs).
+  Collected so far derives as `amount - balanceAmount`; closed when `heldAmount == 0` and something was collected; void guard `balanceAmount == amount`.
+  Identities: `balanceAmount == amount - SUM(receipt->deposit)`; `heldAmount == SUM(receipt->deposit) - SUM(deposit->refund) - conversions`.
 
 ## Built so far
 

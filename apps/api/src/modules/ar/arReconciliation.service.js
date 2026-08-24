@@ -11,9 +11,9 @@
 //                            - SUM(non-void Receipt unallocated)
 //   cap.personalUsed        == SUM(person's non-void debit Ledger remaining)
 //   ledger.balanceAmount    == grossAmount - SUM(Allocation rows on that row's side)
-//   receipt.allocatedAmount == SUM(Allocation rows on its side)
-//   deposit.collectedAmount == SUM(receipt->deposit allocations)
-//   deposit.utilizedAmount  == SUM(deposit->refund allocations)
+//   receipt.balanceAmount   == amount - SUM(Allocation rows on its side)
+//   deposit.balanceAmount   == amount - SUM(receipt->deposit allocations)
+//   deposit.heldAmount      == SUM(receipt->deposit) - SUM(deposit->refund) - conversions
 //                            + SUM(non-void conversion CN gross, sourceRef = deposit)
 //
 // Report-only by default; `fix: true` updates the drifted counters (pool row
@@ -108,23 +108,25 @@ async function reconcileCompany(companyId, { fix = false } = {}) {
         // never in outstanding - same as ledger drafts above.
         if (row.status === 'draft') continue;
         if (row.status !== 'void' && row.docKind === 'receipt') {
-            bump(expOutstanding, row.debtorId, -(cents(row.amount) - cents(row.allocatedAmount)));
+            bump(expOutstanding, row.debtorId, -cents(row.balanceAmount));
         }
         const side = row.docKind === 'receipt' ? allocByCredit : allocByDebit;
-        const expected = side.get(`receipt:${row.id}`) || 0;
-        note('receipt', row.docNo, 'allocatedAmount', expected, cents(row.allocatedAmount), async (t) => {
-            await Receipt.update({ allocatedAmount: money(expected) }, { where: { id: row.id }, transaction: t });
+        const expectedBalance = cents(row.amount) - (side.get(`receipt:${row.id}`) || 0);
+        note('receipt', row.docNo, 'balanceAmount', expectedBalance, cents(row.balanceAmount), async (t) => {
+            await Receipt.update({ balanceAmount: money(expectedBalance) }, { where: { id: row.id }, transaction: t });
         });
     }
 
     for (const row of deposits) {
-        const expectedCollected = allocByDebit.get(`deposit:${row.id}`) || 0;
-        const expectedUtilized = (allocByCredit.get(`deposit:${row.id}`) || 0) + (conversionByDeposit.get(row.id) || 0);
-        note('deposit', row.docNo, 'collectedAmount', expectedCollected, cents(row.collectedAmount), async (t) => {
-            await Deposit.update({ collectedAmount: money(expectedCollected) }, { where: { id: row.id }, transaction: t });
+        const collected = allocByDebit.get(`deposit:${row.id}`) || 0;
+        const utilized = (allocByCredit.get(`deposit:${row.id}`) || 0) + (conversionByDeposit.get(row.id) || 0);
+        const expectedBalance = cents(row.amount) - collected;
+        const expectedHeld = collected - utilized;
+        note('deposit', row.docNo, 'balanceAmount', expectedBalance, cents(row.balanceAmount), async (t) => {
+            await Deposit.update({ balanceAmount: money(expectedBalance) }, { where: { id: row.id }, transaction: t });
         });
-        note('deposit', row.docNo, 'utilizedAmount', expectedUtilized, cents(row.utilizedAmount), async (t) => {
-            await Deposit.update({ utilizedAmount: money(expectedUtilized) }, { where: { id: row.id }, transaction: t });
+        note('deposit', row.docNo, 'heldAmount', expectedHeld, cents(row.heldAmount), async (t) => {
+            await Deposit.update({ heldAmount: money(expectedHeld) }, { where: { id: row.id }, transaction: t });
         });
     }
 

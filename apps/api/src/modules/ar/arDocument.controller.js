@@ -172,13 +172,13 @@ exports.getAccount = async (req, res) => {
                 id: r.id, docKind: r.docKind, mode: r.mode, docNo: r.docNo,
                 docDate: r.docDate, trxDate: r.trxDate,
                 paymentMethod: r.paymentMethod, paymentRef: r.paymentRef, description: r.description,
-                amount: r.amount, allocatedAmount: r.allocatedAmount, status: r.status,
+                amount: r.amount, balanceAmount: r.balanceAmount, status: r.status,
                 ...fxDto(r), baseAmount: r.baseAmount,
             })),
             deposits: deposits.map((d) => ({
                 id: d.id, docNo: d.docNo, docDate: d.docDate, trxDate: d.trxDate,
                 description: d.description, amount: d.amount,
-                collectedAmount: d.collectedAmount, utilizedAmount: d.utilizedAmount, status: d.status,
+                balanceAmount: d.balanceAmount, heldAmount: d.heldAmount, status: d.status,
                 ...fxDto(d), baseAmount: d.baseAmount,
             })),
         });
@@ -223,8 +223,8 @@ exports.getAccountMeta = async (req, res) => {
         const openDeposits = (await Deposit.findAll({
             where: { debtorId: debtor.id, status: 'open' },
             order: [['docDate', 'ASC'], ['createdAt', 'ASC']],
-            attributes: ['id', 'docNo', 'amount', 'collectedAmount'],
-        })).filter((d) => Number(d.amount) > Number(d.collectedAmount));
+            attributes: ['id', 'docNo', 'amount', 'balanceAmount'],
+        })).filter((d) => Number(d.balanceAmount) > 0);
         // Account currency for the entry dialogs (multicurrency step 3): the
         // code, the base, and - for a FOREIGN account - the currency's rate
         // history so the Exchange rate field defaults per document date
@@ -251,7 +251,7 @@ exports.getAccountMeta = async (req, res) => {
                 grossAmount: d.grossAmount, balanceAmount: d.balanceAmount,
             })),
             openDeposits: openDeposits.map((d) => ({
-                id: d.id, docNo: d.docNo, amount: d.amount, collectedAmount: d.collectedAmount,
+                id: d.id, docNo: d.docNo, amount: d.amount, balanceAmount: d.balanceAmount,
             })),
         });
     } catch (err) {
@@ -803,8 +803,8 @@ async function createReceiptDraft(req, res, companyId, debtor) {
         description: strOrNull(req.body.description),
         collectDepositId: fields.collectDepositId,
         amount: posting.money(fields.amountC),
+        balanceAmount: posting.money(fields.amountC),
         ...arCurrency.amountFxColumns(fields.fx, fields.amountC),
-        allocatedAmount: 0,
         sourceModule: 'ar',
         sourceRef: 'manual',
         status: 'draft',
@@ -867,6 +867,8 @@ exports.updateReceiptDraft = async (req, res) => {
             description: strOrNull(req.body.description),
             collectDepositId: fields.collectDepositId,
             amount: posting.money(fields.amountC),
+            // A draft has no allocations - its balance tracks its amount.
+            balanceAmount: posting.money(fields.amountC),
             ...arCurrency.amountFxColumns(fields.fx, fields.amountC),
             updatedBy: getUserContext(req).userId,
         });
@@ -962,7 +964,7 @@ exports.listReceipts = async (req, res) => {
                 docDate: r.docDate, trxDate: r.trxDate, dueDate: null,
                 description: r.description, sourceModule: r.sourceModule || 'ar',
                 netAmount: r.amount, taxAmount: '0.00', grossAmount: r.amount,
-                balanceAmount: posting.money(posting.cents(r.amount) - posting.cents(r.allocatedAmount)), status: r.status,
+                balanceAmount: r.balanceAmount, status: r.status,
                 voidReason: r.voidReason,
                 ...fxDto(r), baseGrossAmount: r.baseAmount,
                 // Draft edit prefill.
@@ -1176,7 +1178,7 @@ exports.postDeposit = async (req, res) => {
             description: strOrNull(req.body.description),
             amount: posting.money(amountC),
             ...arCurrency.amountFxColumns(fxRead.fx, amountC),
-            collectedAmount: 0, utilizedAmount: 0, status: 'open',
+            balanceAmount: posting.money(amountC), heldAmount: 0, status: 'open',
             ...stamps,
         }, { transaction: t }));
         res.status(201).json({ message: `Deposit ${row.docNo} opened.`, id: row.id, docNo: row.docNo });

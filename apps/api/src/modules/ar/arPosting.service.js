@@ -73,17 +73,20 @@ async function bumpOutstanding(pool, deltaCents, t) {
 // --- allocation core ---
 
 // Available capacity of a credit-side document, in cents.
+// Every remaining counter is stored directly (user decision 2026-08-24), so
+// capacities are plain reads: ledger/receipt/refund balanceAmount, deposit
+// heldAmount (credit side) / balanceAmount still-to-collect (debit side).
 function creditCapacity(type, row) {
-    if (type === 'receipt') return cents(row.amount) - cents(row.allocatedAmount);
+    if (type === 'receipt') return cents(row.balanceAmount);
     if (type === 'ledger') return cents(row.balanceAmount);
-    return cents(row.collectedAmount) - cents(row.utilizedAmount); // deposit held
+    return cents(row.heldAmount); // deposit held
 }
 
 // Open capacity of a debit-side document, in cents.
 function debitCapacity(type, row) {
     if (type === 'ledger') return cents(row.balanceAmount);
-    if (type === 'refund') return cents(row.amount) - cents(row.allocatedAmount);
-    return cents(row.amount) - cents(row.collectedAmount); // deposit collection
+    if (type === 'refund') return cents(row.balanceAmount);
+    return cents(row.balanceAmount); // deposit collection
 }
 
 // Move `amountCents` from a credit doc to a debit doc: validates the pair and
@@ -113,9 +116,9 @@ async function applyAllocation({ companyId, creditType, creditRow, debitType, de
         await alloc.save({ transaction: t });
     }
 
-    // Credit side counters.
+    // Credit side counters (every balance counts DOWN toward 0).
     if (creditType === 'receipt') {
-        creditRow.allocatedAmount = money(cents(creditRow.allocatedAmount) + amountCents);
+        creditRow.balanceAmount = money(cents(creditRow.balanceAmount) - amountCents);
         await creditRow.save({ transaction: t });
     } else if (creditType === 'ledger') {
         // balanceAmount counts DOWN (gross at creation -> 0 = settled).
@@ -123,7 +126,8 @@ async function applyAllocation({ companyId, creditType, creditRow, debitType, de
         if (cents(creditRow.balanceAmount) <= 0) creditRow.status = 'settled';
         await creditRow.save({ transaction: t });
     } else {
-        creditRow.utilizedAmount = money(cents(creditRow.utilizedAmount) + amountCents);
+        // Deposit utilization (refund funding): the held balance drops.
+        creditRow.heldAmount = money(cents(creditRow.heldAmount) - amountCents);
         maybeCloseDeposit(creditRow);
         await creditRow.save({ transaction: t });
     }
@@ -141,10 +145,12 @@ async function applyAllocation({ companyId, creditType, creditRow, debitType, de
             }
         }
     } else if (debitType === 'refund') {
-        debitRow.allocatedAmount = money(cents(debitRow.allocatedAmount) + amountCents);
+        debitRow.balanceAmount = money(cents(debitRow.balanceAmount) - amountCents);
         await debitRow.save({ transaction: t });
     } else {
-        debitRow.collectedAmount = money(cents(debitRow.collectedAmount) + amountCents);
+        // Deposit collection: to-collect drops, the held balance rises.
+        debitRow.balanceAmount = money(cents(debitRow.balanceAmount) - amountCents);
+        debitRow.heldAmount = money(cents(debitRow.heldAmount) + amountCents);
         await debitRow.save({ transaction: t });
     }
 
@@ -179,7 +185,9 @@ async function fifoAllocateCredit({ companyId, pool, creditType, creditRow, stam
 }
 
 function maybeCloseDeposit(deposit) {
-    if (cents(deposit.collectedAmount) > 0 && cents(deposit.collectedAmount) === cents(deposit.utilizedAmount)) {
+    // Something was collected (balance below the billed amount) and every
+    // collected cent has been utilized (held balance back at zero).
+    if (cents(deposit.balanceAmount) < cents(deposit.amount) && cents(deposit.heldAmount) === 0) {
         deposit.status = 'closed';
     }
 }
@@ -358,7 +366,7 @@ async function postReceipt({
         companyId, debtorId: debtor.id, docKind: 'receipt', mode: 'credit',
         docNo, docDate, trxDate: trxDate || docDate,
         paymentMethod: paymentMethod || null, paymentRef: paymentRef || null, description,
-        amount: money(amountC), allocatedAmount: 0, status: 'open',
+        amount: money(amountC), balanceAmount: money(amountC), status: 'open',
         ...amountFxColumns(fx, amountC),
         ...stamps,
     }, { transaction: t });
@@ -435,7 +443,9 @@ async function postRefund({
         companyId, debtorId: debtor.id, docKind: 'refund', mode: 'debit',
         docNo, docDate, trxDate: trxDate || docDate,
         paymentMethod: paymentMethod || null, paymentRef: paymentRef || null, description,
-        amount: money(amountC), allocatedAmount: 0, status: 'open',
+        // A refund's balance is its UNFUNDED portion - the funding allocations
+        // below must drive it to 0 or the whole posting throws.
+        amount: money(amountC), balanceAmount: money(amountC), status: 'open',
         ...amountFxColumns(fx, amountC),
         ...stamps,
     }, { transaction: t });
@@ -469,14 +479,14 @@ async function postRefund({
 
 // Convert (part of) a deposit's held balance into a Credit Note that knocks
 // off outstanding (user rule 2026-08-05). A PROCESS, not an allocation pair:
-// the CN carries sourceRef = the deposit; utilizedAmount bumps in the same tx;
+// the CN carries sourceRef = the deposit; heldAmount drops in the same tx;
 // the CN then FIFO-allocates against open debits.
 async function convertDeposit({ companyId, debtor, deposit, amountC, transactionTypeId, issueDocNo, docDate, trxDate, stamps = {}, t }) {
     if (amountC <= 0) throw bizError(400, 'Amount must be greater than zero.');
     if (creditCapacity('deposit', deposit) < amountC) {
         throw bizError(400, 'The deposit’s held balance does not cover this conversion.');
     }
-    deposit.utilizedAmount = money(cents(deposit.utilizedAmount) + amountC);
+    deposit.heldAmount = money(cents(deposit.heldAmount) - amountC);
     maybeCloseDeposit(deposit);
     if (stamps.updatedBy) deposit.updatedBy = stamps.updatedBy;
     await deposit.save({ transaction: t });
@@ -529,14 +539,16 @@ async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxD
     await bumpOutstanding(pool, cents(row.grossAmount), t);
 
     // A deposit-conversion CN (sourceModule 'ar', sourceRef = the Deposit id)
-    // bumped utilizedAmount as a PROCESS, not an allocation - voiding it must
-    // give the deposit its money back (and reopen a closed deposit).
+    // dropped heldAmount as a PROCESS, not an allocation - voiding it must
+    // give the deposit its money back (and reopen a closed deposit). The held
+    // balance can never exceed what was collected (amount - balanceAmount).
     if (row.docKind === 'credit-note' && row.sourceModule === 'ar') {
         const Deposit = require('./deposit.model');
         const deposit = await Deposit.findOne({ where: { id: row.sourceRef, companyId }, transaction: t, lock: t.LOCK.UPDATE });
         if (deposit) {
-            deposit.utilizedAmount = money(Math.max(0, cents(deposit.utilizedAmount) - cents(row.grossAmount)));
-            if (deposit.status === 'closed' && cents(deposit.utilizedAmount) < cents(deposit.collectedAmount)) {
+            const collectedC = cents(deposit.amount) - cents(deposit.balanceAmount);
+            deposit.heldAmount = money(Math.min(collectedC, cents(deposit.heldAmount) + cents(row.grossAmount)));
+            if (deposit.status === 'closed' && cents(deposit.heldAmount) > 0) {
                 deposit.status = 'open';
             }
             if (stamps.updatedBy) deposit.updatedBy = stamps.updatedBy;
@@ -551,7 +563,7 @@ async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxD
 async function voidReceipt({ companyId, row, stamps = {}, t }) {
     if (row.status === 'void') throw bizError(400, 'This receipt is already void.');
     if (row.docKind !== 'receipt') throw bizError(400, 'Refunds cannot be voided - post a new Official Receipt instead.');
-    if (cents(row.allocatedAmount) !== 0) {
+    if (cents(row.balanceAmount) !== cents(row.amount)) {
         throw bizError(400, 'This receipt has allocations - it can no longer be voided.');
     }
     const pool = await lockPool(companyId, row.debtorId, t);
@@ -564,7 +576,7 @@ async function voidReceipt({ companyId, row, stamps = {}, t }) {
 // Void a Deposit that has collected nothing.
 async function voidDeposit({ row, stamps = {}, t }) {
     if (row.status === 'void') throw bizError(400, 'This deposit is already void.');
-    if (cents(row.collectedAmount) !== 0) {
+    if (cents(row.balanceAmount) !== cents(row.amount)) {
         throw bizError(400, 'This deposit has collections and cannot be voided.');
     }
     row.status = 'void';

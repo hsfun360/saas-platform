@@ -762,7 +762,7 @@ async function generateOne({
 
     // Deposit balance snapshot (held minus utilized, deposits up to periodEnd).
     let depositC = 0;
-    for (const d of depositRows) depositC += cents(d.collectedAmount) - cents(d.utilizedAmount);
+    for (const d of depositRows) depositC += cents(d.heldAmount);
 
     // --- Overwrite + create, one transaction per debtor ---
     await sequelize.transaction(async (t) => {

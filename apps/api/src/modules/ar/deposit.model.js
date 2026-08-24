@@ -9,9 +9,13 @@ const { AR_SCHEMA } = require('../../platform/schemas');
 // Lifecycle: collected via Official Receipt allocations (receipt -> deposit);
 // paid back via Refund (deposit -> refund allocation); or CONVERTED to a
 // Credit Note that knocks off outstanding (a process, not an allocation pair:
-// the CN carries sourceModule 'ar' + sourceRef = this Deposit, and
-// utilizedAmount bumps in the same tx).
-// held balance = collectedAmount - utilizedAmount.
+// the CN carries sourceModule 'ar' + sourceRef = this Deposit, and heldAmount
+// drops in the same tx).
+// Counters store what REMAINS (user decision 2026-08-24, renamed from
+// collectedAmount/utilizedAmount): balanceAmount = still to collect (= amount
+// at creation, reduced by collections to 0), heldAmount = the held balance
+// (up on collection, down on refund/conversion). Collected so far derives as
+// amount - balanceAmount.
 //
 // docDate = occurrence date; trxDate = accounting-period date (see Ledger).
 const Deposit = sequelize.define('Deposit', {
@@ -46,12 +50,14 @@ const Deposit = sequelize.define('Deposit', {
         type: DataTypes.DECIMAL(21, 2),
         allowNull: false,
     },
-    collectedAmount: {
+    // Still to collect: = amount at creation, reduced by receipt->deposit
+    // allocations to 0.
+    balanceAmount: {
         type: DataTypes.DECIMAL(21, 2),
         allowNull: false,
-        defaultValue: 0,
     },
-    utilizedAmount: {
+    // Held balance: rises with collections, falls with refunds/conversions.
+    heldAmount: {
         type: DataTypes.DECIMAL(21, 2),
         allowNull: false,
         defaultValue: 0,

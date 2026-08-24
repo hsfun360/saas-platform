@@ -337,6 +337,42 @@ async function initializeDB() {
                      WHERE "balanceAmount" IS NULL`,
                 );
             }
+            // Same flip for the money-movement tables (user decision
+            // 2026-08-24): Receipt.allocatedAmount -> balanceAmount (the
+            // unallocated / unfunded remainder), Deposit.collectedAmount /
+            // utilizedAmount -> balanceAmount (still to collect) + heldAmount
+            // (held balance).
+            const [[receiptCols]] = await sequelize.query(
+                `SELECT
+                    EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ar' AND table_name = 'Receipt' AND column_name = 'allocatedAmount') AS has_old,
+                    EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ar' AND table_name = 'Receipt' AND column_name = 'balanceAmount') AS has_new`,
+            ).catch(() => [[null]]);
+            if (receiptCols && receiptCols.has_old) {
+                if (!receiptCols.has_new) {
+                    await sequelize.query('ALTER TABLE ar."Receipt" ADD COLUMN "balanceAmount" numeric(21,2)');
+                }
+                await sequelize.query(
+                    `UPDATE ar."Receipt" SET "balanceAmount" = "amount" - "allocatedAmount"
+                     WHERE "balanceAmount" IS NULL`,
+                );
+            }
+            const [[depositCols]] = await sequelize.query(
+                `SELECT
+                    EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ar' AND table_name = 'Deposit' AND column_name = 'collectedAmount') AS has_old,
+                    EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ar' AND table_name = 'Deposit' AND column_name = 'balanceAmount') AS has_new`,
+            ).catch(() => [[null]]);
+            if (depositCols && depositCols.has_old) {
+                if (!depositCols.has_new) {
+                    await sequelize.query('ALTER TABLE ar."Deposit" ADD COLUMN "balanceAmount" numeric(21,2)');
+                    await sequelize.query('ALTER TABLE ar."Deposit" ADD COLUMN "heldAmount" numeric(21,2)');
+                }
+                await sequelize.query(
+                    `UPDATE ar."Deposit" SET
+                        "balanceAmount" = COALESCE("balanceAmount", "amount" - "collectedAmount"),
+                        "heldAmount" = COALESCE("heldAmount", "collectedAmount" - "utilizedAmount")
+                     WHERE "balanceAmount" IS NULL OR "heldAmount" IS NULL`,
+                );
+            }
 
             await sequelize.sync({ alter: true });
 

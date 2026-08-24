@@ -159,7 +159,7 @@
                           [class.status-chip--on]="doc.status === 'open'"
                           [class.status-chip--off]="doc.status !== 'open'">{{ receiptStatusLabel(doc) }}</span>
                   </div>
-                  @if (doc.docKind === 'receipt' && (doc.status === 'draft' || (doc.status === 'open' && doc.allocatedAmount === '0.00'))) {
+                  @if (doc.docKind === 'receipt' && (doc.status === 'draft' || (doc.status === 'open' && receiptUntouched(doc)))) {
                     <div class="ara-doc__actions">
                       <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="askVoidReceipt(doc)">Void</button>
                     </div>
@@ -198,7 +198,7 @@
                     <div class="ara-doc__meta">
                       <span>{{ d.docDate | localDate }}</span>
                       <span>required {{ d.amount }}</span>
-                      <span>collected {{ d.collectedAmount }}</span>
+                      <span>collected {{ collected(d) }}</span>
                       <span>held {{ held(d) }}</span>
                     </div>
                   </div>
@@ -208,13 +208,13 @@
                           [class.status-chip--off]="d.status !== 'open'">{{ d.status }}</span>
                   </div>
                   <div class="ara-doc__actions">
-                    @if (d.status === 'open' && held(d) !== d.amount) {
+                    @if (d.status === 'open' && canCollect(d)) {
                       <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="openReceipt(d.id)">Collect</button>
                     }
                     @if (d.status === 'open' && held(d) !== '0.00') {
                       <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="openConvert(d)">Convert</button>
                     }
-                    @if (d.status === 'open' && d.collectedAmount === '0.00') {
+                    @if (d.status === 'open' && depositUntouched(d)) {
                       <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="askVoidDeposit(d)">Void</button>
                     }
                   </div>

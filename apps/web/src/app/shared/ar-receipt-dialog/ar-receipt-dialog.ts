@@ -172,8 +172,8 @@ export class ArReceiptDialogComponent implements OnInit {
     return this.effMeta()?.numberingModes?.['ar-receipt'] ?? null;
   }
 
-  depositLabel(d: { docNo: string | null; amount: string; collectedAmount: string }): string {
-    return `${d.docNo} — to collect ${(Number(d.amount) - Number(d.collectedAmount)).toFixed(2)}`;
+  depositLabel(d: { docNo: string | null; balanceAmount: string }): string {
+    return `${d.docNo} — to collect ${Number(d.balanceAmount).toFixed(2)}`;
   }
 
   // --- Debtor picker ---

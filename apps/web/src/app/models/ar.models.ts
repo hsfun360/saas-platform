@@ -135,7 +135,9 @@ export interface ArReceiptDoc {
   paymentRef: string | null;
   description: string | null;
   amount: string;
-  allocatedAmount: string;
+  // Remaining balance (= amount at creation, reduced by allocations to 0):
+  // a receipt's unallocated credit / a refund's unfunded portion.
+  balanceAmount: string;
   // 'draft' = manual receipt saved, not yet financial (lifecycle 2026-08-20).
   status: 'draft' | 'open' | 'void';
   currencyCode?: string | null;
@@ -150,8 +152,10 @@ export interface ArDepositDoc {
   trxDate: string;
   description: string | null;
   amount: string;
-  collectedAmount: string;
-  utilizedAmount: string;
+  // Still to collect (= amount at creation, reduced by collections to 0).
+  balanceAmount: string;
+  // Held balance: rises with collections, falls with refunds/conversions.
+  heldAmount: string;
   status: 'open' | 'closed' | 'void';
   currencyCode?: string | null;
   exchangeRate?: string | null;
@@ -247,7 +251,7 @@ export interface ArAccountMeta {
   openDebits?: { id: string; docKind: string; docNo: string | null; grossAmount: string; balanceAmount: string }[];
   // The debtor's collectable deposits - the Receipt entry's optional
   // "Collect deposit" choices.
-  openDeposits?: { id: string; docNo: string | null; amount: string; collectedAmount: string }[];
+  openDeposits?: { id: string; docNo: string | null; amount: string; balanceAmount: string }[];
 }
 
 // --- Periodic processing (slice 3) ---
