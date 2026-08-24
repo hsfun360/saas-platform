@@ -4,7 +4,7 @@ This doc is a curated map of the platform's database entities and relationships.
 It is maintained by the `/data-model` skill - refresh it there, do not hand-edit it out of sync.
 Sources of truth: `apps/api/src/wiring/associations.js` (all associations), the `*.model.js` files under `apps/api/src/modules/` and `apps/api/src/platform/` (all columns), and `apps/api/src/platform/schemas.js` (physical schemas).
 Business context and golden rules: `apps/api/docs/systems/`.
-Last refreshed: 2026-08-21.
+Last refreshed: 2026-08-24.
 
 ## Conventions
 
@@ -39,7 +39,7 @@ Last refreshed: 2026-08-21.
 | `src/modules/golf` | `golf` | [golf-management.md](../apps/api/docs/systems/golf-management.md) | UnitCourse, UnitCourseHole, UnitCourseTeeBox, UnitCourseTeeBoxDistance, Course, CourseTeeTimeSet, CourseTeeTimeSlot, CourseClosurePlan, CourseClosureDay, TransactionType, TransactionTypeRate |
 | `src/modules/tax` | `tax` | [tax.md](../apps/api/docs/systems/tax.md) | TaxScheme, TaxRate, CompanyTaxScheme, CompanyTaxAccount |
 | `src/modules/workflow` | `workflow` | - | WorkflowDefinition, WorkflowStep, WorkflowInstance, WorkflowTask |
-| `src/modules/ar` (Account Receivable) | `ar` | [account-receivable.md](../apps/api/docs/systems/account-receivable.md) | All standalone (id refs validated in the service, no associations): TransactionType (the billing/receipting catalog, AR-owned since 2026-08-15), NumberingScheme, ExchangeRate (effective-dated FX rates vs the company base currency), Setting (per-company singleton), Debtor, OtherDebtor, CreditAccount, CreditMemberLimit, Ledger, Receipt, Deposit, Allocation, InterestGeneration, InterestGenerationDetail, Statement, StatementDetail, StatementRun |
+| `src/modules/ar` (Account Receivable) | `ar` | [account-receivable.md](../apps/api/docs/systems/account-receivable.md) | All standalone (id refs validated in the service, no associations): TransactionType (the billing/receipting catalog, AR-owned since 2026-08-15), NumberingScheme, ExchangeRate (effective-dated FX rates vs the company base currency), Setting (per-company singleton), Debtor, OtherDebtor, CreditAccount, CreditMemberLimit, Ledger, TaxLedger, Receipt, Deposit, Allocation, InterestGeneration, InterestGenerationDetail, Statement, StatementDetail, StatementRun |
 | `src/modules/facility` | `facility` (reserved) | [facility-management.md](../apps/api/docs/systems/facility-management.md) | none yet |
 
 Standalone tables reference their owner (`accountId` / `companyId` / `userId`) by plain value and have no associations.
@@ -153,6 +153,7 @@ erDiagram
     Debtor ||..o{ Deposit : "security deposits (id ref)"
     Ledger }o..|| TransactionType : "transactionTypeId - tax snapshotted at posting (id ref)"
     Receipt }o..o| TransactionType : "transactionTypeId - receipt class (id ref)"
+    TaxLedger }o..|| Ledger : "docType/docId (value ref)"
     Ledger }o..o| Ledger : "reversalOfId / applyToLedgerId (id refs)"
     Ledger }o..o| Member : "incurredByMemberId (value ref)"
     Ledger }o..o| WorkflowInstance : "workflowInstanceId (value ref)"
@@ -175,6 +176,8 @@ erDiagram
 Hot balances are materialized on `CreditAccount.outstanding` and `CreditMemberLimit.personalUsed` (fixed lock order: pool row, then person rows) and asserted by reconciliation against `Allocation` rows.
 Valid allocation pairs are `receipt -> ledger`, `ledger(credit) -> ledger(debit)`, `receipt -> deposit`, `deposit -> refund`, `receipt -> refund`; there is deliberately no `deposit -> ledger` pair (that is the conversion process, which posts a Credit Note).
 `Ledger` and `Receipt` carry the draft lifecycle (`draft` / `pending-approval` / `open` / `settled` / `void`) with posting and void audit columns; receipts post directly (no approval chain).
+`TaxLedger` (added 2026-08-24) is the per-component tax breakdown behind a Ledger document's tax snapshot: `docType` mirrors `Ledger.docKind`, one row per rate line in `lineNo` computation order, frozen from the tax quote when the document's tax amounts are written and never re-derived.
+Each row carries document-currency and base-currency amounts (at the document's frozen exchange rate), and `SUM(taxAmount)` always equals the parent `Ledger.taxAmount`.
 `StatementRun` is the worker-driven job row (lease + progress counters) and has no business relationships, so it stays out of the diagram.
 `ExchangeRate` (added 2026-08-21, step 1 of multicurrency AR) holds one rate per foreign currency per effective day; `rate` is how many base-currency units one foreign unit buys, looked up as the latest `effectiveDate <= docDate`.
 Documents will snapshot the rate they used in later steps, so editing a rate only changes future defaults.
