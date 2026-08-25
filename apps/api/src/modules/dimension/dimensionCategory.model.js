@@ -7,14 +7,15 @@ const { DIMENSION_SCHEMA } = require('../../platform/schemas');
 // same day: the same 'Department' list must mean the same thing on an AR
 // invoice, an AP bill and a GL journal, so the catalog is owned by nobody's
 // sub-module). Unlimited catalog; a category a company wants stamped onto
-// documents is assigned a slot 1..6, which maps it to each consumer's
-// analysis<slotNo>Id columns (ar.Ledger today; AP/GL/PO later). Slotless
-// categories are catalog-only. Consumed through platform/dimensionGateway.js.
+// documents is assigned a dimension number 1..6, which maps it to each
+// consumer's analysis<dimensionNo>Id columns (ar.Ledger today; AP/GL/PO
+// later). Numberless categories are catalog-only. Consumed through
+// platform/dimensionGateway.js.
 //
-// THE SLOT-REPURPOSE LOCK: the slot is what consumers store and index, not
-// the meaning - so once any consumer's document references one of the
-// category's options, its slotNo can no longer change (rename stays free).
-// Enforced in the controller through the gateway's registered usage checks.
+// THE REPURPOSE LOCK: the dimension number is what consumers store and index,
+// not the meaning - so once any consumer's document references one of the
+// category's options, its dimensionNo can no longer change (rename stays
+// free). Enforced in the controller through the gateway's usage checks.
 const DimensionCategory = sequelize.define('DimensionCategory', {
     id: {
         type: DataTypes.UUID,
@@ -30,10 +31,10 @@ const DimensionCategory = sequelize.define('DimensionCategory', {
         type: DataTypes.STRING,
         allowNull: false,
     },
-    // 1..6 = stamped onto consumers' analysis<slotNo>Id columns; NULL =
-    // catalog-only. Company-GLOBAL: slot 3 means the same dimension in every
+    // 1..6 = stamped onto consumers' analysis<dimensionNo>Id columns; NULL =
+    // catalog-only. Company-GLOBAL: Dimension 3 means the same thing in every
     // consuming module, which is what makes cross-module reporting joinable.
-    slotNo: {
+    dimensionNo: {
         type: DataTypes.INTEGER,
         allowNull: true,
         validate: { min: 1, max: 6 },
@@ -61,12 +62,12 @@ const DimensionCategory = sequelize.define('DimensionCategory', {
     timestamps: true,
     indexes: [
         { name: 'IDX_DimensionCategory_Company_Name', fields: ['companyId', 'name'], unique: true },
-        // One category per slot per company (catalog-only rows exempt).
+        // One category per dimension number per company (catalog-only exempt).
         {
-            name: 'IDX_DimensionCategory_Company_Slot',
-            fields: ['companyId', 'slotNo'],
+            name: 'IDX_DimensionCategory_Company_DimensionNo',
+            fields: ['companyId', 'dimensionNo'],
             unique: true,
-            where: { slotNo: { [Op.ne]: null } },
+            where: { dimensionNo: { [Op.ne]: null } },
         },
     ],
 });

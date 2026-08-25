@@ -292,11 +292,11 @@ export class ArService {
     return this.http.get<ArAnalysisSetup>(this.dimensionBase);
   }
 
-  createAnalysisCategory(payload: { name: string; slotNo: number | null; isRequired: boolean }): Observable<{ message: string; category: ArAnalysisCategory }> {
+  createAnalysisCategory(payload: { name: string; dimensionNo: number | null; isRequired: boolean }): Observable<{ message: string; category: ArAnalysisCategory }> {
     return this.http.post<{ message: string; category: ArAnalysisCategory }>(`${this.dimensionBase}/categories`, payload);
   }
 
-  updateAnalysisCategory(id: string, payload: { name: string; slotNo: number | null; isRequired: boolean }): Observable<{ message: string; category: ArAnalysisCategory }> {
+  updateAnalysisCategory(id: string, payload: { name: string; dimensionNo: number | null; isRequired: boolean }): Observable<{ message: string; category: ArAnalysisCategory }> {
     return this.http.put<{ message: string; category: ArAnalysisCategory }>(`${this.dimensionBase}/categories/${id}`, payload);
   }
 

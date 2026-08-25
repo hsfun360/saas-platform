@@ -174,9 +174,10 @@ const Ledger = sequelize.define('Ledger', {
     // available credit.
     applyToLedgerId: { type: DataTypes.UUID, allowNull: true },
     // --- Financial analysis dimensions (hybrid design, 2026-08-25) ---
-    // Six SLOT columns referencing ar.AnalysisOption by id; which slot means
-    // what is the company's AnalysisCategory.slotNo assignment ('Department',
-    // 'Project', ...). Columns because reporting is the point (GROUP BY one
+    // Six ANALYSIS columns referencing dimension.DimensionOption by id; which
+    // number means what is the company's DimensionCategory.dimensionNo
+    // assignment ('Department', 'Project', ...). Columns because reporting is
+    // the point (GROUP BY one
     // column, no junction pivot); an option id implies its company and
     // category, so the partial indexes below need no companyId prefix and
     // contain ONLY tagged rows (the NULL majority costs nothing). Stamped at

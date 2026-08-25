@@ -57,8 +57,8 @@ export class ArAnalysisComponent implements OnInit {
       const aActive = a.isActive !== false;
       const bActive = b.isActive !== false;
       if (aActive !== bActive) return aActive ? -1 : 1;
-      const as = a.slotNo ?? 99;
-      const bs = b.slotNo ?? 99;
+      const as = a.dimensionNo ?? 99;
+      const bs = b.dimensionNo ?? 99;
       if (as !== bs) return as - bs;
       return a.name.localeCompare(b.name);
     }));
@@ -73,12 +73,12 @@ export class ArAnalysisComponent implements OnInit {
   readonly catEditId = signal<string | null>(null);
   readonly catForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
-    slotNo: [''],
+    dimensionNo: [''],
     isRequired: [false],
   });
-  // Slots 1..6 with the current holder named (show-expected-results).
-  readonly slotChoices = computed(() => [1, 2, 3, 4, 5, 6].map((n) => {
-    const holder = this.categories().find((c) => c.slotNo === n && c.id !== this.catEditId());
+  // Dimensions 1..6 with the current holder named (show-expected-results).
+  readonly dimensionChoices = computed(() => [1, 2, 3, 4, 5, 6].map((n) => {
+    const holder = this.categories().find((c) => c.dimensionNo === n && c.id !== this.catEditId());
     return { n, holder: holder ? holder.name : null };
   }));
 
@@ -136,14 +136,14 @@ export class ArAnalysisComponent implements OnInit {
   openAddCategory(): void {
     this.clearMessages();
     this.catEditId.set(null);
-    this.catForm.reset({ name: '', slotNo: '', isRequired: false });
+    this.catForm.reset({ name: '', dimensionNo: '', isRequired: false });
     this.catOpen.set(true);
   }
 
   openEditCategory(c: ArAnalysisCategory): void {
     this.clearMessages();
     this.catEditId.set(c.id);
-    this.catForm.reset({ name: c.name, slotNo: c.slotNo === null ? '' : String(c.slotNo), isRequired: c.isRequired === true });
+    this.catForm.reset({ name: c.name, dimensionNo: c.dimensionNo === null ? '' : String(c.dimensionNo), isRequired: c.isRequired === true });
     this.catOpen.set(true);
   }
 
@@ -153,7 +153,7 @@ export class ArAnalysisComponent implements OnInit {
     const f = this.catForm.getRawValue();
     const payload = {
       name: f.name.trim(),
-      slotNo: f.slotNo === '' ? null : Number(f.slotNo),
+      dimensionNo: f.dimensionNo === '' ? null : Number(f.dimensionNo),
       isRequired: f.isRequired,
     };
     this.catSaving.set(true);

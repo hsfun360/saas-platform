@@ -69,7 +69,7 @@ const arRoutes = require('./modules/ar/ar.routes');
 const dimensionRoutes = require('./modules/dimension/dimension.routes');
 // Completion-handler registration (producer modules hook onto their purposes).
 require('./wiring/workflowHandlers');
-// Consumers register their Dimension slot-usage checks (slot-repurpose lock).
+// Consumers register their Dimension usage checks (the repurpose lock).
 require('./wiring/dimensionUsage');
 
 // --- Build the Express application ---
@@ -359,6 +359,24 @@ async function initializeDB() {
                 await sequelize.query(
                     `UPDATE ar."Receipt" SET "balanceAmount" = "amount" - "allocatedAmount"
                      WHERE "balanceAmount" IS NULL`,
+                );
+            }
+            // Dimension vocabulary alignment (user decision 2026-08-25):
+            // DimensionCategory.slotNo -> dimensionNo, matching the on-screen
+            // 'Analysis Dimension' wording. Values must be copied BEFORE the
+            // alter-sync drops the old column. Idempotent; skipped once gone.
+            const [[dimCols]] = await sequelize.query(
+                `SELECT
+                    EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'dimension' AND table_name = 'DimensionCategory' AND column_name = 'slotNo') AS has_old,
+                    EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'dimension' AND table_name = 'DimensionCategory' AND column_name = 'dimensionNo') AS has_new`,
+            ).catch(() => [[null]]);
+            if (dimCols && dimCols.has_old) {
+                if (!dimCols.has_new) {
+                    await sequelize.query('ALTER TABLE dimension."DimensionCategory" ADD COLUMN "dimensionNo" integer');
+                }
+                await sequelize.query(
+                    `UPDATE dimension."DimensionCategory" SET "dimensionNo" = "slotNo"
+                     WHERE "dimensionNo" IS NULL AND "slotNo" IS NOT NULL`,
                 );
             }
             const [[depositCols]] = await sequelize.query(

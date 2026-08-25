@@ -4,7 +4,7 @@ const { DIMENSION_SCHEMA } = require('../../platform/schemas');
 
 // DimensionOption - one selectable value of a DimensionCategory ('HR',
 // 'Marketing', 'Project Alpha', ...). Consuming documents reference options BY
-// ID through their own analysis<slotNo>Id columns, so renames are free and
+// ID through their own analysis<dimensionNo>Id columns, so renames are free and
 // history never strands; options are disabled, never deleted. An option id is
 // unique to one company and one category, which lets consumers' analysis
 // indexes skip a companyId prefix.

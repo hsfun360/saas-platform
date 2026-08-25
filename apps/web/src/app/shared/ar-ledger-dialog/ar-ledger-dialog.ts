@@ -108,19 +108,19 @@ export class ArLedgerDialogComponent implements OnInit {
   readonly analysisMeta = computed(() => this.effMeta()?.analysis || []);
   readonly analysisSel = signal<Record<string, string>>({});
 
-  selFor(slotNo: number): string {
-    return this.analysisSel()[String(slotNo)] || '';
+  selFor(dimensionNo: number): string {
+    return this.analysisSel()[String(dimensionNo)] || '';
   }
 
-  pickAnalysis(slotNo: number, optionId: string): void {
-    this.analysisSel.update((m) => ({ ...m, [String(slotNo)]: optionId }));
+  pickAnalysis(dimensionNo: number, optionId: string): void {
+    this.analysisSel.update((m) => ({ ...m, [String(dimensionNo)]: optionId }));
     this.form.markAsDirty();
   }
 
   // Client-side required check (the API enforces the same rule).
   private analysisError(): string | null {
     for (const dim of this.analysisMeta()) {
-      if (dim.isRequired && !this.selFor(dim.slotNo)) return `${dim.name} is required.`;
+      if (dim.isRequired && !this.selFor(dim.dimensionNo)) return `${dim.name} is required.`;
     }
     return null;
   }
@@ -312,7 +312,7 @@ export class ArLedgerDialogComponent implements OnInit {
       // Foreign-currency account only: the keyed rate (blank = the API takes
       // the Exchange Rates table at the document date, or refuses clearly).
       ...(this.isForeign() ? { exchangeRate: f.exchangeRate.trim() || null } : {}),
-      // Analysis selections ({ "<slotNo>": optionId }).
+      // Analysis selections ({ "<dimensionNo>": optionId }).
       analysis: this.analysisSel(),
     };
   }

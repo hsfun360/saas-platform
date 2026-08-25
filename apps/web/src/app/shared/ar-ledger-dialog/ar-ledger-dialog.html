@@ -142,20 +142,20 @@
             </div>
           }
           @if (analysisMeta().length > 0) {
-            <!-- Financial-analysis dimensions: one picker per slot-assigned
+            <!-- Financial-analysis dimensions: one picker per number-assigned
                  category, labelled with the company's own names. -->
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
               @for (dim of analysisMeta(); track dim.categoryId) {
                 <div class="form-group">
-                  <label [for]="'ldAna' + dim.slotNo">{{ dim.name }}@if (dim.isRequired) { <span class="required">*</span> }</label>
+                  <label [for]="'ldAna' + dim.dimensionNo">{{ dim.name }}@if (dim.isRequired) { <span class="required">*</span> }</label>
                   <!-- [selected] per option, not [value] on the select: the
                        meta (and its options) load AFTER the prefill, and a
                        value binding set before its option exists never
                        re-applies - the select silently falls back to None. -->
-                  <select [id]="'ldAna' + dim.slotNo" #anaSel (change)="pickAnalysis(dim.slotNo, anaSel.value)">
-                    <option value="" [selected]="!selFor(dim.slotNo)">— None —</option>
+                  <select [id]="'ldAna' + dim.dimensionNo" #anaSel (change)="pickAnalysis(dim.dimensionNo, anaSel.value)">
+                    <option value="" [selected]="!selFor(dim.dimensionNo)">— None —</option>
                     @for (o of dim.options; track o.id) {
-                      <option [value]="o.id" [selected]="o.id === selFor(dim.slotNo)">{{ o.code }}@if (o.description) { — {{ o.description }}}</option>
+                      <option [value]="o.id" [selected]="o.id === selFor(dim.dimensionNo)">{{ o.code }}@if (o.description) { — {{ o.description }}}</option>
                     }
                   </select>
                 </div>

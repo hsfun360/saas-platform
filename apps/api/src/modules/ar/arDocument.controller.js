@@ -488,7 +488,7 @@ async function readDraftFields(req, companyId, debtor, lk) {
     const fxRead = await readFx(companyId, debtor, dates.docDate, req.body);
     if (fxRead.error) return { error: fxRead.error };
 
-    // Analysis selections ({ "<slotNo>": optionId }) validated against the
+    // Analysis selections ({ "<dimensionNo>": optionId }) validated against the
     // live slot assignments; required dimensions enforced on manual entry.
     const analysisRead = await dimensionGateway.readSelections(companyId, req.body);
     if (analysisRead.error) return { error: analysisRead.error };

@@ -33,13 +33,13 @@ Key rules a maintainer must not break:
 
 ## Financial-analysis dimensions (hybrid design 2026-08-25; catalog owned by the shared Dimension capability)
 
-The catalog (`dimension.DimensionCategory` + `dimension.DimensionOption`, slot 1..6 assignment, slot-repurpose lock) is OWNED by the shared Dimension service - see [dimension.md](dimension.md); AR consumes it through `platform/dimensionGateway.js`, never the models.
+The catalog (`dimension.DimensionCategory` + `dimension.DimensionOption`, `dimensionNo` 1..6 assignment, repurpose lock) is OWNED by the shared Dimension service - see [dimension.md](dimension.md); AR consumes it through `platform/dimensionGateway.js`, never the models.
 AR's side:
 
-- `ar.Ledger.analysis1Id..analysis6Id`: the slot columns (option ids), each with a **partial index** `(analysisNId, trxDate) WHERE NOT NULL` - only tagged rows are indexed, so the sparse NULL majority costs nothing and reports stay `GROUP BY` one column with no junction pivot. An option id implies its company + category, so no companyId prefix is needed.
-- Doors: manual drafts + the DN door validate `body.analysis` (`{ "<slotNo>": optionId }`) through `dimensionGateway.readSelections` (slot assigned + active, option of that category + active, required enforced - system producers exempt) and stamp the columns; void reversals COPY the original's columns so per-dimension reports net the pair; `postLedgerDoc` accepts `analysisColumns` for future producers. Account meta ships `analysis` (from `dimensionGateway.entryMeta`) - the entry dialog renders one picker per slot-assigned dimension, labelled with the company's names; listings ship the ids for draft-edit prefill.
-- AR registers the Dimension slot-usage check in `src/wiring/dimensionUsage.js` (any `analysis<N>Id` referencing the category's options = slot locked).
-- Screens: `/ar/analysis` "Analysis Setup" master-detail (dimensions left with slot/required/count chips, selected dimension's options right; URL-driven selection; drawer dialogs; enable/disable in kebabs) - a thin client of `/api/dimension`. USER MUST ADD MENU '/ar/analysis' (icon `category`).
+- `ar.Ledger.analysis1Id..analysis6Id`: the analysis columns (option ids), each with a **partial index** `(analysisNId, trxDate) WHERE NOT NULL` - only tagged rows are indexed, so the sparse NULL majority costs nothing and reports stay `GROUP BY` one column with no junction pivot. An option id implies its company + category, so no companyId prefix is needed.
+- Doors: manual drafts + the DN door validate `body.analysis` (`{ "<dimensionNo>": optionId }`) through `dimensionGateway.readSelections` (dimension assigned + active, option of that category + active, required enforced - system producers exempt) and stamp the columns; void reversals COPY the original's columns so per-dimension reports net the pair; `postLedgerDoc` accepts `analysisColumns` for future producers. Account meta ships `analysis` (from `dimensionGateway.entryMeta`) - the entry dialog renders one picker per number-assigned dimension, labelled with the company's names; listings ship the ids for draft-edit prefill.
+- AR registers the Dimension usage check in `src/wiring/dimensionUsage.js` (any `analysis<N>Id` referencing the category's options = dimension number locked).
+- Screens: `/ar/analysis` "Analysis Setup" master-detail (dimensions left with Dimension-number/required/count chips, selected dimension's options right; URL-driven selection; drawer dialogs; enable/disable in kebabs) - a thin client of `/api/dimension`. USER MUST ADD MENU '/ar/analysis' (icon `category`).
 - Receipts/Deposits carry no dimensions yet; a per-dimension revenue report screen is a future consumer of the partial indexes.
 
 ## Tax breakdown - `ar.TaxLedger` (2026-08-24)

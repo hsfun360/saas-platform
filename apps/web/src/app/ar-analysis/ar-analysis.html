@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">category</span>
       <div>
         <h1>{{ 'Analysis Setup' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Financial-analysis dimensions — define what each analysis slot means (Department, Project, …) and the options documents are analysed under.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Financial-analysis dimensions — define what each Analysis Dimension means (Department, Project, …) and the options documents are analysed under.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -35,7 +35,7 @@
       <!-- ============ MASTER: dimensions ============ -->
       <div class="ana-pane ana-pane--master">
         @if (categories().length === 0) {
-          <div class="empty-state"><span class="empty-icon">📭</span><p>No dimensions yet. Use "New dimension" to define one (e.g. Department on slot 1, Project on slot 2).</p></div>
+          <div class="empty-state"><span class="empty-icon">📭</span><p>No dimensions yet. Use "New dimension" to define one (e.g. Department on Dimension 1, Project on Dimension 2).</p></div>
         } @else {
           <div class="data-list">
             @for (c of sortedCategories(); track c.id) {
@@ -44,7 +44,7 @@
                   <button type="button" class="data-row__main ana-card__open" (click)="select(c)">
                     <span class="data-card__title">{{ c.name }}</span>
                     <span class="data-card__subline">
-                      @if (c.slotNo !== null) { <span class="mt-chip">Dimension {{ c.slotNo }}</span> }
+                      @if (c.dimensionNo !== null) { <span class="mt-chip">Dimension {{ c.dimensionNo }}</span> }
                       @else { <span class="data-card__reg">catalog only — not stamped on documents</span> }
                       @if (c.isRequired) { <span class="mt-chip">required</span> }
                       <span class="data-card__reg">{{ optionCount(c.id) }} option(s)</span>
@@ -89,7 +89,7 @@
             <div>
               <h2 class="ana-detail__title">{{ cat.name }} options</h2>
               <p class="cell-subtle" style="margin: 0;">
-                @if (cat.slotNo !== null) { Stamped on documents as Dimension {{ cat.slotNo }}. } @else { Catalog only — assign an Analysis Dimension to stamp it on documents. }
+                @if (cat.dimensionNo !== null) { Stamped on documents as Dimension {{ cat.dimensionNo }}. } @else { Catalog only — assign an Analysis Dimension to stamp it on documents. }
                 Documents reference options by id, so renaming is always safe.
               </p>
             </div>
@@ -153,10 +153,10 @@
             }
           </div>
           <div class="form-group">
-            <label for="anaCatSlot">Analysis Dimension</label>
-            <select id="anaCatSlot" formControlName="slotNo">
+            <label for="anaCatDim">Analysis Dimension</label>
+            <select id="anaCatDim" formControlName="dimensionNo">
               <option value="">— Catalog only (not stamped) —</option>
-              @for (s of slotChoices(); track s.n) {
+              @for (s of dimensionChoices(); track s.n) {
                 <option [value]="s.n" [disabled]="!!s.holder">Dimension {{ s.n }}@if (s.holder) { — taken by {{ s.holder }}}</option>
               }
             </select>

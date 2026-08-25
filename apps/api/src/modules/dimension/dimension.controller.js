@@ -1,14 +1,14 @@
 // Dimension Setup (shared financial-analysis capability, promoted 2026-08-25;
 // hybrid design locked in the same day). Categories = the company's analysis
-// dimensions ('Department', 'Project', ...), each optionally assigned to one
-// of six document slots; Options = the selectable values, referenced by
-// consuming documents BY ID. Enable/disable only, no deletes; the
-// slot-repurpose lock (via the gateway's registered consumer usage checks)
-// keeps a used slot's meaning stable.
+// dimensions ('Department', 'Project', ...), each optionally assigned one of
+// six dimension numbers; Options = the selectable values, referenced by
+// consuming documents BY ID. Enable/disable only, no deletes; the repurpose
+// lock (via the gateway's registered consumer usage checks) keeps a used
+// dimension number's meaning stable.
 
 const DimensionCategory = require('./dimensionCategory.model');
 const DimensionOption = require('./dimensionOption.model');
-const { slotInUse } = require('../../platform/dimensionGateway');
+const { dimensionInUse } = require('../../platform/dimensionGateway');
 const {
     getUserContext,
     getCallerPlacement,
@@ -31,7 +31,7 @@ function categoryDto(c, canModify = true) {
         id: c.id,
         canModify,
         name: c.name,
-        slotNo: c.slotNo,
+        dimensionNo: c.dimensionNo,
         isRequired: c.isRequired === true,
         isActive: c.isActive,
     };
@@ -51,7 +51,7 @@ function optionDto(o, canModify = true) {
 // --- Zod schemas (boundary validation; unknown keys stripped) ---
 const categoryBody = z.object({
     name: fields.requiredText(100),
-    slotNo: z.union([z.null(), z.coerce.number().int().min(1).max(6)]).optional(),
+    dimensionNo: z.union([z.null(), z.coerce.number().int().min(1).max(6)]).optional(),
     isRequired: z.boolean().optional(),
 });
 // description arrives as null when the field is left blank (the web sends
@@ -97,15 +97,15 @@ exports.list = async (req, res) => {
     }
 };
 
-// Slot uniqueness pre-check (the partial unique index is the backstop).
-async function slotClashError(companyId, slotNo, ignoreId = null) {
-    if (slotNo === null || slotNo === undefined) return null;
+// Dimension-number uniqueness pre-check (the partial unique index backstops).
+async function dimensionClashError(companyId, dimensionNo, ignoreId = null) {
+    if (dimensionNo === null || dimensionNo === undefined) return null;
     const { Op } = require('sequelize');
     const clash = await DimensionCategory.findOne({
-        where: { companyId, slotNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
+        where: { companyId, dimensionNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
         attributes: ['name'],
     });
-    return clash ? `Dimension ${slotNo} is already assigned to '${clash.name}'.` : null;
+    return clash ? `Dimension ${dimensionNo} is already assigned to '${clash.name}'.` : null;
 }
 
 // POST /api/dimension/categories
@@ -113,16 +113,16 @@ exports.createCategory = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const { name, slotNo = null, isRequired = false } = req.body;
+        const { name, dimensionNo = null, isRequired = false } = req.body;
 
         const dup = await DimensionCategory.findOne({ where: { companyId, name } });
         if (dup) return res.status(409).json({ message: `Dimension '${name}' already exists.` });
-        const slotErr = await slotClashError(companyId, slotNo);
-        if (slotErr) return res.status(409).json({ message: slotErr });
+        const clashErr = await dimensionClashError(companyId, dimensionNo);
+        if (clashErr) return res.status(409).json({ message: clashErr });
 
         const placement = await getCallerPlacement(req);
         const row = await DimensionCategory.create({
-            companyId, name, slotNo: slotNo ?? null, isRequired: isRequired === true,
+            companyId, name, dimensionNo: dimensionNo ?? null, isRequired: isRequired === true,
             ...ownershipStamps(req, placement),
         });
         res.status(201).json({ message: `Dimension '${row.name}' created.`, category: categoryDto(row) });
@@ -132,8 +132,8 @@ exports.createCategory = async (req, res) => {
     }
 };
 
-// PUT /api/dimension/categories/:id - rename freely; slotNo changes are
-// blocked once documents use the slot (THE slot-repurpose lock, asked of
+// PUT /api/dimension/categories/:id - rename freely; dimensionNo changes are
+// blocked once documents use the dimension (THE repurpose lock, asked of
 // every registered consumer through the gateway).
 exports.updateCategory = async (req, res) => {
     try {
@@ -144,22 +144,22 @@ exports.updateCategory = async (req, res) => {
         if (!(await canModifyRecord(req, row))) {
             return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         }
-        const { name, slotNo = null, isRequired = false } = req.body;
+        const { name, dimensionNo = null, isRequired = false } = req.body;
 
         const { Op } = require('sequelize');
         const dup = await DimensionCategory.findOne({ where: { companyId, name, id: { [Op.ne]: row.id } } });
         if (dup) return res.status(409).json({ message: `Dimension '${name}' already exists.` });
 
-        const nextSlot = slotNo ?? null;
-        if (nextSlot !== row.slotNo) {
-            if (row.slotNo !== null && (await slotInUse({ companyId, categoryId: row.id, slotNo: row.slotNo }))) {
-                return res.status(409).json({ message: `'${row.name}' has documents analysed under Dimension ${row.slotNo} - its dimension number can no longer change. Disable it and create a new dimension instead.` });
+        const nextNo = dimensionNo ?? null;
+        if (nextNo !== row.dimensionNo) {
+            if (row.dimensionNo !== null && (await dimensionInUse({ companyId, categoryId: row.id, dimensionNo: row.dimensionNo }))) {
+                return res.status(409).json({ message: `'${row.name}' has documents analysed under Dimension ${row.dimensionNo} - its dimension number can no longer change. Disable it and create a new dimension instead.` });
             }
-            const slotErr = await slotClashError(companyId, nextSlot, row.id);
-            if (slotErr) return res.status(409).json({ message: slotErr });
+            const clashErr = await dimensionClashError(companyId, nextNo, row.id);
+            if (clashErr) return res.status(409).json({ message: clashErr });
         }
 
-        Object.assign(row, { name, slotNo: nextSlot, isRequired: isRequired === true, updatedBy: getUserContext(req).userId });
+        Object.assign(row, { name, dimensionNo: nextNo, isRequired: isRequired === true, updatedBy: getUserContext(req).userId });
         await row.save();
         res.status(200).json({ message: `Dimension '${row.name}' updated.`, category: categoryDto(row) });
     } catch (error) {

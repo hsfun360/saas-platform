@@ -211,7 +211,7 @@ export interface ArDocListRow {
   exchangeRate?: string | null;
   baseGrossAmount?: string | null;
   transactionTypeId: string;
-  // Analysis slot values (option ids), for edit prefill.
+  // Analysis dimension values (option ids), for edit prefill.
   analysis1Id?: string | null;
   analysis2Id?: string | null;
   analysis3Id?: string | null;
@@ -241,8 +241,8 @@ export interface ArAnalysisCategory {
   id: string;
   canModify?: boolean;
   name: string;
-  // 1..6 = stamped onto Ledger.analysis<slotNo>Id; null = catalog-only.
-  slotNo: number | null;
+  // 1..6 = stamped onto Ledger.analysis<dimensionNo>Id; null = catalog-only.
+  dimensionNo: number | null;
   isRequired: boolean;
   isActive: boolean;
 }
@@ -261,10 +261,10 @@ export interface ArAnalysisSetup {
   options: ArAnalysisOption[];
 }
 
-// The entry dialogs' picker meta: one entry per slot-assigned active dimension.
+// The entry dialogs' picker meta: one entry per number-assigned active dimension.
 export interface ArAnalysisEntryMeta {
   categoryId: string;
-  slotNo: number;
+  dimensionNo: number;
   name: string;
   isRequired: boolean;
   options: { id: string; code: string; description: string | null }[];
