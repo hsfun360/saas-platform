@@ -1,0 +1,76 @@
+/* Analysis Setup - master-detail per the app standard (dimensions left,
+   selected dimension's options right; one-at-a-time on mobile). Composes the
+   global listing primitives; membership-types.css is NOT imported, so the
+   .mt-chip pill used on cards is defined locally with the same look. */
+
+.ana-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 460px) 1fr;
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.ana-back { display: none; }
+
+@media (max-width: 768px) {
+  .ana-layout { grid-template-columns: 1fr; }
+  .ana-pane--detail { display: none; }
+  .ana-layout--detail .ana-pane--master { display: none; }
+  .ana-layout--detail .ana-pane--detail { display: block; }
+  .ana-back { display: inline-flex; margin-bottom: var(--space-sm); }
+}
+
+/* The card's main cell is a BUTTON (opens the detail) - minmax(0,1fr) in the
+   shared grid keeps its text wrapping; strip the button chrome. */
+.ana-card__open {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  color: inherit;
+  font: inherit;
+}
+
+.ana-card--selected {
+  border-color: var(--brand);
+  background: var(--surface-selected);
+}
+
+.ana-detail__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.ana-detail__title {
+  font-size: var(--font-h2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-xs);
+}
+
+.ana-detail__placeholder {
+  padding: var(--space-xl);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  text-align: center;
+}
+
+/* Same look as membership-types' .mt-chip (kept local - see header note). */
+.mt-chip {
+  display: inline-block;
+  padding: 2px var(--space-sm);
+  border-radius: 12px;
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--info-surface);
+  color: var(--info-text);
+}

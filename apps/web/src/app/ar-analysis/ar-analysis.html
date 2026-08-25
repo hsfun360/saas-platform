@@ -1,0 +1,215 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">category</span>
+      <div>
+        <h1>{{ 'Analysis Setup' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Financial-analysis dimensions — define what each analysis slot means (Department, Project, …) and the options documents are analysed under.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading analysis setup…</p></div>
+  } @else {
+    <div class="ana-layout" [class.ana-layout--detail]="selectedId()">
+
+      <!-- ============ MASTER: dimensions ============ -->
+      <div class="ana-pane ana-pane--master">
+        @if (categories().length === 0) {
+          <div class="empty-state"><span class="empty-icon">📭</span><p>No dimensions yet. Use "New dimension" to define one (e.g. Department on slot 1, Project on slot 2).</p></div>
+        } @else {
+          <div class="data-list">
+            @for (c of sortedCategories(); track c.id) {
+              <div class="data-card" [class.ana-card--selected]="c.id === selectedId()" [attr.data-return-id]="c.id">
+                <div class="data-row data-row--with-badge">
+                  <button type="button" class="data-row__main ana-card__open" (click)="select(c)">
+                    <span class="data-card__title">{{ c.name }}</span>
+                    <span class="data-card__subline">
+                      @if (c.slotNo !== null) { <span class="mt-chip">Slot {{ c.slotNo }}</span> }
+                      @else { <span class="data-card__reg">catalog only — not stamped on documents</span> }
+                      @if (c.isRequired) { <span class="mt-chip">required</span> }
+                      <span class="data-card__reg">{{ optionCount(c.id) }} option(s)</span>
+                    </span>
+                  </button>
+                  <div class="data-row__badge">
+                    <span class="status-chip" [class.status-chip--on]="c.isActive !== false" [class.status-chip--off]="c.isActive === false">
+                      {{ c.isActive === false ? 'Disabled' : 'Active' }}
+                    </span>
+                  </div>
+                  <div class="data-row__actions">
+                    @if (c.canModify !== false) {
+                      <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditCategory(c)">Edit</button>
+                      <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + c.name">
+                        <button type="button" appMenuItem (click)="toggleCategory(c)" [disabled]="togglingId() === c.id">
+                          <span class="material-icons" aria-hidden="true">{{ c.isActive === false ? 'check_circle' : 'block' }}</span>
+                          {{ togglingId() === c.id ? 'Saving…' : (c.isActive === false ? 'Enable' : 'Disable') }}
+                        </button>
+                      </app-overflow-menu>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- New dimension FAB (inside the master pane per the standard) -->
+        <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAddCategory()" aria-label="New dimension">
+          <span class="material-icons" aria-hidden="true">add</span>
+          <span>New dimension</span>
+        </button>
+      </div>
+
+      <!-- ============ DETAIL: the selected dimension's options ============ -->
+      <div class="ana-pane ana-pane--detail">
+        @if (selected(); as cat) {
+          <button type="button" class="btn btn--link btn--sm ana-back" (click)="back()">
+            <span class="material-icons" aria-hidden="true">arrow_back</span> Back to dimensions
+          </button>
+          <div class="ana-detail__head">
+            <div>
+              <h2 class="ana-detail__title">{{ cat.name }} options</h2>
+              <p class="cell-subtle" style="margin: 0;">
+                @if (cat.slotNo !== null) { Stamped on documents as analysis slot {{ cat.slotNo }}. } @else { Catalog only — assign a slot to stamp it on documents. }
+                Documents reference options by id, so renaming is always safe.
+              </p>
+            </div>
+            <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="openAddOption()">
+              <span class="material-icons" aria-hidden="true">add</span> New option
+            </button>
+          </div>
+          @if (selectedOptions().length === 0) {
+            <div class="empty-state"><span class="empty-icon">📭</span><p>No options yet. Use "New option" (e.g. FNB — Food &amp; Beverage).</p></div>
+          } @else {
+            <div class="data-list">
+              @for (o of selectedOptions(); track o.id) {
+                <div class="data-card">
+                  <div class="data-row data-row--with-badge">
+                    <div class="data-row__main">
+                      <span class="data-card__title">{{ o.code }}</span>
+                      @if (o.description) { <span class="data-card__subline"><span class="data-card__reg">{{ o.description }}</span></span> }
+                    </div>
+                    <div class="data-row__badge">
+                      <span class="status-chip" [class.status-chip--on]="o.isActive !== false" [class.status-chip--off]="o.isActive === false">
+                        {{ o.isActive === false ? 'Disabled' : 'Active' }}
+                      </span>
+                    </div>
+                    <div class="data-row__actions">
+                      @if (o.canModify !== false) {
+                        <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditOption(o)">Edit</button>
+                        <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + o.code">
+                          <button type="button" appMenuItem (click)="toggleOption(o)" [disabled]="togglingId() === o.id">
+                            <span class="material-icons" aria-hidden="true">{{ o.isActive === false ? 'check_circle' : 'block' }}</span>
+                            {{ togglingId() === o.id ? 'Saving…' : (o.isActive === false ? 'Enable' : 'Disable') }}
+                          </button>
+                        </app-overflow-menu>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        } @else {
+          <div class="ana-detail__placeholder cell-subtle">Select a dimension to manage its options.</div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ============ Dimension dialog ============ -->
+  @if (catOpen()) {
+    <app-dialog #catDlg variant="drawer" [title]="catEditId() ? 'Edit dimension' : 'New dimension'" [busy]="catSaving()" [dirty]="catForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this dimension. Leaving now will discard them."
+                (close)="catOpen.set(false)">
+      <form id="anaCatForm" [formGroup]="catForm" (ngSubmit)="onSaveCategory()" class="saas-form" style="padding: 0;">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="anaCatName">Name <span class="required">*</span></label>
+            <input id="anaCatName" type="text" formControlName="name" placeholder="e.g. Department, Project" autocomplete="off" maxlength="100"
+                   [attr.aria-invalid]="showError(catForm.controls.name)" aria-describedby="anaCatNameErr" />
+            @if (showError(catForm.controls.name)) {
+              <p id="anaCatNameErr" class="field-error" role="alert">Name is required.</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="anaCatSlot">Analysis slot</label>
+            <select id="anaCatSlot" formControlName="slotNo">
+              <option value="">— Catalog only (not stamped) —</option>
+              @for (s of slotChoices(); track s.n) {
+                <option [value]="s.n" [disabled]="!!s.holder">Slot {{ s.n }}@if (s.holder) { — taken by {{ s.holder }}}</option>
+              }
+            </select>
+            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The Ledger column this dimension stamps into. Once documents use the slot, it can no longer change.</p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
+              <input type="checkbox" formControlName="isRequired" style="width: 18px; height: 18px; accent-color: var(--brand);" />
+              Required on manual document entry
+            </label>
+            <p class="cell-subtle" style="margin: 0;">Clerks must pick a value before saving; system-generated documents are exempt.</p>
+          </div>
+        </div>
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="catDlg.requestClose()" [disabled]="catSaving()">Cancel</button>
+        <button type="submit" form="anaCatForm" class="btn btn--primary" [disabled]="catSaving()">
+          {{ catSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Option dialog ============ -->
+  @if (optOpen()) {
+    <app-dialog #optDlg variant="drawer" [title]="(optEditId() ? 'Edit option — ' : 'New option — ') + (selected()?.name || '')" [busy]="optSaving()" [dirty]="optForm.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this option. Leaving now will discard them."
+                (close)="optOpen.set(false)">
+      <form id="anaOptForm" [formGroup]="optForm" (ngSubmit)="onSaveOption()" class="saas-form" style="padding: 0;">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="anaOptCode">Code <span class="required">*</span></label>
+            <input id="anaOptCode" type="text" formControlName="code" placeholder="e.g. FNB" autocomplete="off" maxlength="30"
+                   [attr.aria-invalid]="showError(optForm.controls.code)" aria-describedby="anaOptCodeErr" />
+            @if (showError(optForm.controls.code)) {
+              <p id="anaOptCodeErr" class="field-error" role="alert">Code is required.</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="anaOptDesc">Description</label>
+            <input id="anaOptDesc" type="text" formControlName="description" placeholder="e.g. Food &amp; Beverage" autocomplete="off" maxlength="255" />
+          </div>
+        </div>
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="optDlg.requestClose()" [disabled]="optSaving()">Cancel</button>
+        <button type="submit" form="anaOptForm" class="btn btn--primary" [disabled]="optSaving()">
+          {{ optSaving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

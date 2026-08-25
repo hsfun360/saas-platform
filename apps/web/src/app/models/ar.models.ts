@@ -211,6 +211,13 @@ export interface ArDocListRow {
   exchangeRate?: string | null;
   baseGrossAmount?: string | null;
   transactionTypeId: string;
+  // Analysis slot values (option ids), for edit prefill.
+  analysis1Id?: string | null;
+  analysis2Id?: string | null;
+  analysis3Id?: string | null;
+  analysis4Id?: string | null;
+  analysis5Id?: string | null;
+  analysis6Id?: string | null;
   // CN drafts: the allocation intent (apply-against target), for edit prefill.
   applyToLedgerId?: string | null;
   // Receipt rows: payment-method snapshot + draft intent, for edit prefill.
@@ -228,6 +235,41 @@ export interface ArDocListResult {
   documents: ArDocListRow[];
 }
 
+// --- Financial-analysis dimensions (hybrid design 2026-08-25) ---
+
+export interface ArAnalysisCategory {
+  id: string;
+  canModify?: boolean;
+  name: string;
+  // 1..6 = stamped onto Ledger.analysis<slotNo>Id; null = catalog-only.
+  slotNo: number | null;
+  isRequired: boolean;
+  isActive: boolean;
+}
+
+export interface ArAnalysisOption {
+  id: string;
+  canModify?: boolean;
+  categoryId: string;
+  code: string;
+  description: string | null;
+  isActive: boolean;
+}
+
+export interface ArAnalysisSetup {
+  categories: ArAnalysisCategory[];
+  options: ArAnalysisOption[];
+}
+
+// The entry dialogs' picker meta: one entry per slot-assigned active dimension.
+export interface ArAnalysisEntryMeta {
+  categoryId: string;
+  slotNo: number;
+  name: string;
+  isRequired: boolean;
+  options: { id: string; code: string; description: string | null }[];
+}
+
 // The entry dialogs' account-currency block (multicurrency step 3): the
 // account's currency, the company base, and - for a FOREIGN account - the
 // currency's rate history so the Exchange rate field defaults per document
@@ -241,6 +283,8 @@ export interface ArAccountCurrency {
 
 export interface ArAccountMeta {
   currency?: ArAccountCurrency;
+  // Slot-assigned analysis dimensions (empty = no pickers rendered).
+  analysis?: ArAnalysisEntryMeta[];
   transactionTypes: ArTransactionType[];
   // purpose -> 'auto' | 'manual' | null
   numberingModes: Record<string, string | null>;

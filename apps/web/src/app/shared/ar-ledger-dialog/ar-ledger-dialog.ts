@@ -102,6 +102,29 @@ export class ArLedgerDialogComponent implements OnInit {
     exchangeRate: ['', [Validators.pattern(AR_RATE_PATTERN)]],
   });
 
+  // --- Financial-analysis dimensions (hybrid design 2026-08-25) ---
+  // One picker per slot-assigned dimension; selections live outside the form
+  // group (dynamic list, same pattern as the transaction-type module radio).
+  readonly analysisMeta = computed(() => this.effMeta()?.analysis || []);
+  readonly analysisSel = signal<Record<string, string>>({});
+
+  selFor(slotNo: number): string {
+    return this.analysisSel()[String(slotNo)] || '';
+  }
+
+  pickAnalysis(slotNo: number, optionId: string): void {
+    this.analysisSel.update((m) => ({ ...m, [String(slotNo)]: optionId }));
+    this.form.markAsDirty();
+  }
+
+  // Client-side required check (the API enforces the same rule).
+  private analysisError(): string | null {
+    for (const dim of this.analysisMeta()) {
+      if (dim.isRequired && !this.selFor(dim.slotNo)) return `${dim.name} is required.`;
+    }
+    return null;
+  }
+
   // --- Multicurrency (step 3) ---
   readonly fxCurrency = computed(() => this.effMeta()?.currency || null);
   readonly isForeign = computed(() => { const c = this.fxCurrency(); return !!c && !c.isBase && !!c.code; });
@@ -159,6 +182,14 @@ export class ArLedgerDialogComponent implements OnInit {
       // rate existed defaults from the table like a new document.
       this.rateTouched.set(!!edit.exchangeRate);
       this.syncFxSignals();
+      // Analysis prefill: the stored slot values (ids resolve against the
+      // self-loaded meta's options).
+      const sel: Record<string, string> = {};
+      for (let n = 1; n <= 6; n += 1) {
+        const v = edit[`analysis${n}Id` as keyof ArDocListRow];
+        if (typeof v === 'string' && v) sel[String(n)] = v;
+      }
+      this.analysisSel.set(sel);
       this.pickedDebtor.set({ id: edit.debtor.id, no: edit.debtor.no, name: edit.debtor.name });
       this.mode.set('entry');
       this.metaLoading.set(true);
@@ -180,6 +211,7 @@ export class ArLedgerDialogComponent implements OnInit {
     }, { emitEvent: false });
     this.rateTouched.set(false);
     this.syncFxSignals();
+    this.analysisSel.set({});
     // A preset debtor starts straight in entry mode - self-loading the meta
     // when the opener didn't supply it (e.g. Raise-CN from a listing row);
     // standalone starts at the debtor picker.
@@ -280,6 +312,8 @@ export class ArLedgerDialogComponent implements OnInit {
       // Foreign-currency account only: the keyed rate (blank = the API takes
       // the Exchange Rates table at the document date, or refuses clearly).
       ...(this.isForeign() ? { exchangeRate: f.exchangeRate.trim() || null } : {}),
+      // Analysis selections ({ "<slotNo>": optionId }).
+      analysis: this.analysisSel(),
     };
   }
 
@@ -336,7 +370,7 @@ export class ArLedgerDialogComponent implements OnInit {
   onSave(): void {
     if (!this.activeDebtor()) return;
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
-    const capErr = this.cnAmountError();
+    const capErr = this.cnAmountError() || this.analysisError();
     if (capErr) { this.failed.emit(capErr); return; }
     this.saving.set(true);
     this.saveRequest().subscribe({
@@ -351,7 +385,7 @@ export class ArLedgerDialogComponent implements OnInit {
   onSubmit(): void {
     if (!this.activeDebtor()) return;
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
-    const capErr = this.cnAmountError();
+    const capErr = this.cnAmountError() || this.analysisError();
     if (capErr) { this.failed.emit(capErr); return; }
     this.saving.set(true);
     this.saveRequest().subscribe({

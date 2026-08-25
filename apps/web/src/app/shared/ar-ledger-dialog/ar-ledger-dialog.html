@@ -141,6 +141,23 @@
               </div>
             </div>
           }
+          @if (analysisMeta().length > 0) {
+            <!-- Financial-analysis dimensions: one picker per slot-assigned
+                 category, labelled with the company's own names. -->
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              @for (dim of analysisMeta(); track dim.categoryId) {
+                <div class="form-group">
+                  <label [for]="'ldAna' + dim.slotNo">{{ dim.name }}@if (dim.isRequired) { <span class="required">*</span> }</label>
+                  <select [id]="'ldAna' + dim.slotNo" [value]="selFor(dim.slotNo)" #anaSel (change)="pickAnalysis(dim.slotNo, anaSel.value)">
+                    <option value="">— None —</option>
+                    @for (o of dim.options; track o.id) {
+                      <option [value]="o.id">{{ o.code }}@if (o.description) { — {{ o.description }}}</option>
+                    }
+                  </select>
+                </div>
+              }
+            </div>
+          }
           <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
             <div class="form-group">
               <label for="ldDesc">Description</label>

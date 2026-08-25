@@ -1,4 +1,4 @@
-const { DataTypes } = require('sequelize');
+const { DataTypes, Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { AR_SCHEMA } = require('../../platform/schemas');
 
@@ -173,6 +173,21 @@ const Ledger = sequelize.define('Ledger', {
     // the target is settled/voided by posting time, the CN posts as
     // available credit.
     applyToLedgerId: { type: DataTypes.UUID, allowNull: true },
+    // --- Financial analysis dimensions (hybrid design, 2026-08-25) ---
+    // Six SLOT columns referencing ar.AnalysisOption by id; which slot means
+    // what is the company's AnalysisCategory.slotNo assignment ('Department',
+    // 'Project', ...). Columns because reporting is the point (GROUP BY one
+    // column, no junction pivot); an option id implies its company and
+    // category, so the partial indexes below need no companyId prefix and
+    // contain ONLY tagged rows (the NULL majority costs nothing). Stamped at
+    // manual entry (draft save/edit); void reversals copy them; system
+    // producers may pass them later.
+    analysis1Id: { type: DataTypes.UUID, allowNull: true },
+    analysis2Id: { type: DataTypes.UUID, allowNull: true },
+    analysis3Id: { type: DataTypes.UUID, allowNull: true },
+    analysis4Id: { type: DataTypes.UUID, allowNull: true },
+    analysis5Id: { type: DataTypes.UUID, allowNull: true },
+    analysis6Id: { type: DataTypes.UUID, allowNull: true },
     // Posting audit: when the document became financial and by whom (null on
     // system-posted rows that never were drafts).
     postedAt: { type: DataTypes.DATE, allowNull: true },
@@ -200,6 +215,15 @@ const Ledger = sequelize.define('Ledger', {
         { name: 'IDX_Ledger_Source', fields: ['sourceModule', 'sourceRef'] },
         // Financial-period reporting buckets by trxDate.
         { name: 'IDX_Ledger_Company_TrxDate', fields: ['companyId', 'trxDate'] },
+        // Analysis reporting: PARTIAL per slot - only tagged rows are indexed,
+        // so a sparse column stays fast regardless of table growth; trxDate
+        // second key serves the period-bounded reports directly.
+        { name: 'IDX_Ledger_Analysis1', fields: ['analysis1Id', 'trxDate'], where: { analysis1Id: { [Op.ne]: null } } },
+        { name: 'IDX_Ledger_Analysis2', fields: ['analysis2Id', 'trxDate'], where: { analysis2Id: { [Op.ne]: null } } },
+        { name: 'IDX_Ledger_Analysis3', fields: ['analysis3Id', 'trxDate'], where: { analysis3Id: { [Op.ne]: null } } },
+        { name: 'IDX_Ledger_Analysis4', fields: ['analysis4Id', 'trxDate'], where: { analysis4Id: { [Op.ne]: null } } },
+        { name: 'IDX_Ledger_Analysis5', fields: ['analysis5Id', 'trxDate'], where: { analysis5Id: { [Op.ne]: null } } },
+        { name: 'IDX_Ledger_Analysis6', fields: ['analysis6Id', 'trxDate'], where: { analysis6Id: { [Op.ne]: null } } },
     ],
 });
 

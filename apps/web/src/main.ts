@@ -193,6 +193,10 @@ const routes: Routes = [
       // Master File Setup → Exchange Rates (multicurrency step 1): effective-dated
       // foreign-currency rates against the company base currency.
       { path: 'ar/exchange-rates', loadComponent: () => import('./app/ar-exchange-rates/ar-exchange-rates').then((m) => m.ArExchangeRatesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
+      // Master File Setup → Analysis Setup (hybrid design 2026-08-25):
+      // dimensions master-detail; selection in the URL for deep links/back.
+      { path: 'ar/analysis', loadComponent: () => import('./app/ar-analysis/ar-analysis').then((m) => m.ArAnalysisComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
+      { path: 'ar/analysis/:id', loadComponent: () => import('./app/ar-analysis/ar-analysis').then((m) => m.ArAnalysisComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
       // AR Specification - company-wide AR options (same role as Club Specification).
       { path: 'ar/settings', loadComponent: () => import('./app/ar-specification/ar-specification').then((m) => m.ArSpecificationComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
       { path: 'ar/statement-generation', loadComponent: () => import('./app/ar-statement-generation/ar-statement-generation').then((m) => m.ArStatementGenerationComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },

@@ -210,12 +210,15 @@ function maybeCloseDeposit(deposit) {
 // Multicurrency: `exchangeRate` is an optional keyed rate (foreign accounts);
 // `fx` is an already-resolved { currencyCode, exchangeRate } (void reversals
 // reuse the original document's rate so the pair nets to zero in base).
+// `analysisColumns` = the six analysis<N>Id values (manual doors validate the
+// selections; void reversals copy the original's; system producers may pass
+// them later).
 async function postLedgerDoc({
     companyId, debtor, docKind, mode = null, reversalOfId = null,
     issueDocNo, docDate, trxDate, transactionTypeId, isInterestChargeable = false,
     description = null, incurredByMemberId = null, sourceModule, sourceRef,
     amounts, stamps = {}, targetLedger = null, fifo = false, enforceCredit = false,
-    exchangeRate = null, fx = null, t,
+    exchangeRate = null, fx = null, analysisColumns = {}, t,
 }) {
     const kind = ledgerKindDef(docKind);
     if (!kind) throw bizError(400, 'Invalid ledger document kind.');
@@ -264,6 +267,7 @@ async function postLedgerDoc({
         taxAmount: money(amounts.taxC),
         grossAmount: money(grossC),
         ...ledgerFxColumns(fxUsed, amounts),
+        ...analysisColumns,
         isInterestChargeable: rowMode === 'debit' ? !!isInterestChargeable : false,
         balanceAmount: money(grossC),
         status: 'open',
@@ -530,8 +534,11 @@ async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxD
                 taxSchemeCode: row.taxSchemeCode, taxRate: row.taxRate,
             },
             // The reversal reuses the ORIGINAL rate so the pair nets to zero in
-            // base currency too (a pre-multicurrency row resolves normally).
+            // base currency too (a pre-multicurrency row resolves normally),
+            // and carries the original's analysis dimensions so per-dimension
+            // reports net the pair out.
             fx: row.exchangeRate ? { currencyCode: row.currencyCode, exchangeRate: Number(row.exchangeRate), isBase: Number(row.exchangeRate) === 1 } : null,
+            analysisColumns: require('./arAnalysis.service').copyColumns(row),
             stamps, targetLedger: row, t,
         });
         // The reversal mirrors the original's frozen tax breakdown (same

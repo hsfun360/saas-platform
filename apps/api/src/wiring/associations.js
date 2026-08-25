@@ -67,6 +67,11 @@ const MembershipNumberingScheme = require('../modules/membership/numberingScheme
 const ArNumberingScheme = require('../modules/ar/numberingScheme.model');
 const ArExchangeRate = require('../modules/ar/exchangeRate.model'); // AR-owned effective-dated FX rates vs the company base currency (companyId + Currency.code value refs; no associations)
 const ArTaxLedger = require('../modules/ar/taxLedger.model'); // per-component tax breakdown frozen behind each Ledger document's tax snapshot (docType/docId value ref to ar.Ledger; no associations)
+// Financial-analysis dimensions (hybrid design 2026-08-25): unlimited category
+// catalog, six Ledger slot columns. Option -> Category is a real intra-service
+// FK declared in the model (like TaxRate -> TaxScheme).
+const ArAnalysisCategory = require('../modules/ar/analysisCategory.model');
+const ArAnalysisOption = require('../modules/ar/analysisOption.model');
 const UserFavorite = require('../modules/saas/userFavorite.model'); // My Dashboard starred screens per user+workspace (userId/companyId/menuId value refs; no associations)
 // Product tier (Membership Management). Master files reference companyId by plain
 // UUID (no cross-service FK), per the golden rules. Intra-service parent-child

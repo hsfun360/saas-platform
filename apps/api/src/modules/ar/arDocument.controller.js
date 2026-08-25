@@ -23,6 +23,9 @@ const { LEDGER_DOC_KINDS, DEPOSIT_NUMBERING_PURPOSE } = require('./ar.constants'
 // Multicurrency (step 3): documents are in the ACCOUNT currency; drafts
 // freeze their rate at save (keyed, else the rate table at docDate).
 const arCurrency = require('./arCurrency.service');
+// Financial-analysis dimensions (hybrid design 2026-08-25): manual entries
+// stamp the slot-assigned categories' options onto analysis<N>Id.
+const arAnalysis = require('./arAnalysis.service');
 
 // The rate resolution for a draft/entry body: { fx } or { error } (a 400
 // message naming what to do - no rate in the table, malformed keyed rate).
@@ -240,6 +243,9 @@ exports.getAccountMeta = async (req, res) => {
         };
         res.status(200).json({
             currency,
+            // Slot-assigned analysis dimensions + their options - the entry
+            // dialogs render one picker per entry here (none assigned = none).
+            analysis: await arAnalysis.entryMeta(companyId),
             // The AR-OWNED catalog (2026-08-15) with trxClass, so each entry
             // dialog offers only its own document book's types.
             transactionTypes: types.map((t) => t.toJSON()),
@@ -381,7 +387,9 @@ function makeLedgerListHandler(docKind) {
                     voidReason: r.voidReason,
                     ...fxDto(r), baseGrossAmount: r.baseGrossAmount,
                     // Draft edit prefill (the shared dialog re-opens the form;
-                    // applyToLedgerId = a CN draft's allocation intent).
+                    // applyToLedgerId = a CN draft's allocation intent;
+                    // analysis ids resolve against the dialog's meta).
+                    ...arAnalysis.copyColumns(r),
                     transactionTypeId: r.transactionTypeId,
                     applyToLedgerId: r.applyToLedgerId,
                     canModify: canModify[i],
@@ -478,7 +486,12 @@ async function readDraftFields(req, companyId, debtor, lk) {
     // Exchange rate frozen at save (keyed, else the table at docDate).
     const fxRead = await readFx(companyId, debtor, dates.docDate, req.body);
     if (fxRead.error) return { error: fxRead.error };
-    return { dates, txnType, amounts, applyToLedgerId, fx: fxRead.fx, taxQuote };
+
+    // Analysis selections ({ "<slotNo>": optionId }) validated against the
+    // live slot assignments; required dimensions enforced on manual entry.
+    const analysisRead = await arAnalysis.readAnalysisSelections(companyId, req.body);
+    if (analysisRead.error) return { error: analysisRead.error };
+    return { dates, txnType, amounts, applyToLedgerId, fx: fxRead.fx, taxQuote, analysisColumns: analysisRead.columns };
 }
 
 // Manual-number pre-checks for a draft (auto mode issues in-tx at save).
@@ -540,6 +553,7 @@ async function createDraft(req, res, companyId, debtor, lk) {
         ...arCurrency.ledgerFxColumns(fields.fx, fields.amounts),
         isInterestChargeable: lk.mode === 'debit' && fields.txnType.isInterestChargeable === true,
         balanceAmount: posting.money(fields.amounts.grossC),
+        ...fields.analysisColumns,
         status: 'draft',
         ...stamps,
         }, { transaction: t });
@@ -620,6 +634,7 @@ function makeUpdateDraft(lk) {
             // A draft has no allocations, so its balance tracks its gross.
             balanceAmount: posting.money(fields.amounts.grossC),
             ...arCurrency.ledgerFxColumns(fields.fx, fields.amounts),
+            ...fields.analysisColumns,
             isInterestChargeable: lk.mode === 'debit' && fields.txnType.isInterestChargeable === true,
             updatedBy: getUserContext(req).userId,
         });
@@ -1053,6 +1068,10 @@ exports.postLedger = async (req, res) => {
             };
         }
 
+        // Analysis selections (same rules as the draft doors).
+        const analysisRead = await arAnalysis.readAnalysisSelections(companyId, req.body);
+        if (analysisRead.error) return res.status(400).json({ message: analysisRead.error });
+
         // Manual numbering pre-checks (a 400 here burns nothing).
         const manualNo = strOrNull(req.body.docNo);
         const mode = await numberingGateway.getMode(req, kind.numberingPurpose);
@@ -1085,6 +1104,7 @@ exports.postLedger = async (req, res) => {
                     // postLedgerDoc's fifo stays for the deposit-conversion CN.
                     amounts, stamps, targetLedger, fifo: false,
                     exchangeRate: req.body.exchangeRate,
+                    analysisColumns: analysisRead.columns,
                     t,
                 });
                 await taxLedger.replaceTaxLines({ companyId, row: posted, quote: taxQuote, stamps, t });
