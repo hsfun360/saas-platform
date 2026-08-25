@@ -96,7 +96,7 @@ async function readSelections(companyId, body) {
     for (const key of Object.keys(selections)) {
         if (!selections[key]) continue;
         if (!meta.some((c) => String(c.slotNo) === String(key))) {
-            return { error: `Analysis slot ${key} is not assigned to a dimension.` };
+            return { error: `Analysis Dimension ${key} is not defined.` };
         }
     }
 

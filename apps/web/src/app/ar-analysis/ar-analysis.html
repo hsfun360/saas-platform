@@ -44,7 +44,7 @@
                   <button type="button" class="data-row__main ana-card__open" (click)="select(c)">
                     <span class="data-card__title">{{ c.name }}</span>
                     <span class="data-card__subline">
-                      @if (c.slotNo !== null) { <span class="mt-chip">Slot {{ c.slotNo }}</span> }
+                      @if (c.slotNo !== null) { <span class="mt-chip">Dimension {{ c.slotNo }}</span> }
                       @else { <span class="data-card__reg">catalog only — not stamped on documents</span> }
                       @if (c.isRequired) { <span class="mt-chip">required</span> }
                       <span class="data-card__reg">{{ optionCount(c.id) }} option(s)</span>
@@ -89,7 +89,7 @@
             <div>
               <h2 class="ana-detail__title">{{ cat.name }} options</h2>
               <p class="cell-subtle" style="margin: 0;">
-                @if (cat.slotNo !== null) { Stamped on documents as analysis slot {{ cat.slotNo }}. } @else { Catalog only — assign a slot to stamp it on documents. }
+                @if (cat.slotNo !== null) { Stamped on documents as Dimension {{ cat.slotNo }}. } @else { Catalog only — assign an Analysis Dimension to stamp it on documents. }
                 Documents reference options by id, so renaming is always safe.
               </p>
             </div>
@@ -153,14 +153,14 @@
             }
           </div>
           <div class="form-group">
-            <label for="anaCatSlot">Analysis slot</label>
+            <label for="anaCatSlot">Analysis Dimension</label>
             <select id="anaCatSlot" formControlName="slotNo">
               <option value="">— Catalog only (not stamped) —</option>
               @for (s of slotChoices(); track s.n) {
-                <option [value]="s.n" [disabled]="!!s.holder">Slot {{ s.n }}@if (s.holder) { — taken by {{ s.holder }}}</option>
+                <option [value]="s.n" [disabled]="!!s.holder">Dimension {{ s.n }}@if (s.holder) { — taken by {{ s.holder }}}</option>
               }
             </select>
-            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The Ledger column this dimension stamps into. Once documents use the slot, it can no longer change.</p>
+            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The analysis column (1-6) this dimension stamps into on documents. Once documents use it, it can no longer change.</p>
           </div>
         </div>
         <div class="form-row">

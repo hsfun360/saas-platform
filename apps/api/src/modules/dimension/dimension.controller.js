@@ -105,7 +105,7 @@ async function slotClashError(companyId, slotNo, ignoreId = null) {
         where: { companyId, slotNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
         attributes: ['name'],
     });
-    return clash ? `Slot ${slotNo} is already assigned to '${clash.name}'.` : null;
+    return clash ? `Dimension ${slotNo} is already assigned to '${clash.name}'.` : null;
 }
 
 // POST /api/dimension/categories
@@ -153,7 +153,7 @@ exports.updateCategory = async (req, res) => {
         const nextSlot = slotNo ?? null;
         if (nextSlot !== row.slotNo) {
             if (row.slotNo !== null && (await slotInUse({ companyId, categoryId: row.id, slotNo: row.slotNo }))) {
-                return res.status(409).json({ message: `'${row.name}' has documents analysed under slot ${row.slotNo} - its slot can no longer change. Disable it and create a new dimension instead.` });
+                return res.status(409).json({ message: `'${row.name}' has documents analysed under Dimension ${row.slotNo} - its dimension number can no longer change. Disable it and create a new dimension instead.` });
             }
             const slotErr = await slotClashError(companyId, nextSlot, row.id);
             if (slotErr) return res.status(409).json({ message: slotErr });
