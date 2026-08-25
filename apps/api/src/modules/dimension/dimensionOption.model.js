@@ -1,14 +1,14 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../../platform/db');
-const { AR_SCHEMA } = require('../../platform/schemas');
+const { DIMENSION_SCHEMA } = require('../../platform/schemas');
 
-// AnalysisOption - one selectable value of an AnalysisCategory ('HR',
-// 'Marketing', 'Project Alpha', ...). Ledger documents reference options BY ID
-// (analysis<slotNo>Id), so renames are free and history never strands;
-// options are disabled, never deleted. An option id is unique to one company
-// and one category, which is what lets the Ledger analysis indexes skip a
-// companyId prefix.
-const AnalysisOption = sequelize.define('ArAnalysisOption', {
+// DimensionOption - one selectable value of a DimensionCategory ('HR',
+// 'Marketing', 'Project Alpha', ...). Consuming documents reference options BY
+// ID through their own analysis<slotNo>Id columns, so renames are free and
+// history never strands; options are disabled, never deleted. An option id is
+// unique to one company and one category, which lets consumers' analysis
+// indexes skip a companyId prefix.
+const DimensionOption = sequelize.define('DimensionOption', {
     id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
@@ -23,7 +23,7 @@ const AnalysisOption = sequelize.define('ArAnalysisOption', {
         type: DataTypes.UUID,
         allowNull: false,
         references: {
-            model: { tableName: 'AnalysisCategory', schema: AR_SCHEMA },
+            model: { tableName: 'DimensionCategory', schema: DIMENSION_SCHEMA },
             key: 'id',
         },
         onUpdate: 'CASCADE',
@@ -47,13 +47,13 @@ const AnalysisOption = sequelize.define('ArAnalysisOption', {
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },
     updatedBy: { type: DataTypes.UUID, allowNull: true },
 }, {
-    schema: AR_SCHEMA,
-    tableName: 'AnalysisOption',
+    schema: DIMENSION_SCHEMA,
+    tableName: 'DimensionOption',
     timestamps: true,
     indexes: [
-        { name: 'IDX_ArAnalysisOption_Category_Code', fields: ['categoryId', 'code'], unique: true },
-        { name: 'IDX_ArAnalysisOption_Company', fields: ['companyId'] },
+        { name: 'IDX_DimensionOption_Category_Code', fields: ['categoryId', 'code'], unique: true },
+        { name: 'IDX_DimensionOption_Company', fields: ['companyId'] },
     ],
 });
 
-module.exports = AnalysisOption;
+module.exports = DimensionOption;

@@ -538,7 +538,7 @@ async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxD
             // and carries the original's analysis dimensions so per-dimension
             // reports net the pair out.
             fx: row.exchangeRate ? { currencyCode: row.currencyCode, exchangeRate: Number(row.exchangeRate), isBase: Number(row.exchangeRate) === 1 } : null,
-            analysisColumns: require('./arAnalysis.service').copyColumns(row),
+            analysisColumns: require('../../platform/dimensionGateway').copyColumns(row),
             stamps, targetLedger: row, t,
         });
         // The reversal mirrors the original's frozen tax breakdown (same

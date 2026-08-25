@@ -31,16 +31,15 @@ Key rules a maintainer must not break:
   `trxDate` is the accounting-period (GL) date - defaults to `docDate`, but a forgotten last-month document keyed after the period closed keeps last month's `docDate` with a current-month `trxDate`.
   Aging/statements bucket by `docDate`/`dueDate`; financial-period reporting buckets by `trxDate`.
 
-## Financial-analysis dimensions (hybrid design locked in 2026-08-25)
+## Financial-analysis dimensions (hybrid design 2026-08-25; catalog owned by the shared Dimension capability)
 
-Debated three shapes with the user (6 fixed tables + 6 columns; fully vertical categories/options/junction; hybrid) and locked in the HYBRID: unlimited catalog, bounded stamping, column-based reporting.
+The catalog (`dimension.DimensionCategory` + `dimension.DimensionOption`, slot 1..6 assignment, slot-repurpose lock) is OWNED by the shared Dimension service - see [dimension.md](dimension.md); AR consumes it through `platform/dimensionGateway.js`, never the models.
+AR's side:
 
-- `ar.AnalysisCategory`: the company's dimensions ('Department', 'Project', ...), unlimited; a category to be stamped on documents is assigned a **slot 1..6** (`slotNo`, partial-unique per company; NULL = catalog-only) + `isRequired` (manual entry must carry a value; system producers exempt) + `isActive`.
-- `ar.AnalysisOption`: the values ('FNB', 'PRJ-A'), code+description, real intra-service FK to its category (like TaxRate -> TaxScheme), unique code per category. Documents reference options BY ID - renames free, disable never delete.
-- `ar.Ledger.analysis1Id..analysis6Id`: the slot columns, each with a **partial index** `(analysisNId, trxDate) WHERE NOT NULL` - only tagged rows are indexed, so the sparse NULL majority costs nothing and reports stay `GROUP BY` one column with no junction pivot. An option id implies its company + category, so no companyId prefix is needed.
-- **Slot-repurpose lock**: the slot is what is stored/indexed, not the meaning - once any document references one of a category's options, its `slotNo` can no longer change (rename stays free); disable and create a new dimension instead.
-- Doors: manual drafts + the DN door validate `body.analysis` (`{ "<slotNo>": optionId }`) through `arAnalysis.readAnalysisSelections` (slot assigned + active, option of that category + active, required enforced) and stamp the columns; void reversals COPY the original's columns so per-dimension reports net the pair; `postLedgerDoc` accepts `analysisColumns` for future producers. Account meta ships `analysis` (slot-assigned categories + options) - the entry dialog renders one picker per entry, labelled with the company's names; listings ship the ids for draft-edit prefill.
-- Screens: `/ar/analysis` "Analysis Setup" master-detail (dimensions left with slot/required/count chips, selected dimension's options right; URL-driven selection; drawer dialogs; enable/disable in kebabs). USER MUST ADD MENU '/ar/analysis' (icon `category`).
+- `ar.Ledger.analysis1Id..analysis6Id`: the slot columns (option ids), each with a **partial index** `(analysisNId, trxDate) WHERE NOT NULL` - only tagged rows are indexed, so the sparse NULL majority costs nothing and reports stay `GROUP BY` one column with no junction pivot. An option id implies its company + category, so no companyId prefix is needed.
+- Doors: manual drafts + the DN door validate `body.analysis` (`{ "<slotNo>": optionId }`) through `dimensionGateway.readSelections` (slot assigned + active, option of that category + active, required enforced - system producers exempt) and stamp the columns; void reversals COPY the original's columns so per-dimension reports net the pair; `postLedgerDoc` accepts `analysisColumns` for future producers. Account meta ships `analysis` (from `dimensionGateway.entryMeta`) - the entry dialog renders one picker per slot-assigned dimension, labelled with the company's names; listings ship the ids for draft-edit prefill.
+- AR registers the Dimension slot-usage check in `src/wiring/dimensionUsage.js` (any `analysis<N>Id` referencing the category's options = slot locked).
+- Screens: `/ar/analysis` "Analysis Setup" master-detail (dimensions left with slot/required/count chips, selected dimension's options right; URL-driven selection; drawer dialogs; enable/disable in kebabs) - a thin client of `/api/dimension`. USER MUST ADD MENU '/ar/analysis' (icon `category`).
 - Receipts/Deposits carry no dimensions yet; a per-dimension revenue report screen is a future consumer of the partial indexes.
 
 ## Tax breakdown - `ar.TaxLedger` (2026-08-24)

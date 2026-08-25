@@ -34,10 +34,14 @@ const AUDIT_SCHEMA = 'audit';
 // into (design approved 2026-08-05). Own schema + /api/ar seam like any product
 // service; consumed through platform/arGateway.js.
 const AR_SCHEMA = 'ar';
+// Shared capability like tax (promoted 2026-08-25): company-wide financial-
+// analysis dimensions (Department, Project, ...) consumed by AR today and
+// AP/GL/PO later through platform/dimensionGateway.js.
+const DIMENSION_SCHEMA = 'dimension';
 
 // Schemas that must exist before `sequelize.sync()` creates the product tables.
 // A service is added here as soon as it defines its first schema-scoped model.
-const PRODUCT_SCHEMAS = [MEMBERSHIP_SCHEMA, GOLF_SCHEMA, TAX_SCHEMA, WORKFLOW_SCHEMA, AUDIT_SCHEMA, AR_SCHEMA];
+const PRODUCT_SCHEMAS = [MEMBERSHIP_SCHEMA, GOLF_SCHEMA, TAX_SCHEMA, WORKFLOW_SCHEMA, AUDIT_SCHEMA, AR_SCHEMA, DIMENSION_SCHEMA];
 
 // Idempotently create every product schema. Runs once at boot, before sync,
 // inside the same advisory-locked block so only one instance does it.
@@ -56,6 +60,7 @@ module.exports = {
     WORKFLOW_SCHEMA,
     AUDIT_SCHEMA,
     AR_SCHEMA,
+    DIMENSION_SCHEMA,
     PRODUCT_SCHEMAS,
     ensureProductSchemas,
 };

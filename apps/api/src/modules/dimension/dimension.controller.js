@@ -1,13 +1,14 @@
-// Analysis Setup (Account Receivable -> Master File Setup; hybrid design
-// locked in 2026-08-25). Categories = the company's analysis dimensions
-// ('Department', 'Project', ...), each optionally assigned to one of six
-// Ledger slots; Options = the selectable values, referenced by documents BY
-// ID. Enable/disable only, no deletes; the slot-repurpose lock keeps a used
-// slot's meaning stable.
+// Dimension Setup (shared financial-analysis capability, promoted 2026-08-25;
+// hybrid design locked in the same day). Categories = the company's analysis
+// dimensions ('Department', 'Project', ...), each optionally assigned to one
+// of six document slots; Options = the selectable values, referenced by
+// consuming documents BY ID. Enable/disable only, no deletes; the
+// slot-repurpose lock (via the gateway's registered consumer usage checks)
+// keeps a used slot's meaning stable.
 
-const AnalysisCategory = require('./analysisCategory.model');
-const AnalysisOption = require('./analysisOption.model');
-const { slotInUse } = require('./arAnalysis.service');
+const DimensionCategory = require('./dimensionCategory.model');
+const DimensionOption = require('./dimensionOption.model');
+const { slotInUse } = require('../../platform/dimensionGateway');
 const {
     getUserContext,
     getCallerPlacement,
@@ -71,14 +72,14 @@ exports.validateOptionCreate = validate({ body: optionBody });
 exports.validateOptionUpdate = validate({ params: idParams, body: optionEditBody });
 exports.validateSetActive = validate({ params: idParams, body: activeBody });
 
-// GET /api/ar/analysis - the whole setup (categories + options) in one read.
+// GET /api/dimension - the whole setup (categories + options) in one read.
 exports.list = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const [categories, options] = await Promise.all([
-            AnalysisCategory.findAll({ where: { companyId }, order: [['name', 'ASC']] }),
-            AnalysisOption.findAll({ where: { companyId }, order: [['code', 'ASC']] }),
+            DimensionCategory.findAll({ where: { companyId }, order: [['name', 'ASC']] }),
+            DimensionOption.findAll({ where: { companyId }, order: [['code', 'ASC']] }),
         ]);
         const [catFlags, optFlags] = await Promise.all([
             annotateCanModify(req, categories),
@@ -89,7 +90,7 @@ exports.list = async (req, res) => {
             options: options.map((o, i) => optionDto(o, optFlags[i])),
         });
     } catch (error) {
-        console.error('Error listing analysis setup:', error);
+        console.error('Error listing dimension setup:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -98,44 +99,45 @@ exports.list = async (req, res) => {
 async function slotClashError(companyId, slotNo, ignoreId = null) {
     if (slotNo === null || slotNo === undefined) return null;
     const { Op } = require('sequelize');
-    const clash = await AnalysisCategory.findOne({
+    const clash = await DimensionCategory.findOne({
         where: { companyId, slotNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
         attributes: ['name'],
     });
     return clash ? `Slot ${slotNo} is already assigned to '${clash.name}'.` : null;
 }
 
-// POST /api/ar/analysis/categories
+// POST /api/dimension/categories
 exports.createCategory = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const { name, slotNo = null, isRequired = false } = req.body;
 
-        const dup = await AnalysisCategory.findOne({ where: { companyId, name } });
+        const dup = await DimensionCategory.findOne({ where: { companyId, name } });
         if (dup) return res.status(409).json({ message: `Dimension '${name}' already exists.` });
         const slotErr = await slotClashError(companyId, slotNo);
         if (slotErr) return res.status(409).json({ message: slotErr });
 
         const placement = await getCallerPlacement(req);
-        const row = await AnalysisCategory.create({
+        const row = await DimensionCategory.create({
             companyId, name, slotNo: slotNo ?? null, isRequired: isRequired === true,
             ...ownershipStamps(req, placement),
         });
         res.status(201).json({ message: `Dimension '${row.name}' created.`, category: categoryDto(row) });
     } catch (error) {
-        console.error('Error creating analysis category:', error);
+        console.error('Error creating dimension category:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// PUT /api/ar/analysis/categories/:id - rename freely; slotNo changes are
-// blocked once documents use the slot (THE slot-repurpose lock).
+// PUT /api/dimension/categories/:id - rename freely; slotNo changes are
+// blocked once documents use the slot (THE slot-repurpose lock, asked of
+// every registered consumer through the gateway).
 exports.updateCategory = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const row = await AnalysisCategory.findOne({ where: { id: req.params.id, companyId } });
+        const row = await DimensionCategory.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Dimension not found.' });
         if (!(await canModifyRecord(req, row))) {
             return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
@@ -143,12 +145,12 @@ exports.updateCategory = async (req, res) => {
         const { name, slotNo = null, isRequired = false } = req.body;
 
         const { Op } = require('sequelize');
-        const dup = await AnalysisCategory.findOne({ where: { companyId, name, id: { [Op.ne]: row.id } } });
+        const dup = await DimensionCategory.findOne({ where: { companyId, name, id: { [Op.ne]: row.id } } });
         if (dup) return res.status(409).json({ message: `Dimension '${name}' already exists.` });
 
         const nextSlot = slotNo ?? null;
         if (nextSlot !== row.slotNo) {
-            if (row.slotNo !== null && (await slotInUse(companyId, row.id, row.slotNo))) {
+            if (row.slotNo !== null && (await slotInUse({ companyId, categoryId: row.id, slotNo: row.slotNo }))) {
                 return res.status(409).json({ message: `'${row.name}' has documents analysed under slot ${row.slotNo} - its slot can no longer change. Disable it and create a new dimension instead.` });
             }
             const slotErr = await slotClashError(companyId, nextSlot, row.id);
@@ -159,17 +161,17 @@ exports.updateCategory = async (req, res) => {
         await row.save();
         res.status(200).json({ message: `Dimension '${row.name}' updated.`, category: categoryDto(row) });
     } catch (error) {
-        console.error('Error updating analysis category:', error);
+        console.error('Error updating dimension category:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// PATCH /api/ar/analysis/categories/:id - enable/disable.
+// PATCH /api/dimension/categories/:id - enable/disable.
 exports.setCategoryActive = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const row = await AnalysisCategory.findOne({ where: { id: req.params.id, companyId } });
+        const row = await DimensionCategory.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Dimension not found.' });
         if (!(await canModifyRecord(req, row))) {
             return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
@@ -179,66 +181,66 @@ exports.setCategoryActive = async (req, res) => {
         await row.save();
         res.status(200).json({ message: `Dimension '${row.name}' ${row.isActive ? 'enabled' : 'disabled'}.`, category: categoryDto(row) });
     } catch (error) {
-        console.error('Error toggling analysis category:', error);
+        console.error('Error toggling dimension category:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// POST /api/ar/analysis/options
+// POST /api/dimension/options
 exports.createOption = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const { categoryId, code, description = null } = req.body;
 
-        const category = await AnalysisCategory.findOne({ where: { id: categoryId, companyId } });
+        const category = await DimensionCategory.findOne({ where: { id: categoryId, companyId } });
         if (!category) return res.status(404).json({ message: 'Dimension not found.' });
-        const dup = await AnalysisOption.findOne({ where: { categoryId, code } });
+        const dup = await DimensionOption.findOne({ where: { categoryId, code } });
         if (dup) return res.status(409).json({ message: `Option '${code}' already exists under '${category.name}'.` });
 
         const placement = await getCallerPlacement(req);
-        const row = await AnalysisOption.create({
+        const row = await DimensionOption.create({
             companyId, categoryId, code, description: description || null,
             ...ownershipStamps(req, placement),
         });
         res.status(201).json({ message: `Option '${row.code}' created.`, option: optionDto(row) });
     } catch (error) {
-        console.error('Error creating analysis option:', error);
+        console.error('Error creating dimension option:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// PUT /api/ar/analysis/options/:id - edit code/description (documents
-// reference the id, so renames never strand history).
+// PUT /api/dimension/options/:id - edit code/description (documents reference
+// the id, so renames never strand history).
 exports.updateOption = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const row = await AnalysisOption.findOne({ where: { id: req.params.id, companyId } });
+        const row = await DimensionOption.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Option not found.' });
         if (!(await canModifyRecord(req, row))) {
             return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         }
         const { code, description = null } = req.body;
         const { Op } = require('sequelize');
-        const dup = await AnalysisOption.findOne({ where: { categoryId: row.categoryId, code, id: { [Op.ne]: row.id } } });
+        const dup = await DimensionOption.findOne({ where: { categoryId: row.categoryId, code, id: { [Op.ne]: row.id } } });
         if (dup) return res.status(409).json({ message: `Option '${code}' already exists under this dimension.` });
 
         Object.assign(row, { code, description: description || null, updatedBy: getUserContext(req).userId });
         await row.save();
         res.status(200).json({ message: `Option '${row.code}' updated.`, option: optionDto(row) });
     } catch (error) {
-        console.error('Error updating analysis option:', error);
+        console.error('Error updating dimension option:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// PATCH /api/ar/analysis/options/:id - enable/disable.
+// PATCH /api/dimension/options/:id - enable/disable.
 exports.setOptionActive = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const row = await AnalysisOption.findOne({ where: { id: req.params.id, companyId } });
+        const row = await DimensionOption.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Option not found.' });
         if (!(await canModifyRecord(req, row))) {
             return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
@@ -248,7 +250,7 @@ exports.setOptionActive = async (req, res) => {
         await row.save();
         res.status(200).json({ message: `Option '${row.code}' ${row.isActive ? 'enabled' : 'disabled'}.`, option: optionDto(row) });
     } catch (error) {
-        console.error('Error toggling analysis option:', error);
+        console.error('Error toggling dimension option:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };

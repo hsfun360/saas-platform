@@ -23,9 +23,10 @@ const { LEDGER_DOC_KINDS, DEPOSIT_NUMBERING_PURPOSE } = require('./ar.constants'
 // Multicurrency (step 3): documents are in the ACCOUNT currency; drafts
 // freeze their rate at save (keyed, else the rate table at docDate).
 const arCurrency = require('./arCurrency.service');
-// Financial-analysis dimensions (hybrid design 2026-08-25): manual entries
-// stamp the slot-assigned categories' options onto analysis<N>Id.
-const arAnalysis = require('./arAnalysis.service');
+// Financial-analysis dimensions (shared Dimension capability, 2026-08-25):
+// manual entries stamp the slot-assigned categories' options onto
+// analysis<N>Id through the seam - never the dimension models directly.
+const dimensionGateway = require('../../platform/dimensionGateway');
 
 // The rate resolution for a draft/entry body: { fx } or { error } (a 400
 // message naming what to do - no rate in the table, malformed keyed rate).
@@ -245,7 +246,7 @@ exports.getAccountMeta = async (req, res) => {
             currency,
             // Slot-assigned analysis dimensions + their options - the entry
             // dialogs render one picker per entry here (none assigned = none).
-            analysis: await arAnalysis.entryMeta(companyId),
+            analysis: await dimensionGateway.entryMeta(companyId),
             // The AR-OWNED catalog (2026-08-15) with trxClass, so each entry
             // dialog offers only its own document book's types.
             transactionTypes: types.map((t) => t.toJSON()),
@@ -389,7 +390,7 @@ function makeLedgerListHandler(docKind) {
                     // Draft edit prefill (the shared dialog re-opens the form;
                     // applyToLedgerId = a CN draft's allocation intent;
                     // analysis ids resolve against the dialog's meta).
-                    ...arAnalysis.copyColumns(r),
+                    ...dimensionGateway.copyColumns(r),
                     transactionTypeId: r.transactionTypeId,
                     applyToLedgerId: r.applyToLedgerId,
                     canModify: canModify[i],
@@ -489,7 +490,7 @@ async function readDraftFields(req, companyId, debtor, lk) {
 
     // Analysis selections ({ "<slotNo>": optionId }) validated against the
     // live slot assignments; required dimensions enforced on manual entry.
-    const analysisRead = await arAnalysis.readAnalysisSelections(companyId, req.body);
+    const analysisRead = await dimensionGateway.readSelections(companyId, req.body);
     if (analysisRead.error) return { error: analysisRead.error };
     return { dates, txnType, amounts, applyToLedgerId, fx: fxRead.fx, taxQuote, analysisColumns: analysisRead.columns };
 }
@@ -1069,7 +1070,7 @@ exports.postLedger = async (req, res) => {
         }
 
         // Analysis selections (same rules as the draft doors).
-        const analysisRead = await arAnalysis.readAnalysisSelections(companyId, req.body);
+        const analysisRead = await dimensionGateway.readSelections(companyId, req.body);
         if (analysisRead.error) return res.status(400).json({ message: analysisRead.error });
 
         // Manual numbering pre-checks (a 400 here burns nothing).

@@ -32,9 +32,12 @@ schema + gateway, so it splits out like any service.
 | Service | Module folder | Gateway base | Doc |
 | --- | --- | --- | --- |
 | Tax | `src/modules/tax` | `/api/tax` | [tax.md](tax.md) |
+| Dimension | `src/modules/dimension` | `/api/dimension` | [dimension.md](dimension.md) |
 
 Tax is consumed by Membership / Facility / Golf through the `platform/taxGateway.js`
 seam (never a direct `require()`), and owns the `tax` Postgres schema.
+Dimension (financial-analysis dimensions, promoted 2026-08-25) is consumed by AR today
+(AP / GL / PO later) through `platform/dimensionGateway.js`, and owns the `dimension` schema.
 
 Overall architecture, conventions and the migration plan: **[saas-platform.md](saas-platform.md)**.
 

@@ -283,34 +283,37 @@ export class ArService {
     return this.http.patch<{ message: string; transactionType: ArTransactionTypeRow }>(`${this.base}/transaction-types/${id}`, { isActive });
   }
 
-  // --- Analysis Setup (financial-analysis dimensions, 2026-08-25) ---
+  // --- Analysis dimensions (shared Dimension capability, 2026-08-25) ---
+  // Setup CRUD talks to /api/dimension (own service seam, like /api/tax);
+  // entry pickers keep riding the AR account meta.
+  private readonly dimensionBase = `${environment.apiUrl}/dimension`;
 
   analysisSetup(): Observable<ArAnalysisSetup> {
-    return this.http.get<ArAnalysisSetup>(`${this.base}/analysis`);
+    return this.http.get<ArAnalysisSetup>(this.dimensionBase);
   }
 
   createAnalysisCategory(payload: { name: string; slotNo: number | null; isRequired: boolean }): Observable<{ message: string; category: ArAnalysisCategory }> {
-    return this.http.post<{ message: string; category: ArAnalysisCategory }>(`${this.base}/analysis/categories`, payload);
+    return this.http.post<{ message: string; category: ArAnalysisCategory }>(`${this.dimensionBase}/categories`, payload);
   }
 
   updateAnalysisCategory(id: string, payload: { name: string; slotNo: number | null; isRequired: boolean }): Observable<{ message: string; category: ArAnalysisCategory }> {
-    return this.http.put<{ message: string; category: ArAnalysisCategory }>(`${this.base}/analysis/categories/${id}`, payload);
+    return this.http.put<{ message: string; category: ArAnalysisCategory }>(`${this.dimensionBase}/categories/${id}`, payload);
   }
 
   setAnalysisCategoryActive(id: string, isActive: boolean): Observable<{ message: string; category: ArAnalysisCategory }> {
-    return this.http.patch<{ message: string; category: ArAnalysisCategory }>(`${this.base}/analysis/categories/${id}`, { isActive });
+    return this.http.patch<{ message: string; category: ArAnalysisCategory }>(`${this.dimensionBase}/categories/${id}`, { isActive });
   }
 
   createAnalysisOption(payload: { categoryId: string; code: string; description: string | null }): Observable<{ message: string; option: ArAnalysisOption }> {
-    return this.http.post<{ message: string; option: ArAnalysisOption }>(`${this.base}/analysis/options`, payload);
+    return this.http.post<{ message: string; option: ArAnalysisOption }>(`${this.dimensionBase}/options`, payload);
   }
 
   updateAnalysisOption(id: string, payload: { code: string; description: string | null }): Observable<{ message: string; option: ArAnalysisOption }> {
-    return this.http.put<{ message: string; option: ArAnalysisOption }>(`${this.base}/analysis/options/${id}`, payload);
+    return this.http.put<{ message: string; option: ArAnalysisOption }>(`${this.dimensionBase}/options/${id}`, payload);
   }
 
   setAnalysisOptionActive(id: string, isActive: boolean): Observable<{ message: string; option: ArAnalysisOption }> {
-    return this.http.patch<{ message: string; option: ArAnalysisOption }>(`${this.base}/analysis/options/${id}`, { isActive });
+    return this.http.patch<{ message: string; option: ArAnalysisOption }>(`${this.dimensionBase}/options/${id}`, { isActive });
   }
 
   // --- Exchange Rates (multicurrency step 1, 2026-08-21) ---

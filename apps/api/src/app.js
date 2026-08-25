@@ -66,8 +66,11 @@ const workflowRoutes = require('./modules/workflow/workflow.routes');
 // Account Receivable - the open-item debtor ledger every product posts charges
 // into (via platform/arGateway.js). Own gateway seam like any product service.
 const arRoutes = require('./modules/ar/ar.routes');
+const dimensionRoutes = require('./modules/dimension/dimension.routes');
 // Completion-handler registration (producer modules hook onto their purposes).
 require('./wiring/workflowHandlers');
+// Consumers register their Dimension slot-usage checks (slot-repurpose lock).
+require('./wiring/dimensionUsage');
 
 // --- Build the Express application ---
 function createApp() {
@@ -158,6 +161,8 @@ function createApp() {
     app.use('/api/workflow', workflowRoutes);
     // Account Receivable - the debtor ledger, its own seam.
     app.use('/api/ar', arRoutes);
+    // Shared Dimension capability (financial-analysis dimensions, 2026-08-25).
+    app.use('/api/dimension', dimensionRoutes);
     // In-app notifications (the header bell) - Notification service, user-scoped.
     app.use('/api/notifications', require('./modules/notification/notification.routes'));
 

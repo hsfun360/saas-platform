@@ -100,17 +100,9 @@ router.post('/transaction-types', requireMenuAction('/ar/transaction-types'), tr
 router.put('/transaction-types/:id', requireMenuAction('/ar/transaction-types'), transactionTypeController.update);
 router.patch('/transaction-types/:id', requireMenuAction('/ar/transaction-types'), transactionTypeController.setActive);
 
-// --- Analysis Setup (financial-analysis dimensions, hybrid design 2026-08-25;
-// its own screen/menu '/ar/analysis'). Categories + options CRUD; entry
-// dialogs read the slot assignments through the account meta, never here.
-const analysisController = require('./analysis.controller');
-router.get('/analysis', requireMenuAction('/ar/analysis'), analysisController.list);
-router.post('/analysis/categories', requireMenuAction('/ar/analysis'), analysisController.validateCategoryCreate, analysisController.createCategory);
-router.put('/analysis/categories/:id', requireMenuAction('/ar/analysis'), analysisController.validateCategoryUpdate, analysisController.updateCategory);
-router.patch('/analysis/categories/:id', requireMenuAction('/ar/analysis'), analysisController.validateSetActive, analysisController.setCategoryActive);
-router.post('/analysis/options', requireMenuAction('/ar/analysis'), analysisController.validateOptionCreate, analysisController.createOption);
-router.put('/analysis/options/:id', requireMenuAction('/ar/analysis'), analysisController.validateOptionUpdate, analysisController.updateOption);
-router.patch('/analysis/options/:id', requireMenuAction('/ar/analysis'), analysisController.validateSetActive, analysisController.setOptionActive);
+// (Analysis dimensions moved to the shared Dimension capability 2026-08-25:
+// setup CRUD lives at /api/dimension; AR consumes entry meta + selection
+// validation through platform/dimensionGateway.js.)
 
 // --- Exchange Rates (multicurrency step 1, 2026-08-21; its own screen/menu
 // '/ar/exchange-rates'). Effective-dated foreign-currency rates against the
