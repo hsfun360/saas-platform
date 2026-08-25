@@ -54,14 +54,16 @@ const categoryBody = z.object({
     slotNo: z.union([z.null(), z.coerce.number().int().min(1).max(6)]).optional(),
     isRequired: z.boolean().optional(),
 });
+// description arrives as null when the field is left blank (the web sends
+// `trim() || null`) - accept string, null or absent alike.
 const optionBody = z.object({
     categoryId: fields.uuid,
     code: fields.requiredText(30),
-    description: fields.optionalText(255),
+    description: fields.optionalText(255).nullable(),
 });
 const optionEditBody = z.object({
     code: fields.requiredText(30),
-    description: fields.optionalText(255),
+    description: fields.optionalText(255).nullable(),
 });
 const activeBody = z.object({ isActive: z.boolean() });
 const idParams = z.object({ id: fields.uuid });

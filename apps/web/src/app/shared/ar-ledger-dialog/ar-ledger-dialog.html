@@ -148,10 +148,14 @@
               @for (dim of analysisMeta(); track dim.categoryId) {
                 <div class="form-group">
                   <label [for]="'ldAna' + dim.slotNo">{{ dim.name }}@if (dim.isRequired) { <span class="required">*</span> }</label>
-                  <select [id]="'ldAna' + dim.slotNo" [value]="selFor(dim.slotNo)" #anaSel (change)="pickAnalysis(dim.slotNo, anaSel.value)">
-                    <option value="">— None —</option>
+                  <!-- [selected] per option, not [value] on the select: the
+                       meta (and its options) load AFTER the prefill, and a
+                       value binding set before its option exists never
+                       re-applies - the select silently falls back to None. -->
+                  <select [id]="'ldAna' + dim.slotNo" #anaSel (change)="pickAnalysis(dim.slotNo, anaSel.value)">
+                    <option value="" [selected]="!selFor(dim.slotNo)">— None —</option>
                     @for (o of dim.options; track o.id) {
-                      <option [value]="o.id">{{ o.code }}@if (o.description) { — {{ o.description }}}</option>
+                      <option [value]="o.id" [selected]="o.id === selFor(dim.slotNo)">{{ o.code }}@if (o.description) { — {{ o.description }}}</option>
                     }
                   </select>
                 </div>
