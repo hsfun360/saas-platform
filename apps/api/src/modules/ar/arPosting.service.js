@@ -27,7 +27,7 @@ const Allocation = require('./allocation.model');
 const { LEDGER_DOC_KINDS, ALLOCATION_PAIRS } = require('./ar.constants');
 // Multicurrency (step 3): every row that enters the ledger is stamped with
 // its account currency + the frozen rate + base equivalents through ONE seam.
-const { resolveDocumentFx, ledgerFxColumns, amountFxColumns } = require('./arCurrency.service');
+const { resolveDocumentFx, ledgerFxColumns, amountFxColumns, baseCents } = require('./arCurrency.service');
 
 // --- money helpers (integer cents) ---
 function cents(v) { return Math.round(Number(v || 0) * 100); }
@@ -89,6 +89,32 @@ function debitCapacity(type, row) {
     return cents(row.balanceAmount); // deposit collection
 }
 
+// Realized fx of an allocation slice, in base cents: the slice converted at
+// the credit document's frozen rate minus the same slice at the debit
+// document's rate. Positive = exchange GAIN (the settling value brought in
+// more base than the settled item was booked at). Rows without a rate
+// (pre-multicurrency) read as base, rate 1.
+function allocationFxCents(creditRow, debitRow, amountCents) {
+    const creditRate = Number(creditRow.exchangeRate || 1);
+    const debitRate = Number(debitRow.exchangeRate || 1);
+    if (creditRate === debitRate) return 0;
+    return baseCents(amountCents, creditRate) - baseCents(amountCents, debitRate);
+}
+
+// The Forex-class designation a nonzero realized difference is classified
+// under (AR Specification; gain vs loss by sign). Explicit configuration,
+// never inferred - missing means the posting refuses, naming the fix.
+async function resolveFxDesignation(companyId, fxC) {
+    const { getSetting } = require('./arStatement.service');
+    const setting = await getSetting(companyId);
+    const id = fxC > 0 ? setting.fxGainTransactionTypeId : setting.fxLossTransactionTypeId;
+    if (!id) {
+        const kind = fxC > 0 ? 'gain' : 'loss';
+        throw bizError(400, `This allocation realizes an exchange ${kind} - designate a Forex ${kind} Transaction Type in AR Specification first.`);
+    }
+    return id;
+}
+
 // Move `amountCents` from a credit doc to a debit doc: validates the pair and
 // capacities, upserts the unique-pair Allocation row, updates the materialized
 // counters on both sides, personalUsed, and the pool outstanding. The caller
@@ -105,13 +131,28 @@ async function applyAllocation({ companyId, creditType, creditRow, debitType, de
         throw bizError(400, 'Allocation exceeds the target document’s open amount.');
     }
 
+    // Multicurrency (step 4): both documents live on the same account, so
+    // their CURRENCY always matches (an account's currency is immutable once
+    // it has documents) - assert it rather than trust it. What varies per
+    // document is the frozen RATE, and the allocation REALIZES that
+    // difference in base currency.
+    if ((creditRow.currencyCode || null) !== (debitRow.currencyCode || null)) {
+        throw bizError(409, 'These documents disagree on currency - run Reconcile; allocation across currencies is never valid.');
+    }
+    const fxC = allocationFxCents(creditRow, debitRow, amountCents);
+    const fxTransactionTypeId = fxC === 0 ? null : await resolveFxDesignation(companyId, fxC);
+
     const [alloc, created] = await Allocation.findOrCreate({
         where: { creditDocType: creditType, creditDocId: creditRow.id, debitDocType: debitType, debitDocId: debitRow.id },
-        defaults: { companyId, amount: money(amountCents), ...stamps },
+        defaults: { companyId, amount: money(amountCents), fxGainLoss: money(fxC), fxTransactionTypeId, ...stamps },
         transaction: t,
     });
     if (!created) {
         alloc.amount = money(cents(alloc.amount) + amountCents);
+        // Same pair = same two frozen rates, so the delta only accumulates
+        // (NULL on a legacy row reads as 0 and starts counting from here).
+        alloc.fxGainLoss = money(cents(alloc.fxGainLoss) + fxC);
+        if (fxTransactionTypeId) alloc.fxTransactionTypeId = fxTransactionTypeId;
         if (stamps && stamps.updatedBy) alloc.updatedBy = stamps.updatedBy;
         await alloc.save({ transaction: t });
     }

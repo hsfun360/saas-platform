@@ -50,6 +50,26 @@ const Allocation = sequelize.define('Allocation', {
         type: DataTypes.DECIMAL(21, 2),
         allowNull: false,
     },
+    // --- Multicurrency (step 4, 2026-08-26) ---
+    // Realized exchange gain (+) / loss (-) in BASE currency for this pair:
+    // amount x (credit doc rate - debit doc rate), integer-cents rounded the
+    // same way as the documents' base equivalents. 0.00 for base-currency
+    // accounts and same-rate pairs; NULL = the row predates the column
+    // (reconciliation stamps it additively). Accumulates with `amount` on
+    // upserts - both documents' rates are frozen, so the per-cent delta never
+    // changes for a pair, and the sign never flips.
+    fxGainLoss: {
+        type: DataTypes.DECIMAL(21, 2),
+        allowNull: true,
+    },
+    // The Forex-class ar.TransactionType the realized difference is
+    // classified under (the AR Specification designations - gain vs loss by
+    // sign; explicit configuration, never inferred). NULL when the pair has
+    // no fx difference. GL-facing - never a debtor-facing document.
+    fxTransactionTypeId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
     // Ownership stamps. Null createdBy = system allocation (FIFO at receipt
     // posting, void reversal); set = manual (re)allocation.
     createdBy: { type: DataTypes.UUID, allowNull: true },

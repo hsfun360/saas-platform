@@ -15,6 +15,10 @@
 //   deposit.balanceAmount   == amount - SUM(receipt->deposit allocations)
 //   deposit.heldAmount      == SUM(receipt->deposit) - SUM(deposit->refund) - conversions
 //                            + SUM(non-void conversion CN gross, sourceRef = deposit)
+//   allocation.fxGainLoss   == amount x (credit doc rate - debit doc rate)
+//                              at the two documents' frozen rates (multicurrency
+//                              step 4; NULL rows predate the column and are
+//                              STAMPED additively, like the display snapshots)
 //
 // Report-only by default; `fix: true` updates the drifted counters (pool row
 // locked first, per the standard lock order). Documents themselves are never
@@ -32,6 +36,7 @@ const Receipt = require('./receipt.model');
 const Deposit = require('./deposit.model');
 const Allocation = require('./allocation.model');
 const { cents, money } = require('./arPosting.service');
+const { baseCents } = require('./arCurrency.service');
 
 // Reconcile one company. Returns { checked, discrepancies }; with fix=true the
 // drifted counters are repaired and each discrepancy is marked fixed.
@@ -152,6 +157,43 @@ async function reconcileCompany(companyId, { fix = false } = {}) {
         });
     }
 
+    // --- realized fx per allocation (multicurrency step 4) ---
+    // Both documents' rates are frozen, so the expected value is exact. A NULL
+    // fxGainLoss predates the column: stamped every run, both modes - additive
+    // backfill, not drift (same treatment as the display snapshots).
+    const ledgerById = new Map(ledger.map((r) => [r.id, r]));
+    const receiptById = new Map(receipts.map((r) => [r.id, r]));
+    const depositById = new Map(deposits.map((r) => [r.id, r]));
+    const docOf = (type, id) => (type === 'ledger' ? ledgerById.get(id)
+        : type === 'deposit' ? depositById.get(id)
+            : receiptById.get(id)); // 'receipt' and 'refund' are both ar.Receipt rows
+    let fxStamped = 0;
+    for (const a of allocations) {
+        const creditDoc = docOf(a.creditDocType, a.creditDocId);
+        const debitDoc = docOf(a.debitDocType, a.debitDocId);
+        if (!creditDoc || !debitDoc) {
+            discrepancies.push({
+                type: 'allocation', ref: a.id, field: 'documents',
+                expected: 'both documents resolvable',
+                actual: `${a.creditDocType}:${creditDoc ? 'ok' : 'missing'} -> ${a.debitDocType}:${debitDoc ? 'ok' : 'missing'}`,
+                fixed: false, _apply: null,
+            });
+            continue;
+        }
+        const creditRate = Number(creditDoc.exchangeRate || 1);
+        const debitRate = Number(debitDoc.exchangeRate || 1);
+        const expectedFx = creditRate === debitRate ? 0
+            : baseCents(cents(a.amount), creditRate) - baseCents(cents(a.amount), debitRate);
+        if (a.fxGainLoss === null) {
+            await Allocation.update({ fxGainLoss: money(expectedFx) }, { where: { id: a.id } });
+            fxStamped += 1;
+            continue;
+        }
+        note('allocation', `${creditDoc.docNo} -> ${debitDoc.docNo}`, 'fxGainLoss', expectedFx, cents(a.fxGainLoss), async (t) => {
+            await Allocation.update({ fxGainLoss: money(expectedFx) }, { where: { id: a.id }, transaction: t });
+        });
+    }
+
     // --- sort-key snapshots (debtorAccount / name) ---
     // Missing snapshots are STAMPED every run, both modes - that's additive
     // backfill, not drift repair, and it is what fills rows that predate the
@@ -247,7 +289,9 @@ async function reconcileCompany(companyId, { fix = false } = {}) {
             receipts: receipts.length,
             deposits: deposits.length,
             personCaps: caps.length,
+            allocations: allocations.length,
             snapshotsStamped,
+            fxStamped,
         },
         discrepancies,
     };

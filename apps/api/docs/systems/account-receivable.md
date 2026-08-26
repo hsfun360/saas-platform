@@ -175,7 +175,7 @@ To eliminate the call entirely:
 - **Reconciliation stays on the gateway** regardless - it is the independent truth-check comparing snapshots to the source, and between events it is the only automatic corrector.
 - Out of scope either way: `lookupPartyBilling` (statement generation) and `classifyParties` (statement scope) are separate seam reads with their own snapshot-at-generation semantics.
 
-## Multi-currency for Other Debtors (design 2026-08-21; step 1 built)
+## Multi-currency for Other Debtors (design 2026-08-21; steps 1-4 built)
 
 The design decision that drives everything: **currency per debtor ACCOUNT, never per document.**
 An Other Debtor account is denominated in exactly one currency, so every document, receipt, deposit and allocation on it shares that unit and the open-item engine (FIFO, allocation, `CreditAccount.outstanding`, credit limit, aging, statements, interest) stays single-unit per account - cross-currency allocation never arises.
@@ -199,10 +199,16 @@ Base-currency equivalents are stored per row (later steps) for reporting, tax an
   `arGateway.postCharge` refuses producer charges on a foreign-currency account (producer tariffs are priced in base; a document is never silently relabelled).
   Account meta ships `currency { code, baseCurrencyCode, isBase, rates[] }` so the dialogs default the rate per document date client-side; listings and account books ship `currencyCode` / `exchangeRate` / base gross.
   Screens: the ledger and receipt dialogs + the account page's refund and deposit forms show an **Exchange rate** field on foreign accounts only (typed decimal, never a spin control; defaults from the rate table at the document date until keyed; a live "≈ base" readout), and the debtor band carries a "USD account" chip. Shared helpers in `web/shared/ar-fx.ts`.
-- **Remaining steps (in order):** (4) `Allocation.fxGainLoss` computed at allocation + reconciliation assertions; (5) listing/statement/interest currency snapshots and display polish.
-  Posting must validate document currency == account currency; `arGateway.postCharge` rejects mismatches.
+- **Step 4 (built 2026-08-26):** `Allocation.fxGainLoss` DECIMAL(21,2) + `Allocation.fxTransactionTypeId` - the REALIZED exchange difference of every allocation, computed inside `applyAllocation`:
+  `fxGainLoss = amount x (credit doc rate - debit doc rate)` in base cents (`allocationFxCents`, same integer-cents rounding as the documents' base equivalents; positive = gain).
+  Both rates are frozen on the documents, so the delta per pair never changes: upserts accumulate `fxGainLoss` with `amount`, and the sign never flips.
+  A nonzero difference is classified under the AR Specification Forex designations (`resolveFxDesignation`: gain -> `fxGainTransactionTypeId`, loss -> `fxLossTransactionTypeId`); an unset designation makes the posting refuse with the fix named - explicit configuration, never inferred.
+  `applyAllocation` also asserts both documents carry the SAME currency (always true by the account-currency design; a mismatch means drift and 409s to Reconcile).
+  Reconciliation asserts `fxGainLoss` against the two documents' frozen rates per allocation row (fix mode repairs); a NULL (pre-column row) is STAMPED additively every run like the display snapshots (`fxStamped` in the checked counts), and an allocation whose documents no longer resolve is reported as unresolvable.
+  The allocation drill-down (`GET /documents/:type/:id/allocations`) ships the new columns automatically (raw rows).
+- **Remaining step:** (5) listing/statement/interest currency snapshots and display polish (including surfacing `fxGainLoss` in the drill-down UI).
   Out of scope by decision: per-document currency on one account, month-end revaluation (a later report over base equivalents), Membership fee currencies.
 
 ## Not built yet
 
-Frontend producers wiring `authorizeCharge`/`postCharge` from Golf/POS/Facility, statement EMAIL delivery (PDF renderer is ready as the attachment seam), the conversions phase of the membership CRM, and multi-currency steps 2-5 above.
+Frontend producers wiring `authorizeCharge`/`postCharge` from Golf/POS/Facility, statement EMAIL delivery (PDF renderer is ready as the attachment seam), the conversions phase of the membership CRM, and multi-currency step 5 above.
