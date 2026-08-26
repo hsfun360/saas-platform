@@ -47,10 +47,21 @@ export class ArInterestComponent implements OnInit {
 
   readonly pendingRows = computed(() => this.rows().filter((r) => r.status === 'pending'));
   readonly selectedCount = computed(() => this.selected().size);
+  // Per-CURRENCY totals (multicurrency step 5): headers on foreign accounts
+  // carry their currency, and amounts in different units are never summed -
+  // the button reads e.g. "120.00 + 94.25 USD" (unlabelled = base currency).
   readonly totalSelected = computed(() => {
-    let c = 0;
-    for (const r of this.rows()) if (this.selected().has(r.id)) c += Math.round(Number(r.interestAmount) * 100);
-    return (c / 100).toFixed(2);
+    const perCurrency = new Map<string, number>();
+    for (const r of this.rows()) {
+      if (!this.selected().has(r.id)) continue;
+      const unit = r.currencyCode || '';
+      perCurrency.set(unit, (perCurrency.get(unit) || 0) + Math.round(Number(r.interestAmount) * 100));
+    }
+    if (!perCurrency.size) return '0.00';
+    return [...perCurrency.entries()]
+      .sort(([a], [b]) => (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b)))
+      .map(([unit, c]) => `${(c / 100).toFixed(2)}${unit ? ' ' + unit : ''}`)
+      .join(' + ');
   });
 
   // Detail dialog.

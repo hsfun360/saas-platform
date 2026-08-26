@@ -72,6 +72,7 @@
               <div class="data-card__title">{{ docRef(doc) }} — {{ doc.debtor.name || 'Unknown debtor' }}</div>
               <div class="data-card__subline">
                 @if (doc.debtor.no) { <span class="data-card__reg">({{ doc.debtor.no }})</span> }
+                @if (isForeignDoc(doc)) { <span class="art-ccy-chip">{{ doc.currencyCode }}</span> }
                 @if (doc.sourceModule !== 'ar') { <span class="art-source-chip">{{ doc.sourceModule }}</span> }
                 @if (doc.description) { <span class="cell-subtle">{{ doc.description }}</span> }
                 @if (doc.status === 'void' && doc.voidReason) {
@@ -108,14 +109,20 @@
                   </button>
                 </app-overflow-menu>
               </div>
-            } @else if (canRaiseCn(doc)) {
-              <!-- Posted invoices: never voided - offset with a Credit Note
-                   (gated on the CN menu's create grant, not this screen's). -->
+            } @else if (isPosted(doc)) {
+              <!-- Posted documents: the allocations drill-down (read-only),
+                   and for invoices the Raise-Credit-Note offset (never voided;
+                   gated on the CN menu's create grant, not this screen's). -->
               <div class="data-row__actions">
                 <app-overflow-menu [label]="'More actions for ' + docRef(doc)">
-                  <button type="button" appMenuItem (click)="openRaiseCn(doc)">
-                    <span class="material-icons" aria-hidden="true">remove_circle</span> Raise Credit Note
+                  <button type="button" appMenuItem (click)="openAllocations(doc)">
+                    <span class="material-icons" aria-hidden="true">account_tree</span> Allocations
                   </button>
+                  @if (canRaiseCn(doc)) {
+                    <button type="button" appMenuItem (click)="openRaiseCn(doc)">
+                      <span class="material-icons" aria-hidden="true">remove_circle</span> Raise Credit Note
+                    </button>
+                  }
                 </app-overflow-menu>
               </div>
             }
@@ -181,6 +188,32 @@
         <button type="button" class="btn btn--primary" (click)="confirmSubmit()" [disabled]="submitBusy()">
           {{ submitBusy() ? 'Working…' : (submitApproval() ? 'Submit for Approval' : 'Submit') }}
         </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Allocations drill-down (posted documents; viewer) ============ -->
+  @if (allocOpen()) {
+    <app-dialog #allocDlg [title]="'Allocations — ' + docRef(allocDoc()!)" [busy]="allocLoading()" (close)="closeAllocations()">
+      @if (allocLoading()) {
+        <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+      } @else if (allocRows().length === 0) {
+        <p class="cell-subtle" style="margin: 0;">No allocations yet — nothing has been applied to or settled by this document.</p>
+      } @else {
+        <div class="art-allocs">
+          @for (a of allocRows(); track a.id) {
+            <div class="art-alloc">
+              <span class="art-alloc__who">{{ allocDirection(a) }} <strong>{{ allocCounterpart(a) }}</strong></span>
+              <span class="art-alloc__amt">{{ a.amount }}@if (isForeignDoc(allocDoc()!)) { {{ allocDoc()?.currencyCode }}}</span>
+              @if (allocFx(a)) {
+                <span class="art-alloc__fx cell-subtle">{{ allocFx(a) }}</span>
+              }
+            </div>
+          }
+        </div>
+      }
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="allocDlg.requestClose()">Close</button>
       </ng-container>
     </app-dialog>
   }

@@ -175,7 +175,7 @@ To eliminate the call entirely:
 - **Reconciliation stays on the gateway** regardless - it is the independent truth-check comparing snapshots to the source, and between events it is the only automatic corrector.
 - Out of scope either way: `lookupPartyBilling` (statement generation) and `classifyParties` (statement scope) are separate seam reads with their own snapshot-at-generation semantics.
 
-## Multi-currency for Other Debtors (design 2026-08-21; steps 1-4 built)
+## Multi-currency for Other Debtors (design 2026-08-21; steps 1-5 built - COMPLETE)
 
 The design decision that drives everything: **currency per debtor ACCOUNT, never per document.**
 An Other Debtor account is denominated in exactly one currency, so every document, receipt, deposit and allocation on it shares that unit and the open-item engine (FIFO, allocation, `CreditAccount.outstanding`, credit limit, aging, statements, interest) stays single-unit per account - cross-currency allocation never arises.
@@ -206,9 +206,12 @@ Base-currency equivalents are stored per row (later steps) for reporting, tax an
   `applyAllocation` also asserts both documents carry the SAME currency (always true by the account-currency design; a mismatch means drift and 409s to Reconcile).
   Reconciliation asserts `fxGainLoss` against the two documents' frozen rates per allocation row (fix mode repairs); a NULL (pre-column row) is STAMPED additively every run like the display snapshots (`fxStamped` in the checked counts), and an allocation whose documents no longer resolve is reported as unresolvable.
   The allocation drill-down (`GET /documents/:type/:id/allocations`) ships the new columns automatically (raw rows).
-- **Remaining step:** (5) listing/statement/interest currency snapshots and display polish (including surfacing `fxGainLoss` in the drill-down UI).
+- **Step 5 (built 2026-08-26):** currency snapshots + display polish, closing the design.
+  `Statement.currencyCode` and `InterestGeneration.currencyCode` snapshot the account currency at generation - **foreign accounts only, NULL = base** - so single-currency companies see zero change and no backfill is needed.
+  The statement viewer and PDF print a "Currency" meta line on foreign statements; the interest run's flash and the review screen's Post button report totals **per currency, never summed across units** (`generateInterest` returns `totals: [{currencyCode, amount}]`); listing rows (statements, interest headers, and the invoice/CN/receipt transaction screens via a top-level `baseCurrencyCode`) carry a brand-tinted currency chip when foreign.
+  The allocations drill-down became a real viewer: `GET /documents/:type/:id/allocations` resolves counterpart document numbers and the Forex designation names server-side, and the transaction screens' posted-row kebab gained **Allocations** - a centered viewer listing "Settled by / Applied to <doc> <amount>" per allocation with its realized exchange gain/loss line (`fxGainLoss` + designation) when nonzero.
   Out of scope by decision: per-document currency on one account, month-end revaluation (a later report over base equivalents), Membership fee currencies.
 
 ## Not built yet
 
-Frontend producers wiring `authorizeCharge`/`postCharge` from Golf/POS/Facility, statement EMAIL delivery (PDF renderer is ready as the attachment seam), the conversions phase of the membership CRM, and multi-currency step 5 above.
+Frontend producers wiring `authorizeCharge`/`postCharge` from Golf/POS/Facility, statement EMAIL delivery (PDF renderer is ready as the attachment seam), and the conversions phase of the membership CRM.

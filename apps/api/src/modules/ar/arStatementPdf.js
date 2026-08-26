@@ -206,6 +206,9 @@ async function renderStatementPdf(statement, details, layout = {}) {
         // badly (user feedback 2026-08-11).
         doc.font('Helvetica').fontSize(9);
         const metaLines = [['Statement Date', fmtDate(statement.statementDate)]];
+        // Multicurrency (step 5): a foreign account's statement names its
+        // unit (base-currency statements stay unlabelled, as before).
+        if (statement.currencyCode) metaLines.push(['Currency', statement.currencyCode]);
         if (layout.showDeposit !== false) metaLines.push(['Deposit', statement.deposit]);
         const labelW = Math.max(...metaLines.map((l) => doc.widthOfString(`${l[0]}:`))) + 2;
         const valueW = Math.max(...metaLines.map((l) => doc.widthOfString(l[1]))) + 2;

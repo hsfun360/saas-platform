@@ -99,6 +99,7 @@
                   </label>
                 }
                 {{ g.debtor?.no || '—' }}@if (g.debtor?.name) { — {{ g.debtor?.name }}}
+                @if (g.currencyCode) { <span class="ai-ccy-chip">{{ g.currencyCode }}</span> }
               </div>
               <dl class="data-card__meta">
                 <div class="meta"><dt>Overdue</dt><dd>{{ g.totalOverdue }}</dd></div>
@@ -138,6 +139,7 @@
       } @else {
         <p class="cell-subtle" style="margin-top: 0;">
           {{ detailGen()?.debtor?.name }} — rate {{ detailGen()?.interestRate }}% flat, cutoff {{ detailGen()?.cutoffDate | localDate }}.
+          @if (detailGen()?.currencyCode) { Amounts in {{ detailGen()?.currencyCode }}. }
           Interest = overdue × rate, rounded per line; the posted total equals this drill-down exactly.
         </p>
         <div class="ai-lines">

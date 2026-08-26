@@ -11,6 +11,7 @@ import {
   ArDebtor,
   ArDebtorListResult,
   ArDebtorsMeta,
+  ArAllocationRow,
   ArDocListResult,
   ArExchangeRate,
   ArExchangeRateMeta,
@@ -130,6 +131,12 @@ export class ArService {
     if (opts.status) params = params.set('status', opts.status);
     if (opts.offset) params = params.set('offset', String(opts.offset));
     return this.http.get<ArDocListResult>(`${this.base}/invoices`, { params });
+  }
+
+  // A document's allocation web (both directions), counterparts resolved
+  // server-side - the transaction screens' drill-down viewer (step 5).
+  getAllocations(type: 'ledger' | 'receipt' | 'deposit' | 'refund', id: string): Observable<{ allocations: ArAllocationRow[] }> {
+    return this.http.get<{ allocations: ArAllocationRow[] }>(`${this.base}/documents/${type}/${id}/allocations`);
   }
 
   postInvoice(payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string | null }> {

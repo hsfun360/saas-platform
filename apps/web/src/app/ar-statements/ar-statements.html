@@ -58,6 +58,7 @@
               <div class="data-card__subline">
                 @if (s.debtorNo) { <span class="data-card__reg">({{ s.debtorNo }})</span> }
                 <span class="as-cat-chip">{{ categoryLabels[s.debtorCategory] || s.debtorCategory }}</span>
+                @if (s.currencyCode) { <span class="as-ccy-chip">{{ s.currencyCode }}</span> }
               </div>
               <dl class="data-card__meta">
                 <div class="meta"><dt>Period</dt><dd>{{ s.periodStart | localDate }} – {{ s.periodEnd | localDate }}</dd></div>
@@ -116,6 +117,9 @@
           </div>
           <div class="as-head__period">
             <div class="cell-subtle">Statement Date: {{ v.statement.statementDate | localDate }}</div>
+            @if (v.statement.currencyCode) {
+              <div class="cell-subtle">Currency: {{ v.statement.currencyCode }}</div>
+            }
             <div class="cell-subtle">Deposit: {{ v.statement.deposit }}</div>
           </div>
         </div>

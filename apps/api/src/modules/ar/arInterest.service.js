@@ -32,9 +32,15 @@ function daysBetween(fromStr, toStr) {
 async function generateInterest({ companyId, periodMonth, cutoffDate, ratePercent, graceDays, stamps }) {
     const debtors = await Debtor.findAll({
         where: { companyId, chargeInterest: true, status: 'active' },
-        attributes: ['id'],
+        attributes: ['id', 'currencyCode'],
     });
-    if (!debtors.length) return { generated: 0, skippedExisting: 0, considered: 0, totalInterest: '0.00' };
+    if (!debtors.length) return { generated: 0, skippedExisting: 0, considered: 0, totals: [] };
+
+    // Multicurrency (step 5): each header is in its debtor ACCOUNT's currency
+    // (foreign only stamped; NULL = base), and the run totals are reported
+    // PER CURRENCY - amounts in different units are never summed together.
+    const { getCompanyBaseCurrency } = require('../../platform/serviceContext');
+    const baseCurrency = await getCompanyBaseCurrency(companyId);
 
     const existing = await InterestGeneration.findAll({
         where: { companyId, periodMonth, status: { [Op.ne]: 'cancelled' } },
@@ -46,7 +52,7 @@ async function generateInterest({ companyId, periodMonth, cutoffDate, ratePercen
     const overdueBefore = shiftDate(cutoffDate, -(graceDays || 0));
 
     let generated = 0;
-    let totalInterestC = 0;
+    const totalsC = new Map(); // display currency (base included) -> cents
     await sequelize.transaction(async (t) => {
         for (const d of debtors) {
             if (blocked.has(d.id)) continue;
@@ -85,6 +91,8 @@ async function generateInterest({ companyId, periodMonth, cutoffDate, ratePercen
             }
             if (!lines.length) continue;
 
+            const headerCurrency = d.currencyCode && baseCurrency && d.currencyCode !== baseCurrency
+                ? d.currencyCode : null;
             const header = await InterestGeneration.create({
                 companyId,
                 debtorId: d.id,
@@ -92,6 +100,7 @@ async function generateInterest({ companyId, periodMonth, cutoffDate, ratePercen
                 cutoffDate,
                 interestRate: Number(ratePercent).toFixed(4),
                 graceDays: graceDays || 0,
+                currencyCode: headerCurrency,
                 totalOverdue: money(overdueC),
                 interestAmount: money(interestC),
                 status: 'pending',
@@ -102,7 +111,8 @@ async function generateInterest({ companyId, periodMonth, cutoffDate, ratePercen
                 { transaction: t },
             );
             generated += 1;
-            totalInterestC += interestC;
+            const unit = headerCurrency || baseCurrency || '';
+            totalsC.set(unit, (totalsC.get(unit) || 0) + interestC);
         }
     });
 
@@ -110,7 +120,11 @@ async function generateInterest({ companyId, periodMonth, cutoffDate, ratePercen
         generated,
         skippedExisting: blocked.size,
         considered: debtors.length,
-        totalInterest: money(totalInterestC),
+        // One entry per currency, base first - the flash renders them side by
+        // side, never added together.
+        totals: [...totalsC.entries()]
+            .sort(([a], [b]) => (a === (baseCurrency || '') ? -1 : b === (baseCurrency || '') ? 1 : a.localeCompare(b)))
+            .map(([currencyCode, c]) => ({ currencyCode, amount: money(c) })),
     };
 }
 

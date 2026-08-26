@@ -232,7 +232,26 @@ export interface ArDocListResult {
   total: number;
   limit: number;
   offset: number;
+  // Multicurrency (step 5): rows whose currencyCode differs get a chip.
+  baseCurrencyCode?: string | null;
   documents: ArDocListRow[];
+}
+
+// One allocation of a document (the drill-down viewer): the credit doc funds
+// the debit doc; fxGainLoss is the realized exchange difference in BASE
+// currency (positive = gain), classified under the named Forex designation.
+export interface ArAllocationRow {
+  id: string;
+  creditDocType: 'receipt' | 'ledger' | 'deposit';
+  creditDocId: string;
+  creditDoc: { docNo: string; docKind: string } | null;
+  debitDocType: 'ledger' | 'refund' | 'deposit';
+  debitDocId: string;
+  debitDoc: { docNo: string; docKind: string } | null;
+  amount: string;
+  fxGainLoss: string | null;
+  fxTransactionType: string | null;
+  createdAt: string;
 }
 
 // --- Financial-analysis dimensions (hybrid design 2026-08-25) ---
@@ -314,6 +333,8 @@ export interface ArInterestGeneration {
   cutoffDate: string;
   interestRate: string;
   graceDays: number;
+  // The debtor account's currency; null = the company base (step 5).
+  currencyCode: string | null;
   totalOverdue: string;
   interestAmount: string;
   status: 'pending' | 'confirmed' | 'cancelled';
@@ -344,6 +365,8 @@ export interface ArStatementSummary {
   debtorType: 'membership' | 'member' | 'other';
   debtorCategory: ArStatementCategory;
   debtorNo: string | null;
+  // The account currency all amounts are in; null = the company base (step 5).
+  currencyCode: string | null;
   openingBalance: string;
   closingBalance: string;
   billName: string;

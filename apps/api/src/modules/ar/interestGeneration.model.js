@@ -48,6 +48,14 @@ const InterestGeneration = sequelize.define('InterestGeneration', {
         allowNull: false,
         defaultValue: 0,
     },
+    // Multicurrency (step 5): the debtor ACCOUNT's currency - overdue and
+    // interest amounts (and the posted Debit Note) are in this unit. FOREIGN
+    // accounts only; NULL = the company base currency. Never total headers
+    // across different currencies.
+    currencyCode: {
+        type: DataTypes.STRING(3),
+        allowNull: true,
+    },
     totalOverdue: {
         type: DataTypes.DECIMAL(21, 2),
         allowNull: false,

@@ -13,7 +13,7 @@ import { ArLedgerDialogComponent } from '../shared/ar-ledger-dialog/ar-ledger-di
 import { ArReceiptDialogComponent } from '../shared/ar-receipt-dialog/ar-receipt-dialog';
 import { ArService } from '../services/ar.service';
 import { PermissionsService } from '../services/permissions.service';
-import { ArAccountMeta, ArDocListResult, ArDocListRow, ArDocStatus } from '../models/ar.models';
+import { ArAccountMeta, ArAllocationRow, ArDocListResult, ArDocListRow, ArDocStatus } from '../models/ar.models';
 
 // Account Receivable → per-document-type transaction screens (hybrid design
 // 2026-08-12): each document type is its OWN menu, so RBAC can grant e.g.
@@ -105,6 +105,9 @@ export class ArTransactionsComponent implements OnInit {
 
   readonly rows = signal<ArDocListRow[]>([]);
   readonly total = signal(0);
+  // Multicurrency (step 5): rows in another currency than the company base
+  // carry a currency chip so mixed-currency listings are never ambiguous.
+  readonly baseCurrencyCode = signal<string | null>(null);
   readonly loading = signal(false);
   readonly loadingMore = signal(false);
   readonly month = signal('');
@@ -153,6 +156,7 @@ export class ArTransactionsComponent implements OnInit {
       next: (res: ArDocListResult) => {
         this.rows.set(reset ? res.documents : [...this.rows(), ...res.documents]);
         this.total.set(res.total);
+        this.baseCurrencyCode.set(res.baseCurrencyCode || null);
         this.loading.set(false);
         this.loadingMore.set(false);
       },
@@ -190,6 +194,12 @@ export class ArTransactionsComponent implements OnInit {
 
   remaining(doc: ArDocListRow): string {
     return Number(doc.balanceAmount).toFixed(2);
+  }
+
+  // A row in another currency than the company base (chip-worthy).
+  isForeignDoc(doc: ArDocListRow): boolean {
+    const base = this.baseCurrencyCode();
+    return !!doc.currencyCode && !!base && doc.currencyCode !== base;
   }
 
   // Display vocabulary: draft = "Open" (editable, not financial),
@@ -358,8 +368,66 @@ export class ArTransactionsComponent implements OnInit {
     this.load(true);
   }
 
+  // --- Allocations drill-down (step 5): who funded / settled this document,
+  // with the realized exchange gain/loss per allocation on foreign accounts.
+  readonly allocOpen = signal(false);
+  readonly allocLoading = signal(false);
+  readonly allocDoc = signal<ArDocListRow | null>(null);
+  readonly allocRows = signal<ArAllocationRow[]>([]);
+  openAllocations(row: ArDocListRow): void {
+    this.clearMessages();
+    this.allocDoc.set(row);
+    this.allocRows.set([]);
+    this.allocOpen.set(true);
+    this.allocLoading.set(true);
+    // Receipt-screen rows live in ar.Receipt; the ledger kinds in ar.Ledger.
+    const type = this.cfg().kind === 'receipt' ? 'receipt' : 'ledger';
+    this.service.getAllocations(type, row.id).subscribe({
+      next: (res) => { this.allocRows.set(res.allocations); this.allocLoading.set(false); },
+      error: (err) => {
+        this.allocLoading.set(false);
+        this.allocOpen.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to load the allocations.');
+      },
+    });
+  }
+  closeAllocations(): void {
+    this.allocOpen.set(false);
+    this.allocDoc.set(null);
+  }
+  // The OTHER side of an allocation, seen from the viewed document.
+  allocDirection(a: ArAllocationRow): string {
+    return a.creditDocId === this.allocDoc()?.id ? 'Applied to' : 'Settled by';
+  }
+  allocCounterpart(a: ArAllocationRow): string {
+    const mine = a.creditDocId === this.allocDoc()?.id;
+    const doc = mine ? a.debitDoc : a.creditDoc;
+    const kind = mine ? a.debitDocType : a.creditDocType;
+    const label = doc?.docKind ? (DOC_KIND_LABELS[doc.docKind] || doc.docKind) : (DOC_KIND_LABELS[kind] || kind);
+    return doc?.docNo ? `${label} ${doc.docNo}` : label;
+  }
+  // Nonzero realized fx, phrased with its Forex designation.
+  allocFx(a: ArAllocationRow): string {
+    const v = Number(a.fxGainLoss || 0);
+    if (!v) return '';
+    const kind = v > 0 ? 'Exchange gain' : 'Exchange loss';
+    const base = this.baseCurrencyCode();
+    return `${kind} ${Math.abs(v).toFixed(2)}${base ? ' ' + base : ''}${a.fxTransactionType ? ' · ' + a.fxTransactionType : ''}`;
+  }
+
   private clearMessages(): void {
     this.successMessage.set('');
     this.errorMessage.set('');
   }
 }
+
+// Counterpart display labels for the allocations viewer.
+const DOC_KIND_LABELS: Record<string, string> = {
+  'invoice': 'Invoice',
+  'debit-note': 'Debit Note',
+  'credit-note': 'Credit Note',
+  'receipt': 'Official Receipt',
+  'refund': 'Refund',
+  'deposit': 'Deposit',
+  'ledger': 'Document',
+};

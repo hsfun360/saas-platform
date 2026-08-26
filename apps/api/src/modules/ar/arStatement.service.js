@@ -764,6 +764,14 @@ async function generateOne({
     let depositC = 0;
     for (const d of depositRows) depositC += cents(d.heldAmount);
 
+    // Multicurrency (step 5): snapshot the account currency - foreign
+    // accounts only (NULL = base), so the viewer/PDF can label the unit and
+    // single-currency companies see no change.
+    const { getCompanyBaseCurrency } = require('../../platform/serviceContext');
+    const baseCurrency = await getCompanyBaseCurrency(companyId);
+    const statementCurrency = debtor.currencyCode && baseCurrency && debtor.currencyCode !== baseCurrency
+        ? debtor.currencyCode : null;
+
     // --- Overwrite + create, one transaction per debtor ---
     await sequelize.transaction(async (t) => {
         if (existing.length) {
@@ -781,6 +789,7 @@ async function generateOne({
             debtorType: debtor.debtorType,
             debtorCategory: category,
             debtorNo,
+            currencyCode: statementCurrency,
             openingBalance: money(openingC),
             closingBalance: money(closingC),
             billName,

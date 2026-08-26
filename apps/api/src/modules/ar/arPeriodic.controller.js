@@ -97,8 +97,13 @@ exports.generate = async (req, res) => {
             graceDays,
             stamps,
         });
+        // Per-currency totals (multicurrency step 5) - units are listed side
+        // by side, never summed across currencies.
+        const totalText = result.totals.length
+            ? result.totals.map((t) => `${t.amount} ${t.currencyCode}`.trim()).join(' + ')
+            : '0.00';
         res.status(200).json({
-            message: `Interest generated for ${result.generated} debtor(s) - total ${result.totalInterest}. `
+            message: `Interest generated for ${result.generated} debtor(s) - total ${totalText}. `
                 + `${result.skippedExisting} debtor(s) already had a run this month.`,
             ...result,
         });
@@ -132,6 +137,7 @@ exports.list = async (req, res) => {
                 cutoffDate: r.cutoffDate,
                 interestRate: r.interestRate,
                 graceDays: r.graceDays,
+                currencyCode: r.currencyCode,
                 totalOverdue: r.totalOverdue,
                 interestAmount: r.interestAmount,
                 status: r.status,
@@ -552,6 +558,7 @@ exports.listStatements = async (req, res) => {
                 debtorType: r.debtorType,
                 debtorCategory: r.debtorCategory,
                 debtorNo: r.debtorNo,
+                currencyCode: r.currencyCode,
                 openingBalance: r.openingBalance,
                 closingBalance: r.closingBalance,
                 billName: r.billName,

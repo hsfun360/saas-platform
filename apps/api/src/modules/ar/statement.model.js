@@ -66,6 +66,14 @@ const Statement = sequelize.define('Statement', {
         type: DataTypes.STRING(30),
         allowNull: true,
     },
+    // Multicurrency (step 5): the ACCOUNT currency every amount on this
+    // statement is denominated in - snapshotted at generation, FOREIGN
+    // accounts only (NULL = the company base currency), so single-currency
+    // companies' statements are unchanged and no backfill is needed.
+    currencyCode: {
+        type: DataTypes.STRING(3),
+        allowNull: true,
+    },
     openingBalance: {
         type: DataTypes.DECIMAL(21, 2),
         allowNull: false,

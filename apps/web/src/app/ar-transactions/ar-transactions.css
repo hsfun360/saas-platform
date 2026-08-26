@@ -81,3 +81,36 @@
   justify-content: center;
   margin: var(--space-md) 0 var(--space-xl);
 }
+
+/* Multicurrency (step 5): currency chip on rows in a non-base currency -
+   same look as the Debtor Listing's foreign chip. */
+.art-ccy-chip {
+  display: inline-block;
+  padding: 2px var(--space-sm);
+  border-radius: 12px;
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.5px;
+  background: var(--brand-surface);
+  color: var(--brand-text);
+}
+
+/* Allocations drill-down viewer: one line per allocation, the realized
+   exchange difference dropping to its own subline when present. */
+.art-allocs {
+  display: flex;
+  flex-direction: column;
+}
+.art-alloc {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "who amt" "fx fx";
+  gap: 2px var(--space-md);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--font-body-2);
+}
+.art-alloc:last-child { border-bottom: none; }
+.art-alloc__who { grid-area: who; min-width: 0; }
+.art-alloc__amt { grid-area: amt; justify-self: end; font-variant-numeric: tabular-nums; }
+.art-alloc__fx { grid-area: fx; }

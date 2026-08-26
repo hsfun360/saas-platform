@@ -268,7 +268,9 @@ exports.getAccountMeta = async (req, res) => {
 };
 
 // GET /api/ar/documents/:type/:id/allocations - a document's allocation rows
-// (both directions), for the drill-down.
+// (both directions), for the drill-down. Counterpart document numbers and the
+// Forex designation names are resolved server-side so the viewer needs no
+// follow-up lookups.
 exports.getAllocations = async (req, res) => {
     try {
         const { companyId } = getUserContext(req);
@@ -286,7 +288,44 @@ exports.getAllocations = async (req, res) => {
             where: { companyId, [Op.or]: or },
             order: [['createdAt', 'ASC']],
         });
-        res.status(200).json({ allocations: rows });
+
+        // Resolve every involved document's number ('receipt' and 'refund'
+        // sides are both ar.Receipt rows) and the fx designation names.
+        const ids = { ledger: new Set(), receipt: new Set(), deposit: new Set() };
+        const bucketOf = (t) => (t === 'ledger' ? ids.ledger : t === 'deposit' ? ids.deposit : ids.receipt);
+        const fxTypeIds = new Set();
+        for (const a of rows) {
+            bucketOf(a.creditDocType).add(a.creditDocId);
+            bucketOf(a.debitDocType).add(a.debitDocId);
+            if (a.fxTransactionTypeId) fxTypeIds.add(a.fxTransactionTypeId);
+        }
+        const Deposit = require('./deposit.model');
+        const TransactionType = require('./transactionType.model');
+        const [ledgerDocs, receiptDocs, depositDocs, fxTypes] = await Promise.all([
+            ids.ledger.size ? Ledger.findAll({ where: { id: { [Op.in]: [...ids.ledger] } }, attributes: ['id', 'docNo', 'docKind'] }) : [],
+            ids.receipt.size ? Receipt.findAll({ where: { id: { [Op.in]: [...ids.receipt] } }, attributes: ['id', 'docNo', 'docKind'] }) : [],
+            ids.deposit.size ? Deposit.findAll({ where: { id: { [Op.in]: [...ids.deposit] } }, attributes: ['id', 'docNo'] }) : [],
+            fxTypeIds.size ? TransactionType.findAll({ where: { id: { [Op.in]: [...fxTypeIds] } }, attributes: ['id', 'transactionType'] }) : [],
+        ]);
+        const docNoById = new Map();
+        for (const d of [...ledgerDocs, ...receiptDocs, ...depositDocs]) docNoById.set(d.id, { docNo: d.docNo, docKind: d.docKind || 'deposit' });
+        const fxTypeById = new Map(fxTypes.map((t) => [t.id, t.transactionType]));
+
+        res.status(200).json({
+            allocations: rows.map((a) => ({
+                id: a.id,
+                creditDocType: a.creditDocType,
+                creditDocId: a.creditDocId,
+                creditDoc: docNoById.get(a.creditDocId) || null,
+                debitDocType: a.debitDocType,
+                debitDocId: a.debitDocId,
+                debitDoc: docNoById.get(a.debitDocId) || null,
+                amount: a.amount,
+                fxGainLoss: a.fxGainLoss,
+                fxTransactionType: a.fxTransactionTypeId ? (fxTypeById.get(a.fxTransactionTypeId) || null) : null,
+                createdAt: a.createdAt,
+            })),
+        });
     } catch (err) {
         console.error('Error loading allocations:', err);
         res.status(500).json({ message: 'Internal server error' });
@@ -372,13 +411,15 @@ function makeLedgerListHandler(docKind) {
             const displayByDebtor = await debtorDisplayMap(companyId, debtors);
             // Data scope per row (own/department/all) - the UI hides Edit /
             // Submit / Void on drafts outside the caller's scope.
-            const { annotateCanModify } = require('../../platform/serviceContext');
+            const { annotateCanModify, getCompanyBaseCurrency } = require('../../platform/serviceContext');
             const canModify = await annotateCanModify(req, rows);
 
             res.status(200).json({
                 total: count,
                 limit: LIST_LIMIT,
                 offset,
+                // Rows in another currency get a chip client-side (step 5).
+                baseCurrencyCode: await getCompanyBaseCurrency(companyId),
                 documents: rows.map((r, i) => ({
                     id: r.id, docKind: r.docKind, mode: r.mode, docNo: r.docNo,
                     docDate: r.docDate, trxDate: r.trxDate, dueDate: r.dueDate,
@@ -987,13 +1028,15 @@ exports.listReceipts = async (req, res) => {
             ? await Debtor.findAll({ where: { id: { [Op.in]: debtorIds }, companyId } })
             : [];
         const displayByDebtor = await debtorDisplayMap(companyId, debtors);
-        const { annotateCanModify } = require('../../platform/serviceContext');
+        const { annotateCanModify, getCompanyBaseCurrency } = require('../../platform/serviceContext');
         const canModify = await annotateCanModify(req, rows);
 
         res.status(200).json({
             total: count,
             limit: LIST_LIMIT,
             offset,
+            // Rows in another currency get a chip client-side (step 5).
+            baseCurrencyCode: await getCompanyBaseCurrency(companyId),
             documents: rows.map((r, i) => ({
                 id: r.id, docKind: r.docKind, mode: r.mode, docNo: r.docNo,
                 docDate: r.docDate, trxDate: r.trxDate, dueDate: null,
