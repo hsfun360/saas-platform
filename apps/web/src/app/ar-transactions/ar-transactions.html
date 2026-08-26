@@ -207,7 +207,9 @@
               <span class="art-alloc__who">{{ allocDirection(a) }} <strong>{{ allocCounterpart(a) }}</strong></span>
               <span class="art-alloc__amt">{{ a.amount }}@if (isForeignDoc(allocDoc()!)) { {{ allocDoc()?.currencyCode }}}</span>
               @if (allocFx(a)) {
-                <span class="art-alloc__fx cell-subtle">{{ allocFx(a) }}</span>
+                <span class="art-alloc__fx"
+                      [class.art-alloc__fx--gain]="allocFxSign(a) > 0"
+                      [class.art-alloc__fx--loss]="allocFxSign(a) < 0">{{ allocFx(a) }}</span>
               }
             </div>
           }

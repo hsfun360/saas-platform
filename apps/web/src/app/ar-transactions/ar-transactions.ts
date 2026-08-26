@@ -424,6 +424,10 @@ export class ArTransactionsComponent implements OnInit {
     const base = this.baseCurrencyCode();
     return `${kind} ${Math.abs(v).toFixed(2)}${base ? ' ' + base : ''}${a.fxTransactionType ? ' · ' + a.fxTransactionType : ''}`;
   }
+  // Sign drives the colour: gain green, loss red (user feedback 2026-08-26).
+  allocFxSign(a: ArAllocationRow): number {
+    return Number(a.fxGainLoss || 0);
+  }
 
   private clearMessages(): void {
     this.successMessage.set('');

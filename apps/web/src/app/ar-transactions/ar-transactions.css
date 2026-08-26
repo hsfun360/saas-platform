@@ -113,4 +113,8 @@
 .art-alloc:last-child { border-bottom: none; }
 .art-alloc__who { grid-area: who; min-width: 0; }
 .art-alloc__amt { grid-area: amt; justify-self: end; font-variant-numeric: tabular-nums; }
-.art-alloc__fx { grid-area: fx; }
+.art-alloc__fx { grid-area: fx; font-size: var(--font-body-2); color: var(--text-secondary); }
+/* Gain green / loss red (user feedback 2026-08-26) - state tokens, AA in
+   both themes. */
+.art-alloc__fx--gain { color: var(--success-text); }
+.art-alloc__fx--loss { color: var(--danger-text); }
