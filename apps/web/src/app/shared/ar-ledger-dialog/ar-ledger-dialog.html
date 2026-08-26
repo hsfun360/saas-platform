@@ -141,11 +141,18 @@
               </div>
             </div>
           }
+          <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
+            <div class="form-group">
+              <label for="ldDesc">Description</label>
+              <textarea id="ldDesc" formControlName="description" rows="2" wrap="off" placeholder="Optional"></textarea>
+            </div>
+          </div>
           @if (analysisMeta().length > 0) {
             <!-- Financial-analysis dimensions, grouped in their own section
-                 card (user feedback 2026-08-26): one picker per
-                 number-assigned category, labelled with the company's names. -->
-            <div class="settings-card" style="margin: var(--space-sm) 0;">
+                 card BELOW the document fields (user feedback 2026-08-26):
+                 one picker per number-assigned category, labelled with the
+                 company's names. -->
+            <div class="settings-card" style="margin: var(--space-sm) 0 0;">
               <button type="button" class="settings-header settings-header--button"
                       (click)="anaOpen.set(!anaOpen())" [attr.aria-expanded]="anaOpen()">
                 <span class="settings-header__text">
@@ -179,12 +186,6 @@
               }
             </div>
           }
-          <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
-            <div class="form-group">
-              <label for="ldDesc">Description</label>
-              <textarea id="ldDesc" formControlName="description" rows="2" wrap="off" placeholder="Optional"></textarea>
-            </div>
-          </div>
         </form>
       }
     }
