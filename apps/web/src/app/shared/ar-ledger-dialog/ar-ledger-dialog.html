@@ -142,22 +142,39 @@
             </div>
           }
           @if (analysisMeta().length > 0) {
-            <!-- Financial-analysis dimensions: one picker per number-assigned
-                 category, labelled with the company's own names. -->
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-              @for (dim of analysisMeta(); track dim.categoryId) {
-                <div class="form-group">
-                  <label [for]="'ldAna' + dim.dimensionNo">{{ dim.name }}@if (dim.isRequired) { <span class="required">*</span> }</label>
-                  <!-- [selected] per option, not [value] on the select: the
-                       meta (and its options) load AFTER the prefill, and a
-                       value binding set before its option exists never
-                       re-applies - the select silently falls back to None. -->
-                  <select [id]="'ldAna' + dim.dimensionNo" #anaSel (change)="pickAnalysis(dim.dimensionNo, anaSel.value)">
-                    <option value="" [selected]="!selFor(dim.dimensionNo)">— None —</option>
-                    @for (o of dim.options; track o.id) {
-                      <option [value]="o.id" [selected]="o.id === selFor(dim.dimensionNo)">{{ o.code }}@if (o.description) { — {{ o.description }}}</option>
+            <!-- Financial-analysis dimensions, grouped in their own section
+                 card (user feedback 2026-08-26): one picker per
+                 number-assigned category, labelled with the company's names. -->
+            <div class="settings-card" style="margin: var(--space-sm) 0;">
+              <button type="button" class="settings-header settings-header--button"
+                      (click)="anaOpen.set(!anaOpen())" [attr.aria-expanded]="anaOpen()">
+                <span class="settings-header__text">
+                  <span class="settings-header__title">Analysis Dimensions</span>
+                  <span class="settings-header__sub">Tag this document for financial-analysis reporting.</span>
+                </span>
+                <span class="material-icons settings-header__chevron"
+                      [class.settings-header__chevron--open]="anaOpen()" aria-hidden="true">chevron_right</span>
+              </button>
+              @if (anaOpen()) {
+                <div class="settings-body">
+                  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                    @for (dim of analysisMeta(); track dim.categoryId) {
+                      <div class="form-group">
+                        <label [for]="'ldAna' + dim.dimensionNo">{{ dim.name }}@if (dim.isRequired) { <span class="required">*</span> }</label>
+                        <!-- [selected] per option, not [value] on the select:
+                             the meta (and its options) load AFTER the prefill,
+                             and a value binding set before its option exists
+                             never re-applies - the select silently falls back
+                             to None. -->
+                        <select [id]="'ldAna' + dim.dimensionNo" #anaSel (change)="pickAnalysis(dim.dimensionNo, anaSel.value)">
+                          <option value="" [selected]="!selFor(dim.dimensionNo)">— None —</option>
+                          @for (o of dim.options; track o.id) {
+                            <option [value]="o.id" [selected]="o.id === selFor(dim.dimensionNo)">{{ o.code }}@if (o.description) { — {{ o.description }}}</option>
+                          }
+                        </select>
+                      </div>
                     }
-                  </select>
+                  </div>
                 </div>
               }
             </div>

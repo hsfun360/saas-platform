@@ -44,9 +44,12 @@ export class ArLedgerDialogComponent implements OnInit {
   // standalone/edit modes read them from the self-loaded meta instead).
   readonly openDebits = input<ArLedgerDoc[]>([]);
   // Raise-CN from a posted document: pre-select this open debit as the target
-  // and seed the amount with its remaining balance (still editable).
+  // and seed the amount with its remaining balance (still editable), plus the
+  // source document's analysis dimensions ({ "<dimensionNo>": optionId }) so
+  // the offset lands in the same reporting buckets by default.
   readonly presetTargetId = input<string | null>(null);
   readonly presetAmount = input<number | null>(null);
+  readonly presetAnalysis = input<Record<string, string> | null>(null);
   // Editing an existing Open (draft): prefill + PATCH instead of POST.
   readonly editRow = input<ArDocListRow | null>(null);
 
@@ -107,6 +110,9 @@ export class ArLedgerDialogComponent implements OnInit {
   // group (dynamic list, same pattern as the transaction-type module radio).
   readonly analysisMeta = computed(() => this.effMeta()?.analysis || []);
   readonly analysisSel = signal<Record<string, string>>({});
+  // The pickers sit in their own collapsible section card (user feedback
+  // 2026-08-26); folding never loses the selections - they live up here.
+  readonly anaOpen = signal(true);
 
   selFor(dimensionNo: number): string {
     return this.analysisSel()[String(dimensionNo)] || '';
@@ -211,7 +217,9 @@ export class ArLedgerDialogComponent implements OnInit {
     }, { emitEvent: false });
     this.rateTouched.set(false);
     this.syncFxSignals();
-    this.analysisSel.set({});
+    // Raise-CN carries the source document's dimensions; a plain New starts
+    // empty. Ids resolve against the account meta's options once loaded.
+    this.analysisSel.set(this.presetAnalysis() ? { ...this.presetAnalysis()! } : {});
     // A preset debtor starts straight in entry mode - self-loading the meta
     // when the opener didn't supply it (e.g. Raise-CN from a listing row);
     // standalone starts at the debtor picker.

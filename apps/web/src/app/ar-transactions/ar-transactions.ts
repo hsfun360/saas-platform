@@ -357,6 +357,16 @@ export class ArTransactionsComponent implements OnInit {
   remainingNum(row: ArDocListRow): number {
     return Number(row.balanceAmount);
   }
+  // The source document's analysis dimensions ({ "<dimensionNo>": optionId })
+  // - the raised CN defaults to the same reporting buckets (still editable).
+  presetAnalysisOf(row: ArDocListRow): Record<string, string> {
+    const sel: Record<string, string> = {};
+    for (let n = 1; n <= 6; n += 1) {
+      const v = row[`analysis${n}Id` as keyof ArDocListRow];
+      if (typeof v === 'string' && v) sel[String(n)] = v;
+    }
+    return sel;
+  }
   onRaiseCnPosted(message: string): void {
     this.errorMessage.set('');
     this.successMessage.set(message);
