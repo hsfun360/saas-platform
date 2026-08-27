@@ -76,6 +76,10 @@
 }
 
 /* --- Per-module applicability (2026-08-27) -------------------------------- */
+/* The module list is a two-column table (module | required), so it spans the
+   whole drawer rather than sitting in one half of the .form-row grid. */
+.ana-mods-group { grid-column: 1 / -1; }
+
 /* One row per consuming module in the dimension dialog: the module's opt-in on
    the left, its own "required on manual entry" flag on the right. */
 .ana-mods {
