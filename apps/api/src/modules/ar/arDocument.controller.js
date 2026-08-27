@@ -26,7 +26,10 @@ const arCurrency = require('./arCurrency.service');
 // Financial-analysis dimensions (shared Dimension capability, 2026-08-25):
 // manual entries stamp the slot-assigned categories' options onto
 // analysis<N>Id through the seam - never the dimension models directly.
+// Every gateway read is scoped to AR's own module name (2026-08-27): a company
+// can run a dimension on Golf or POS without it ever reaching an AR clerk.
 const dimensionGateway = require('../../platform/dimensionGateway');
+const AR_MODULE = 'Account Receivable';
 
 // The rate resolution for a draft/entry body: { fx } or { error } (a 400
 // message naming what to do - no rate in the table, malformed keyed rate).
@@ -246,7 +249,7 @@ exports.getAccountMeta = async (req, res) => {
             currency,
             // Slot-assigned analysis dimensions + their options - the entry
             // dialogs render one picker per entry here (none assigned = none).
-            analysis: await dimensionGateway.entryMeta(companyId),
+            analysis: await dimensionGateway.entryMeta(companyId, AR_MODULE),
             // The AR-OWNED catalog (2026-08-15) with trxClass, so each entry
             // dialog offers only its own document book's types.
             transactionTypes: types.map((t) => t.toJSON()),
@@ -530,8 +533,8 @@ async function readDraftFields(req, companyId, debtor, lk) {
     if (fxRead.error) return { error: fxRead.error };
 
     // Analysis selections ({ "<dimensionNo>": optionId }) validated against the
-    // live slot assignments; required dimensions enforced on manual entry.
-    const analysisRead = await dimensionGateway.readSelections(companyId, req.body);
+    // dimensions AR applies to; required dimensions enforced on manual entry.
+    const analysisRead = await dimensionGateway.readSelections(companyId, req.body, AR_MODULE);
     if (analysisRead.error) return { error: analysisRead.error };
     return { dates, txnType, amounts, applyToLedgerId, fx: fxRead.fx, taxQuote, analysisColumns: analysisRead.columns };
 }
@@ -1113,7 +1116,7 @@ exports.postLedger = async (req, res) => {
         }
 
         // Analysis selections (same rules as the draft doors).
-        const analysisRead = await dimensionGateway.readSelections(companyId, req.body);
+        const analysisRead = await dimensionGateway.readSelections(companyId, req.body, AR_MODULE);
         if (analysisRead.error) return res.status(400).json({ message: analysisRead.error });
 
         // Manual numbering pre-checks (a 400 here burns nothing).

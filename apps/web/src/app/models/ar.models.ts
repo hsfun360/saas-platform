@@ -256,13 +256,25 @@ export interface ArAllocationRow {
 
 // --- Financial-analysis dimensions (hybrid design 2026-08-25) ---
 
+// One consuming module a dimension applies to, with that module's own
+// "required on manual entry" flag (2026-08-27). A row whose moduleId is absent
+// from ArAnalysisSetup.availableModules belongs to a module the company no
+// longer subscribes to - shown greyed, kept on save.
+export interface ArAnalysisCategoryModule {
+  moduleId: string;
+  moduleName: string;
+  isRequired: boolean;
+}
+
 export interface ArAnalysisCategory {
   id: string;
   canModify?: boolean;
   name: string;
   // 1..6 = stamped onto Ledger.analysis<dimensionNo>Id; null = catalog-only.
   dimensionNo: number | null;
-  isRequired: boolean;
+  // Empty for a catalog-only dimension (it stamps nothing, so it applies
+  // nowhere); at least one entry for a numbered dimension.
+  modules: ArAnalysisCategoryModule[];
   isActive: boolean;
 }
 
@@ -275,9 +287,19 @@ export interface ArAnalysisOption {
   isActive: boolean;
 }
 
+// The Analysis Setup dialog's save payload (create + update share it).
+export interface ArAnalysisCategoryPayload {
+  name: string;
+  dimensionNo: number | null;
+  modules: { moduleId: string; isRequired: boolean }[];
+}
+
 export interface ArAnalysisSetup {
   categories: ArAnalysisCategory[];
   options: ArAnalysisOption[];
+  // The modules this company may tick: registered dimension consumers
+  // intersected with its subscriptions.
+  availableModules: { moduleId: string; name: string }[];
 }
 
 // The entry dialogs' picker meta: one entry per number-assigned active dimension.

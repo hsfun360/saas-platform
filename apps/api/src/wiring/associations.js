@@ -74,6 +74,11 @@ const ArTaxLedger = require('../modules/ar/taxLedger.model'); // per-component t
 // options by plain UUID through platform/dimensionGateway.js.
 const DimensionCategory = require('../modules/dimension/dimensionCategory.model');
 const DimensionOption = require('../modules/dimension/dimensionOption.model');
+// Per-module applicability of a dimension (2026-08-27): the catalog and the
+// dimension number stay company-global, this table says WHICH consuming
+// modules offer the picker and where it is mandatory. moduleId is a plain
+// UUID into the Control-Plane Module table (peer service, no FK).
+const DimensionCategoryModule = require('../modules/dimension/dimensionCategoryModule.model');
 const UserFavorite = require('../modules/saas/userFavorite.model'); // My Dashboard starred screens per user+workspace (userId/companyId/menuId value refs; no associations)
 // Product tier (Membership Management). Master files reference companyId by plain
 // UUID (no cross-service FK), per the golden rules. Intra-service parent-child

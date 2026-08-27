@@ -379,6 +379,26 @@ async function initializeDB() {
                      WHERE "dimensionNo" IS NULL AND "slotNo" IS NOT NULL`,
                 );
             }
+            // Per-module dimension applicability (user decision 2026-08-27):
+            // the category-level DimensionCategory.isRequired retires into
+            // dimension."DimensionCategoryModule", one row per consuming
+            // module, so "is Department mandatory?" has one answer per module.
+            // The old values must be READ here, before the alter-sync drops
+            // the column; the rows are written after sync creates the table.
+            // Idempotent: once the column is gone this reads nothing.
+            let dimensionRequiredBefore = [];
+            const [[dimReqCol]] = await sequelize.query(
+                `SELECT EXISTS (SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'dimension' AND table_name = 'DimensionCategory'
+                      AND column_name = 'isRequired') AS has_old`,
+            ).catch(() => [[null]]);
+            if (dimReqCol && dimReqCol.has_old) {
+                const [rows] = await sequelize.query(
+                    `SELECT "id", "companyId", "isRequired" FROM dimension."DimensionCategory"
+                     WHERE "dimensionNo" IS NOT NULL`,
+                ).catch(() => [[]]);
+                dimensionRequiredBefore = rows || [];
+            }
             const [[depositCols]] = await sequelize.query(
                 `SELECT
                     EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ar' AND table_name = 'Deposit' AND column_name = 'collectedAmount') AS has_old,
@@ -398,6 +418,37 @@ async function initializeDB() {
             }
 
             await sequelize.sync({ alter: true });
+
+            // Per-module dimension applicability (2026-08-27), second half:
+            // seed one Account Receivable row per numbered dimension from the
+            // retired category-level flag, so every existing dimension keeps
+            // behaving exactly as it did on the AR entry screens. AR is the
+            // only consumer registered at the time of this migration.
+            if (dimensionRequiredBefore.length) {
+                const [[arModule]] = await sequelize.query(
+                    `SELECT "id" FROM public."Modules" WHERE "name" = 'Account Receivable' AND "audience" = 'tenant' LIMIT 1`,
+                ).catch(() => [[null]]);
+                if (arModule && arModule.id) {
+                    for (const cat of dimensionRequiredBefore) {
+                        await sequelize.query(
+                            `INSERT INTO dimension."DimensionCategoryModule"
+                                ("id", "companyId", "categoryId", "moduleId", "isRequired", "createdAt", "updatedAt")
+                             VALUES (gen_random_uuid(), :companyId, :categoryId, :moduleId, :isRequired, NOW(), NOW())
+                             ON CONFLICT ("categoryId", "moduleId") DO NOTHING`,
+                            {
+                                replacements: {
+                                    companyId: cat.companyId,
+                                    categoryId: cat.id,
+                                    moduleId: arModule.id,
+                                    isRequired: cat.isRequired === true,
+                                },
+                            },
+                        ).catch((err) => console.warn('Dimension module backfill skipped:', err.message));
+                    }
+                } else {
+                    console.warn('Dimension module backfill skipped: no tenant module named "Account Receivable".');
+                }
+            }
 
             // Multicurrency step 2 (2026-08-21): every ledger account carries
             // its currency. Accounts from before the column existed are in the

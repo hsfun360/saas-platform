@@ -6,14 +6,17 @@
 // lock (via the gateway's registered consumer usage checks) keeps a used
 // dimension number's meaning stable.
 
+const { sequelize } = require('../../platform/db');
 const DimensionCategory = require('./dimensionCategory.model');
+const DimensionCategoryModule = require('./dimensionCategoryModule.model');
 const DimensionOption = require('./dimensionOption.model');
-const { dimensionInUse } = require('../../platform/dimensionGateway');
+const { dimensionInUse, availableModules } = require('../../platform/dimensionGateway');
 const {
     getUserContext,
     getCallerPlacement,
     canModifyRecord,
     annotateCanModify,
+    getTenantModuleCatalog,
 } = require('../../platform/serviceContext');
 const { validate, fields, z } = require('../../platform/validate');
 
@@ -26,15 +29,96 @@ function ownershipStamps(req, placement) {
     return { createdBy: callerId, createdByDepartmentId: placement.departmentId, updatedBy: callerId };
 }
 
-function categoryDto(c, canModify = true) {
+// `modules` = the consuming modules this dimension applies to, each with its
+// OWN isRequired (2026-08-27 - the flag moved off the category so "is
+// Department mandatory?" has exactly one answer per module). Rows for modules
+// the company no longer subscribes to are still returned, named, so the screen
+// can show them greyed instead of silently losing the intent.
+function categoryDto(c, canModify = true, modules = []) {
     return {
         id: c.id,
         canModify,
         name: c.name,
         dimensionNo: c.dimensionNo,
-        isRequired: c.isRequired === true,
+        modules,
         isActive: c.isActive,
     };
+}
+
+// Module id -> name for every TENANT module, so stored rows render even when
+// the module is no longer subscribed (or no longer a registered consumer).
+async function moduleNamesById() {
+    const catalog = await getTenantModuleCatalog();
+    return new Map([...catalog.entries()].map(([name, id]) => [id, name]));
+}
+
+function moduleRowDto(row, names) {
+    return {
+        moduleId: row.moduleId,
+        moduleName: names.get(row.moduleId) || 'Unknown module',
+        isRequired: row.isRequired === true,
+    };
+}
+
+// Read the dialog's module ticks against what this company may actually tick:
+// registered consumers INTERSECTED with its subscriptions. Returns
+// { rows, allowed } or { error }.
+//
+// Two rules live here. A dimension that IS stamped (has a number) must apply
+// to at least one module, or it burns one of the six slots while nothing can
+// ever write it. A catalog-only dimension stamps nothing by definition, so its
+// module ticks are normalised away rather than rejected.
+async function readModules(companyId, dimensionNo, body) {
+    const available = await availableModules(companyId);
+    const allowed = new Map(available.map((m) => [m.moduleId, m.name]));
+    if (dimensionNo === null || dimensionNo === undefined) return { rows: [], allowed };
+
+    const seen = new Set();
+    const rows = [];
+    for (const m of body.modules || []) {
+        if (!allowed.has(m.moduleId)) {
+            return { error: 'One of the selected modules cannot use analysis dimensions.' };
+        }
+        if (seen.has(m.moduleId)) continue;
+        seen.add(m.moduleId);
+        rows.push({ moduleId: m.moduleId, isRequired: m.isRequired === true });
+    }
+    if (!rows.length) {
+        return { error: 'Pick at least one module - a dimension stamped on documents must apply somewhere.' };
+    }
+    return { rows, allowed };
+}
+
+// Reconcile a category's module rows with the dialog's ticks.
+// Rows for modules OUTSIDE `allowed` are left untouched: the dialog never
+// showed them, so a save must not drop intent that re-subscribing would
+// restore. Unticking a module that already has stamped documents is fine and
+// needs no lock - it only stops new entry (see the model's header).
+async function saveModules(req, companyId, categoryId, rows, allowed, placement, transaction) {
+    const userId = getUserContext(req).userId;
+    const existing = await DimensionCategoryModule.findAll({ where: { categoryId }, transaction });
+    const wanted = new Map(rows.map((r) => [r.moduleId, r]));
+
+    for (const row of existing) {
+        if (!allowed.has(row.moduleId)) continue;
+        const want = wanted.get(row.moduleId);
+        if (!want) {
+            await row.destroy({ transaction });
+            continue;
+        }
+        wanted.delete(row.moduleId);
+        if ((row.isRequired === true) !== want.isRequired) {
+            row.isRequired = want.isRequired;
+            row.updatedBy = userId;
+            await row.save({ transaction });
+        }
+    }
+    for (const want of wanted.values()) {
+        await DimensionCategoryModule.create({
+            companyId, categoryId, moduleId: want.moduleId, isRequired: want.isRequired,
+            ...ownershipStamps(req, placement),
+        }, { transaction });
+    }
 }
 
 function optionDto(o, canModify = true) {
@@ -52,7 +136,11 @@ function optionDto(o, canModify = true) {
 const categoryBody = z.object({
     name: fields.requiredText(100),
     dimensionNo: z.union([z.null(), z.coerce.number().int().min(1).max(6)]).optional(),
-    isRequired: z.boolean().optional(),
+    // Per-module applicability; `isRequired` rides each entry.
+    modules: z.array(z.object({
+        moduleId: fields.uuid,
+        isRequired: z.boolean().optional(),
+    })).optional(),
 });
 // description arrives as null when the field is left blank (the web sends
 // `trim() || null`) - accept string, null or absent alike.
@@ -74,22 +162,36 @@ exports.validateOptionCreate = validate({ body: optionBody });
 exports.validateOptionUpdate = validate({ params: idParams, body: optionEditBody });
 exports.validateSetActive = validate({ params: idParams, body: activeBody });
 
-// GET /api/dimension - the whole setup (categories + options) in one read.
+// GET /api/dimension - the whole setup (categories + options + the module
+// ticks) in one read, plus the modules this company MAY tick.
 exports.list = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const [categories, options] = await Promise.all([
+        const [categories, options, moduleRows, available, names] = await Promise.all([
             DimensionCategory.findAll({ where: { companyId }, order: [['name', 'ASC']] }),
             DimensionOption.findAll({ where: { companyId }, order: [['code', 'ASC']] }),
+            DimensionCategoryModule.findAll({ where: { companyId } }),
+            availableModules(companyId),
+            moduleNamesById(),
         ]);
         const [catFlags, optFlags] = await Promise.all([
             annotateCanModify(req, categories),
             annotateCanModify(req, options),
         ]);
+        const modulesByCategory = new Map();
+        for (const row of moduleRows) {
+            if (!modulesByCategory.has(row.categoryId)) modulesByCategory.set(row.categoryId, []);
+            modulesByCategory.get(row.categoryId).push(moduleRowDto(row, names));
+        }
+        for (const list of modulesByCategory.values()) list.sort((a, b) => a.moduleName.localeCompare(b.moduleName));
         res.status(200).json({
-            categories: categories.map((c, i) => categoryDto(c, catFlags[i])),
+            categories: categories.map((c, i) => categoryDto(c, catFlags[i], modulesByCategory.get(c.id) || [])),
             options: options.map((o, i) => optionDto(o, optFlags[i])),
+            // Registered dimension consumers this company subscribes to - the
+            // dialog's tickable list. A module absent here is either not wired
+            // to the capability yet or not subscribed.
+            availableModules: available,
         });
     } catch (error) {
         console.error('Error listing dimension setup:', error);
@@ -113,19 +215,32 @@ exports.createCategory = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const { name, dimensionNo = null, isRequired = false } = req.body;
+        const { name, dimensionNo = null } = req.body;
 
         const dup = await DimensionCategory.findOne({ where: { companyId, name } });
         if (dup) return res.status(409).json({ message: `Dimension '${name}' already exists.` });
         const clashErr = await dimensionClashError(companyId, dimensionNo);
         if (clashErr) return res.status(409).json({ message: clashErr });
+        const mods = await readModules(companyId, dimensionNo ?? null, req.body);
+        if (mods.error) return res.status(400).json({ message: mods.error });
 
         const placement = await getCallerPlacement(req);
-        const row = await DimensionCategory.create({
-            companyId, name, dimensionNo: dimensionNo ?? null, isRequired: isRequired === true,
-            ...ownershipStamps(req, placement),
+        // One transaction: a numbered dimension with no module rows would
+        // violate the invariant readModules() just enforced.
+        const { row, modules } = await sequelize.transaction(async (transaction) => {
+            const created = await DimensionCategory.create({
+                companyId, name, dimensionNo: dimensionNo ?? null,
+                ...ownershipStamps(req, placement),
+            }, { transaction });
+            await saveModules(req, companyId, created.id, mods.rows, mods.allowed, placement, transaction);
+            const saved = await DimensionCategoryModule.findAll({ where: { categoryId: created.id }, transaction });
+            return { row: created, modules: saved };
         });
-        res.status(201).json({ message: `Dimension '${row.name}' created.`, category: categoryDto(row) });
+        const names = await moduleNamesById();
+        res.status(201).json({
+            message: `Dimension '${row.name}' created.`,
+            category: categoryDto(row, true, modules.map((m) => moduleRowDto(m, names))),
+        });
     } catch (error) {
         console.error('Error creating dimension category:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -144,7 +259,7 @@ exports.updateCategory = async (req, res) => {
         if (!(await canModifyRecord(req, row))) {
             return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         }
-        const { name, dimensionNo = null, isRequired = false } = req.body;
+        const { name, dimensionNo = null } = req.body;
 
         const { Op } = require('sequelize');
         const dup = await DimensionCategory.findOne({ where: { companyId, name, id: { [Op.ne]: row.id } } });
@@ -159,9 +274,21 @@ exports.updateCategory = async (req, res) => {
             if (clashErr) return res.status(409).json({ message: clashErr });
         }
 
-        Object.assign(row, { name, dimensionNo: nextNo, isRequired: isRequired === true, updatedBy: getUserContext(req).userId });
-        await row.save();
-        res.status(200).json({ message: `Dimension '${row.name}' updated.`, category: categoryDto(row) });
+        const mods = await readModules(companyId, nextNo, req.body);
+        if (mods.error) return res.status(400).json({ message: mods.error });
+
+        const placement = await getCallerPlacement(req);
+        const modules = await sequelize.transaction(async (transaction) => {
+            Object.assign(row, { name, dimensionNo: nextNo, updatedBy: getUserContext(req).userId });
+            await row.save({ transaction });
+            await saveModules(req, companyId, row.id, mods.rows, mods.allowed, placement, transaction);
+            return DimensionCategoryModule.findAll({ where: { categoryId: row.id }, transaction });
+        });
+        const names = await moduleNamesById();
+        res.status(200).json({
+            message: `Dimension '${row.name}' updated.`,
+            category: categoryDto(row, true, modules.map((m) => moduleRowDto(m, names))),
+        });
     } catch (error) {
         console.error('Error updating dimension category:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -181,7 +308,14 @@ exports.setCategoryActive = async (req, res) => {
         row.isActive = req.body.isActive;
         row.updatedBy = getUserContext(req).userId;
         await row.save();
-        res.status(200).json({ message: `Dimension '${row.name}' ${row.isActive ? 'enabled' : 'disabled'}.`, category: categoryDto(row) });
+        const [modules, names] = await Promise.all([
+            DimensionCategoryModule.findAll({ where: { categoryId: row.id } }),
+            moduleNamesById(),
+        ]);
+        res.status(200).json({
+            message: `Dimension '${row.name}' ${row.isActive ? 'enabled' : 'disabled'}.`,
+            category: categoryDto(row, true, modules.map((m) => moduleRowDto(m, names))),
+        });
     } catch (error) {
         console.error('Error toggling dimension category:', error);
         res.status(500).json({ message: 'Internal server error' });

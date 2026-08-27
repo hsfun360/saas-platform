@@ -730,6 +730,11 @@ module.exports = {
     getCompanyCountryCode,
     getCompanyBaseCurrency,
     companyHasModule,
+    // The raw entitlement facts, for seams that must resolve module NAMES to
+    // Control-Plane ids or list what a company subscribes to (Dimension's
+    // per-module applicability). Both are per-request memoized.
+    getTenantModuleCatalog,
+    getCompanyModuleIds,
     eInvoiceClassificationCodeExists,
     listEInvoiceClassificationCodes,
     requireModule,

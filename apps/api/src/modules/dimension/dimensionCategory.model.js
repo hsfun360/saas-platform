@@ -39,13 +39,11 @@ const DimensionCategory = sequelize.define('DimensionCategory', {
         allowNull: true,
         validate: { min: 1, max: 6 },
     },
-    // Manual document entry must carry a value for this dimension (system
-    // producers are exempt - a fee run has no clerk to ask).
-    isRequired: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-    },
+    // WHICH MODULES a dimension applies to, and whether it is mandatory there,
+    // live one level down in DimensionCategoryModule (2026-08-27). The
+    // category-level `isRequired` was retired the same day: one question, one
+    // answer, per module.
+    //
     // Disabled categories show nowhere (pickers; setup detail stays reachable).
     isActive: {
         type: DataTypes.BOOLEAN,

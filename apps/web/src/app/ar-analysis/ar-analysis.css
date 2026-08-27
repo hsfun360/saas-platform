@@ -74,3 +74,83 @@
   background: var(--info-surface);
   color: var(--info-text);
 }
+
+/* --- Per-module applicability (2026-08-27) -------------------------------- */
+/* One row per consuming module in the dimension dialog: the module's opt-in on
+   the left, its own "required on manual entry" flag on the right. */
+.ana-mods {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ana-mod {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0 var(--space-md);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-card);
+}
+
+.ana-mod:last-child { border-bottom: none; }
+
+.ana-mod__name,
+.ana-mod__req {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  min-width: 0;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.ana-mod__req {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* The flag is disabled while its module is unticked - dim it so the row reads
+   as "not applicable" rather than "off". */
+.ana-mod__req--off {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ana-mod input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+  flex-shrink: 0;
+}
+
+/* A module the company no longer subscribes to: read-only, kept on save. */
+.ana-mod--orphan {
+  background: var(--surface-sunken);
+}
+
+.ana-mod--orphan .ana-mod__name {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.ana-mod__note {
+  font-size: var(--font-body-2);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .ana-mod {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: var(--space-xs) var(--space-md);
+  }
+  .ana-mod__req,
+  .ana-mod__note { padding-left: calc(18px + var(--space-sm)); }
+}

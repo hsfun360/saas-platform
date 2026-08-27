@@ -46,7 +46,9 @@
                     <span class="data-card__subline">
                       @if (c.dimensionNo !== null) { <span class="mt-chip">Dimension {{ c.dimensionNo }}</span> }
                       @else { <span class="data-card__reg">catalog only — not stamped on documents</span> }
-                      @if (c.isRequired) { <span class="mt-chip">required</span> }
+                      @for (m of moduleChips(c); track m.moduleId) {
+                        <span class="mt-chip">{{ m.moduleName }}@if (m.isRequired) { &middot; required }</span>
+                      }
                       <span class="data-card__reg">{{ optionCount(c.id) }} option(s)</span>
                     </span>
                   </button>
@@ -165,11 +167,48 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
-              <input type="checkbox" formControlName="isRequired" style="width: 18px; height: 18px; accent-color: var(--brand);" />
-              Required on manual document entry
-            </label>
-            <p class="cell-subtle" style="margin: 0;">Clerks must pick a value before saving; system-generated documents are exempt.</p>
+            <label id="anaModLabel">Applies to</label>
+            @if (catStamped()) {
+              <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">
+                The modules that offer this dimension on their manual entry screens. Where it is
+                marked required, clerks must pick a value before saving; system-generated documents
+                are exempt.
+              </p>
+              @if (catForm.controls.modules.length === 0) {
+                <p class="cell-subtle" style="margin: 0;">
+                  No module here uses analysis dimensions yet, so this dimension applies nowhere for now.
+                </p>
+              } @else {
+                <div class="ana-mods" role="group" aria-labelledby="anaModLabel" formArrayName="modules">
+                  @for (m of catForm.controls.modules.controls; track m.controls.moduleId.value; let i = $index) {
+                    <div class="ana-mod" [formGroupName]="i">
+                      <label class="ana-mod__name">
+                        <input type="checkbox" formControlName="applies" />
+                        {{ m.controls.moduleName.value }}
+                      </label>
+                      <label class="ana-mod__req" [class.ana-mod__req--off]="!m.controls.applies.value">
+                        <input type="checkbox" formControlName="isRequired" />
+                        Required
+                      </label>
+                    </div>
+                  }
+                  @for (o of orphanModules(); track o.moduleId) {
+                    <div class="ana-mod ana-mod--orphan">
+                      <span class="ana-mod__name">{{ o.moduleName }}</span>
+                      <span class="ana-mod__note">not subscribed &mdash; setting kept</span>
+                    </div>
+                  }
+                </div>
+              }
+              @if (moduleError()) {
+                <p class="field-error" role="alert" style="margin: var(--space-xs) 0 0;">{{ moduleError() }}</p>
+              }
+            } @else {
+              <p class="cell-subtle" style="margin: 0;">
+                Catalog only: this dimension is not stamped on documents, so it applies to no module.
+                Assign an Analysis Dimension above to choose where it is used.
+              </p>
+            }
           </div>
         </div>
       </form>

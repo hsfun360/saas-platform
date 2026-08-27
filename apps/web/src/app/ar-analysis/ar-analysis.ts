@@ -1,7 +1,7 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -10,7 +10,17 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 import { CanDirective } from '../shared/can.directive';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ArService } from '../services/ar.service';
-import { ArAnalysisCategory, ArAnalysisOption } from '../models/ar.models';
+import { ArAnalysisCategory, ArAnalysisCategoryModule, ArAnalysisOption } from '../models/ar.models';
+
+// One tickable module row in the dimension dialog. `applies` is the module's
+// opt-in; `isRequired` is that module's own mandatory flag (enabled only while
+// the module is ticked).
+type ModuleRowForm = FormGroup<{
+  moduleId: FormControl<string>;
+  moduleName: FormControl<string>;
+  applies: FormControl<boolean>;
+  isRequired: FormControl<boolean>;
+}>;
 
 // Account Receivable → Master File Setup → Analysis Setup (hybrid design
 // locked in 2026-08-25). Master-detail: DIMENSIONS (categories) on the left -
@@ -18,6 +28,11 @@ import { ArAnalysisCategory, ArAnalysisOption } from '../models/ar.models';
 // dimension's OPTIONS on the right. Documents reference options by id, so
 // everything renames freely; enable/disable only, no deletes. The slot of a
 // used dimension is immutable (the API enforces the repurpose lock).
+//
+// Each dimension also declares WHICH MODULES it applies to (2026-08-27), each
+// with its own "required on manual entry" flag - so a Golf-only dimension
+// never reaches an AR clerk. The catalog and the dimension number stay
+// company-global, which is what keeps analysis<N>Id joinable across modules.
 @Component({
   selector: 'app-ar-analysis',
   standalone: true,
@@ -35,10 +50,14 @@ export class ArAnalysisComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly returnScroll = inject(ScrollReturnService);
   private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
   private static readonly LIST_PATH = '/ar/analysis';
 
   readonly categories = signal<ArAnalysisCategory[]>([]);
   readonly options = signal<ArAnalysisOption[]>([]);
+  // Registered dimension consumers this company subscribes to - the dialog's
+  // tickable list (empty = nothing is wired to the capability here yet).
+  readonly availableModules = signal<{ moduleId: string; name: string }[]>([]);
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);
   readonly successMessage = signal('');
@@ -74,7 +93,24 @@ export class ArAnalysisComponent implements OnInit {
   readonly catForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
     dimensionNo: [''],
-    isRequired: [false],
+    modules: this.fb.array<ModuleRowForm>([]),
+  });
+  // Stored ticks for modules the company no longer subscribes to: shown greyed
+  // and read-only, and left untouched by a save, so re-subscribing restores
+  // the original intent instead of silently losing it.
+  readonly orphanModules = signal<ArAnalysisCategoryModule[]>([]);
+  // Is this dimension stamped on documents? Catalog-only dimensions stamp
+  // nothing, so they apply to no module and the list is hidden.
+  readonly catStamped = signal(false);
+  readonly moduleTouched = signal(false);
+  // Shown once the clerk has tried to save: a stamped dimension that applies
+  // nowhere would burn one of the six slots with nothing able to write it.
+  readonly moduleError = computed(() => {
+    if (!this.moduleTouched() || !this.catStamped()) return '';
+    if (this.availableModules().length === 0) return '';
+    return this.catForm.controls.modules.controls.some((m) => m.controls.applies.value)
+      ? ''
+      : 'Pick at least one module - a dimension stamped on documents must apply somewhere.';
   });
   // Dimensions 1..6 with the current holder named (show-expected-results).
   readonly dimensionChoices = computed(() => [1, 2, 3, 4, 5, 6].map((n) => {
@@ -91,7 +127,40 @@ export class ArAnalysisComponent implements OnInit {
     description: ['', [Validators.maxLength(255)]],
   });
 
+  // Rebuild the tickable rows: every available module, pre-ticked from the
+  // dimension's stored rows (a NEW dimension starts with all of them ticked -
+  // the common case is a company-wide dimension).
+  private setModuleRows(existing: ArAnalysisCategoryModule[] | null): void {
+    const arr = this.catForm.controls.modules;
+    arr.clear();
+    for (const m of this.availableModules()) {
+      const found = existing ? existing.find((e) => e.moduleId === m.moduleId) : null;
+      const applies = existing ? !!found : true;
+      const row: ModuleRowForm = this.fb.nonNullable.group({
+        moduleId: m.moduleId,
+        moduleName: m.name,
+        applies,
+        isRequired: found?.isRequired === true,
+      });
+      // "Required" is meaningless while the module is unticked - disable it
+      // rather than leave a live checkbox that changes nothing on save.
+      if (!applies) row.controls.isRequired.disable({ emitEvent: false });
+      row.controls.applies.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((on) => {
+        if (on) row.controls.isRequired.enable({ emitEvent: false });
+        else row.controls.isRequired.disable({ emitEvent: false });
+      });
+      arr.push(row);
+    }
+    this.orphanModules.set(
+      (existing || []).filter((e) => !this.availableModules().some((m) => m.moduleId === e.moduleId)),
+    );
+  }
+
   constructor() {
+    // The module list only applies to a dimension that is actually stamped.
+    this.catForm.controls.dimensionNo.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe((v) => this.catStamped.set(v !== ''));
     this.route.paramMap.pipe(takeUntilDestroyed()).subscribe((p) => {
       const id = p.get('id');
       this.selectedId.set(id);
@@ -109,6 +178,7 @@ export class ArAnalysisComponent implements OnInit {
       next: (res) => {
         this.categories.set(res.categories);
         this.options.set(res.options);
+        this.availableModules.set(res.availableModules || []);
         this.loading.set(false);
         if (!this.selectedId()) this.returnScroll.consume(ArAnalysisComponent.LIST_PATH, this.injector);
       },
@@ -136,25 +206,42 @@ export class ArAnalysisComponent implements OnInit {
   openAddCategory(): void {
     this.clearMessages();
     this.catEditId.set(null);
-    this.catForm.reset({ name: '', dimensionNo: '', isRequired: false });
+    this.moduleTouched.set(false);
+    this.catForm.reset({ name: '', dimensionNo: '' });
+    this.catStamped.set(false);
+    this.setModuleRows(null);
     this.catOpen.set(true);
   }
 
   openEditCategory(c: ArAnalysisCategory): void {
     this.clearMessages();
     this.catEditId.set(c.id);
-    this.catForm.reset({ name: c.name, dimensionNo: c.dimensionNo === null ? '' : String(c.dimensionNo), isRequired: c.isRequired === true });
+    this.moduleTouched.set(false);
+    this.catForm.reset({ name: c.name, dimensionNo: c.dimensionNo === null ? '' : String(c.dimensionNo) });
+    this.catStamped.set(c.dimensionNo !== null);
+    this.setModuleRows(c.modules || []);
     this.catOpen.set(true);
+  }
+
+  // The applicable modules of a listed dimension, for its summary chips.
+  moduleChips(c: ArAnalysisCategory): ArAnalysisCategoryModule[] {
+    return [...(c.modules || [])].sort((a, b) => a.moduleName.localeCompare(b.moduleName));
   }
 
   onSaveCategory(): void {
     this.clearMessages();
+    this.moduleTouched.set(true);
     if (this.catForm.invalid) { this.catForm.markAllAsTouched(); return; }
+    if (this.moduleError()) return;
     const f = this.catForm.getRawValue();
+    const stamped = f.dimensionNo !== '';
     const payload = {
       name: f.name.trim(),
-      dimensionNo: f.dimensionNo === '' ? null : Number(f.dimensionNo),
-      isRequired: f.isRequired,
+      dimensionNo: stamped ? Number(f.dimensionNo) : null,
+      // A catalog-only dimension stamps nothing, so it applies nowhere.
+      modules: stamped
+        ? f.modules.filter((m) => m.applies).map((m) => ({ moduleId: m.moduleId, isRequired: m.isRequired }))
+        : [],
     };
     this.catSaving.set(true);
     const id = this.catEditId();

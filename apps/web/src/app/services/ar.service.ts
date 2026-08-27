@@ -8,6 +8,7 @@ import {
   ArAnalysisCategory,
   ArAnalysisOption,
   ArAnalysisSetup,
+  ArAnalysisCategoryPayload,
   ArDebtor,
   ArDebtorListResult,
   ArDebtorsMeta,
@@ -291,6 +292,9 @@ export class ArService {
   }
 
   // --- Analysis dimensions (shared Dimension capability, 2026-08-25) ---
+  // `modules` carries per-module applicability: only the ticked modules are
+  // sent, each with its own isRequired. A catalog-only dimension sends [].
+
   // Setup CRUD talks to /api/dimension (own service seam, like /api/tax);
   // entry pickers keep riding the AR account meta.
   private readonly dimensionBase = `${environment.apiUrl}/dimension`;
@@ -299,11 +303,11 @@ export class ArService {
     return this.http.get<ArAnalysisSetup>(this.dimensionBase);
   }
 
-  createAnalysisCategory(payload: { name: string; dimensionNo: number | null; isRequired: boolean }): Observable<{ message: string; category: ArAnalysisCategory }> {
+  createAnalysisCategory(payload: ArAnalysisCategoryPayload): Observable<{ message: string; category: ArAnalysisCategory }> {
     return this.http.post<{ message: string; category: ArAnalysisCategory }>(`${this.dimensionBase}/categories`, payload);
   }
 
-  updateAnalysisCategory(id: string, payload: { name: string; dimensionNo: number | null; isRequired: boolean }): Observable<{ message: string; category: ArAnalysisCategory }> {
+  updateAnalysisCategory(id: string, payload: ArAnalysisCategoryPayload): Observable<{ message: string; category: ArAnalysisCategory }> {
     return this.http.put<{ message: string; category: ArAnalysisCategory }>(`${this.dimensionBase}/categories/${id}`, payload);
   }
 
