@@ -64,6 +64,38 @@
   margin: 0 0 var(--space-md);
 }
 
+/* Package element rows in the drawer: element select flexes, qty and amount
+   stay compact, remove button trails. */
+.pkg-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 120px auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.pkg-row--head {
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.pkg-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-top: var(--space-xs);
+}
+.pkg-sum {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.pkg-sum strong {
+  color: var(--text-primary);
+}
+
 /* One effective-dated price card in the list view. */
 .pr-card {
   border: 1px solid var(--border);

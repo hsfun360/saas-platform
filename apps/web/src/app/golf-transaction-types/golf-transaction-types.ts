@@ -6,7 +6,7 @@ import { GolfTransactionTypeService } from '../services/golf-transaction-type.se
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
-import { GolfTransactionType, GolfTransactionTypeRate, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
+import { GolfTransactionType, GolfTransactionTypePackageItem, GolfTransactionTypeRate, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { MoneyInputDirective } from '../shared/money-input.directive';
@@ -18,6 +18,10 @@ const MATRIX_CELLS = [
   'member9Weekday', 'member18Weekday', 'member9Weekend', 'member18Weekend',
   'visitor9Weekday', 'visitor18Weekday', 'visitor9Weekend', 'visitor18Weekend',
 ] as const;
+
+// The charge-type key whose transaction types bundle OTHER transaction types
+// (fixed vocabulary key, mirrored from transactionType.constants.js).
+const PACKAGE_KEY = 'package';
 
 // Golf Management → Master File Setup → Transaction Type.
 // Per-company billing-item catalog: code + charge type (fixed vocabulary:
@@ -65,6 +69,19 @@ export class GolfTransactionTypesComponent implements OnInit {
     taxSchemeCode: [''],
     allowPriceOverride: [false],
     iconUrl: [''],
+  });
+
+  // Element lines while composing a PACKAGE in the dialog (kept outside the
+  // FormGroup - dynamic rows, like the membership-fee stage rows). pkgDirty
+  // feeds the dialog's unsaved-changes guard alongside form.dirty.
+  readonly pkgItems = signal<GolfTransactionTypePackageItem[]>([]);
+  readonly pkgDirty = signal(false);
+  // The pickable elements: active, not a package, not the record being edited.
+  readonly elementOptions = computed(() => {
+    const selfId = this.editId();
+    return this.rows()
+      .filter((t) => t.chargeType !== PACKAGE_KEY && t.isActive !== false && t.id !== selfId)
+      .sort((a, b) => a.transactionType.localeCompare(b.transactionType));
   });
 
   // ---- Pricing dialog (single instance, 'list' ↔ 'form' views) ----
@@ -159,6 +176,58 @@ export class GolfTransactionTypesComponent implements OnInit {
     return this.chargeTypes().find((c) => c.key === key)?.label || key;
   }
 
+  // Whether the dialog form currently composes a package (method, not
+  // computed: control values are not signals; bindings re-evaluate per CD).
+  isPackageForm(): boolean {
+    return this.form.controls.chargeType.value === PACKAGE_KEY;
+  }
+
+  isPackage(t: GolfTransactionType): boolean {
+    return t.chargeType === PACKAGE_KEY;
+  }
+
+  typeCode(id: string): string {
+    return this.rows().find((t) => t.id === id)?.transactionType || '?';
+  }
+
+  // "1× BUGGY + 2× CADDY" summary for a package card.
+  pkgSummary(t: GolfTransactionType): string {
+    const items = t.packageItems || [];
+    return items.map((i) => `${i.quantity}× ${this.typeCode(i.elementTransactionTypeId)}`).join(' + ');
+  }
+
+  // Sum of the element allocations in the editor (qty × unit amount).
+  pkgSum(): number {
+    return this.pkgItems().reduce((s, i) => s + i.quantity * (i.unitAmount || 0), 0);
+  }
+
+  addPkgRow(): void {
+    this.pkgItems.update((rows) => [...rows, { elementTransactionTypeId: '', quantity: 1, unitAmount: 0 }]);
+    this.pkgDirty.set(true);
+  }
+
+  removePkgRow(index: number): void {
+    this.pkgItems.update((rows) => rows.filter((_, i) => i !== index));
+    this.pkgDirty.set(true);
+  }
+
+  setPkgElement(index: number, value: string): void {
+    this.pkgItems.update((rows) => rows.map((r, i) => (i === index ? { ...r, elementTransactionTypeId: value } : r)));
+    this.pkgDirty.set(true);
+  }
+
+  setPkgQuantity(index: number, value: string): void {
+    const quantity = Math.max(1, Math.floor(Number(value) || 1));
+    this.pkgItems.update((rows) => rows.map((r, i) => (i === index ? { ...r, quantity } : r)));
+    this.pkgDirty.set(true);
+  }
+
+  setPkgAmount(index: number, value: string): void {
+    const unitAmount = Math.max(0, Number(value) || 0);
+    this.pkgItems.update((rows) => rows.map((r, i) => (i === index ? { ...r, unitAmount } : r)));
+    this.pkgDirty.set(true);
+  }
+
   taxSchemeName(code: string | null | undefined): string {
     if (!code) return '';
     const s = this.taxSchemes().find((t) => t.taxSchemeCode === code);
@@ -184,6 +253,8 @@ export class GolfTransactionTypesComponent implements OnInit {
     this.clearMessages();
     this.editId.set(null);
     this.form.reset({ transactionType: '', chargeType: '', description: '', taxSchemeCode: '', allowPriceOverride: false, iconUrl: '' });
+    this.pkgItems.set([]);
+    this.pkgDirty.set(false);
     this.dialogOpen.set(true);
   }
 
@@ -198,6 +269,12 @@ export class GolfTransactionTypesComponent implements OnInit {
       allowPriceOverride: t.allowPriceOverride === true,
       iconUrl: t.iconUrl || '',
     });
+    this.pkgItems.set((t.packageItems || []).map((i) => ({
+      elementTransactionTypeId: i.elementTransactionTypeId,
+      quantity: i.quantity,
+      unitAmount: i.unitAmount,
+    })));
+    this.pkgDirty.set(false);
     this.dialogOpen.set(true);
   }
 
@@ -212,14 +289,34 @@ export class GolfTransactionTypesComponent implements OnInit {
       return;
     }
     const v = this.form.getRawValue();
-    const payload = {
+    const isPackage = v.chargeType === PACKAGE_KEY;
+    if (isPackage) {
+      const items = this.pkgItems();
+      if (items.length === 0) {
+        this.errorMessage.set('A package needs at least one element - use "Add element".');
+        return;
+      }
+      if (items.some((i) => !i.elementTransactionTypeId)) {
+        this.errorMessage.set('Every package element needs a transaction type.');
+        return;
+      }
+      const ids = items.map((i) => i.elementTransactionTypeId);
+      if (new Set(ids).size !== ids.length) {
+        this.errorMessage.set('A package cannot list the same element twice - use the quantity instead.');
+        return;
+      }
+    }
+    const payload: Partial<GolfTransactionType> = {
       transactionType: v.transactionType.trim(),
       chargeType: v.chargeType,
       description: v.description.trim() || null,
-      taxSchemeCode: v.taxSchemeCode || null,
+      taxSchemeCode: isPackage ? null : (v.taxSchemeCode || null),
       allowPriceOverride: v.allowPriceOverride,
       iconUrl: v.iconUrl || null,
     };
+    if (isPackage) {
+      payload.packageItems = this.pkgItems().map((i, n) => ({ ...i, sortOrder: n }));
+    }
 
     this.saving.set(true);
     const id = this.editId();

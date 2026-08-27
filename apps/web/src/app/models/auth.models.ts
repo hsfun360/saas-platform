@@ -1241,6 +1241,20 @@ export interface GolfTransactionType extends MembershipTransactionType {
   // Billing-item icon (public GCS URL) shown in the catalog and on the
   // front-desk billing tiles.
   iconUrl?: string | null;
+  // Element lines when chargeType is 'package' (absent otherwise).
+  packageItems?: GolfTransactionTypePackageItem[];
+}
+
+// One element line of a package transaction type: an existing (non-package)
+// transaction type, how many, and the per-unit allocation of the package price
+// (the revenue/tax breakdown at billing - each portion taxed by the ELEMENT's
+// own scheme). The package's selling price stays in its flat Default Price cards.
+export interface GolfTransactionTypePackageItem {
+  id?: string;
+  elementTransactionTypeId: string;
+  quantity: number;
+  unitAmount: number;
+  sortOrder?: number;
 }
 
 // One effective-dated price card of a golf Transaction Type. Matrix charge

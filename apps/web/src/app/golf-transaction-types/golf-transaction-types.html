@@ -84,6 +84,11 @@
                       <div class="meta"><dt>Tax scheme</dt><dd>{{ taxSchemeName(t.taxSchemeCode) }}</dd></div>
                     </dl>
                   }
+                  @if (isPackage(t) && t.packageItems?.length) {
+                    <dl class="data-card__meta">
+                      <div class="meta"><dt>Elements</dt><dd>{{ pkgSummary(t) }}</dd></div>
+                    </dl>
+                  }
                 </div>
               </div>
             </div>
@@ -132,7 +137,7 @@
 
   <!-- ============ Add / edit dialog ============ -->
   @if (dialogOpen()) {
-    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty || pkgDirty()"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this transaction type. Leaving now will discard them."
                 (close)="closeDialog()">
@@ -169,18 +174,66 @@
             <input id="gttDesc" type="text" formControlName="description" placeholder="e.g. 18 Holes Green Fee" maxlength="255" />
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="gttTax">Tax Scheme</label>
-            <select id="gttTax" formControlName="taxSchemeCode">
-              <option value="">— None —</option>
-              @for (s of taxSchemes(); track s.taxSchemeCode) {
-                <option [value]="s.taxSchemeCode">{{ s.taxSchemeCode }}@if (s.name) { — {{ s.name }}}</option>
-              }
-            </select>
-            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The single source of tax for this billing item — green-fee and charge setups inherit it.</p>
+        @if (!isPackageForm()) {
+          <div class="form-row">
+            <div class="form-group">
+              <label for="gttTax">Tax Scheme</label>
+              <select id="gttTax" formControlName="taxSchemeCode">
+                <option value="">— None —</option>
+                @for (s of taxSchemes(); track s.taxSchemeCode) {
+                  <option [value]="s.taxSchemeCode">{{ s.taxSchemeCode }}@if (s.name) { — {{ s.name }}}</option>
+                }
+              </select>
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The single source of tax for this billing item — green-fee and charge setups inherit it.</p>
+            </div>
           </div>
-        </div>
+        } @else {
+          <div class="form-row">
+            <div class="form-group">
+              <label>Package Elements <span class="required">*</span></label>
+              <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Pick existing billing items with quantity and per-unit amount — the breakdown of the package price. Each portion is taxed by the element's own tax scheme, so a package has no tax scheme of its own.</p>
+              @if (pkgItems().length > 0) {
+                <div class="pkg-row pkg-row--head" aria-hidden="true">
+                  <span>Element</span>
+                  <span>Qty</span>
+                  <span>Unit amount</span>
+                  <span></span>
+                </div>
+              }
+              @for (row of pkgItems(); track $index; let i = $index) {
+                <div class="pkg-row">
+                  <select [value]="row.elementTransactionTypeId" (change)="setPkgElement(i, $any($event.target).value)"
+                          [attr.aria-label]="'Element ' + (i + 1) + ' transaction type'">
+                    <option value="">— Select —</option>
+                    @for (o of elementOptions(); track o.id) {
+                      <option [value]="o.id" [selected]="o.id === row.elementTransactionTypeId">{{ o.transactionType }}@if (o.description) { — {{ o.description }}}</option>
+                    }
+                  </select>
+                  <input type="number" inputmode="numeric" min="1" max="99" step="1" [value]="row.quantity"
+                         (input)="setPkgQuantity(i, $any($event.target).value)"
+                         [attr.aria-label]="'Element ' + (i + 1) + ' quantity'" />
+                  <input type="number" inputmode="decimal" min="0" step="0.01" appMoney [moneyValue]="row.unitAmount"
+                         (input)="setPkgAmount(i, $any($event.target).value)"
+                         [attr.aria-label]="'Element ' + (i + 1) + ' unit amount'" />
+                  <button type="button" class="btn btn--danger btn--sm" (click)="removePkgRow(i)"
+                          [attr.aria-label]="'Remove element ' + (i + 1)">
+                    <span class="material-icons" aria-hidden="true">close</span>
+                  </button>
+                </div>
+              }
+              <div class="pkg-actions-row">
+                <button type="button" class="btn btn--secondary btn--sm" (click)="addPkgRow()">
+                  <span class="material-icons" aria-hidden="true">add</span>
+                  Add element
+                </button>
+                @if (pkgItems().length > 0) {
+                  <span class="pkg-sum">Elements total: <strong>{{ fmt(pkgSum()) }}</strong></span>
+                }
+              </div>
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The package's own selling price is set under Default Price — the elements total shows how it breaks down (e.g. Twin Package 200.00 = 1 × buggy 100.00 + 2 × caddy 50.00).</p>
+            </div>
+          </div>
+        }
         <div class="form-row">
           <label class="gtt-check">
             <input type="checkbox" formControlName="allowPriceOverride" />
