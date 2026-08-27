@@ -218,6 +218,13 @@ async function initializeDB() {
         const stored = await readStoredFingerprint(sequelize);
         const forceSync = process.env.FORCE_SCHEMA_SYNC === '1';
 
+        // The retired DimensionCategory.isRequired values, read below only on a
+        // boot that still finds the column (i.e. before the alter-sync drops
+        // it). Declared out here because the seeding pass that consumes them
+        // runs outside the fingerprint gate - see "Per-module dimension
+        // applicability" further down.
+        let dimensionRequiredBefore = [];
+
         if (stored === fingerprint && !forceSync) {
             console.log('Lock acquired. Database schema up to date (fingerprint match) - skipping sync.');
         } else {
@@ -386,7 +393,6 @@ async function initializeDB() {
             // The old values must be READ here, before the alter-sync drops
             // the column; the rows are written after sync creates the table.
             // Idempotent: once the column is gone this reads nothing.
-            let dimensionRequiredBefore = [];
             const [[dimReqCol]] = await sequelize.query(
                 `SELECT EXISTS (SELECT 1 FROM information_schema.columns
                     WHERE table_schema = 'dimension' AND table_name = 'DimensionCategory'
@@ -418,37 +424,6 @@ async function initializeDB() {
             }
 
             await sequelize.sync({ alter: true });
-
-            // Per-module dimension applicability (2026-08-27), second half:
-            // seed one Account Receivable row per numbered dimension from the
-            // retired category-level flag, so every existing dimension keeps
-            // behaving exactly as it did on the AR entry screens. AR is the
-            // only consumer registered at the time of this migration.
-            if (dimensionRequiredBefore.length) {
-                const [[arModule]] = await sequelize.query(
-                    `SELECT "id" FROM public."Modules" WHERE "name" = 'Account Receivable' AND "audience" = 'tenant' LIMIT 1`,
-                ).catch(() => [[null]]);
-                if (arModule && arModule.id) {
-                    for (const cat of dimensionRequiredBefore) {
-                        await sequelize.query(
-                            `INSERT INTO dimension."DimensionCategoryModule"
-                                ("id", "companyId", "categoryId", "moduleId", "isRequired", "createdAt", "updatedAt")
-                             VALUES (gen_random_uuid(), :companyId, :categoryId, :moduleId, :isRequired, NOW(), NOW())
-                             ON CONFLICT ("categoryId", "moduleId") DO NOTHING`,
-                            {
-                                replacements: {
-                                    companyId: cat.companyId,
-                                    categoryId: cat.id,
-                                    moduleId: arModule.id,
-                                    isRequired: cat.isRequired === true,
-                                },
-                            },
-                        ).catch((err) => console.warn('Dimension module backfill skipped:', err.message));
-                    }
-                } else {
-                    console.warn('Dimension module backfill skipped: no tenant module named "Account Receivable".');
-                }
-            }
 
             // Multicurrency step 2 (2026-08-21): every ledger account carries
             // its currency. Accounts from before the column existed are in the
@@ -579,6 +554,61 @@ async function initializeDB() {
 
             await writeStoredFingerprint(sequelize, fingerprint);
             console.log('Database schema synced successfully.');
+        }
+
+        // Per-module dimension applicability (2026-08-27), second half: a
+        // numbered dimension must apply to at least one module or it can never
+        // be stamped, so seed the Account Receivable row - AR is the only
+        // consumer registered at the time of this migration - carrying the
+        // retired category-level flag where this boot still read it above.
+        //
+        // Deliberately OUTSIDE the fingerprint gate (like the Numbering split
+        // below), and keyed on "this dimension has NO module rows at all"
+        // rather than on the old column. That combination is what makes it
+        // self-healing: a boot that syncs - dropping the column and writing a
+        // matching fingerprint - without completing the copy would otherwise
+        // never retry it, since no later boot enters the gated branch.
+        // Scoping to categories with ZERO rows keeps it safe to re-run forever:
+        // a dimension the user deliberately unticked from AR still has its
+        // other module rows, so it is never resurrected here.
+        const [[dimModTable]] = await sequelize.query(
+            `SELECT to_regclass('dimension."DimensionCategoryModule"') AS t`,
+        ).catch(() => [[null]]);
+        if (dimModTable && dimModTable.t) {
+            const [[arModule]] = await sequelize.query(
+                `SELECT "id" FROM public."Modules" WHERE "name" = 'Account Receivable' AND "audience" = 'tenant' LIMIT 1`,
+            ).catch(() => [[null]]);
+            if (arModule && arModule.id) {
+                const requiredBefore = new Map(dimensionRequiredBefore.map((c) => [c.id, c.isRequired === true]));
+                const [orphans] = await sequelize.query(
+                    `SELECT c."id", c."companyId" FROM dimension."DimensionCategory" c
+                     WHERE c."dimensionNo" IS NOT NULL
+                       AND NOT EXISTS (
+                           SELECT 1 FROM dimension."DimensionCategoryModule" m
+                           WHERE m."categoryId" = c."id")`,
+                ).catch(() => [[]]);
+                for (const cat of orphans || []) {
+                    await sequelize.query(
+                        `INSERT INTO dimension."DimensionCategoryModule"
+                            ("id", "companyId", "categoryId", "moduleId", "isRequired", "createdAt", "updatedAt")
+                         VALUES (gen_random_uuid(), :companyId, :categoryId, :moduleId, :isRequired, NOW(), NOW())
+                         ON CONFLICT ("categoryId", "moduleId") DO NOTHING`,
+                        {
+                            replacements: {
+                                companyId: cat.companyId,
+                                categoryId: cat.id,
+                                moduleId: arModule.id,
+                                isRequired: requiredBefore.get(cat.id) === true,
+                            },
+                        },
+                    ).catch((err) => console.warn('Dimension module backfill skipped:', err.message));
+                }
+                if (orphans && orphans.length) {
+                    console.log(`Dimension module backfill: seeded ${orphans.length} Account Receivable row(s).`);
+                }
+            } else {
+                console.warn('Dimension module backfill skipped: no tenant module named "Account Receivable".');
+            }
         }
 
         // Numbering split migration (2026-08-05): copy schemes from the retired
