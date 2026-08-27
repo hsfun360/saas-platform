@@ -423,6 +423,32 @@ async function initializeDB() {
                 );
             }
 
+            // golf.TransactionTypePackageItem -> golf.TransactionTypeElement
+            // (user rename 2026-08-27: parent column syncs with
+            // TransactionTypeRate's `transactionTypeId`). BEFORE the alter-sync
+            // so rows are preserved; constraint renames keep the sync from
+            // adding duplicate PK/FK under the new auto-names. A fresh DB (or
+            // an already-migrated one) skips the whole block.
+            const [[pkgItem]] = await sequelize.query(
+                `SELECT to_regclass('golf."TransactionTypePackageItem"') AS o, to_regclass('golf."TransactionTypeElement"') AS n`,
+            );
+            if (pkgItem && pkgItem.o && !pkgItem.n) {
+                await sequelize.query('ALTER TABLE golf."TransactionTypePackageItem" RENAME TO "TransactionTypeElement"');
+                await sequelize.query('ALTER TABLE golf."TransactionTypeElement" RENAME COLUMN "packageTransactionTypeId" TO "transactionTypeId"');
+                await sequelize.query('ALTER INDEX IF EXISTS golf."UX_GolfPackageItem_Package_Element" RENAME TO "UX_GolfTransactionTypeElement_Type_Element"');
+                for (const [from, to] of [
+                    ['TransactionTypePackageItem_pkey', 'TransactionTypeElement_pkey'],
+                    ['TransactionTypePackageItem_packageTransactionTypeId_fkey', 'TransactionTypeElement_transactionTypeId_fkey'],
+                ]) {
+                    try {
+                        await sequelize.query(`ALTER TABLE golf."TransactionTypeElement" RENAME CONSTRAINT "${from}" TO "${to}"`);
+                    } catch (renameError) {
+                        console.warn(`Constraint rename ${from} skipped:`, renameError.message);
+                    }
+                }
+                console.log('Migrated golf.TransactionTypePackageItem -> golf.TransactionTypeElement.');
+            }
+
             await sequelize.sync({ alter: true });
 
             // Multicurrency step 2 (2026-08-21): every ledger account carries

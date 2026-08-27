@@ -5,7 +5,7 @@
 
 const { Storage } = require('@google-cloud/storage');
 const GolfTransactionType = require('./transactionType.model');
-const GolfTransactionTypePackageItem = require('./transactionTypePackageItem.model');
+const GolfTransactionTypeElement = require('./transactionTypeElement.model');
 const { sequelize } = require('../../platform/db');
 const {
     getUserContext,
@@ -52,7 +52,7 @@ function toDto(t, canModify = true) {
         isActive: t.isActive,
     };
     if (t.chargeType === PACKAGE_CHARGE_TYPE_KEY) {
-        dto.packageItems = (t.PackageItems || [])
+        dto.packageItems = (t.Elements || [])
             .slice()
             .sort((a, b) => a.sortOrder - b.sortOrder)
             .map((i) => ({
@@ -99,7 +99,7 @@ function parseAmount(v) {
 // Validate + normalise the element lines of a PACKAGE payload against the
 // company's catalog. `selfId` excludes the package being edited from the
 // element pool. Returns { items } or { error }.
-async function normalizePackageItems(body, companyId, selfId) {
+async function normalizeElements(body, companyId, selfId) {
     const raw = Array.isArray(body.packageItems) ? body.packageItems : [];
     if (raw.length === 0) return { error: 'A package needs at least one element.' };
     if (raw.length > 50) return { error: 'A package can hold at most 50 elements.' };
@@ -133,13 +133,13 @@ async function normalizePackageItems(body, companyId, selfId) {
 }
 
 // Replace a package's element lines atomically (inside the caller's txn).
-async function writePackageItems(row, items, callerId, departmentId, transaction) {
-    await GolfTransactionTypePackageItem.destroy({ where: { packageTransactionTypeId: row.id }, transaction });
+async function writeElements(row, items, callerId, departmentId, transaction) {
+    await GolfTransactionTypeElement.destroy({ where: { transactionTypeId: row.id }, transaction });
     if (items && items.length) {
-        await GolfTransactionTypePackageItem.bulkCreate(
+        await GolfTransactionTypeElement.bulkCreate(
             items.map((i) => ({
                 ...i,
-                packageTransactionTypeId: row.id,
+                transactionTypeId: row.id,
                 createdBy: callerId,
                 createdByDepartmentId: departmentId,
                 updatedBy: callerId,
@@ -215,7 +215,7 @@ exports.list = async (req, res) => {
 
         const rows = await GolfTransactionType.findAll({
             where: { companyId },
-            include: [{ model: GolfTransactionTypePackageItem, as: 'PackageItems' }],
+            include: [{ model: GolfTransactionTypeElement, as: 'Elements' }],
             order: [['transactionType', 'ASC']],
         });
         const flags = await annotateCanModify(req, rows);
@@ -245,7 +245,7 @@ exports.create = async (req, res) => {
         const isPackage = v.chargeType === PACKAGE_CHARGE_TYPE_KEY;
         let items = null;
         if (isPackage) {
-            const parsedItems = await normalizePackageItems(req.body, companyId, null);
+            const parsedItems = await normalizeElements(req.body, companyId, null);
             if (parsedItems.error) return res.status(400).json({ message: parsedItems.error });
             items = parsedItems.items;
         }
@@ -260,10 +260,10 @@ exports.create = async (req, res) => {
                 createdByDepartmentId: placement.departmentId,
                 updatedBy: callerId,
             }, { transaction });
-            if (isPackage) await writePackageItems(created, items, callerId, placement.departmentId, transaction);
+            if (isPackage) await writeElements(created, items, callerId, placement.departmentId, transaction);
             return created;
         });
-        if (isPackage) row.PackageItems = await GolfTransactionTypePackageItem.findAll({ where: { packageTransactionTypeId: row.id } });
+        if (isPackage) row.Elements = await GolfTransactionTypeElement.findAll({ where: { transactionTypeId: row.id } });
         res.status(201).json({ message: `Transaction type '${row.transactionType}' created.`, transactionType: toDto(row) });
     } catch (error) {
         console.error('Error creating golf transaction type:', error);
@@ -298,14 +298,14 @@ exports.update = async (req, res) => {
         const isPackage = v.chargeType === PACKAGE_CHARGE_TYPE_KEY;
         let items = null;
         if (isPackage) {
-            const parsedItems = await normalizePackageItems(req.body, companyId, row.id);
+            const parsedItems = await normalizeElements(req.body, companyId, row.id);
             if (parsedItems.error) return res.status(400).json({ message: parsedItems.error });
             items = parsedItems.items;
         }
         // An element that other packages use cannot be turned INTO a package
         // (packages cannot nest).
         if (isPackage && row.chargeType !== PACKAGE_CHARGE_TYPE_KEY) {
-            const usedBy = await GolfTransactionTypePackageItem.count({ where: { elementTransactionTypeId: row.id } });
+            const usedBy = await GolfTransactionTypeElement.count({ where: { elementTransactionTypeId: row.id } });
             if (usedBy > 0) return res.status(409).json({ message: 'This transaction type is an element of existing packages and cannot become a package itself.' });
         }
 
@@ -317,9 +317,9 @@ exports.update = async (req, res) => {
             await row.save({ transaction });
             // Replace the element set for packages; clear any leftovers when a
             // package was changed to a plain charge type.
-            await writePackageItems(row, isPackage ? items : [], callerId, placement.departmentId, transaction);
+            await writeElements(row, isPackage ? items : [], callerId, placement.departmentId, transaction);
         });
-        if (isPackage) row.PackageItems = await GolfTransactionTypePackageItem.findAll({ where: { packageTransactionTypeId: row.id } });
+        if (isPackage) row.Elements = await GolfTransactionTypeElement.findAll({ where: { transactionTypeId: row.id } });
         res.status(200).json({ message: `Transaction type '${row.transactionType}' updated.`, transactionType: toDto(row) });
     } catch (error) {
         console.error('Error updating golf transaction type:', error);

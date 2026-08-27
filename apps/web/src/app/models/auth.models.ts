@@ -1242,14 +1242,14 @@ export interface GolfTransactionType extends MembershipTransactionType {
   // front-desk billing tiles.
   iconUrl?: string | null;
   // Element lines when chargeType is 'package' (absent otherwise).
-  packageItems?: GolfTransactionTypePackageItem[];
+  packageItems?: GolfTransactionTypeElement[];
 }
 
 // One element line of a package transaction type: an existing (non-package)
 // transaction type, how many, and the per-unit allocation of the package price
 // (the revenue/tax breakdown at billing - each portion taxed by the ELEMENT's
 // own scheme). The package's selling price stays in its flat Default Price cards.
-export interface GolfTransactionTypePackageItem {
+export interface GolfTransactionTypeElement {
   id?: string;
   elementTransactionTypeId: string;
   quantity: number;

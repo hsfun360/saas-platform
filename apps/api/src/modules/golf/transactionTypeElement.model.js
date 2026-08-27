@@ -11,17 +11,18 @@ const { GOLF_SCHEMA } = require('../../platform/schemas');
 // (flat cards, effective-dated) - the element sum is shown against it in the
 // editor but not enforced.
 //
-// `packageTransactionTypeId` is the same-service parent (real FK + cascade,
-// association in wiring/associations.js). `elementTransactionTypeId` points at
-// a PEER master row - kept a plain validated UUID like a course's nine
+// `transactionTypeId` is the owning PACKAGE - the same-service parent (real
+// FK + cascade, association in wiring/associations.js), named to match
+// TransactionTypeRate's parent column. `elementTransactionTypeId` points at a
+// PEER master row - kept a plain validated UUID like a course's nine
 // references (same company, must NOT itself be a package - no nesting).
-const GolfTransactionTypePackageItem = sequelize.define('GolfTransactionTypePackageItem', {
+const GolfTransactionTypeElement = sequelize.define('GolfTransactionTypeElement', {
     id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
     },
-    packageTransactionTypeId: {
+    transactionTypeId: {
         type: DataTypes.UUID,
         allowNull: false,
     },
@@ -52,11 +53,11 @@ const GolfTransactionTypePackageItem = sequelize.define('GolfTransactionTypePack
     updatedBy: { type: DataTypes.UUID, allowNull: true },
 }, {
     schema: GOLF_SCHEMA,
-    tableName: 'TransactionTypePackageItem',
+    tableName: 'TransactionTypeElement',
     timestamps: true,
     indexes: [
-        { name: 'UX_GolfPackageItem_Package_Element', fields: ['packageTransactionTypeId', 'elementTransactionTypeId'], unique: true },
+        { name: 'UX_GolfTransactionTypeElement_Type_Element', fields: ['transactionTypeId', 'elementTransactionTypeId'], unique: true },
     ],
 });
 
-module.exports = GolfTransactionTypePackageItem;
+module.exports = GolfTransactionTypeElement;

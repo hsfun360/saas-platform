@@ -6,7 +6,7 @@ import { GolfTransactionTypeService } from '../services/golf-transaction-type.se
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
-import { GolfTransactionType, GolfTransactionTypePackageItem, GolfTransactionTypeRate, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
+import { GolfTransactionType, GolfTransactionTypeElement, GolfTransactionTypeRate, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { MoneyInputDirective } from '../shared/money-input.directive';
@@ -74,7 +74,7 @@ export class GolfTransactionTypesComponent implements OnInit {
   // Element lines while composing a PACKAGE in the dialog (kept outside the
   // FormGroup - dynamic rows, like the membership-fee stage rows). pkgDirty
   // feeds the dialog's unsaved-changes guard alongside form.dirty.
-  readonly pkgItems = signal<GolfTransactionTypePackageItem[]>([]);
+  readonly pkgItems = signal<GolfTransactionTypeElement[]>([]);
   readonly pkgDirty = signal(false);
   // The pickable elements: active, not a package, not the record being edited.
   readonly elementOptions = computed(() => {

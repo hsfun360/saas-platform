@@ -116,7 +116,7 @@ const CourseTeeTimeSet = require('../modules/golf/courseTeeTimeSet.model');
 const CourseTeeTimeSlot = require('../modules/golf/courseTeeTimeSlot.model');
 const GolfTransactionType = require('../modules/golf/transactionType.model'); // billing-item master (companyId value ref; tax by code via seam)
 const GolfTransactionTypeRate = require('../modules/golf/transactionTypeRate.model');
-const GolfTransactionTypePackageItem = require('../modules/golf/transactionTypePackageItem.model');
+const GolfTransactionTypeElement = require('../modules/golf/transactionTypeElement.model');
 const CourseClosurePlan = require('../modules/golf/courseClosurePlan.model');
 const CourseClosureDay = require('../modules/golf/courseClosureDay.model');
 // Shared financial reference (Tax). Header/detail pairs are intra-service, so they
@@ -262,10 +262,11 @@ CourseTeeTimeSlot.belongsTo(CourseTeeTimeSet, { foreignKey: 'teeTimeSetId', as: 
 // Transaction Type -> its effective-dated price cards.
 GolfTransactionType.hasMany(GolfTransactionTypeRate, { foreignKey: 'transactionTypeId', as: 'Rates', onDelete: 'CASCADE' });
 GolfTransactionTypeRate.belongsTo(GolfTransactionType, { foreignKey: 'transactionTypeId', as: 'TransactionType' });
-// Package transaction type -> its element lines. The element side stays a
-// plain validated UUID (peer master reference, like a course's nines).
-GolfTransactionType.hasMany(GolfTransactionTypePackageItem, { foreignKey: 'packageTransactionTypeId', as: 'PackageItems', onDelete: 'CASCADE' });
-GolfTransactionTypePackageItem.belongsTo(GolfTransactionType, { foreignKey: 'packageTransactionTypeId', as: 'Package' });
+// Package transaction type -> its element lines (parent FK named like the
+// Rate table's). The element side stays a plain validated UUID (peer master
+// reference, like a course's nines).
+GolfTransactionType.hasMany(GolfTransactionTypeElement, { foreignKey: 'transactionTypeId', as: 'Elements', onDelete: 'CASCADE' });
+GolfTransactionTypeElement.belongsTo(GolfTransactionType, { foreignKey: 'transactionTypeId', as: 'Package' });
 // Course -> its closure plans -> generated per-day closure rows (spec 2.2.8).
 Course.hasMany(CourseClosurePlan, { foreignKey: 'courseId', as: 'ClosurePlans', onDelete: 'CASCADE' });
 CourseClosurePlan.belongsTo(Course, { foreignKey: 'courseId', as: 'Course' });
