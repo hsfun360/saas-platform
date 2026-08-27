@@ -123,6 +123,8 @@ gcloud run services describe platform-api --region asia-southeast3 --project $PR
 ```
 
 Confirm in the logs: `PostgreSQL connection established successfully.`, then either the fingerprint-skip line or `Database schema synced successfully.`, and **no error from a guarded migration block**.
+
+> ⏱️ **Do not verify DATA until `Database schema synced successfully.` has printed.** On a model-changing release the alter-sync takes MINUTES (~4 min observed on dev, 2026-08-27), and the service serves traffic throughout - Sequelize creates the new tables early in the pass, so a new table reads as EMPTY and a post-sync backfill has not run yet. Querying in that window looks exactly like a failed migration and has already sent one debugging session chasing a bug that did not exist.
 Then do a real **login** - it exercises JWT signing, and `[JWT KEYS] Loaded private key from environment variable.` only prints on the first token op, so it appears after that login rather than at boot.
 After a release that changed menu routes, **log out and back in** so the browser's cached `userMenus` refresh.
 
