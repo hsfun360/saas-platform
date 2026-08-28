@@ -87,6 +87,9 @@
                   @if (isPackage(t) && t.packageItems?.length) {
                     <dl class="data-card__meta">
                       <div class="meta"><dt>Elements</dt><dd>{{ pkgSummary(t) }}</dd></div>
+                      @if (t.autoTransactionTypeId) {
+                        <div class="meta"><dt>Auto charge</dt><dd>{{ typeCode(t.autoTransactionTypeId) }}</dd></div>
+                      }
                     </dl>
                   }
                 </div>
@@ -174,24 +177,39 @@
             <input id="gttDesc" type="text" formControlName="description" placeholder="e.g. 18 Holes Green Fee" maxlength="255" />
           </div>
         </div>
-        @if (!isPackageForm()) {
+        <div class="form-row">
+          <div class="form-group">
+            <label for="gttTax">Tax Scheme</label>
+            <select id="gttTax" formControlName="taxSchemeCode">
+              <option value="">— None —</option>
+              @for (s of taxSchemes(); track s.taxSchemeCode) {
+                <option [value]="s.taxSchemeCode">{{ s.taxSchemeCode }}@if (s.name) { — {{ s.name }}}</option>
+              }
+            </select>
+            @if (isPackageForm()) {
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Applied to EVERY bill line generated from this package (element lines and the auto balance line) — the elements' own tax schemes are ignored for package billing.</p>
+            } @else {
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The single source of tax for this billing item — green-fee and charge setups inherit it.</p>
+            }
+          </div>
+        </div>
+        @if (isPackageForm()) {
           <div class="form-row">
-            <div class="form-group">
-              <label for="gttTax">Tax Scheme</label>
-              <select id="gttTax" formControlName="taxSchemeCode">
-                <option value="">— None —</option>
-                @for (s of taxSchemes(); track s.taxSchemeCode) {
-                  <option [value]="s.taxSchemeCode">{{ s.taxSchemeCode }}@if (s.name) { — {{ s.name }}}</option>
+            <div class="form-group" style="max-width: 420px;">
+              <label for="gttAutoType">Auto Transaction Type <span class="required">*</span></label>
+              <select id="gttAutoType" formControlName="autoTransactionTypeId">
+                <option value="">— Select —</option>
+                @for (o of elementOptions(); track o.id) {
+                  <option [value]="o.id">{{ o.transactionType }}@if (o.description) { — {{ o.description }}}</option>
                 }
               </select>
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The single source of tax for this billing item — green-fee and charge setups inherit it.</p>
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Billing adds an automatic line to this transaction type for the balance: package price minus the elements total (e.g. PAK1 450.00 − 169.00 → GF1 281.00).</p>
             </div>
           </div>
-        } @else {
           <div class="form-row">
             <div class="form-group">
               <label>Package Elements <span class="required">*</span></label>
-              <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Pick existing billing items with quantity and per-unit amount — the breakdown of the package price. Each portion is taxed by the element's own tax scheme, so a package has no tax scheme of its own.</p>
+              <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Pick existing billing items with quantity and per-unit price — these bill as-is; the remainder of the package price posts to the Auto Transaction Type.</p>
               @if (pkgItems().length > 0) {
                 <div class="pkg-row pkg-row--head" aria-hidden="true">
                   <span>Element</span>

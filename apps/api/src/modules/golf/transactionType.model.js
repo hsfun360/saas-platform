@@ -61,6 +61,15 @@ const GolfTransactionType = sequelize.define('GolfTransactionType', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    // PACKAGES ONLY (required then, NULL otherwise): the transaction type that
+    // receives the AUTOMATIC balance line when the package is billed - package
+    // amount minus the sum of the element lines (e.g. PAK1 450.00 = BG1 101.00
+    // + CD1 2×34.00 + GF1 auto 281.00). Same-company, active, non-package;
+    // validated in the controller (peer reference, no FK).
+    autoTransactionTypeId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
     isActive: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

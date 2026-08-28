@@ -69,6 +69,7 @@ export class GolfTransactionTypesComponent implements OnInit {
     taxSchemeCode: [''],
     allowPriceOverride: [false],
     iconUrl: [''],
+    autoTransactionTypeId: [''],
   });
 
   // Element lines while composing a PACKAGE in the dialog (kept outside the
@@ -252,7 +253,7 @@ export class GolfTransactionTypesComponent implements OnInit {
   openAdd(): void {
     this.clearMessages();
     this.editId.set(null);
-    this.form.reset({ transactionType: '', chargeType: '', description: '', taxSchemeCode: '', allowPriceOverride: false, iconUrl: '' });
+    this.form.reset({ transactionType: '', chargeType: '', description: '', taxSchemeCode: '', allowPriceOverride: false, iconUrl: '', autoTransactionTypeId: '' });
     this.pkgItems.set([]);
     this.pkgDirty.set(false);
     this.dialogOpen.set(true);
@@ -268,6 +269,7 @@ export class GolfTransactionTypesComponent implements OnInit {
       taxSchemeCode: t.taxSchemeCode || '',
       allowPriceOverride: t.allowPriceOverride === true,
       iconUrl: t.iconUrl || '',
+      autoTransactionTypeId: t.autoTransactionTypeId || '',
     });
     this.pkgItems.set((t.packageItems || []).map((i) => ({
       elementTransactionTypeId: i.elementTransactionTypeId,
@@ -305,14 +307,19 @@ export class GolfTransactionTypesComponent implements OnInit {
         this.errorMessage.set('A package cannot list the same element twice - use the quantity instead.');
         return;
       }
+      if (!v.autoTransactionTypeId) {
+        this.errorMessage.set('Select the Auto Transaction Type - the automatic balance line posts to it.');
+        return;
+      }
     }
     const payload: Partial<GolfTransactionType> = {
       transactionType: v.transactionType.trim(),
       chargeType: v.chargeType,
       description: v.description.trim() || null,
-      taxSchemeCode: isPackage ? null : (v.taxSchemeCode || null),
+      taxSchemeCode: v.taxSchemeCode || null,
       allowPriceOverride: v.allowPriceOverride,
       iconUrl: v.iconUrl || null,
+      autoTransactionTypeId: isPackage ? v.autoTransactionTypeId : null,
     };
     if (isPackage) {
       payload.packageItems = this.pkgItems().map((i, n) => ({ ...i, sortOrder: n }));

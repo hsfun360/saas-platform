@@ -52,6 +52,7 @@ function toDto(t, canModify = true) {
         isActive: t.isActive,
     };
     if (t.chargeType === PACKAGE_CHARGE_TYPE_KEY) {
+        dto.autoTransactionTypeId = t.autoTransactionTypeId;
         dto.packageItems = (t.Elements || [])
             .slice()
             .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -80,13 +81,29 @@ function normalizeBody(body) {
             transactionType,
             chargeType,
             description: typeof body.description === 'string' ? body.description.trim() || null : null,
-            // A package carries NO tax scheme of its own - at billing each
-            // element portion is taxed by the element's scheme.
-            taxSchemeCode: chargeType === PACKAGE_CHARGE_TYPE_KEY ? null : (str(body.taxSchemeCode) || null),
+            // Packages DO carry their own tax scheme (spec 2026-08-28): it is
+            // applied to ALL bill lines generated from the package, with the
+            // last line rounding-adjusted so the line taxes sum to the tax
+            // computed directly on the package amount.
+            taxSchemeCode: str(body.taxSchemeCode) || null,
             allowPriceOverride: body.allowPriceOverride === true,
             iconUrl: str(body.iconUrl) || null,
+            // Packages only: where the automatic balance line posts.
+            autoTransactionTypeId: chargeType === PACKAGE_CHARGE_TYPE_KEY ? (str(body.autoTransactionTypeId) || null) : null,
         },
     };
+}
+
+// The package's auto (balance-line) transaction type: required, same company,
+// active, and not itself a package. Returns an error string or null.
+async function validateAutoTransactionType(companyId, autoId, selfId) {
+    if (!autoId) return 'Select the Auto Transaction Type - the automatic balance line posts to it.';
+    if (autoId === selfId) return 'The Auto Transaction Type cannot be the package itself.';
+    const row = await GolfTransactionType.findOne({ where: { id: autoId, companyId } });
+    if (!row) return 'The Auto Transaction Type is not one of this company\'s transaction types.';
+    if (row.chargeType === PACKAGE_CHARGE_TYPE_KEY) return 'The Auto Transaction Type cannot be a package.';
+    if (row.isActive === false) return `'${row.transactionType}' is disabled and cannot be the Auto Transaction Type.`;
+    return null;
 }
 
 // Parse one money amount: number or numeric string, >= 0, 2dp.
@@ -248,6 +265,8 @@ exports.create = async (req, res) => {
             const parsedItems = await normalizeElements(req.body, companyId, null);
             if (parsedItems.error) return res.status(400).json({ message: parsedItems.error });
             items = parsedItems.items;
+            const autoErr = await validateAutoTransactionType(companyId, v.autoTransactionTypeId, null);
+            if (autoErr) return res.status(400).json({ message: autoErr });
         }
 
         const placement = await getCallerPlacement(req);
@@ -301,6 +320,8 @@ exports.update = async (req, res) => {
             const parsedItems = await normalizeElements(req.body, companyId, row.id);
             if (parsedItems.error) return res.status(400).json({ message: parsedItems.error });
             items = parsedItems.items;
+            const autoErr = await validateAutoTransactionType(companyId, v.autoTransactionTypeId, row.id);
+            if (autoErr) return res.status(400).json({ message: autoErr });
         }
         // An element that other packages use cannot be turned INTO a package
         // (packages cannot nest).

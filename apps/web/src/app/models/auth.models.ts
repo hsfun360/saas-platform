@@ -1243,6 +1243,9 @@ export interface GolfTransactionType extends MembershipTransactionType {
   iconUrl?: string | null;
   // Element lines when chargeType is 'package' (absent otherwise).
   packageItems?: GolfTransactionTypeElement[];
+  // Packages only: the transaction type receiving the automatic balance line
+  // at billing (package amount minus the element lines' sum).
+  autoTransactionTypeId?: string | null;
 }
 
 // One element line of a package transaction type: an existing (non-package)
