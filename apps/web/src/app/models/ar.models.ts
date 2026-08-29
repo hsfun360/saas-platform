@@ -272,6 +272,10 @@ export interface ArAnalysisCategory {
   name: string;
   // 1..6 = stamped onto Ledger.analysis<dimensionNo>Id; null = catalog-only.
   dimensionNo: number | null;
+  // The dimension this one sits under (Department under Division), or null for
+  // a standalone dimension. Deliberately unrelated to dimensionNo: the number
+  // is a storage slot, the parent link is semantic.
+  parentCategoryId: string | null;
   // Empty for a catalog-only dimension (it stamps nothing, so it applies
   // nowhere); at least one entry for a numbered dimension.
   modules: ArAnalysisCategoryModule[];
@@ -282,6 +286,9 @@ export interface ArAnalysisOption {
   id: string;
   canModify?: boolean;
   categoryId: string;
+  // Which option of the parent category this belongs to. Null under a parented
+  // dimension means UNASSIGNED: listed on this screen, withheld from entry.
+  parentOptionId: string | null;
   code: string;
   description: string | null;
   isActive: boolean;
@@ -291,6 +298,7 @@ export interface ArAnalysisOption {
 export interface ArAnalysisCategoryPayload {
   name: string;
   dimensionNo: number | null;
+  parentCategoryId: string | null;
   modules: { moduleId: string; isRequired: boolean }[];
 }
 
@@ -308,7 +316,12 @@ export interface ArAnalysisEntryMeta {
   dimensionNo: number;
   name: string;
   isRequired: boolean;
-  options: { id: string; code: string; description: string | null }[];
+  // Hierarchy for the entry cascade. parentDimensionNo is what the dialog keys
+  // on, since selections are keyed by dimension number; it may be HIGHER than
+  // this dimension's own number.
+  parentCategoryId: string | null;
+  parentDimensionNo: number | null;
+  options: { id: string; code: string; description: string | null; parentOptionId: string | null }[];
 }
 
 // The entry dialogs' account-currency block (multicurrency step 3): the

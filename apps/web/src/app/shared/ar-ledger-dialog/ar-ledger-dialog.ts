@@ -6,7 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DialogComponent } from '../dialog/dialog';
 import { MoneyInputDirective } from '../money-input.directive';
 import { ArService } from '../../services/ar.service';
-import { ArAccountMeta, ArDebtor, ArDocListRow, ArLedgerDoc } from '../../models/ar.models';
+import { ArAccountMeta, ArAnalysisEntryMeta, ArDebtor, ArDocListRow, ArLedgerDoc } from '../../models/ar.models';
 import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate, arTrimRate } from '../ar-fx';
 
 // The ONE ledger-document entry dialog (Invoice / Debit Note / Credit Note),
@@ -118,8 +118,55 @@ export class ArLedgerDialogComponent implements OnInit {
     return this.analysisSel()[String(dimensionNo)] || '';
   }
 
+  // A child dimension's options are filtered by its parent's current pick.
+  // With no parent picked yet, ALL are offered - choosing one back-fills the
+  // parent below, since a Department determines its Division.
+  optionsFor(dim: ArAnalysisEntryMeta): ArAnalysisEntryMeta['options'] {
+    const parentNo = dim.parentDimensionNo;
+    if (parentNo === null) return dim.options;
+    const parentPick = this.selFor(parentNo);
+    if (!parentPick) return dim.options;
+    return dim.options.filter((o) => o.parentOptionId === parentPick);
+  }
+
   pickAnalysis(dimensionNo: number, optionId: string): void {
-    this.analysisSel.update((m) => ({ ...m, [String(dimensionNo)]: optionId }));
+    this.analysisSel.update((m) => {
+      const next: Record<string, string> = { ...m, [String(dimensionNo)]: optionId };
+      const meta = this.analysisMeta();
+      const byNo = new Map(meta.map((c) => [c.dimensionNo, c]));
+
+      // Walk UP: the picked option determines every ancestor, so fill them in.
+      // Clearing to None deliberately leaves ancestors alone - the clerk may
+      // have chosen the Division on purpose.
+      let cursor = byNo.get(dimensionNo) || null;
+      let chosenId = optionId;
+      for (let hop = 0; cursor && cursor.parentDimensionNo !== null && chosenId && hop < 6; hop += 1) {
+        const opt = cursor.options.find((o) => o.id === chosenId);
+        const parentId = opt?.parentOptionId || '';
+        next[String(cursor.parentDimensionNo)] = parentId;
+        cursor = byNo.get(cursor.parentDimensionNo) || null;
+        chosenId = parentId;
+      }
+
+      // Walk DOWN: drop any descendant that no longer belongs under the new
+      // pick, rather than leaving a mismatched pair the server would reject.
+      for (let pass = 0; pass < meta.length; pass += 1) {
+        let changed = false;
+        for (const c of meta) {
+          if (c.parentDimensionNo === null) continue;
+          const own = next[String(c.dimensionNo)];
+          const parentPick = next[String(c.parentDimensionNo)] || '';
+          if (!own || !parentPick) continue;
+          const opt = c.options.find((o) => o.id === own);
+          if (opt && opt.parentOptionId !== parentPick) {
+            next[String(c.dimensionNo)] = '';
+            changed = true;
+          }
+        }
+        if (!changed) break;
+      }
+      return next;
+    });
     this.form.markAsDirty();
   }
 

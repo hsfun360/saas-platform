@@ -112,30 +112,46 @@ async function entryMeta(companyId, moduleName) {
             id: { [Op.in]: [...requiredBy.keys()] },
         },
         order: [['dimensionNo', 'ASC']],
-        attributes: ['id', 'name', 'dimensionNo'],
+        attributes: ['id', 'name', 'dimensionNo', 'parentCategoryId'],
     });
     if (!categories.length) return [];
     const options = await DimensionOption.findAll({
         where: { categoryId: { [Op.in]: categories.map((c) => c.id) }, isActive: true },
         order: [['code', 'ASC']],
-        attributes: ['id', 'categoryId', 'code', 'description'],
+        attributes: ['id', 'categoryId', 'code', 'description', 'parentOptionId'],
     });
+    // A parented category's options are offered only once they are LINKED to a
+    // parent option: the cascade has no level to file an unassigned one under,
+    // and stamping it would freeze a half-empty pair. They stay visible on the
+    // setup screen under their own group so the gap is fixable, never silent.
+    const parented = new Set(categories.filter((c) => c.parentCategoryId).map((c) => c.id));
     const byCategory = new Map();
     for (const o of options) {
+        if (parented.has(o.categoryId) && !o.parentOptionId) continue;
         if (!byCategory.has(o.categoryId)) byCategory.set(o.categoryId, []);
-        byCategory.get(o.categoryId).push({ id: o.id, code: o.code, description: o.description });
+        byCategory.get(o.categoryId).push({
+            id: o.id, code: o.code, description: o.description, parentOptionId: o.parentOptionId || null,
+        });
     }
+    // parentDimensionNo is what the entry dialogs cascade on - they key
+    // selections by dimension number, not by category id. It is null when the
+    // parent is not applicable to this module, which the setup screen's
+    // nesting rule prevents, but the reader stays defensive.
+    const noByCategory = new Map(categories.map((c) => [c.id, c.dimensionNo]));
     return categories.map((c) => ({
         categoryId: c.id,
         dimensionNo: c.dimensionNo,
         name: c.name,
         isRequired: requiredBy.get(c.id) === true,
+        parentCategoryId: c.parentCategoryId || null,
+        parentDimensionNo: c.parentCategoryId ? (noByCategory.get(c.parentCategoryId) ?? null) : null,
         options: byCategory.get(c.id) || [],
     }));
 }
 
 // Validate a MANUAL entry's selections (`body.analysis` = { "<dimensionNo>":
-// "<optionId>" }) against what the CALLING MODULE may stamp. Returns
+// "<optionId>" }) against what the CALLING MODULE may stamp, deriving any
+// ancestor a picked child determines (Department -> its Division). Returns
 // { columns } (all six analysis<N>Id keys, unselected = null) or { error }.
 // Rules: only dimensions this module applies to accept a value; the option
 // must belong to that category, this company, and be active; a dimension
@@ -163,14 +179,55 @@ async function readSelections(companyId, body, moduleName) {
         }
     }
 
+    // 1. Resolve what the clerk actually picked.
+    const picked = new Map();
     for (const cat of meta) {
-        const picked = selections[String(cat.dimensionNo)] || null;
-        if (!picked) {
+        const id = selections[String(cat.dimensionNo)] || null;
+        if (!id) continue;
+        const option = cat.options.find((o) => o.id === id);
+        if (!option) return { error: `Select a valid ${cat.name} option.` };
+        picked.set(String(cat.dimensionNo), option);
+    }
+
+    // 2. Walk each hierarchy upwards: a child determines its parent, so DERIVE
+    //    an unpicked ancestor rather than leaving the pair half-stamped (that
+    //    is the whole point of storing both levels), and REJECT a pair the
+    //    clerk picked inconsistently. Server-side either way - the entry
+    //    dialog's cascade is a convenience, never the gate.
+    const byCategoryId = new Map(meta.map((c) => [c.categoryId, c]));
+    for (const start of meta) {
+        let child = start;
+        let chosen = picked.get(String(child.dimensionNo)) || null;
+        // The controller rejects cycles on save; the hop cap keeps a corrupt
+        // row from spinning here regardless.
+        for (let hop = 0; chosen && child.parentCategoryId && hop < 6; hop += 1) {
+            const parent = byCategoryId.get(child.parentCategoryId);
+            if (!parent) break;
+            const wantedId = chosen.parentOptionId || null;
+            if (!wantedId) return { error: `${child.name} '${chosen.code}' is not linked to a ${parent.name}.` };
+            const already = picked.get(String(parent.dimensionNo)) || null;
+            if (already && already.id !== wantedId) {
+                return { error: `${child.name} '${chosen.code}' does not belong to the selected ${parent.name}.` };
+            }
+            let resolved = already;
+            if (!resolved) {
+                resolved = parent.options.find((o) => o.id === wantedId) || null;
+                if (!resolved) return { error: `${child.name} '${chosen.code}' is linked to a ${parent.name} that is no longer available.` };
+                picked.set(String(parent.dimensionNo), resolved);
+            }
+            child = parent;
+            chosen = resolved;
+        }
+    }
+
+    // 3. Required is checked AFTER derivation - a clerk who picked only the
+    //    Department has satisfied a required Division too.
+    for (const cat of meta) {
+        const option = picked.get(String(cat.dimensionNo)) || null;
+        if (!option) {
             if (cat.isRequired) return { error: `${cat.name} is required.` };
             continue;
         }
-        const option = cat.options.find((o) => o.id === picked);
-        if (!option) return { error: `Select a valid ${cat.name} option.` };
         columns[`analysis${cat.dimensionNo}Id`] = option.id;
     }
     return { columns };

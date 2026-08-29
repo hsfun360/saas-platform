@@ -33,6 +33,11 @@ type ModuleRowForm = FormGroup<{
 // with its own "required on manual entry" flag - so a Golf-only dimension
 // never reaches an AR clerk. The catalog and the dimension number stay
 // company-global, which is what keeps analysis<N>Id joinable across modules.
+//
+// A dimension may also sit UNDER another (Department under Division, 1:many).
+// Both levels are stamped in their own column, so history is frozen and each
+// level stays a one-column report. The parent link is independent of the
+// dimension NUMBER: Division may be Dimension 5 and Department Dimension 2.
 @Component({
   selector: 'app-ar-analysis',
   standalone: true,
@@ -93,7 +98,45 @@ export class ArAnalysisComponent implements OnInit {
   readonly catForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
     dimensionNo: [''],
+    parentCategoryId: [''],
     modules: this.fb.array<ModuleRowForm>([]),
+  });
+  // Mirrors the parent select, so the warning below can react to it (form
+  // controls are not signals).
+  readonly catParentSel = signal('');
+  // Dimensions this one may sit under: stamped, active, and neither itself nor
+  // one of its own descendants (that would close a cycle).
+  readonly parentChoices = computed(() => {
+    const selfId = this.catEditId();
+    const banned = new Set<string>();
+    if (selfId) {
+      banned.add(selfId);
+      const all = this.categories();
+      for (let pass = 0; pass < all.length; pass += 1) {
+        let grew = false;
+        for (const c of all) {
+          if (!banned.has(c.id) && c.parentCategoryId && banned.has(c.parentCategoryId)) {
+            banned.add(c.id);
+            grew = true;
+          }
+        }
+        if (!grew) break;
+      }
+    }
+    return this.categories()
+      .filter((c) => c.isActive !== false && c.dimensionNo !== null && !banned.has(c.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
+  // Repointing the parent invalidates every option link at once, so say what
+  // it will cost BEFORE the clerk saves rather than reporting it afterwards.
+  readonly parentUnlinkWarning = computed(() => {
+    const id = this.catEditId();
+    if (!id) return '';
+    const original = this.categories().find((c) => c.id === id)?.parentCategoryId || null;
+    if ((this.catParentSel() || null) === original) return '';
+    const linked = this.options().filter((o) => o.categoryId === id && o.parentOptionId).length;
+    if (!linked) return '';
+    return `Changing the parent will unlink ${linked} option(s) from their current parent. They will need reassigning before they appear on entry screens.`;
   });
   // Stored ticks for modules the company no longer subscribes to: shown greyed
   // and read-only, and left untouched by a save, so re-subscribing restores
@@ -123,9 +166,60 @@ export class ArAnalysisComponent implements OnInit {
   readonly optSaving = signal(false);
   readonly optEditId = signal<string | null>(null);
   readonly optForm = this.fb.nonNullable.group({
+    parentOptionId: [''],
     code: ['', [Validators.required, Validators.maxLength(30)]],
     description: ['', [Validators.maxLength(255)]],
   });
+  // The parent dimension's options, when the selected dimension has a parent.
+  readonly parentOptionChoices = computed(() => {
+    const cat = this.selected();
+    if (!cat?.parentCategoryId) return [];
+    return this.options()
+      .filter((o) => o.categoryId === cat.parentCategoryId && o.isActive !== false)
+      .sort((a, b) => a.code.localeCompare(b.code));
+  });
+  readonly parentCategoryName = computed(() => {
+    const cat = this.selected();
+    if (!cat?.parentCategoryId) return '';
+    return this.categories().find((c) => c.id === cat.parentCategoryId)?.name || 'Parent';
+  });
+  // The options pane groups by parent once the dimension has one, with the
+  // UNASSIGNED ones first: they are kept and editable here, but withheld from
+  // entry pickers until linked, so the gap must be impossible to miss.
+  readonly optionGroups = computed(() => {
+    const cat = this.selected();
+    const opts = this.selectedOptions();
+    if (!cat?.parentCategoryId) return [{ key: 'all', label: '', options: opts }];
+    const parents = new Map(this.options()
+      .filter((o) => o.categoryId === cat.parentCategoryId)
+      .map((o) => [o.id, o] as const));
+    const groups = new Map<string, { key: string; label: string; options: ArAnalysisOption[] }>();
+    const unassigned: ArAnalysisOption[] = [];
+    for (const o of opts) {
+      if (!o.parentOptionId) { unassigned.push(o); continue; }
+      const parent = parents.get(o.parentOptionId);
+      const label = parent
+        ? parent.code + (parent.description ? ' - ' + parent.description : '')
+        : 'Unknown parent';
+      if (!groups.has(o.parentOptionId)) groups.set(o.parentOptionId, { key: o.parentOptionId, label, options: [] });
+      groups.get(o.parentOptionId)!.options.push(o);
+    }
+    const out = [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
+    if (unassigned.length) out.unshift({ key: '__unassigned__', label: 'Unassigned', options: unassigned });
+    return out;
+  });
+
+  // Options of a parented dimension that are not linked yet - the master card
+  // shows this as a warning chip.
+  unassignedCount(c: ArAnalysisCategory): number {
+    if (!c.parentCategoryId) return 0;
+    return this.options().filter((o) => o.categoryId === c.id && !o.parentOptionId).length;
+  }
+
+  parentNameOf(c: ArAnalysisCategory): string {
+    if (!c.parentCategoryId) return '';
+    return this.categories().find((p) => p.id === c.parentCategoryId)?.name || '';
+  }
 
   // Rebuild the tickable rows: every available module, pre-ticked from the
   // dimension's stored rows (a NEW dimension starts with all of them ticked -
@@ -161,6 +255,9 @@ export class ArAnalysisComponent implements OnInit {
     this.catForm.controls.dimensionNo.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe((v) => this.catStamped.set(v !== ''));
+    this.catForm.controls.parentCategoryId.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe((v) => this.catParentSel.set(v));
     this.route.paramMap.pipe(takeUntilDestroyed()).subscribe((p) => {
       const id = p.get('id');
       this.selectedId.set(id);
@@ -207,8 +304,9 @@ export class ArAnalysisComponent implements OnInit {
     this.clearMessages();
     this.catEditId.set(null);
     this.moduleTouched.set(false);
-    this.catForm.reset({ name: '', dimensionNo: '' });
+    this.catForm.reset({ name: '', dimensionNo: '', parentCategoryId: '' });
     this.catStamped.set(false);
+    this.catParentSel.set('');
     this.setModuleRows(null);
     this.catOpen.set(true);
   }
@@ -217,8 +315,13 @@ export class ArAnalysisComponent implements OnInit {
     this.clearMessages();
     this.catEditId.set(c.id);
     this.moduleTouched.set(false);
-    this.catForm.reset({ name: c.name, dimensionNo: c.dimensionNo === null ? '' : String(c.dimensionNo) });
+    this.catForm.reset({
+      name: c.name,
+      dimensionNo: c.dimensionNo === null ? '' : String(c.dimensionNo),
+      parentCategoryId: c.parentCategoryId || '',
+    });
     this.catStamped.set(c.dimensionNo !== null);
+    this.catParentSel.set(c.parentCategoryId || '');
     this.setModuleRows(c.modules || []);
     this.catOpen.set(true);
   }
@@ -238,6 +341,7 @@ export class ArAnalysisComponent implements OnInit {
     const payload = {
       name: f.name.trim(),
       dimensionNo: stamped ? Number(f.dimensionNo) : null,
+      parentCategoryId: f.parentCategoryId || null,
       // A catalog-only dimension stamps nothing, so it applies nowhere.
       modules: stamped
         ? f.modules.filter((m) => m.applies).map((m) => ({ moduleId: m.moduleId, isRequired: m.isRequired }))
@@ -282,17 +386,32 @@ export class ArAnalysisComponent implements OnInit {
 
   // --- Option CRUD (within the selected dimension) ---
 
+  // The parent link is required exactly when the dimension has a parent, so
+  // the validator is set per open rather than declared once.
+  private syncParentOptionValidator(): void {
+    const control = this.optForm.controls.parentOptionId;
+    if (this.selected()?.parentCategoryId) control.setValidators([Validators.required]);
+    else control.clearValidators();
+    control.updateValueAndValidity({ emitEvent: false });
+  }
+
   openAddOption(): void {
     this.clearMessages();
     this.optEditId.set(null);
-    this.optForm.reset({ code: '', description: '' });
+    this.optForm.reset({ parentOptionId: '', code: '', description: '' });
+    this.syncParentOptionValidator();
     this.optOpen.set(true);
   }
 
   openEditOption(o: ArAnalysisOption): void {
     this.clearMessages();
     this.optEditId.set(o.id);
-    this.optForm.reset({ code: o.code, description: o.description || '' });
+    this.optForm.reset({
+      parentOptionId: o.parentOptionId || '',
+      code: o.code,
+      description: o.description || '',
+    });
+    this.syncParentOptionValidator();
     this.optOpen.set(true);
   }
 
@@ -304,9 +423,10 @@ export class ArAnalysisComponent implements OnInit {
     const f = this.optForm.getRawValue();
     this.optSaving.set(true);
     const id = this.optEditId();
+    const parentOptionId = cat.parentCategoryId ? (f.parentOptionId || null) : null;
     const req$ = id
-      ? this.service.updateAnalysisOption(id, { code: f.code.trim(), description: f.description.trim() || null })
-      : this.service.createAnalysisOption({ categoryId: cat.id, code: f.code.trim(), description: f.description.trim() || null });
+      ? this.service.updateAnalysisOption(id, { parentOptionId, code: f.code.trim(), description: f.description.trim() || null })
+      : this.service.createAnalysisOption({ categoryId: cat.id, parentOptionId, code: f.code.trim(), description: f.description.trim() || null });
     req$.subscribe({
       next: (res) => {
         this.errorMessage.set('');

@@ -134,3 +134,104 @@ test('copyColumns is unfiltered by applicability - inherited stamps always survi
     assert.strictEqual(columns.analysis1Id, 'opt-hr');
     assert.strictEqual(columns.analysis3Id, null);
 });
+
+// --- Hierarchy (Division -> Department -> Section, 2026-08-27) --------------
+// The dimension NUMBERS are deliberately out of order against the hierarchy
+// (Division is 3, Department is 1, Section is 4) because the parent link and
+// the storage slot are unrelated by design.
+// DEPARTMENT is the same id declared above; the hierarchy stub redefines every
+// model read, so the two fixtures never overlap.
+const DIVISION = 'cat-div';
+const SECTION = 'cat-sect';
+
+function stubHierarchy({ divisionRequired = false } = {}) {
+    Module.findAll = async () => [{ id: AR, name: 'Account Receivable' }];
+    CompanyModule.findAll = async () => [{ moduleId: AR }];
+
+    const rows = [
+        { categoryId: DIVISION, moduleId: AR, isRequired: divisionRequired },
+        { categoryId: DEPARTMENT, moduleId: AR, isRequired: false },
+        { categoryId: SECTION, moduleId: AR, isRequired: false },
+    ];
+    DimensionCategoryModule.findAll = async ({ where }) => rows.filter((r) => r.moduleId === where.moduleId);
+
+    DimensionCategory.findAll = async ({ where }) => {
+        const wanted = where.id[Op.in];
+        return [
+            { id: DIVISION, name: 'Division', dimensionNo: 3, parentCategoryId: null },
+            { id: DEPARTMENT, name: 'Department', dimensionNo: 1, parentCategoryId: DIVISION },
+            { id: SECTION, name: 'Section', dimensionNo: 4, parentCategoryId: DEPARTMENT },
+        ].filter((c) => wanted.includes(c.id));
+    };
+
+    DimensionOption.findAll = async ({ where }) => {
+        const wanted = where.categoryId[Op.in];
+        return [
+            { id: 'opt-corp', categoryId: DIVISION, code: 'CORP', description: 'Corporate', parentOptionId: null },
+            { id: 'opt-ops', categoryId: DIVISION, code: 'OPS', description: 'Operations', parentOptionId: null },
+            { id: 'opt-hr', categoryId: DEPARTMENT, code: 'HR', description: 'Human Resources', parentOptionId: 'opt-corp' },
+            { id: 'opt-fnb', categoryId: DEPARTMENT, code: 'FNB', description: 'Food & Beverage', parentOptionId: 'opt-ops' },
+            { id: 'opt-loose', categoryId: DEPARTMENT, code: 'LOOSE', description: 'Not linked yet', parentOptionId: null },
+            { id: 'opt-pay', categoryId: SECTION, code: 'PAY', description: 'Payroll', parentOptionId: 'opt-hr' },
+        ].filter((o) => wanted.includes(o.categoryId));
+    };
+}
+
+test('entryMeta withholds an UNASSIGNED option of a parented dimension', async () => {
+    stubHierarchy();
+    const meta = await gateway.entryMeta(COMPANY, 'Account Receivable');
+    const dept = meta.find((c) => c.name === 'Department');
+    // The stub ignores the query's ORDER BY, so compare as a set.
+    assert.deepStrictEqual(dept.options.map((o) => o.code).sort(), ['FNB', 'HR'], 'LOOSE has no Division, so it is not offered');
+    // The Division itself is unparented, so nothing is withheld there.
+    const div = meta.find((c) => c.name === 'Division');
+    assert.deepStrictEqual(div.options.map((o) => o.code).sort(), ['CORP', 'OPS']);
+});
+
+test('entryMeta reports the parent by DIMENSION NUMBER, which need not precede the child', async () => {
+    stubHierarchy();
+    const meta = await gateway.entryMeta(COMPANY, 'Account Receivable');
+    const dept = meta.find((c) => c.name === 'Department');
+    assert.strictEqual(dept.dimensionNo, 1);
+    assert.strictEqual(dept.parentDimensionNo, 3, 'the parent sits on a HIGHER number - the link is semantic, not positional');
+});
+
+test('readSelections DERIVES the parent a picked child determines', async () => {
+    stubHierarchy();
+    const res = await gateway.readSelections(COMPANY, { analysis: { 1: 'opt-hr' } }, 'Account Receivable');
+    assert.strictEqual(res.error, undefined);
+    assert.strictEqual(res.columns.analysis1Id, 'opt-hr');
+    assert.strictEqual(res.columns.analysis3Id, 'opt-corp', 'the Division is stamped even though the clerk never picked it');
+});
+
+test('readSelections derives EVERY ancestor up a three-level chain', async () => {
+    stubHierarchy();
+    const res = await gateway.readSelections(COMPANY, { analysis: { 4: 'opt-pay' } }, 'Account Receivable');
+    assert.strictEqual(res.error, undefined);
+    assert.strictEqual(res.columns.analysis4Id, 'opt-pay');
+    assert.strictEqual(res.columns.analysis1Id, 'opt-hr');
+    assert.strictEqual(res.columns.analysis3Id, 'opt-corp');
+});
+
+test('readSelections rejects an inconsistent pair the clerk picked by hand', async () => {
+    stubHierarchy();
+    const res = await gateway.readSelections(COMPANY, { analysis: { 1: 'opt-hr', 3: 'opt-ops' } }, 'Account Receivable');
+    assert.match(res.error, /does not belong to the selected Division/);
+});
+
+test('readSelections accepts a consistent pair picked in full', async () => {
+    stubHierarchy();
+    const res = await gateway.readSelections(COMPANY, { analysis: { 1: 'opt-hr', 3: 'opt-corp' } }, 'Account Receivable');
+    assert.strictEqual(res.error, undefined);
+    assert.strictEqual(res.columns.analysis3Id, 'opt-corp');
+});
+
+test('a required parent is satisfied by derivation, not just by picking it', async () => {
+    stubHierarchy({ divisionRequired: true });
+    const viaChild = await gateway.readSelections(COMPANY, { analysis: { 1: 'opt-hr' } }, 'Account Receivable');
+    assert.strictEqual(viaChild.error, undefined, 'picking the Department satisfies the required Division');
+    assert.strictEqual(viaChild.columns.analysis3Id, 'opt-corp');
+
+    const nothing = await gateway.readSelections(COMPANY, { analysis: {} }, 'Account Receivable');
+    assert.match(nothing.error, /Division is required/);
+});

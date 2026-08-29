@@ -6,6 +6,7 @@
 // lock (via the gateway's registered consumer usage checks) keeps a used
 // dimension number's meaning stable.
 
+const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const DimensionCategory = require('./dimensionCategory.model');
 const DimensionCategoryModule = require('./dimensionCategoryModule.model');
@@ -40,6 +41,9 @@ function categoryDto(c, canModify = true, modules = []) {
         canModify,
         name: c.name,
         dimensionNo: c.dimensionNo,
+        // Hierarchy: this dimension is a child of that one (Department under
+        // Division). Independent of dimensionNo by design.
+        parentCategoryId: c.parentCategoryId || null,
         modules,
         isActive: c.isActive,
     };
@@ -89,6 +93,64 @@ async function readModules(companyId, dimensionNo, body) {
     return { rows, allowed };
 }
 
+// Validate a proposed PARENT dimension (hierarchy, 2026-08-27). Returns
+// { parentCategoryId } or { error }. Four rules, none of them involving
+// dimensionNo - the number is a storage slot, the parent link is semantic:
+//   1. no self-parent, and no cycle anywhere up the chain;
+//   2. a stamped child needs a stamped parent (a catalog-only parent is never
+//      written to a document, so the pair could not be frozen);
+//   3. module applicability NESTS - the child cannot be offered anywhere its
+//      parent is not, or the pair is unenforceable on that document;
+//   4. the parent must belong to this company.
+async function readParentCategory(companyId, selfId, dimensionNo, moduleIds, allowed, body) {
+    const parentCategoryId = body.parentCategoryId || null;
+    if (!parentCategoryId) return { parentCategoryId: null };
+    if (selfId && parentCategoryId === selfId) return { error: 'A dimension cannot be its own parent.' };
+
+    const parent = await DimensionCategory.findOne({ where: { id: parentCategoryId, companyId } });
+    if (!parent) return { error: 'Parent dimension not found.' };
+    if (dimensionNo !== null && dimensionNo !== undefined && parent.dimensionNo === null) {
+        return { error: `'${parent.name}' is catalog only - it is never stamped on documents, so it cannot be the parent of a stamped dimension.` };
+    }
+
+    // Walk up from the proposed parent. Reaching self would close a cycle and
+    // hang every cascade that follows the chain.
+    let cursor = parent;
+    for (let hop = 0; cursor && cursor.parentCategoryId && hop < 10; hop += 1) {
+        if (selfId && cursor.parentCategoryId === selfId) {
+            return { error: `That would make '${parent.name}' a descendant of itself.` };
+        }
+        cursor = await DimensionCategory.findOne({ where: { id: cursor.parentCategoryId, companyId } });
+    }
+
+    const parentModules = new Set((await DimensionCategoryModule.findAll({
+        where: { categoryId: parent.id }, attributes: ['moduleId'],
+    })).map((m) => m.moduleId));
+    const missing = moduleIds.filter((id) => !parentModules.has(id));
+    if (missing.length) {
+        const names = missing.map((id) => allowed.get(id) || 'that module').join(', ');
+        return { error: `'${parent.name}' does not apply to ${names}, so this dimension cannot either - a parent must cover every module its child covers.` };
+    }
+    return { parentCategoryId };
+}
+
+// Validate an option's link to its parent category's option. Required once the
+// category declares a parent; forced null when it does not.
+async function readParentOption(companyId, category, body) {
+    if (!category.parentCategoryId) return { parentOptionId: null };
+    const parent = await DimensionCategory.findOne({
+        where: { id: category.parentCategoryId, companyId }, attributes: ['id', 'name'],
+    });
+    const label = parent ? parent.name : 'parent dimension';
+    const parentOptionId = body.parentOptionId || null;
+    if (!parentOptionId) return { error: `Select the ${label} this option belongs to.` };
+    const target = await DimensionOption.findOne({
+        where: { id: parentOptionId, companyId, categoryId: category.parentCategoryId }, attributes: ['id'],
+    });
+    if (!target) return { error: `Select a valid ${label} option.` };
+    return { parentOptionId };
+}
+
 // Reconcile a category's module rows with the dialog's ticks.
 // Rows for modules OUTSIDE `allowed` are left untouched: the dialog never
 // showed them, so a save must not drop intent that re-subscribing would
@@ -126,6 +188,10 @@ function optionDto(o, canModify = true) {
         id: o.id,
         canModify,
         categoryId: o.categoryId,
+        // Which option of the PARENT category this belongs to. Null under a
+        // parented category means UNASSIGNED: kept and listed, but withheld
+        // from entry pickers until it is linked.
+        parentOptionId: o.parentOptionId || null,
         code: o.code,
         description: o.description,
         isActive: o.isActive,
@@ -136,6 +202,8 @@ function optionDto(o, canModify = true) {
 const categoryBody = z.object({
     name: fields.requiredText(100),
     dimensionNo: z.union([z.null(), z.coerce.number().int().min(1).max(6)]).optional(),
+    // Hierarchy: the dimension this one sits under (null = standalone).
+    parentCategoryId: fields.uuid.nullable().optional(),
     // Per-module applicability; `isRequired` rides each entry.
     modules: z.array(z.object({
         moduleId: fields.uuid,
@@ -146,10 +214,14 @@ const categoryBody = z.object({
 // `trim() || null`) - accept string, null or absent alike.
 const optionBody = z.object({
     categoryId: fields.uuid,
+    // The parent category's option this belongs to (required when the category
+    // has a parent; ignored otherwise).
+    parentOptionId: fields.uuid.nullable().optional(),
     code: fields.requiredText(30),
     description: fields.optionalText(255).nullable(),
 });
 const optionEditBody = z.object({
+    parentOptionId: fields.uuid.nullable().optional(),
     code: fields.requiredText(30),
     description: fields.optionalText(255).nullable(),
 });
@@ -202,7 +274,6 @@ exports.list = async (req, res) => {
 // Dimension-number uniqueness pre-check (the partial unique index backstops).
 async function dimensionClashError(companyId, dimensionNo, ignoreId = null) {
     if (dimensionNo === null || dimensionNo === undefined) return null;
-    const { Op } = require('sequelize');
     const clash = await DimensionCategory.findOne({
         where: { companyId, dimensionNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
         attributes: ['name'],
@@ -223,6 +294,10 @@ exports.createCategory = async (req, res) => {
         if (clashErr) return res.status(409).json({ message: clashErr });
         const mods = await readModules(companyId, dimensionNo ?? null, req.body);
         if (mods.error) return res.status(400).json({ message: mods.error });
+        const parent = await readParentCategory(
+            companyId, null, dimensionNo ?? null, mods.rows.map((r) => r.moduleId), mods.allowed, req.body,
+        );
+        if (parent.error) return res.status(400).json({ message: parent.error });
 
         const placement = await getCallerPlacement(req);
         // One transaction: a numbered dimension with no module rows would
@@ -230,6 +305,7 @@ exports.createCategory = async (req, res) => {
         const { row, modules } = await sequelize.transaction(async (transaction) => {
             const created = await DimensionCategory.create({
                 companyId, name, dimensionNo: dimensionNo ?? null,
+                parentCategoryId: parent.parentCategoryId,
                 ...ownershipStamps(req, placement),
             }, { transaction });
             await saveModules(req, companyId, created.id, mods.rows, mods.allowed, placement, transaction);
@@ -261,7 +337,6 @@ exports.updateCategory = async (req, res) => {
         }
         const { name, dimensionNo = null } = req.body;
 
-        const { Op } = require('sequelize');
         const dup = await DimensionCategory.findOne({ where: { companyId, name, id: { [Op.ne]: row.id } } });
         if (dup) return res.status(409).json({ message: `Dimension '${name}' already exists.` });
 
@@ -276,17 +351,41 @@ exports.updateCategory = async (req, res) => {
 
         const mods = await readModules(companyId, nextNo, req.body);
         if (mods.error) return res.status(400).json({ message: mods.error });
+        const parent = await readParentCategory(
+            companyId, row.id, nextNo, mods.rows.map((r) => r.moduleId), mods.allowed, req.body,
+        );
+        if (parent.error) return res.status(400).json({ message: parent.error });
+
+        // Repointing (or clearing) the parent invalidates every option link at
+        // once - they address options of the OLD parent category. Clear them
+        // and say how many, rather than leaving links that resolve to the wrong
+        // level. Reparenting a single option, by contrast, touches nothing else
+        // and never rewrites history: documents froze both columns at save.
+        const parentChanged = (parent.parentCategoryId || null) !== (row.parentCategoryId || null);
+        let unlinked = 0;
 
         const placement = await getCallerPlacement(req);
         const modules = await sequelize.transaction(async (transaction) => {
-            Object.assign(row, { name, dimensionNo: nextNo, updatedBy: getUserContext(req).userId });
+            Object.assign(row, {
+                name, dimensionNo: nextNo, parentCategoryId: parent.parentCategoryId,
+                updatedBy: getUserContext(req).userId,
+            });
             await row.save({ transaction });
+            if (parentChanged) {
+                const [, affected] = await DimensionOption.update(
+                    { parentOptionId: null, updatedBy: getUserContext(req).userId },
+                    { where: { categoryId: row.id, parentOptionId: { [Op.ne]: null } }, transaction },
+                );
+                unlinked = Array.isArray(affected) ? affected.length : (affected || 0);
+            }
             await saveModules(req, companyId, row.id, mods.rows, mods.allowed, placement, transaction);
             return DimensionCategoryModule.findAll({ where: { categoryId: row.id }, transaction });
         });
         const names = await moduleNamesById();
         res.status(200).json({
-            message: `Dimension '${row.name}' updated.`,
+            message: unlinked
+                ? `Dimension '${row.name}' updated. ${unlinked} option(s) unlinked from their previous parent - reassign them before they appear on entry screens.`
+                : `Dimension '${row.name}' updated.`,
             category: categoryDto(row, true, modules.map((m) => moduleRowDto(m, names))),
         });
     } catch (error) {
@@ -333,10 +432,13 @@ exports.createOption = async (req, res) => {
         if (!category) return res.status(404).json({ message: 'Dimension not found.' });
         const dup = await DimensionOption.findOne({ where: { categoryId, code } });
         if (dup) return res.status(409).json({ message: `Option '${code}' already exists under '${category.name}'.` });
+        const parentOption = await readParentOption(companyId, category, req.body);
+        if (parentOption.error) return res.status(400).json({ message: parentOption.error });
 
         const placement = await getCallerPlacement(req);
         const row = await DimensionOption.create({
             companyId, categoryId, code, description: description || null,
+            parentOptionId: parentOption.parentOptionId,
             ...ownershipStamps(req, placement),
         });
         res.status(201).json({ message: `Option '${row.code}' created.`, option: optionDto(row) });
@@ -358,11 +460,19 @@ exports.updateOption = async (req, res) => {
             return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         }
         const { code, description = null } = req.body;
-        const { Op } = require('sequelize');
         const dup = await DimensionOption.findOne({ where: { categoryId: row.categoryId, code, id: { [Op.ne]: row.id } } });
         if (dup) return res.status(409).json({ message: `Option '${code}' already exists under this dimension.` });
 
-        Object.assign(row, { code, description: description || null, updatedBy: getUserContext(req).userId });
+        const category = await DimensionCategory.findOne({ where: { id: row.categoryId, companyId } });
+        if (!category) return res.status(404).json({ message: 'Dimension not found.' });
+        const parentOption = await readParentOption(companyId, category, req.body);
+        if (parentOption.error) return res.status(400).json({ message: parentOption.error });
+
+        Object.assign(row, {
+            code, description: description || null,
+            parentOptionId: parentOption.parentOptionId,
+            updatedBy: getUserContext(req).userId,
+        });
         await row.save();
         res.status(200).json({ message: `Option '${row.code}' updated.`, option: optionDto(row) });
     } catch (error) {

@@ -158,3 +158,37 @@
   .ana-mod__req,
   .ana-mod__note { padding-left: calc(18px + var(--space-sm)); }
 }
+
+/* --- Hierarchy: option groups (2026-08-27) -------------------------------- */
+/* A parented dimension lists its options under their parent, with the
+   UNASSIGNED ones first so the gap cannot be missed. */
+.ana-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin: var(--space-md) 0 var(--space-xs);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--border);
+}
+
+.ana-group__label {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.ana-group__note {
+  font-size: var(--font-body-2);
+  color: var(--text-muted);
+}
+
+.ana-group--warn .ana-group__label { color: var(--danger-text); }
+
+/* Warning chip on a master card: options still waiting for a parent. */
+.ana-chip--warn {
+  background: var(--danger-surface);
+  color: var(--danger-text);
+}

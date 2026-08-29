@@ -39,6 +39,30 @@ const DimensionCategory = sequelize.define('DimensionCategory', {
         allowNull: true,
         validate: { min: 1, max: 6 },
     },
+    // Hierarchy (user decision 2026-08-27): this dimension is a CHILD of
+    // another, e.g. Department under Division, 1 Division to many Departments.
+    // Both levels are stamped in their own analysis<N>Id column, so history is
+    // frozen (a Department later moved to another Division does not rewrite
+    // last year's reports) and every level stays a one-column GROUP BY.
+    //
+    // DELIBERATELY UNRELATED TO dimensionNo: the number is a physical storage
+    // slot, the parent link is semantic. Division may be Dimension 5 and
+    // Department Dimension 2. Coupling them would freeze the hierarchy behind
+    // the repurpose lock and turn the numbers into a scarce ordering resource
+    // on top of a scarce storage one.
+    //
+    // Depth is unbounded (arbitrary chains) because each level owns a column;
+    // the six-slot ceiling is the natural brake. Cycles are rejected by the
+    // controller, which walks the chain on save.
+    parentCategoryId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: { tableName: 'DimensionCategory', schema: DIMENSION_SCHEMA },
+            key: 'id',
+        },
+        onUpdate: 'CASCADE',
+    },
     // WHICH MODULES a dimension applies to, and whether it is mandatory there,
     // live one level down in DimensionCategoryModule (2026-08-27). The
     // category-level `isRequired` was retired the same day: one question, one
@@ -60,6 +84,7 @@ const DimensionCategory = sequelize.define('DimensionCategory', {
     timestamps: true,
     indexes: [
         { name: 'IDX_DimensionCategory_Company_Name', fields: ['companyId', 'name'], unique: true },
+        { name: 'IDX_DimensionCategory_Parent', fields: ['parentCategoryId'] },
         // One category per dimension number per company (catalog-only exempt).
         {
             name: 'IDX_DimensionCategory_Company_DimensionNo',

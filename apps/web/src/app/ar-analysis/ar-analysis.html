@@ -46,8 +46,12 @@
                     <span class="data-card__subline">
                       @if (c.dimensionNo !== null) { <span class="mt-chip">Dimension {{ c.dimensionNo }}</span> }
                       @else { <span class="data-card__reg">catalog only — not stamped on documents</span> }
+                      @if (c.parentCategoryId) { <span class="mt-chip">under {{ parentNameOf(c) }}</span> }
                       @for (m of moduleChips(c); track m.moduleId) {
                         <span class="mt-chip">{{ m.moduleName }}@if (m.isRequired) { &middot; required }</span>
+                      }
+                      @if (unassignedCount(c); as n) {
+                        <span class="mt-chip ana-chip--warn">{{ n }} unassigned</span>
                       }
                       <span class="data-card__reg">{{ optionCount(c.id) }} option(s)</span>
                     </span>
@@ -102,8 +106,17 @@
           @if (selectedOptions().length === 0) {
             <div class="empty-state"><span class="empty-icon">📭</span><p>No options yet. Use "New option" (e.g. FNB — Food &amp; Beverage).</p></div>
           } @else {
+            @for (g of optionGroups(); track g.key) {
+            @if (g.label) {
+              <div class="ana-group" [class.ana-group--warn]="g.key === '__unassigned__'">
+                <span class="ana-group__label">{{ g.label }}</span>
+                @if (g.key === '__unassigned__') {
+                  <span class="ana-group__note">not linked to a {{ parentCategoryName() }} yet, so these do not appear on entry screens</span>
+                }
+              </div>
+            }
             <div class="data-list">
-              @for (o of selectedOptions(); track o.id) {
+              @for (o of g.options; track o.id) {
                 <div class="data-card">
                   <div class="data-row data-row--with-badge">
                     <div class="data-row__main">
@@ -130,6 +143,7 @@
                 </div>
               }
             </div>
+            }
           }
         } @else {
           <div class="ana-detail__placeholder cell-subtle">Select a dimension to manage its options.</div>
@@ -163,6 +177,25 @@
               }
             </select>
             <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The analysis column (1-6) this dimension stamps into on documents. Once documents use it, it can no longer change.</p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="anaCatParent">Sits under</label>
+            <select id="anaCatParent" formControlName="parentCategoryId">
+              <option value="">— Standalone dimension —</option>
+              @for (p of parentChoices(); track p.id) {
+                <option [value]="p.id">{{ p.name }} (Dimension {{ p.dimensionNo }})</option>
+              }
+            </select>
+            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">
+              Makes this a level under another dimension, e.g. Department under Division. Both are
+              stamped on the document, so picking the child fills in its parent. Independent of the
+              Analysis Dimension number.
+            </p>
+            @if (parentUnlinkWarning()) {
+              <p class="field-error" role="alert" style="margin: var(--space-xs) 0 0;">{{ parentUnlinkWarning() }}</p>
+            }
           </div>
         </div>
         <div class="form-row">
@@ -228,6 +261,25 @@
                 discardMessage="You have unsaved changes to this option. Leaving now will discard them."
                 (close)="optOpen.set(false)">
       <form id="anaOptForm" [formGroup]="optForm" (ngSubmit)="onSaveOption()" class="saas-form" style="padding: 0;">
+        @if (selected()?.parentCategoryId) {
+          <div class="form-row">
+            <div class="form-group">
+              <label for="anaOptParent">{{ parentCategoryName() }} <span class="required">*</span></label>
+              <select id="anaOptParent" formControlName="parentOptionId"
+                      [attr.aria-invalid]="showError(optForm.controls.parentOptionId)" aria-describedby="anaOptParentErr">
+                <option value="">— Select —</option>
+                @for (p of parentOptionChoices(); track p.id) {
+                  <option [value]="p.id">{{ p.code }}@if (p.description) { — {{ p.description }}}</option>
+                }
+              </select>
+              @if (showError(optForm.controls.parentOptionId)) {
+                <p id="anaOptParentErr" class="field-error" role="alert">Pick the {{ parentCategoryName() }} this option belongs to.</p>
+              } @else {
+                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Until this is set, the option stays off every entry screen.</p>
+              }
+            </div>
+          </div>
+        }
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="anaOptCode">Code <span class="required">*</span></label>

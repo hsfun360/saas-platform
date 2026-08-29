@@ -22,6 +22,13 @@ Unlimited catalog, bounded stamping, column-based reporting:
   `moduleId` is the Control-Plane `Module.id` as a plain UUID (peer service, no FK), resolved from the module NAME consumers already pass to `requireModule`.
   Two rules: a dimension WITH a number must apply to at least one module (else it burns one of the six slots with nothing able to write it), and a catalog-only dimension applies nowhere by definition.
   Unticking a module that already has stamped documents is allowed and needs no lock - unlike a `dimensionNo` change it only stops NEW entry; existing documents keep their option ids and every report still resolves.
+- **Hierarchy** (user decision 2026-08-27): `DimensionCategory.parentCategoryId` makes a dimension a level under another (Department under Division, 1:many), and `DimensionOption.parentOptionId` says which parent option each value belongs to.
+  Both levels are stamped in their own `analysis<N>Id` column, so history is FROZEN (a Department later moved to another Division does not rewrite last year's reports) and every level stays a one-column `GROUP BY`.
+  `parentCategoryId` is deliberately UNRELATED to `dimensionNo`: the number is a physical storage slot, the link is semantic, so Division may be Dimension 5 and Department Dimension 2.
+  Depth is unbounded because each level owns a column; the six-slot ceiling is the natural brake.
+  Rules: no self-parent and no cycles; a stamped child needs a stamped parent; module applicability NESTS (a parent must cover every module its child covers); an option's parent must belong to the declared parent category.
+  Repointing a category's parent clears every option link at once (they addressed the old parent's options) and the response reports the count; reparenting a single option touches nothing else.
+  An option left unlinked under a parented category is UNASSIGNED: kept and listed on the setup screen under its own group, but withheld from entry pickers, since the cascade has no level to file it under.
 - `dimension.DimensionOption` - the values (code + description), real intra-service FK to its category, unique code per category.
   Consuming documents reference options **by id** through their own `analysis<dimensionNo>Id` columns, so renames are free and history never strands.
 - Consumers own their stamping columns and indexes (e.g. `ar.Ledger.analysis1Id..analysis6Id` with partial indexes `(analysisNId, trxDate) WHERE NOT NULL` - only tagged rows are indexed, so the sparse NULL majority costs nothing and reports stay a one-column `GROUP BY`).
@@ -31,6 +38,7 @@ Unlimited catalog, bounded stamping, column-based reporting:
 - `entryMeta(companyId, moduleName)` - the number-assigned active categories **that module applies to** + active options, for entry-dialog pickers; `isRequired` is that module's own flag.
 - `readSelections(companyId, body, moduleName)` - validates a manual entry's `body.analysis` (`{ "<dimensionNo>": optionId }`): the dimension applies to the CALLING module, option of that category + active, that module's `isRequired` enforced; returns the six `analysis<N>Id` column values.
   A dimension the module cannot stamp is rejected, not dropped - hiding in the UI is never the gate.
+  Ancestors a picked child determines are DERIVED and stamped (pick the Department, get its Division), so the pair is never half-frozen, and required is checked after derivation; a pair the clerk picked inconsistently is rejected.
 - `copyColumns(row)` - the six columns of an existing row, for copies (e.g. AR void reversals, or a producing module handing its stamps to the AR ledger).
   Deliberately UNFILTERED by applicability: applicability governs data ENTRY, not what a row may carry, or restricting a dimension from AR would silently strip analysis off AR rows another module legitimately created.
 - `availableModules(companyId)` - the modules the Setup screen may offer: registered consumers INTERSECTED with the company's subscribed modules.

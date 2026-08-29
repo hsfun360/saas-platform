@@ -315,11 +315,11 @@ export class ArService {
     return this.http.patch<{ message: string; category: ArAnalysisCategory }>(`${this.dimensionBase}/categories/${id}`, { isActive });
   }
 
-  createAnalysisOption(payload: { categoryId: string; code: string; description: string | null }): Observable<{ message: string; option: ArAnalysisOption }> {
+  createAnalysisOption(payload: { categoryId: string; parentOptionId: string | null; code: string; description: string | null }): Observable<{ message: string; option: ArAnalysisOption }> {
     return this.http.post<{ message: string; option: ArAnalysisOption }>(`${this.dimensionBase}/options`, payload);
   }
 
-  updateAnalysisOption(id: string, payload: { code: string; description: string | null }): Observable<{ message: string; option: ArAnalysisOption }> {
+  updateAnalysisOption(id: string, payload: { parentOptionId: string | null; code: string; description: string | null }): Observable<{ message: string; option: ArAnalysisOption }> {
     return this.http.put<{ message: string; option: ArAnalysisOption }>(`${this.dimensionBase}/options/${id}`, payload);
   }
 
