@@ -930,11 +930,16 @@
    of the content area, so the top header stays uncluttered (esp. on mobile). It
    scrolls away with the title, like part of the screen header. The component only
    renders its icon when the current route has a published guide. */
+/* The host is positioned, so it CREATES A STACKING CONTEXT: everything inside
+   it - including the help panel's own z-index 1051 - is capped at this value
+   relative to siblings. At 10 the page's FAB (900) painted straight through
+   the open guide. Sit above the FAB but still below the drawer (1000) and the
+   header (1100), which the panel deliberately renders beneath. */
 .content-help {
   position: absolute;
   top: var(--space-lg);
   right: var(--space-lg);
-  z-index: 10;
+  z-index: 950;
 }
 
 /* If the sidebar is pinned, the content doesn't need to change because it's flexed.
