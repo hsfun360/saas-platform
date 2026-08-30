@@ -1,6 +1,7 @@
 # Companies
 
 > **Where:** System Setup → Companies
+>
 > **Who can use it:** users whose role includes the System Setup module (your organization's administrators).
 
 ## What this option is for

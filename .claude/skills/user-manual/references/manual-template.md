@@ -8,6 +8,7 @@ Remember the repo Markdown rules: one sentence per line, no em dashes.
 # <Screen name>
 
 > **Where:** <System> → <Menu label>
+>
 > **Who can use it:** users whose role includes the <System> module.
 
 ## What this option is for

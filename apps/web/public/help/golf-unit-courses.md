@@ -1,6 +1,7 @@
 # Unit Courses
 
 > **Where:** Golf Management → Master File Setup → Unit Courses
+>
 > **Who can use it:** users whose role includes the Golf Management module.
 
 ## What this option is for

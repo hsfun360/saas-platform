@@ -1,6 +1,7 @@
 # Analysis Setup
 
 > **Where:** Account Receivable → Common Setup → Analysis Setup
+>
 > **Who can use it:** users whose role includes the Account Receivable module.
 
 ## What this option is for

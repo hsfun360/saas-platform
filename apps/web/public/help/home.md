@@ -1,6 +1,7 @@
 # My Dashboard
 
 > **Where:** the **My Dashboard** item at the top of the side menu (or the first icon in the bottom bar on a phone).
+>
 > **Who can use it:** every signed-in user; the page shows only screens your own role can open.
 
 ## What this option is for
