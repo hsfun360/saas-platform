@@ -174,6 +174,17 @@ export class ComboboxComponent implements OnDestroy {
     this.draft.set(null);
     window.removeEventListener('scroll', this.onOutsideScroll, true);
     window.removeEventListener('resize', this.onWindowResize);
+    this.syncInputDom();
+  }
+
+  // Belt-and-braces DOM write: the [value] binding proved unreliable at
+  // REVERTING typed text under zoneless change detection (the typed draft
+  // stayed visible after settle() dropped it), so every close writes the
+  // display text straight onto the input. commit() overrides with the newly
+  // committed label, since the parent's [value] echo has not landed yet.
+  private syncInputDom(text?: string): void {
+    const input = this.host.nativeElement.querySelector('input') as HTMLInputElement | null;
+    if (input) input.value = text !== undefined ? text : this.displayText();
   }
 
   // A fixed-position popover cannot follow the field when its container
@@ -194,6 +205,7 @@ export class ComboboxComponent implements OnDestroy {
   private commit(v: string): void {
     if (v !== this.value()) this.valueChange.emit(v);
     this.closeList();
+    this.syncInputDom(v ? (this.options().find((o) => o.value === v)?.label || '') : '');
   }
 
   // Field left with an uncommitted draft: an exact label match commits, a
