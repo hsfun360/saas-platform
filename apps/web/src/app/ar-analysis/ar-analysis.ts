@@ -343,7 +343,9 @@ export class ArAnalysisComponent implements OnInit {
     const payload = {
       name: f.name.trim(),
       dimensionNo: stamped ? Number(f.dimensionNo) : null,
-      displaySeq: f.displaySeq === '' ? null : Number(f.displaySeq),
+      // type=number uses the NumberValueAccessor: a CLEARED field reads null
+      // (not ''), and Number(null) is 0 - so treat both empties as automatic.
+      displaySeq: f.displaySeq === '' || (f.displaySeq as unknown) === null ? null : Number(f.displaySeq),
       parentCategoryId: f.parentCategoryId || null,
       // A catalog-only dimension stamps nothing, so it applies nowhere.
       modules: stamped
