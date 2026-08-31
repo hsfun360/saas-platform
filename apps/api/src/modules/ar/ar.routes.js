@@ -48,6 +48,9 @@ router.get('/debtors/:id/account', requireMenuAction('/ar/debtors'), documentCon
 // (they open the same dialog after picking a debtor).
 router.get('/debtors/:id/account/meta', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.getAccountMeta);
 router.get('/documents/:type/:id/allocations', requireMenuAction('/ar/debtors'), documentController.getAllocations);
+// The frozen tax breakdown behind a document - reachable from any transaction
+// screen (same broad gate as the shared entry meta).
+router.get('/documents/:type/:id/tax-lines', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.getTaxLines);
 router.post('/debtors/:id/ledger', requireMenuAction('/ar/debtors'), documentController.postLedger);
 router.post('/debtors/:id/receipts', requireMenuAction('/ar/debtors'), documentController.postReceipt);
 router.post('/debtors/:id/refunds', requireMenuAction('/ar/debtors'), documentController.postRefund);

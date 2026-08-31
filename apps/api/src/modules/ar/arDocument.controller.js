@@ -335,6 +335,29 @@ exports.getAllocations = async (req, res) => {
     }
 };
 
+// GET /api/ar/documents/:type/:id/tax-lines - the FROZEN per-component tax
+// breakdown behind a Ledger document (ar.TaxLedger: written at save, replaced
+// on draft edit, copied by void reversals, never requoted). The rows' docType
+// mirrors the document's docKind and their status mirrors its lifecycle, so
+// this is the drill-down for tax verification and reporting. docId alone
+// identifies the document; :type stays in the URL for shape-consistency with
+// the allocations drill-down.
+exports.getTaxLines = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const TaxLedger = require('./taxLedger.model');
+        const rows = await TaxLedger.findAll({
+            where: { companyId, docId: req.params.id },
+            order: [['lineNo', 'ASC']],
+        });
+        res.status(200).json({ taxLines: rows });
+    } catch (err) {
+        console.error('Error loading tax lines:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 // ---------------------------------------------------------------------------
 // AR Transaction screens (one menu per document type - /ar/invoices first).
 // Each type gets its own listing + entry door so RBAC can grant, e.g., invoice
