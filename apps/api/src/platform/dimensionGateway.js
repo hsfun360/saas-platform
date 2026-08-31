@@ -112,7 +112,7 @@ async function entryMeta(companyId, moduleName) {
             id: { [Op.in]: [...requiredBy.keys()] },
         },
         order: [['dimensionNo', 'ASC']],
-        attributes: ['id', 'name', 'dimensionNo', 'parentCategoryId'],
+        attributes: ['id', 'name', 'dimensionNo', 'displaySeq', 'parentCategoryId'],
     });
     if (!categories.length) return [];
     const options = await DimensionOption.findAll({
@@ -142,6 +142,9 @@ async function entryMeta(companyId, moduleName) {
         categoryId: c.id,
         dimensionNo: c.dimensionNo,
         name: c.name,
+        // Entry display order (null = automatic parent-first, decided by the
+        // entry dialogs; the gateway only carries the preference).
+        displaySeq: c.displaySeq ?? null,
         isRequired: requiredBy.get(c.id) === true,
         parentCategoryId: c.parentCategoryId || null,
         parentDimensionNo: c.parentCategoryId ? (noByCategory.get(c.parentCategoryId) ?? null) : null,

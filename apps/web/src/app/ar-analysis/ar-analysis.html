@@ -181,6 +181,19 @@
         </div>
         <div class="form-row">
           <div class="form-group">
+            <label for="anaCatSeq">Display sequence</label>
+            <input id="anaCatSeq" type="number" inputmode="numeric" min="1" max="999" step="1"
+                   formControlName="displaySeq" placeholder="Automatic" autocomplete="off"
+                   [attr.aria-invalid]="showError(catForm.controls.displaySeq)" aria-describedby="anaCatSeqErr" />
+            @if (showError(catForm.controls.displaySeq)) {
+              <p id="anaCatSeqErr" class="field-error" role="alert">Enter a whole number from 1 to 999.</p>
+            }
+            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">
+              Where this dimension's picker appears on entry screens — lower numbers first. Leave
+              blank for automatic order (a parent renders before its children).
+            </p>
+          </div>
+          <div class="form-group">
             <label for="anaCatParent">Parent dimension</label>
             <select id="anaCatParent" formControlName="parentCategoryId">
               <option value="">— Standalone dimension —</option>

@@ -36,6 +36,8 @@ Unlimited catalog, bounded stamping, column-based reporting:
 ## The gateway (`platform/dimensionGateway.js`)
 
 - `entryMeta(companyId, moduleName)` - the number-assigned active categories **that module applies to** + active options, for entry-dialog pickers; `isRequired` is that module's own flag.
+  Each row also carries `displaySeq` (`DimensionCategory.displaySeq`, user request 2026-08-31): the entry dialogs render explicitly sequenced dimensions first (ascending), then the rest in automatic parent-before-child order.
+  Pure presentation - freely editable on the Setup screen, no repurpose lock.
 - `readSelections(companyId, body, moduleName)` - validates a manual entry's `body.analysis` (`{ "<dimensionNo>": optionId }`): the dimension applies to the CALLING module, option of that category + active, that module's `isRequired` enforced; returns the six `analysis<N>Id` column values.
   A dimension the module cannot stamp is rejected, not dropped - hiding in the UI is never the gate.
   Ancestors a picked child determines are DERIVED and stamped (pick the Department, get its Division), so the pair is never half-frozen, and required is checked after derivation; a pair the clerk picked inconsistently is rejected.

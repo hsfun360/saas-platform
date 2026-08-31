@@ -110,27 +110,31 @@ export class ArLedgerDialogComponent implements OnInit {
   // One picker per slot-assigned dimension; selections live outside the form
   // group (dynamic list, same pattern as the transaction-type module radio).
   readonly analysisMeta = computed(() => this.effMeta()?.analysis || []);
-  // ENTRY ORDER (user feedback 2026-08-31): a parent dimension renders before
-  // its children, with the child directly after its parent (Division, then
-  // Department under it) - the natural keying sequence. Roots and siblings
-  // order by dimension number. No configuration knob: the hierarchy IS the
-  // order, so the setup screen cannot drift from it.
+  // ENTRY ORDER (user feedback 2026-08-31): automatic order is parent before
+  // child, with the child directly after its parent (Division, then
+  // Department under it) - the natural keying sequence; roots and siblings by
+  // dimension number. A dimension with an explicit displaySeq (the setup
+  // screen's Display sequence field, added the same day) overrides: sequenced
+  // dimensions render FIRST, ascending, then the unsequenced in automatic
+  // order.
   readonly orderedAnalysisMeta = computed<ArAnalysisEntryMeta[]>(() => {
     const meta = this.analysisMeta();
     const byNo = new Map(meta.map((c) => [c.dimensionNo, c]));
     const childrenOf = (no: number | null) => meta
       .filter((c) => (c.parentDimensionNo !== null && byNo.has(c.parentDimensionNo) ? c.parentDimensionNo : null) === no)
       .sort((a, b) => a.dimensionNo - b.dimensionNo);
-    const out: ArAnalysisEntryMeta[] = [];
+    const auto: ArAnalysisEntryMeta[] = [];
     const visit = (c: ArAnalysisEntryMeta) => {
-      if (out.includes(c)) return;
-      out.push(c);
+      if (auto.includes(c)) return;
+      auto.push(c);
       for (const child of childrenOf(c.dimensionNo)) visit(child);
     };
     for (const root of childrenOf(null)) visit(root);
     // Defensive: anything a cycle or dangling parent kept out still renders.
-    for (const c of meta) if (!out.includes(c)) out.push(c);
-    return out;
+    for (const c of meta) if (!auto.includes(c)) auto.push(c);
+    const sequenced = auto.filter((c) => c.displaySeq !== null)
+      .sort((a, b) => (a.displaySeq as number) - (b.displaySeq as number));
+    return [...sequenced, ...auto.filter((c) => c.displaySeq === null)];
   });
   readonly analysisSel = signal<Record<string, string>>({});
   // The pickers sit in their own collapsible section card (user feedback

@@ -39,6 +39,16 @@ const DimensionCategory = sequelize.define('DimensionCategory', {
         allowNull: true,
         validate: { min: 1, max: 6 },
     },
+    // ENTRY DISPLAY ORDER (user request 2026-08-31): where this dimension's
+    // picker renders on the entry dialogs. NULL = automatic (parent before
+    // child, then dimension number); sequenced dimensions render FIRST,
+    // ascending. Pure presentation - storage and reporting never read it, so
+    // it is freely editable (no repurpose lock).
+    displaySeq: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        validate: { min: 1, max: 999 },
+    },
     // Hierarchy (user decision 2026-08-27): this dimension is a CHILD of
     // another, e.g. Department under Division, 1 Division to many Departments.
     // Both levels are stamped in their own analysis<N>Id column, so history is

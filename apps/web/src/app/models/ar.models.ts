@@ -272,6 +272,8 @@ export interface ArAnalysisCategory {
   name: string;
   // 1..6 = stamped onto Ledger.analysis<dimensionNo>Id; null = catalog-only.
   dimensionNo: number | null;
+  // Entry display order; null = automatic (parent before child).
+  displaySeq: number | null;
   // The dimension this one sits under (Department under Division), or null for
   // a standalone dimension. Deliberately unrelated to dimensionNo: the number
   // is a storage slot, the parent link is semantic.
@@ -298,6 +300,7 @@ export interface ArAnalysisOption {
 export interface ArAnalysisCategoryPayload {
   name: string;
   dimensionNo: number | null;
+  displaySeq: number | null;
   parentCategoryId: string | null;
   modules: { moduleId: string; isRequired: boolean }[];
 }
@@ -315,6 +318,8 @@ export interface ArAnalysisEntryMeta {
   categoryId: string;
   dimensionNo: number;
   name: string;
+  // Entry display order; null = automatic (parent before child).
+  displaySeq: number | null;
   isRequired: boolean;
   // Hierarchy for the entry cascade. parentDimensionNo is what the dialog keys
   // on, since selections are keyed by dimension number; it may be HIGHER than

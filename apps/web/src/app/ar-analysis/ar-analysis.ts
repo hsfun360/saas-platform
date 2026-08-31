@@ -98,6 +98,7 @@ export class ArAnalysisComponent implements OnInit {
   readonly catForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
     dimensionNo: [''],
+    displaySeq: ['', [Validators.pattern(/^\d{1,3}$/)]],
     parentCategoryId: [''],
     modules: this.fb.array<ModuleRowForm>([]),
   });
@@ -304,7 +305,7 @@ export class ArAnalysisComponent implements OnInit {
     this.clearMessages();
     this.catEditId.set(null);
     this.moduleTouched.set(false);
-    this.catForm.reset({ name: '', dimensionNo: '', parentCategoryId: '' });
+    this.catForm.reset({ name: '', dimensionNo: '', displaySeq: '', parentCategoryId: '' });
     this.catStamped.set(false);
     this.catParentSel.set('');
     this.setModuleRows(null);
@@ -318,6 +319,7 @@ export class ArAnalysisComponent implements OnInit {
     this.catForm.reset({
       name: c.name,
       dimensionNo: c.dimensionNo === null ? '' : String(c.dimensionNo),
+      displaySeq: c.displaySeq === null ? '' : String(c.displaySeq),
       parentCategoryId: c.parentCategoryId || '',
     });
     this.catStamped.set(c.dimensionNo !== null);
@@ -341,6 +343,7 @@ export class ArAnalysisComponent implements OnInit {
     const payload = {
       name: f.name.trim(),
       dimensionNo: stamped ? Number(f.dimensionNo) : null,
+      displaySeq: f.displaySeq === '' ? null : Number(f.displaySeq),
       parentCategoryId: f.parentCategoryId || null,
       // A catalog-only dimension stamps nothing, so it applies nowhere.
       modules: stamped

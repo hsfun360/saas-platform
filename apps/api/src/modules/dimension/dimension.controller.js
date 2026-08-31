@@ -41,6 +41,8 @@ function categoryDto(c, canModify = true, modules = []) {
         canModify,
         name: c.name,
         dimensionNo: c.dimensionNo,
+        // Entry display order; null = automatic (parent-first).
+        displaySeq: c.displaySeq ?? null,
         // Hierarchy: this dimension is a child of that one (Department under
         // Division). Independent of dimensionNo by design.
         parentCategoryId: c.parentCategoryId || null,
@@ -202,6 +204,8 @@ function optionDto(o, canModify = true) {
 const categoryBody = z.object({
     name: fields.requiredText(100),
     dimensionNo: z.union([z.null(), z.coerce.number().int().min(1).max(6)]).optional(),
+    // Entry display order (null/absent = automatic parent-first ordering).
+    displaySeq: z.union([z.null(), z.coerce.number().int().min(1).max(999)]).optional(),
     // Hierarchy: the dimension this one sits under (null = standalone).
     parentCategoryId: fields.uuid.nullable().optional(),
     // Per-module applicability; `isRequired` rides each entry.
@@ -286,7 +290,7 @@ exports.createCategory = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const { name, dimensionNo = null } = req.body;
+        const { name, dimensionNo = null, displaySeq = null } = req.body;
 
         const dup = await DimensionCategory.findOne({ where: { companyId, name } });
         if (dup) return res.status(409).json({ message: `Dimension '${name}' already exists.` });
@@ -305,6 +309,7 @@ exports.createCategory = async (req, res) => {
         const { row, modules } = await sequelize.transaction(async (transaction) => {
             const created = await DimensionCategory.create({
                 companyId, name, dimensionNo: dimensionNo ?? null,
+                displaySeq: displaySeq ?? null,
                 parentCategoryId: parent.parentCategoryId,
                 ...ownershipStamps(req, placement),
             }, { transaction });
@@ -335,7 +340,7 @@ exports.updateCategory = async (req, res) => {
         if (!(await canModifyRecord(req, row))) {
             return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         }
-        const { name, dimensionNo = null } = req.body;
+        const { name, dimensionNo = null, displaySeq = null } = req.body;
 
         const dup = await DimensionCategory.findOne({ where: { companyId, name, id: { [Op.ne]: row.id } } });
         if (dup) return res.status(409).json({ message: `Dimension '${name}' already exists.` });
@@ -367,7 +372,8 @@ exports.updateCategory = async (req, res) => {
         const placement = await getCallerPlacement(req);
         const modules = await sequelize.transaction(async (transaction) => {
             Object.assign(row, {
-                name, dimensionNo: nextNo, parentCategoryId: parent.parentCategoryId,
+                name, dimensionNo: nextNo, displaySeq: displaySeq ?? null,
+                parentCategoryId: parent.parentCategoryId,
                 updatedBy: getUserContext(req).userId,
             });
             await row.save({ transaction });
