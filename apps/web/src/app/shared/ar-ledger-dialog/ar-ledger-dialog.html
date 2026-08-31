@@ -168,17 +168,15 @@
                     @for (dim of analysisMeta(); track dim.categoryId) {
                       <div class="form-group">
                         <label [for]="'ldAna' + dim.dimensionNo">{{ dim.name }}@if (dim.isRequired) { <span class="required">*</span> }</label>
-                        <!-- [selected] per option, not [value] on the select:
-                             the meta (and its options) load AFTER the prefill,
-                             and a value binding set before its option exists
-                             never re-applies - the select silently falls back
-                             to None. -->
-                        <select [id]="'ldAna' + dim.dimensionNo" #anaSel (change)="pickAnalysis(dim.dimensionNo, anaSel.value)">
-                          <option value="" [selected]="!selFor(dim.dimensionNo)">— None —</option>
-                          @for (o of optionsFor(dim); track o.id) {
-                            <option [value]="o.id" [selected]="o.id === selFor(dim.dimensionNo)">{{ o.code }}@if (o.description) { — {{ o.description }}}</option>
-                          }
-                        </select>
+                        <!-- Constrained combobox (user feedback 2026-08-27):
+                             type-to-filter over the code + description, values
+                             always from the option list. [value] rebinding
+                             handles the async meta prefill; the option list is
+                             already cascade-filtered by optionsFor(). -->
+                        <app-combobox [inputId]="'ldAna' + dim.dimensionNo"
+                                      [options]="comboOptionsFor(dim)"
+                                      [value]="selFor(dim.dimensionNo)"
+                                      (valueChange)="pickAnalysis(dim.dimensionNo, $event)" />
                       </div>
                     }
                   </div>

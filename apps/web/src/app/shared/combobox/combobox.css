@@ -1,0 +1,82 @@
+/* Constrained combobox - the input inherits the global field styling (focus
+   highlight ON the field per the app standard); this file adds only the
+   dropdown affordance and the popover, all on theme tokens. */
+
+.combo {
+  position: relative;
+}
+
+.combo input {
+  width: 100%;
+  padding-right: 40px; /* room for the toggle arrow */
+}
+
+.combo__toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+}
+.combo__toggle:disabled { cursor: default; }
+
+.combo__list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 2px);
+  z-index: 30;
+  margin: 0;
+  padding: var(--space-xs) 0;
+  list-style: none;
+  background: var(--surface-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.combo__list--up {
+  top: auto;
+  bottom: calc(100% + 2px);
+}
+
+.combo__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-height: 40px;
+}
+
+.combo__option--highlight {
+  background: var(--surface-selected);
+}
+
+.combo__option--none {
+  color: var(--text-muted);
+}
+
+.combo__check {
+  font-size: 18px;
+  color: var(--brand-text);
+}
+
+.combo__empty {
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-body-2);
+  color: var(--text-muted);
+}

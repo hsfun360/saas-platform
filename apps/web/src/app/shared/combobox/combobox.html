@@ -1,0 +1,42 @@
+<div class="combo" (focusout)="onFocusOut($event)">
+  <input type="text" #comboInput
+         [id]="inputId()"
+         role="combobox"
+         aria-autocomplete="list"
+         [attr.aria-expanded]="open()"
+         [attr.aria-controls]="listId"
+         [attr.aria-activedescendant]="activeDescendant()"
+         autocomplete="off"
+         [placeholder]="placeholder()"
+         [disabled]="disabled()"
+         [value]="displayText()"
+         (focus)="onFocus(comboInput)"
+         (input)="onInput(comboInput.value)"
+         (keydown)="onKeydown($event)" />
+  <!-- The dropdown affordance (mousedown so the input never loses focus). -->
+  <button type="button" class="combo__toggle" tabindex="-1" aria-hidden="true"
+          [disabled]="disabled()" (mousedown)="onToggleMousedown($event, comboInput)">
+    <span class="material-icons">arrow_drop_down</span>
+  </button>
+  @if (open()) {
+    <ul class="combo__list" [class.combo__list--up]="openUp()" [id]="listId" role="listbox">
+      @if (rows().length === 0) {
+        <li class="combo__empty">No matches.</li>
+      }
+      @for (row of rows(); track row.value; let i = $index) {
+        <li [id]="optionRowId(i)" role="option"
+            class="combo__option"
+            [class.combo__option--highlight]="i === highlighted()"
+            [class.combo__option--none]="row.value === ''"
+            [attr.aria-selected]="row.value === value()"
+            (mousedown)="onOptionMousedown($event, row)"
+            (mousemove)="highlighted.set(i)">
+          {{ row.label }}
+          @if (row.value !== '' && row.value === value()) {
+            <span class="material-icons combo__check" aria-hidden="true">check</span>
+          }
+        </li>
+      }
+    </ul>
+  }
+</div>

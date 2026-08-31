@@ -5,6 +5,7 @@ import { Subject, debounceTime } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DialogComponent } from '../dialog/dialog';
 import { MoneyInputDirective } from '../money-input.directive';
+import { ComboboxComponent, ComboOption } from '../combobox/combobox';
 import { ArService } from '../../services/ar.service';
 import { ArAccountMeta, ArAnalysisEntryMeta, ArDebtor, ArDocListRow, ArLedgerDoc } from '../../models/ar.models';
 import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate, arTrimRate } from '../ar-fx';
@@ -27,7 +28,7 @@ export interface ArLedgerDialogDebtor {
 @Component({
   selector: 'app-ar-ledger-dialog',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, ComboboxComponent],
   templateUrl: './ar-ledger-dialog.html',
   styleUrls: ['./ar-ledger-dialog.css'],
 })
@@ -127,6 +128,15 @@ export class ArLedgerDialogComponent implements OnInit {
     const parentPick = this.selFor(parentNo);
     if (!parentPick) return dim.options;
     return dim.options.filter((o) => o.parentOptionId === parentPick);
+  }
+
+  // The cascade-filtered options as combobox rows (label = code — description
+  // so type-to-filter matches either).
+  comboOptionsFor(dim: ArAnalysisEntryMeta): ComboOption[] {
+    return this.optionsFor(dim).map((o) => ({
+      value: o.id,
+      label: o.description ? `${o.code} — ${o.description}` : o.code,
+    }));
   }
 
   pickAnalysis(dimensionNo: number, optionId: string): void {
