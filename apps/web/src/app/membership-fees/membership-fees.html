@@ -149,13 +149,12 @@
         <div class="form-row">
           <div class="form-group">
             <label for="fTxnType">AR transaction type <span class="required">*</span></label>
-            <select id="fTxnType" formControlName="transactionTypeId"
-                    [attr.aria-invalid]="showError(form.controls.transactionTypeId)" aria-describedby="fTxnTypeErr">
-              <option value="">— Select —</option>
-              @for (t of typeOptions(); track t.id) {
-                <option [value]="t.id">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
-              }
-            </select>
+            <!-- Constrained combobox (house standard) - the catalog is
+                 unbounded master data, so the picker is type-to-filter. -->
+            <app-combobox inputId="fTxnType" formControlName="transactionTypeId"
+                          [options]="txnOptions()" [allowEmpty]="false"
+                          placeholder="Select a billing item…"
+                          [invalid]="showError(form.controls.transactionTypeId)" describedBy="fTxnTypeErr" />
             @if (showError(form.controls.transactionTypeId)) {
               <p id="fTxnTypeErr" class="field-error" role="alert">Select the AR transaction type this fee posts under.</p>
             }

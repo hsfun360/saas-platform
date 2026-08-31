@@ -11,6 +11,7 @@ import { MoneyInputDirective } from '../shared/money-input.directive';
 import { MembershipFee, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent, ComboOption } from '../shared/combobox/combobox';
 
 interface StageRow {
   stageNo: number;
@@ -36,7 +37,7 @@ function round2(n: number): number {
 @Component({
   selector: 'app-membership-fees',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective, OverflowMenuComponent, MenuItemDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './membership-fees.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-fees.css'],
 })
@@ -53,6 +54,12 @@ export class MembershipFeesComponent implements OnInit {
   readonly intervals = signal<MembershipStatusOption[]>([]);
   readonly taxSchemes = signal<TaxSchemeRef[]>([]);
   readonly typeOptions = signal<{ id: string; transactionType: string; description: string | null; taxSchemeCode: string | null }[]>([]);
+  // Combobox rows for the AR-catalog picker (house standard for long
+  // reference lists: type-to-filter matches code and description alike).
+  readonly txnOptions = computed<ComboOption[]>(() => this.typeOptions().map((t) => ({
+    value: t.id,
+    label: t.description ? `${t.transactionType} — ${t.description}` : t.transactionType,
+  })));
   readonly countrySet = signal(true);
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);
