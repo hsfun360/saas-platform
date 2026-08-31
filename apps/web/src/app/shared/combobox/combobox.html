@@ -19,7 +19,9 @@
     <span class="material-icons">arrow_drop_down</span>
   </button>
   @if (open()) {
-    <ul class="combo__list" [class.combo__list--up]="openUp()" [id]="listId" role="listbox">
+    <ul class="combo__list" [id]="listId" role="listbox"
+        [style.left.px]="popRect().left" [style.width.px]="popRect().width"
+        [style.top.px]="popRect().top" [style.bottom.px]="popRect().bottom">
       @if (rows().length === 0) {
         <li class="combo__empty">No matches.</li>
       }

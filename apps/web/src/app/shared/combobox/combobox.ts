@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, computed, inject, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 // The house CONSTRAINED combobox (built 2026-08-27 for the dimension pickers;
@@ -28,7 +28,7 @@ export interface ComboOption {
   styleUrls: ['./combobox.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ComboboxComponent {
+export class ComboboxComponent implements OnDestroy {
   private readonly host = inject(ElementRef<HTMLElement>);
 
   readonly options = input<ComboOption[]>([]);
@@ -41,8 +41,16 @@ export class ComboboxComponent {
   readonly valueChange = output<string>();
 
   readonly open = signal(false);
-  readonly openUp = signal(false);
   readonly highlighted = signal(0);
+  // Viewport-FIXED popover coordinates (computed from the input's rect at
+  // open): fixed positioning escapes every clipping container - the section
+  // card, the dialog body's scroll, overflow rules - so the list is always
+  // fully visible. top XOR bottom is set (bottom = the list opens upward when
+  // the space below is too short). Outside scroll/resize closes the list
+  // rather than chasing the field around.
+  readonly popRect = signal<{ left: number; width: number; top: number | null; bottom: number | null }>(
+    { left: 0, width: 0, top: null, bottom: null },
+  );
   // The text while EDITING; null = not editing, show the selection's label.
   private readonly draft = signal<string | null>(null);
 
@@ -140,22 +148,47 @@ export class ComboboxComponent {
   }
 
   private openList(): void {
-    // Flip upward when the space below the field is too short for the list.
-    const input = this.host.nativeElement.querySelector('input');
+    const input = this.host.nativeElement.querySelector('input') as HTMLElement | null;
     if (input) {
-      const rect = (input as HTMLElement).getBoundingClientRect();
-      this.openUp.set(window.innerHeight - rect.bottom < 260);
+      const rect = input.getBoundingClientRect();
+      // Flip upward when the space below the field is too short for the list.
+      const up = window.innerHeight - rect.bottom < 260;
+      this.popRect.set({
+        left: rect.left,
+        width: rect.width,
+        top: up ? null : rect.bottom + 2,
+        bottom: up ? window.innerHeight - rect.top + 2 : null,
+      });
     }
     this.open.set(true);
     // Start the highlight on the current selection.
     const rows = this.rows();
     const i = rows.findIndex((r) => r.value === this.value());
     this.highlighted.set(i >= 0 ? i : 0);
+    window.addEventListener('scroll', this.onOutsideScroll, true);
+    window.addEventListener('resize', this.onWindowResize);
   }
 
   private closeList(): void {
     this.open.set(false);
     this.draft.set(null);
+    window.removeEventListener('scroll', this.onOutsideScroll, true);
+    window.removeEventListener('resize', this.onWindowResize);
+  }
+
+  // A fixed-position popover cannot follow the field when its container
+  // scrolls - close instead (same outcome as clicking away). Scrolling INSIDE
+  // the option list itself stays open.
+  private readonly onOutsideScroll = (e: Event) => {
+    const t = e.target as Node | null;
+    if (t && this.host.nativeElement.contains(t)) return;
+    this.closeList();
+  };
+  private readonly onWindowResize = () => this.closeList();
+
+  ngOnDestroy(): void {
+    window.removeEventListener('scroll', this.onOutsideScroll, true);
+    window.removeEventListener('resize', this.onWindowResize);
   }
 
   private commit(v: string): void {

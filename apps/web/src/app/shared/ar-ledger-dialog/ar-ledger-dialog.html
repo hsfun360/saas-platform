@@ -165,7 +165,7 @@
               @if (anaOpen()) {
                 <div class="settings-body">
                   <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-                    @for (dim of analysisMeta(); track dim.categoryId) {
+                    @for (dim of orderedAnalysisMeta(); track dim.categoryId) {
                       <div class="form-group">
                         <label [for]="'ldAna' + dim.dimensionNo">{{ dim.name }}@if (dim.isRequired) { <span class="required">*</span> }</label>
                         <!-- Constrained combobox (user feedback 2026-08-27):

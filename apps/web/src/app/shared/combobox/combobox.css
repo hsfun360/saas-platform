@@ -28,12 +28,12 @@
 }
 .combo__toggle:disabled { cursor: default; }
 
+/* Viewport-FIXED so no ancestor (section card, scrolling dialog body) can
+   clip it; left/width/top-or-bottom come from the input's rect via style
+   bindings. z-index sits above the dialog overlay (1200), under flash (1300). */
 .combo__list {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(100% + 2px);
-  z-index: 30;
+  position: fixed;
+  z-index: 1250;
   margin: 0;
   padding: var(--space-xs) 0;
   list-style: none;
@@ -43,11 +43,6 @@
   box-shadow: var(--shadow);
   max-height: 240px;
   overflow-y: auto;
-}
-
-.combo__list--up {
-  top: auto;
-  bottom: calc(100% + 2px);
 }
 
 .combo__option {
