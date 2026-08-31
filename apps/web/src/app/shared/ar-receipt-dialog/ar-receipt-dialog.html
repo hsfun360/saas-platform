@@ -66,13 +66,12 @@
             </div>
             <div class="form-group">
               <label for="rcMethod">Payment method <span class="required">*</span></label>
-              <select id="rcMethod" formControlName="transactionTypeId"
-                      [attr.aria-invalid]="showError(form.controls.transactionTypeId)" aria-describedby="rcMethodErr">
-                <option value="" disabled>Select a payment method…</option>
-                @for (tt of methodTypes(); track tt.id) {
-                  <option [value]="tt.id">{{ tt.transactionType }}@if (tt.description) { — {{ tt.description }}}</option>
-                }
-              </select>
+              <!-- Constrained combobox (house standard) - the catalog is
+                   unbounded master data, so the picker is type-to-filter. -->
+              <app-combobox inputId="rcMethod" formControlName="transactionTypeId"
+                            [options]="methodOptions()" [allowEmpty]="false"
+                            placeholder="Select a payment method…"
+                            [invalid]="showError(form.controls.transactionTypeId)" describedBy="rcMethodErr" />
               @if (showError(form.controls.transactionTypeId)) {
                 <p id="rcMethodErr" class="field-error" role="alert">Payment method is required.</p>
               }

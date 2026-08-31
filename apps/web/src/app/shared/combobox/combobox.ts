@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, computed, forwardRef, inject, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 // The house CONSTRAINED combobox (built 2026-08-27 for the dimension pickers;
 // reusable for any long reference list - transaction types, GL accounts, ...).
@@ -15,6 +16,12 @@ import { CommonModule } from '@angular/common';
 //     pickers live at the bottom of scrollable dialogs).
 // There is deliberately no component library in this app - this is the one
 // shared implementation; do not hand-roll another autocomplete.
+//
+// TWO binding modes (2026-08-31): plain [value]/(valueChange) for
+// signal-driven callers (the dimension pickers), OR formControlName - the
+// component is a ControlValueAccessor like <app-phone-input>, so reactive
+// forms (the Transaction type / Payment method fields) bind it natively.
+// CVA mode engages the moment the forms API calls writeValue.
 export interface ComboOption {
   value: string;
   label: string;
@@ -27,8 +34,9 @@ export interface ComboOption {
   templateUrl: './combobox.html',
   styleUrls: ['./combobox.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => ComboboxComponent), multi: true }],
 })
-export class ComboboxComponent implements OnDestroy {
+export class ComboboxComponent implements OnDestroy, ControlValueAccessor {
   private readonly host = inject(ElementRef<HTMLElement>);
 
   readonly options = input<ComboOption[]>([]);
@@ -38,7 +46,26 @@ export class ComboboxComponent implements OnDestroy {
   readonly allowEmpty = input<boolean>(true);
   readonly emptyLabel = input<string>('— None —');
   readonly disabled = input<boolean>(false);
+  // Validation display (reactive-form callers): aria wiring for the error <p>.
+  readonly invalid = input<boolean>(false);
+  readonly describedBy = input<string>('');
   readonly valueChange = output<string>();
+
+  // --- ControlValueAccessor (engaged once writeValue is called) ---
+  private readonly cvaValue = signal<string | null>(null);
+  private readonly cvaDisabled = signal(false);
+  private onChange: (v: string) => void = () => {};
+  private onTouched: () => void = () => {};
+  writeValue(v: unknown): void {
+    this.cvaValue.set(typeof v === 'string' ? v : '');
+  }
+  registerOnChange(fn: (v: string) => void): void { this.onChange = fn; }
+  registerOnTouched(fn: () => void): void { this.onTouched = fn; }
+  setDisabledState(d: boolean): void { this.cvaDisabled.set(d); }
+
+  // The committed value / disabled state, whichever mode is driving.
+  readonly current = computed(() => (this.cvaValue() !== null ? (this.cvaValue() as string) : this.value()));
+  readonly isDisabled = computed(() => this.disabled() || this.cvaDisabled());
 
   readonly open = signal(false);
   readonly highlighted = signal(0);
@@ -58,7 +85,7 @@ export class ComboboxComponent implements OnDestroy {
   readonly listId = `combo-list-${(ComboboxComponent.seq += 1)}`;
 
   readonly selectedLabel = computed(() => {
-    const v = this.value();
+    const v = this.current();
     if (!v) return '';
     return this.options().find((o) => o.value === v)?.label || '';
   });
@@ -78,7 +105,7 @@ export class ComboboxComponent implements OnDestroy {
   });
 
   onFocus(el: HTMLInputElement): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
     el.select();
     this.openList();
   }
@@ -92,7 +119,7 @@ export class ComboboxComponent implements OnDestroy {
   }
 
   onKeydown(e: KeyboardEvent): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       if (!this.open()) { this.openList(); return; }
@@ -132,7 +159,7 @@ export class ComboboxComponent implements OnDestroy {
   }
 
   onToggleMousedown(e: MouseEvent, el: HTMLInputElement): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
     e.preventDefault();
     if (this.open()) { this.closeList(); return; }
     el.focus();
@@ -163,7 +190,7 @@ export class ComboboxComponent implements OnDestroy {
     this.open.set(true);
     // Start the highlight on the current selection.
     const rows = this.rows();
-    const i = rows.findIndex((r) => r.value === this.value());
+    const i = rows.findIndex((r) => r.value === this.current());
     this.highlighted.set(i >= 0 ? i : 0);
     window.addEventListener('scroll', this.onOutsideScroll, true);
     window.addEventListener('resize', this.onWindowResize);
@@ -203,7 +230,12 @@ export class ComboboxComponent implements OnDestroy {
   }
 
   private commit(v: string): void {
-    if (v !== this.value()) this.valueChange.emit(v);
+    if (v !== this.current()) {
+      if (this.cvaValue() !== null) this.cvaValue.set(v);
+      this.onChange(v);
+      this.valueChange.emit(v);
+    }
+    this.onTouched();
     this.closeList();
     this.syncInputDom(v ? (this.options().find((o) => o.value === v)?.label || '') : '');
   }
@@ -212,6 +244,7 @@ export class ComboboxComponent implements OnDestroy {
   // cleared field commits None (when allowed), a single filtered match is
   // forgiving and commits too - anything else reverts to the selection.
   private settle(): void {
+    this.onTouched();
     const d = this.draft();
     if (d === null) { this.open.set(false); return; }
     const q = d.trim().toLowerCase();

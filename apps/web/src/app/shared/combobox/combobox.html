@@ -8,14 +8,16 @@
          [attr.aria-activedescendant]="activeDescendant()"
          autocomplete="off"
          [placeholder]="placeholder()"
-         [disabled]="disabled()"
+         [disabled]="isDisabled()"
+         [attr.aria-invalid]="invalid() || null"
+         [attr.aria-describedby]="describedBy() || null"
          [value]="displayText()"
          (focus)="onFocus(comboInput)"
          (input)="onInput(comboInput.value)"
          (keydown)="onKeydown($event)" />
   <!-- The dropdown affordance (mousedown so the input never loses focus). -->
   <button type="button" class="combo__toggle" tabindex="-1" aria-hidden="true"
-          [disabled]="disabled()" (mousedown)="onToggleMousedown($event, comboInput)">
+          [disabled]="isDisabled()" (mousedown)="onToggleMousedown($event, comboInput)">
     <span class="material-icons">arrow_drop_down</span>
   </button>
   @if (open()) {
@@ -30,11 +32,11 @@
             class="combo__option"
             [class.combo__option--highlight]="i === highlighted()"
             [class.combo__option--none]="row.value === ''"
-            [attr.aria-selected]="row.value === value()"
+            [attr.aria-selected]="row.value === current()"
             (mousedown)="onOptionMousedown($event, row)"
             (mousemove)="highlighted.set(i)">
           {{ row.label }}
-          @if (row.value !== '' && row.value === value()) {
+          @if (row.value !== '' && row.value === current()) {
             <span class="material-icons combo__check" aria-hidden="true">check</span>
           }
         </li>

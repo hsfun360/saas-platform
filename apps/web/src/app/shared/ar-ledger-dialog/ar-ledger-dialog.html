@@ -66,13 +66,12 @@
             </div>
             <div class="form-group">
               <label for="ldTxn">Transaction type <span class="required">*</span></label>
-              <select id="ldTxn" formControlName="transactionTypeId"
-                      [attr.aria-invalid]="showError(form.controls.transactionTypeId)" aria-describedby="ldTxnErr">
-                <option value="" disabled>Select a billing item…</option>
-                @for (tt of classTypes(); track tt.id) {
-                  <option [value]="tt.id">{{ tt.transactionType }}@if (tt.description) { — {{ tt.description }}}</option>
-                }
-              </select>
+              <!-- Constrained combobox (house standard) - the catalog is
+                   unbounded master data, so the picker is type-to-filter. -->
+              <app-combobox inputId="ldTxn" formControlName="transactionTypeId"
+                            [options]="txnOptions()" [allowEmpty]="false"
+                            placeholder="Select a billing item…"
+                            [invalid]="showError(form.controls.transactionTypeId)" describedBy="ldTxnErr" />
               @if (showError(form.controls.transactionTypeId)) {
                 <p id="ldTxnErr" class="field-error" role="alert">Transaction type is required.</p>
               }

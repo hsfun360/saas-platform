@@ -5,6 +5,7 @@ import { Subject, debounceTime } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DialogComponent } from '../dialog/dialog';
 import { MoneyInputDirective } from '../money-input.directive';
+import { ComboboxComponent, ComboOption } from '../combobox/combobox';
 import { ArService } from '../../services/ar.service';
 import { ArAccountMeta, ArDebtor, ArDocListRow } from '../../models/ar.models';
 import { ArLedgerDialogDebtor } from '../ar-ledger-dialog/ar-ledger-dialog';
@@ -21,7 +22,7 @@ import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate, arTrimRate } from '..
 @Component({
   selector: 'app-ar-receipt-dialog',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective],
+  imports: [CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, ComboboxComponent],
   templateUrl: './ar-receipt-dialog.html',
   // Same chrome as the ledger dialog (.ald-* pick list / debtor band).
   styleUrls: ['../ar-ledger-dialog/ar-ledger-dialog.css'],
@@ -60,6 +61,11 @@ export class ArReceiptDialogComponent implements OnInit {
   // Payment methods = the Receipt-class entries of the AR catalog.
   readonly methodTypes = computed(() =>
     (this.effMeta()?.transactionTypes || []).filter((t) => t.trxClass === 'receipt'));
+  // Combobox rows for the payment-method picker (type-to-filter).
+  readonly methodOptions = computed<ComboOption[]>(() => this.methodTypes().map((tt) => ({
+    value: tt.id,
+    label: tt.description ? `${tt.transactionType} — ${tt.description}` : tt.transactionType,
+  })));
   readonly openDeposits = computed(() => this.effMeta()?.openDeposits || []);
 
   readonly form = this.fb.nonNullable.group({

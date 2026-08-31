@@ -329,9 +329,10 @@ Reference implementations: `platform-users`, `subscribers`, `tenant-users`, `com
 
 Any picker over a **long or unbounded reference list** (analysis dimensions, and future GL accounts / long code masters) uses the shared **`<app-combobox>`** (`src/app/shared/combobox`) instead of a native `<select>` - a native select has no substring search and degrades at hundreds of options.
 It is a CONSTRAINED combobox: typing only **filters** the fixed option list, the committed value is always a real option (an exact or single-match filter commits on leave, anything else **reverts** - free text is never kept), Esc closes only the popover (a host dialog stays open), Enter never submits the surrounding form, and the popover flips upward when the field sits near the bottom of a scrollable dialog.
-Bind `[options]` (`{value, label}` - put code AND description in the label so both match), `[value]`, `(valueChange)`, and `[inputId]` for the `<label for>`; `allowEmpty`/`emptyLabel` control the None row.
+Bind `[options]` (`{value, label}` - put code AND description in the label so both match) plus `[inputId]` for the `<label for>`; `allowEmpty`/`emptyLabel` control the None row (`[allowEmpty]="false"` for required fields).
+It binds TWO ways: `[value]`/`(valueChange)` for signal-driven callers, or **`formControlName`** - it is a ControlValueAccessor like `<app-phone-input>` (touched wires on leave, so `showError()` works; pass `[invalid]` + `describedBy` for the aria wiring of the error line).
 Do NOT hand-roll another autocomplete, and keep short enumerable lists (a handful of fixed choices) on native `<select>` - the combobox is for reference DATA, not enums.
-Reference implementation: the Analysis Dimension pickers in `shared/ar-ledger-dialog`.
+Reference implementations: the Analysis Dimension pickers (value-mode) and the Transaction type / Payment method fields (formControlName-mode), all in the shared AR entry dialogs.
 
 #### List/card action-row layout (adaptive)
 

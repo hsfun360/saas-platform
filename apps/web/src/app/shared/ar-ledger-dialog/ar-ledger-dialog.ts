@@ -76,6 +76,12 @@ export class ArLedgerDialogComponent implements OnInit {
   // entry dialog offers only its own class's types.
   readonly classTypes = computed(() =>
     (this.effMeta()?.transactionTypes || []).filter((t) => t.trxClass === this.kind()));
+  // Combobox rows for the billing-item picker (type-to-filter matches the
+  // type code and description alike).
+  readonly txnOptions = computed<ComboOption[]>(() => this.classTypes().map((tt) => ({
+    value: tt.id,
+    label: tt.description ? `${tt.transactionType} — ${tt.description}` : tt.transactionType,
+  })));
   // Invoices (2026-08-13) and Credit Notes (2026-08-20) follow the Save
   // (draft) -> Submit lifecycle; DN still posts immediately until its slice.
   readonly isLifecycle = computed(() => this.kind() === 'invoice' || this.kind() === 'credit-note');
