@@ -212,6 +212,33 @@ export class ArService {
     return this.http.patch<{ message: string }>(`${this.base}/deposits/${id}/void`, {});
   }
 
+  // --- Refund lifecycle (refund slice 2026-08-31) ---
+
+  listRefunds(opts: { month?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
+    let params = new HttpParams();
+    if (opts.month) params = params.set('month', opts.month);
+    if (opts.q) params = params.set('q', opts.q);
+    if (opts.status) params = params.set('status', opts.status);
+    if (opts.offset) params = params.set('offset', String(opts.offset));
+    return this.http.get<ArDocListResult>(`${this.base}/refunds`, { params });
+  }
+
+  createRefund(payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string | null }> {
+    return this.http.post<{ message: string; id: string; docNo: string | null }>(`${this.base}/refunds`, payload);
+  }
+
+  updateRefund(id: string, payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string | null }> {
+    return this.http.patch<{ message: string; id: string; docNo: string | null }>(`${this.base}/refunds/${id}`, payload);
+  }
+
+  submitRefund(id: string): Observable<{ message: string; id: string; docNo?: string; status: string }> {
+    return this.http.post<{ message: string; id: string; docNo?: string; status: string }>(`${this.base}/refunds/${id}/submit`, {});
+  }
+
+  voidRefund(id: string, reason?: string): Observable<{ message: string }> {
+    return this.http.patch<{ message: string }>(`${this.base}/refunds/${id}/void`, reason ? { reason } : {});
+  }
+
   // Reconciliation: verify every materialized balance against the documents;
   // fix=true repairs drifted counters to the computed truth.
   reconcile(fix: boolean): Observable<{

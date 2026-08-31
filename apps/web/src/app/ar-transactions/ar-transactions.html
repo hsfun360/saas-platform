@@ -147,7 +147,12 @@
 
   <!-- ============ Entry / edit dialog (shared; new starts at the debtor picker) ============ -->
   @if (entryOpen()) {
-    @if (cfg().dialog === 'receipt') {
+    @if (cfg().dialog === 'refund') {
+      <app-ar-refund-dialog [editRow]="editRow()"
+                            (closed)="onEntryClosed()"
+                            (posted)="onPosted($event)"
+                            (failed)="errorMessage.set($event)" />
+    } @else if (cfg().dialog === 'receipt') {
       <app-ar-receipt-dialog [editRow]="editRow()"
                              (closed)="onEntryClosed()"
                              (posted)="onPosted($event)"

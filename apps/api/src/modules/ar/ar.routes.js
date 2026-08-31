@@ -19,7 +19,7 @@ const periodicController = require('./arPeriodic.controller');
 
 // Menus whose screens open the shared entry dialogs (debtor picker + entry
 // meta). Extend as each per-document transaction slice lands.
-const AR_TXN_MENUS = ['/ar/invoices', '/ar/credit-notes', '/ar/receipts'];
+const AR_TXN_MENUS = ['/ar/invoices', '/ar/credit-notes', '/ar/receipts', '/ar/refunds'];
 const AR_TXN_META_MENUS = ['/ar/debtors', ...AR_TXN_MENUS];
 
 // Liveness probe - unauthenticated, so the gateway/monitoring can check the seam.
@@ -91,6 +91,17 @@ router.get('/receipts', requireMenuAction('/ar/receipts'), documentController.li
 router.post('/receipts', requireMenuAction('/ar/receipts'), documentController.createReceipt);
 router.patch('/receipts/:id', requireMenuAction('/ar/receipts'), documentController.updateReceiptDraft);
 router.post('/receipts/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.submitReceipt);
+// Refund (menu '/ar/refunds', refund slice 2026-08-31): Save->Submit
+// lifecycle; Submit routes through the ar-refund approval chain when one is
+// active (refunds move money OUT), else posts directly. Three modes: deposit
+// payout / excess-payment payout (both bank-facing, Refund-class payment
+// method) / deposit-to-outstanding offset (no money movement - the refund
+// consumes the deposit and a Credit Note leg allocates open items).
+router.get('/refunds', requireMenuAction('/ar/refunds'), documentController.listRefunds);
+router.post('/refunds', requireMenuAction('/ar/refunds'), documentController.createRefund);
+router.patch('/refunds/:id', requireMenuAction('/ar/refunds'), documentController.updateRefundDraft);
+router.post('/refunds/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.submitRefund);
+router.patch('/refunds/:id/void', requireAnyMenuAction(['/ar/debtors', '/ar/refunds']), documentController.voidRefundDraft);
 
 // --- Transaction Type master (AR-owned catalog since 2026-08-15; its own
 // screen/menu '/ar/transaction-types'). Membership reads it READ-ONLY through

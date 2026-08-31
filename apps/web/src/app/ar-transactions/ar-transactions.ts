@@ -11,6 +11,7 @@ import { LocalDatePipe } from '../shared/local-date.pipe';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ArLedgerDialogComponent } from '../shared/ar-ledger-dialog/ar-ledger-dialog';
 import { ArReceiptDialogComponent } from '../shared/ar-receipt-dialog/ar-receipt-dialog';
+import { ArRefundDialogComponent } from '../shared/ar-refund-dialog/ar-refund-dialog';
 import { ArService } from '../services/ar.service';
 import { PermissionsService } from '../services/permissions.service';
 import { ArAccountMeta, ArAllocationRow, ArDocListResult, ArDocListRow, ArDocStatus } from '../models/ar.models';
@@ -22,13 +23,13 @@ import { ArAccountMeta, ArAllocationRow, ArDocListResult, ArDocListRow, ArDocSta
 // types via route data (invoice first; the other five follow slice by slice).
 // The Debtor Account screen stays as the account-first inquiry surface.
 interface DocTypeCfg {
-  kind: 'invoice' | 'debit-note' | 'credit-note' | 'receipt';
+  kind: 'invoice' | 'debit-note' | 'credit-note' | 'receipt' | 'refund';
   label: string;       // singular, e.g. 'Invoice'
   plural: string;      // fallback screen title
   icon: string;
   subtitle: string;
-  // Which shared entry dialog the type uses (receipts have their own fields).
-  dialog: 'ledger' | 'receipt';
+  // Which shared entry dialog the type uses (receipts/refunds have their own).
+  dialog: 'ledger' | 'receipt' | 'refund';
   // Whether the kind can route through an approval chain (receipts never do -
   // user rule 2026-08-20: collections carry no workflow).
   hasApproval: boolean;
@@ -83,6 +84,20 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
     approvalOf: () => false,
     void: (s, id, reason) => s.voidReceipt(id, reason),
   },
+  refund: {
+    kind: 'refund',
+    label: 'Refund',
+    plural: 'Refunds',
+    icon: 'assignment_return',
+    subtitle: 'Refunds across all debtors — pay back a deposit or excess payment, or apply a deposit to outstanding through a Credit Note. Money-out refunds route through approval when a chain is active.',
+    dialog: 'refund',
+    hasApproval: true,
+    postText: 'The refund number is issued now and the funding source is settled — a deposit’s held balance or unallocated credit; the offset kind also posts its Credit Note.',
+    list: (s, opts) => s.listRefunds(opts),
+    submit: (s, id) => s.submitRefund(id),
+    approvalOf: (m) => m.refundApproval === true,
+    void: (s, id, reason) => s.voidRefund(id, reason),
+  },
 };
 
 @Component({
@@ -91,7 +106,7 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule,
     DialogComponent, CanDirective, LocalDatePipe, ArLedgerDialogComponent,
-    ArReceiptDialogComponent, OverflowMenuComponent, MenuItemDirective,
+    ArReceiptDialogComponent, ArRefundDialogComponent, OverflowMenuComponent, MenuItemDirective,
   ],
   templateUrl: './ar-transactions.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-transactions.css'],
@@ -223,11 +238,11 @@ export class ArTransactionsComponent implements OnInit {
 
   // --- Entry / edit (the shared dialog; editRow set = edit mode) ---
   readonly editRow = signal<ArDocListRow | null>(null);
-  // Narrowing for the ledger dialog's [kind] input (receipts use their own
-  // dialog, so this branch never renders for them).
+  // Narrowing for the ledger dialog's [kind] input (receipts and refunds use
+  // their own dialogs, so this branch never renders for them).
   ledgerKind(): 'invoice' | 'debit-note' | 'credit-note' {
     const k = this.cfg().kind;
-    return k === 'receipt' ? 'invoice' : k;
+    return k === 'receipt' || k === 'refund' ? 'invoice' : k;
   }
   openEntry(): void {
     this.clearMessages();

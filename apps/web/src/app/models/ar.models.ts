@@ -62,7 +62,7 @@ export interface ArPerson {
   name: string;
 }
 
-export type ArTrxClass = 'invoice' | 'debit-note' | 'credit-note' | 'interest' | 'deposit' | 'receipt' | 'forex';
+export type ArTrxClass = 'invoice' | 'debit-note' | 'credit-note' | 'interest' | 'deposit' | 'receipt' | 'refund' | 'forex';
 
 export interface ArTransactionType {
   id: string;
@@ -189,6 +189,12 @@ export interface ArAccount {
 // "Posted"): 'draft' and 'pending-approval' are NOT financial yet.
 export type ArDocStatus = 'draft' | 'pending-approval' | 'open' | 'settled' | 'void';
 
+// What a refund does (refund slice 2026-08-31): 'deposit' pays back a
+// deposit's held balance, 'credit' pays back excess payment (unallocated
+// receipt credit), 'offset' applies a deposit's held balance to outstanding
+// via a Credit Note leg (no money movement, no payment method).
+export type ArRefundMode = 'deposit' | 'credit' | 'offset';
+
 export interface ArDocListRow {
   id: string;
   docKind: string;
@@ -224,6 +230,7 @@ export interface ArDocListRow {
   paymentMethod?: string | null;
   paymentRef?: string | null;
   collectDepositId?: string | null;
+  refundMode?: ArRefundMode | null;
   canModify?: boolean;
   debtor: { id: string; debtorType: string | null; no: string | null; name: string | null };
 }
@@ -350,11 +357,13 @@ export interface ArAccountMeta {
   // An approval chain is active for the kind -> "Submit for Approval" label.
   invoiceApproval?: boolean;
   creditNoteApproval?: boolean;
+  refundApproval?: boolean;
   // The debtor's open debits - the CN entry's "Apply against" choices.
   openDebits?: { id: string; docKind: string; docNo: string | null; grossAmount: string; balanceAmount: string }[];
-  // The debtor's collectable deposits - the Receipt entry's optional
-  // "Collect deposit" choices.
-  openDeposits?: { id: string; docNo: string | null; amount: string; balanceAmount: string }[];
+  // The debtor's OPEN deposits with both counters: the Receipt dialog offers
+  // balanceAmount > 0 (collectable), the Refund dialog heldAmount > 0
+  // (refundable) - each filters client-side.
+  openDeposits?: { id: string; docNo: string | null; amount: string; balanceAmount: string; heldAmount?: string | null }[];
 }
 
 // --- Periodic processing (slice 3) ---

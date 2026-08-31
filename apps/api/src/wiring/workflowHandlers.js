@@ -77,4 +77,57 @@ function registerArLedgerPurpose(purpose, docKind, synthPrefix) {
 registerArLedgerPurpose('ar-invoice', 'invoice', 'INV');
 registerArLedgerPurpose('ar-credit-note', 'credit-note', 'CN');
 
+// --- AR Refund (refund slice 2026-08-31) ------------------------------------
+// Refunds are ar.Receipt rows (docKind 'refund'), so they get their own
+// handler rather than the Ledger one. Approval posts the draft through
+// postDraftRefund, which resolves the stored intent (deposit payout / excess
+// credit / deposit-to-outstanding offset with its Credit Note leg) and
+// REFUSES if the funding no longer covers - the approval then fails visibly
+// instead of paying out from the wrong source.
+purposeRegistry.register('ar-refund', {
+    onApproved: async ({ entityId, instance, transaction }) => {
+        const Receipt = require('../modules/ar/receipt.model');
+        const Debtor = require('../modules/ar/debtor.model');
+        const posting = require('../modules/ar/arPosting.service');
+        const numberingGateway = require('../platform/numberingGateway');
+
+        const row = await Receipt.findOne({
+            where: { id: entityId, companyId: instance.companyId, docKind: 'refund', status: 'pending-approval' },
+            transaction,
+        });
+        if (!row) return; // already handled / voided out-of-band - never fail the approval
+        const debtor = await Debtor.findOne({ where: { id: row.debtorId, companyId: instance.companyId }, transaction });
+        if (!debtor) return;
+
+        const issuerFor = (purpose, prefix) => async (t) => {
+            const issued = await numberingGateway.issueNumberForCompany(instance.companyId, purpose, { transaction: t });
+            if (issued && issued.number) return issued.number;
+            return `${prefix}-${Date.now().toString(36).toUpperCase()}`;
+        };
+        await posting.postDraftRefund({
+            companyId: instance.companyId,
+            debtor,
+            row,
+            issueDocNo: issuerFor('ar-refund', 'RF'),
+            issueCnDocNo: issuerFor('ar-credit-note', 'CN'),
+            stamps: { updatedBy: instance.submitterUserId || null },
+            t: transaction,
+        });
+    },
+    onRejected: async ({ entityId, instance, transaction }) => {
+        const Receipt = require('../modules/ar/receipt.model');
+        await Receipt.update(
+            { status: 'draft' },
+            { where: { id: entityId, companyId: instance.companyId, docKind: 'refund', status: 'pending-approval' }, transaction },
+        );
+    },
+    onCancelled: async ({ entityId, instance, transaction }) => {
+        const Receipt = require('../modules/ar/receipt.model');
+        await Receipt.update(
+            { status: 'draft' },
+            { where: { id: entityId, companyId: instance.companyId, docKind: 'refund', status: 'pending-approval' }, transaction },
+        );
+    },
+});
+
 module.exports = {};

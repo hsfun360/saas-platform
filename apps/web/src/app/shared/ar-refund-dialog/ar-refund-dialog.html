@@ -1,0 +1,208 @@
+<app-dialog #dlg variant="drawer"
+            [title]="editRow() ? 'Edit Refund — ' + (editRow()?.docNo || 'Draft')
+                     : mode() === 'pick' ? 'New Refund — select debtor'
+                     : mode() === 'kind' ? 'New Refund — what is being refunded?' : 'New Refund'"
+            [busy]="saving() || metaLoading()"
+            [dirty]="mode() === 'entry' && form.dirty"
+            discardTitle="Discard this refund?"
+            discardMessage="You have started entering a refund. Leaving now will discard it."
+            (close)="closed.emit()">
+  @switch (mode()) {
+    @case ('pick') {
+      <div class="ald-pick">
+        <div class="ald-pick__search">
+          <span class="material-icons" aria-hidden="true">search</span>
+          <input type="search" [value]="pickSearch()" #pickInput (input)="onPickSearch(pickInput.value)"
+                 placeholder="Search by number, name or code…" aria-label="Search debtors" />
+        </div>
+        @if (pickLoading()) {
+          <div class="loading-state"><div class="spinner"></div><p>Searching…</p></div>
+        } @else if (pickRows().length === 0) {
+          <p class="cell-subtle">No active debtors match. Refine the search.</p>
+        } @else {
+          <div class="ald-pick__list" role="listbox" aria-label="Matching debtors">
+            @for (d of pickRows(); track d.id) {
+              <button type="button" class="ald-pick__row" (click)="pick(d)">
+                <span class="ald-pick__who">
+                  <strong>{{ d.no || '—' }}</strong>
+                  <span>{{ d.name || 'Unnamed' }}</span>
+                </span>
+                <span class="ald-pick__facts">
+                  <span class="ald-pick__type">{{ d.debtorType }}</span>
+                  <span class="cell-subtle">outstanding {{ d.outstanding }}</span>
+                </span>
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
+    @case ('kind') {
+      <!-- The refund-kind class picker (.dlg-pick standard): each option
+           states its consequence - the first two move money out through the
+           bank, the offset moves none. -->
+      <p class="cell-subtle" style="margin: 0 0 var(--space-md);">Pick what this refund does — it decides which fields the form shows.</p>
+      @for (k of refundKinds; track k.key) {
+        <button type="button" class="btn btn--secondary dlg-pick" (click)="chooseKind(k.key)">
+          <span class="material-icons" aria-hidden="true">{{ k.icon }}</span>
+          <span class="dlg-pick__text"><strong>{{ k.label }}</strong> — {{ k.caption }}</span>
+        </button>
+      }
+    }
+    @case ('entry') {
+      @if (activeDebtor(); as who) {
+        <div class="ald-debtor">
+          <span class="material-icons" aria-hidden="true">account_balance</span>
+          <span class="ald-debtor__name"><strong>{{ who.no || '—' }}</strong> {{ who.name }}</span>
+          @if (isForeign()) { <span class="ald-debtor__ccy">{{ fxCurrency()?.code }} account</span> }
+          @if (!debtor() && !editRow()) {
+            <button type="button" class="btn btn--link btn--sm" (click)="changeDebtor()">Change</button>
+          }
+        </div>
+      }
+      @if (metaLoading()) {
+        <div class="loading-state"><div class="spinner"></div><p>Loading entry options…</p></div>
+      } @else {
+        <form id="arRefundForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-group">
+              <label for="rfKind">Refund of</label>
+              <input id="rfKind" type="text" disabled [value]="kindLabel()" />
+              @if (!editRow() && !form.dirty) {
+                <button type="button" class="btn btn--link btn--sm" style="padding: 0; min-height: auto;" (click)="changeKind()">Change</button>
+              }
+              @if (refundKind() === 'offset') {
+                <p class="cell-subtle" style="margin: 2px 0 0;">No money moves — a Credit Note posts with the refund and settles open items, oldest first.</p>
+              }
+            </div>
+            <div class="form-group">
+              <label for="rfNo">Refund no.
+                @if (numberingMode() === 'manual') { <span class="required">*</span> }
+              </label>
+              @if (numberingMode() === 'auto') {
+                <!-- Gapless series: issued at save, immutable afterwards. -->
+                <input id="rfNo" type="text" [value]="editRow()?.docNo || 'Issued on save'" disabled />
+              } @else {
+                <input id="rfNo" type="text" formControlName="docNo" autocomplete="off" maxlength="30"
+                       [placeholder]="numberingMode() === 'manual' ? 'Required' : 'Auto if left blank'" />
+              }
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-group">
+              <label for="rfDocDate">Document date <span class="required">*</span></label>
+              <input id="rfDocDate" type="date" formControlName="docDate" />
+            </div>
+            <div class="form-group">
+              <label for="rfTrxDate">Transaction date (period) <span class="required">*</span></label>
+              <input id="rfTrxDate" type="date" formControlName="trxDate" />
+              <p class="cell-subtle" style="margin: 2px 0 0;">Accounting period — differs from the document date only when back-keying into a closed month.</p>
+            </div>
+          </div>
+          @if (needsDeposit()) {
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-group">
+                <label for="rfDeposit">From deposit <span class="required">*</span></label>
+                <select id="rfDeposit" formControlName="collectDepositId"
+                        [attr.aria-invalid]="showError(form.controls.collectDepositId)" aria-describedby="rfDepositErr">
+                  <option value="" disabled>Select a deposit…</option>
+                  @for (d of refundableDeposits(); track d.id) {
+                    <option [value]="d.id">{{ depositLabel(d) }}</option>
+                  }
+                </select>
+                @if (showError(form.controls.collectDepositId)) {
+                  <p id="rfDepositErr" class="field-error" role="alert">Select the deposit this refund draws on.</p>
+                }
+                @if (refundableDeposits().length === 0) {
+                  <p class="cell-subtle" style="margin: 2px 0 0;">No deposit on this debtor has a held balance to draw on.</p>
+                }
+              </div>
+              <div class="form-group">
+                <label for="rfAmount">Amount <span class="required">*</span></label>
+                <input id="rfAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount"
+                       [attr.aria-invalid]="showError(form.controls.amount)" aria-describedby="rfAmountErr" />
+                @if (showError(form.controls.amount)) {
+                  <p id="rfAmountErr" class="field-error" role="alert">Enter an amount greater than zero.</p>
+                }
+                <p class="cell-subtle" style="margin: 2px 0 0;">Up to the deposit’s held balance.</p>
+              </div>
+            </div>
+          } @else {
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-group">
+                <label for="rfAmount">Amount <span class="required">*</span></label>
+                <input id="rfAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount"
+                       [attr.aria-invalid]="showError(form.controls.amount)" aria-describedby="rfAmountErr" />
+                @if (showError(form.controls.amount)) {
+                  <p id="rfAmountErr" class="field-error" role="alert">Enter an amount greater than zero.</p>
+                }
+                <p class="cell-subtle" style="margin: 2px 0 0;">Funded from unallocated receipt credit, oldest first.</p>
+              </div>
+            </div>
+          }
+          @if (bankFacing()) {
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-group">
+                <label for="rfMethod">Payment method <span class="required">*</span></label>
+                <!-- Constrained combobox (house standard); Refund-class
+                     catalog entries are the Cash Book hook for money out. -->
+                <app-combobox inputId="rfMethod" formControlName="transactionTypeId"
+                              [options]="methodOptions()" [allowEmpty]="false"
+                              placeholder="Select a payment method…"
+                              [invalid]="showError(form.controls.transactionTypeId)" describedBy="rfMethodErr" />
+                @if (showError(form.controls.transactionTypeId)) {
+                  <p id="rfMethodErr" class="field-error" role="alert">Payment method is required.</p>
+                }
+                @if (methodTypes().length === 0) {
+                  <p class="cell-subtle" style="margin: 2px 0 0;">No Refund-class entries yet — create payout methods (e.g. BANKOUT) on the AR Transaction Type master.</p>
+                }
+              </div>
+              <div class="form-group">
+                <label for="rfRef">Payment reference</label>
+                <input id="rfRef" type="text" formControlName="paymentRef" autocomplete="off" maxlength="100"
+                       placeholder="Cheque no / bank ref / slip" />
+              </div>
+            </div>
+          }
+          @if (isForeign()) {
+            <!-- Multicurrency: the rate at payout, frozen on the row. -->
+            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-group">
+                <label for="rfRate">Exchange rate <span class="required">*</span></label>
+                <input id="rfRate" type="text" inputmode="decimal" formControlName="exchangeRate" autocomplete="off" maxlength="22"
+                       placeholder="From Exchange Rates at the document date"
+                       [attr.aria-invalid]="showError(form.controls.exchangeRate)" aria-describedby="rfRateErr" />
+                @if (showError(form.controls.exchangeRate)) {
+                  <p id="rfRateErr" class="field-error" role="alert">Enter a positive decimal with at most 10 decimal places.</p>
+                }
+                <p class="cell-subtle" style="margin: 2px 0 0;">
+                  Amount in {{ fxCurrency()?.code }}; 1 {{ fxCurrency()?.code }} = rate {{ fxCurrency()?.baseCurrencyCode }}.
+                  @if (baseEquivalent()) { <strong class="ald-fx-base">≈ {{ baseEquivalent() }} {{ fxCurrency()?.baseCurrencyCode }}</strong> paid out }
+                </p>
+              </div>
+            </div>
+          }
+          <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
+            <div class="form-group">
+              <label for="rfDesc">Description</label>
+              <textarea id="rfDesc" formControlName="description" rows="2" wrap="off" placeholder="Optional"></textarea>
+            </div>
+          </div>
+        </form>
+      }
+    }
+  }
+  <ng-container dialogFooter>
+    <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+    @if (mode() === 'entry') {
+      <!-- Save keeps the refund as an editable Open draft; Submit routes it
+           into the ar-refund approval chain (money out) or posts directly. -->
+      <button type="submit" form="arRefundForm" class="btn btn--secondary" [disabled]="saving() || metaLoading()">
+        {{ saving() ? 'Saving…' : 'Save' }}
+      </button>
+      <button type="button" class="btn btn--primary" (click)="onSubmit()" [disabled]="saving() || metaLoading()">
+        {{ saving() ? 'Working…' : submitLabel() }}
+      </button>
+    }
+  </ng-container>
+</app-dialog>

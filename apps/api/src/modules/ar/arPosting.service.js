@@ -36,6 +36,11 @@ function bizError(status, message) { const e = new Error(message); e.httpStatus 
 
 function ledgerKindDef(key) { return LEDGER_DOC_KINDS.find((k) => k.key === key); }
 
+// sourceRef is a free string ('manual', a docNo, or a linked row's UUID) -
+// only query by it as an id when it actually is one, or Postgres throws on
+// the uuid cast.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // --- locking (fixed order: pool first, then person rows) ---
 
 // Lock the debtor's pool row FOR UPDATE; repair a missing row (pre-slice-1
@@ -508,23 +513,104 @@ async function postRefund({
         }
         await applyAllocation({ companyId, creditType: 'deposit', creditRow: depositRow, debitType: 'refund', debitRow: row, amountCents: amountC, stamps, pool, t });
     } else {
-        let remaining = amountC;
-        const credits = await Receipt.findAll({
-            where: { debtorId: debtor.id, docKind: 'receipt', status: 'open' },
-            order: [['docDate', 'ASC'], ['createdAt', 'ASC']],
+        await fundRefundFromCredit({ companyId, debtor, row, amountC, stamps, pool, t });
+    }
+    return row;
+}
+
+// Fund a refund from unallocated receipt credit, oldest first - throws when
+// the open credit does not cover it (a refund is never partially funded).
+async function fundRefundFromCredit({ companyId, debtor, row, amountC, stamps, pool, t }) {
+    let remaining = amountC;
+    const credits = await Receipt.findAll({
+        where: { debtorId: debtor.id, docKind: 'receipt', status: 'open' },
+        order: [['docDate', 'ASC'], ['createdAt', 'ASC']],
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+    });
+    for (const c of credits) {
+        if (remaining <= 0) break;
+        const take = Math.min(remaining, creditCapacity('receipt', c));
+        if (take <= 0) continue;
+        await applyAllocation({ companyId, creditType: 'receipt', creditRow: c, debitType: 'refund', debitRow: row, amountCents: take, stamps, pool, t });
+        remaining -= take;
+    }
+    if (remaining > 0) {
+        throw bizError(400, 'Not enough unallocated credit to fund this refund.');
+    }
+}
+
+// Post an EXISTING draft Refund row (refund slice 2026-08-31; drafts route
+// through the ar-refund approval chain first, since refunds move money OUT).
+// The draft's INTENT (refundMode + collectDepositId) resolves NOW, and unlike
+// a receipt's collection intent, a funding source that no longer covers the
+// amount REFUSES rather than rerouting - money out never changes course
+// silently. The three modes (user requirements 2026-08-31):
+//   'deposit' - pay back a deposit's held balance (bank/cash out);
+//   'credit'  - pay back excess payment from unallocated receipt credit,
+//               oldest first (bank/cash out);
+//   'offset'  - apply a deposit's held balance to OUTSTANDING: the refund
+//               consumes the deposit (deposit->refund allocation) and a
+//               Credit Note posts in the SAME transaction under the deposit-
+//               conversion designation, FIFO-allocating open items. No bank
+//               movement - the refund+CN pair is the internal transfer's
+//               audit trail (vs the direct Convert process, which has no
+//               refund document in the middle).
+async function postDraftRefund({ companyId, debtor, row, issueDocNo, issueCnDocNo, stamps = {}, t }) {
+    if (!['draft', 'pending-approval'].includes(row.status)) {
+        throw bizError(400, `Only a draft can be posted (this refund is ${row.status}).`);
+    }
+    const amountC = cents(row.amount);
+    if (amountC <= 0) throw bizError(400, 'Amount must be greater than zero.');
+    const refundMode = row.refundMode || (row.collectDepositId ? 'deposit' : 'credit');
+
+    const pool = await lockPool(companyId, debtor.id, t);
+
+    if (!row.docNo) row.docNo = await issueDocNo(t);
+    if (!row.exchangeRate) {
+        const fxNow = await resolveDocumentFx({ companyId, debtor, docDate: row.docDate, transaction: t });
+        Object.assign(row, amountFxColumns(fxNow, amountC));
+    }
+    row.status = 'open';
+    row.postedAt = new Date();
+    if (stamps.updatedBy) {
+        row.postedBy = stamps.updatedBy;
+        row.updatedBy = stamps.updatedBy;
+    }
+    await row.save({ transaction: t });
+
+    let deposit = null;
+    if (refundMode === 'deposit' || refundMode === 'offset') {
+        const Deposit = require('./deposit.model');
+        deposit = await Deposit.findOne({
+            where: { id: row.collectDepositId || null, debtorId: debtor.id },
             transaction: t,
             lock: t.LOCK.UPDATE,
         });
-        for (const c of credits) {
-            if (remaining <= 0) break;
-            const take = Math.min(remaining, creditCapacity('receipt', c));
-            if (take <= 0) continue;
-            await applyAllocation({ companyId, creditType: 'receipt', creditRow: c, debitType: 'refund', debitRow: row, amountCents: take, stamps, pool, t });
-            remaining -= take;
+        if (!deposit) throw bizError(400, 'The deposit this refund draws on no longer exists on this debtor.');
+        if (creditCapacity('deposit', deposit) < amountC) {
+            throw bizError(400, `The held balance of deposit ${deposit.docNo} no longer covers this refund.`);
         }
-        if (remaining > 0) {
-            throw bizError(400, 'Not enough unallocated credit to fund this refund.');
-        }
+        await applyAllocation({ companyId, creditType: 'deposit', creditRow: deposit, debitType: 'refund', debitRow: row, amountCents: amountC, stamps, pool, t });
+    } else {
+        await fundRefundFromCredit({ companyId, debtor, row, amountC, stamps, pool, t });
+    }
+
+    if (refundMode === 'offset') {
+        // The Credit Note leg: same amount, no tax (like a conversion), the
+        // refund's frozen rate so the pair nets in base, FIFO to open items.
+        const conversionType = await require('./catalogDefaults').depositConversionType(companyId);
+        await postLedgerDoc({
+            companyId, debtor, docKind: 'credit-note',
+            issueDocNo: issueCnDocNo,
+            docDate: row.docDate, trxDate: row.trxDate,
+            transactionTypeId: conversionType.id,
+            description: `Refund ${row.docNo} — deposit ${deposit.docNo} applied to outstanding`,
+            sourceModule: 'ar', sourceRef: row.id,
+            amounts: { netC: amountC, taxC: 0, grossC: amountC, taxSchemeCode: null, taxRate: null },
+            fx: row.exchangeRate ? { currencyCode: row.currencyCode, exchangeRate: Number(row.exchangeRate), isBase: Number(row.exchangeRate) === 1 } : null,
+            stamps, fifo: true, t,
+        });
     }
     return row;
 }
@@ -591,6 +677,21 @@ async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxD
         await require('./taxLedger.service').syncStatus({ docType: row.docKind, docId: row.id, status: 'void', t });
         return reversal;
     }
+    // An offset-refund CN (refund slice 2026-08-31: sourceRef = the REFUND
+    // row) is one leg of a two-document internal transfer - voiding it alone
+    // would strand the refund's consumed deposit value. Neither leg reverses:
+    // correct with a fresh Debit Note instead.
+    if (row.docKind === 'credit-note' && row.sourceModule === 'ar' && UUID_RE.test(row.sourceRef || '')) {
+        const linkedRefund = await Receipt.findOne({
+            where: { id: row.sourceRef, companyId, docKind: 'refund' },
+            attributes: ['docNo'],
+            transaction: t,
+        });
+        if (linkedRefund) {
+            throw bizError(400, `This credit note is the outstanding leg of refund ${linkedRefund.docNo} (deposit applied to outstanding) - it cannot be voided. Correct with a Debit Note instead.`);
+        }
+    }
+
     const pool = await lockPool(companyId, debtor.id, t);
     row.status = 'void';
     if (stamps.updatedBy) row.updatedBy = stamps.updatedBy;
@@ -602,7 +703,7 @@ async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxD
     // dropped heldAmount as a PROCESS, not an allocation - voiding it must
     // give the deposit its money back (and reopen a closed deposit). The held
     // balance can never exceed what was collected (amount - balanceAmount).
-    if (row.docKind === 'credit-note' && row.sourceModule === 'ar') {
+    if (row.docKind === 'credit-note' && row.sourceModule === 'ar' && UUID_RE.test(row.sourceRef || '')) {
         const Deposit = require('./deposit.model');
         const deposit = await Deposit.findOne({ where: { id: row.sourceRef, companyId }, transaction: t, lock: t.LOCK.UPDATE });
         if (deposit) {
@@ -694,6 +795,7 @@ module.exports = {
     postReceipt,
     postDraftReceipt,
     postRefund,
+    postDraftRefund,
     convertDeposit,
     voidLedgerDoc,
     voidReceipt,

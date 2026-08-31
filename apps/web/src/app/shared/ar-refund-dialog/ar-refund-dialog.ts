@@ -7,27 +7,52 @@ import { DialogComponent } from '../dialog/dialog';
 import { MoneyInputDirective } from '../money-input.directive';
 import { ComboboxComponent, ComboOption } from '../combobox/combobox';
 import { ArService } from '../../services/ar.service';
-import { ArAccountMeta, ArDebtor, ArDocListRow } from '../../models/ar.models';
+import { ArAccountMeta, ArDebtor, ArDocListRow, ArRefundMode } from '../../models/ar.models';
 import { ArLedgerDialogDebtor } from '../ar-ledger-dialog/ar-ledger-dialog';
 import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate, arTrimRate } from '../ar-fx';
 
-// The Official Receipt entry dialog (receipt lifecycle 2026-08-20), shared by
-// the Debtor Account screen (debtor preset) and the standalone Receipt screen
-// (debtor picker step first - single-dialog rule: pick/entry are @switch
-// views in one <app-dialog>). Save keeps an editable Open draft; Submit posts
-// DIRECTLY - collections carry no approval chain (user rule; Refunds will).
-// Payment method = a Receipt-class Transaction Type; the optional deposit
-// collection is stored on the draft and resolved at posting, after which the
-// remainder auto-allocates FIFO across open items (receipt behaviour).
+// The Refund entry dialog (refund slice 2026-08-31), shared by the Debtor
+// Account screen (debtor preset) and the standalone Refund screen. Single-
+// dialog rule: pick (debtor) -> kind (WHAT is being refunded, the .dlg-pick
+// class step) -> entry, all @switch views in one <app-dialog>. The three
+// kinds (user requirements):
+//   deposit - pay a deposit's held balance back (bank/cash out);
+//   credit  - pay back excess payment: unallocated receipt credit (bank out);
+//   offset  - apply a deposit's held balance to OUTSTANDING via a Credit Note
+//             leg - no money moves, so no payment method (Cash Book untouched).
+// Save keeps an editable Open draft; Submit routes through the ar-refund
+// approval chain when one is active (refunds move money out), else posts.
+interface RefundKindDef {
+  key: ArRefundMode;
+  label: string;
+  icon: string;
+  caption: string;
+}
+
+const REFUND_KINDS: RefundKindDef[] = [
+  {
+    key: 'deposit', label: 'Deposit refund', icon: 'account_balance',
+    caption: 'pays a deposit’s held balance back to the debtor (money out via bank/cash).',
+  },
+  {
+    key: 'credit', label: 'Excess payment refund', icon: 'undo',
+    caption: 'pays back unallocated receipt credit, oldest first (money out via bank/cash).',
+  },
+  {
+    key: 'offset', label: 'Deposit to outstanding', icon: 'swap_horiz',
+    caption: 'applies a deposit’s held balance to open items through a Credit Note — no money leaves the bank.',
+  },
+];
+
 @Component({
-  selector: 'app-ar-receipt-dialog',
+  selector: 'app-ar-refund-dialog',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, ComboboxComponent],
-  templateUrl: './ar-receipt-dialog.html',
+  templateUrl: './ar-refund-dialog.html',
   // Same chrome as the ledger dialog (.ald-* pick list / debtor band).
   styleUrls: ['../ar-ledger-dialog/ar-ledger-dialog.css'],
 })
-export class ArReceiptDialogComponent implements OnInit {
+export class ArRefundDialogComponent implements OnInit {
   private readonly service = inject(ArService);
   private readonly fb = inject(FormBuilder);
 
@@ -35,20 +60,21 @@ export class ArReceiptDialogComponent implements OnInit {
   readonly debtor = input<ArLedgerDialogDebtor | null>(null);
   // Entry meta provided by the account screen; self-loaded otherwise.
   readonly meta = input<ArAccountMeta | null>(null);
-  // "Collect" on a deposit row: pre-select that deposit for collection.
-  readonly presetDepositId = input<string | null>(null);
-  // Editing an existing Open (draft) receipt: prefill + PATCH instead of POST.
+  // Editing an existing Open (draft) refund: prefill + PATCH instead of POST.
   readonly editRow = input<ArDocListRow | null>(null);
 
   readonly closed = output<void>();
   readonly posted = output<string>();
   readonly failed = output<string>();
 
-  readonly mode = signal<'pick' | 'entry'>('entry');
+  readonly mode = signal<'pick' | 'kind' | 'entry'>('entry');
+  readonly refundKind = signal<ArRefundMode | null>(null);
   readonly pickedDebtor = signal<ArLedgerDialogDebtor | null>(null);
   readonly selfMeta = signal<ArAccountMeta | null>(null);
   readonly metaLoading = signal(false);
   readonly saving = signal(false);
+
+  readonly refundKinds = REFUND_KINDS;
 
   // Debtor picker state (standalone mode).
   readonly pickSearch = signal('');
@@ -58,34 +84,37 @@ export class ArReceiptDialogComponent implements OnInit {
 
   readonly activeDebtor = computed(() => this.debtor() || this.pickedDebtor());
   readonly effMeta = computed(() => this.meta() || this.selfMeta());
-  // Payment methods = the Receipt-class entries of the AR catalog.
+  // Payment methods = the Refund-class entries of the AR catalog (the Cash
+  // Book hook - the deposit/credit kinds move money out).
   readonly methodTypes = computed(() =>
-    (this.effMeta()?.transactionTypes || []).filter((t) => t.trxClass === 'receipt'));
-  // Combobox rows for the payment-method picker (type-to-filter).
+    (this.effMeta()?.transactionTypes || []).filter((t) => t.trxClass === 'refund'));
   readonly methodOptions = computed<ComboOption[]>(() => this.methodTypes().map((tt) => ({
     value: tt.id,
     label: tt.description ? `${tt.transactionType} — ${tt.description}` : tt.transactionType,
   })));
-  // Collectable deposits only (the meta ships every open deposit with both
-  // counters; the Refund dialog filters by heldAmount instead).
-  readonly openDeposits = computed(() =>
-    (this.effMeta()?.openDeposits || []).filter((d) => Number(d.balanceAmount) > 0));
+  // Refundable deposits: open, with a HELD balance to draw on.
+  readonly refundableDeposits = computed(() =>
+    (this.effMeta()?.openDeposits || []).filter((d) => Number(d.heldAmount ?? 0) > 0));
+  // The bank-facing kinds carry a payment method; the offset kind never does.
+  readonly bankFacing = computed(() => this.refundKind() !== 'offset');
+  readonly needsDeposit = computed(() => this.refundKind() === 'deposit' || this.refundKind() === 'offset');
+  readonly kindLabel = computed(() => REFUND_KINDS.find((k) => k.key === this.refundKind())?.label || '');
+  readonly submitLabel = computed(() => (this.effMeta()?.refundApproval ? 'Submit for Approval' : 'Submit'));
 
   readonly form = this.fb.nonNullable.group({
     docNo: [''],
     docDate: ['', [Validators.required]],
     trxDate: ['', [Validators.required]],
-    transactionTypeId: ['', [Validators.required]],
+    transactionTypeId: [''],
     paymentRef: [''],
     amount: [0, [Validators.required, Validators.min(0.01)]],
     collectDepositId: [''],
     description: [''],
-    // Multicurrency (step 3): the rate at collection on a foreign account
-    // (the keyed amount is in the account currency; base = what hit the till).
+    // Multicurrency: the rate at payout on a foreign account.
     exchangeRate: ['', [Validators.pattern(AR_RATE_PATTERN)]],
   });
 
-  // --- Multicurrency (step 3) - same mechanics as the ledger dialog ---
+  // --- Multicurrency - same mechanics as the receipt dialog ---
   readonly fxCurrency = computed(() => this.effMeta()?.currency || null);
   readonly isForeign = computed(() => { const c = this.fxCurrency(); return !!c && !c.isBase && !!c.code; });
   private readonly amountSig = signal<number | null>(0);
@@ -116,15 +145,44 @@ export class ArReceiptDialogComponent implements OnInit {
     this.rateSig.set(this.form.controls.exchangeRate.value);
   }
 
+  // Validators depend on the chosen kind: bank-facing needs a payment method,
+  // deposit-drawing kinds need the deposit.
+  private applyKindValidators(kind: ArRefundMode): void {
+    const txn = this.form.controls.transactionTypeId;
+    const dep = this.form.controls.collectDepositId;
+    txn.setValidators(kind === 'offset' ? [] : [Validators.required]);
+    dep.setValidators(kind === 'credit' ? [] : [Validators.required]);
+    if (kind === 'offset') txn.setValue('', { emitEvent: false });
+    if (kind === 'credit') dep.setValue('', { emitEvent: false });
+    txn.updateValueAndValidity({ emitEvent: false });
+    dep.updateValueAndValidity({ emitEvent: false });
+  }
+
+  chooseKind(kind: ArRefundMode): void {
+    this.refundKind.set(kind);
+    this.applyKindValidators(kind);
+    this.mode.set('entry');
+  }
+
+  // The kind decides the document's meaning - it can change only while the
+  // form is untouched (same rule as the class pickers elsewhere).
+  changeKind(): void {
+    if (this.form.dirty) return;
+    this.mode.set('kind');
+  }
+
   ngOnInit(): void {
     const t = this.today();
     const edit = this.editRow();
     if (edit) {
+      const kind = (edit.refundMode as ArRefundMode) || (edit.collectDepositId ? 'deposit' : 'credit');
+      this.refundKind.set(kind);
+      this.applyKindValidators(kind);
       this.form.reset({
         docNo: edit.docNo || '',
         docDate: edit.docDate,
         trxDate: edit.trxDate,
-        transactionTypeId: edit.transactionTypeId,
+        transactionTypeId: edit.transactionTypeId || '',
         paymentRef: edit.paymentRef || '',
         amount: Number(edit.netAmount),
         collectDepositId: edit.collectDepositId || '',
@@ -140,16 +198,14 @@ export class ArReceiptDialogComponent implements OnInit {
     }
     this.form.reset({
       docNo: '', docDate: t, trxDate: t, transactionTypeId: '',
-      paymentRef: '', amount: 0,
-      collectDepositId: this.presetDepositId() || '',
-      description: '',
-      exchangeRate: '',
+      paymentRef: '', amount: 0, collectDepositId: '',
+      description: '', exchangeRate: '',
     }, { emitEvent: false });
     this.rateTouched.set(false);
     this.syncFxSignals();
     const preset = this.debtor();
     if (preset) {
-      this.mode.set('entry');
+      this.mode.set('kind');
       if (!this.meta()) this.loadMeta(preset.id);
     } else {
       this.mode.set('pick');
@@ -178,11 +234,11 @@ export class ArReceiptDialogComponent implements OnInit {
   }
 
   numberingMode(): string | null {
-    return this.effMeta()?.numberingModes?.['ar-receipt'] ?? null;
+    return this.effMeta()?.numberingModes?.['ar-refund'] ?? null;
   }
 
-  depositLabel(d: { docNo: string | null; balanceAmount: string }): string {
-    return `${d.docNo} — to collect ${Number(d.balanceAmount).toFixed(2)}`;
+  depositLabel(d: { docNo: string | null; heldAmount?: string | null }): string {
+    return `${d.docNo} — held ${Number(d.heldAmount ?? 0).toFixed(2)}`;
   }
 
   // --- Debtor picker ---
@@ -205,7 +261,7 @@ export class ArReceiptDialogComponent implements OnInit {
 
   pick(row: ArDebtor): void {
     this.pickedDebtor.set({ id: row.id, no: row.no, name: row.name });
-    this.mode.set('entry');
+    this.mode.set('kind');
     this.loadMeta(row.id);
   }
 
@@ -216,18 +272,20 @@ export class ArReceiptDialogComponent implements OnInit {
     this.loadPickRows();
   }
 
-  // --- Save / Submit (Save = editable Open draft; Submit posts directly) ---
+  // --- Save / Submit ---
 
   private payload(): Record<string, unknown> {
     const f = this.form.getRawValue();
+    const kind = this.refundKind();
     return {
       docNo: f.docNo.trim() || null,
       docDate: f.docDate,
       trxDate: f.trxDate,
-      transactionTypeId: f.transactionTypeId,
-      paymentRef: f.paymentRef.trim() || null,
+      refundMode: kind,
+      transactionTypeId: kind === 'offset' ? null : (f.transactionTypeId || null),
+      paymentRef: kind === 'offset' ? null : (f.paymentRef.trim() || null),
       amount: f.amount,
-      collectDepositId: f.collectDepositId || null,
+      collectDepositId: kind === 'credit' ? null : (f.collectDepositId || null),
       description: f.description.trim() || null,
       ...(this.isForeign() ? { exchangeRate: f.exchangeRate.trim() || null } : {}),
     };
@@ -240,44 +298,42 @@ export class ArReceiptDialogComponent implements OnInit {
   private saveRequest() {
     const debtor = this.activeDebtor();
     const editId = this.editRow()?.id || this.savedDraftId();
-    if (editId) return this.service.updateReceipt(editId, this.payload());
-    return this.debtor()
-      ? this.service.postReceipt(debtor!.id, this.payload())
-      : this.service.createReceipt({ ...this.payload(), debtorId: debtor!.id });
+    if (editId) return this.service.updateRefund(editId, this.payload());
+    return this.service.createRefund({ ...this.payload(), debtorId: debtor!.id });
   }
 
   onSave(): void {
-    if (!this.activeDebtor()) return;
+    if (!this.activeDebtor() || !this.refundKind()) return;
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.saving.set(true);
     this.saveRequest().subscribe({
       next: (res) => { this.saving.set(false); this.posted.emit(res.message); },
       error: (err) => {
         this.saving.set(false);
-        this.failed.emit(err.error?.message || 'Failed to save the receipt.');
+        this.failed.emit(err.error?.message || 'Failed to save the refund.');
       },
     });
   }
 
   onSubmit(): void {
-    if (!this.activeDebtor()) return;
+    if (!this.activeDebtor() || !this.refundKind()) return;
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.saving.set(true);
     this.saveRequest().subscribe({
       next: (saved) => {
         this.savedDraftId.set(saved.id);
         this.form.markAsPristine(); // the draft is persisted - no discard prompt
-        this.service.submitReceipt(saved.id).subscribe({
+        this.service.submitRefund(saved.id).subscribe({
           next: (res) => { this.saving.set(false); this.posted.emit(res.message); },
           error: (err) => {
             this.saving.set(false);
-            this.failed.emit(`${err.error?.message || 'Submit failed.'} The receipt stays saved as Open.`);
+            this.failed.emit(`${err.error?.message || 'Submit failed.'} The refund stays saved as Open.`);
           },
         });
       },
       error: (err) => {
         this.saving.set(false);
-        this.failed.emit(err.error?.message || 'Failed to save the receipt.');
+        this.failed.emit(err.error?.message || 'Failed to save the refund.');
       },
     });
   }

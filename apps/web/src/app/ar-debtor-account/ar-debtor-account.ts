@@ -9,6 +9,7 @@ import { LocalDatePipe } from '../shared/local-date.pipe';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import { ArLedgerDialogComponent, ArLedgerDialogDebtor } from '../shared/ar-ledger-dialog/ar-ledger-dialog';
 import { ArReceiptDialogComponent } from '../shared/ar-receipt-dialog/ar-receipt-dialog';
+import { ArRefundDialogComponent } from '../shared/ar-refund-dialog/ar-refund-dialog';
 import { ArService } from '../services/ar.service';
 import { ArAccount, ArAccountMeta, ArDepositDoc, ArLedgerDoc, ArReceiptDoc } from '../models/ar.models';
 import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate } from '../shared/ar-fx';
@@ -28,6 +29,7 @@ import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate } from '../shared/ar-f
   imports: [
     CommonModule, ReactiveFormsModule, RouterLink, DialogComponent, CanDirective,
     LocalDatePipe, MoneyInputDirective, ArLedgerDialogComponent, ArReceiptDialogComponent,
+    ArRefundDialogComponent,
   ],
   templateUrl: './ar-debtor-account.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-debtor-account.css'],
@@ -69,21 +71,8 @@ export class ArDebtorAccountComponent {
   readonly receiptOpen = signal(false);
   readonly receiptDepositId = signal<string | null>(null);
 
-  // --- Refund dialog ---
+  // --- Refund dialog (SHARED component since the refund slice 2026-08-31) ---
   readonly refundOpen = signal(false);
-  readonly refundSaving = signal(false);
-  readonly refundForm = this.fb.nonNullable.group({
-    docNo: [''],
-    docDate: ['', [Validators.required]],
-    trxDate: ['', [Validators.required]],
-    amount: [0, [Validators.required, Validators.min(0.01)]],
-    paymentMethod: [''],
-    paymentRef: [''],
-    description: [''],
-    fundSource: ['credit'],
-    depositId: [''],
-    exchangeRate: ['', [Validators.pattern(AR_RATE_PATTERN)]],
-  });
 
   // --- Deposit dialog (open a deposit) ---
   readonly depositOpen = signal(false);
@@ -97,12 +86,11 @@ export class ArDebtorAccountComponent {
     exchangeRate: ['', [Validators.pattern(AR_RATE_PATTERN)]],
   });
 
-  // --- Multicurrency (step 3) for the two inline forms (refund / deposit):
-  // the rate field shows on a FOREIGN account, defaulting from the account
-  // currency's rate history at the document date until the user keys one.
+  // --- Multicurrency (step 3) for the inline deposit form: the rate field
+  // shows on a FOREIGN account, defaulting from the account currency's rate
+  // history at the document date until the user keys one.
   readonly fxCurrency = computed(() => this.meta()?.currency || null);
   readonly isForeign = computed(() => { const c = this.fxCurrency(); return !!c && !c.isBase && !!c.code; });
-  private refundRateTouched = false;
   private depositRateTouched = false;
 
   private defaultRate(docDate: string): string {
@@ -112,11 +100,6 @@ export class ArDebtorAccountComponent {
   // Payload fragment: only a foreign account sends a rate.
   private fxPayload(rate: string): Record<string, unknown> {
     return this.isForeign() ? { exchangeRate: rate.trim() || null } : {};
-  }
-
-  refundBaseEquivalent(): string {
-    const f = this.refundForm.getRawValue();
-    return arBaseEquivalent(f.amount, f.exchangeRate);
   }
 
   depositBaseEquivalent(): string {
@@ -281,47 +264,17 @@ export class ArDebtorAccountComponent {
     this.load();
   }
 
-  // --- Refund ---
+  // --- Refund (the shared dialog owns the form; three kinds incl.
+  // deposit-to-outstanding via a Credit Note leg) ---
   openRefund(): void {
     this.clearMessages();
-    const t = this.today();
-    this.refundForm.reset({
-      docNo: '', docDate: t, trxDate: t, amount: 0, paymentMethod: '', paymentRef: '',
-      description: '', fundSource: 'credit', depositId: '',
-      exchangeRate: this.defaultRate(t),
-    });
-    this.refundRateTouched = false;
     this.refundOpen.set(true);
   }
-  onRefundDateChange(docDate: string): void {
-    if (this.refundRateTouched || !this.isForeign()) return;
-    this.refundForm.controls.exchangeRate.setValue(this.defaultRate(docDate), { emitEvent: false });
-  }
-  onRefundRateKeyed(): void { this.refundRateTouched = true; }
-  closeRefund(): void { this.refundOpen.set(false); }
-  onSaveRefund(): void {
-    this.clearMessages();
-    if (this.refundForm.invalid) { this.refundForm.markAllAsTouched(); return; }
-    const f = this.refundForm.getRawValue();
-    if (f.fundSource === 'deposit' && !f.depositId) {
-      this.errorMessage.set('Select the deposit to refund from.');
-      return;
-    }
-    this.refundSaving.set(true);
-    this.service.postRefund(this.debtorId, {
-      docNo: f.docNo.trim() || null,
-      docDate: f.docDate,
-      trxDate: f.trxDate,
-      amount: f.amount,
-      paymentMethod: f.paymentMethod.trim() || null,
-      paymentRef: f.paymentRef.trim() || null,
-      description: f.description.trim() || null,
-      depositId: f.fundSource === 'deposit' ? f.depositId : null,
-      ...this.fxPayload(f.exchangeRate),
-    }).subscribe({
-      next: (res) => { this.successMessage.set(res.message); this.refundSaving.set(false); this.refundOpen.set(false); this.load(); },
-      error: (err) => { this.errorMessage.set(err.error?.message || 'Failed to post the refund.'); this.refundSaving.set(false); },
-    });
+  onRefundPosted(message: string): void {
+    this.errorMessage.set('');
+    this.successMessage.set(message);
+    this.refundOpen.set(false);
+    this.load();
   }
 
   // --- Deposit ---

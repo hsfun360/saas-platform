@@ -185,6 +185,7 @@ const routes: Routes = [
       { path: 'ar/invoices', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'invoice' } },
       { path: 'ar/credit-notes', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'credit-note' } },
       { path: 'ar/receipts', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'receipt' } },
+      { path: 'ar/refunds', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'refund' } },
       // Periodic processing: staged interest run + monthly statement run.
       { path: 'ar/interest', loadComponent: () => import('./app/ar-interest/ar-interest').then((m) => m.ArInterestComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
       // AR Master File Setup - the AR-owned Transaction Type catalog (moved

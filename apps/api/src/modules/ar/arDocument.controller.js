@@ -225,13 +225,15 @@ exports.getAccountMeta = async (req, res) => {
             order: [['docDate', 'ASC'], ['createdAt', 'ASC']],
             attributes: ['id', 'docKind', 'docNo', 'grossAmount', 'balanceAmount'],
         });
-        // The debtor's collectable DEPOSITS - the Receipt entry's optional
-        // "Collect deposit" choices (billed amount not yet fully paid in).
-        const openDeposits = (await Deposit.findAll({
+        // The debtor's OPEN DEPOSITS, with both counters: the Receipt dialog
+        // offers those with balanceAmount > 0 (still collectable) and the
+        // Refund dialog those with heldAmount > 0 (refundable) - each dialog
+        // filters client-side.
+        const openDeposits = await Deposit.findAll({
             where: { debtorId: debtor.id, status: 'open' },
             order: [['docDate', 'ASC'], ['createdAt', 'ASC']],
-            attributes: ['id', 'docNo', 'amount', 'balanceAmount'],
-        })).filter((d) => Number(d.balanceAmount) > 0);
+            attributes: ['id', 'docNo', 'amount', 'balanceAmount', 'heldAmount'],
+        });
         // Account currency for the entry dialogs (multicurrency step 3): the
         // code, the base, and - for a FOREIGN account - the currency's rate
         // history so the Exchange rate field defaults per document date
@@ -256,12 +258,13 @@ exports.getAccountMeta = async (req, res) => {
             numberingModes: modes,
             invoiceApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-invoice'),
             creditNoteApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-credit-note'),
+            refundApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-refund'),
             openDebits: openDebits.map((d) => ({
                 id: d.id, docKind: d.docKind, docNo: d.docNo,
                 grossAmount: d.grossAmount, balanceAmount: d.balanceAmount,
             })),
             openDeposits: openDeposits.map((d) => ({
-                id: d.id, docNo: d.docNo, amount: d.amount, balanceAmount: d.balanceAmount,
+                id: d.id, docNo: d.docNo, amount: d.amount, balanceAmount: d.balanceAmount, heldAmount: d.heldAmount,
             })),
         });
     } catch (err) {
@@ -1081,6 +1084,345 @@ exports.listReceipts = async (req, res) => {
         });
     } catch (err) {
         console.error('Error listing receipts:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// ---------------------------------------------------------------------------
+// Refund lifecycle (refund slice 2026-08-31): Save -> 'draft' ("Open",
+// editable, NOT financial) -> Submit -> the ar-refund approval chain when one
+// is active (refunds move money OUT), else posted directly. Three modes
+// (user requirements 2026-08-31):
+//   'deposit' - pay back a deposit's held balance (bank/cash out);
+//   'credit'  - pay back excess payment: unallocated receipt credit, oldest
+//               first (bank/cash out);
+//   'offset'  - apply a deposit's held balance to OUTSTANDING: the refund is
+//               allocated to the deposit and a Credit Note posts in the same
+//               transaction to allocate open items - no money movement, so no
+//               payment method (Cash Book is untouched).
+
+const REFUND_MODES = ['deposit', 'credit', 'offset'];
+
+async function readRefundDraftFields(req, companyId, debtor) {
+    const dates = parseDates(req.body);
+    if (dates.error) return { error: dates.error };
+    const amountC = parseAmount(req.body.amount);
+    if (!amountC) return { error: 'Amount must be greater than zero.' };
+
+    const refundMode = str(req.body.refundMode);
+    if (!REFUND_MODES.includes(refundMode)) return { error: 'Pick what is being refunded.' };
+
+    // Bank-facing modes carry a Refund-class payment method (the Cash Book
+    // hook); the offset mode moves no money and refuses one.
+    let txnType = null;
+    if (refundMode === 'offset') {
+        if (strOrNull(req.body.transactionTypeId)) {
+            return { error: 'A deposit-to-outstanding refund moves no money - it carries no payment method.' };
+        }
+    } else {
+        const ArTransactionType = require('./transactionType.model');
+        txnType = await ArTransactionType.findOne({ where: { companyId, id: str(req.body.transactionTypeId) || null } });
+        if (!txnType || !txnType.isActive) return { error: 'Select a payment method.' };
+        if (txnType.trxClass !== 'refund') return { error: 'This transaction type is not a Refund-class payment method.' };
+    }
+
+    // Funding checks at SAVE are advisory (show-expected-results); posting
+    // re-checks under lock and REFUSES if the source no longer covers.
+    let depositId = null;
+    if (refundMode === 'deposit' || refundMode === 'offset') {
+        depositId = strOrNull(req.body.collectDepositId);
+        if (!depositId) return { error: 'Select the deposit this refund draws on.' };
+        const dep = await Deposit.findOne({ where: { id: depositId, debtorId: debtor.id, status: 'open' } });
+        if (!dep) return { error: 'The deposit is not open on this debtor.' };
+        if (posting.cents(dep.heldAmount) < amountC) {
+            return { error: `The held balance of deposit ${dep.docNo} (${dep.heldAmount}) does not cover this refund.` };
+        }
+    } else {
+        const credits = await Receipt.findAll({
+            where: { debtorId: debtor.id, docKind: 'receipt', status: 'open' },
+            attributes: ['balanceAmount'],
+        });
+        const availableC = credits.reduce((s, c) => s + posting.cents(c.balanceAmount), 0);
+        if (availableC < amountC) {
+            return { error: `Unallocated credit on this account is ${posting.money(availableC)} - not enough to fund this refund.` };
+        }
+    }
+    const fxRead = await readFx(companyId, debtor, dates.docDate, req.body);
+    if (fxRead.error) return { error: fxRead.error };
+    return { dates, refundMode, txnType, amountC, depositId, fx: fxRead.fx };
+}
+
+async function readRefundDocNo(req, companyId, { ignoreId = null } = {}) {
+    const manualNo = strOrNull(req.body.docNo);
+    const mode = await numberingGateway.getMode(req, 'ar-refund');
+    if (mode === 'manual' && !manualNo) return { error: 'Refund number is required (numbering is manual).' };
+    if (mode !== 'auto' && manualNo) {
+        const clash = await Receipt.findOne({
+            where: { companyId, docKind: 'refund', docNo: manualNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
+            attributes: ['id'],
+        });
+        if (clash) return { error: `Refund number '${manualNo}' is already in use.` };
+    }
+    return { mode, manualNo };
+}
+
+// POST /api/ar/refunds - save a new refund draft (debtorId in the body).
+exports.createRefund = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const debtor = await Debtor.findOne({ where: { id: str(req.body.debtorId), companyId } });
+        if (!debtor) return res.status(404).json({ message: 'Debtor not found.' });
+
+        const fields = await readRefundDraftFields(req, companyId, debtor);
+        if (fields.error) return res.status(400).json({ message: fields.error });
+        const no = await readRefundDocNo(req, companyId);
+        if (no.error) return res.status(no.error.includes('already in use') ? 409 : 400).json({ message: no.error });
+
+        const placement = await getCallerPlacement(req);
+        const stamps = ownershipStamps(req, placement);
+        const issue = docNoIssuer(req, 'ar-refund', no.manualNo);
+        const row = await sequelize.transaction(async (t) => Receipt.create({
+            companyId,
+            debtorId: debtor.id,
+            docKind: 'refund',
+            mode: 'debit',
+            docNo: await issue(t),
+            docDate: fields.dates.docDate,
+            trxDate: fields.dates.trxDate,
+            refundMode: fields.refundMode,
+            transactionTypeId: fields.txnType ? fields.txnType.id : null,
+            paymentMethod: fields.txnType ? fields.txnType.transactionType : null,
+            paymentRef: fields.refundMode === 'offset' ? null : strOrNull(req.body.paymentRef),
+            description: strOrNull(req.body.description),
+            collectDepositId: fields.depositId,
+            amount: posting.money(fields.amountC),
+            balanceAmount: posting.money(fields.amountC),
+            ...arCurrency.amountFxColumns(fields.fx, fields.amountC),
+            sourceModule: 'ar',
+            sourceRef: 'manual',
+            status: 'draft',
+            ...stamps,
+        }, { transaction: t }));
+        res.status(201).json({ message: `Refund ${row.docNo} saved as Open.`, id: row.id, docNo: row.docNo });
+    } catch (err) {
+        console.error('Error saving refund draft:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// Load a refund row + its debtor, enforcing the caller's data scope.
+async function loadOwnedRefund(req, res) {
+    const { companyId } = getUserContext(req);
+    if (!companyId) { res.status(400).json({ message: 'Select a workspace first.' }); return null; }
+    const row = await Receipt.findOne({ where: { id: req.params.id, companyId, docKind: 'refund' } });
+    if (!row) { res.status(404).json({ message: 'Refund not found.' }); return null; }
+    const { canModifyRecord } = require('../../platform/serviceContext');
+    if (!(await canModifyRecord(req, row))) {
+        res.status(403).json({ message: 'This refund belongs to another user (outside your data scope).' });
+        return null;
+    }
+    const debtor = await Debtor.findOne({ where: { id: row.debtorId, companyId } });
+    if (!debtor) { res.status(404).json({ message: 'Debtor not found.' }); return null; }
+    return { companyId, row, debtor };
+}
+
+// PATCH /api/ar/refunds/:id - edit a draft (drafts only; posted is immutable).
+exports.updateRefundDraft = async (req, res) => {
+    try {
+        const loaded = await loadOwnedRefund(req, res);
+        if (!loaded) return;
+        const { companyId, row, debtor } = loaded;
+        if (row.status !== 'draft') {
+            return res.status(400).json({ message: `Only an Open (draft) refund can be edited (this one is ${row.status}).` });
+        }
+        const fields = await readRefundDraftFields(req, companyId, debtor);
+        if (fields.error) return res.status(400).json({ message: fields.error });
+        const no = await readRefundDocNo(req, companyId, { ignoreId: row.id });
+        if (no.error) return res.status(no.error.includes('already in use') ? 409 : 400).json({ message: no.error });
+
+        Object.assign(row, {
+            docNo: no.mode === 'auto' ? row.docNo : (no.manualNo || row.docNo),
+            docDate: fields.dates.docDate,
+            trxDate: fields.dates.trxDate,
+            refundMode: fields.refundMode,
+            transactionTypeId: fields.txnType ? fields.txnType.id : null,
+            paymentMethod: fields.txnType ? fields.txnType.transactionType : null,
+            paymentRef: fields.refundMode === 'offset' ? null : strOrNull(req.body.paymentRef),
+            description: strOrNull(req.body.description),
+            collectDepositId: fields.depositId,
+            amount: posting.money(fields.amountC),
+            // A draft has no allocations - its balance tracks its amount.
+            balanceAmount: posting.money(fields.amountC),
+            ...arCurrency.amountFxColumns(fields.fx, fields.amountC),
+            updatedBy: getUserContext(req).userId,
+        });
+        await row.save();
+        res.status(200).json({ message: 'Refund draft updated.', id: row.id, docNo: row.docNo });
+    } catch (err) {
+        console.error('Error updating refund draft:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/ar/refunds/:id/submit - through the ar-refund approval chain when
+// one is active (refunds move money out), else posted directly.
+exports.submitRefund = async (req, res) => {
+    try {
+        const loaded = await loadOwnedRefund(req, res);
+        if (!loaded) return;
+        const { companyId, row, debtor } = loaded;
+        if (row.status !== 'draft') {
+            return res.status(400).json({ message: `Only an Open (draft) refund can be submitted (this one is ${row.status}).` });
+        }
+        const mode = await numberingGateway.getMode(req, 'ar-refund');
+        if (mode === 'manual' && !row.docNo) {
+            return res.status(400).json({ message: 'Refund number is required before submitting (numbering is manual).' });
+        }
+
+        const placement = await getCallerPlacement(req);
+        const stamps = ownershipStamps(req, placement);
+        const display = await debtorDisplayMap(companyId, [debtor]);
+        const who = display.get(debtor.id) || {};
+        const workflowGateway = require('../../platform/workflowGateway');
+
+        let outcome;
+        try {
+            await sequelize.transaction(async (t) => {
+                const wf = await workflowGateway.startWorkflow(req, 'ar-refund', {
+                    entityId: row.id,
+                    entityLabel: `Refund ${row.docNo || 'draft'} — ${who.name || who.no || 'debtor'} (${posting.money(posting.cents(row.amount))})`,
+                    context: {
+                        amount: Number(row.amount),
+                        refundMode: row.refundMode,
+                        debtorType: debtor.debtorType,
+                        debtorNo: who.no || null,
+                    },
+                    transaction: t,
+                });
+                if (wf) {
+                    row.status = 'pending-approval';
+                    row.workflowInstanceId = wf.instanceId;
+                    row.updatedBy = stamps.updatedBy;
+                    await row.save({ transaction: t });
+                    outcome = { pending: true };
+                    return;
+                }
+                await posting.postDraftRefund({
+                    companyId, debtor, row,
+                    issueDocNo: docNoIssuer(req, 'ar-refund', row.docNo),
+                    issueCnDocNo: docNoIssuer(req, 'ar-credit-note', null),
+                    stamps, t,
+                });
+                outcome = { pending: false };
+            });
+        } catch (e) {
+            if (e && e.httpStatus) return res.status(e.httpStatus).json({ message: e.message });
+            throw e;
+        }
+        res.status(200).json(outcome.pending
+            ? { message: 'Refund submitted for approval.', id: row.id, status: row.status }
+            : { message: `Refund ${row.docNo} posted.`, id: row.id, docNo: row.docNo, status: row.status });
+    } catch (err) {
+        console.error('Error submitting refund:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// PATCH /api/ar/refunds/:id/void - drafts only, reason kept for audit (a
+// POSTED refund is never voidable - the money already left).
+exports.voidRefundDraft = async (req, res) => {
+    try {
+        const loaded = await loadOwnedRefund(req, res);
+        if (!loaded) return;
+        const { row } = loaded;
+        if (row.status === 'void') return res.status(400).json({ message: 'This refund is already void.' });
+        if (row.status === 'pending-approval') {
+            return res.status(400).json({ message: 'This refund is awaiting approval - it must be approved or rejected first.' });
+        }
+        if (row.status !== 'draft') {
+            return res.status(400).json({ message: 'A posted refund cannot be voided - the money already left; bring it back with a new Official Receipt.' });
+        }
+        const reason = str(req.body.reason);
+        if (!reason) return res.status(400).json({ message: 'A void reason is required (kept for audit).' });
+        row.status = 'void';
+        row.voidedAt = new Date();
+        row.voidedBy = getUserContext(req).userId;
+        row.voidReason = reason.slice(0, 255);
+        row.updatedBy = row.voidedBy;
+        await row.save();
+        res.status(200).json({ message: `Refund ${row.docNo} voided.` });
+    } catch (err) {
+        console.error('Error voiding refund:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// GET /api/ar/refunds - cross-debtor Refund listing, shaped like the ledger
+// listings so the one transaction screen renders it.
+exports.listRefunds = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+
+        const where = { companyId, docKind: 'refund' };
+        const month = str(req.query.month);
+        if (/^\d{4}-\d{2}$/.test(month)) {
+            const [y, m] = month.split('-').map(Number);
+            const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+            where.docDate = { [Op.gte]: `${month}-01`, [Op.lte]: `${month}-${String(last).padStart(2, '0')}` };
+        }
+        const status = str(req.query.status);
+        if (status === 'posted') where.status = 'open';
+        else if (['draft', 'pending-approval', 'open', 'void'].includes(status)) where.status = status;
+        const q = str(req.query.q);
+        if (q) {
+            where[Op.or] = [
+                { docNo: { [Op.iLike]: `%${q}%` } },
+                { description: { [Op.iLike]: `%${q}%` } },
+                { paymentRef: { [Op.iLike]: `%${q}%` } },
+            ];
+        }
+        const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+
+        const { rows, count } = await Receipt.findAndCountAll({
+            where,
+            order: [['docDate', 'DESC'], ['createdAt', 'DESC']],
+            limit: LIST_LIMIT,
+            offset,
+        });
+        const debtorIds = [...new Set(rows.map((r) => r.debtorId))];
+        const debtors = debtorIds.length
+            ? await Debtor.findAll({ where: { id: { [Op.in]: debtorIds }, companyId } })
+            : [];
+        const displayByDebtor = await debtorDisplayMap(companyId, debtors);
+        const { annotateCanModify, getCompanyBaseCurrency } = require('../../platform/serviceContext');
+        const canModify = await annotateCanModify(req, rows);
+
+        res.status(200).json({
+            total: count,
+            limit: LIST_LIMIT,
+            offset,
+            baseCurrencyCode: await getCompanyBaseCurrency(companyId),
+            documents: rows.map((r, i) => ({
+                id: r.id, docKind: r.docKind, mode: r.mode, docNo: r.docNo,
+                docDate: r.docDate, trxDate: r.trxDate, dueDate: null,
+                description: r.description, sourceModule: r.sourceModule || 'ar',
+                netAmount: r.amount, taxAmount: '0.00', grossAmount: r.amount,
+                balanceAmount: r.balanceAmount, status: r.status,
+                voidReason: r.voidReason,
+                ...fxDto(r), baseGrossAmount: r.baseAmount,
+                // Draft edit prefill.
+                refundMode: r.refundMode,
+                transactionTypeId: r.transactionTypeId,
+                paymentMethod: r.paymentMethod, paymentRef: r.paymentRef,
+                collectDepositId: r.collectDepositId,
+                canModify: canModify[i],
+                debtor: displayByDebtor.get(r.debtorId) || { id: r.debtorId, debtorType: null, no: null, name: null },
+            })),
+        });
+    } catch (err) {
+        console.error('Error listing refunds:', err);
         res.status(500).json({ message: 'Internal server error' });
     }
 };

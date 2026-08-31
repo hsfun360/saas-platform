@@ -52,6 +52,22 @@ const PURPOSES = [
             { name: 'debtorNo', label: 'Debtor number', type: 'string' },
         ],
     },
+    // Refunds route through approval because they move money OUT (refund
+    // slice 2026-08-31): approval posts the draft (funding resolved then -
+    // deposit payout, excess-credit payout, or deposit-to-outstanding offset),
+    // rejection returns it to Open.
+    {
+        key: 'ar-refund',
+        name: 'AR Refund',
+        entityType: 'ArRefund',
+        documentRoute: '/ar/refunds',
+        contextFields: [
+            { name: 'amount', label: 'Refund amount', type: 'number' },
+            { name: 'refundMode', label: 'Refund mode (deposit | credit | offset)', type: 'string' },
+            { name: 'debtorType', label: 'Debtor type (membership | member | other)', type: 'string' },
+            { name: 'debtorNo', label: 'Debtor number', type: 'string' },
+        ],
+    },
 ];
 const PURPOSE_KEYS = PURPOSES.map((p) => p.key);
 
