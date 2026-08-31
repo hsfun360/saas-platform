@@ -115,8 +115,11 @@ async function reconcileCompany(companyId, { fix = false } = {}) {
         if (row.status !== 'void' && row.docKind === 'receipt') {
             bump(expOutstanding, row.debtorId, -cents(row.balanceAmount));
         }
+        // Receipts sit on the CREDIT side of their allocations under docType
+        // 'receipt'; refunds sit on the DEBIT side under docType 'refund'
+        // (deposit->refund / receipt->refund pairs).
         const side = row.docKind === 'receipt' ? allocByCredit : allocByDebit;
-        const expectedBalance = cents(row.amount) - (side.get(`receipt:${row.id}`) || 0);
+        const expectedBalance = cents(row.amount) - (side.get(`${row.docKind}:${row.id}`) || 0);
         note('receipt', row.docNo, 'balanceAmount', expectedBalance, cents(row.balanceAmount), async (t) => {
             await Receipt.update({ balanceAmount: money(expectedBalance) }, { where: { id: row.id }, transaction: t });
         });
