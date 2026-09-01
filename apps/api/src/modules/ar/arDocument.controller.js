@@ -319,6 +319,64 @@ exports.getAllocations = async (req, res) => {
         for (const d of [...ledgerDocs, ...receiptDocs, ...depositDocs]) docNoById.set(d.id, { docNo: d.docNo, docKind: d.docKind || 'deposit' });
         const fxTypeById = new Map(fxTypes.map((t) => [t.id, t.transactionType]));
 
+        // FULL deposit usage trail (2026-09-01): the deposit viewer follows
+        // the money one hop further than the direct allocation web -
+        //   1. each deposit->refund draw continues through the refund's
+        //      OFFSET Credit Note (sourceRef = the refund's id) to the
+        //      documents that CN settled;
+        //   2. direct conversions (the Convert button's DEPCONV CNs carry
+        //      sourceRef = THIS deposit's id and write NO allocation row)
+        //      appear as their own entries with their settlements.
+        // Other document types keep the plain allocation list.
+        const onwardByAllocId = new Map(); // allocation id -> { via, settled[] }
+        let conversions;
+        if (type === 'deposit') {
+            const refundIds = rows.filter((a) => a.debitDocType === 'refund').map((a) => a.debitDocId);
+            const [offsetCns, convCns] = await Promise.all([
+                refundIds.length ? Ledger.findAll({
+                    where: { companyId, docKind: 'credit-note', mode: 'credit', sourceModule: 'ar', sourceRef: { [Op.in]: refundIds } },
+                    attributes: ['id', 'docNo', 'sourceRef'],
+                }) : [],
+                Ledger.findAll({
+                    where: { companyId, docKind: 'credit-note', mode: 'credit', sourceModule: 'ar', sourceRef: req.params.id },
+                    attributes: ['id', 'docNo', 'grossAmount', 'balanceAmount', 'status', 'createdAt'],
+                    order: [['createdAt', 'ASC']],
+                }),
+            ]);
+            const cnIds = [...offsetCns, ...convCns].map((c) => c.id);
+            const cnAllocs = cnIds.length ? await Allocation.findAll({
+                where: { companyId, creditDocType: 'ledger', creditDocId: { [Op.in]: cnIds } },
+                order: [['createdAt', 'ASC']],
+            }) : [];
+            const settledIds = [...new Set(cnAllocs.map((a) => a.debitDocId))];
+            const settledDocs = settledIds.length ? await Ledger.findAll({
+                where: { id: { [Op.in]: settledIds } },
+                attributes: ['id', 'docNo', 'docKind'],
+            }) : [];
+            const settledById = new Map(settledDocs.map((d) => [d.id, d]));
+            const settledOf = (cnId) => cnAllocs.filter((a) => a.creditDocId === cnId).map((a) => ({
+                docNo: (settledById.get(a.debitDocId) || {}).docNo || null,
+                docKind: (settledById.get(a.debitDocId) || {}).docKind || 'ledger',
+                amount: a.amount,
+            }));
+            const cnByRefund = new Map(offsetCns.map((c) => [c.sourceRef, c]));
+            for (const a of rows) {
+                if (a.debitDocType !== 'refund') continue;
+                const cn = cnByRefund.get(a.debitDocId);
+                if (cn) onwardByAllocId.set(a.id, { via: cn.docNo, settled: settledOf(cn.id) });
+            }
+            conversions = convCns.map((c) => ({
+                id: c.id,
+                docNo: c.docNo,
+                amount: c.grossAmount,
+                // Remaining CN credit that has not (yet) settled anything.
+                unallocated: c.balanceAmount,
+                status: c.status,
+                settled: settledOf(c.id),
+                createdAt: c.createdAt,
+            }));
+        }
+
         res.status(200).json({
             allocations: rows.map((a) => ({
                 id: a.id,
@@ -332,7 +390,12 @@ exports.getAllocations = async (req, res) => {
                 fxGainLoss: a.fxGainLoss,
                 fxTransactionType: a.fxTransactionTypeId ? (fxTypeById.get(a.fxTransactionTypeId) || null) : null,
                 createdAt: a.createdAt,
+                ...(onwardByAllocId.has(a.id) ? {
+                    onwardVia: onwardByAllocId.get(a.id).via,
+                    onward: onwardByAllocId.get(a.id).settled,
+                } : {}),
             })),
+            ...(type === 'deposit' ? { conversions } : {}),
         });
     } catch (err) {
         console.error('Error loading allocations:', err);

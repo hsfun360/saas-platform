@@ -150,6 +150,9 @@ One-shot boot migrations converted existing rows before the alter-sync dropped t
 - A POSTED deposit keeps the existing collections-free void flip (now also stamping the audit columns when a reason is given); the account screen's Collect / Convert buttons stay gated on posted rows.
 - Listing (`GET /deposits`) is shaped like the ledger listings; for deposits the Balance column reads "To collect" (`balanceAmount`) and a second "Held" cell shows the collateral currently held; status 'closed' (fully collected and fully drawn down) displays as Posted.
 - Account meta ships `depositApproval` for the Submit button label.
+- **Full deposit usage trail in the Allocations viewer (2026-09-02):** for `type=deposit` the drill-down follows the money one hop further than the direct allocation web.
+  Each deposit->refund draw carries the refund's OFFSET Credit Note (found by `sourceRef` = the refund's id) and the documents it settled (`onwardVia` + `onward[]` on the allocation row); direct conversions (Convert-button DEPCONV CNs, `sourceRef` = the deposit's id, no allocation row) ship as a separate `conversions[]` array with their settlements and any still-unapplied CN credit.
+  The viewer nests the hops under their draw with an indented guide line, so "collected 5000 / offset 2000" reads end to end: OR in, refund out via CN, down to each settled invoice.
 
 ## Debit Note slice (2026-09-01 - sixth and last transaction screen)
 

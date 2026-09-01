@@ -265,6 +265,31 @@ export interface ArAllocationRow {
   fxGainLoss: string | null;
   fxTransactionType: string | null;
   createdAt: string;
+  // Deposit trail (2026-09-01): a deposit->refund draw whose refund posted an
+  // OFFSET Credit Note carries the CN's number and the documents it settled.
+  onwardVia?: string | null;
+  onward?: ArAllocationOnwardRow[];
+}
+
+// One document an offset/conversion Credit Note settled (the deposit trail's
+// second hop).
+export interface ArAllocationOnwardRow {
+  docNo: string | null;
+  docKind: string;
+  amount: string;
+}
+
+// A DIRECT deposit conversion (the Convert button's DEPCONV Credit Note -
+// no allocation row of its own; sourceRef = the deposit's id).
+export interface ArDepositConversionRow {
+  id: string;
+  docNo: string | null;
+  amount: string;
+  // Remaining CN credit not (yet) applied to anything.
+  unallocated: string;
+  status: ArDocStatus;
+  settled: ArAllocationOnwardRow[];
+  createdAt: string;
 }
 
 // --- Financial-analysis dimensions (hybrid design 2026-08-25) ---

@@ -215,7 +215,7 @@
     <app-dialog #allocDlg [title]="'Allocations — ' + docRef(allocDoc()!)" [busy]="allocLoading()" (close)="closeAllocations()">
       @if (allocLoading()) {
         <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
-      } @else if (allocRows().length === 0) {
+      } @else if (allocRows().length === 0 && allocConversions().length === 0) {
         <p class="cell-subtle" style="margin: 0;">No allocations yet — nothing has been applied to or settled by this document.</p>
       } @else {
         <div class="art-allocs">
@@ -227,6 +227,42 @@
                 <span class="art-alloc__fx"
                       [class.art-alloc__fx--gain]="allocFxSign(a) > 0"
                       [class.art-alloc__fx--loss]="allocFxSign(a) < 0">{{ allocFx(a) }}</span>
+              }
+              <!-- Deposit trail: the refund's OFFSET Credit Note and what it
+                   settled - the deposit's money followed to its end. -->
+              @if (a.onward?.length) {
+                <div class="art-alloc__trail">
+                  @for (o of a.onward!; track $index) {
+                    <div class="art-alloc__sub">
+                      <span class="art-alloc__who">via <strong>Credit Note {{ a.onwardVia }}</strong> settled {{ onwardLabel(o) }}</span>
+                      <span class="art-alloc__amt">{{ o.amount }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+          <!-- Direct conversions (Convert button): no allocation row of their
+               own - the CN carries the deposit as its source. -->
+          @for (c of allocConversions(); track c.id) {
+            <div class="art-alloc">
+              <span class="art-alloc__who">Converted to <strong>Credit Note {{ c.docNo }}</strong>@if (c.status === 'void') { <span class="cell-subtle">(voided)</span> }</span>
+              <span class="art-alloc__amt">{{ c.amount }}@if (isForeignDoc(allocDoc()!)) { {{ allocDoc()?.currencyCode }}}</span>
+              @if (c.settled.length || (c.status !== 'void' && +c.unallocated > 0)) {
+                <div class="art-alloc__trail">
+                  @for (o of c.settled; track $index) {
+                    <div class="art-alloc__sub">
+                      <span class="art-alloc__who">settled {{ onwardLabel(o) }}</span>
+                      <span class="art-alloc__amt">{{ o.amount }}</span>
+                    </div>
+                  }
+                  @if (c.status !== 'void' && +c.unallocated > 0) {
+                    <div class="art-alloc__sub">
+                      <span class="art-alloc__who cell-subtle">still available as credit</span>
+                      <span class="art-alloc__amt">{{ c.unallocated }}</span>
+                    </div>
+                  }
+                </div>
               }
             </div>
           }

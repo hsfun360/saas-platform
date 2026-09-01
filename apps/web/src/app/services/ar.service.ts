@@ -13,6 +13,7 @@ import {
   ArDebtorListResult,
   ArDebtorsMeta,
   ArAllocationRow,
+  ArDepositConversionRow,
   ArDocListResult,
   ArExchangeRate,
   ArExchangeRateMeta,
@@ -131,9 +132,12 @@ export class ArService {
   }
 
   // A document's allocation web (both directions), counterparts resolved
-  // server-side - the transaction screens' drill-down viewer (step 5).
-  getAllocations(type: 'ledger' | 'receipt' | 'deposit' | 'refund', id: string): Observable<{ allocations: ArAllocationRow[] }> {
-    return this.http.get<{ allocations: ArAllocationRow[] }>(`${this.base}/documents/${type}/${id}/allocations`);
+  // server-side - the transaction screens' drill-down viewer (step 5). For
+  // deposits the response carries the FULL usage trail: onward settlements on
+  // each refund draw, plus the direct conversions (which have no allocation
+  // row of their own).
+  getAllocations(type: 'ledger' | 'receipt' | 'deposit' | 'refund', id: string): Observable<{ allocations: ArAllocationRow[]; conversions?: ArDepositConversionRow[] }> {
+    return this.http.get<{ allocations: ArAllocationRow[]; conversions?: ArDepositConversionRow[] }>(`${this.base}/documents/${type}/${id}/allocations`);
   }
 
   postInvoice(payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string | null }> {

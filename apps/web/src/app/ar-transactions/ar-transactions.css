@@ -118,3 +118,23 @@
    both themes. */
 .art-alloc__fx--gain { color: var(--success-text); }
 .art-alloc__fx--loss { color: var(--danger-text); }
+/* Deposit usage trail: onward settlements nest under their draw/conversion,
+   indented with a guide line so the hop reads as a continuation. */
+.art-alloc { grid-template-areas: "who amt" "fx fx" "trail trail"; }
+.art-alloc__trail {
+  grid-area: trail;
+  margin-left: var(--space-md);
+  padding-left: var(--space-sm);
+  border-left: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.art-alloc__sub {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.art-alloc__sub .art-alloc__amt { font-variant-numeric: tabular-nums; }

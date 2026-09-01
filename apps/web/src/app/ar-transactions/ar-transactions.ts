@@ -15,7 +15,7 @@ import { ArRefundDialogComponent } from '../shared/ar-refund-dialog/ar-refund-di
 import { ArDepositDialogComponent } from '../shared/ar-deposit-dialog/ar-deposit-dialog';
 import { ArService } from '../services/ar.service';
 import { PermissionsService } from '../services/permissions.service';
-import { ArAccountMeta, ArAllocationRow, ArDocListResult, ArDocListRow, ArDocStatus } from '../models/ar.models';
+import { ArAccountMeta, ArAllocationRow, ArAllocationOnwardRow, ArDepositConversionRow, ArDocListResult, ArDocListRow, ArDocStatus } from '../models/ar.models';
 
 // Account Receivable → per-document-type transaction screens (hybrid design
 // 2026-08-12): each document type is its OWN menu, so RBAC can grant e.g.
@@ -440,10 +440,14 @@ export class ArTransactionsComponent implements OnInit {
   readonly allocLoading = signal(false);
   readonly allocDoc = signal<ArDocListRow | null>(null);
   readonly allocRows = signal<ArAllocationRow[]>([]);
+  // Deposit viewer only: the direct conversions (Convert-button CNs - no
+  // allocation row of their own), completing the deposit's usage trail.
+  readonly allocConversions = signal<ArDepositConversionRow[]>([]);
   openAllocations(row: ArDocListRow): void {
     this.clearMessages();
     this.allocDoc.set(row);
     this.allocRows.set([]);
+    this.allocConversions.set([]);
     this.allocOpen.set(true);
     this.allocLoading.set(true);
     // Receipt/refund rows live in ar.Receipt (the API addresses refunds by
@@ -452,7 +456,11 @@ export class ArTransactionsComponent implements OnInit {
     const k = this.cfg().kind;
     const type = k === 'receipt' ? 'receipt' : k === 'refund' ? 'refund' : k === 'deposit' ? 'deposit' : 'ledger';
     this.service.getAllocations(type, row.id).subscribe({
-      next: (res) => { this.allocRows.set(res.allocations); this.allocLoading.set(false); },
+      next: (res) => {
+        this.allocRows.set(res.allocations);
+        this.allocConversions.set(res.conversions || []);
+        this.allocLoading.set(false);
+      },
       error: (err) => {
         this.allocLoading.set(false);
         this.allocOpen.set(false);
@@ -474,6 +482,11 @@ export class ArTransactionsComponent implements OnInit {
     const kind = mine ? a.debitDocType : a.creditDocType;
     const label = doc?.docKind ? (DOC_KIND_LABELS[doc.docKind] || doc.docKind) : (DOC_KIND_LABELS[kind] || kind);
     return doc?.docNo ? `${label} ${doc.docNo}` : label;
+  }
+  // A trail hop's display label ("Invoice INV202600008").
+  onwardLabel(o: ArAllocationOnwardRow): string {
+    const label = DOC_KIND_LABELS[o.docKind] || o.docKind;
+    return o.docNo ? `${label} ${o.docNo}` : label;
   }
   // Nonzero realized fx, phrased with its Forex designation.
   allocFx(a: ArAllocationRow): string {
