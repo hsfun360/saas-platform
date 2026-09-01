@@ -87,7 +87,7 @@ One-shot boot migrations converted existing rows before the alter-sync dropped t
 
 ## AR Transaction screens (hybrid design, 2026-08-12 - invoice first)
 
-- Each manual document type becomes its OWN menu/screen so RBAC can grant per document (a cashier keys receipts without credit-note authority): `/ar/invoices`, `/ar/credit-notes`, `/ar/receipts` and `/ar/refunds` built; Debit Note and Deposit follow slice by slice.
+- Each manual document type becomes its OWN menu/screen so RBAC can grant per document (a cashier keys receipts without credit-note authority): `/ar/invoices`, `/ar/credit-notes`, `/ar/receipts`, `/ar/refunds` and `/ar/deposits` built; Debit Note is the last one left.
   The Debtor Account screen stays unchanged as the account-first surface under `/ar/debtors`; once all six menus exist its entry buttons will be re-gated per menu (`*appCan` against the document's menu) - that final flip is a deliberate separate step.
 - One web component serves every type (`ar-transactions`, route `data.arDocType`), and ONE shared entry dialog (`shared/ar-ledger-dialog` for Invoice/DN/CN) is used by BOTH the account screen (debtor preset) and the transaction screens (debtor picker step first - single-dialog rule: picker/entry are `@switch` views in one dialog).
   The picker reuses the Debtor Listing search verbatim: `GET /api/ar/debtor-options` = `debtorController.listDebtors` under `requireAnyMenuAction` of the transaction menus (`AR_TXN_MENUS` in `ar.routes.js` - extend per slice); `GET /debtors/:id/account/meta` is re-gated the same way (the dialog needs billing items/persons/numbering).
@@ -135,6 +135,17 @@ One-shot boot migrations converted existing rows before the alter-sync dropped t
   Reconciliation needed no changes - the held/credit formulas already count deposit->refund and receipt->refund allocations, and the offset-CN's `sourceRef` is the refund id (not the deposit id), so deposit-conversion accounting stays keyed correctly.
 - Account meta ships ALL open deposits with `heldAmount` (each dialog filters client-side: receipt dialog wants `balanceAmount > 0` to collect, refund dialog wants `heldAmount > 0` to pay out) + a `refundApproval` flag for the Submit button label.
 - The Debtor Account screen's old inline refund form was REPLACED by the shared dialog (same component, debtor preset) - one refund door, one behaviour.
+
+## Deposit slice (2026-09-01 - fifth transaction screen)
+
+- `/ar/deposits` menu/screen (same `ar-transactions` component; its OWN entry dialog `shared/ar-deposit-dialog` - opening a deposit is a BILLING act, so the form carries no payment fields, just the required amount).
+  Save -> `ar.Deposit` draft (status 'draft', gapless `ar-deposit` number at save, editable, draft-only void WITH reason) -> **Submit posts directly OR through the `ar-deposit` workflow purpose** (a deposit demand is a billing act like an invoice, so it can require approval; `pending-approval` while in flight, approval posts via `postDraftDeposit` in the completing tx, rejection/recall returns to draft; new `Deposit.workflowInstanceId` + posting/void audit columns).
+- **Posting a deposit is a pure lifecycle flip** - no pool movement, no allocations (deposits are collateral, outside outstanding); it just opens the deposit for collection via Official Receipt.
+  Draft deposits are NOT financial: not collectable (the receipt pickers and `collectDepositId` validation filter `status 'open'`), not refundable, not convertible, held 0 so statements are untouched, and reconciliation's identities hold trivially.
+- **Both doors unified** (like receipts): the Debtor Account door (`POST /debtors/:id/deposits`) also creates drafts through the shared dialog now - no door can bypass the lifecycle.
+- A POSTED deposit keeps the existing collections-free void flip (now also stamping the audit columns when a reason is given); the account screen's Collect / Convert buttons stay gated on posted rows.
+- Listing (`GET /deposits`) is shaped like the ledger listings; for deposits the Balance column reads "To collect" (`balanceAmount`) and a second "Held" cell shows the collateral currently held; status 'closed' (fully collected and fully drawn down) displays as Posted.
+- Account meta ships `depositApproval` for the Submit button label.
 
 ## Invoice lifecycle (defined 2026-08-13 - Save / Submit / approval)
 

@@ -12,6 +12,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 import { ArLedgerDialogComponent } from '../shared/ar-ledger-dialog/ar-ledger-dialog';
 import { ArReceiptDialogComponent } from '../shared/ar-receipt-dialog/ar-receipt-dialog';
 import { ArRefundDialogComponent } from '../shared/ar-refund-dialog/ar-refund-dialog';
+import { ArDepositDialogComponent } from '../shared/ar-deposit-dialog/ar-deposit-dialog';
 import { ArService } from '../services/ar.service';
 import { PermissionsService } from '../services/permissions.service';
 import { ArAccountMeta, ArAllocationRow, ArDocListResult, ArDocListRow, ArDocStatus } from '../models/ar.models';
@@ -23,13 +24,14 @@ import { ArAccountMeta, ArAllocationRow, ArDocListResult, ArDocListRow, ArDocSta
 // types via route data (invoice first; the other five follow slice by slice).
 // The Debtor Account screen stays as the account-first inquiry surface.
 interface DocTypeCfg {
-  kind: 'invoice' | 'debit-note' | 'credit-note' | 'receipt' | 'refund';
+  kind: 'invoice' | 'debit-note' | 'credit-note' | 'receipt' | 'refund' | 'deposit';
   label: string;       // singular, e.g. 'Invoice'
   plural: string;      // fallback screen title
   icon: string;
   subtitle: string;
-  // Which shared entry dialog the type uses (receipts/refunds have their own).
-  dialog: 'ledger' | 'receipt' | 'refund';
+  // Which shared entry dialog the type uses (receipts/refunds/deposits have
+  // their own).
+  dialog: 'ledger' | 'receipt' | 'refund' | 'deposit';
   // Whether the kind can route through an approval chain (receipts never do -
   // user rule 2026-08-20: collections carry no workflow).
   hasApproval: boolean;
@@ -98,6 +100,20 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
     approvalOf: (m) => m.refundApproval === true,
     void: (s, id, reason) => s.voidRefund(id, reason),
   },
+  deposit: {
+    kind: 'deposit',
+    label: 'Deposit',
+    plural: 'Deposits',
+    icon: 'account_balance',
+    subtitle: 'Security deposits across all debtors — bill the required collateral; collection happens through an Official Receipt against the posted deposit.',
+    dialog: 'deposit',
+    hasApproval: true,
+    postText: 'The deposit number is issued now and the deposit opens for collection via Official Receipt. It never enters the outstanding balance.',
+    list: (s, opts) => s.listDeposits(opts),
+    submit: (s, id) => s.submitDeposit(id),
+    approvalOf: (m) => m.depositApproval === true,
+    void: (s, id, reason) => s.voidDeposit(id, reason),
+  },
 };
 
 @Component({
@@ -106,7 +122,8 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule,
     DialogComponent, CanDirective, LocalDatePipe, ArLedgerDialogComponent,
-    ArReceiptDialogComponent, ArRefundDialogComponent, OverflowMenuComponent, MenuItemDirective,
+    ArReceiptDialogComponent, ArRefundDialogComponent, ArDepositDialogComponent,
+    OverflowMenuComponent, MenuItemDirective,
   ],
   templateUrl: './ar-transactions.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-transactions.css'],
@@ -211,6 +228,11 @@ export class ArTransactionsComponent implements OnInit {
     return Number(doc.balanceAmount).toFixed(2);
   }
 
+  // Deposit rows: the held collateral balance.
+  heldOf(doc: ArDocListRow): string {
+    return Number(doc.heldAmount ?? 0).toFixed(2);
+  }
+
   // A row in another currency than the company base (chip-worthy).
   isForeignDoc(doc: ArDocListRow): boolean {
     const base = this.baseCurrencyCode();
@@ -225,7 +247,8 @@ export class ArTransactionsComponent implements OnInit {
       : status === 'void' ? 'Void' : 'Posted';
   }
   isPosted(doc: ArDocListRow): boolean {
-    return doc.status === 'open' || doc.status === 'settled';
+    // 'closed' is deposit-only: fully collected and fully drawn down.
+    return doc.status === 'open' || doc.status === 'settled' || doc.status === 'closed';
   }
   // Drafts within the caller's data scope carry the row actions.
   isEditableDraft(doc: ArDocListRow): boolean {
@@ -238,11 +261,11 @@ export class ArTransactionsComponent implements OnInit {
 
   // --- Entry / edit (the shared dialog; editRow set = edit mode) ---
   readonly editRow = signal<ArDocListRow | null>(null);
-  // Narrowing for the ledger dialog's [kind] input (receipts and refunds use
-  // their own dialogs, so this branch never renders for them).
+  // Narrowing for the ledger dialog's [kind] input (receipts, refunds and
+  // deposits use their own dialogs, so this branch never renders for them).
   ledgerKind(): 'invoice' | 'debit-note' | 'credit-note' {
     const k = this.cfg().kind;
-    return k === 'receipt' || k === 'refund' ? 'invoice' : k;
+    return k === 'receipt' || k === 'refund' || k === 'deposit' ? 'invoice' : k;
   }
   openEntry(): void {
     this.clearMessages();
@@ -405,8 +428,11 @@ export class ArTransactionsComponent implements OnInit {
     this.allocRows.set([]);
     this.allocOpen.set(true);
     this.allocLoading.set(true);
-    // Receipt-screen rows live in ar.Receipt; the ledger kinds in ar.Ledger.
-    const type = this.cfg().kind === 'receipt' ? 'receipt' : 'ledger';
+    // Receipt/refund rows live in ar.Receipt (the API addresses refunds by
+    // their own doc type), deposits in ar.Deposit, the ledger kinds in
+    // ar.Ledger.
+    const k = this.cfg().kind;
+    const type = k === 'receipt' ? 'receipt' : k === 'refund' ? 'refund' : k === 'deposit' ? 'deposit' : 'ledger';
     this.service.getAllocations(type, row.id).subscribe({
       next: (res) => { this.allocRows.set(res.allocations); this.allocLoading.set(false); },
       error: (err) => {

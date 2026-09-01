@@ -486,6 +486,33 @@ async function postDraftReceipt({ companyId, debtor, row, issueDocNo, stamps = {
     return row;
 }
 
+// Post an EXISTING draft Deposit row (deposit lifecycle 2026-09-01). Opening
+// a deposit is a pure billing act - no pool movement, no allocations
+// (deposits are COLLATERAL, outside outstanding); collection happens later
+// through an Official Receipt. So posting is just the lifecycle flip with
+// the gapless number and the frozen rate.
+async function postDraftDeposit({ companyId, debtor, row, issueDocNo, stamps = {}, t }) {
+    if (row.status !== 'draft' && row.status !== 'pending-approval') {
+        throw bizError(400, `Only a draft can be posted (this deposit is ${row.status}).`);
+    }
+    const amountC = cents(row.amount);
+    if (amountC <= 0) throw bizError(400, 'Amount must be greater than zero.');
+
+    if (!row.docNo) row.docNo = await issueDocNo(t);
+    if (!row.exchangeRate) {
+        const fxNow = await resolveDocumentFx({ companyId, debtor, docDate: row.docDate, transaction: t });
+        Object.assign(row, amountFxColumns(fxNow, amountC));
+    }
+    row.status = 'open';
+    row.postedAt = new Date();
+    if (stamps.updatedBy) {
+        row.postedBy = stamps.updatedBy;
+        row.updatedBy = stamps.updatedBy;
+    }
+    await row.save({ transaction: t });
+    return row;
+}
+
 // Post a Refund (money out). A refund must be FULLY funded at posting: from a
 // deposit's held balance, or from unallocated receipt credit (oldest first).
 async function postRefund({
@@ -794,6 +821,7 @@ module.exports = {
     postDraftLedger,
     postReceipt,
     postDraftReceipt,
+    postDraftDeposit,
     postRefund,
     postDraftRefund,
     convertDeposit,

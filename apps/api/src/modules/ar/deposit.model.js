@@ -67,12 +67,25 @@ const Deposit = sequelize.define('Deposit', {
     currencyCode: { type: DataTypes.STRING(3), allowNull: true },
     exchangeRate: { type: DataTypes.DECIMAL(21, 10), allowNull: true },
     baseAmount: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
-    // 'open' | 'closed' | 'void'.
+    // 'draft' | 'pending-approval' | 'open' | 'closed' | 'void'. Deposit
+    // slice (2026-09-01): manual deposits adopt the invoice lifecycle -
+    // draft ("Open" on screen, editable, NOT financial: not collectable,
+    // not refundable, excluded from statements) -> Submit -> the ar-deposit
+    // approval chain when one is active, else posted directly.
     status: {
         type: DataTypes.STRING(20),
         allowNull: false,
         defaultValue: 'open',
     },
+    // Posting / void audit (deposit lifecycle). A voided draft KEEPS its
+    // number - the reason is the auditor's explanation for the sequence gap.
+    postedAt: { type: DataTypes.DATE, allowNull: true },
+    postedBy: { type: DataTypes.UUID, allowNull: true },
+    voidedAt: { type: DataTypes.DATE, allowNull: true },
+    voidedBy: { type: DataTypes.UUID, allowNull: true },
+    voidReason: { type: DataTypes.STRING, allowNull: true },
+    // The in-flight approval instance while status = 'pending-approval'.
+    workflowInstanceId: { type: DataTypes.UUID, allowNull: true },
     // Ownership stamps.
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

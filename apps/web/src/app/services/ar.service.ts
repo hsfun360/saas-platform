@@ -208,8 +208,31 @@ export class ArService {
     return this.http.patch<{ message: string }>(`${this.base}/receipts/${id}/void`, reason ? { reason } : {});
   }
 
-  voidDeposit(id: string): Observable<{ message: string }> {
-    return this.http.patch<{ message: string }>(`${this.base}/deposits/${id}/void`, {});
+  voidDeposit(id: string, reason?: string): Observable<{ message: string }> {
+    return this.http.patch<{ message: string }>(`${this.base}/deposits/${id}/void`, reason ? { reason } : {});
+  }
+
+  // --- Deposit lifecycle (deposit slice 2026-09-01) ---
+
+  listDeposits(opts: { month?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
+    let params = new HttpParams();
+    if (opts.month) params = params.set('month', opts.month);
+    if (opts.q) params = params.set('q', opts.q);
+    if (opts.status) params = params.set('status', opts.status);
+    if (opts.offset) params = params.set('offset', String(opts.offset));
+    return this.http.get<ArDocListResult>(`${this.base}/deposits`, { params });
+  }
+
+  createDeposit(payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string | null }> {
+    return this.http.post<{ message: string; id: string; docNo: string | null }>(`${this.base}/deposits`, payload);
+  }
+
+  updateDeposit(id: string, payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string | null }> {
+    return this.http.patch<{ message: string; id: string; docNo: string | null }>(`${this.base}/deposits/${id}`, payload);
+  }
+
+  submitDeposit(id: string): Observable<{ message: string; id: string; docNo?: string; status: string }> {
+    return this.http.post<{ message: string; id: string; docNo?: string; status: string }>(`${this.base}/deposits/${id}/submit`, {});
   }
 
   // --- Refund lifecycle (refund slice 2026-08-31) ---

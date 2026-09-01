@@ -19,7 +19,7 @@ const periodicController = require('./arPeriodic.controller');
 
 // Menus whose screens open the shared entry dialogs (debtor picker + entry
 // meta). Extend as each per-document transaction slice lands.
-const AR_TXN_MENUS = ['/ar/invoices', '/ar/credit-notes', '/ar/receipts', '/ar/refunds'];
+const AR_TXN_MENUS = ['/ar/invoices', '/ar/credit-notes', '/ar/receipts', '/ar/refunds', '/ar/deposits'];
 const AR_TXN_META_MENUS = ['/ar/debtors', ...AR_TXN_MENUS];
 
 // Liveness probe - unauthenticated, so the gateway/monitoring can check the seam.
@@ -58,7 +58,7 @@ router.post('/debtors/:id/deposits', requireMenuAction('/ar/debtors'), documentC
 router.post('/deposits/:id/convert', requireMenuAction('/ar/debtors'), documentController.convertDeposit);
 router.patch('/ledger/:id/void', requireMenuAction('/ar/debtors'), documentController.voidLedger);
 router.patch('/receipts/:id/void', requireAnyMenuAction(['/ar/debtors', '/ar/receipts']), documentController.voidReceipt);
-router.patch('/deposits/:id/void', requireMenuAction('/ar/debtors'), documentController.voidDeposit);
+router.patch('/deposits/:id/void', requireAnyMenuAction(['/ar/debtors', '/ar/deposits']), documentController.voidDeposit);
 
 // --- AR Transaction screens (one menu per document type - hybrid design
 // 2026-08-12: dedicated menus for RBAC granularity; the Debtor Account screen
@@ -102,6 +102,15 @@ router.post('/refunds', requireMenuAction('/ar/refunds'), documentController.cre
 router.patch('/refunds/:id', requireMenuAction('/ar/refunds'), documentController.updateRefundDraft);
 router.post('/refunds/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.submitRefund);
 router.patch('/refunds/:id/void', requireAnyMenuAction(['/ar/debtors', '/ar/refunds']), documentController.voidRefundDraft);
+// Deposit (menu '/ar/deposits', deposit slice 2026-09-01): Save->Submit
+// lifecycle; Submit routes through the ar-deposit approval chain when one is
+// active (a deposit demand is a billing act), else posts directly - opening
+// the deposit for collection via Official Receipt. The void route above (the
+// account door) covers drafts (reason) and the collections-free posted flip.
+router.get('/deposits', requireMenuAction('/ar/deposits'), documentController.listDeposits);
+router.post('/deposits', requireMenuAction('/ar/deposits'), documentController.createDeposit);
+router.patch('/deposits/:id', requireMenuAction('/ar/deposits'), documentController.updateDepositDraft);
+router.post('/deposits/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.submitDeposit);
 
 // --- Transaction Type master (AR-owned catalog since 2026-08-15; its own
 // screen/menu '/ar/transaction-types'). Membership reads it READ-ONLY through

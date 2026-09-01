@@ -156,7 +156,9 @@ export interface ArDepositDoc {
   balanceAmount: string;
   // Held balance: rises with collections, falls with refunds/conversions.
   heldAmount: string;
-  status: 'open' | 'closed' | 'void';
+  // 'draft'/'pending-approval' = deposit lifecycle 2026-09-01 (not financial:
+  // not collectable, not refundable, excluded from statements).
+  status: 'draft' | 'pending-approval' | 'open' | 'closed' | 'void';
   currencyCode?: string | null;
   exchangeRate?: string | null;
   baseAmount?: string | null;
@@ -187,7 +189,9 @@ export interface ArAccount {
 
 // Internal status vocabulary (display maps draft->"Open", open|settled->
 // "Posted"): 'draft' and 'pending-approval' are NOT financial yet.
-export type ArDocStatus = 'draft' | 'pending-approval' | 'open' | 'settled' | 'void';
+// 'closed' is deposit-only (fully collected and fully drawn down) and also
+// displays as "Posted".
+export type ArDocStatus = 'draft' | 'pending-approval' | 'open' | 'settled' | 'closed' | 'void';
 
 // What a refund does (refund slice 2026-08-31): 'deposit' pays back a
 // deposit's held balance, 'credit' pays back excess payment (unallocated
@@ -231,6 +235,8 @@ export interface ArDocListRow {
   paymentRef?: string | null;
   collectDepositId?: string | null;
   refundMode?: ArRefundMode | null;
+  // Deposit rows: the held balance (balanceAmount is the still-to-collect).
+  heldAmount?: string | null;
   canModify?: boolean;
   debtor: { id: string; debtorType: string | null; no: string | null; name: string | null };
 }
@@ -358,6 +364,7 @@ export interface ArAccountMeta {
   invoiceApproval?: boolean;
   creditNoteApproval?: boolean;
   refundApproval?: boolean;
+  depositApproval?: boolean;
   // The debtor's open debits - the CN entry's "Apply against" choices.
   openDebits?: { id: string; docKind: string; docNo: string | null; grossAmount: string; balanceAmount: string }[];
   // The debtor's OPEN deposits with both counters: the Receipt dialog offers

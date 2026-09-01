@@ -83,7 +83,14 @@
                 <div class="meta"><dt>Date</dt><dd>{{ doc.docDate | localDate }}</dd></div>
                 <div class="meta"><dt>Amount</dt><dd>{{ doc.grossAmount }}</dd></div>
                 @if (isPosted(doc)) {
-                  <div class="meta"><dt>Balance</dt><dd>{{ remaining(doc) }}</dd></div>
+                  @if (cfg().kind === 'deposit') {
+                    <!-- Deposits: Balance = still to collect, Held = the
+                         collateral currently held. -->
+                    <div class="meta"><dt>To collect</dt><dd>{{ remaining(doc) }}</dd></div>
+                    <div class="meta"><dt>Held</dt><dd>{{ heldOf(doc) }}</dd></div>
+                  } @else {
+                    <div class="meta"><dt>Balance</dt><dd>{{ remaining(doc) }}</dd></div>
+                  }
                 }
                 @if (doc.dueDate) {
                   <div class="meta"><dt>Due</dt><dd>{{ doc.dueDate | localDate }}</dd></div>
@@ -154,6 +161,11 @@
                             (failed)="errorMessage.set($event)" />
     } @else if (cfg().dialog === 'receipt') {
       <app-ar-receipt-dialog [editRow]="editRow()"
+                             (closed)="onEntryClosed()"
+                             (posted)="onPosted($event)"
+                             (failed)="errorMessage.set($event)" />
+    } @else if (cfg().dialog === 'deposit') {
+      <app-ar-deposit-dialog [editRow]="editRow()"
                              (closed)="onEntryClosed()"
                              (posted)="onPosted($event)"
                              (failed)="errorMessage.set($event)" />

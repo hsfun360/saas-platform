@@ -10,9 +10,9 @@ import { MoneyInputDirective } from '../shared/money-input.directive';
 import { ArLedgerDialogComponent, ArLedgerDialogDebtor } from '../shared/ar-ledger-dialog/ar-ledger-dialog';
 import { ArReceiptDialogComponent } from '../shared/ar-receipt-dialog/ar-receipt-dialog';
 import { ArRefundDialogComponent } from '../shared/ar-refund-dialog/ar-refund-dialog';
+import { ArDepositDialogComponent } from '../shared/ar-deposit-dialog/ar-deposit-dialog';
 import { ArService } from '../services/ar.service';
 import { ArAccount, ArAccountMeta, ArDepositDoc, ArLedgerDoc, ArReceiptDoc } from '../models/ar.models';
-import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate } from '../shared/ar-fx';
 
 // Account Receivable → Debtor Account (the Debtor Listing's detail surface,
 // same '/ar/debtors' menu). Shows the ledger account's balances and its three
@@ -29,7 +29,7 @@ import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate } from '../shared/ar-f
   imports: [
     CommonModule, ReactiveFormsModule, RouterLink, DialogComponent, CanDirective,
     LocalDatePipe, MoneyInputDirective, ArLedgerDialogComponent, ArReceiptDialogComponent,
-    ArRefundDialogComponent,
+    ArRefundDialogComponent, ArDepositDialogComponent,
   ],
   templateUrl: './ar-debtor-account.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-debtor-account.css'],
@@ -74,38 +74,9 @@ export class ArDebtorAccountComponent {
   // --- Refund dialog (SHARED component since the refund slice 2026-08-31) ---
   readonly refundOpen = signal(false);
 
-  // --- Deposit dialog (open a deposit) ---
+  // --- Deposit dialog (SHARED component since the deposit slice 2026-09-01;
+  // it owns the form, fx defaulting and the Save/Submit lifecycle) ---
   readonly depositOpen = signal(false);
-  readonly depositSaving = signal(false);
-  readonly depositForm = this.fb.nonNullable.group({
-    docNo: [''],
-    docDate: ['', [Validators.required]],
-    trxDate: ['', [Validators.required]],
-    amount: [0, [Validators.required, Validators.min(0.01)]],
-    description: [''],
-    exchangeRate: ['', [Validators.pattern(AR_RATE_PATTERN)]],
-  });
-
-  // --- Multicurrency (step 3) for the inline deposit form: the rate field
-  // shows on a FOREIGN account, defaulting from the account currency's rate
-  // history at the document date until the user keys one.
-  readonly fxCurrency = computed(() => this.meta()?.currency || null);
-  readonly isForeign = computed(() => { const c = this.fxCurrency(); return !!c && !c.isBase && !!c.code; });
-  private depositRateTouched = false;
-
-  private defaultRate(docDate: string): string {
-    return arRateForDate(this.fxCurrency(), docDate);
-  }
-
-  // Payload fragment: only a foreign account sends a rate.
-  private fxPayload(rate: string): Record<string, unknown> {
-    return this.isForeign() ? { exchangeRate: rate.trim() || null } : {};
-  }
-
-  depositBaseEquivalent(): string {
-    const f = this.depositForm.getRawValue();
-    return arBaseEquivalent(f.amount, f.exchangeRate);
-  }
 
   // --- Convert-deposit dialog ---
   readonly convertOpen = signal(false);
@@ -180,6 +151,14 @@ export class ArDebtorAccountComponent {
   // Receipt lifecycle display (2026-08-20): draft="Open", open="Posted".
   receiptStatusLabel(doc: ArReceiptDoc): string {
     return doc.status === 'draft' ? 'Open' : doc.status === 'open' ? 'Posted' : doc.status;
+  }
+  // Deposit lifecycle display (2026-09-01): same vocabulary; 'closed' (fully
+  // collected and drawn down) keeps its own word - it explains why the row
+  // offers no actions.
+  depositStatusLabel(d: ArDepositDoc): string {
+    return d.status === 'draft' ? 'Open'
+      : d.status === 'pending-approval' ? 'Pending Approval'
+      : d.status === 'open' ? 'Posted' : d.status;
   }
   // Invoices: draft-only void (posted = Credit Note territory). CN drafts
   // void like invoice drafts (lifecycle 2026-08-20); a POSTED unallocated CN
@@ -277,36 +256,17 @@ export class ArDebtorAccountComponent {
     this.load();
   }
 
-  // --- Deposit ---
+  // --- Deposit (the shared dialog owns the form; Save = Open draft, Submit
+  // routes through the ar-deposit approval chain or posts) ---
   openDeposit(): void {
     this.clearMessages();
-    const t = this.today();
-    this.depositForm.reset({ docNo: '', docDate: t, trxDate: t, amount: 0, description: '', exchangeRate: this.defaultRate(t) });
-    this.depositRateTouched = false;
     this.depositOpen.set(true);
   }
-  onDepositDateChange(docDate: string): void {
-    if (this.depositRateTouched || !this.isForeign()) return;
-    this.depositForm.controls.exchangeRate.setValue(this.defaultRate(docDate), { emitEvent: false });
-  }
-  onDepositRateKeyed(): void { this.depositRateTouched = true; }
-  closeDeposit(): void { this.depositOpen.set(false); }
-  onSaveDeposit(): void {
-    this.clearMessages();
-    if (this.depositForm.invalid) { this.depositForm.markAllAsTouched(); return; }
-    const f = this.depositForm.getRawValue();
-    this.depositSaving.set(true);
-    this.service.postDeposit(this.debtorId, {
-      docNo: f.docNo.trim() || null,
-      docDate: f.docDate,
-      trxDate: f.trxDate,
-      amount: f.amount,
-      description: f.description.trim() || null,
-      ...this.fxPayload(f.exchangeRate),
-    }).subscribe({
-      next: (res) => { this.successMessage.set(res.message); this.depositSaving.set(false); this.depositOpen.set(false); this.load(); },
-      error: (err) => { this.errorMessage.set(err.error?.message || 'Failed to open the deposit.'); this.depositSaving.set(false); },
-    });
+  onDepositPosted(message: string): void {
+    this.errorMessage.set('');
+    this.successMessage.set(message);
+    this.depositOpen.set(false);
+    this.load();
   }
 
   // --- Convert deposit to Credit Note ---
@@ -364,11 +324,18 @@ export class ArDebtorAccountComponent {
     }));
   }
   askVoidDeposit(doc: ArDepositDoc): void {
-    this.voidNeedsReason.set(false);
-    this.openVoid(`Void Deposit ${doc.docNo}?`, () => this.service.voidDeposit(doc.id).subscribe({
-      next: (res) => this.voidDone(res.message),
-      error: (err) => this.voidFailed(err),
-    }));
+    // Deposit DRAFTS void with a reason (gapless-series audit, deposit
+    // lifecycle 2026-09-01); posted collections-free deposits keep the flip.
+    const isDraft = doc.status === 'draft';
+    this.voidNeedsReason.set(isDraft);
+    this.openVoid(
+      isDraft
+        ? `Void Deposit ${doc.docNo}? The draft never posted - the number stays consumed and the record remains as Void with your reason.`
+        : `Void Deposit ${doc.docNo}?`,
+      () => this.service.voidDeposit(doc.id, isDraft ? this.voidReason().trim() : undefined).subscribe({
+        next: (res) => this.voidDone(res.message),
+        error: (err) => this.voidFailed(err),
+      }));
   }
   private openVoid(message: string, action: () => void): void {
     this.clearMessages();

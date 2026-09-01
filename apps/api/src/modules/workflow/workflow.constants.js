@@ -68,6 +68,21 @@ const PURPOSES = [
             { name: 'debtorNo', label: 'Debtor number', type: 'string' },
         ],
     },
+    // Deposit slice 2026-09-01: opening a deposit is a billing act (a demand
+    // for collateral, like an invoice demands payment), so it can route
+    // through approval the same way; approval posts the draft, rejection
+    // returns it to Open.
+    {
+        key: 'ar-deposit',
+        name: 'AR Deposit',
+        entityType: 'ArDeposit',
+        documentRoute: '/ar/deposits',
+        contextFields: [
+            { name: 'amount', label: 'Required deposit amount', type: 'number' },
+            { name: 'debtorType', label: 'Debtor type (membership | member | other)', type: 'string' },
+            { name: 'debtorNo', label: 'Debtor number', type: 'string' },
+        ],
+    },
 ];
 const PURPOSE_KEYS = PURPOSES.map((p) => p.key);
 

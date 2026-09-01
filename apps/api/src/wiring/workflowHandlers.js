@@ -130,4 +130,52 @@ purposeRegistry.register('ar-refund', {
     },
 });
 
+// --- AR Deposit (deposit slice 2026-09-01) ----------------------------------
+// Deposits are ar.Deposit rows - their own handler. Opening a deposit has no
+// financial side effects (collateral, collected later via Official Receipt),
+// so approval just flips the draft to open through postDraftDeposit.
+purposeRegistry.register('ar-deposit', {
+    onApproved: async ({ entityId, instance, transaction }) => {
+        const Deposit = require('../modules/ar/deposit.model');
+        const Debtor = require('../modules/ar/debtor.model');
+        const posting = require('../modules/ar/arPosting.service');
+        const numberingGateway = require('../platform/numberingGateway');
+
+        const row = await Deposit.findOne({
+            where: { id: entityId, companyId: instance.companyId, status: 'pending-approval' },
+            transaction,
+        });
+        if (!row) return; // already handled / voided out-of-band - never fail the approval
+        const debtor = await Debtor.findOne({ where: { id: row.debtorId, companyId: instance.companyId }, transaction });
+        if (!debtor) return;
+
+        await posting.postDraftDeposit({
+            companyId: instance.companyId,
+            debtor,
+            row,
+            issueDocNo: async (t) => {
+                const issued = await numberingGateway.issueNumberForCompany(instance.companyId, 'ar-deposit', { transaction: t });
+                if (issued && issued.number) return issued.number;
+                return `DEP-${Date.now().toString(36).toUpperCase()}`;
+            },
+            stamps: { updatedBy: instance.submitterUserId || null },
+            t: transaction,
+        });
+    },
+    onRejected: async ({ entityId, instance, transaction }) => {
+        const Deposit = require('../modules/ar/deposit.model');
+        await Deposit.update(
+            { status: 'draft' },
+            { where: { id: entityId, companyId: instance.companyId, status: 'pending-approval' }, transaction },
+        );
+    },
+    onCancelled: async ({ entityId, instance, transaction }) => {
+        const Deposit = require('../modules/ar/deposit.model');
+        await Deposit.update(
+            { status: 'draft' },
+            { where: { id: entityId, companyId: instance.companyId, status: 'pending-approval' }, transaction },
+        );
+    },
+});
+
 module.exports = {};

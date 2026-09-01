@@ -259,6 +259,7 @@ exports.getAccountMeta = async (req, res) => {
             invoiceApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-invoice'),
             creditNoteApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-credit-note'),
             refundApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-refund'),
+            depositApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-deposit'),
             openDebits: openDebits.map((d) => ({
                 id: d.id, docKind: d.docKind, docNo: d.docNo,
                 grossAmount: d.grossAmount, balanceAmount: d.balanceAmount,
@@ -1428,6 +1429,260 @@ exports.listRefunds = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------------
+// Deposit lifecycle (deposit slice 2026-09-01): Save -> 'draft' ("Open",
+// editable, NOT financial - not collectable/refundable, excluded from
+// statements) -> Submit -> the ar-deposit approval chain when one is active
+// (a deposit demand is a billing act, like an invoice), else posted directly.
+// A POSTED deposit stays voidable only while nothing is collected (the
+// existing guarded flip); collection happens via Official Receipt.
+
+async function readDepositDraftFields(req, companyId, debtor) {
+    const dates = parseDates(req.body);
+    if (dates.error) return { error: dates.error };
+    const amountC = parseAmount(req.body.amount);
+    if (!amountC) return { error: 'Amount must be greater than zero.' };
+    const fxRead = await readFx(companyId, debtor, dates.docDate, req.body);
+    if (fxRead.error) return { error: fxRead.error };
+    return { dates, amountC, fx: fxRead.fx };
+}
+
+async function readDepositDocNo(req, companyId, { ignoreId = null } = {}) {
+    const manualNo = strOrNull(req.body.docNo);
+    const mode = await numberingGateway.getMode(req, DEPOSIT_NUMBERING_PURPOSE);
+    if (mode === 'manual' && !manualNo) return { error: 'Deposit number is required (numbering is manual).' };
+    if (mode !== 'auto' && manualNo) {
+        const clash = await Deposit.findOne({
+            where: { companyId, docNo: manualNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
+            attributes: ['id'],
+        });
+        if (clash) return { error: `Deposit number '${manualNo}' is already in use.` };
+    }
+    return { mode, manualNo };
+}
+
+// Create the draft row (both doors: the Deposit screen with debtorId in the
+// body, the Debtor Account door via postDeposit above - unified like the
+// receipt doors, so no door can bypass the lifecycle). Gapless rule: the
+// number issues INSIDE this transaction.
+async function createDepositDraft(req, res, companyId, debtor) {
+    const fields = await readDepositDraftFields(req, companyId, debtor);
+    if (fields.error) return res.status(400).json({ message: fields.error });
+    const no = await readDepositDocNo(req, companyId);
+    if (no.error) return res.status(no.error.includes('already in use') ? 409 : 400).json({ message: no.error });
+
+    const placement = await getCallerPlacement(req);
+    const stamps = ownershipStamps(req, placement);
+    const issue = docNoIssuer(req, DEPOSIT_NUMBERING_PURPOSE, no.manualNo);
+    const row = await sequelize.transaction(async (t) => Deposit.create({
+        companyId,
+        debtorId: debtor.id,
+        docNo: await issue(t),
+        docDate: fields.dates.docDate,
+        trxDate: fields.dates.trxDate,
+        description: strOrNull(req.body.description),
+        amount: posting.money(fields.amountC),
+        balanceAmount: posting.money(fields.amountC),
+        heldAmount: 0,
+        ...arCurrency.amountFxColumns(fields.fx, fields.amountC),
+        status: 'draft',
+        ...stamps,
+    }, { transaction: t }));
+    res.status(201).json({ message: `Deposit ${row.docNo} saved as Open.`, id: row.id, docNo: row.docNo });
+}
+
+// POST /api/ar/deposits - the standalone Deposit screen's door.
+exports.createDeposit = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const debtor = await Debtor.findOne({ where: { id: str(req.body.debtorId), companyId } });
+        if (!debtor) return res.status(404).json({ message: 'Debtor not found.' });
+        return await createDepositDraft(req, res, companyId, debtor);
+    } catch (err) {
+        console.error('Error saving deposit draft:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// Load a deposit row + its debtor, enforcing the caller's data scope.
+async function loadOwnedDeposit(req, res) {
+    const { companyId } = getUserContext(req);
+    if (!companyId) { res.status(400).json({ message: 'Select a workspace first.' }); return null; }
+    const row = await Deposit.findOne({ where: { id: req.params.id, companyId } });
+    if (!row) { res.status(404).json({ message: 'Deposit not found.' }); return null; }
+    const { canModifyRecord } = require('../../platform/serviceContext');
+    if (!(await canModifyRecord(req, row))) {
+        res.status(403).json({ message: 'This deposit belongs to another user (outside your data scope).' });
+        return null;
+    }
+    const debtor = await Debtor.findOne({ where: { id: row.debtorId, companyId } });
+    if (!debtor) { res.status(404).json({ message: 'Debtor not found.' }); return null; }
+    return { companyId, row, debtor };
+}
+
+// PATCH /api/ar/deposits/:id - edit a draft (drafts only; posted is immutable).
+exports.updateDepositDraft = async (req, res) => {
+    try {
+        const loaded = await loadOwnedDeposit(req, res);
+        if (!loaded) return;
+        const { companyId, row, debtor } = loaded;
+        if (row.status !== 'draft') {
+            return res.status(400).json({ message: `Only an Open (draft) deposit can be edited (this one is ${row.status}).` });
+        }
+        const fields = await readDepositDraftFields(req, companyId, debtor);
+        if (fields.error) return res.status(400).json({ message: fields.error });
+        const no = await readDepositDocNo(req, companyId, { ignoreId: row.id });
+        if (no.error) return res.status(no.error.includes('already in use') ? 409 : 400).json({ message: no.error });
+
+        Object.assign(row, {
+            docNo: no.mode === 'auto' ? row.docNo : (no.manualNo || row.docNo),
+            docDate: fields.dates.docDate,
+            trxDate: fields.dates.trxDate,
+            description: strOrNull(req.body.description),
+            amount: posting.money(fields.amountC),
+            // A draft has no collections - its balance tracks its amount.
+            balanceAmount: posting.money(fields.amountC),
+            ...arCurrency.amountFxColumns(fields.fx, fields.amountC),
+            updatedBy: getUserContext(req).userId,
+        });
+        await row.save();
+        res.status(200).json({ message: 'Deposit draft updated.', id: row.id, docNo: row.docNo });
+    } catch (err) {
+        console.error('Error updating deposit draft:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/ar/deposits/:id/submit - through the ar-deposit approval chain
+// when one is active, else posted directly (opens the deposit for collection).
+exports.submitDeposit = async (req, res) => {
+    try {
+        const loaded = await loadOwnedDeposit(req, res);
+        if (!loaded) return;
+        const { companyId, row, debtor } = loaded;
+        if (row.status !== 'draft') {
+            return res.status(400).json({ message: `Only an Open (draft) deposit can be submitted (this one is ${row.status}).` });
+        }
+        const mode = await numberingGateway.getMode(req, DEPOSIT_NUMBERING_PURPOSE);
+        if (mode === 'manual' && !row.docNo) {
+            return res.status(400).json({ message: 'Deposit number is required before submitting (numbering is manual).' });
+        }
+
+        const placement = await getCallerPlacement(req);
+        const stamps = ownershipStamps(req, placement);
+        const display = await debtorDisplayMap(companyId, [debtor]);
+        const who = display.get(debtor.id) || {};
+        const workflowGateway = require('../../platform/workflowGateway');
+
+        let outcome;
+        try {
+            await sequelize.transaction(async (t) => {
+                const wf = await workflowGateway.startWorkflow(req, 'ar-deposit', {
+                    entityId: row.id,
+                    entityLabel: `Deposit ${row.docNo || 'draft'} — ${who.name || who.no || 'debtor'} (${posting.money(posting.cents(row.amount))})`,
+                    context: {
+                        amount: Number(row.amount),
+                        debtorType: debtor.debtorType,
+                        debtorNo: who.no || null,
+                    },
+                    transaction: t,
+                });
+                if (wf) {
+                    row.status = 'pending-approval';
+                    row.workflowInstanceId = wf.instanceId;
+                    row.updatedBy = stamps.updatedBy;
+                    await row.save({ transaction: t });
+                    outcome = { pending: true };
+                    return;
+                }
+                await posting.postDraftDeposit({
+                    companyId, debtor, row,
+                    issueDocNo: docNoIssuer(req, DEPOSIT_NUMBERING_PURPOSE, row.docNo),
+                    stamps, t,
+                });
+                outcome = { pending: false };
+            });
+        } catch (e) {
+            if (e && e.httpStatus) return res.status(e.httpStatus).json({ message: e.message });
+            throw e;
+        }
+        res.status(200).json(outcome.pending
+            ? { message: 'Deposit submitted for approval.', id: row.id, status: row.status }
+            : { message: `Deposit ${row.docNo} opened.`, id: row.id, docNo: row.docNo, status: row.status });
+    } catch (err) {
+        console.error('Error submitting deposit:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// GET /api/ar/deposits - cross-debtor Deposit listing, shaped like the ledger
+// listings so the one transaction screen renders it. balanceAmount = still to
+// collect (the Balance column); heldAmount rides along for the HELD cell.
+exports.listDeposits = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+
+        const where = { companyId };
+        const month = str(req.query.month);
+        if (/^\d{4}-\d{2}$/.test(month)) {
+            const [y, m] = month.split('-').map(Number);
+            const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+            where.docDate = { [Op.gte]: `${month}-01`, [Op.lte]: `${month}-${String(last).padStart(2, '0')}` };
+        }
+        const status = str(req.query.status);
+        // 'closed' = fully collected AND fully drawn down - still "posted" on
+        // screen, so the posted filter covers both.
+        if (status === 'posted') where.status = { [Op.in]: ['open', 'closed'] };
+        else if (['draft', 'pending-approval', 'open', 'closed', 'void'].includes(status)) where.status = status;
+        const q = str(req.query.q);
+        if (q) {
+            where[Op.or] = [
+                { docNo: { [Op.iLike]: `%${q}%` } },
+                { description: { [Op.iLike]: `%${q}%` } },
+            ];
+        }
+        const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+
+        const { rows, count } = await Deposit.findAndCountAll({
+            where,
+            order: [['docDate', 'DESC'], ['createdAt', 'DESC']],
+            limit: LIST_LIMIT,
+            offset,
+        });
+        const debtorIds = [...new Set(rows.map((r) => r.debtorId))];
+        const debtors = debtorIds.length
+            ? await Debtor.findAll({ where: { id: { [Op.in]: debtorIds }, companyId } })
+            : [];
+        const displayByDebtor = await debtorDisplayMap(companyId, debtors);
+        const { annotateCanModify, getCompanyBaseCurrency } = require('../../platform/serviceContext');
+        const canModify = await annotateCanModify(req, rows);
+
+        res.status(200).json({
+            total: count,
+            limit: LIST_LIMIT,
+            offset,
+            baseCurrencyCode: await getCompanyBaseCurrency(companyId),
+            documents: rows.map((r, i) => ({
+                id: r.id, docKind: 'deposit', mode: 'debit', docNo: r.docNo,
+                docDate: r.docDate, trxDate: r.trxDate, dueDate: null,
+                description: r.description, sourceModule: 'ar',
+                netAmount: r.amount, taxAmount: '0.00', grossAmount: r.amount,
+                balanceAmount: r.balanceAmount, heldAmount: r.heldAmount,
+                status: r.status,
+                voidReason: r.voidReason,
+                ...fxDto(r), baseGrossAmount: r.baseAmount,
+                canModify: canModify[i],
+                debtor: displayByDebtor.get(r.debtorId) || { id: r.debtorId, debtorType: null, no: null, name: null },
+            })),
+        });
+    } catch (err) {
+        console.error('Error listing deposits:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// ---------------------------------------------------------------------------
 // POST /api/ar/debtors/:id/ledger - manual Invoice / Debit Note / Credit Note.
 exports.postLedger = async (req, res) => {
     try {
@@ -1601,47 +1856,17 @@ exports.postRefund = async (req, res) => {
     }
 };
 
-// POST /api/ar/debtors/:id/deposits - open a Deposit (collection happens via
-// Official Receipt against it).
+// POST /api/ar/debtors/:id/deposits - the Debtor Account door. Unified with
+// the Deposit screen (deposit lifecycle 2026-09-01): both doors create DRAFTS
+// through the shared dialog now; collection still happens via an Official
+// Receipt once the deposit is posted.
 exports.postDeposit = async (req, res) => {
     try {
         const { error, companyId, debtor } = await loadDebtor(req);
         if (error) return res.status(error.status).json({ message: error.message });
-        const dates = parseDates(req.body);
-        if (dates.error) return res.status(400).json({ message: dates.error });
-        const amountC = parseAmount(req.body.amount);
-        if (!amountC) return res.status(400).json({ message: 'Amount must be greater than zero.' });
-
-        const manualNo = strOrNull(req.body.docNo);
-        const mode = await numberingGateway.getMode(req, DEPOSIT_NUMBERING_PURPOSE);
-        if (mode !== 'auto' && manualNo) {
-            const clash = await Deposit.findOne({ where: { companyId, docNo: manualNo }, attributes: ['id'] });
-            if (clash) return res.status(409).json({ message: `Deposit number '${manualNo}' is already in use.` });
-        }
-        if (mode === 'manual' && !manualNo) {
-            return res.status(400).json({ message: 'Deposit number is required (numbering is manual).' });
-        }
-
-        const fxRead = await readFx(companyId, debtor, dates.docDate, req.body);
-        if (fxRead.error) return res.status(400).json({ message: fxRead.error });
-
-        const placement = await getCallerPlacement(req);
-        const stamps = ownershipStamps(req, placement);
-        const issue = docNoIssuer(req, DEPOSIT_NUMBERING_PURPOSE, manualNo);
-
-        const row = await sequelize.transaction(async (t) => Deposit.create({
-            companyId, debtorId: debtor.id,
-            docNo: await issue(t),
-            docDate: dates.docDate, trxDate: dates.trxDate,
-            description: strOrNull(req.body.description),
-            amount: posting.money(amountC),
-            ...arCurrency.amountFxColumns(fxRead.fx, amountC),
-            balanceAmount: posting.money(amountC), heldAmount: 0, status: 'open',
-            ...stamps,
-        }, { transaction: t }));
-        res.status(201).json({ message: `Deposit ${row.docNo} opened.`, id: row.id, docNo: row.docNo });
+        return await createDepositDraft(req, res, companyId, debtor);
     } catch (err) {
-        console.error('Error opening deposit:', err);
+        console.error('Error saving deposit draft:', err);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -1785,8 +2010,37 @@ exports.voidDeposit = async (req, res) => {
         const row = await Deposit.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Deposit not found.' });
 
+        // Deposit DRAFTS void like the other document drafts (never
+        // financial): a REASON is kept for audit - the gapless-series trail.
+        // Posted deposits keep the collections-free flip below.
+        if (row.status === 'pending-approval') {
+            return res.status(400).json({ message: 'This deposit is awaiting approval - it must be approved or rejected first.' });
+        }
+        if (row.status === 'draft') {
+            const { canModifyRecord } = require('../../platform/serviceContext');
+            if (!(await canModifyRecord(req, row))) {
+                return res.status(403).json({ message: 'This deposit belongs to another user (outside your data scope).' });
+            }
+            const reason = str(req.body.reason);
+            if (!reason) return res.status(400).json({ message: 'A void reason is required (kept for audit).' });
+            row.status = 'void';
+            row.voidedAt = new Date();
+            row.voidedBy = getUserContext(req).userId;
+            row.voidReason = reason.slice(0, 255);
+            row.updatedBy = row.voidedBy;
+            await row.save();
+            return res.status(200).json({ message: `Deposit ${row.docNo} voided.` });
+        }
+
         const placement = await getCallerPlacement(req);
         const stamps = ownershipStamps(req, placement);
+        // Record the audit trail on the posted flip too, when a reason came.
+        const postedReason = strOrNull(req.body.reason);
+        if (postedReason) {
+            row.voidReason = postedReason.slice(0, 255);
+            row.voidedAt = new Date();
+            row.voidedBy = getUserContext(req).userId;
+        }
         try {
             await sequelize.transaction(async (t) => posting.voidDeposit({ row, stamps, t }));
         } catch (e) {
