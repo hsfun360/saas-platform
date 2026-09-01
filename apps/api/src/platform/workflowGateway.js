@@ -71,6 +71,17 @@ async function startWorkflow(req, purpose, opts) {
         transaction: opts.transaction,
     });
     if (!instance) return null;
+    // A chain whose every step was SKIPPED (entry conditions unmet, or
+    // approvers resolving to nobody) completes 'approved' ON ARRIVAL - before
+    // the producer marks its document pending. The purpose handler already
+    // ran against a still-draft row and no-oped, so returning the instance
+    // here would leave the producer flipping its document to pending-approval
+    // with nothing left to ever post it (found live 2026-09-01: a Deposit
+    // stranded by an all-conditions-unmet ar-deposit chain). Null keeps the
+    // producer contract honest: nothing is awaiting approval -> proceed as
+    // auto-approved; the instance row remains as the audit record that the
+    // chain was evaluated.
+    if (instance.status !== 'in-progress') return null;
     return { instanceId: instance.id, status: instance.status, currentStepNo: instance.currentStepNo };
 }
 

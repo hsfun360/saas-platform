@@ -582,6 +582,34 @@ async function initializeDB() {
             console.log('Database schema synced successfully.');
         }
 
+        // Stranded-approval healer (2026-09-01, deliberately OUTSIDE the
+        // fingerprint gate). Before the workflowGateway fix of the same date,
+        // an approval chain whose every step was skipped completed 'approved'
+        // ON ARRIVAL while the document was still a draft - the purpose
+        // handler no-oped and the submit then parked the document at
+        // 'pending-approval' with nothing left to ever post it. Revert such
+        // documents to 'draft' so they can simply be resubmitted (which now
+        // posts directly). Idempotent and safe to run forever: it only
+        // touches rows whose instance is finished while the document still
+        // claims to be awaiting it - a state the fixed gateway can no longer
+        // produce.
+        for (const tbl of ['ar."Deposit"', 'ar."Receipt"', 'ar."Ledger"']) {
+            const [[reg]] = await sequelize.query(
+                `SELECT to_regclass('${tbl}') AS t, to_regclass('workflow."WorkflowInstance"') AS w`,
+            ).catch(() => [[null]]);
+            if (!reg || !reg.t || !reg.w) continue;
+            const [, healed] = await sequelize.query(
+                `UPDATE ${tbl} d SET status = 'draft', "workflowInstanceId" = NULL
+                 WHERE d.status = 'pending-approval'
+                   AND d."workflowInstanceId" IS NOT NULL
+                   AND EXISTS (
+                       SELECT 1 FROM workflow."WorkflowInstance" wi
+                       WHERE wi."id" = d."workflowInstanceId" AND wi."status" <> 'in-progress')`,
+            ).catch(() => [null, 0]);
+            const n = healed && healed.rowCount !== undefined ? healed.rowCount : healed;
+            if (n) console.log(`Reverted ${n} stranded pending-approval row(s) in ${tbl} to draft.`);
+        }
+
         // Per-module dimension applicability (2026-08-27), second half: a
         // numbered dimension must apply to at least one module or it can never
         // be stamped, so seed the Account Receivable row - AR is the only
