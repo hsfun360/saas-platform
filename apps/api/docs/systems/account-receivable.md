@@ -88,11 +88,15 @@ One-shot boot migrations converted existing rows before the alter-sync dropped t
 ## AR Transaction screens (hybrid design, 2026-08-12 - invoice first)
 
 - Each manual document type becomes its OWN menu/screen so RBAC can grant per document (a cashier keys receipts without credit-note authority): ALL SIX are built (`/ar/invoices`, `/ar/debit-notes`, `/ar/credit-notes`, `/ar/receipts`, `/ar/refunds`, `/ar/deposits` - completed 2026-09-01).
-  The Debtor Account screen stays unchanged as the account-first surface under `/ar/debtors`; once all six menus exist its entry buttons will be re-gated per menu (`*appCan` against the document's menu) - that final flip is a deliberate separate step.
+  The Debtor Account screen stays the account-first INQUIRY surface under `/ar/debtors`.
+  **THE FINAL FLIP LANDED 2026-09-01** (all six menus existed): document entry from the account screen takes the DOCUMENT menu's create grant, on both layers.
+  Web: each entry button (and the deposit row's Collect, which creates a receipt) gates on `PermissionsService.canOnMenu('create', <doc menu>)` - a NEW strict variant that requires the menu to actually be HELD (the permissive `can()` fallback stays for a screen's own controls; the Raise-CN kebab switched to it too).
+  API: `POST /debtors/:id/ledger` resolves the required menu from the requested docKind per request (a tiny dispatcher composes `requireMenuAction`), `POST /debtors/:id/receipts` takes '/ar/receipts', `POST /debtors/:id/deposits` takes '/ar/deposits', and the old immediate-post `POST /debtors/:id/refunds` door is REMOVED outright (it bypassed the refund lifecycle and no shipped bundle ever used it).
+  The '/ar/debtors' grants keep governing account MAINTENANCE only: voids, deposit conversion, reconcile, backfill.
 - One web component serves every type (`ar-transactions`, route `data.arDocType`), and ONE shared entry dialog (`shared/ar-ledger-dialog` for Invoice/DN/CN) is used by BOTH the account screen (debtor preset) and the transaction screens (debtor picker step first - single-dialog rule: picker/entry are `@switch` views in one dialog).
   The picker reuses the Debtor Listing search verbatim: `GET /api/ar/debtor-options` = `debtorController.listDebtors` under `requireAnyMenuAction` of the transaction menus (`AR_TXN_MENUS` in `ar.routes.js` - extend per slice); `GET /debtors/:id/account/meta` is re-gated the same way (the dialog needs billing items/persons/numbering).
 - Per-type endpoints keep the grant honest: `GET /api/ar/invoices` (cross-debtor listing: month + docNo/description search + status, newest first, seam-resolved debtor display + per-row `canModify`), `POST /api/ar/invoices` (docKind FORCED server-side - the `/ar/invoices` grant cannot post other kinds; debtorId in the body), `PATCH /api/ar/invoices/:id/void` (404s non-invoice rows).
-  The kind-agnostic `POST /debtors/:id/ledger` + `PATCH /ledger/:id/void` remain `/ar/debtors`-gated for the account screen.
+  The kind-agnostic `POST /debtors/:id/ledger` is per-kind-gated since the final flip (above); `PATCH /ledger/:id/void` remains `/ar/debtors`-gated (account maintenance).
 
 ## Transaction Type catalog - AR-OWNED (moved from Membership 2026-08-15)
 

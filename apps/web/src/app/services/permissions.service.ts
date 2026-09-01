@@ -49,4 +49,20 @@ export class PermissionsService {
     }
     return true; // screen not in the catalogue -> nothing to gate
   }
+
+  // May the user perform `action` on the menu at exactly `route`, where
+  // HOLDING that menu grant is REQUIRED (no permissive fallback)? This is the
+  // check for CROSS-SCREEN gating (final flip 2026-09-01): a control on
+  // screen A that creates screen B's document shows only when the user holds
+  // B's menu with the action - `can()` above keeps its permissive default for
+  // a screen's OWN controls. Admins keep implicit full access; a menu cached
+  // before the action flags shipped still counts as full access on a menu the
+  // user does hold.
+  canOnMenu(action: MenuAction, route: string): boolean {
+    if (this.access.isSystemAdmin() || this.access.isTenantAdmin()) return true;
+    const menu = this.grantedMenus().find((m) => m.route === route);
+    if (!menu) return false;
+    if (!menu.actions) return true;
+    return menu.actions[action] !== false;
+  }
 }

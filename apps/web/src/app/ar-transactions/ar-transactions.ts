@@ -395,8 +395,10 @@ export class ArTransactionsComponent implements OnInit {
   readonly raiseCnFor = signal<ArDocListRow | null>(null);
   canRaiseCn(doc: ArDocListRow): boolean {
     const k = this.cfg().kind;
+    // canOnMenu: the CN menu must actually be HELD (cross-screen gate - the
+    // permissive can() fallback would show this to users without it).
     return (k === 'invoice' || k === 'debit-note') && this.isPosted(doc)
-      && this.permissions.can('create', '/ar/credit-notes');
+      && this.permissions.canOnMenu('create', '/ar/credit-notes');
   }
   openRaiseCn(row: ArDocListRow): void {
     this.clearMessages();

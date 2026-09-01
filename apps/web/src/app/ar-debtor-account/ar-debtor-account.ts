@@ -12,6 +12,7 @@ import { ArReceiptDialogComponent } from '../shared/ar-receipt-dialog/ar-receipt
 import { ArRefundDialogComponent } from '../shared/ar-refund-dialog/ar-refund-dialog';
 import { ArDepositDialogComponent } from '../shared/ar-deposit-dialog/ar-deposit-dialog';
 import { ArService } from '../services/ar.service';
+import { PermissionsService } from '../services/permissions.service';
 import { ArAccount, ArAccountMeta, ArDepositDoc, ArLedgerDoc, ArReceiptDoc } from '../models/ar.models';
 
 // Account Receivable → Debtor Account (the Debtor Listing's detail surface,
@@ -39,6 +40,20 @@ export class ArDebtorAccountComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
+  private readonly permissions = inject(PermissionsService);
+
+  // FINAL FLIP (2026-09-01, closing the 2026-08-12 hybrid design): document
+  // entry from this screen takes the DOCUMENT menu's create grant - the same
+  // grant as its dedicated screen (the API doors enforce the same). This
+  // screen's own '/ar/debtors' grants keep governing account maintenance
+  // (voids, convert, backfill).
+  readonly DOC_ENTRY_MENUS = ['/ar/invoices', '/ar/debit-notes', '/ar/credit-notes', '/ar/receipts', '/ar/refunds', '/ar/deposits'];
+  canCreateDoc(menu: string): boolean {
+    return this.permissions.canOnMenu('create', menu);
+  }
+  canCreateAnyDoc(): boolean {
+    return this.DOC_ENTRY_MENUS.some((m) => this.canCreateDoc(m));
+  }
 
   readonly account = signal<ArAccount | null>(null);
   readonly meta = signal<ArAccountMeta | null>(null);

@@ -99,13 +99,9 @@ export class ArService {
     return this.http.post<{ message: string; id: string; docNo: string }>(`${this.base}/debtors/${debtorId}/receipts`, payload);
   }
 
-  postRefund(debtorId: string, payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string }> {
-    return this.http.post<{ message: string; id: string; docNo: string }>(`${this.base}/debtors/${debtorId}/refunds`, payload);
-  }
-
-  postDeposit(debtorId: string, payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string }> {
-    return this.http.post<{ message: string; id: string; docNo: string }>(`${this.base}/debtors/${debtorId}/deposits`, payload);
-  }
+  // (postRefund / postDeposit account-door methods removed with the final
+  // flip 2026-09-01: the refund/deposit dialogs always use their standalone
+  // doors, and the old immediate-post refund door is gone from the API.)
 
   convertDeposit(depositId: string, payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string }> {
     return this.http.post<{ message: string; id: string; docNo: string }>(`${this.base}/deposits/${depositId}/convert`, payload);

@@ -51,10 +51,27 @@ router.get('/documents/:type/:id/allocations', requireMenuAction('/ar/debtors'),
 // The frozen tax breakdown behind a document - reachable from any transaction
 // screen (same broad gate as the shared entry meta).
 router.get('/documents/:type/:id/tax-lines', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.getTaxLines);
-router.post('/debtors/:id/ledger', requireMenuAction('/ar/debtors'), documentController.postLedger);
-router.post('/debtors/:id/receipts', requireMenuAction('/ar/debtors'), documentController.postReceipt);
-router.post('/debtors/:id/refunds', requireMenuAction('/ar/debtors'), documentController.postRefund);
-router.post('/debtors/:id/deposits', requireMenuAction('/ar/debtors'), documentController.postDeposit);
+// FINAL FLIP (2026-09-01, the hybrid design's last step): the account doors
+// now demand the DOCUMENT's own menu grant - the same grant as its dedicated
+// screen - so the '/ar/debtors' grant alone can no longer key documents. The
+// Debtor Account stays the account-first INQUIRY surface; its entry buttons
+// mirror these gates client-side. The kind-agnostic ledger door resolves the
+// menu from the requested docKind per request.
+const LEDGER_KIND_MENUS = {
+    invoice: '/ar/invoices',
+    'debit-note': '/ar/debit-notes',
+    'credit-note': '/ar/credit-notes',
+};
+router.post('/debtors/:id/ledger', (req, res, next) => {
+    const menu = LEDGER_KIND_MENUS[String(req.body.docKind || '').trim()];
+    if (!menu) return res.status(400).json({ message: 'Select the document kind.' });
+    return requireMenuAction(menu)(req, res, next);
+}, documentController.postLedger);
+router.post('/debtors/:id/receipts', requireMenuAction('/ar/receipts'), documentController.postReceipt);
+router.post('/debtors/:id/deposits', requireMenuAction('/ar/deposits'), documentController.postDeposit);
+// (The old POST /debtors/:id/refunds immediate-post door is REMOVED: the
+// shared refund dialog has always used POST /refunds, and the old door
+// bypassed the refund lifecycle entirely.)
 router.post('/deposits/:id/convert', requireMenuAction('/ar/debtors'), documentController.convertDeposit);
 router.patch('/ledger/:id/void', requireMenuAction('/ar/debtors'), documentController.voidLedger);
 router.patch('/receipts/:id/void', requireAnyMenuAction(['/ar/debtors', '/ar/receipts']), documentController.voidReceipt);

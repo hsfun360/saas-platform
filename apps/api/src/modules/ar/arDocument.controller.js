@@ -1816,60 +1816,6 @@ exports.postReceipt = async (req, res) => {
     }
 };
 
-// POST /api/ar/debtors/:id/refunds - Refund, funded by a deposit's held
-// balance (depositId) or by unallocated receipt credit.
-exports.postRefund = async (req, res) => {
-    try {
-        const { error, companyId, debtor } = await loadDebtor(req);
-        if (error) return res.status(error.status).json({ message: error.message });
-        const dates = parseDates(req.body);
-        if (dates.error) return res.status(400).json({ message: dates.error });
-        const amountC = parseAmount(req.body.amount);
-        if (!amountC) return res.status(400).json({ message: 'Amount must be greater than zero.' });
-
-        let depositRow = null;
-        const depositId = strOrNull(req.body.depositId);
-        if (depositId) {
-            depositRow = await Deposit.findOne({ where: { id: depositId, debtorId: debtor.id, status: 'open' } });
-            if (!depositRow) return res.status(400).json({ message: 'Deposit not found (or not open) on this debtor.' });
-        }
-
-        const manualNo = strOrNull(req.body.docNo);
-        const mode = await numberingGateway.getMode(req, 'ar-refund');
-        if (mode !== 'auto' && manualNo && await receiptNoInUse(companyId, 'refund', manualNo)) {
-            return res.status(409).json({ message: `Refund number '${manualNo}' is already in use.` });
-        }
-        if (mode === 'manual' && !manualNo) {
-            return res.status(400).json({ message: 'Refund number is required (numbering is manual).' });
-        }
-
-        const placement = await getCallerPlacement(req);
-        const stamps = ownershipStamps(req, placement);
-
-        let row;
-        try {
-            row = await sequelize.transaction(async (t) => posting.postRefund({
-                companyId, debtor,
-                issueDocNo: docNoIssuer(req, 'ar-refund', manualNo),
-                docDate: dates.docDate, trxDate: dates.trxDate,
-                paymentMethod: strOrNull(req.body.paymentMethod),
-                paymentRef: strOrNull(req.body.paymentRef),
-                description: strOrNull(req.body.description),
-                amountC, depositRow, stamps,
-                exchangeRate: req.body.exchangeRate,
-                t,
-            }));
-        } catch (e) {
-            if (e && e.httpStatus) return res.status(e.httpStatus).json({ message: e.message });
-            throw e;
-        }
-        res.status(201).json({ message: `Refund ${row.docNo} posted.`, id: row.id, docNo: row.docNo });
-    } catch (err) {
-        console.error('Error posting refund:', err);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-};
-
 // POST /api/ar/debtors/:id/deposits - the Debtor Account door. Unified with
 // the Deposit screen (deposit lifecycle 2026-09-01): both doors create DRAFTS
 // through the shared dialog now; collection still happens via an Official

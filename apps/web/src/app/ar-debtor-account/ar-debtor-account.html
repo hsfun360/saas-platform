@@ -52,19 +52,36 @@
       }
     </div>
 
-    <!-- Document entry actions -->
-    <div class="ara-actions" *appCan="'create'">
-      <button type="button" class="btn btn--primary btn--sm" (click)="openLedger('invoice')">
-        <span class="material-icons" aria-hidden="true">request_quote</span> Invoice
-      </button>
-      <button type="button" class="btn btn--secondary btn--sm" (click)="openLedger('debit-note')">Debit Note</button>
-      <button type="button" class="btn btn--secondary btn--sm" (click)="openLedger('credit-note')">Credit Note</button>
-      <button type="button" class="btn btn--primary btn--sm" (click)="openReceipt()">
-        <span class="material-icons" aria-hidden="true">payments</span> Official Receipt
-      </button>
-      <button type="button" class="btn btn--secondary btn--sm" (click)="openRefund()">Refund</button>
-      <button type="button" class="btn btn--secondary btn--sm" (click)="openDeposit()">Deposit</button>
-    </div>
+    <!-- Document entry actions - FINAL FLIP (2026-09-01): each button gates
+         on ITS document menu's create grant (the same grant as the dedicated
+         screen), not on this screen's. A cashier granted only Official
+         Receipts sees only that button here. -->
+    @if (canCreateAnyDoc()) {
+      <div class="ara-actions">
+        @if (canCreateDoc('/ar/invoices')) {
+          <button type="button" class="btn btn--primary btn--sm" (click)="openLedger('invoice')">
+            <span class="material-icons" aria-hidden="true">request_quote</span> Invoice
+          </button>
+        }
+        @if (canCreateDoc('/ar/debit-notes')) {
+          <button type="button" class="btn btn--secondary btn--sm" (click)="openLedger('debit-note')">Debit Note</button>
+        }
+        @if (canCreateDoc('/ar/credit-notes')) {
+          <button type="button" class="btn btn--secondary btn--sm" (click)="openLedger('credit-note')">Credit Note</button>
+        }
+        @if (canCreateDoc('/ar/receipts')) {
+          <button type="button" class="btn btn--primary btn--sm" (click)="openReceipt()">
+            <span class="material-icons" aria-hidden="true">payments</span> Official Receipt
+          </button>
+        }
+        @if (canCreateDoc('/ar/refunds')) {
+          <button type="button" class="btn btn--secondary btn--sm" (click)="openRefund()">Refund</button>
+        }
+        @if (canCreateDoc('/ar/deposits')) {
+          <button type="button" class="btn btn--secondary btn--sm" (click)="openDeposit()">Deposit</button>
+        }
+      </div>
+    }
 
     <!-- Ledger documents -->
     <div class="settings-card">
@@ -208,8 +225,10 @@
                           [class.status-chip--off]="d.status !== 'open'">{{ depositStatusLabel(d) }}</span>
                   </div>
                   <div class="ara-doc__actions">
-                    @if (d.status === 'open' && canCollect(d)) {
-                      <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="openReceipt(d.id)">Collect</button>
+                    <!-- Collect CREATES an Official Receipt - it takes the
+                         receipts menu's create grant (final flip). -->
+                    @if (d.status === 'open' && canCollect(d) && canCreateDoc('/ar/receipts')) {
+                      <button type="button" class="btn btn--secondary btn--sm" (click)="openReceipt(d.id)">Collect</button>
                     }
                     @if (d.status === 'open' && held(d) !== '0.00') {
                       <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="openConvert(d)">Convert</button>
