@@ -183,6 +183,7 @@ const routes: Routes = [
       // AR Transactions - one menu/screen per document type (invoice first);
       // the same component serves every type via data.arDocType.
       { path: 'ar/invoices', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'invoice' } },
+      { path: 'ar/debit-notes', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'debit-note' } },
       { path: 'ar/credit-notes', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'credit-note' } },
       { path: 'ar/receipts', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'receipt' } },
       { path: 'ar/refunds', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'refund' } },

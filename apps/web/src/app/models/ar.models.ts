@@ -363,6 +363,7 @@ export interface ArAccountMeta {
   // An approval chain is active for the kind -> "Submit for Approval" label.
   invoiceApproval?: boolean;
   creditNoteApproval?: boolean;
+  debitNoteApproval?: boolean;
   refundApproval?: boolean;
   depositApproval?: boolean;
   // The debtor's open debits - the CN entry's "Apply against" choices.

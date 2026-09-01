@@ -82,12 +82,14 @@ export class ArLedgerDialogComponent implements OnInit {
     value: tt.id,
     label: tt.description ? `${tt.transactionType} — ${tt.description}` : tt.transactionType,
   })));
-  // Invoices (2026-08-13) and Credit Notes (2026-08-20) follow the Save
-  // (draft) -> Submit lifecycle; DN still posts immediately until its slice.
-  readonly isLifecycle = computed(() => this.kind() === 'invoice' || this.kind() === 'credit-note');
+  // ALL three ledger kinds follow the Save (draft) -> Submit lifecycle now
+  // (invoice 2026-08-13, credit-note 2026-08-20, debit-note 2026-09-01 - its
+  // old immediate posting is gone). The flag stays as the template's seam.
+  readonly isLifecycle = computed(() => true);
   readonly submitLabel = computed(() => {
     const m = this.effMeta();
-    const approval = this.kind() === 'credit-note' ? m?.creditNoteApproval : m?.invoiceApproval;
+    const approval = this.kind() === 'credit-note' ? m?.creditNoteApproval
+      : this.kind() === 'debit-note' ? m?.debitNoteApproval : m?.invoiceApproval;
     return approval ? 'Submit for Approval' : 'Submit';
   });
   // "Apply against" choices: the account screen's live ledger when provided,
@@ -433,19 +435,24 @@ export class ArLedgerDialogComponent implements OnInit {
   // new -> the account door (which creates drafts for lifecycle kinds).
   private saveRequest() {
     const debtor = this.activeDebtor();
-    const cn = this.kind() === 'credit-note';
+    const k = this.kind();
     const editId = this.editRow()?.id || this.savedDraftId();
     if (editId) {
-      return cn ? this.service.updateCreditNote(editId, this.payload())
+      return k === 'credit-note' ? this.service.updateCreditNote(editId, this.payload())
+        : k === 'debit-note' ? this.service.updateDebitNote(editId, this.payload())
         : this.service.updateInvoice(editId, this.payload());
     }
-    if (this.debtor()) return this.service.postLedger(debtor!.id, { ...this.payload(), docKind: this.kind() });
-    return cn ? this.service.postCreditNote({ ...this.payload(), debtorId: debtor!.id })
+    if (this.debtor()) return this.service.postLedger(debtor!.id, { ...this.payload(), docKind: k });
+    return k === 'credit-note' ? this.service.postCreditNote({ ...this.payload(), debtorId: debtor!.id })
+      : k === 'debit-note' ? this.service.postDebitNote({ ...this.payload(), debtorId: debtor!.id })
       : this.service.postInvoice({ ...this.payload(), debtorId: debtor!.id });
   }
 
   private submitRequest(id: string) {
-    return this.kind() === 'credit-note' ? this.service.submitCreditNote(id) : this.service.submitInvoice(id);
+    const k = this.kind();
+    return k === 'credit-note' ? this.service.submitCreditNote(id)
+      : k === 'debit-note' ? this.service.submitDebitNote(id)
+      : this.service.submitInvoice(id);
   }
 
   // A targeted CN cannot exceed the target's remaining balance (user rule

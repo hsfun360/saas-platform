@@ -76,6 +76,7 @@ function registerArLedgerPurpose(purpose, docKind, synthPrefix) {
 }
 registerArLedgerPurpose('ar-invoice', 'invoice', 'INV');
 registerArLedgerPurpose('ar-credit-note', 'credit-note', 'CN');
+registerArLedgerPurpose('ar-debit-note', 'debit-note', 'DN');
 
 // --- AR Refund (refund slice 2026-08-31) ------------------------------------
 // Refunds are ar.Receipt rows (docKind 'refund'), so they get their own

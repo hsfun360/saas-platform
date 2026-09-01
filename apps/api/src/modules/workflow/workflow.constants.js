@@ -38,6 +38,20 @@ const PURPOSES = [
             { name: 'debtorNo', label: 'Debtor number', type: 'string' },
         ],
     },
+    // Debit Note closed the ledger set 2026-09-01: same lifecycle as the
+    // invoice (a DN charges the debtor more), approval posts, rejection
+    // returns to Open.
+    {
+        key: 'ar-debit-note',
+        name: 'AR Debit Note',
+        entityType: 'ArDebitNote',
+        documentRoute: '/ar/debit-notes',
+        contextFields: [
+            { name: 'amount', label: 'Debit note gross amount', type: 'number' },
+            { name: 'debtorType', label: 'Debtor type (membership | member | other)', type: 'string' },
+            { name: 'debtorNo', label: 'Debtor number', type: 'string' },
+        ],
+    },
     // Credit Note adopted the same lifecycle 2026-08-20: approval posts the
     // draft (resolving its stored allocation intent), rejection returns it
     // to Open.

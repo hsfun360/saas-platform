@@ -58,6 +58,20 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
     approvalOf: (m) => m.invoiceApproval === true,
     void: (s, id, reason) => s.voidInvoice(id, reason),
   },
+  'debit-note': {
+    kind: 'debit-note',
+    label: 'Debit Note',
+    plural: 'Debit Notes',
+    icon: 'add_circle',
+    subtitle: 'Debit notes across all debtors — charge a debtor more (surcharges, corrections upward). A posted debit note is corrected with a Credit Note, never voided.',
+    dialog: 'ledger',
+    hasApproval: true,
+    postText: 'The debit note number is issued now and the amount increases the debtor’s balance.',
+    list: (s, opts) => s.listDebitNotes(opts),
+    submit: (s, id) => s.submitDebitNote(id),
+    approvalOf: (m) => m.debitNoteApproval === true,
+    void: (s, id, reason) => s.voidDebitNote(id, reason),
+  },
   'credit-note': {
     kind: 'credit-note',
     label: 'Credit Note',
@@ -374,12 +388,14 @@ export class ArTransactionsComponent implements OnInit {
     this.voidRow.set(null);
   }
 
-  // --- Raise Credit Note (posted invoices only; user rule 2026-08-13:
-  // posted invoices are never voided - a CN offsets them). Gated on the
-  // CREDIT NOTE menu's create grant, not this screen's.
+  // --- Raise Credit Note (posted debit documents; user rule 2026-08-13,
+  // extended to DN with its slice: posted invoices/debit notes are never
+  // voided - a CN offsets them). Gated on the CREDIT NOTE menu's create
+  // grant, not this screen's.
   readonly raiseCnFor = signal<ArDocListRow | null>(null);
   canRaiseCn(doc: ArDocListRow): boolean {
-    return this.cfg().kind === 'invoice' && this.isPosted(doc)
+    const k = this.cfg().kind;
+    return (k === 'invoice' || k === 'debit-note') && this.isPosted(doc)
       && this.permissions.can('create', '/ar/credit-notes');
   }
   openRaiseCn(row: ArDocListRow): void {

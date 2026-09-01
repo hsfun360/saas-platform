@@ -160,12 +160,12 @@ export class ArDebtorAccountComponent {
       : d.status === 'pending-approval' ? 'Pending Approval'
       : d.status === 'open' ? 'Posted' : d.status;
   }
-  // Invoices: draft-only void (posted = Credit Note territory). CN drafts
-  // void like invoice drafts (lifecycle 2026-08-20); a POSTED unallocated CN
-  // keeps the reversal void (deposit-conversion CNs rely on it). DN keeps
-  // the old rule until its lifecycle slice lands.
+  // Debit documents (Invoice / Debit Note since its slice 2026-09-01):
+  // draft-only void (posted = Credit Note territory). CN drafts void like
+  // invoice drafts (lifecycle 2026-08-20); a POSTED unallocated CN keeps the
+  // reversal void (deposit-conversion CNs rely on it).
   canVoidLedgerDoc(doc: ArLedgerDoc): boolean {
-    if (doc.docKind === 'invoice') return doc.status === 'draft';
+    if (doc.docKind === 'invoice' || doc.docKind === 'debit-note') return doc.status === 'draft';
     if (doc.docKind === 'credit-note' && doc.status === 'draft') return true;
     return doc.status === 'open' && Number(doc.balanceAmount) === Number(doc.grossAmount);
   }
@@ -293,9 +293,10 @@ export class ArDebtorAccountComponent {
 
   // --- Voids (shared confirmation dialog) ---
   askVoidLedger(doc: ArLedgerDoc): void {
-    // Draft void (reason required for audit): invoices always route there
-    // server-side; CN drafts too since the CN lifecycle (2026-08-20).
-    const isDraftVoid = doc.docKind === 'invoice' || (doc.docKind === 'credit-note' && doc.status === 'draft');
+    // Draft void (reason required for audit): invoices and debit notes
+    // always route there server-side; CN drafts too (lifecycle 2026-08-20).
+    const isDraftVoid = doc.docKind === 'invoice' || doc.docKind === 'debit-note'
+      || (doc.docKind === 'credit-note' && doc.status === 'draft');
     this.voidNeedsReason.set(isDraftVoid);
     this.openVoid(
       isDraftVoid

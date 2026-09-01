@@ -19,7 +19,7 @@ const periodicController = require('./arPeriodic.controller');
 
 // Menus whose screens open the shared entry dialogs (debtor picker + entry
 // meta). Extend as each per-document transaction slice lands.
-const AR_TXN_MENUS = ['/ar/invoices', '/ar/credit-notes', '/ar/receipts', '/ar/refunds', '/ar/deposits'];
+const AR_TXN_MENUS = ['/ar/invoices', '/ar/debit-notes', '/ar/credit-notes', '/ar/receipts', '/ar/refunds', '/ar/deposits'];
 const AR_TXN_META_MENUS = ['/ar/debtors', ...AR_TXN_MENUS];
 
 // Liveness probe - unauthenticated, so the gateway/monitoring can check the seam.
@@ -75,6 +75,15 @@ router.post('/invoices', requireMenuAction('/ar/invoices'), documentController.p
 router.patch('/invoices/:id', requireMenuAction('/ar/invoices'), documentController.updateInvoiceDraft);
 router.post('/invoices/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.submitInvoice);
 router.patch('/invoices/:id/void', requireMenuAction('/ar/invoices'), documentController.voidInvoice);
+// Debit Note (menu '/ar/debit-notes', last ledger slice 2026-09-01): same
+// Save->Submit lifecycle as the invoice - a DN charges the debtor more, so a
+// posted DN is immutable (correct with a Credit Note); its old immediate
+// posting is gone from both doors.
+router.get('/debit-notes', requireMenuAction('/ar/debit-notes'), documentController.listDebitNotes);
+router.post('/debit-notes', requireMenuAction('/ar/debit-notes'), documentController.postDebitNote);
+router.patch('/debit-notes/:id', requireMenuAction('/ar/debit-notes'), documentController.updateDebitNoteDraft);
+router.post('/debit-notes/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.submitDebitNote);
+router.patch('/debit-notes/:id/void', requireMenuAction('/ar/debit-notes'), documentController.voidDebitNote);
 // Credit Note (menu '/ar/credit-notes'): same Save->Submit lifecycle; the
 // draft carries its allocation intent (apply-against target), resolved at
 // posting. Raise-CN on the Invoices screen gates on THIS menu's create grant.

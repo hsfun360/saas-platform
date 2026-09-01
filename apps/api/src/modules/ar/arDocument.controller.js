@@ -258,6 +258,7 @@ exports.getAccountMeta = async (req, res) => {
             numberingModes: modes,
             invoiceApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-invoice'),
             creditNoteApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-credit-note'),
+            debitNoteApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-debit-note'),
             refundApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-refund'),
             depositApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-deposit'),
             openDebits: openDebits.map((d) => ({
@@ -477,6 +478,7 @@ function makeLedgerListHandler(docKind) {
 
 exports.listInvoices = makeLedgerListHandler('invoice');
 exports.listCreditNotes = makeLedgerListHandler('credit-note');
+exports.listDebitNotes = makeLedgerListHandler('debit-note');
 
 // ---------------------------------------------------------------------------
 // Invoice lifecycle (defined 2026-08-13): Save -> 'draft' ("Open" on screen,
@@ -485,12 +487,17 @@ exports.listCreditNotes = makeLedgerListHandler('credit-note');
 // Posted invoices are immutable: corrected with a Credit Note, never voided.
 
 // The manual document kinds that follow the Save -> Submit draft lifecycle
-// (invoice since 2026-08-13; credit-note adopted it 2026-08-20). Each keys its
-// own numbering series, workflow purpose and catalog class.
+// (invoice since 2026-08-13; credit-note adopted it 2026-08-20; debit-note
+// closed the set 2026-09-01 - its old immediate posting is gone). Each keys
+// its own numbering series, workflow purpose and catalog class.
 const LIFECYCLE_KINDS = {
     invoice: {
         docKind: 'invoice', mode: 'debit', label: 'Invoice',
         numberingPurpose: 'ar-invoice', workflowPurpose: 'ar-invoice', trxClass: 'invoice',
+    },
+    'debit-note': {
+        docKind: 'debit-note', mode: 'debit', label: 'Debit Note',
+        numberingPurpose: 'ar-debit-note', workflowPurpose: 'ar-debit-note', trxClass: 'debit-note',
     },
     'credit-note': {
         docKind: 'credit-note', mode: 'credit', label: 'Credit Note',
@@ -655,6 +662,7 @@ function makeCreateDoor(lk) {
 }
 exports.postInvoice = makeCreateDoor(LIFECYCLE_KINDS.invoice);
 exports.postCreditNote = makeCreateDoor(LIFECYCLE_KINDS['credit-note']);
+exports.postDebitNote = makeCreateDoor(LIFECYCLE_KINDS['debit-note']);
 
 // Load a lifecycle document row + its debtor, enforcing the caller's data
 // scope (own / department / all - "the user or their superior").
@@ -728,6 +736,7 @@ function makeUpdateDraft(lk) {
 }
 exports.updateInvoiceDraft = makeUpdateDraft(LIFECYCLE_KINDS.invoice);
 exports.updateCreditNoteDraft = makeUpdateDraft(LIFECYCLE_KINDS['credit-note']);
+exports.updateDebitNoteDraft = makeUpdateDraft(LIFECYCLE_KINDS['debit-note']);
 
 // POST /api/ar/<kind route>/:id/submit - make the draft financial: through
 // the kind's approval chain when one is active (-> 'pending-approval'), else
@@ -792,6 +801,7 @@ function makeSubmit(lk) {
 }
 exports.submitInvoice = makeSubmit(LIFECYCLE_KINDS.invoice);
 exports.submitCreditNote = makeSubmit(LIFECYCLE_KINDS['credit-note']);
+exports.submitDebitNote = makeSubmit(LIFECYCLE_KINDS['debit-note']);
 
 // PATCH /api/ar/<kind route>/:id/void - drafts only (audit kept, no reversal;
 // the draft never touched a balance). Posted documents stay immutable;
@@ -811,6 +821,7 @@ function makeVoid(lk) {
 }
 exports.voidInvoice = makeVoid(LIFECYCLE_KINDS.invoice);
 exports.voidCreditNote = makeVoid(LIFECYCLE_KINDS['credit-note']);
+exports.voidDebitNote = makeVoid(LIFECYCLE_KINDS['debit-note']);
 
 async function voidDraftRow(req, res, row, lk) {
     const label = lk.label;
@@ -819,8 +830,11 @@ async function voidDraftRow(req, res, row, lk) {
         return res.status(400).json({ message: `This ${label.toLowerCase()} is awaiting approval - it must be approved or rejected first.` });
     }
     if (row.status !== 'draft') {
-        return res.status(400).json({ message: lk.docKind === 'invoice'
-            ? 'A posted invoice cannot be voided - raise a Credit Note to offset it.'
+        // Debit documents (Invoice / Debit Note) are immutable once posted -
+        // the correction is always a Credit Note (user rule 2026-08-13,
+        // extended to DN with its slice 2026-09-01).
+        return res.status(400).json({ message: lk.mode === 'debit'
+            ? `A posted ${label.toLowerCase()} cannot be voided - raise a Credit Note to offset it.`
             : `A posted ${label.toLowerCase()} cannot be voided.` });
     }
     // The void audit (user rule 2026-08-14): the number stays consumed in the
@@ -1920,11 +1934,13 @@ exports.voidLedger = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await Ledger.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Document not found.' });
-        // Invoices: draft-only void (posted = Credit Note territory). CN
-        // DRAFTS void the same way; a POSTED CN falls through to the
-        // reversal path below (unallocated-only - this is also how a
-        // deposit-conversion CN void restores the deposit's held balance).
+        // Debit documents (Invoice / Debit Note since its slice 2026-09-01):
+        // draft-only void (posted = Credit Note territory). CN DRAFTS void
+        // the same way; a POSTED CN falls through to the reversal path below
+        // (unallocated-only - this is also how a deposit-conversion CN void
+        // restores the deposit's held balance).
         if (row.docKind === 'invoice') return await voidDraftRow(req, res, row, LIFECYCLE_KINDS.invoice);
+        if (row.docKind === 'debit-note') return await voidDraftRow(req, res, row, LIFECYCLE_KINDS['debit-note']);
         if (row.docKind === 'credit-note' && ['draft', 'pending-approval', 'void'].includes(row.status)) {
             return await voidDraftRow(req, res, row, LIFECYCLE_KINDS['credit-note']);
         }

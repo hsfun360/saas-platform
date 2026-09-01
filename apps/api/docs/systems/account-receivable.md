@@ -87,7 +87,7 @@ One-shot boot migrations converted existing rows before the alter-sync dropped t
 
 ## AR Transaction screens (hybrid design, 2026-08-12 - invoice first)
 
-- Each manual document type becomes its OWN menu/screen so RBAC can grant per document (a cashier keys receipts without credit-note authority): `/ar/invoices`, `/ar/credit-notes`, `/ar/receipts`, `/ar/refunds` and `/ar/deposits` built; Debit Note is the last one left.
+- Each manual document type becomes its OWN menu/screen so RBAC can grant per document (a cashier keys receipts without credit-note authority): ALL SIX are built (`/ar/invoices`, `/ar/debit-notes`, `/ar/credit-notes`, `/ar/receipts`, `/ar/refunds`, `/ar/deposits` - completed 2026-09-01).
   The Debtor Account screen stays unchanged as the account-first surface under `/ar/debtors`; once all six menus exist its entry buttons will be re-gated per menu (`*appCan` against the document's menu) - that final flip is a deliberate separate step.
 - One web component serves every type (`ar-transactions`, route `data.arDocType`), and ONE shared entry dialog (`shared/ar-ledger-dialog` for Invoice/DN/CN) is used by BOTH the account screen (debtor preset) and the transaction screens (debtor picker step first - single-dialog rule: picker/entry are `@switch` views in one dialog).
   The picker reuses the Debtor Listing search verbatim: `GET /api/ar/debtor-options` = `debtorController.listDebtors` under `requireAnyMenuAction` of the transaction menus (`AR_TXN_MENUS` in `ar.routes.js` - extend per slice); `GET /debtors/:id/account/meta` is re-gated the same way (the dialog needs billing items/persons/numbering).
@@ -109,7 +109,7 @@ One-shot boot migrations converted existing rows before the alter-sync dropped t
 - **Allocation intent on the draft**: `ar.Ledger.applyToLedgerId` (the open debit to apply against) - captured at entry, RESOLVED AT POSTING (which may be after approval). If the target got settled/voided in between, the CN posts as available credit (no error). `postDraftLedger` applies the intent on credit rows. A targeted CN is CAPPED at the target's remaining balance (gross, tax included - checked in the dialog and authoritatively in `readDraftFields`); no target = available credit, uncapped. **NO FIFO on manual CN/DN** (user rule 2026-08-20: an adjustment always knows its document - FIFO is receipt behaviour; the short-lived `applyFifo` column was removed, alter-sync drops it). Raise-CN LOCKS the target (fixed display) and seeds the amount with the invoice's balance; a fully-allocated or credit-mode row refuses with an error. The deposit-conversion CN keeps its internal FIFO (system path).
 - The account meta now ships the debtor's `openDebits` (+ `creditNoteApproval` flag) so the standalone CN dialog offers "Apply against" after picking a debtor.
 - **Raise Credit Note** kebab on POSTED invoice rows (posted invoices are never voided): opens the CN dialog with the debtor preset and the source invoice pre-selected as the target; gated on the CN menu's create grant (`can('create','/ar/credit-notes')`), not the invoice screen's.
-- Voids: CN DRAFTS void like invoice drafts (reason, audit); a POSTED unallocated CN keeps the account-door reversal void (deposit-conversion CN void/restore relies on it). DN keeps immediate posting until its slice.
+- Voids: CN DRAFTS void like invoice drafts (reason, audit); a POSTED unallocated CN keeps the account-door reversal void (deposit-conversion CN void/restore relies on it). (DN adopted the same lifecycle with its own slice 2026-09-01 - see below.)
 
 ## Official Receipt slice (2026-08-21 - third transaction screen)
 
@@ -147,6 +147,13 @@ One-shot boot migrations converted existing rows before the alter-sync dropped t
 - Listing (`GET /deposits`) is shaped like the ledger listings; for deposits the Balance column reads "To collect" (`balanceAmount`) and a second "Held" cell shows the collateral currently held; status 'closed' (fully collected and fully drawn down) displays as Posted.
 - Account meta ships `depositApproval` for the Submit button label.
 
+## Debit Note slice (2026-09-01 - sixth and last transaction screen)
+
+- `/ar/debit-notes` menu/screen (same `ar-transactions` component + the shared ledger dialog - a DN is billing shaped exactly like an invoice, so the slice is pure generalization: a third `LIFECYCLE_KINDS` entry drives the create/edit/submit/void/list factories and the `ar-debit-note` workflow purpose (registered alongside ar-invoice/ar-credit-note; approval posts, rejection returns to Open).
+- **The old immediate posting is GONE from both doors**: the account door (`postLedger`) routes DN through `createDraft` like the other lifecycle kinds, and the shared dialog's Post footer is dead code (every ledger kind shows Save / Submit now).
+- **A posted DN is immutable** (the invoice rule extended: debit documents are corrected with a Credit Note, never voided - `voidLedger` routes DN to the draft-only void with reason). The **Raise Credit Note** kebab therefore appears on posted DN rows too, gated on the CN menu's create grant.
+- Tax, fx, analysis dimensions, gapless `ar-debit-note` numbering and the TaxLedger freeze all ride the existing generalized paths - no new columns, no migration.
+
 ## Invoice lifecycle (defined 2026-08-13 - Save / Submit / approval)
 
 - User-defined lifecycle for MANUAL invoices: **Save -> `draft`** (screen label "Open": editable by the creator or a superior per data scope, voidable with audit, NOT financial - no balance effect, excluded from statements/aging/interest/allocation/reconciliation) -> **Submit -> posted**, either directly or through the **`ar-invoice` approval chain** (`pending-approval` while in flight; approved posts automatically, rejected/recalled returns to `draft`).
@@ -156,7 +163,7 @@ One-shot boot migrations converted existing rows before the alter-sync dropped t
 - Posted invoices are IMMUTABLE: no void on any door (the account screen's generic void now 400s posted invoices) - correction = raise a Credit Note (kebab action arrives with the CN slice). System producers (fee runs, interest, deposit conversion, void reversals) still post directly via `postLedgerDoc`.
 - FIRST WIRED WORKFLOW PRODUCER: submit calls `workflowGateway.startWorkflow('ar-invoice', ...)` inside the submit tx (null = no chain -> post immediately); completion lands in `src/wiring/workflowHandlers.js` - onApproved posts the draft in the completing tx via `arPosting.postDraftLedger` + `numberingGateway.issueNumberForCompany` (req-less), onRejected/onCancelled flip back to `draft`. `GET /debtors/:id/account/meta` ships `invoiceApproval` so the dialog labels its button "Submit for Approval" vs "Submit". Tax is quoted at save with onDate=docDate (schemes are effective-dated - no re-quote at post).
 - Endpoints: `PATCH /api/ar/invoices/:id` (edit draft; data-scope checked via `canModifyRecord`), `POST /api/ar/invoices/:id/submit` (any-of gate - the account door submits too), void = drafts only.
-- Web: the shared ledger dialog gains edit mode + Save / Submit(-for-Approval) footer for invoices (DN/CN keep Post until their slices); the listing shows Open/Pending Approval/Posted/Void chips + Balance, Edit visible on in-scope drafts, kebab = Submit (confirm states the concrete outcome) + Void.
+- Web: the shared ledger dialog gains edit mode + Save / Submit(-for-Approval) footer for invoices (CN adopted it 2026-08-20, DN 2026-09-01 - every ledger kind is a lifecycle kind now); the listing shows Open/Pending Approval/Posted/Void chips + Balance, Edit visible on in-scope drafts, kebab = Submit (confirm states the concrete outcome) + Void.
 
 ## Statements (enhanced 2026-08-06)
 
