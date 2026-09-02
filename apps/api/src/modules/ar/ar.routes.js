@@ -72,7 +72,10 @@ router.post('/debtors/:id/deposits', requireMenuAction('/ar/deposits'), document
 // (The old POST /debtors/:id/refunds immediate-post door is REMOVED: the
 // shared refund dialog has always used POST /refunds, and the old door
 // bypassed the refund lifecycle entirely.)
-router.post('/deposits/:id/convert', requireMenuAction('/ar/debtors'), documentController.convertDeposit);
+// (POST /deposits/:id/convert REMOVED 2026-09-02: applying held deposit
+// money to outstanding goes through the Refund offset kind - one door, with
+// a refund document, an allocation trail and approval routing. Historical
+// conversion CNs stay valid; their reversal void/restore path remains.)
 router.patch('/ledger/:id/void', requireMenuAction('/ar/debtors'), documentController.voidLedger);
 router.patch('/receipts/:id/void', requireAnyMenuAction(['/ar/debtors', '/ar/receipts']), documentController.voidReceipt);
 router.patch('/deposits/:id/void', requireAnyMenuAction(['/ar/debtors', '/ar/deposits']), documentController.voidDeposit);

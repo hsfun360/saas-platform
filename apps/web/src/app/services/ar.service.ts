@@ -104,9 +104,8 @@ export class ArService {
   // flip 2026-09-01: the refund/deposit dialogs always use their standalone
   // doors, and the old immediate-post refund door is gone from the API.)
 
-  convertDeposit(depositId: string, payload: Record<string, unknown>): Observable<{ message: string; id: string; docNo: string }> {
-    return this.http.post<{ message: string; id: string; docNo: string }>(`${this.base}/deposits/${depositId}/convert`, payload);
-  }
+  // (convertDeposit removed 2026-09-02: deposit-to-outstanding goes through
+  // the Refund dialog's offset kind - the one door.)
 
   voidLedger(id: string, payload: Record<string, unknown> = {}): Observable<{ message: string }> {
     return this.http.patch<{ message: string }>(`${this.base}/ledger/${id}/void`, payload);

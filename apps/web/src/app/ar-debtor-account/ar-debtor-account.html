@@ -194,7 +194,7 @@
       <button type="button" class="settings-header settings-header--button" (click)="toggleSection('deposits')" [attr.aria-expanded]="isExpanded('deposits')">
         <span class="settings-header__text">
           <span class="settings-header__title">Deposits</span>
-          <span class="settings-header__sub">Security deposits held as collateral — collected via Official Receipt, refunded or converted to a Credit Note.</span>
+          <span class="settings-header__sub">Security deposits held as collateral — collected via Official Receipt; paid back or applied to outstanding through a Refund.</span>
         </span>
         <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('deposits')" aria-hidden="true">chevron_right</span>
       </button>
@@ -229,9 +229,6 @@
                          receipts menu's create grant (final flip). -->
                     @if (d.status === 'open' && canCollect(d) && canCreateDoc('/ar/receipts')) {
                       <button type="button" class="btn btn--secondary btn--sm" (click)="openReceipt(d.id)">Collect</button>
-                    }
-                    @if (d.status === 'open' && held(d) !== '0.00') {
-                      <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="openConvert(d)">Convert</button>
                     }
                     @if (d.status === 'open' && depositUntouched(d)) {
                       <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="askVoidDeposit(d)">Void</button>
@@ -285,46 +282,6 @@
                            (closed)="depositOpen.set(false)"
                            (posted)="onDepositPosted($event)"
                            (failed)="errorMessage.set($event)" />
-  }
-
-  <!-- ============ Convert-deposit dialog ============ -->
-  @if (convertOpen()) {
-    <app-dialog #convertDlg variant="drawer" [title]="'Convert Deposit — ' + (convertDeposit()?.docNo || '')" [busy]="convertSaving()" [dirty]="convertForm.dirty"
-                discardTitle="Discard this conversion?"
-                discardMessage="You have started a deposit conversion. Leaving now will discard it."
-                (close)="closeConvert()">
-      <form id="convertForm" [formGroup]="convertForm" (ngSubmit)="onSaveConvert()" class="saas-form" style="padding: 0;">
-        <p class="cell-subtle" style="margin-top: 0;">
-          Held balance {{ convertDeposit() ? held(convertDeposit()!) : '' }} — the converted amount becomes a Credit Note that is applied to the oldest open items.
-        </p>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-          <div class="form-group">
-            <label for="cvAmount">Amount to convert <span class="required">*</span></label>
-            <input id="cvAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount"
-                   [attr.aria-invalid]="showError(convertForm.controls.amount)" aria-describedby="cvAmountErr" />
-            @if (showError(convertForm.controls.amount)) {
-              <p id="cvAmountErr" class="field-error" role="alert">Enter an amount greater than zero.</p>
-            }
-          </div>
-          <div class="form-group">
-            <label for="cvDocDate">Document date <span class="required">*</span></label>
-            <input id="cvDocDate" type="date" formControlName="docDate" />
-          </div>
-        </div>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
-          <div class="form-group">
-            <label for="cvTrxDate">Transaction date (period) <span class="required">*</span></label>
-            <input id="cvTrxDate" type="date" formControlName="trxDate" />
-          </div>
-        </div>
-      </form>
-      <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="convertDlg.requestClose()" [disabled]="convertSaving()">Cancel</button>
-        <button type="submit" form="convertForm" class="btn btn--primary" [disabled]="convertSaving()">
-          {{ convertSaving() ? 'Converting…' : 'Convert' }}
-        </button>
-      </ng-container>
-    </app-dialog>
   }
 
   <!-- ============ Void confirmation ============ -->

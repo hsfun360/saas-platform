@@ -642,29 +642,12 @@ async function postDraftRefund({ companyId, debtor, row, issueDocNo, issueCnDocN
     return row;
 }
 
-// Convert (part of) a deposit's held balance into a Credit Note that knocks
-// off outstanding (user rule 2026-08-05). A PROCESS, not an allocation pair:
-// the CN carries sourceRef = the deposit; heldAmount drops in the same tx;
-// the CN then FIFO-allocates against open debits.
-async function convertDeposit({ companyId, debtor, deposit, amountC, transactionTypeId, issueDocNo, docDate, trxDate, stamps = {}, t }) {
-    if (amountC <= 0) throw bizError(400, 'Amount must be greater than zero.');
-    if (creditCapacity('deposit', deposit) < amountC) {
-        throw bizError(400, 'The deposit’s held balance does not cover this conversion.');
-    }
-    deposit.heldAmount = money(cents(deposit.heldAmount) - amountC);
-    maybeCloseDeposit(deposit);
-    if (stamps.updatedBy) deposit.updatedBy = stamps.updatedBy;
-    await deposit.save({ transaction: t });
-
-    return postLedgerDoc({
-        companyId, debtor, docKind: 'credit-note',
-        issueDocNo, docDate, trxDate, transactionTypeId,
-        description: `Deposit ${deposit.docNo} conversion`,
-        sourceModule: 'ar', sourceRef: deposit.id,
-        amounts: { netC: amountC, taxC: 0, grossC: amountC, taxSchemeCode: null, taxRate: null },
-        stamps, fifo: true, t,
-    });
-}
+// (convertDeposit - the direct deposit-to-CN conversion PROCESS from the
+// 2026-08-05 design - was REMOVED 2026-09-02 in favour of the Refund offset
+// kind: one door, with a refund document and a real deposit->refund
+// allocation row. Historical conversion CNs (sourceRef = the deposit's id)
+// remain first-class: voidLedgerDoc below still restores their deposit's
+// held balance, and reconciliation still counts them via conversionByDeposit.)
 
 // Void a Ledger document. Only documents with NO prior allocations are
 // voidable (partially settled = correct via Credit Note instead).
@@ -824,7 +807,6 @@ module.exports = {
     postDraftDeposit,
     postRefund,
     postDraftRefund,
-    convertDeposit,
     voidLedgerDoc,
     voidReceipt,
     voidDeposit,

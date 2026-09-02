@@ -1894,45 +1894,12 @@ exports.postDeposit = async (req, res) => {
     }
 };
 
-// POST /api/ar/deposits/:id/convert - convert held deposit into a Credit Note
-// that knocks off outstanding.
-exports.convertDeposit = async (req, res) => {
-    try {
-        const { companyId } = getUserContext(req);
-        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const deposit = await Deposit.findOne({ where: { id: req.params.id, companyId } });
-        if (!deposit) return res.status(404).json({ message: 'Deposit not found.' });
-        const debtor = await Debtor.findOne({ where: { id: deposit.debtorId, companyId } });
-        if (!debtor) return res.status(404).json({ message: 'Debtor not found.' });
-
-        const dates = parseDates(req.body);
-        if (dates.error) return res.status(400).json({ message: dates.error });
-        const amountC = parseAmount(req.body.amount);
-        if (!amountC) return res.status(400).json({ message: 'Amount must be greater than zero.' });
-
-        const conversionType = await require('./catalogDefaults').depositConversionType(companyId);
-        const placement = await getCallerPlacement(req);
-        const stamps = ownershipStamps(req, placement);
-
-        let cn;
-        try {
-            cn = await sequelize.transaction(async (t) => posting.convertDeposit({
-                companyId, debtor, deposit, amountC,
-                transactionTypeId: conversionType.id,
-                issueDocNo: docNoIssuer(req, 'ar-credit-note', null),
-                docDate: dates.docDate, trxDate: dates.trxDate,
-                stamps, t,
-            }));
-        } catch (e) {
-            if (e && e.httpStatus) return res.status(e.httpStatus).json({ message: e.message });
-            throw e;
-        }
-        res.status(201).json({ message: `Deposit ${deposit.docNo} converted - Credit Note ${cn.docNo} posted.`, id: cn.id, docNo: cn.docNo });
-    } catch (err) {
-        console.error('Error converting deposit:', err);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-};
+// (The direct deposit-conversion door was REMOVED 2026-09-02: applying held
+// deposit money to outstanding goes through the Refund offset kind - one
+// door, with a refund document, an allocation trail and approval routing.
+// Historical conversion CNs stay valid: the reversal void in voidLedgerDoc
+// still restores their deposit's held balance, and the deposit trail viewer
+// still lists them by sourceRef.)
 
 // ---------------------------------------------------------------------------
 // Void endpoints. Ledger debit -> reversal row; others -> guarded flips.

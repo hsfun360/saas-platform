@@ -1,12 +1,10 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
-import { MoneyInputDirective } from '../shared/money-input.directive';
 import { ArLedgerDialogComponent, ArLedgerDialogDebtor } from '../shared/ar-ledger-dialog/ar-ledger-dialog';
 import { ArReceiptDialogComponent } from '../shared/ar-receipt-dialog/ar-receipt-dialog';
 import { ArRefundDialogComponent } from '../shared/ar-refund-dialog/ar-refund-dialog';
@@ -17,10 +15,11 @@ import { ArAccount, ArAccountMeta, ArDepositDoc, ArLedgerDoc, ArReceiptDoc } fro
 
 // Account Receivable → Debtor Account (the Debtor Listing's detail surface,
 // same '/ar/debtors' menu). Shows the ledger account's balances and its three
-// document books, and hosts every manual document entry:
-// Invoice / Debit Note / Credit Note (one dialog, kind preset), Official
-// Receipt (with optional deposit collection + FIFO), Refund (funded from
-// credit or a deposit), Deposit open / convert-to-CN, and the void flows.
+// document books, and hosts every manual document entry through the SHARED
+// dialogs: Invoice / Debit Note / Credit Note (one dialog, kind preset),
+// Official Receipt (with optional deposit collection + FIFO), Refund (three
+// kinds incl. deposit-to-outstanding - the ONE door for that since the
+// Convert button was removed 2026-09-02), Deposit billing, and the voids.
 //
 // docDate = occurrence (drives aging/dueDate); trxDate = accounting period
 // (defaults to docDate; differs when back-keying into a closed GL month).
@@ -28,8 +27,8 @@ import { ArAccount, ArAccountMeta, ArDepositDoc, ArLedgerDoc, ArReceiptDoc } fro
   selector: 'app-ar-debtor-account',
   standalone: true,
   imports: [
-    CommonModule, ReactiveFormsModule, RouterLink, DialogComponent, CanDirective,
-    LocalDatePipe, MoneyInputDirective, ArLedgerDialogComponent, ArReceiptDialogComponent,
+    CommonModule, RouterLink, DialogComponent, CanDirective,
+    LocalDatePipe, ArLedgerDialogComponent, ArReceiptDialogComponent,
     ArRefundDialogComponent, ArDepositDialogComponent,
   ],
   templateUrl: './ar-debtor-account.html',
@@ -39,14 +38,13 @@ export class ArDebtorAccountComponent {
   private readonly service = inject(ArService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly fb = inject(FormBuilder);
   private readonly permissions = inject(PermissionsService);
 
   // FINAL FLIP (2026-09-01, closing the 2026-08-12 hybrid design): document
   // entry from this screen takes the DOCUMENT menu's create grant - the same
   // grant as its dedicated screen (the API doors enforce the same). This
   // screen's own '/ar/debtors' grants keep governing account maintenance
-  // (voids, convert, backfill).
+  // (voids, backfill).
   readonly DOC_ENTRY_MENUS = ['/ar/invoices', '/ar/debit-notes', '/ar/credit-notes', '/ar/receipts', '/ar/refunds', '/ar/deposits'];
   canCreateDoc(menu: string): boolean {
     return this.permissions.canOnMenu('create', menu);
@@ -67,10 +65,6 @@ export class ArDebtorAccountComponent {
 
   readonly openDebits = computed(() =>
     (this.account()?.ledger || []).filter((d) => d.mode === 'debit' && d.status === 'open'));
-  readonly openDeposits = computed(() =>
-    (this.account()?.deposits || []).filter((d) => d.status === 'open'));
-  readonly heldDeposits = computed(() =>
-    this.openDeposits().filter((d) => Number(d.heldAmount) > 0));
 
   // --- Ledger dialog (Invoice / DN / CN) - the shared entry dialog with the
   // debtor preset; this screen only tracks which kind is open.
@@ -93,16 +87,6 @@ export class ArDebtorAccountComponent {
   // it owns the form, fx defaulting and the Save/Submit lifecycle) ---
   readonly depositOpen = signal(false);
 
-  // --- Convert-deposit dialog ---
-  readonly convertOpen = signal(false);
-  readonly convertSaving = signal(false);
-  readonly convertDeposit = signal<ArDepositDoc | null>(null);
-  readonly convertForm = this.fb.nonNullable.group({
-    docDate: ['', [Validators.required]],
-    trxDate: ['', [Validators.required]],
-    amount: [0, [Validators.required, Validators.min(0.01)]],
-  });
-
   // --- Void confirmation (shared). Invoices require a reason - the number
   // stays consumed in the gapless series and who/when/why is the audit trail.
   readonly voidOpen = signal(false);
@@ -120,10 +104,6 @@ export class ArDebtorAccountComponent {
         this.load();
       }
     });
-  }
-
-  showError(control: AbstractControl): boolean {
-    return control.invalid && control.touched;
   }
 
   load(): void {
@@ -284,27 +264,11 @@ export class ArDebtorAccountComponent {
     this.load();
   }
 
-  // --- Convert deposit to Credit Note ---
-  openConvert(d: ArDepositDoc): void {
-    this.clearMessages();
-    const t = this.today();
-    this.convertDeposit.set(d);
-    this.convertForm.reset({ docDate: t, trxDate: t, amount: Number(this.held(d)) });
-    this.convertOpen.set(true);
-  }
-  closeConvert(): void { this.convertOpen.set(false); }
-  onSaveConvert(): void {
-    this.clearMessages();
-    const dep = this.convertDeposit();
-    if (!dep) return;
-    if (this.convertForm.invalid) { this.convertForm.markAllAsTouched(); return; }
-    const f = this.convertForm.getRawValue();
-    this.convertSaving.set(true);
-    this.service.convertDeposit(dep.id, { docDate: f.docDate, trxDate: f.trxDate, amount: f.amount }).subscribe({
-      next: (res) => { this.successMessage.set(res.message); this.convertSaving.set(false); this.convertOpen.set(false); this.load(); },
-      error: (err) => { this.errorMessage.set(err.error?.message || 'Failed to convert the deposit.'); this.convertSaving.set(false); },
-    });
-  }
+  // (The direct Convert-deposit door was REMOVED 2026-09-02: applying held
+  // deposit money to outstanding goes through the Refund dialog's
+  // "Deposit to outstanding" kind - one door, with a refund document, an
+  // allocation trail and approval routing. Historical conversion CNs stay
+  // valid and still show in the deposit's Allocations trail.)
 
   // --- Voids (shared confirmation dialog) ---
   askVoidLedger(doc: ArLedgerDoc): void {
