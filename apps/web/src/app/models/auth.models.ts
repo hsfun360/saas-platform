@@ -1452,6 +1452,10 @@ export interface CreateTenantUserData {
   fullName: string;
   phone?: string;
   roleId?: string;
+  // Optional initial org placement (subscriber Department/Position masters), so
+  // the new user's data-scope placement is complete on day one.
+  departmentId?: string;
+  positionId?: string;
 }
 
 export interface SubscriptionInfo {

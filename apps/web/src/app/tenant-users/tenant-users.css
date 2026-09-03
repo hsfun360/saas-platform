@@ -56,6 +56,10 @@
   flex: 1 1 220px;
   display: flex;
   flex-direction: column;
+  /* Flex items default to min-width:auto, so a select with a long option
+     (company names) refuses to shrink and forces horizontal scroll in the
+     drawer at narrow widths - 0 lets the control shrink to its track. */
+  min-width: 0;
 }
 
 .field label {
@@ -180,45 +184,50 @@
   white-space: nowrap;
 }
 
-/* Membership / add-to-company rows: info (company + role select) on the left,
-   action buttons on the right at the same level on desktop; on mobile the
-   actions drop to a full-width row below, left-justified. Defined as classes
-   (not inline) so the global mobile rule collapsing inline grids doesn't apply. */
-.assign-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas: "info actions";
-  align-items: center;
-  gap: var(--space-sm);
+/* Person card subline: each company + the person's role in it, wrapping. */
+.person-companies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-md);
 }
 
-.assign-row__info {
-  grid-area: info;
+.person-company {
+  white-space: nowrap;
+}
+
+/* Companies & placement drawer: one bordered group per membership - company
+   name + Update/Remove on the head line, the Role/Department/Position fields
+   below (the .row/.field flex handles the mobile stack). */
+.place-row {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.place-row--add {
+  border-style: dashed;
+}
+
+.place-row__head {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  justify-content: space-between;
   gap: var(--space-sm);
-  min-width: 0;
+  margin-bottom: var(--space-sm);
 }
 
-.assign-row__actions {
-  grid-area: actions;
+.place-row__company {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  min-width: 0;
+  word-break: break-word;
+}
+
+.place-row__actions {
   display: flex;
   gap: var(--space-xs);
-  justify-self: end; /* right-justified on desktop */
-}
-
-@media (max-width: 767px) {
-  .assign-row {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "info"
-      "actions";
-  }
-
-  .assign-row__actions {
-    justify-self: end; /* bottom-right on mobile - app-wide action-row standard */
-  }
+  flex-shrink: 0;
 }
 
 .admin-badge {

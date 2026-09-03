@@ -551,9 +551,11 @@ exports.listTenantUsers = async (req, res) => {
 };
 
 // POST /api/auth/company/users  -> create a user and place them in a company
-// Body: { email, password, fullName, phone?, roleId?, companyId? }
+// Body: { email, password, fullName, phone?, roleId?, departmentId?, positionId?, companyId? }
 exports.createTenantUser = async (req, res) => {
     const { email, password, fullName, phone, roleId, companyId: bodyCompanyId } = req.body;
+    const departmentId = req.body.departmentId || null;
+    const positionId = req.body.positionId || null;
 
     const target = await resolveTargetCompany(req, bodyCompanyId);
     if (target.status) return res.status(target.status).json({ message: target.message });
@@ -567,13 +569,30 @@ exports.createTenantUser = async (req, res) => {
         }
 
         // If a role was chosen, it must belong to the caller's ACCOUNT (roles are
-        // account-level now, usable in any of the account's companies).
-        if (roleId) {
+        // account-level now, usable in any of the account's companies). Same for
+        // the optional org placement (subscriber Department/Position masters).
+        if (roleId || departmentId || positionId) {
             const accountId = await resolveAccountId(companyId, transaction);
-            const role = await Role.findOne({ where: { id: roleId, accountId }, transaction });
-            if (!role) {
-                await transaction.rollback();
-                return res.status(400).json({ message: "Selected role does not belong to your account." });
+            if (roleId) {
+                const role = await Role.findOne({ where: { id: roleId, accountId }, transaction });
+                if (!role) {
+                    await transaction.rollback();
+                    return res.status(400).json({ message: "Selected role does not belong to your account." });
+                }
+            }
+            if (departmentId) {
+                const dept = await Department.findOne({ where: { id: departmentId, accountId }, transaction });
+                if (!dept) {
+                    await transaction.rollback();
+                    return res.status(400).json({ message: "Selected department does not belong to your account." });
+                }
+            }
+            if (positionId) {
+                const pos = await Position.findOne({ where: { id: positionId, accountId }, transaction });
+                if (!pos) {
+                    await transaction.rollback();
+                    return res.status(400).json({ message: "Selected position does not belong to your account." });
+                }
             }
         }
 
@@ -599,6 +618,8 @@ exports.createTenantUser = async (req, res) => {
             userId: user.id,
             companyId,
             roleId: roleId || null,
+            departmentId,
+            positionId,
             isActive: true,
         }, { transaction });
 

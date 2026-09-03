@@ -43,31 +43,39 @@
         <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
       </div>
     } @else {
-      <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-sm);">
+      <div class="data-list">
         @for (person of filteredPeople(); track person.id) {
-          <li [attr.data-return-id]="person.id" style="background: var(--surface-card); border: 1px solid var(--border); border-radius: 10px; padding: var(--space-md) var(--space-lg);">
-            <div class="assign-row">
-              <span class="assign-row__info" style="flex-direction: column; align-items: flex-start; gap: var(--space-xs);">
-                <!-- Line 1: email. -->
-                <span style="font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); word-break: break-word;">{{ person.email }}</span>
-                <!-- Line 2: full name, no caption. -->
+          <div class="data-card" [attr.data-return-id]="person.id">
+            <div class="data-row">
+              <div class="data-row__main">
+                <div class="data-card__title">{{ person.email }}</div>
                 @if (person.full_name) {
-                  <span style="font-size: var(--font-body-2); color: var(--text-secondary);">{{ person.full_name }}</span>
+                  <div class="data-card__subline">{{ person.full_name }}</div>
                 }
-                <!-- Line 3: how many companies they can access. -->
-                <span style="display: flex; align-items: baseline; gap: var(--space-xs);">
-                  <span style="font-size: var(--font-caption); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-muted);">Companies</span>
-                  <span style="font-size: var(--font-body-2); color: var(--text-primary);">{{ person.memberships.length }}</span>
-                </span>
-              </span>
-              <span class="assign-row__actions">
-                <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(person)"
+                <!-- Each company with the person's role in it — the answer to
+                     "what are they here?" without opening any dialog. -->
+                <div class="data-card__subline person-companies">
+                  @for (m of person.memberships; track m.companyId) {
+                    <span class="person-company">{{ m.companyName }} <span class="data-card__reg">· {{ m.roleName || 'No role' }}</span></span>
+                  } @empty {
+                    <span class="data-card__reg">No company access</span>
+                  }
+                </div>
+              </div>
+              <div class="data-row__actions">
+                <button type="button" class="btn btn--secondary btn--sm" (click)="openProfile(person)"
                         [attr.aria-label]="'Edit ' + person.email">Edit</button>
-              </span>
+                <app-overflow-menu [label]="'More actions for ' + person.email">
+                  <button type="button" appMenuItem (click)="openPlacement(person)">
+                    <span class="material-icons" aria-hidden="true">badge</span>
+                    Companies &amp; placement
+                  </button>
+                </app-overflow-menu>
+              </div>
             </div>
-          </li>
+          </div>
         }
-      </ul>
+      </div>
     }
 
   <!-- Pending invitations -->
@@ -183,6 +191,28 @@
             </select>
           </div>
         </div>
+        <!-- Optional org placement — feeds the data-scope rule (whose records
+             they may amend), complete from day one instead of a second edit. -->
+        <div class="row">
+          <div class="field">
+            <label for="nuDept">Department</label>
+            <select id="nuDept" formControlName="departmentId">
+              <option value="">— No department —</option>
+              @for (d of departments(); track d.id) {
+                <option [value]="d.id">{{ d.description || d.departmentCode }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="nuPos">Position</label>
+            <select id="nuPos" formControlName="positionId">
+              <option value="">— No position —</option>
+              @for (p of positions(); track p.id) {
+                <option [value]="p.id">{{ p.description || p.positionCode }}</option>
+              }
+            </select>
+          </div>
+        </div>
       </form>
 
       <ng-container dialogFooter>
@@ -250,12 +280,13 @@
     </app-dialog>
   }
 
-  <!-- ============ Edit user — companies & roles ============ -->
-  @if (editPerson(); as person) {
-    <app-dialog variant="drawer" [title]="'Edit — ' + person.email" (close)="closeEdit()">
-      <!-- Profile (global user fields) — only when account-scoped editable. -->
+  <!-- ============ Edit profile drawer (visible Edit) ============ -->
+  @if (profilePerson(); as person) {
+    <app-dialog #profileDlg variant="drawer" [title]="'Edit — ' + person.email" [busy]="savingProfile()"
+                [dirty]="editProfileForm.dirty"
+                (close)="closeProfile()">
       @if (person.profileEditable) {
-        <form [formGroup]="editProfileForm" (ngSubmit)="onSaveProfile()">
+        <form id="profileForm" [formGroup]="editProfileForm" (ngSubmit)="onSaveProfile()">
           <div class="row">
             <div class="field">
               <label for="epName">Full Name <span class="req">*</span></label>
@@ -296,89 +327,121 @@
               }
             </div>
           </div>
-          <div style="display: flex; justify-content: flex-end; margin-bottom: var(--space-md);">
-            <button type="submit" class="btn btn--primary btn--sm" [disabled]="savingProfile()">
-              {{ savingProfile() ? 'Saving…' : 'Save profile' }}
-            </button>
-          </div>
         </form>
       } @else {
         <p class="subtle" style="margin-top: 0;">
           {{ person.full_name || person.email }} — this user also belongs to other accounts, so their profile can't be edited here.
+          Their companies and roles are still managed under “Companies &amp; placement”.
         </p>
       }
 
-      <h3 style="margin: var(--space-sm) 0; font-size: var(--font-h3); color: var(--text-primary);">Companies, roles &amp; placement</h3>
-      <p class="subtle" style="margin: 0 0 var(--space-sm);">Role controls what they may do; department and position control whose records they may amend (seniority within the same department).</p>
+      <ng-container dialogFooter>
+        @if (person.profileEditable) {
+          <button type="button" class="btn btn--secondary" (click)="profileDlg.requestClose()" [disabled]="savingProfile()">Cancel</button>
+          <button type="submit" form="profileForm" class="btn btn--primary" [disabled]="savingProfile()">
+            {{ savingProfile() ? 'Saving…' : 'Save' }}
+          </button>
+        } @else {
+          <button type="button" class="btn btn--secondary" (click)="closeProfile()">Close</button>
+        }
+      </ng-container>
+    </app-dialog>
+  }
 
-      <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
-        <!-- Per-company role + remove. -->
-        @for (m of person.memberships; track m.companyId) {
-          @let key = person.id + ':' + m.companyId;
-          <div class="assign-row">
-            <span class="assign-row__info">
-              <span style="min-width: 160px; font-weight: var(--weight-semibold); color: var(--text-primary);">{{ m.companyName }}</span>
-              <select [value]="roleSel[key]" (change)="roleSel[key] = $any($event.target).value" [attr.aria-label]="'Role for ' + person.email + ' in ' + m.companyName"
-                      style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); max-width: 100%; background: var(--surface-card); color: var(--text-primary);">
-                <option value="">— No role —</option>
-                @for (r of rolesFor(m.companyId); track r.id) {
-                  <option [value]="r.id">{{ r.name }}</option>
-                }
-              </select>
-              <!-- Org placement (Phase 2 RBAC): feeds the data-scope rule. -->
-              <select [value]="deptSel[key]" (change)="deptSel[key] = $any($event.target).value" [attr.aria-label]="'Department for ' + person.email + ' in ' + m.companyName"
-                      style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); max-width: 100%; background: var(--surface-card); color: var(--text-primary);">
-                <option value="">— No department —</option>
-                @for (d of departments(); track d.id) {
-                  <option [value]="d.id">{{ d.description || d.departmentCode }}</option>
-                }
-              </select>
-              <select [value]="posSel[key]" (change)="posSel[key] = $any($event.target).value" [attr.aria-label]="'Position for ' + person.email + ' in ' + m.companyName"
-                      style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); max-width: 100%; background: var(--surface-card); color: var(--text-primary);">
-                <option value="">— No position —</option>
-                @for (p of positions(); track p.id) {
-                  <option [value]="p.id">{{ p.description || p.positionCode }}</option>
-                }
-              </select>
-            </span>
-            <span class="assign-row__actions">
-              <button type="button" class="btn btn--primary btn--sm" [disabled]="isPending('role:' + key)" (click)="onChangeRole(person.id, m.companyId)">Update</button>
-              <button type="button" class="btn btn--danger btn--sm" [disabled]="isPending('rm:' + key)" (click)="onRemove(person, m.companyId, m.companyName)">Remove</button>
+  <!-- ============ Companies & placement drawer (kebab) ============ -->
+  @if (placePerson(); as person) {
+    <app-dialog #placeDlg variant="drawer" [title]="'Companies & placement — ' + person.email"
+                [dirty]="placementDirty()"
+                discardTitle="Discard placement changes?"
+                discardMessage="You have changed a role or placement without clicking Update. Leaving now will discard it."
+                (close)="closePlacement()">
+      <p class="subtle" style="margin-top: 0;">Role controls what they may do; department and position control whose records they may amend (seniority within the same department).</p>
+
+      @for (m of person.memberships; track m.companyId) {
+        @if (placementFormFor(m.companyId); as fg) {
+          <div class="place-row" [formGroup]="fg">
+            <div class="place-row__head">
+              <span class="place-row__company">{{ m.companyName }}</span>
+              <span class="place-row__actions">
+                <button type="button" class="btn btn--primary btn--sm"
+                        [disabled]="isPending('role:' + person.id + ':' + m.companyId)"
+                        (click)="onUpdatePlacement(person, m.companyId)">Update</button>
+                <button type="button" class="btn btn--danger btn--sm"
+                        [disabled]="isPending('rm:' + person.id + ':' + m.companyId)"
+                        (click)="onRemove(person, m.companyId, m.companyName)">Remove</button>
+              </span>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label for="plRole-{{ m.companyId }}">Role</label>
+                <select id="plRole-{{ m.companyId }}" formControlName="roleId">
+                  <option value="">— No role —</option>
+                  @for (r of rolesFor(m.companyId); track r.id) {
+                    <option [value]="r.id">{{ r.name }}</option>
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <label for="plDept-{{ m.companyId }}">Department</label>
+                <select id="plDept-{{ m.companyId }}" formControlName="departmentId">
+                  <option value="">— No department —</option>
+                  @for (d of departments(); track d.id) {
+                    <option [value]="d.id">{{ d.description || d.departmentCode }}</option>
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <label for="plPos-{{ m.companyId }}">Position</label>
+                <select id="plPos-{{ m.companyId }}" formControlName="positionId">
+                  <option value="">— No position —</option>
+                  @for (p of positions(); track p.id) {
+                    <option [value]="p.id">{{ p.description || p.positionCode }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+          </div>
+        }
+      } @empty {
+        <p class="subtle">No company access.</p>
+      }
+
+      <!-- Add to another company. -->
+      @if (companiesNotJoined(person).length > 0) {
+        <div class="place-row place-row--add" [formGroup]="placeAddForm">
+          <div class="place-row__head">
+            <span class="place-row__company">Add to another company</span>
+            <span class="place-row__actions">
+              <button type="button" class="btn btn--primary btn--sm"
+                      [disabled]="isPending('add:' + person.id)"
+                      (click)="onAddToCompany(person)">Add</button>
             </span>
           </div>
-        } @empty {
-          <p class="subtle">No company access.</p>
-        }
-
-        <!-- Add to another company. -->
-        @if (companiesNotJoined(person).length > 0) {
-          <div class="assign-row" style="border-top: 1px dashed var(--border); padding-top: var(--space-sm);">
-            <span class="assign-row__info">
-              <span class="subtle">Add to:</span>
-              <select [value]="addCompany[person.id]" (change)="addCompany[person.id] = $any($event.target).value" [attr.aria-label]="'Company to add ' + person.email + ' to'"
-                      style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); max-width: 100%; background: var(--surface-card); color: var(--text-primary);">
+          <div class="row">
+            <div class="field">
+              <label for="plAddCompany">Company</label>
+              <select id="plAddCompany" formControlName="companyId">
                 <option value="">— Company —</option>
                 @for (c of companiesNotJoined(person); track c.id) {
                   <option [value]="c.id">{{ c.name }}</option>
                 }
               </select>
-              <select [value]="addRole[person.id]" (change)="addRole[person.id] = $any($event.target).value" aria-label="Role for the new company"
-                      style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); max-width: 100%; background: var(--surface-card); color: var(--text-primary);">
+            </div>
+            <div class="field">
+              <label for="plAddRole">Role</label>
+              <select id="plAddRole" formControlName="roleId">
                 <option value="">— No role —</option>
-                @for (r of rolesFor(addCompany[person.id]); track r.id) {
+                @for (r of rolesFor(placeAddForm.controls.companyId.value); track r.id) {
                   <option [value]="r.id">{{ r.name }}</option>
                 }
               </select>
-            </span>
-            <span class="assign-row__actions">
-              <button type="button" class="btn btn--primary btn--sm" [disabled]="isPending('add:' + person.id)" (click)="onAddToCompany(person)">Add</button>
-            </span>
+            </div>
           </div>
-        }
-      </div>
+        </div>
+      }
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="closeEdit()">Close</button>
+        <button type="button" class="btn btn--secondary" (click)="placeDlg.requestClose()">Close</button>
       </ng-container>
     </app-dialog>
   }

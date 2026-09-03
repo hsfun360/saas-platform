@@ -2,7 +2,7 @@ import { Component, Injector, OnInit, computed, inject, signal } from '@angular/
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../auth.service';
 import { DepartmentService } from '../services/department.service';
 import { PositionService } from '../services/position.service';
@@ -11,23 +11,32 @@ import { AccountCompany, AccountPerson, AccountPendingInvite, Department, Positi
 import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
-// Person-centric User Management: each person is shown with the companies they
-// belong to and their role in each, with inline add-to-company / change-role /
-// remove actions. Everything is scoped to the companies the admin may manage.
+// Per-membership placement form: role + org placement within one company.
+type PlacementForm = FormGroup<{
+  roleId: FormControl<string>;
+  departmentId: FormControl<string>;
+  positionId: FormControl<string>;
+}>;
+
+// Person-centric User Management. Each person card shows their companies + roles;
+// the visible Edit opens the PROFILE drawer (global identity fields), and the
+// kebab's "Companies & placement" opens the assignment drawer (per-company role /
+// department / position rows + add / remove) - the app's one-visible-action +
+// overflow standard.
 //
-// Every data-entry form here is a Reactive Form (see the canonical reference in
-// platform-users): typed nonNullable FormGroups, control validators, correct
-// HTML5 input types, and `form.dirty` feeding the shared dialog's unsaved-changes
-// guard. This covers the Create-user and Invite-collaborator dialogs and the Edit
-// dialog's "Edit profile" sub-form. The Edit dialog's per-row assignment selects
-// are inline action controls (pick a value → click Update/Add/Remove, which
-// commits immediately), not a validated form, so they bind [value] + (change)
-// straight to plain selection-state objects rather than a FormGroup.
+// Every form is reactive, including the per-company placement rows: each row is
+// its own FormGroup (formControlName keeps the <select>s in sync even though the
+// role/department option lists load asynchronously - the raw [value] binding this
+// replaced was applied before the options existed and silently showed "No role").
 @Component({
   selector: 'app-tenant-users',
   standalone: true,
-  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent],
+  imports: [
+    FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule,
+    ReactiveFormsModule, DialogComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective,
+  ],
   templateUrl: './tenant-users.html',
   styleUrl: './tenant-users.css',
 })
@@ -66,12 +75,11 @@ export class TenantUsersComponent implements OnInit {
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
 
-  // The person whose management dialog is open. Derived from the id so it stays
+  // The person whose PROFILE drawer is open. Derived from the id so it stays
   // fresh after each reload (and auto-closes if they lose all access).
-  readonly editPersonId = signal<string | null>(null);
-  readonly editPerson = computed(() => this.people().find((p) => p.id === this.editPersonId()) ?? null);
-  // The open person's global profile fields — a reactive form, seeded via reset()
-  // when the edit dialog opens.
+  readonly profilePersonId = signal<string | null>(null);
+  readonly profilePerson = computed(() => this.people().find((p) => p.id === this.profilePersonId()) ?? null);
+  // The open person's global profile fields — seeded via reset() on open.
   readonly editProfileForm = this.fb.nonNullable.group({
     fullName: ['', [Validators.required, Validators.maxLength(150)]],
     email: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
@@ -79,21 +87,29 @@ export class TenantUsersComponent implements OnInit {
     bio: ['', [Validators.maxLength(500)]],
   });
   readonly savingProfile = signal(false);
+
+  // The person whose COMPANIES & PLACEMENT drawer is open (kebab action).
+  readonly placePersonId = signal<string | null>(null);
+  readonly placePerson = computed(() => this.people().find((p) => p.id === this.placePersonId()) ?? null);
+  // One FormGroup per membership row (companyId -> form), rebuilt on open and
+  // re-seeded after each reload (dirty rows are preserved so an in-progress
+  // change never resets under the user).
+  private placementForms = new Map<string, PlacementForm>();
+  // Add-to-company row for the open person.
+  readonly placeAddForm = this.fb.nonNullable.group({
+    companyId: [''],
+    roleId: [''],
+  });
+
   // Key of the action in flight (e.g. `role:<userId>:<companyId>`) — disables that button.
   readonly pendingKey = signal<string | null>(null);
-
-  // Template-driven selection state.
-  roleSel: { [key: string]: string } = {};        // `${userId}:${companyId}` -> roleId
-  deptSel: { [key: string]: string } = {};         // `${userId}:${companyId}` -> departmentId ('' = none)
-  posSel: { [key: string]: string } = {};          // `${userId}:${companyId}` -> positionId ('' = none)
-  addCompany: { [userId: string]: string } = {};   // userId -> companyId to add to
-  addRole: { [userId: string]: string } = {};      // userId -> roleId for the add
 
   // Subscriber org masters for the assignment dropdowns (active only).
   readonly departments = signal<Department[]>([]);
   readonly positions = signal<Position[]>([]);
 
-  // Create-user form. nonNullable keeps every control a non-null string.
+  // Create-user form: identity + the initial placement (company, role, and
+  // optional department/position so data scope is complete on day one).
   readonly createForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
     password: ['', [Validators.required, Validators.minLength(6)]],
@@ -101,6 +117,8 @@ export class TenantUsersComponent implements OnInit {
     phone: [''],
     companyId: ['', [Validators.required]],
     roleId: [''],
+    departmentId: [''],
+    positionId: [''],
   });
   readonly creating = signal(false);
 
@@ -148,19 +166,10 @@ export class TenantUsersComponent implements OnInit {
         this.companies.set(res.companies);
         this.people.set(res.people);
         this.invitations.set(res.invitations);
-        // Seed selection state so the bound <select>s show the current values.
-        this.roleSel = {};
-        this.deptSel = {};
-        this.posSel = {};
-        for (const p of res.people) {
-          this.addCompany[p.id] = '';
-          this.addRole[p.id] = '';
-          for (const m of p.memberships) {
-            this.roleSel[`${p.id}:${m.companyId}`] = m.roleId || '';
-            this.deptSel[`${p.id}:${m.companyId}`] = m.departmentId || '';
-            this.posSel[`${p.id}:${m.companyId}`] = m.positionId || '';
-          }
-        }
+        // Keep the open placement drawer's rows in step with the fresh data
+        // (the computed person updates itself; the forms need re-seeding).
+        const openPerson = this.placePerson();
+        if (openPerson) this.buildPlacementForms(openPerson, true);
         this.loading.set(false);
         this.returnScroll.consume(TenantUsersComponent.LIST_PATH, this.injector);
       },
@@ -179,23 +188,26 @@ export class TenantUsersComponent implements OnInit {
     return this.companies().filter((c) => !joined.has(c.id));
   }
 
-  openEdit(person: AccountPerson): void {
+  // ---------- Profile drawer (visible Edit) ----------
+
+  openProfile(person: AccountPerson): void {
     this.clearMessages();
+    this.placePersonId.set(null);
     this.editProfileForm.reset({
       fullName: person.full_name || '',
       email: person.email || '',
       phone: person.phone || '',
       bio: person.bio || '',
     });
-    this.editPersonId.set(person.id);
+    this.profilePersonId.set(person.id);
   }
 
-  closeEdit(): void {
-    this.editPersonId.set(null);
+  closeProfile(): void {
+    this.profilePersonId.set(null);
   }
 
   onSaveProfile(): void {
-    const person = this.editPerson();
+    const person = this.profilePerson();
     if (!person) return;
     this.clearMessages();
     if (this.editProfileForm.invalid) {
@@ -215,6 +227,7 @@ export class TenantUsersComponent implements OnInit {
         next: (res) => {
           this.successMessage.set(res.message || 'Profile updated.');
           this.savingProfile.set(false);
+          this.profilePersonId.set(null);
           this.returnScroll.remember(TenantUsersComponent.LIST_PATH, person.id);
           this.load();
         },
@@ -224,6 +237,127 @@ export class TenantUsersComponent implements OnInit {
         },
       });
   }
+
+  // ---------- Companies & placement drawer (kebab) ----------
+
+  openPlacement(person: AccountPerson): void {
+    this.clearMessages();
+    this.profilePersonId.set(null);
+    this.buildPlacementForms(person, false);
+    this.placePersonId.set(person.id);
+  }
+
+  closePlacement(): void {
+    this.placePersonId.set(null);
+    this.placementForms.clear();
+  }
+
+  placementFormFor(companyId: string): PlacementForm | null {
+    return this.placementForms.get(companyId) ?? null;
+  }
+
+  // Any uncommitted row change keeps the drawer behind the unsaved-changes guard.
+  placementDirty(): boolean {
+    if (this.placeAddForm.dirty) return true;
+    for (const form of this.placementForms.values()) if (form.dirty) return true;
+    return false;
+  }
+
+  // (Re)build the per-membership forms. preserveDirty keeps rows the user has
+  // edited but not committed, so a background reload never wipes their input.
+  private buildPlacementForms(person: AccountPerson, preserveDirty: boolean): void {
+    const next = new Map<string, PlacementForm>();
+    for (const m of person.memberships) {
+      const existing = this.placementForms.get(m.companyId);
+      if (preserveDirty && existing?.dirty) {
+        next.set(m.companyId, existing);
+        continue;
+      }
+      next.set(m.companyId, this.fb.nonNullable.group({
+        roleId: [m.roleId || ''],
+        departmentId: [m.departmentId || ''],
+        positionId: [m.positionId || ''],
+      }));
+    }
+    this.placementForms = next;
+    if (!preserveDirty || !this.placeAddForm.dirty) {
+      this.placeAddForm.reset({ companyId: '', roleId: '' });
+    }
+  }
+
+  onUpdatePlacement(person: AccountPerson, companyId: string): void {
+    this.clearMessages();
+    const form = this.placementForms.get(companyId);
+    if (!form) return;
+    const value = form.getRawValue();
+    if (!value.roleId) {
+      this.errorMessage.set('Please choose a role.');
+      return;
+    }
+    this.pendingKey.set(`role:${person.id}:${companyId}`);
+    this.authService.assignCompanyUserRole(person.id, value.roleId, companyId, {
+      departmentId: value.departmentId || null,
+      positionId: value.positionId || null,
+    }).subscribe({
+      next: (res) => {
+        this.successMessage.set(res.message || '✅ Role updated.');
+        this.pendingKey.set(null);
+        form.markAsPristine(); // committed - the reload re-seeds it with fresh data
+        this.returnScroll.remember(TenantUsersComponent.LIST_PATH, person.id);
+        this.load();
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to update role.');
+        this.pendingKey.set(null);
+      },
+    });
+  }
+
+  onRemove(person: AccountPerson, companyId: string, companyName?: string): void {
+    this.clearMessages();
+    if (!window.confirm(`Remove ${person.email} from ${companyName || 'this company'}? They keep their account and access to other companies.`)) {
+      return;
+    }
+    this.pendingKey.set(`rm:${person.id}:${companyId}`);
+    this.authService.revokeCompanyUser(person.id, companyId).subscribe({
+      next: (res) => {
+        this.successMessage.set(res.message || '✅ Removed from company.');
+        this.pendingKey.set(null);
+        this.placementForms.delete(companyId);
+        this.returnScroll.remember(TenantUsersComponent.LIST_PATH, person.id);
+        this.load();
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to remove.');
+        this.pendingKey.set(null);
+      },
+    });
+  }
+
+  onAddToCompany(person: AccountPerson): void {
+    this.clearMessages();
+    const value = this.placeAddForm.getRawValue();
+    if (!value.companyId) {
+      this.errorMessage.set('Choose a company to add them to.');
+      return;
+    }
+    this.pendingKey.set(`add:${person.id}`);
+    this.authService.addCollaborator(person.email, value.roleId || undefined, value.companyId).subscribe({
+      next: (res) => {
+        this.successMessage.set(res.message || '✅ Added to company.');
+        this.placeAddForm.reset({ companyId: '', roleId: '' });
+        this.pendingKey.set(null);
+        this.returnScroll.remember(TenantUsersComponent.LIST_PATH, person.id);
+        this.load();
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to add to company.');
+        this.pendingKey.set(null);
+      },
+    });
+  }
+
+  // ---------- Create / invite ----------
 
   isPending(key: string): boolean {
     return this.pendingKey() === key;
@@ -246,7 +380,7 @@ export class TenantUsersComponent implements OnInit {
 
   openCreate(): void {
     this.clearMessages();
-    this.createForm.reset({ email: '', password: '', fullName: '', phone: '', companyId: '', roleId: '' });
+    this.createForm.reset({ email: '', password: '', fullName: '', phone: '', companyId: '', roleId: '', departmentId: '', positionId: '' });
     this.createDialogOpen.set(true);
   }
 
@@ -262,76 +396,6 @@ export class TenantUsersComponent implements OnInit {
 
   cancelInvite(): void {
     this.inviteDialogOpen.set(false);
-  }
-
-  onChangeRole(userId: string, companyId: string): void {
-    this.clearMessages();
-    const key = `${userId}:${companyId}`;
-    const roleId = this.roleSel[key];
-    if (!roleId) {
-      this.errorMessage.set('Please choose a role.');
-      return;
-    }
-    this.pendingKey.set(`role:${userId}:${companyId}`);
-    this.authService.assignCompanyUserRole(userId, roleId, companyId, {
-      departmentId: this.deptSel[key] || null,
-      positionId: this.posSel[key] || null,
-    }).subscribe({
-      next: (res) => {
-        this.successMessage.set(res.message || '✅ Role updated.');
-        this.pendingKey.set(null);
-        this.returnScroll.remember(TenantUsersComponent.LIST_PATH, userId);
-        this.load();
-      },
-      error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to update role.');
-        this.pendingKey.set(null);
-      },
-    });
-  }
-
-  onRemove(person: AccountPerson, companyId: string, companyName?: string): void {
-    this.clearMessages();
-    if (!window.confirm(`Remove ${person.email} from ${companyName || 'this company'}? They keep their account and access to other companies.`)) {
-      return;
-    }
-    this.pendingKey.set(`rm:${person.id}:${companyId}`);
-    this.authService.revokeCompanyUser(person.id, companyId).subscribe({
-      next: (res) => {
-        this.successMessage.set(res.message || '✅ Removed from company.');
-        this.pendingKey.set(null);
-        this.returnScroll.remember(TenantUsersComponent.LIST_PATH, person.id);
-        this.load();
-      },
-      error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to remove.');
-        this.pendingKey.set(null);
-      },
-    });
-  }
-
-  onAddToCompany(person: AccountPerson): void {
-    this.clearMessages();
-    const companyId = this.addCompany[person.id];
-    if (!companyId) {
-      this.errorMessage.set('Choose a company to add them to.');
-      return;
-    }
-    this.pendingKey.set(`add:${person.id}`);
-    this.authService.addCollaborator(person.email, this.addRole[person.id] || undefined, companyId).subscribe({
-      next: (res) => {
-        this.successMessage.set(res.message || '✅ Added to company.');
-        this.addCompany[person.id] = '';
-        this.addRole[person.id] = '';
-        this.pendingKey.set(null);
-        this.returnScroll.remember(TenantUsersComponent.LIST_PATH, person.id);
-        this.load();
-      },
-      error: (err) => {
-        this.errorMessage.set(err.error?.message || 'Failed to add to company.');
-        this.pendingKey.set(null);
-      },
-    });
   }
 
   onCreateUser(): void {
@@ -350,6 +414,8 @@ export class TenantUsersComponent implements OnInit {
           fullName: value.fullName.trim(),
           phone: value.phone.trim() || undefined,
           roleId: value.roleId || undefined,
+          departmentId: value.departmentId || undefined,
+          positionId: value.positionId || undefined,
         },
         value.companyId,
       )
