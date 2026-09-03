@@ -1910,6 +1910,12 @@ exports.voidLedger = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const row = await Ledger.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Document not found.' });
+        // Data scope guards every void branch - draft AND posted-CN reversal
+        // (hole found in the RBAC test 2026-09-03).
+        const { canModifyRecord } = require('../../platform/serviceContext');
+        if (!(await canModifyRecord(req, row))) {
+            return res.status(403).json({ message: 'This document belongs to another user (outside your data scope).' });
+        }
         // Debit documents (Invoice / Debit Note since its slice 2026-09-01):
         // draft-only void (posted = Credit Note territory). CN DRAFTS void
         // the same way; a POSTED CN falls through to the reversal path below
@@ -1960,14 +1966,17 @@ exports.voidReceipt = async (req, res) => {
         const row = await Receipt.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Receipt not found.' });
 
+        // Data scope guards BOTH branches - a posted void is as much a
+        // modification as a draft void (hole found in the RBAC test 2026-09-03).
+        const { canModifyRecord } = require('../../platform/serviceContext');
+        if (!(await canModifyRecord(req, row))) {
+            return res.status(403).json({ message: 'This receipt belongs to another user (outside your data scope).' });
+        }
+
         // Receipt DRAFTS void like ledger drafts (never financial): a REASON
         // is kept for audit - the gapless-series trail (receipt lifecycle
         // 2026-08-20). Posted receipts keep the allocation-free flip below.
         if (row.docKind === 'receipt' && row.status === 'draft') {
-            const { canModifyRecord } = require('../../platform/serviceContext');
-            if (!(await canModifyRecord(req, row))) {
-                return res.status(403).json({ message: 'This receipt belongs to another user (outside your data scope).' });
-            }
             const reason = str(req.body.reason);
             if (!reason) return res.status(400).json({ message: 'A void reason is required (kept for audit).' });
             row.status = 'void';
@@ -2002,6 +2011,13 @@ exports.voidDeposit = async (req, res) => {
         const row = await Deposit.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Deposit not found.' });
 
+        // Data scope guards BOTH branches - a posted void is as much a
+        // modification as a draft void (hole found in the RBAC test 2026-09-03).
+        const { canModifyRecord } = require('../../platform/serviceContext');
+        if (!(await canModifyRecord(req, row))) {
+            return res.status(403).json({ message: 'This deposit belongs to another user (outside your data scope).' });
+        }
+
         // Deposit DRAFTS void like the other document drafts (never
         // financial): a REASON is kept for audit - the gapless-series trail.
         // Posted deposits keep the collections-free flip below.
@@ -2009,10 +2025,6 @@ exports.voidDeposit = async (req, res) => {
             return res.status(400).json({ message: 'This deposit is awaiting approval - it must be approved or rejected first.' });
         }
         if (row.status === 'draft') {
-            const { canModifyRecord } = require('../../platform/serviceContext');
-            if (!(await canModifyRecord(req, row))) {
-                return res.status(403).json({ message: 'This deposit belongs to another user (outside your data scope).' });
-            }
             const reason = str(req.body.reason);
             if (!reason) return res.status(400).json({ message: 'A void reason is required (kept for audit).' });
             row.status = 'void';

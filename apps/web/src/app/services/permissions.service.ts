@@ -65,4 +65,23 @@ export class PermissionsService {
     if (!menu.actions) return true;
     return menu.actions[action] !== false;
   }
+
+  // Does the user HOLD a menu grant covering `url` (exact route first, then
+  // progressively dropping trailing segments so detail routes inherit the
+  // listing's grant)? STRICT like canOnMenu - no permissive fallback for
+  // uncatalogued screens; admins hold everything implicitly. Powers the route
+  // guard's menu-level check: without it a deep link renders the screen shell
+  // (empty state + New button) even though every API call 403s (found in the
+  // RBAC test 2026-09-03).
+  hasMenu(url: string): boolean {
+    if (this.access.isSystemAdmin() || this.access.isTenantAdmin()) return true;
+    const menus = this.grantedMenus();
+    const path = url.split('?')[0].split('#')[0];
+    const segments = path.split('/').filter(Boolean);
+    for (let take = segments.length; take >= 1; take--) {
+      const candidate = '/' + segments.slice(0, take).join('/');
+      if (menus.some((m) => m.route === candidate)) return true;
+    }
+    return false;
+  }
 }
