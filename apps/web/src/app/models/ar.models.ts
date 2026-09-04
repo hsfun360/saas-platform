@@ -432,6 +432,9 @@ export interface ArInterestDetail {
   overdueAmount: string;
   overdueDays: number;
   interestAmount: string;
+  // Pre-post maintenance: excluded lines stay visible (struck through) and
+  // never contribute to the header totals or the posted Debit Note.
+  isExcluded?: boolean;
 }
 
 export type ArStatementCategory = 'individual' | 'corporate' | 'nominee' | 'other';

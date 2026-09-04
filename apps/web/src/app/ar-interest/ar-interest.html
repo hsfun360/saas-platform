@@ -142,23 +142,34 @@
           @if (detailGen()?.currencyCode) { Amounts in {{ detailGen()?.currencyCode }}. }
           Interest = overdue × rate, rounded per line; the posted total equals this drill-down exactly.
         </p>
-        <div class="ai-lines">
+        <div class="ai-lines" [class.ai-lines--maintain]="detailGen()?.status === 'pending'">
           <div class="ai-line ai-line--head">
             <span>Document</span><span>Due</span><span>Days late</span><span class="ai-num">Overdue</span><span class="ai-num">Interest</span>
+            @if (detailGen()?.status === 'pending') { <span></span> }
           </div>
           @for (d of details(); track d.id) {
-            <div class="ai-line">
+            <div class="ai-line" [class.ai-line--excluded]="d.isExcluded">
               <span>{{ d.docNo }}</span>
               <span>{{ d.dueDate | localDate }}</span>
               <span>{{ d.overdueDays }}</span>
               <span class="ai-num">{{ d.overdueAmount }}</span>
               <span class="ai-num">{{ d.interestAmount }}</span>
+              @if (detailGen()?.status === 'pending') {
+                <span class="ai-line__act">
+                  <button *appCan="'edit'" type="button" class="ai-act-btn" (click)="onToggleExcluded(d)"
+                          [disabled]="maintaining()"
+                          [attr.aria-label]="(d.isExcluded ? 'Restore ' : 'Exclude ') + d.docNo">
+                    <span class="material-icons" aria-hidden="true">{{ d.isExcluded ? 'check_circle' : 'block' }}</span>
+                  </button>
+                </span>
+              }
             </div>
           }
           <div class="ai-line ai-line--total">
-            <span>Total</span><span></span><span></span>
+            <span>Total — {{ includedCount() }} of {{ details().length }} line(s) included</span><span></span><span></span>
             <span class="ai-num">{{ detailGen()?.totalOverdue }}</span>
             <span class="ai-num">{{ detailGen()?.interestAmount }}</span>
+            @if (detailGen()?.status === 'pending') { <span></span> }
           </div>
         </div>
       }

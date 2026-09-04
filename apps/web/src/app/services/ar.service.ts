@@ -331,6 +331,18 @@ export class ArService {
     return this.http.post<{ message: string }>(`${this.base}/interest-generations/${id}/cancel`, {});
   }
 
+  setInterestDetailExcluded(genId: string, detailId: string, excluded: boolean): Observable<{
+    message: string;
+    generation: { id: string; totalOverdue: string; interestAmount: string };
+    detail: { id: string; isExcluded: boolean };
+  }> {
+    return this.http.patch<{
+      message: string;
+      generation: { id: string; totalOverdue: string; interestAmount: string };
+      detail: { id: string; isExcluded: boolean };
+    }>(`${this.base}/interest-generations/${genId}/details/${detailId}`, { excluded });
+  }
+
   // --- AR settings + statement generation (its own screen) ---
 
   getArSetting(): Observable<ArSettingResponse> {

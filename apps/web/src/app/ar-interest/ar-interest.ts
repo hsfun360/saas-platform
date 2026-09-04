@@ -69,6 +69,8 @@ export class ArInterestComponent implements OnInit {
   readonly detailLoading = signal(false);
   readonly detailGen = signal<ArInterestGeneration | null>(null);
   readonly details = signal<ArInterestDetail[]>([]);
+  readonly maintaining = signal(false);
+  readonly includedCount = computed(() => this.details().filter((d) => !d.isExcluded).length);
 
   ngOnInit(): void {
     const m = this.thisMonth();
@@ -200,6 +202,30 @@ export class ArInterestComponent implements OnInit {
   }
   closeDetail(): void {
     this.detailOpen.set(false);
+  }
+
+  // Pre-post maintenance: exclude/restore one line of a PENDING generation.
+  // The response carries the recomputed header totals - patch them into the
+  // dialog header AND the listing row so the summary equals the drill-down.
+  onToggleExcluded(detail: ArInterestDetail): void {
+    const gen = this.detailGen();
+    if (!gen || gen.status !== 'pending' || this.maintaining()) return;
+    this.clearMessages();
+    this.maintaining.set(true);
+    this.service.setInterestDetailExcluded(gen.id, detail.id, !detail.isExcluded).subscribe({
+      next: (res) => {
+        this.maintaining.set(false);
+        this.successMessage.set(res.message);
+        this.details.update((list) => list.map((d) => d.id === detail.id ? { ...d, isExcluded: res.detail.isExcluded } : d));
+        const patch = { totalOverdue: res.generation.totalOverdue, interestAmount: res.generation.interestAmount };
+        this.detailGen.update((g) => g ? { ...g, ...patch } : g);
+        this.rows.update((list) => list.map((r) => r.id === gen.id ? { ...r, ...patch } : r));
+      },
+      error: (err) => {
+        this.maintaining.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to update the line.');
+      },
+    });
   }
 
   private clearMessages(): void {

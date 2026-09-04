@@ -169,6 +169,57 @@ exports.get = async (req, res) => {
     }
 };
 
+// PATCH /api/ar/interest-generations/:id/details/:detailId - pre-post
+// maintenance (approved 2026-09-04): exclude a line from a PENDING run, or
+// restore it (body {excluded: true|false}). Header totals recompute over the
+// included lines inside the same transaction, so the summary always equals
+// the drill-down.
+exports.setDetailExcluded = async (req, res) => {
+    try {
+        const { companyId, userId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const gen = await InterestGeneration.findOne({ where: { id: req.params.id, companyId } });
+        if (!gen) return res.status(404).json({ message: 'Interest generation not found.' });
+        if (gen.status !== 'pending') {
+            return res.status(400).json({ message: `Only a pending generation can be maintained (this one is ${gen.status}).` });
+        }
+        const detail = await InterestGenerationDetail.findOne({
+            where: { id: req.params.detailId, interestGenerationId: gen.id, companyId },
+        });
+        if (!detail) return res.status(404).json({ message: 'Interest detail line not found.' });
+        const excluded = req.body.excluded === true;
+        if (detail.isExcluded === excluded) {
+            return res.status(400).json({ message: excluded ? 'This line is already excluded.' : 'This line is not excluded.' });
+        }
+
+        await sequelize.transaction(async (t) => {
+            detail.isExcluded = excluded;
+            detail.excludedBy = excluded ? userId : null;
+            detail.excludedAt = excluded ? new Date() : null;
+            await detail.save({ transaction: t });
+            // Recompute the header from the INCLUDED lines (sum of the
+            // per-line rounded amounts - the posting formula's source).
+            const included = await InterestGenerationDetail.findAll({
+                where: { interestGenerationId: gen.id, isExcluded: false },
+                transaction: t,
+            });
+            const sumC = (field) => included.reduce((s, d) => s + posting.cents(d[field]), 0);
+            gen.totalOverdue = posting.money(sumC('overdueAmount'));
+            gen.interestAmount = posting.money(sumC('interestAmount'));
+            gen.updatedBy = userId;
+            await gen.save({ transaction: t });
+        });
+        res.status(200).json({
+            message: excluded ? `${detail.docNo} excluded from this run.` : `${detail.docNo} restored into this run.`,
+            generation: { id: gen.id, totalOverdue: gen.totalOverdue, interestAmount: gen.interestAmount },
+            detail: { id: detail.id, isExcluded: detail.isExcluded },
+        });
+    } catch (err) {
+        console.error('Error maintaining interest detail:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 // Confirm ONE header: post the summary Debit Note (INTEREST transaction type,
 // tax per that catalog row) and stamp postedLedgerId. Shared by the single and
 // bulk endpoints.
@@ -180,6 +231,9 @@ async function confirmOne(req, companyId, id, interestType, stamps) {
     if (!debtor) return { id, ok: false, message: 'Debtor not found.' };
 
     const amountC = posting.cents(gen.interestAmount);
+    // Every line excluded leaves nothing to post - cancel the header instead
+    // (pre-post maintenance, approved 2026-09-04).
+    if (amountC <= 0) return { id, ok: false, message: 'Every line is excluded - nothing to post. Cancel this debtor instead.' };
     let amounts = { netC: amountC, taxC: 0, grossC: amountC, taxSchemeCode: null, taxRate: null };
     let taxQuote = null;
     if (interestType.taxSchemeCode) {

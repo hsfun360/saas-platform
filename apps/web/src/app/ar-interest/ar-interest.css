@@ -106,6 +106,47 @@
 
 .ai-num { text-align: right; }
 
+/* Pre-post maintenance (2026-09-04): pending runs gain a narrow action column
+   for the per-line exclude/restore toggle; excluded lines stay visible but
+   muted + struck through (they no longer count toward the totals). */
+.ai-lines--maintain .ai-line {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1fr) 44px;
+  align-items: center;
+}
+
+.ai-line--excluded span:not(.ai-line__act) {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.ai-line__act {
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.ai-act-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ai-act-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.ai-act-btn:disabled { opacity: 0.5; cursor: default; }
+
+.ai-act-btn .material-icons { font-size: 18px; }
+
 /* Multicurrency (step 5): the header currency chip on foreign-account rows. */
 .ai-ccy-chip {
   display: inline-block;

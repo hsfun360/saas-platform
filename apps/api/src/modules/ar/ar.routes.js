@@ -181,6 +181,7 @@ router.use(
 router.get('/interest-generations', requireMenuAction('/ar/interest'), periodicController.list);
 router.post('/interest-generations', requireMenuAction('/ar/interest'), periodicController.generate);
 router.get('/interest-generations/:id', requireMenuAction('/ar/interest'), periodicController.get);
+router.patch('/interest-generations/:id/details/:detailId', requireMenuAction('/ar/interest'), periodicController.setDetailExcluded);
 router.post('/interest-generations/confirm', requireMenuAction('/ar/interest'), periodicController.confirm);
 router.post('/interest-generations/:id/cancel', requireMenuAction('/ar/interest'), periodicController.cancel);
 

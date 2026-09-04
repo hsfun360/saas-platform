@@ -56,6 +56,17 @@ const InterestGenerationDetail = sequelize.define('InterestGenerationDetail', {
         type: DataTypes.DECIMAL(21, 2),
         allowNull: false,
     },
+    // Pre-post maintenance (approved 2026-09-04): a line can be EXCLUDED from
+    // a pending run (and restored) instead of hard-deleted - the audit keeps
+    // what was considered and removed. Excluded lines never contribute to the
+    // header totals or the posted Debit Note.
+    isExcluded: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
+    excludedBy: { type: DataTypes.UUID, allowNull: true },
+    excludedAt: { type: DataTypes.DATE, allowNull: true },
 }, {
     schema: AR_SCHEMA,
     tableName: 'InterestGenerationDetail',
