@@ -275,44 +275,48 @@
   @if (moduleDialogOpen()) {
     <app-dialog #moduleDlg variant="drawer" [title]="editingModuleId() ? 'Edit module' : 'Add module'" [busy]="savingModule()" [dirty]="moduleForm.dirty"
                 discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="cancelModuleEdit()">
-      <form id="moduleForm" [formGroup]="moduleForm" (ngSubmit)="saveModule()">
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
-          <label for="mod-code" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Code *</label>
-          <input id="mod-code" type="text" formControlName="code" placeholder="e.g. GOLF" maxlength="30"
-                 style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary); text-transform: uppercase;">
-          @if (editingModuleId()) {
-            <span style="color: var(--text-muted); font-size: var(--font-caption);">The code is the module's frozen identity (entitlements, licensing) and cannot be changed.</span>
-          } @else {
-            <span style="color: var(--text-muted); font-size: var(--font-caption);">Machine identity, set once: letters, digits and underscores (e.g. GOLF). Names below stay freely renamable.</span>
-          }
-          @if (moduleForm.controls.code.touched && moduleForm.controls.code.invalid) {
-            <span role="alert" style="color: var(--danger-text); font-size: var(--font-caption);">A code is required: letters/digits/underscores, starting with a letter.</span>
-          }
+      <!-- Standard .form-group fields (no inline field styles): the global
+           field rules own the look, focus highlight and the disabled
+           display-only treatment (the frozen Code in edit mode). -->
+      <form id="moduleForm" [formGroup]="moduleForm" (ngSubmit)="saveModule()" class="saas-form" style="padding: 0;">
+        <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
+          <div class="form-group">
+            <label for="mod-code">Code <span class="required">*</span></label>
+            <input id="mod-code" type="text" formControlName="code" placeholder="e.g. GOLF" maxlength="30"
+                   autocomplete="off" style="text-transform: uppercase;">
+            @if (editingModuleId()) {
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The code is the module's frozen identity (entitlements, licensing) and cannot be changed.</p>
+            } @else {
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Machine identity, set once: letters, digits and underscores (e.g. GOLF). Names below stay freely renamable.</p>
+            }
+            @if (moduleForm.controls.code.touched && moduleForm.controls.code.invalid) {
+              <p class="field-error" role="alert">A code is required: letters/digits/underscores, starting with a letter.</p>
+            }
+          </div>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
-          <label for="mod-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Name *</label>
-          <input id="mod-name" type="text" formControlName="name" placeholder="e.g. Golf Management"
-                 style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
-          @if (moduleForm.controls.name.touched && moduleForm.controls.name.invalid) {
-            <span role="alert" style="color: var(--danger-text); font-size: var(--font-caption);">A module name is required.</span>
-          }
+        <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
+          <div class="form-group">
+            <label for="mod-name">Name <span class="required">*</span></label>
+            <input id="mod-name" type="text" formControlName="name" placeholder="e.g. Golf Management" autocomplete="off">
+            @if (moduleForm.controls.name.touched && moduleForm.controls.name.invalid) {
+              <p class="field-error" role="alert">A module name is required.</p>
+            }
+          </div>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
-          <label for="mod-icon" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">
-            Material icon <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional)</span>
-          </label>
-          <input id="mod-icon" type="text" formControlName="icon" placeholder="e.g. sports_golf"
-                 style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
+        <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
+          <div class="form-group">
+            <label for="mod-icon">Material icon <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional)</span></label>
+            <input id="mod-icon" type="text" formControlName="icon" placeholder="e.g. sports_golf" autocomplete="off">
+          </div>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
-          <label for="mod-desc" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">
-            Description <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional)</span>
-          </label>
-          <textarea id="mod-desc" formControlName="description" rows="2" wrap="off" placeholder="Short description"
-                    style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary); font-family: inherit; line-height: 1.4; resize: vertical;"></textarea>
+        <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
+          <div class="form-group">
+            <label for="mod-desc">Description <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional)</span></label>
+            <textarea id="mod-desc" formControlName="description" rows="2" wrap="off" placeholder="Short description"></textarea>
+          </div>
         </div>
 
         <!-- No "Landing route" field: switching systems always lands on My
@@ -335,12 +339,11 @@
           } @else {
             <div formArrayName="translations">
               @for (row of moduleTranslationControls; track row.controls.languageCode.value; let i = $index) {
-                <div [formGroupName]="i" style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-sm);">
-                  <label [attr.for]="'mod-tr-' + row.controls.languageCode.value" style="font-size: var(--font-caption); color: var(--text-secondary);">{{ row.controls.label.value }} ({{ row.controls.languageCode.value }})</label>
+                <div [formGroupName]="i" class="form-group" style="margin-bottom: var(--space-sm);">
+                  <label [attr.for]="'mod-tr-' + row.controls.languageCode.value">{{ row.controls.label.value }} ({{ row.controls.languageCode.value }})</label>
                   <input [id]="'mod-tr-' + row.controls.languageCode.value" type="text" formControlName="name" maxlength="100"
                          [placeholder]="'Name in ' + row.controls.label.value"
-                         [attr.aria-invalid]="showError(row.controls.name)" [attr.aria-describedby]="'mod-tr-' + row.controls.languageCode.value + '-err'"
-                         style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
+                         [attr.aria-invalid]="showError(row.controls.name)" [attr.aria-describedby]="'mod-tr-' + row.controls.languageCode.value + '-err'">
                   @if (showError(row.controls.name)) {
                     <p [id]="'mod-tr-' + row.controls.languageCode.value + '-err'" class="field-error" role="alert">Name is too long.</p>
                   }
@@ -364,58 +367,59 @@
   @if (menuDialogOpen()) {
     <app-dialog #menuDlg variant="drawer" [title]="editingMenuId() ? 'Edit menu' : 'Add menu'" [busy]="savingMenu()" [dirty]="menuForm.dirty"
                 discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="cancelMenuEdit()">
-      <form id="menuForm" [formGroup]="menuForm" (ngSubmit)="saveMenu()">
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
-          <label for="menu-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Name *</label>
-          <input id="menu-name" type="text" formControlName="name" placeholder="e.g. Tee Time Setup"
-                 style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
-          @if (menuForm.controls.name.touched && menuForm.controls.name.invalid) {
-            <span role="alert" style="color: var(--danger-text); font-size: var(--font-caption);">A menu name is required.</span>
-          }
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
-          <label for="menu-route" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Route *</label>
-          <input id="menu-route" type="text" formControlName="route" placeholder="e.g. /golf/tee-times"
-                 style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
-          @if (menuForm.controls.route.touched && menuForm.controls.route.invalid) {
-            <span role="alert" style="color: var(--danger-text); font-size: var(--font-caption);">A route is required.</span>
-          }
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
-          <label for="menu-description" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">
-            Description <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional — what the screen is for)</span>
-          </label>
-          <textarea id="menu-description" formControlName="description" rows="2" wrap="off" maxlength="255" placeholder="e.g. Define the bookable tee time slots per course"
-                    [attr.aria-invalid]="showError(menuForm.controls.description)" aria-describedby="menu-description-err"
-                    style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary); font-family: inherit; line-height: 1.4; resize: vertical;"></textarea>
-          <span style="font-size: var(--font-caption); color: var(--text-muted);">Shown under the menu name when assigning role permissions.</span>
-          @if (showError(menuForm.controls.description)) {
-            <p id="menu-description-err" class="field-error" role="alert">Description is too long (max 255 characters).</p>
-          }
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-          <label for="menu-icon" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">
-            Material icon <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional)</span>
-          </label>
-          <input id="menu-icon" type="text" formControlName="icon" placeholder="e.g. event"
-                 style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-top: var(--space-md);">
-          <label for="menu-parent" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">
-            Parent <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional — nest this under another menu)</span>
-          </label>
-          <select id="menu-parent" formControlName="parentId"
-                  style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
-            <option value="">Top level (no parent)</option>
-            @for (p of parentOptions(); track p.id) {
-              <option [value]="p.id">{{ p.label }}</option>
+      <!-- Standard .form-group fields (no inline field styles) - see the
+           module dialog note above. -->
+      <form id="menuForm" [formGroup]="menuForm" (ngSubmit)="saveMenu()" class="saas-form" style="padding: 0;">
+        <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
+          <div class="form-group">
+            <label for="menu-name">Name <span class="required">*</span></label>
+            <input id="menu-name" type="text" formControlName="name" placeholder="e.g. Tee Time Setup" autocomplete="off">
+            @if (menuForm.controls.name.touched && menuForm.controls.name.invalid) {
+              <p class="field-error" role="alert">A menu name is required.</p>
             }
-          </select>
-          <span style="font-size: var(--font-caption); color: var(--text-muted);">A menu with children shows as a collapsible section in the sidebar.</span>
+          </div>
+        </div>
+
+        <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
+          <div class="form-group">
+            <label for="menu-route">Route <span class="required">*</span></label>
+            <input id="menu-route" type="text" formControlName="route" placeholder="e.g. /golf/tee-times" autocomplete="off">
+            @if (menuForm.controls.route.touched && menuForm.controls.route.invalid) {
+              <p class="field-error" role="alert">A route is required.</p>
+            }
+          </div>
+        </div>
+
+        <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
+          <div class="form-group">
+            <label for="menu-description">Description <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional — what the screen is for)</span></label>
+            <textarea id="menu-description" formControlName="description" rows="2" wrap="off" maxlength="255" placeholder="e.g. Define the bookable tee time slots per course"
+                      [attr.aria-invalid]="showError(menuForm.controls.description)" aria-describedby="menu-description-err"></textarea>
+            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Shown under the menu name when assigning role permissions.</p>
+            @if (showError(menuForm.controls.description)) {
+              <p id="menu-description-err" class="field-error" role="alert">Description is too long (max 255 characters).</p>
+            }
+          </div>
+        </div>
+
+        <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
+          <div class="form-group">
+            <label for="menu-icon">Material icon <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional)</span></label>
+            <input id="menu-icon" type="text" formControlName="icon" placeholder="e.g. event" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
+          <div class="form-group">
+            <label for="menu-parent">Parent <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional — nest this under another menu)</span></label>
+            <select id="menu-parent" formControlName="parentId">
+              <option value="">Top level (no parent)</option>
+              @for (p of parentOptions(); track p.id) {
+                <option [value]="p.id">{{ p.label }}</option>
+              }
+            </select>
+            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">A menu with children shows as a collapsible section in the sidebar.</p>
+          </div>
         </div>
 
         <div style="margin-top: var(--space-md); border-top: 1px solid var(--border); padding-top: var(--space-md);">
@@ -426,20 +430,18 @@
           } @else {
             <div formArrayName="translations">
               @for (row of menuTranslationControls; track row.controls.languageCode.value; let i = $index) {
-                <div [formGroupName]="i" style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-sm);">
-                  <label [attr.for]="'menu-tr-' + row.controls.languageCode.value" style="font-size: var(--font-caption); color: var(--text-secondary);">{{ row.controls.label.value }} ({{ row.controls.languageCode.value }})</label>
+                <div [formGroupName]="i" class="form-group" style="margin-bottom: var(--space-sm); gap: var(--space-xs);">
+                  <label [attr.for]="'menu-tr-' + row.controls.languageCode.value">{{ row.controls.label.value }} ({{ row.controls.languageCode.value }})</label>
                   <input [id]="'menu-tr-' + row.controls.languageCode.value" type="text" formControlName="name" maxlength="100"
                          [placeholder]="'Name in ' + row.controls.label.value"
-                         [attr.aria-invalid]="showError(row.controls.name)" [attr.aria-describedby]="'menu-tr-' + row.controls.languageCode.value + '-err'"
-                         style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
+                         [attr.aria-invalid]="showError(row.controls.name)" [attr.aria-describedby]="'menu-tr-' + row.controls.languageCode.value + '-err'">
                   @if (showError(row.controls.name)) {
                     <p [id]="'menu-tr-' + row.controls.languageCode.value + '-err'" class="field-error" role="alert">Name is too long.</p>
                   }
                   <input [id]="'menu-tr-desc-' + row.controls.languageCode.value" type="text" formControlName="description" maxlength="255"
                          [attr.aria-label]="'Description in ' + row.controls.label.value"
                          [placeholder]="'Description in ' + row.controls.label.value"
-                         [attr.aria-invalid]="showError(row.controls.description)" [attr.aria-describedby]="'menu-tr-desc-' + row.controls.languageCode.value + '-err'"
-                         style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
+                         [attr.aria-invalid]="showError(row.controls.description)" [attr.aria-describedby]="'menu-tr-desc-' + row.controls.languageCode.value + '-err'">
                   @if (showError(row.controls.description)) {
                     <p [id]="'menu-tr-desc-' + row.controls.languageCode.value + '-err'" class="field-error" role="alert">Description is too long.</p>
                   }

@@ -661,6 +661,24 @@ textarea:focus {
   box-shadow: 0 0 0 3px var(--focus-glow);
 }
 
+/* ONE display-only standard for form FIELDS, app-wide: a disabled
+   input/select/textarea reads as inert - sunken fill, muted text, soft
+   border, no-entry cursor - so a frozen value (Module.code, an auto-issued
+   number, a picked class) is visibly not editable instead of looking like
+   any other field. Element-level like the focus rule above; inline
+   background/color styles on a field would defeat it, so fields must not
+   inline those (compose .form-group instead). */
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: var(--surface-sunken);
+  border-color: var(--border);
+  color: var(--text-muted);
+  -webkit-text-fill-color: var(--text-muted); /* Safari ignores color on disabled */
+  opacity: 1; /* mobile Safari otherwise dims to unreadable */
+  cursor: not-allowed;
+}
+
 /* ============================================================== */
 /* Master–detail "return to row" flash                            */
 /* Applied by ScrollReturnService to the card the user came back  */

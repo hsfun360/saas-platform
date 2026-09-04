@@ -783,6 +783,13 @@ Every option carries a one-line consequence caption (show-expected-results) and 
 Mechanics stay per the single-dialog standard: the picker is a VIEW inside the one `<app-dialog>` (mode signal + `@if`/`@switch`), the footer shows Cancel only on the picker step, the chosen class then renders in the form as a disabled input with a Change button gated on pristine forms.
 Reference implementations: `memberships.html` (Individual/Corporate) and `ar-transaction-types.html` (document classes).
 
+#### Display-only fields - disabled inputs read as inert
+
+A value shown in a form that the user cannot edit (a frozen identity like `Module.code`, an auto-issued number, a picked class) renders as a **disabled input** - never a chip, plain text, or a normal-looking field.
+ONE global element-level rule in `styles.css` (`input:disabled, select:disabled, textarea:disabled`) gives every disabled field the inert look: `--surface-sunken` fill, `--text-muted` text, soft border, `cursor: not-allowed`.
+For this to work the field must not inline `background`/`color` styles - compose `.form-group` (inline styles beat stylesheets; that is exactly how the Modules & Menus Code field once looked editable while disabled).
+References: Modules & Menus (Code in edit mode), Other Debtor ("Issued automatically"), AR Transaction Type (Transaction Class).
+
 #### Field focus highlight - ON the field, never a floating ring
 
 When a form field (input / select / textarea) receives focus, the highlight sits **on the field itself**: the border turns `--brand` and a soft `--focus-glow` halo hugs that border.
