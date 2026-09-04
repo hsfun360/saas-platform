@@ -51,11 +51,12 @@ function categoryDto(c, canModify = true, modules = []) {
     };
 }
 
-// Module id -> name for every TENANT module, so stored rows render even when
-// the module is no longer subscribed (or no longer a registered consumer).
+// Module id -> display name for every TENANT module, so stored rows render
+// even when the module is no longer subscribed (or no longer a registered
+// consumer). The catalog is keyed by code -> { id, name }.
 async function moduleNamesById() {
     const catalog = await getTenantModuleCatalog();
-    return new Map([...catalog.entries()].map(([name, id]) => [id, name]));
+    return new Map([...catalog.values()].map(({ id, name }) => [id, name]));
 }
 
 function moduleRowDto(row, names) {

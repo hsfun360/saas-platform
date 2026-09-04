@@ -29,7 +29,7 @@ const arCurrency = require('./arCurrency.service');
 // Every gateway read is scoped to AR's own module name (2026-08-27): a company
 // can run a dimension on Golf or POS without it ever reaching an AR clerk.
 const dimensionGateway = require('../../platform/dimensionGateway');
-const AR_MODULE = 'Account Receivable';
+const AR_MODULE = 'AR'; // frozen Module.code (dimension gateway + entitlement key)
 
 // The rate resolution for a draft/entry body: { fx } or { error } (a 400
 // message naming what to do - no rate in the table, malformed keyed rate).

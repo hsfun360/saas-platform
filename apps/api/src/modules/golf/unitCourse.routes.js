@@ -5,7 +5,7 @@ const holeController = require('./unitCourseHole.controller');
 const teeBoxController = require('./unitCourseTeeBox.controller');
 
 // Mounted at /api/golf/unit-courses. The parent golf router already applies
-// verifyToken (who) + requireModule('Golf Management') (entitled), so these
+// verifyToken (who) + requireModule('GOLF') (entitled), so these
 // handlers only deal with the active company's unit-course master file.
 router.get('/meta', controller.getMeta);
 router.get('/', controller.listUnitCourses);

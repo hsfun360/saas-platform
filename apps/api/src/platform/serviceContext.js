@@ -74,12 +74,15 @@ function getCompanyBasics(companyId) {
     });
 }
 
-// The tenant module catalogue (name -> id), once per request.
+// The tenant module catalogue (code -> { id, name }), once per request. Keyed
+// by the FROZEN Module.code (approved 2026-09-04) - display names are
+// renamable/localizable and must never gate entitlement; `name` rides along
+// for human-readable messages and listings.
 function getTenantModuleCatalog() {
     return requestMemo('tenantModuleCatalog', async () => {
         const Module = require('../modules/saas/module.model');
-        const rows = await Module.findAll({ where: { audience: 'tenant' }, attributes: ['id', 'name'] });
-        return new Map(rows.map((m) => [m.name, m.id]));
+        const rows = await Module.findAll({ where: { audience: 'tenant' }, attributes: ['id', 'name', 'code'] });
+        return new Map(rows.map((m) => [m.code, { id: m.id, name: m.name }]));
     });
 }
 
@@ -94,8 +97,10 @@ function getCompanyModuleIds(companyId) {
 }
 
 // --- ARE they entitled ----------------------------------------------------
-// Express middleware: the caller's active company must be subscribed to
-// `moduleName` (a Control-Plane concern). System admins bypass.
+// Express middleware: the caller's active company must be subscribed to the
+// module with the given FROZEN code, e.g. requireModule('GOLF') (a
+// Control-Plane concern). System admins bypass. Codes, never display names -
+// a rename in Modules & Menus must not change what anyone is entitled to.
 //
 // IN-PROCESS IMPLEMENTATION (monolith): looks the subscription up via the
 // Control-Plane models. The model requires are done lazily *inside* the handler
@@ -105,7 +110,7 @@ function getCompanyModuleIds(companyId) {
 // WHEN SPLIT: replace the marked block with a call to the Control Plane, e.g.
 //   GET {control-plane}/api/admin/entitlements?companyId=<>&module=<>
 // or validate a signed entitlements claim carried on the JWT. Callers unchanged.
-function requireModule(moduleName) {
+function requireModule(moduleCode) {
     return async (req, res, next) => {
         try {
             const { companyId, isSystemAdmin } = getUserContext(req);
@@ -115,17 +120,16 @@ function requireModule(moduleName) {
             }
 
             // ----- in-process entitlement lookup (Control-Plane owned) -----
-            // Entitlement is a TENANT concern; module names are unique per
-            // audience, so the lookup pins to the tenant catalogue - a
-            // same-named platform module must never shadow the product module
-            // and break its subscribers. Catalogue + the company's module set
-            // are per-request memoized, so repeat checks cost no extra query.
-            const moduleId = (await getTenantModuleCatalog()).get(moduleName);
-            if (!moduleId) {
-                return res.status(403).json({ message: `The "${moduleName}" module is not available.` });
+            // Entitlement is a TENANT concern, so the lookup pins to the
+            // tenant catalogue (codes are globally unique regardless).
+            // Catalogue + the company's module set are per-request memoized,
+            // so repeat checks cost no extra query.
+            const entry = (await getTenantModuleCatalog()).get(moduleCode);
+            if (!entry) {
+                return res.status(403).json({ message: 'The requested module is not available.' });
             }
-            if (!(await getCompanyModuleIds(companyId)).has(moduleId)) {
-                return res.status(403).json({ message: `Your workspace is not subscribed to ${moduleName}.` });
+            if (!(await getCompanyModuleIds(companyId)).has(entry.id)) {
+                return res.status(403).json({ message: `Your workspace is not subscribed to ${entry.name}.` });
             }
             return next();
             // ----- end in-process block (swap for a service call when split) -----
@@ -140,11 +144,11 @@ function requireModule(moduleName) {
 // to trim cross-module controls (e.g. AR hides its Membership-integration
 // settings and module-usability flags for subscribers without that module);
 // the write endpoints re-check it server-side - hiding is never the gate.
-async function companyHasModule(companyId, moduleName) {
+async function companyHasModule(companyId, moduleCode) {
     if (!companyId) return false;
-    const moduleId = (await getTenantModuleCatalog()).get(moduleName);
-    if (!moduleId) return false;
-    return (await getCompanyModuleIds(companyId)).has(moduleId);
+    const entry = (await getTenantModuleCatalog()).get(moduleCode);
+    if (!entry) return false;
+    return (await getCompanyModuleIds(companyId)).has(entry.id);
 }
 
 // Control-Plane e-Invoice reference read: is `code` a valid LHDN
@@ -730,7 +734,7 @@ module.exports = {
     getCompanyCountryCode,
     getCompanyBaseCurrency,
     companyHasModule,
-    // The raw entitlement facts, for seams that must resolve module NAMES to
+    // The raw entitlement facts, for seams that must resolve module CODES to
     // Control-Plane ids or list what a company subscribes to (Dimension's
     // per-module applicability). Both are per-request memoized.
     getTenantModuleCatalog,

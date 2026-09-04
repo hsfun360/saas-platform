@@ -7,8 +7,8 @@
 // all run off the same DB menus as every tenant module.
 //
 // Idempotent and self-healing, same philosophy as ensureSystemModules():
-//   - The module is keyed by its base NAME ('SaaS Administration'), which is
-//     locked like a system module's (localized `names` stay editable).
+//   - The module is keyed by its frozen CODE ('PLATFORM_ADMIN'); base and
+//     localized names are freely editable display data.
 //   - Leaf menus are keyed by ROUTE (stable code-level identifiers), so a
 //     rename in Modules & Menus survives reboots; a missing route is re-added.
 //   - Section headers (route '') are keyed by base name.
@@ -27,7 +27,8 @@ const Menu = require('./menu.model');
 const Role = require('./role.model');
 const RoleMenu = require('./roleMenu.model');
 
-const PLATFORM_MODULE_NAME = 'SaaS Administration';
+const PLATFORM_MODULE_CODE = 'PLATFORM_ADMIN'; // frozen machine identity
+const PLATFORM_MODULE_NAME = 'SaaS Administration'; // display default only
 
 // The tree: sections carry children; every leaf's route must match the web
 // app's /admin routing table (main.ts). Sequences mirror the old hardcoded nav.
@@ -77,12 +78,14 @@ const SEED_RENAMES = [
 ];
 
 async function ensurePlatformNav() {
-    // Names are unique per audience, so key on BOTH - a tenant module that
-    // happens to share the name must never be hijacked into the platform shell.
-    // (Pre-audience rows healed to audience 'platform' before this tightened.)
+    // Keyed by the frozen code (globally unique), so a display rename can
+    // never detach the platform shell from its module row. The app.js boot
+    // backfill stamps the code on the pre-code row before this runs.
     const [module, created] = await Module.findOrCreate({
-        where: { name: PLATFORM_MODULE_NAME, audience: 'platform' },
+        where: { code: PLATFORM_MODULE_CODE },
         defaults: {
+            name: PLATFORM_MODULE_NAME,
+            audience: 'platform',
             icon: 'admin_panel_settings',
             description: 'Platform control plane - subscribers, access, reference data and configuration.',
         },
@@ -143,4 +146,4 @@ async function ensurePlatformNav() {
     }
 }
 
-module.exports = { ensurePlatformNav, PLATFORM_MODULE_NAME };
+module.exports = { ensurePlatformNav, PLATFORM_MODULE_CODE, PLATFORM_MODULE_NAME };

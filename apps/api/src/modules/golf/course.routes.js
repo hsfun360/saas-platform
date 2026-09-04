@@ -11,7 +11,7 @@ const { NINE_SCOPES } = require('./courseClosure.constants');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
 // Mounted at /api/golf/courses. The parent golf router already applies
-// verifyToken (who) + requireModule('Golf Management') (entitled), so these
+// verifyToken (who) + requireModule('GOLF') (entitled), so these
 // handlers only deal with the active company's course master file.
 router.get('/meta', (req, res) => res.status(200).json({ dayScopes: DAY_SCOPES, nineScopes: NINE_SCOPES }));
 router.get('/', controller.listCourses);

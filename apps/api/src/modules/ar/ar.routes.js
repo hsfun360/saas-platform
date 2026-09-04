@@ -28,7 +28,7 @@ router.get('/health', (req, res) => res.json({ service: 'ar', status: 'ok' }));
 // Everything below requires a valid token and an entitled, active workspace.
 // The Module row must be named EXACTLY 'Account Receivable' (Modules & Menus).
 router.use(verifyToken);
-router.use(requireModule('Account Receivable'));
+router.use(requireModule('AR'));
 
 // --- Debtor Listing (shared across membership / member / other debtors) ---
 // Other Debtors are managed FROM this screen, so both mounts gate on its menu.

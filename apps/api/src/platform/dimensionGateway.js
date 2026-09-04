@@ -22,7 +22,7 @@ const ANALYSIS_COLUMNS = [1, 2, 3, 4, 5, 6].map((n) => `analysis${n}Id`);
 // --- The consumer registry --------------------------------------------------
 // Each consuming module REGISTERS itself at composition time (same pattern as
 // workflow purpose handlers), declaring two things:
-//   moduleName - its Control-Plane Module name (audience 'tenant'), the same
+//   moduleCode - its frozen Control-Plane Module.code (e.g. 'AR'), the same
 //                string it passes to requireModule(); ids are resolved from it
 //                so the stored moduleId never depends on load order.
 //   usageCheck - ({ companyId, dimensionNo, optionIds }) -> Promise<boolean>
@@ -36,20 +36,21 @@ const ANALYSIS_COLUMNS = [1, 2, 3, 4, 5, 6].map((n) => `analysis${n}Id`);
 // HTTP endpoint and registers by config instead.
 const consumers = [];
 
-function registerConsumer({ moduleName, usageCheck }) {
-    consumers.push({ moduleName, usageCheck });
+function registerConsumer({ moduleCode, usageCheck }) {
+    consumers.push({ moduleCode, usageCheck });
 }
 
-// The registered consumers' module names, in registration order.
-function consumerModuleNames() {
-    return consumers.map((c) => c.moduleName);
+// The registered consumers' module codes, in registration order.
+function consumerModuleCodes() {
+    return consumers.map((c) => c.moduleCode);
 }
 
-// Module NAME -> Control-Plane Module id (memoized catalog read). null when
+// Module CODE -> Control-Plane Module id (memoized catalog read). null when
 // the catalog has no such tenant module.
-async function resolveModuleId(moduleName) {
-    if (!moduleName) return null;
-    return (await getTenantModuleCatalog()).get(moduleName) || null;
+async function resolveModuleId(moduleCode) {
+    if (!moduleCode) return null;
+    const entry = (await getTenantModuleCatalog()).get(moduleCode);
+    return entry ? entry.id : null;
 }
 
 // The modules the Setup screen may offer for this company: registered
@@ -59,9 +60,9 @@ async function resolveModuleId(moduleName) {
 async function availableModules(companyId) {
     const [catalog, subscribed] = await Promise.all([getTenantModuleCatalog(), getCompanyModuleIds(companyId)]);
     const out = [];
-    for (const { moduleName } of consumers) {
-        const moduleId = catalog.get(moduleName);
-        if (moduleId && subscribed.has(moduleId)) out.push({ moduleId, name: moduleName });
+    for (const { moduleCode } of consumers) {
+        const entry = catalog.get(moduleCode);
+        if (entry && subscribed.has(entry.id)) out.push({ moduleId: entry.id, code: moduleCode, name: entry.name });
     }
     return out;
 }
@@ -90,8 +91,8 @@ async function dimensionInUse({ companyId, categoryId, dimensionNo }) {
 // order. `isRequired` is that module's own flag. A module nothing applies to
 // gets [].
 // WHEN SPLIT: GET {internalServiceUrl('dimension')}/internal/entry-meta?companyId&module
-async function entryMeta(companyId, moduleName) {
-    const moduleId = await resolveModuleId(moduleName);
+async function entryMeta(companyId, moduleCode) {
+    const moduleId = await resolveModuleId(moduleCode);
     if (!moduleId) return [];
     const DimensionCategory = require('../modules/dimension/dimensionCategory.model');
     const DimensionCategoryModule = require('../modules/dimension/dimensionCategoryModule.model');
@@ -166,9 +167,9 @@ async function entryMeta(companyId, moduleName) {
 // allowed to carry, or restricting a dimension from AR would silently strip
 // analysis off AR rows another module legitimately created.
 // WHEN SPLIT: POST {internalServiceUrl('dimension')}/internal/validate-selections
-async function readSelections(companyId, body, moduleName) {
+async function readSelections(companyId, body, moduleCode) {
     const selections = body && typeof body.analysis === 'object' && body.analysis !== null ? body.analysis : {};
-    const meta = await entryMeta(companyId, moduleName);
+    const meta = await entryMeta(companyId, moduleCode);
 
     const columns = {};
     for (const col of ANALYSIS_COLUMNS) columns[col] = null;
@@ -178,7 +179,7 @@ async function readSelections(companyId, body, moduleName) {
     for (const key of Object.keys(selections)) {
         if (!selections[key]) continue;
         if (!meta.some((c) => String(c.dimensionNo) === String(key))) {
-            return { error: `Analysis Dimension ${key} does not apply to ${moduleName}.` };
+            return { error: `Analysis Dimension ${key} does not apply to ${moduleCode}.` };
         }
     }
 
@@ -248,7 +249,7 @@ function copyColumns(row) {
 module.exports = {
     ANALYSIS_COLUMNS,
     registerConsumer,
-    consumerModuleNames,
+    consumerModuleCodes,
     resolveModuleId,
     availableModules,
     dimensionInUse,

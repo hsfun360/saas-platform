@@ -277,12 +277,23 @@
                 discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="cancelModuleEdit()">
       <form id="moduleForm" [formGroup]="moduleForm" (ngSubmit)="saveModule()">
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
+          <label for="mod-code" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Code *</label>
+          <input id="mod-code" type="text" formControlName="code" placeholder="e.g. GOLF" maxlength="30"
+                 style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary); text-transform: uppercase;">
+          @if (editingModuleId()) {
+            <span style="color: var(--text-muted); font-size: var(--font-caption);">The code is the module's frozen identity (entitlements, licensing) and cannot be changed.</span>
+          } @else {
+            <span style="color: var(--text-muted); font-size: var(--font-caption);">Machine identity, set once: letters, digits and underscores (e.g. GOLF). Names below stay freely renamable.</span>
+          }
+          @if (moduleForm.controls.code.touched && moduleForm.controls.code.invalid) {
+            <span role="alert" style="color: var(--danger-text); font-size: var(--font-caption);">A code is required: letters/digits/underscores, starting with a letter.</span>
+          }
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
           <label for="mod-name" style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Name *</label>
           <input id="mod-name" type="text" formControlName="name" placeholder="e.g. Golf Management"
                  style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); background: var(--surface-card); color: var(--text-primary);">
-          @if (editingModuleIsSystem()) {
-            <span style="color: var(--text-muted); font-size: var(--font-caption);">This module's base name is a system key and cannot be changed. Edit the translated names below instead.</span>
-          }
           @if (moduleForm.controls.name.touched && moduleForm.controls.name.invalid) {
             <span role="alert" style="color: var(--danger-text); font-size: var(--font-caption);">A module name is required.</span>
           }

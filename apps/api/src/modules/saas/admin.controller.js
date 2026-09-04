@@ -353,33 +353,44 @@ exports.listMenus = async (req, res) => {
 // platform-shell module (SaaS Administration - the platform nav's seed key).
 // OTHER platform-audience modules (created via the dialog, e.g. a platform AR
 // module) behave like normal modules - renamable, deletable when unreferenced.
-const { PLATFORM_MODULE_NAME } = require('./platformNav.seed');
-const isProtectedModule = (m) => !!m.isSystem || (m.audience === 'platform' && m.name === PLATFORM_MODULE_NAME);
+const { PLATFORM_MODULE_CODE } = require('./platformNav.seed');
+const isProtectedModule = (m) => !!m.isSystem || (m.audience === 'platform' && m.code === PLATFORM_MODULE_CODE);
 
 const MODULE_AUDIENCES = ['tenant', 'platform'];
 
-// POST /api/admin/modules  Body: { name, icon?, description?, landingRoute?, audience? }
-// `audience` ('tenant' default | 'platform') is fixed at creation: flipping an
-// entitled tenant module to platform would strand its CompanyModule rows, and
-// flipping a platform module to tenant would expose staff screens to
-// subscribers - so there is deliberately no way to change it later.
+// POST /api/admin/modules  Body: { code, name, icon?, description?, landingRoute?, audience? }
+// `code` is the FROZEN machine identity (UPPER_SNAKE, globally unique) -
+// entitlement checks, seeds and future license artifacts key on it, so it is
+// set once here and never changes. `audience` ('tenant' default | 'platform')
+// is likewise fixed at creation: flipping an entitled tenant module to
+// platform would strand its CompanyModule rows, and flipping a platform
+// module to tenant would expose staff screens to subscribers.
 exports.createModule = async (req, res) => {
     try {
         const name = (req.body.name || '').trim();
         if (!name) return res.status(400).json({ message: "Module name is required." });
+
+        const code = (req.body.code || '').trim().toUpperCase();
+        if (!/^[A-Z][A-Z0-9_]{0,29}$/.test(code)) {
+            return res.status(400).json({ message: "Module code is required: 1-30 chars, A-Z / 0-9 / _, starting with a letter (e.g. GOLF)." });
+        }
 
         const audience = typeof req.body.audience === 'string' ? req.body.audience : 'tenant';
         if (!MODULE_AUDIENCES.includes(audience)) {
             return res.status(400).json({ message: "Audience must be 'tenant' or 'platform'." });
         }
 
-        // Names are unique PER CATALOGUE side - a platform module may reuse a
-        // tenant module's name (e.g. "Account Receivable").
+        // Codes are unique GLOBALLY (identity); names per CATALOGUE side - a
+        // platform module may reuse a tenant module's name (e.g. "Account
+        // Receivable") but never its code.
+        const codeDup = await Module.findOne({ where: { code } });
+        if (codeDup) return res.status(409).json({ message: `A module with code ${code} already exists.` });
         const existing = await Module.findOne({ where: { name, audience } });
         if (existing) return res.status(409).json({ message: `A ${audience} module with that name already exists.` });
 
         const icon = (req.body.icon || '').trim();
         const module = await Module.create({
+            code,
             name,
             names: mergeNames({}, req.body.names),
             icon: icon || undefined, // fall back to the model default ('widgets')
@@ -400,22 +411,21 @@ exports.updateModule = async (req, res) => {
         const module = await Module.findByPk(req.params.moduleId);
         if (!module) return res.status(404).json({ message: "Module not found." });
 
-        // Audience is fixed at creation (see createModule) - reject any attempt
-        // to flip it rather than silently ignoring the field.
+        // Audience and code are fixed at creation (see createModule) - reject
+        // any attempt to change them rather than silently ignoring the field.
         if (typeof req.body.audience === 'string' && req.body.audience !== module.audience) {
             return res.status(400).json({ message: "A module's audience is fixed at creation and cannot be changed." });
+        }
+        if (typeof req.body.code === 'string' && req.body.code.trim().toUpperCase() !== module.code) {
+            return res.status(400).json({ message: "A module's code is its frozen identity and cannot be changed." });
         }
 
         const updates = {};
         if (typeof req.body.name === 'string' && req.body.name.trim()) {
             const name = req.body.name.trim();
             if (name !== module.name) {
-                // A protected module's base name is a code-level identifier
-                // (the boot-time stamps and frontend gating keys on it) —
-                // localized display names stay editable, the base name does not.
-                if (isProtectedModule(module)) {
-                    return res.status(400).json({ message: "This is a system module - its base name cannot be changed. Edit the translated names instead." });
-                }
+                // Names are pure display since `code` became the identity -
+                // renaming is safe even on system/platform modules.
                 const dup = await Module.findOne({ where: { name, audience: module.audience } });
                 if (dup) return res.status(409).json({ message: `A ${module.audience} module with that name already exists.` });
             }

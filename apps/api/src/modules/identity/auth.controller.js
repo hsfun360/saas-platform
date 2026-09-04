@@ -450,6 +450,9 @@ function mapMenuItem(m, fullAccess = false) {
         route: m.route,
         icon: m.icon,
         moduleName: m.Module ? m.Module.name : 'Core Club Management',
+        // Frozen machine identity - what the web route guards key on (display
+        // names above stay renamable/localizable).
+        moduleCode: m.Module ? m.Module.code : null,
         moduleNames: m.Module ? (m.Module.names || {}) : {},    // localized module names
         moduleIcon: m.Module ? m.Module.icon : 'business',
         moduleLanding: m.Module ? m.Module.landingRoute : null,
@@ -1997,7 +2000,7 @@ exports.getAvailableMenus = async (req, res) => {
         // Fetch the menus that belong to those specific modules
         const menus = await Menu.findAll({ 
             where: { moduleId: moduleIds },
-            include: [{ model: Module, as: 'Module', attributes: ['name', 'icon'] }] // Include the module info for grouping in the UI
+            include: [{ model: Module, as: 'Module', attributes: ['code', 'name', 'icon'] }] // Include the module info for grouping in the UI
         });
 
         res.status(200).json(menus);

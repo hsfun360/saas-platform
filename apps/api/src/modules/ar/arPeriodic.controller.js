@@ -334,7 +334,7 @@ exports.getArSetting = async (req, res) => {
         ]);
         res.status(200).json({
             setting: settingJson(row),
-            membershipModuleEntitled: await companyHasModule(companyId, 'Membership Management'),
+            membershipModuleEntitled: await companyHasModule(companyId, 'MEMBERSHIP'),
             interestTypeOptions: interestOptions.map((t) => t.toJSON()),
             depositConversionTypeOptions: cnOptions.map((t) => t.toJSON()),
             // Multi-currency card: the AR base currency (null = the prerequisite

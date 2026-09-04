@@ -14,6 +14,9 @@
   route: string;
   icon?: string;
   moduleName?: string;
+  // Frozen Module.code (e.g. 'GOLF') - what route guards key on; the names
+  // above are display-only. Absent in menu caches from before codes shipped.
+  moduleCode?: string;
   // Localized names of the owning module (DB Module.names), for the apps switcher.
   moduleNames?: Record<string, string>;
   moduleIcon?: string;
@@ -263,6 +266,8 @@ export interface AdminMenu {
 
 export interface AdminModule {
   id: string;
+  // Frozen machine identity (e.g. 'GOLF') - set at creation, never editable.
+  code?: string;
   name: string;
   names?: Record<string, string>;
   icon?: string;
@@ -272,9 +277,9 @@ export interface AdminModule {
   // only and are never offered in a subscriber's entitlement picker. Fixed at
   // creation.
   audience?: 'tenant' | 'platform';
-  // Not deletable + base name locked (system modules and the boot-seeded
-  // platform-shell module). Computed server-side - the UI never duplicates
-  // the rule.
+  // Not deletable (system modules and the boot-seeded platform-shell module).
+  // Computed server-side - the UI never duplicates the rule. (Names are
+  // renamable everywhere since `code` became the identity.)
   isProtected?: boolean;
   // System module (like a system role): always entitled by provisioning,
   // never deletable, base name locked. Currently "System Administration".
@@ -287,8 +292,9 @@ export interface ModuleInput {
   icon?: string;
   description?: string;
   names?: Record<string, string>;
-  // Only honoured on create; the backend rejects changing it afterwards.
+  // Only honoured on create; the backend rejects changing either afterwards.
   audience?: 'tenant' | 'platform';
+  code?: string;
 }
 
 export interface MenuInput {

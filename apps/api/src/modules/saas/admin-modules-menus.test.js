@@ -50,25 +50,46 @@ test('createModule rejects a blank name (400)', async () => {
     assert.strictEqual(res.statusCode, 400);
 });
 
+test('createModule rejects a missing/invalid code (400)', async () => {
+    Module.create = fn(async () => ({}));
+    const res = mockRes();
+    await controller.createModule({ body: { name: 'Golf' } }, res);
+    assert.strictEqual(res.statusCode, 400);
+    const res2 = mockRes();
+    await controller.createModule({ body: { name: 'Golf', code: 'golf codes!' } }, res2);
+    assert.strictEqual(res2.statusCode, 400);
+    assert.strictEqual(Module.create.calls.length, 0);
+});
+
 test('createModule rejects a duplicate name (409)', async () => {
     Module.findOne = fn(async () => ({ id: 'mod-x', name: 'Golf' }));
     Module.create = fn(async () => ({}));
     const res = mockRes();
-    await controller.createModule({ body: { name: 'Golf' } }, res);
+    await controller.createModule({ body: { name: 'Golf', code: 'GOLF' } }, res);
     assert.strictEqual(res.statusCode, 409);
     assert.strictEqual(Module.create.calls.length, 0, 'must not create a duplicate');
 });
 
-test('createModule creates a new module (201)', async () => {
+test('createModule creates a new module (201), uppercasing the code', async () => {
     Module.findOne = fn(async () => null);
     Module.create = fn(async (data) => ({ id: 'mod-1', ...data }));
     const res = mockRes();
-    await controller.createModule({ body: { name: '  Golf  ', icon: 'sports_golf', description: ' Tee times ' } }, res);
+    await controller.createModule({ body: { name: '  Golf  ', code: ' golf ', icon: 'sports_golf', description: ' Tee times ' } }, res);
     assert.strictEqual(res.statusCode, 201);
     const created = Module.create.calls[0][0];
+    assert.strictEqual(created.code, 'GOLF');
     assert.strictEqual(created.name, 'Golf');
     assert.strictEqual(created.icon, 'sports_golf');
     assert.strictEqual(created.description, 'Tee times');
+});
+
+test('updateModule refuses to change the frozen code (400)', async () => {
+    const module = { id: 'mod-1', code: 'GOLF', name: 'Golf', audience: 'tenant', isSystem: false, update: fn(async () => {}) };
+    Module.findByPk = fn(async () => module);
+    const res = mockRes();
+    await controller.updateModule({ params: { moduleId: 'mod-1' }, body: { code: 'GOLF2' } }, res);
+    assert.strictEqual(res.statusCode, 400);
+    assert.strictEqual(module.update.calls.length, 0);
 });
 
 test('deleteModule is blocked while companies still subscribe (409)', async () => {

@@ -53,7 +53,7 @@ function toDto(t, canModify = true) {
 async function entitledModuleKeys(companyId) {
     const out = [];
     for (const m of AR_MODULE_KEYS) {
-        if (await companyHasModule(companyId, m.moduleName)) out.push(m.key);
+        if (await companyHasModule(companyId, m.moduleCode)) out.push(m.key);
     }
     return out;
 }

@@ -17,7 +17,7 @@ router.get('/health', (req, res) => res.json({ service: 'golf', status: 'ok' }))
 
 // Everything below requires a valid token and an entitled, active workspace.
 router.use(verifyToken);
-router.use(requireModule('Golf Management'));
+router.use(requireModule('GOLF'));
 
 // --- Master File Setup ---
 router.use('/unit-courses', unitCourseRoutes);

@@ -449,6 +449,50 @@ async function initializeDB() {
                 console.log('Migrated golf.TransactionTypePackageItem -> golf.TransactionTypeElement.');
             }
 
+            // Module.code backfill (spec approved 2026-09-04): the frozen
+            // machine identity every entitlement check keys on. Runs BEFORE
+            // the alter-sync so the model's NOT NULL + unique index land on
+            // fully populated rows; a fresh DB skips this entirely (sync
+            // creates the column, the seeds stamp the codes).
+            const [[modulesTable]] = await sequelize.query(`SELECT to_regclass('public."Modules"') AS t`);
+            if (modulesTable && modulesTable.t) {
+                await sequelize.query(`ALTER TABLE public."Modules" ADD COLUMN IF NOT EXISTS "code" VARCHAR(30)`);
+                // Known catalogue -> frozen codes. 'System Setup' and 'System
+                // Administration' are the SAME drifted module (renamed along
+                // the way) - both map to TENANT_ADMIN.
+                await sequelize.query(`
+                    UPDATE public."Modules" SET "code" = CASE
+                        WHEN "name" = 'Membership Management' AND "audience" = 'tenant' THEN 'MEMBERSHIP'
+                        WHEN "name" = 'Golf Management' AND "audience" = 'tenant' THEN 'GOLF'
+                        WHEN "name" = 'Facility Management' AND "audience" = 'tenant' THEN 'FACILITY'
+                        WHEN "name" = 'Account Receivable' AND "audience" = 'tenant' THEN 'AR'
+                        WHEN "name" = 'POS' AND "audience" = 'tenant' THEN 'POS'
+                        WHEN "name" IN ('System Setup', 'System Administration') AND "audience" = 'tenant' THEN 'TENANT_ADMIN'
+                        WHEN "name" = 'SaaS Administration' AND "audience" = 'platform' THEN 'PLATFORM_ADMIN'
+                    END
+                    WHERE "code" IS NULL`);
+                // Any other legacy module derives its code from its name
+                // (UPPER_SNAKE, de-duplicated) so NOT NULL + unique always
+                // hold. Codes are frozen - this runs once per row, ever.
+                const [leftovers] = await sequelize.query(`SELECT "id", "name" FROM public."Modules" WHERE "code" IS NULL`);
+                if (leftovers.length) {
+                    const [taken] = await sequelize.query(`SELECT "code" FROM public."Modules" WHERE "code" IS NOT NULL`);
+                    const used = new Set(taken.map((r) => r.code));
+                    for (const row of leftovers) {
+                        let base = String(row.name || '').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 26) || 'MODULE';
+                        if (/^[0-9]/.test(base)) base = `M_${base}`;
+                        let code = base;
+                        let n = 2;
+                        while (used.has(code)) code = `${base}_${n++}`;
+                        used.add(code);
+                        await sequelize.query(`UPDATE public."Modules" SET "code" = :code WHERE "id" = :id`, {
+                            replacements: { code, id: row.id },
+                        });
+                    }
+                    console.log(`Module.code backfill: derived ${leftovers.length} code(s) from legacy names.`);
+                }
+            }
+
             await sequelize.sync({ alter: true });
 
             // Multicurrency step 2 (2026-08-21): every ledger account carries
@@ -630,7 +674,7 @@ async function initializeDB() {
         ).catch(() => [[null]]);
         if (dimModTable && dimModTable.t) {
             const [[arModule]] = await sequelize.query(
-                `SELECT "id" FROM public."Modules" WHERE "name" = 'Account Receivable' AND "audience" = 'tenant' LIMIT 1`,
+                `SELECT "id" FROM public."Modules" WHERE "code" = 'AR' LIMIT 1`,
             ).catch(() => [[null]]);
             if (arModule && arModule.id) {
                 const requiredBefore = new Map(dimensionRequiredBefore.map((c) => [c.id, c.isRequired === true]));
@@ -661,7 +705,7 @@ async function initializeDB() {
                     console.log(`Dimension module backfill: seeded ${orphans.length} Account Receivable row(s).`);
                 }
             } else {
-                console.warn('Dimension module backfill skipped: no tenant module named "Account Receivable".');
+                console.warn('Dimension module backfill skipped: no module with code AR.');
             }
         }
 
@@ -729,8 +773,9 @@ async function initializeDB() {
         console.log('Email template defaults ensured.');
 
         // Stamp the system modules (Module.isSystem) — idempotent, keyed by
-        // name, so the mandatory-entitlement rule survives a fresh DB or a
-        // row created before the flag existed.
+        // the frozen Module.code, so the mandatory-entitlement rule survives a
+        // fresh DB, a row created before the flag existed, and any display
+        // rename.
         await require('./modules/saas/provisioning.service').ensureSystemModules();
 
         // Ensure the platform "SaaS Administration" Module + Menu tree exists
@@ -784,9 +829,9 @@ async function seedDatabase() {
         console.log('🌱 Starting Database Seeder...');
 
         // 1. Create Modules (Including the new SYSTEM module!)
-        const coreModule = await Module.create({ name: 'Core Club Management', icon: 'business' });
-        const golfModule = await Module.create({ name: 'Golf Management', icon: 'sports_golf' });
-        const systemModule = await Module.create({ name: 'System Setup', icon: 'admin_panel_settings' });
+        const coreModule = await Module.create({ code: 'CORE', name: 'Core Club Management', icon: 'business' });
+        const golfModule = await Module.create({ code: 'GOLF', name: 'Golf Management', icon: 'sports_golf' });
+        const systemModule = await Module.create({ code: 'TENANT_ADMIN', name: 'System Administration', icon: 'admin_panel_settings' });
 
         // 2. Create Menus
         const coreMenus = await Menu.bulkCreate([

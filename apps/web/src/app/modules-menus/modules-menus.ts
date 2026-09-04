@@ -111,10 +111,10 @@ export class ModulesMenusComponent implements OnInit {
   readonly savingModule = signal(false);
   readonly deletingModuleId = signal<string | null>(null);
 
-  // True while the module edit dialog is open on a system module (name locked).
-  readonly editingModuleIsSystem = signal(false);
-
   readonly moduleForm = this.fb.nonNullable.group({
+    // Frozen machine identity: required at creation, disabled (immutable) on
+    // edit. Uppercased on save; letters/digits/underscore, starting letter.
+    code: ['', [Validators.required, Validators.pattern(/^[A-Za-z][A-Za-z0-9_]{0,29}$/)]],
     name: ['', [Validators.required, Validators.maxLength(100)]],
     icon: [''],
     description: [''],
@@ -311,10 +311,9 @@ export class ModulesMenusComponent implements OnInit {
   startCreateModule(): void {
     this.clearMessages();
     this.editingModuleId.set(null);
-    this.editingModuleIsSystem.set(false);
-    this.moduleForm.controls.name.enable();
+    this.moduleForm.controls.code.enable();
     this.populateTranslations(this.moduleForm.controls.translations, {});
-    this.moduleForm.reset({ name: '', icon: '', description: '' });
+    this.moduleForm.reset({ code: '', name: '', icon: '', description: '' });
     this.moduleDialogOpen.set(true);
   }
 
@@ -323,45 +322,41 @@ export class ModulesMenusComponent implements OnInit {
     this.editingModuleId.set(m.id);
     this.populateTranslations(this.moduleForm.controls.translations, m.names);
     this.moduleForm.reset({
+      code: m.code || '',
       name: m.name,
       icon: m.icon || '',
       description: m.description || '',
     });
-    // A protected module's base name is a code-level identifier
-    // (mandatory-entitlement stamp / platform-nav seed key + frontend gating
-    // key) - locked; translations stay editable. The backend computes
-    // isProtected (fallback covers a payload cached before the field shipped).
-    const nameLocked = m.isProtected ?? (!!m.isSystem || m.audience === 'platform');
-    this.editingModuleIsSystem.set(nameLocked);
-    if (nameLocked) this.moduleForm.controls.name.disable();
-    else this.moduleForm.controls.name.enable();
+    // The code is the frozen machine identity - shown but never editable.
+    // Names (base + translations) are pure display and stay editable
+    // everywhere, system modules included.
+    this.moduleForm.controls.code.disable();
     this.moduleDialogOpen.set(true);
   }
 
   cancelModuleEdit(): void {
     this.moduleDialogOpen.set(false);
     this.editingModuleId.set(null);
-    this.editingModuleIsSystem.set(false);
-    this.moduleForm.controls.name.enable();
-    this.moduleForm.reset({ name: '', icon: '', description: '' });
+    this.moduleForm.controls.code.enable();
+    this.moduleForm.reset({ code: '', name: '', icon: '', description: '' });
   }
 
   saveModule(): void {
     this.clearMessages();
     if (this.moduleForm.invalid) {
       this.moduleForm.markAllAsTouched();
-      this.errorMessage.set('Module name is required.');
+      this.errorMessage.set('Module code and name are required.');
       return;
     }
 
-    const { name, icon, description, translations } = this.moduleForm.getRawValue();
+    const { code, name, icon, description, translations } = this.moduleForm.getRawValue();
     const editingId = this.editingModuleId();
     const payload = {
       name: name.trim(), icon: icon.trim(), description: description.trim(),
       names: this.namesFrom(translations),
-      // The screen's side of the catalogue IS the audience - fixed at
-      // creation, never sent on edit (the backend rejects a change).
-      ...(editingId ? {} : { audience: this.audience }),
+      // Code and audience are fixed at creation, never sent on edit (the
+      // backend rejects a change to either).
+      ...(editingId ? {} : { audience: this.audience, code: code.trim().toUpperCase() }),
     };
 
     this.savingModule.set(true);

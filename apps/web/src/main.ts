@@ -72,144 +72,144 @@ const routes: Routes = [
       { path: 'profile', loadComponent: () => import('./app/dashboard/profile/profile').then((m) => m.ProfileComponent) },
       { path: 'settings', loadComponent: () => import('./app/dashboard/settings/settings').then((m) => m.SettingsComponent) },
       // My Approvals — the caller's personal workflow inbox. Person-scoped like
-      // /home (assignee-only, enforced server-side), so no systemModule guard.
+      // /home (assignee-only, enforced server-side), so no moduleCode guard.
       { path: 'approvals', loadComponent: () => import('./app/approvals/approvals').then((m) => m.ApprovalsComponent) },
 
       // Sample CRUD master–detail screen. Both paths point at the same component;
       // the :id segment ('new' = create) is the single source of truth for the
-      // open item — deep-linkable, with working back/forward. No systemModule
+      // open item — deep-linkable, with working back/forward. No moduleCode
       // guard: it's a demo screen everyone may see (like home/profile).
       { path: 'items', loadComponent: () => import('./app/items/items').then((m) => m.ItemsComponent) },
       { path: 'items/:id', loadComponent: () => import('./app/items/items').then((m) => m.ItemsComponent) },
 
       // Platform Administration (Control Plane) — admin screens.
-      // `data.systemModule` + systemAccessGuard block users without that access.
+      // `data.moduleCode` + systemAccessGuard block users without that access.
       // NOTE: there are no per-system landing routes (/platform, /membership,
       // /golf, /facility) anymore - switching systems lands on /home
       // (My Dashboard); the launchpad pages were removed 2026-07-23.
-      { path: 'admin/roles', loadComponent: () => import('./app/role-management/role-management').then((m) => m.RoleManagementComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/users', loadComponent: () => import('./app/tenant-users/tenant-users').then((m) => m.TenantUsersComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/companies', loadComponent: () => import('./app/companies/companies').then((m) => m.CompaniesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/account-languages', loadComponent: () => import('./app/account-languages/account-languages').then((m) => m.AccountLanguagesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/account-currencies', loadComponent: () => import('./app/account-currencies/account-currencies').then((m) => m.AccountCurrenciesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/roles', loadComponent: () => import('./app/role-management/role-management').then((m) => m.RoleManagementComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/users', loadComponent: () => import('./app/tenant-users/tenant-users').then((m) => m.TenantUsersComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/companies', loadComponent: () => import('./app/companies/companies').then((m) => m.CompaniesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/account-languages', loadComponent: () => import('./app/account-languages/account-languages').then((m) => m.AccountLanguagesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/account-currencies', loadComponent: () => import('./app/account-currencies/account-currencies').then((m) => m.AccountCurrenciesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
       // Subscriber-owned shared reference data (consumed across products).
-      { path: 'admin/industry-types', loadComponent: () => import('./app/industry-types/industry-types').then((m) => m.IndustryTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/departments', loadComponent: () => import('./app/departments/departments').then((m) => m.DepartmentsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/positions', loadComponent: () => import('./app/positions/positions').then((m) => m.PositionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/salutations', loadComponent: () => import('./app/salutations/salutations').then((m) => m.SalutationsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/nationalities', loadComponent: () => import('./app/nationalities/nationalities').then((m) => m.NationalitiesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/races', loadComponent: () => import('./app/races/races').then((m) => m.RacesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/industry-types', loadComponent: () => import('./app/industry-types/industry-types').then((m) => m.IndustryTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/departments', loadComponent: () => import('./app/departments/departments').then((m) => m.DepartmentsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/positions', loadComponent: () => import('./app/positions/positions').then((m) => m.PositionsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/salutations', loadComponent: () => import('./app/salutations/salutations').then((m) => m.SalutationsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/nationalities', loadComponent: () => import('./app/nationalities/nationalities').then((m) => m.NationalitiesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/races', loadComponent: () => import('./app/races/races').then((m) => m.RacesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
       // Numbering Control - split per owning module 2026-08-05 (one shared
       // component; the route data picks the module's table + purposes).
-      { path: 'membership/numbering', loadComponent: () => import('./app/numbering/numbering').then((m) => m.NumberingComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management', numberingModule: 'membership' } },
-      { path: 'ar/numbering', loadComponent: () => import('./app/numbering/numbering').then((m) => m.NumberingComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', numberingModule: 'ar' } },
-      { path: 'admin/titles', loadComponent: () => import('./app/titles/titles').then((m) => m.TitlesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/public-holidays', loadComponent: () => import('./app/public-holidays/public-holidays').then((m) => m.PublicHolidaysComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/workflows', loadComponent: () => import('./app/workflow-setup/workflow-setup').then((m) => m.WorkflowSetupComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/account-email-templates', loadComponent: () => import('./app/account-email-templates/account-email-templates').then((m) => m.AccountEmailTemplatesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/account-email-templates/:key', loadComponent: () => import('./app/account-email-templates/account-email-template-edit').then((m) => m.AccountEmailTemplateEditComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'membership/numbering', loadComponent: () => import('./app/numbering/numbering').then((m) => m.NumberingComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP', numberingModule: 'membership' } },
+      { path: 'ar/numbering', loadComponent: () => import('./app/numbering/numbering').then((m) => m.NumberingComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR', numberingModule: 'ar' } },
+      { path: 'admin/titles', loadComponent: () => import('./app/titles/titles').then((m) => m.TitlesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/public-holidays', loadComponent: () => import('./app/public-holidays/public-holidays').then((m) => m.PublicHolidaysComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/workflows', loadComponent: () => import('./app/workflow-setup/workflow-setup').then((m) => m.WorkflowSetupComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/account-email-templates', loadComponent: () => import('./app/account-email-templates/account-email-templates').then((m) => m.AccountEmailTemplatesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/account-email-templates/:key', loadComponent: () => import('./app/account-email-templates/account-email-template-edit').then((m) => m.AccountEmailTemplateEditComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
       // Tax Setup — subscriber-owned tax-scheme catalog (master–detail; :id opens a scheme).
-      { path: 'admin/tax-schemes', loadComponent: () => import('./app/tax-schemes/tax-schemes').then((m) => m.TaxSchemesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
-      { path: 'admin/tax-schemes/:id', loadComponent: () => import('./app/tax-schemes/tax-schemes').then((m) => m.TaxSchemesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/tax-schemes', loadComponent: () => import('./app/tax-schemes/tax-schemes').then((m) => m.TaxSchemesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
+      { path: 'admin/tax-schemes/:id', loadComponent: () => import('./app/tax-schemes/tax-schemes').then((m) => m.TaxSchemesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
       // Company Tax — per active company: which schemes it uses + GL overrides.
-      { path: 'admin/company-tax', loadComponent: () => import('./app/company-tax/company-tax').then((m) => m.CompanyTaxComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup' } },
+      { path: 'admin/company-tax', loadComponent: () => import('./app/company-tax/company-tax').then((m) => m.CompanyTaxComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
       // Platform Tax - the platform's own tax catalog (accountId NULL), SaaS Admin.
       // Reuses the Tax Setup screen at platform scope via data.taxScope.
-      { path: 'admin/platform-tax', loadComponent: () => import('./app/tax-schemes/tax-schemes').then((m) => m.TaxSchemesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', taxScope: 'platform' } },
-      { path: 'admin/platform-tax/:id', loadComponent: () => import('./app/tax-schemes/tax-schemes').then((m) => m.TaxSchemesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', taxScope: 'platform' } },
+      { path: 'admin/platform-tax', loadComponent: () => import('./app/tax-schemes/tax-schemes').then((m) => m.TaxSchemesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN', taxScope: 'platform' } },
+      { path: 'admin/platform-tax/:id', loadComponent: () => import('./app/tax-schemes/tax-schemes').then((m) => m.TaxSchemesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN', taxScope: 'platform' } },
       // Platform Profile - the platform's own company of record (invoice issuer + tax anchor), SaaS Admin.
-      { path: 'admin/platform-profile', loadComponent: () => import('./app/platform-profile/platform-profile').then((m) => m.PlatformProfileComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/subscribers', loadComponent: () => import('./app/subscribers/subscribers').then((m) => m.SubscribersComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/system-roles', loadComponent: () => import('./app/platform-roles/platform-roles').then((m) => m.PlatformRolesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/platform-users', loadComponent: () => import('./app/platform-users/platform-users').then((m) => m.PlatformUsersComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/unverified-users', loadComponent: () => import('./app/unverified-users/unverified-users').then((m) => m.UnverifiedUsersComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/audit-log', loadComponent: () => import('./app/audit-log/audit-log').then((m) => m.AuditLogComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/platform-profile', loadComponent: () => import('./app/platform-profile/platform-profile').then((m) => m.PlatformProfileComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/subscribers', loadComponent: () => import('./app/subscribers/subscribers').then((m) => m.SubscribersComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/system-roles', loadComponent: () => import('./app/platform-roles/platform-roles').then((m) => m.PlatformRolesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/platform-users', loadComponent: () => import('./app/platform-users/platform-users').then((m) => m.PlatformUsersComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/unverified-users', loadComponent: () => import('./app/unverified-users/unverified-users').then((m) => m.UnverifiedUsersComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/audit-log', loadComponent: () => import('./app/audit-log/audit-log').then((m) => m.AuditLogComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
       // Tenant-scoped audit view (System Setup; menu record added in the DB
       // like the other System Setup screens - route /admin/account-audit-log).
-      { path: 'admin/account-audit-log', loadComponent: () => import('./app/audit-log/audit-log').then((m) => m.AuditLogComponent), canActivate: [systemAccessGuard], data: { systemModule: 'System Setup', auditScope: 'account' } },
-      { path: 'admin/countries', loadComponent: () => import('./app/countries/countries').then((m) => m.CountriesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/languages', loadComponent: () => import('./app/languages/languages').then((m) => m.LanguagesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/currencies', loadComponent: () => import('./app/currencies/currencies').then((m) => m.CurrenciesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/e-invoice-classification-codes', loadComponent: () => import('./app/e-invoice-classification-codes/e-invoice-classification-codes').then((m) => m.EInvoiceClassificationCodesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/e-invoice-msic-codes', loadComponent: () => import('./app/e-invoice-msic-codes/e-invoice-msic-codes').then((m) => m.EInvoiceMsicCodesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/e-invoice-tax-types', loadComponent: () => import('./app/e-invoice-tax-types/e-invoice-tax-types').then((m) => m.EInvoiceTaxTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/e-invoice-unit-types', loadComponent: () => import('./app/e-invoice-unit-types/e-invoice-unit-types').then((m) => m.EInvoiceUnitTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/e-invoice-state-codes', loadComponent: () => import('./app/e-invoice-state-codes/e-invoice-state-codes').then((m) => m.EInvoiceStateCodesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/e-invoice-payment-methods', loadComponent: () => import('./app/e-invoice-payment-methods/e-invoice-payment-methods').then((m) => m.EInvoicePaymentMethodsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/e-invoice-document-types', loadComponent: () => import('./app/e-invoice-document-types/e-invoice-document-types').then((m) => m.EInvoiceDocumentTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/system-setup', loadComponent: () => import('./app/system-setup/system-setup').then((m) => m.SystemSetupComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/account-audit-log', loadComponent: () => import('./app/audit-log/audit-log').then((m) => m.AuditLogComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN', auditScope: 'account' } },
+      { path: 'admin/countries', loadComponent: () => import('./app/countries/countries').then((m) => m.CountriesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/languages', loadComponent: () => import('./app/languages/languages').then((m) => m.LanguagesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/currencies', loadComponent: () => import('./app/currencies/currencies').then((m) => m.CurrenciesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/e-invoice-classification-codes', loadComponent: () => import('./app/e-invoice-classification-codes/e-invoice-classification-codes').then((m) => m.EInvoiceClassificationCodesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/e-invoice-msic-codes', loadComponent: () => import('./app/e-invoice-msic-codes/e-invoice-msic-codes').then((m) => m.EInvoiceMsicCodesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/e-invoice-tax-types', loadComponent: () => import('./app/e-invoice-tax-types/e-invoice-tax-types').then((m) => m.EInvoiceTaxTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/e-invoice-unit-types', loadComponent: () => import('./app/e-invoice-unit-types/e-invoice-unit-types').then((m) => m.EInvoiceUnitTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/e-invoice-state-codes', loadComponent: () => import('./app/e-invoice-state-codes/e-invoice-state-codes').then((m) => m.EInvoiceStateCodesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/e-invoice-payment-methods', loadComponent: () => import('./app/e-invoice-payment-methods/e-invoice-payment-methods').then((m) => m.EInvoicePaymentMethodsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/e-invoice-document-types', loadComponent: () => import('./app/e-invoice-document-types/e-invoice-document-types').then((m) => m.EInvoiceDocumentTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/system-setup', loadComponent: () => import('./app/system-setup/system-setup').then((m) => m.SystemSetupComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
       // The catalogue maintenance is split into two grantable screens - one per
       // Module.audience - sharing one component (route data picks the side).
-      { path: 'admin/modules-menus', loadComponent: () => import('./app/modules-menus/modules-menus').then((m) => m.ModulesMenusComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', audience: 'tenant' } },
-      { path: 'admin/modules-menus/:moduleId', loadComponent: () => import('./app/modules-menus/modules-menus').then((m) => m.ModulesMenusComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', audience: 'tenant' } },
-      { path: 'admin/platform-menus', loadComponent: () => import('./app/modules-menus/modules-menus').then((m) => m.ModulesMenusComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', audience: 'platform' } },
-      { path: 'admin/platform-menus/:moduleId', loadComponent: () => import('./app/modules-menus/modules-menus').then((m) => m.ModulesMenusComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration', audience: 'platform' } },
-      { path: 'admin/email-templates', loadComponent: () => import('./app/email-templates/email-templates').then((m) => m.EmailTemplatesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
-      { path: 'admin/email-templates/:key', loadComponent: () => import('./app/email-templates/email-template-edit').then((m) => m.EmailTemplateEditComponent), canActivate: [systemAccessGuard], data: { systemModule: 'SaaS Administration' } },
+      { path: 'admin/modules-menus', loadComponent: () => import('./app/modules-menus/modules-menus').then((m) => m.ModulesMenusComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN', audience: 'tenant' } },
+      { path: 'admin/modules-menus/:moduleId', loadComponent: () => import('./app/modules-menus/modules-menus').then((m) => m.ModulesMenusComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN', audience: 'tenant' } },
+      { path: 'admin/platform-menus', loadComponent: () => import('./app/modules-menus/modules-menus').then((m) => m.ModulesMenusComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN', audience: 'platform' } },
+      { path: 'admin/platform-menus/:moduleId', loadComponent: () => import('./app/modules-menus/modules-menus').then((m) => m.ModulesMenusComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN', audience: 'platform' } },
+      { path: 'admin/email-templates', loadComponent: () => import('./app/email-templates/email-templates').then((m) => m.EmailTemplatesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
+      { path: 'admin/email-templates/:key', loadComponent: () => import('./app/email-templates/email-template-edit').then((m) => m.EmailTemplateEditComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'PLATFORM_ADMIN' } },
 
       // Core product systems.
       // Business Insights - the two analytics screens (split 2026-07-22):
       // membership movement/demographics, and sales channel/agent performance.
-      { path: 'membership/membership-analysis', loadComponent: () => import('./app/membership-insights/membership-analysis').then((m) => m.MembershipAnalysisComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
-      { path: 'membership/agent-performance', loadComponent: () => import('./app/membership-insights/agent-performance').then((m) => m.AgentPerformanceComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/membership-analysis', loadComponent: () => import('./app/membership-insights/membership-analysis').then((m) => m.MembershipAnalysisComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      { path: 'membership/agent-performance', loadComponent: () => import('./app/membership-insights/agent-performance').then((m) => m.AgentPerformanceComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       // Club Specification (SRS 2.1.1) - the per-company membership system master.
-      { path: 'membership/settings', loadComponent: () => import('./app/club-specification/club-specification').then((m) => m.ClubSpecificationComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/settings', loadComponent: () => import('./app/club-specification/club-specification').then((m) => m.ClubSpecificationComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       // Master File Setup → Membership Status (per-company master file).
-      { path: 'membership/statuses', loadComponent: () => import('./app/membership-statuses/membership-statuses').then((m) => m.MembershipStatusesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
-      { path: 'membership/fees', loadComponent: () => import('./app/membership-fees/membership-fees').then((m) => m.MembershipFeesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
-      { path: 'membership/types', loadComponent: () => import('./app/membership-types/membership-types').then((m) => m.MembershipTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
-      { path: 'membership/transaction-types', loadComponent: () => import('./app/membership-transaction-types/membership-transaction-types').then((m) => m.MembershipTransactionTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/statuses', loadComponent: () => import('./app/membership-statuses/membership-statuses').then((m) => m.MembershipStatusesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      { path: 'membership/fees', loadComponent: () => import('./app/membership-fees/membership-fees').then((m) => m.MembershipFeesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      { path: 'membership/types', loadComponent: () => import('./app/membership-types/membership-types').then((m) => m.MembershipTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      { path: 'membership/transaction-types', loadComponent: () => import('./app/membership-transaction-types/membership-transaction-types').then((m) => m.MembershipTransactionTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       // Membership / Member CRM (SRS 2.3): the contract list (individual +
       // corporate, nominees/dependents managed inside) and the flat member search.
-      { path: 'membership/memberships', loadComponent: () => import('./app/memberships/memberships').then((m) => m.MembershipsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
-      { path: 'membership/members', loadComponent: () => import('./app/members/members').then((m) => m.MembersComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/memberships', loadComponent: () => import('./app/memberships/memberships').then((m) => m.MembershipsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      { path: 'membership/members', loadComponent: () => import('./app/members/members').then((m) => m.MembersComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       // Membership import (Excel -> staging -> selective migration).
-      { path: 'membership/import', loadComponent: () => import('./app/membership-import/membership-import').then((m) => m.MembershipImportComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
-      { path: 'membership/import/:id', loadComponent: () => import('./app/membership-import/membership-import').then((m) => m.MembershipImportComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/import', loadComponent: () => import('./app/membership-import/membership-import').then((m) => m.MembershipImportComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      { path: 'membership/import/:id', loadComponent: () => import('./app/membership-import/membership-import').then((m) => m.MembershipImportComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       // Membership Type import (same staging pattern, one flat sheet).
-      { path: 'membership/type-import', loadComponent: () => import('./app/membership-type-import/membership-type-import').then((m) => m.MembershipTypeImportComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
-      { path: 'membership/type-import/:id', loadComponent: () => import('./app/membership-type-import/membership-type-import').then((m) => m.MembershipTypeImportComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/type-import', loadComponent: () => import('./app/membership-type-import/membership-type-import').then((m) => m.MembershipTypeImportComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      { path: 'membership/type-import/:id', loadComponent: () => import('./app/membership-type-import/membership-type-import').then((m) => m.MembershipTypeImportComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       // Billing Schedules (fee runs) - list + per-schedule review (same menu).
-      { path: 'membership/billing', loadComponent: () => import('./app/membership-billing/membership-billing').then((m) => m.MembershipBillingComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
-      { path: 'membership/billing/:id', loadComponent: () => import('./app/membership-billing/membership-billing-detail').then((m) => m.MembershipBillingDetailComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
-      { path: 'membership/sales-agencies', loadComponent: () => import('./app/sales-agencies/sales-agencies').then((m) => m.SalesAgenciesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
-      { path: 'membership/sales-agents', loadComponent: () => import('./app/sales-agents/sales-agents').then((m) => m.SalesAgentsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Membership Management' } },
+      { path: 'membership/billing', loadComponent: () => import('./app/membership-billing/membership-billing').then((m) => m.MembershipBillingComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      { path: 'membership/billing/:id', loadComponent: () => import('./app/membership-billing/membership-billing-detail').then((m) => m.MembershipBillingDetailComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      { path: 'membership/sales-agencies', loadComponent: () => import('./app/sales-agencies/sales-agencies').then((m) => m.SalesAgenciesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      { path: 'membership/sales-agents', loadComponent: () => import('./app/sales-agents/sales-agents').then((m) => m.SalesAgentsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       // Account Receivable → Debtor Listing (all three debtor types in one
       // list; Other Debtors managed from the same screen).
-      { path: 'ar/debtors', loadComponent: () => import('./app/ar-debtors/ar-debtors').then((m) => m.ArDebtorsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
+      { path: 'ar/debtors', loadComponent: () => import('./app/ar-debtors/ar-debtors').then((m) => m.ArDebtorsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
       // Debtor account (documents/receipts/deposits) - the listing's detail
       // surface; route falls back to the /ar/debtors menu for RBAC/title.
-      { path: 'ar/debtors/:id', loadComponent: () => import('./app/ar-debtor-account/ar-debtor-account').then((m) => m.ArDebtorAccountComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
+      { path: 'ar/debtors/:id', loadComponent: () => import('./app/ar-debtor-account/ar-debtor-account').then((m) => m.ArDebtorAccountComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
       // AR Transactions - one menu/screen per document type (invoice first);
       // the same component serves every type via data.arDocType.
-      { path: 'ar/invoices', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'invoice' } },
-      { path: 'ar/debit-notes', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'debit-note' } },
-      { path: 'ar/credit-notes', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'credit-note' } },
-      { path: 'ar/receipts', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'receipt' } },
-      { path: 'ar/refunds', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'refund' } },
-      { path: 'ar/deposits', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable', arDocType: 'deposit' } },
+      { path: 'ar/invoices', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR', arDocType: 'invoice' } },
+      { path: 'ar/debit-notes', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR', arDocType: 'debit-note' } },
+      { path: 'ar/credit-notes', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR', arDocType: 'credit-note' } },
+      { path: 'ar/receipts', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR', arDocType: 'receipt' } },
+      { path: 'ar/refunds', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR', arDocType: 'refund' } },
+      { path: 'ar/deposits', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR', arDocType: 'deposit' } },
       // Periodic processing: staged interest run + monthly statement run.
-      { path: 'ar/interest', loadComponent: () => import('./app/ar-interest/ar-interest').then((m) => m.ArInterestComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
+      { path: 'ar/interest', loadComponent: () => import('./app/ar-interest/ar-interest').then((m) => m.ArInterestComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
       // AR Master File Setup - the AR-owned Transaction Type catalog (moved
       // from Membership 2026-08-15; the membership route is a read-only view).
-      { path: 'ar/transaction-types', loadComponent: () => import('./app/ar-transaction-types/ar-transaction-types').then((m) => m.ArTransactionTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
+      { path: 'ar/transaction-types', loadComponent: () => import('./app/ar-transaction-types/ar-transaction-types').then((m) => m.ArTransactionTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
       // Master File Setup → Exchange Rates (multicurrency step 1): effective-dated
       // foreign-currency rates against the company base currency.
-      { path: 'ar/exchange-rates', loadComponent: () => import('./app/ar-exchange-rates/ar-exchange-rates').then((m) => m.ArExchangeRatesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
+      { path: 'ar/exchange-rates', loadComponent: () => import('./app/ar-exchange-rates/ar-exchange-rates').then((m) => m.ArExchangeRatesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
       // Master File Setup → Analysis Setup (hybrid design 2026-08-25):
       // dimensions master-detail; selection in the URL for deep links/back.
-      { path: 'ar/analysis', loadComponent: () => import('./app/ar-analysis/ar-analysis').then((m) => m.ArAnalysisComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
-      { path: 'ar/analysis/:id', loadComponent: () => import('./app/ar-analysis/ar-analysis').then((m) => m.ArAnalysisComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
+      { path: 'ar/analysis', loadComponent: () => import('./app/ar-analysis/ar-analysis').then((m) => m.ArAnalysisComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
+      { path: 'ar/analysis/:id', loadComponent: () => import('./app/ar-analysis/ar-analysis').then((m) => m.ArAnalysisComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
       // AR Specification - company-wide AR options (same role as Club Specification).
-      { path: 'ar/settings', loadComponent: () => import('./app/ar-specification/ar-specification').then((m) => m.ArSpecificationComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
-      { path: 'ar/statement-generation', loadComponent: () => import('./app/ar-statement-generation/ar-statement-generation').then((m) => m.ArStatementGenerationComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
-      { path: 'ar/statements', loadComponent: () => import('./app/ar-statements/ar-statements').then((m) => m.ArStatementsComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Account Receivable' } },
+      { path: 'ar/settings', loadComponent: () => import('./app/ar-specification/ar-specification').then((m) => m.ArSpecificationComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
+      { path: 'ar/statement-generation', loadComponent: () => import('./app/ar-statement-generation/ar-statement-generation').then((m) => m.ArStatementGenerationComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
+      { path: 'ar/statements', loadComponent: () => import('./app/ar-statements/ar-statements').then((m) => m.ArStatementsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
       // Master File Setup → Unit Courses (per-company 9-hole building blocks).
-      { path: 'golf/unit-courses', loadComponent: () => import('./app/golf-unit-courses/golf-unit-courses').then((m) => m.GolfUnitCoursesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },
+      { path: 'golf/unit-courses', loadComponent: () => import('./app/golf-unit-courses/golf-unit-courses').then((m) => m.GolfUnitCoursesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Master File Setup → Courses (18-hole pairing of two unit courses).
-      { path: 'golf/courses', loadComponent: () => import('./app/golf-courses/golf-courses').then((m) => m.GolfCoursesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },
+      { path: 'golf/courses', loadComponent: () => import('./app/golf-courses/golf-courses').then((m) => m.GolfCoursesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Master File Setup → Transaction Type (golf billing-item catalog).
-      { path: 'golf/transaction-types', loadComponent: () => import('./app/golf-transaction-types/golf-transaction-types').then((m) => m.GolfTransactionTypesComponent), canActivate: [systemAccessGuard], data: { systemModule: 'Golf Management' } },
+      { path: 'golf/transaction-types', loadComponent: () => import('./app/golf-transaction-types/golf-transaction-types').then((m) => m.GolfTransactionTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Shown when systemAccessGuard denies a route (no guard on this one).
       { path: 'access-denied', loadComponent: () => import('./app/access-denied/access-denied').then((m) => m.AccessDeniedComponent) },
 

@@ -15,7 +15,7 @@ router.get('/health', (req, res) => res.json({ service: 'facility', status: 'stu
 
 // Everything below requires a valid token and an entitled, active workspace.
 router.use(verifyToken);
-router.use(requireModule('Facility Management'));
+router.use(requireModule('FACILITY'));
 
 // Placeholder until controllers exist.
 router.use((req, res) => res.status(501).json({ message: 'Facility Management is not implemented yet.' }));

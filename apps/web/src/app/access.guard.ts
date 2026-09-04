@@ -3,9 +3,10 @@ import { CanActivateFn, Router } from '@angular/router';
 import { AccessService } from './services/access.service';
 import { PermissionsService } from './services/permissions.service';
 
-// Per-system authorization. A route opts in with `data: { systemModule: '<name>' }`;
-// if the user can't access that module, they're redirected to /access-denied (which
-// renders inside the shell). Runs AFTER authGuard, so the user is already logged in.
+// Per-system authorization. A route opts in with `data: { moduleCode: '<CODE>' }`
+// (the frozen Module.code, e.g. 'GOLF'); if the user can't access that module,
+// they're redirected to /access-denied (which renders inside the shell). Runs
+// AFTER authGuard, so the user is already logged in.
 //
 // Two checks, both UX-layer (the backend stays authoritative):
 // 1. Module: is the user entitled to the system at all?
@@ -18,8 +19,8 @@ export const systemAccessGuard: CanActivateFn = (route, state) => {
   const permissions = inject(PermissionsService);
   const router = inject(Router);
 
-  const moduleName = route.data['systemModule'] as string | undefined;
-  if (!access.canAccessModule(moduleName)) {
+  const moduleCode = route.data['moduleCode'] as string | undefined;
+  if (!access.canAccessModule(moduleCode)) {
     return router.parseUrl('/access-denied');
   }
   if (!permissions.hasMenu(state.url)) {

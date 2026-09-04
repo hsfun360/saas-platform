@@ -3,7 +3,7 @@ const router = express.Router();
 const controller = require('./membershipFee.controller');
 
 // Mounted at /api/membership/fees. Auth (verifyToken) + entitlement
-// (requireModule('Membership Management')) are applied by the parent router.
+// (requireModule('MEMBERSHIP')) are applied by the parent router.
 router.get('/meta', controller.getMeta);
 router.get('/tax-schemes', controller.getTaxSchemes);
 router.get('/transaction-types', controller.getTransactionTypes);

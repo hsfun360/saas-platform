@@ -25,15 +25,17 @@ const OutboxMessage = require('../../platform/outboxMessage.model');
 // A tenant without them is UNMANAGEABLE, so provisioning always entitles them,
 // whatever the caller selected, and they are never offered as a choice.
 //
-// The flag itself is stamped at boot (idempotent) by name, so a fresh DB or a
-// pre-flag row self-heals without a manual migration. The NAME is only the
-// bootstrap key; all runtime logic uses the flag.
-const SYSTEM_MODULE_NAMES = ['System Administration'];
+// The flag itself is stamped at boot (idempotent) by the frozen Module.code,
+// so a fresh DB or a pre-flag row self-heals without a manual migration - and
+// a display rename can never un-system the module (the old NAME key had
+// already drifted: the seeder said 'System Setup', the stamp said 'System
+// Administration'). The CODE is only the bootstrap key; runtime uses the flag.
+const SYSTEM_MODULE_CODES = ['TENANT_ADMIN'];
 
 async function ensureSystemModules() {
     const [count] = await Module.update(
         { isSystem: true },
-        { where: { name: SYSTEM_MODULE_NAMES, isSystem: false } },
+        { where: { code: SYSTEM_MODULE_CODES, isSystem: false } },
     );
     if (count > 0) console.log(`Stamped ${count} system module(s) (isSystem=true).`);
 }

@@ -21,7 +21,7 @@ const { registerConsumer } = require('../platform/dimensionGateway');
 // dimensionNo is gateway-validated 1..6 - the column name never carries user
 // input.
 registerConsumer({
-    moduleName: 'Account Receivable',
+    moduleCode: 'AR',
     usageCheck: async ({ companyId, dimensionNo, optionIds }) => {
         const { Op } = require('sequelize');
         const Ledger = require('../modules/ar/ledger.model');

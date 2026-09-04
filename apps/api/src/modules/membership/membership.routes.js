@@ -40,7 +40,7 @@ router.use('/agent-portal', agentPortalRoutes);
 
 // Everything below requires a valid token and an entitled, active workspace.
 router.use(verifyToken);
-router.use(requireModule('Membership Management'));
+router.use(requireModule('MEMBERSHIP'));
 
 // --- Club Specification (SRS 2.1.1 - the membership system master) ---
 router.use('/settings', requireMenuAction('/membership/settings'), membershipSettingsRoutes);

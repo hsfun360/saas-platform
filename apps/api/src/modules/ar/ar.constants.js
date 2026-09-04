@@ -62,10 +62,10 @@ const TRX_CLASS_KEYS = TRX_CLASSES.map((c) => c.key);
 // enforces membership of this list. Golf/Facility/POS activate as their
 // charge-to-account flows wire in.
 const AR_MODULE_KEYS = [
-    { key: 'membership', label: 'Membership', moduleName: 'Membership Management' },
-    { key: 'golf', label: 'Golf', moduleName: 'Golf Management' },
-    { key: 'facility', label: 'Facility', moduleName: 'Facility Management' },
-    { key: 'pos', label: 'POS', moduleName: 'POS' },
+    { key: 'membership', label: 'Membership', moduleCode: 'MEMBERSHIP' },
+    { key: 'golf', label: 'Golf', moduleCode: 'GOLF' },
+    { key: 'facility', label: 'Facility', moduleCode: 'FACILITY' },
+    { key: 'pos', label: 'POS', moduleCode: 'POS' },
 ];
 
 // --- Document ledger (slice 2) ---

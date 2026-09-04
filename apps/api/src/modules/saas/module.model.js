@@ -7,9 +7,21 @@ const Module = sequelize.define('Module', {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true
     },
+    // Stable MACHINE IDENTITY (approved 2026-09-04): THE key for entitlement
+    // checks (requireModule), boot seeds, frontend route gating, and any future
+    // license artifact for self-hosted deployments. UPPER_SNAKE, globally
+    // unique (not per-audience - a license file must not need an audience
+    // qualifier), FROZEN at creation: no API updates it, ever. Display naming
+    // lives in `name`/`names`, which are freely renamable/translatable.
+    code: {
+        type: DataTypes.STRING(30),
+        allowNull: false,
+        validate: { is: /^[A-Z][A-Z0-9_]*$/ },
+    },
     name: {
         type: DataTypes.STRING,
         allowNull: false // e.g., "Golf Management" — base/English name + fallback.
+        // DISPLAY ONLY since `code` became the identity - renamable at will.
         // Unique PER AUDIENCE (composite index below), not globally: the tenant
         // and platform catalogues are separate worlds and may reuse a name
         // (e.g. an "Account Receivable" product module AND a platform-side
@@ -37,9 +49,8 @@ const Module = sequelize.define('Module', {
         allowNull: true // the system's default dashboard route, e.g. '/golf'
     },
     // System module (like a system Role): platform infrastructure every tenant
-    // needs - always entitled by provisioning, never deletable, base name
-    // locked (code + the mandatory-entitlement lookup key on it). Stamped at
-    // boot by ensureSystemModules(); currently "System Administration".
+    // needs - always entitled by provisioning, never deletable. Stamped at
+    // boot by ensureSystemModules(), keyed by `code`; currently TENANT_ADMIN.
     isSystem: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
@@ -58,6 +69,8 @@ const Module = sequelize.define('Module', {
     }
 }, {
     indexes: [
+        // The machine identity is globally unique.
+        { name: 'UX_Module_code', unique: true, fields: ['code'] },
         // One name per catalogue side (the legacy global unique on `name` is
         // dropped by an idempotent boot statement in app.js).
         { name: 'UX_Module_name_audience', unique: true, fields: ['name', 'audience'] },

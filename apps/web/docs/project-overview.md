@@ -889,18 +889,20 @@ interceptor, which clears storage and redirects to `/login`.
 ```ts
 { path: 'golf', component: GolfComponent,
   canActivate: [systemAccessGuard],
-  data: { systemModule: 'Golf Management' } }   // must match the Module name
+  data: { moduleCode: 'GOLF' } }   // the frozen Module.code, never the display name
 ```
 
-`AccessService.canAccessModule(name)` decides: a user can access a module if it's in
-their granted menus, plus `System Setup` for a Tenant/System Admin and
-`SaaS Administration` for a System Admin. On denial the guard redirects to
-`/access-denied` (`AccessDeniedComponent`, rendered inside the shell, "Back to
-dashboard" returns to the user's own system). Routes that everyone may see
-(`/home`, `/profile`, `/settings`) carry no `systemModule` and no guard.
+`AccessService.canAccessModule(code)` decides: a user can access a module if its
+code is on their granted menus (`MenuItem.moduleCode`; a legacy pre-code cache
+falls back through a name→code map until the next login), plus `TENANT_ADMIN`
+for a Tenant/System Admin and `PLATFORM_ADMIN` for a System Admin. On denial the
+guard redirects to `/access-denied` (`AccessDeniedComponent`, rendered inside the
+shell, "Back to dashboard" returns to the user's own system). Routes that
+everyone may see (`/home`, `/profile`, `/settings`) carry no `moduleCode` and no
+guard.
 
 Reference: `access.service.ts`, `access.guard.ts`, `access-denied/`, `auth.guard.ts`,
-and the `data.systemModule` + `canActivate: [systemAccessGuard]` entries in `main.ts`.
+and the `data.moduleCode` + `canActivate: [systemAccessGuard]` entries in `main.ts`.
 
 #### Workspace selection & last-accessed memory
 

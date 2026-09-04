@@ -133,7 +133,7 @@ async function saveSetting(companyId, payload, stamps) {
     let membershipIntegration = null; // null = leave unchanged
     if (payload.membershipIntegration !== undefined) {
         const { companyHasModule } = require('../../platform/serviceContext');
-        if (!(await companyHasModule(companyId, 'Membership Management'))) {
+        if (!(await companyHasModule(companyId, 'MEMBERSHIP'))) {
             if (payload.membershipIntegration === true) {
                 throw badRequest('Your workspace is not subscribed to Membership Management.');
             }
