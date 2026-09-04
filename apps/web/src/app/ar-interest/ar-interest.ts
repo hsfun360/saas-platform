@@ -166,7 +166,17 @@ export class ArInterestComponent implements OnInit {
     this.confirming.set(true);
     this.service.confirmInterest(ids).subscribe({
       next: (res) => {
-        this.successMessage.set(res.message);
+        // Surface WHY each failure failed (show-expected-results): the server
+        // returns per-id results - name the debtor and give its reason, in the
+        // error flash so a failed post never reads as success.
+        const failures = (res.results || []).filter((r) => !r.ok);
+        if (failures.length) {
+          const byId = new Map(this.rows().map((r) => [r.id, r.debtor?.no || 'debtor']));
+          const reasons = failures.map((f) => `${byId.get(f.id) || 'debtor'}: ${f.message}`).join(' ');
+          this.errorMessage.set(`${res.message} ${reasons}`);
+        } else {
+          this.successMessage.set(res.message);
+        }
         this.confirming.set(false);
         this.load();
       },
