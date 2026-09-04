@@ -313,7 +313,9 @@ exports.deleteRole = async (req, res) => {
 exports.listModules = async (req, res) => {
     try {
         const modules = await Module.findAll({
-            attributes: ['id', 'name', 'names', 'icon', 'description', 'landingRoute', 'isSystem', 'audience'],
+            // `code` must be here: the dialog displays it (frozen) and
+            // isProtectedModule() below keys the platform-shell rule on it.
+            attributes: ['id', 'code', 'name', 'names', 'icon', 'description', 'landingRoute', 'isSystem', 'audience'],
             order: [['name', 'ASC']],
         });
         // isProtected = not deletable, base name locked (system modules + the
