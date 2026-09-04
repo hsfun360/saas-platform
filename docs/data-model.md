@@ -4,7 +4,7 @@ This doc is a curated map of the platform's database entities and relationships.
 It is maintained by the `/data-model` skill - refresh it there, do not hand-edit it out of sync.
 Sources of truth: `apps/api/src/wiring/associations.js` (all associations), the `*.model.js` files under `apps/api/src/modules/` and `apps/api/src/platform/` (all columns), and `apps/api/src/platform/schemas.js` (physical schemas).
 Business context and golden rules: `apps/api/docs/systems/`.
-Last refreshed: 2026-08-24.
+Last refreshed: 2026-09-04.
 
 ## Conventions
 
@@ -15,8 +15,9 @@ Last refreshed: 2026-08-24.
   Some intra-service references are also plain id columns validated in the service (no association needed for eager-loading); those are dashed too, labelled `(id ref)`.
   Polymorphic references (a type column plus an id column, e.g. `Debtor.debtorType + sourceId`, `Allocation.creditDocType + creditDocId`) are always plain ids.
 - **Real associations are intra-service FKs** - solid lines; `(cascade)` marks `onDelete: 'CASCADE'` header/detail pairs.
-- **Postgres schemas**: each product/shared service owns its own schema - `membership`, `golf`, `tax`, `workflow`, `ar`, plus `audit` for the append-only trail (`facility` reserved).
+- **Postgres schemas**: each product/shared service owns its own schema - `membership`, `golf`, `tax`, `workflow`, `ar`, `dimension`, plus `audit` for the append-only trail (`facility` reserved).
   Platform tier tables (identity, saas control plane, notification, outbox) stay in `public`.
+- **Frozen machine codes over display names**: `Module.code` (UPPER_SNAKE, globally unique, set at creation and never editable) is the identity every entitlement check, seed and route guard keys on; `name`/`names` are renamable display data.
 - **Platform NULL-discriminator**: one table serves platform and subscribers; `accountId NULL` = the platform-owned row (`Role`, `EmailTemplate`, `TaxScheme`).
   `WorkflowDefinition` deliberately has no platform row; its `companyId NULL` means account-wide instead.
 - **Money columns are `numeric(21,2)`**; percentages/rates keep their own precision (tax rate `DECIMAL(7,4)`, interest rate `DECIMAL(7,4)`, exchange rate `DECIMAL(21,10)`).
@@ -36,10 +37,11 @@ Last refreshed: 2026-08-24.
 | `src/platform` | `public` | [notification.md](../apps/api/docs/systems/notification.md) | Standalone: OutboxMessage (transactional outbox queue) |
 | `src/platform` | `audit` | - | Standalone: AuditLog (append-only, written only by the global hooks) |
 | `src/modules/membership` | `membership` | [membership-management.md](../apps/api/docs/systems/membership-management.md) | Membership, Member, Address, MembershipFee, MembershipFeeScheme, MembershipType, MembershipTypeFee, MembershipTypeStandingCharge, SalesAgency, SalesAgent, MembershipImportBatch, MembershipImportRow, MembershipTypeImportBatch, MembershipTypeImportRow. Standalone: MembershipStatus, BillingSchedule, BillingScheduleItem, NumberingScheme, MembershipSetting (per-company singleton) |
-| `src/modules/golf` | `golf` | [golf-management.md](../apps/api/docs/systems/golf-management.md) | UnitCourse, UnitCourseHole, UnitCourseTeeBox, UnitCourseTeeBoxDistance, Course, CourseTeeTimeSet, CourseTeeTimeSlot, CourseClosurePlan, CourseClosureDay, TransactionType, TransactionTypeRate |
+| `src/modules/golf` | `golf` | [golf-management.md](../apps/api/docs/systems/golf-management.md) | UnitCourse, UnitCourseHole, UnitCourseTeeBox, UnitCourseTeeBoxDistance, Course, CourseTeeTimeSet, CourseTeeTimeSlot, CourseClosurePlan, CourseClosureDay, TransactionType, TransactionTypeRate, TransactionTypeElement (package element lines) |
 | `src/modules/tax` | `tax` | [tax.md](../apps/api/docs/systems/tax.md) | TaxScheme, TaxRate, CompanyTaxScheme, CompanyTaxAccount |
 | `src/modules/workflow` | `workflow` | - | WorkflowDefinition, WorkflowStep, WorkflowInstance, WorkflowTask |
-| `src/modules/ar` (Account Receivable) | `ar` | [account-receivable.md](../apps/api/docs/systems/account-receivable.md) | All standalone (id refs validated in the service, no associations): TransactionType (the billing/receipting catalog, AR-owned since 2026-08-15), NumberingScheme, ExchangeRate (effective-dated FX rates vs the company base currency), Setting (per-company singleton), Debtor, OtherDebtor, CreditAccount, CreditMemberLimit, Ledger, TaxLedger, Receipt, Deposit, Allocation, InterestGeneration, InterestGenerationDetail, Statement, StatementDetail, StatementRun |
+| `src/modules/dimension` | `dimension` | [dimension.md](../apps/api/docs/systems/dimension.md) | DimensionCategory, DimensionOption, DimensionCategoryModule (per-module applicability) |
+| `src/modules/ar` (Account Receivable) | `ar` | [account-receivable.md](../apps/api/docs/systems/account-receivable.md) | All standalone (id refs validated in the service, no associations): TransactionType (the billing/receipting catalog, AR-owned since 2026-08-15), NumberingScheme, ExchangeRate (effective-dated FX rates vs the company base currency), Setting (per-company singleton), Debtor, OtherDebtor, CreditAccount, CreditMemberLimit, Ledger, TaxLedger, Receipt, Deposit, Allocation, Interest, InterestDetail (renamed from InterestGeneration / InterestGenerationDetail on 2026-09-04), Statement, StatementDetail, StatementRun |
 | `src/modules/facility` | `facility` (reserved) | [facility-management.md](../apps/api/docs/systems/facility-management.md) | none yet |
 
 Standalone tables reference their owner (`accountId` / `companyId` / `userId`) by plain value and have no associations.
@@ -81,6 +83,7 @@ erDiagram
 ```
 
 `RefreshToken` and `TrustedDevice` hang off `User.userId` by value only (identity-service session store and MFA trusted browsers); `UserFavorite` and `Notification` hang off `userId + companyId` the same way.
+`Module.code` (added 2026-09-04) is the frozen machine identity (`MEMBERSHIP`, `GOLF`, `FACILITY`, `AR`, `POS`, `TENANT_ADMIN`, `PLATFORM_ADMIN`): entitlement checks, boot seeds, the dimension consumer registry and the web route guards key on it, never on the renamable names.
 
 ### Membership
 
@@ -130,12 +133,15 @@ erDiagram
     Course ||--o{ CourseClosurePlan : "closure plans (cascade)"
     CourseClosurePlan ||--o{ CourseClosureDay : "generated closure days (cascade)"
     TransactionType ||--o{ TransactionTypeRate : "effective-dated price cards (cascade)"
+    TransactionType ||--o{ TransactionTypeElement : "package element lines (cascade)"
+    TransactionTypeElement }o..|| TransactionType : "elementTransactionTypeId - peer element master, no nesting (id ref)"
     Course }o..|| Company : "companyId (value ref)"
     UnitCourse }o..|| Company : "companyId (value ref)"
     TransactionType }o..|| Company : "companyId (value ref)"
 ```
 
 The golf `TransactionType` is the golf billing-item master (tax by code via the seam); it is a different table from `ar.TransactionType`.
+A package-class transaction type allocates its price across `TransactionTypeElement` lines (each taxed by the element's own scheme); the package's selling price stays on `TransactionTypeRate`.
 
 ### Account Receivable
 
@@ -160,10 +166,10 @@ erDiagram
     Allocation }o..|| Ledger : "credit or debit side 'ledger' (polymorphic id ref)"
     Allocation }o..|| Receipt : "'receipt' / 'refund' side (polymorphic id ref)"
     Allocation }o..|| Deposit : "'deposit' side (polymorphic id ref)"
-    InterestGeneration }o..|| Debtor : "debtorId, one per month (id ref)"
-    InterestGeneration ||..o{ InterestGenerationDetail : "overdue lines (id ref)"
-    InterestGenerationDetail }o..|| Ledger : "chargeId - the overdue debit (id ref)"
-    InterestGeneration }o..o| Ledger : "postedLedgerId - summary Debit Note (id ref)"
+    Interest }o..|| Debtor : "debtorId, one per month (id ref)"
+    Interest ||..o{ InterestDetail : "overdue lines (id ref)"
+    InterestDetail }o..|| Ledger : "chargeId - the overdue debit (id ref)"
+    Interest }o..o| Ledger : "postedLedgerId - summary Debit Note (id ref)"
     Statement }o..|| Debtor : "debtorId, one live per month (id ref)"
     Statement ||..o{ StatementDetail : "frozen lines with running balance (id ref)"
     StatementDetail }o..|| Ledger : "docType + docId (polymorphic id ref)"
@@ -174,13 +180,15 @@ erDiagram
 
 `Debtor` is the thin ledger account: the pointer runs one way (`debtorType + sourceId`), Membership/Member never carry a debtorId, and `debtorAccount` / `name` are sort-key snapshots only.
 Hot balances are materialized on `CreditAccount.outstanding` and `CreditMemberLimit.personalUsed` (fixed lock order: pool row, then person rows) and asserted by reconciliation against `Allocation` rows.
-Valid allocation pairs are `receipt -> ledger`, `ledger(credit) -> ledger(debit)`, `receipt -> deposit`, `deposit -> refund`, `receipt -> refund`; there is deliberately no `deposit -> ledger` pair (that is the conversion process, which posts a Credit Note).
+Valid allocation pairs are `receipt -> ledger`, `ledger(credit) -> ledger(debit)`, `receipt -> deposit`, `deposit -> refund`, `receipt -> refund`; there is deliberately no `deposit -> ledger` pair.
+Deposit value reaches outstanding only through the `deposit -> refund` offset since the separate Convert-to-Credit-Note door was removed (2026-09-02); `Setting.depositConversionTransactionTypeId` remains as a legacy column _(confirm)_.
 `Ledger` and `Receipt` carry the draft lifecycle (`draft` / `pending-approval` / `open` / `settled` / `void`) with posting and void audit columns; receipts post directly (no approval chain).
 `TaxLedger` (added 2026-08-24) is the per-component tax breakdown behind a Ledger document's tax snapshot: `docType` mirrors `Ledger.docKind`, one row per rate line in `lineNo` computation order, frozen from the tax quote when the document's tax amounts are written and never re-derived.
 Each row carries document-currency and base-currency amounts (at the document's frozen exchange rate), and `SUM(taxAmount)` always equals the parent `Ledger.taxAmount`.
 `StatementRun` is the worker-driven job row (lease + progress counters) and has no business relationships, so it stays out of the diagram.
 `ExchangeRate` (added 2026-08-21, step 1 of multicurrency AR) holds one rate per foreign currency per effective day; `rate` is how many base-currency units one foreign unit buys, looked up as the latest `effectiveDate <= docDate`.
-Documents will snapshot the rate they used in later steps, so editing a rate only changes future defaults.
+Documents snapshot the rate they used plus base-currency equivalents (step 3), `Allocation.fxGainLoss` carries the realized gain/loss per pair in base currency (step 4), and `Interest`/`Statement` headers carry the debtor account's `currencyCode` (step 5) - editing a rate only changes future defaults.
+The interest run supports pre-post maintenance: `InterestDetail.isExcluded` drops a line from the header totals until posting, and restore brings it back.
 `Setting.multiCurrencyEnabled` gates foreign-currency Other Debtor accounts (currency per account, never per document); `fxGainTransactionTypeId` / `fxLossTransactionTypeId` designate the Forex-class catalog entries realized gain/loss posts under.
 
 ### Workflow
@@ -202,6 +210,24 @@ erDiagram
 One definition per purpose per scope; routing variations live in step `condition` JSON, not in competing definitions.
 The DB guarantees one live instance per document (partial unique on `entityType + entityId WHERE status = 'in-progress'`).
 Products submit through `platform/workflowGateway.js`; the first wired producer is the AR invoice (approve auto-posts).
+
+### Dimension (financial-analysis dimensions)
+
+```mermaid
+erDiagram
+    DimensionCategory ||--o{ DimensionOption : "options (FK)"
+    DimensionCategory ||--o{ DimensionCategoryModule : "per-module applicability (cascade)"
+    DimensionCategory }o..o| DimensionCategory : "parentCategoryId - hierarchy, e.g. Department under Division (FK)"
+    DimensionOption }o..o| DimensionOption : "parentOptionId - option of the parent category (FK)"
+    DimensionCategoryModule }o..|| Module : "moduleId - Control-Plane module (value ref)"
+    DimensionCategory }o..|| Company : "companyId (value ref)"
+    Ledger }o..o{ DimensionOption : "analysis1..6Id - stamped by dimensionNo (value refs)"
+```
+
+A company's category catalog is unlimited; assigning a category a dimension number 1..6 maps it onto consumers' `analysis<dimensionNo>Id` columns (`ar.Ledger` today, AP/GL/PO later), and the number is company-global so cross-module reporting joins on one column.
+The repurpose lock: once any consumer document references one of a category's options, its `dimensionNo` can no longer change (renames stay free); the gateway's registered usage checks are the lock's eyes.
+Applicability is opt-in per consuming module (`DimensionCategoryModule`; presence = offered, `isRequired` per module), and both hierarchy levels are stamped at save so history never rewrites when an option is reparented.
+Consumers call through `platform/dimensionGateway.js`, registering by frozen `Module.code`.
 
 ### Tax & platform services
 
