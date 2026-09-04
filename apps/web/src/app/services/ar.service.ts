@@ -18,7 +18,7 @@ import {
   ArExchangeRate,
   ArExchangeRateMeta,
   ArInterestDetail,
-  ArInterestGeneration,
+  ArInterest,
   ArOtherDebtor,
   ArSetting,
   ArSettingResponse,
@@ -311,14 +311,14 @@ export class ArService {
     );
   }
 
-  listInterest(month: string): Observable<{ generations: ArInterestGeneration[] }> {
+  listInterest(month: string): Observable<{ generations: ArInterest[] }> {
     let params = new HttpParams();
     if (month) params = params.set('month', month);
-    return this.http.get<{ generations: ArInterestGeneration[] }>(`${this.base}/interest-generations`, { params });
+    return this.http.get<{ generations: ArInterest[] }>(`${this.base}/interest-generations`, { params });
   }
 
-  getInterest(id: string): Observable<{ generation: ArInterestGeneration; details: ArInterestDetail[] }> {
-    return this.http.get<{ generation: ArInterestGeneration; details: ArInterestDetail[] }>(`${this.base}/interest-generations/${id}`);
+  getInterest(id: string): Observable<{ generation: ArInterest; details: ArInterestDetail[] }> {
+    return this.http.get<{ generation: ArInterest; details: ArInterestDetail[] }>(`${this.base}/interest-generations/${id}`);
   }
 
   confirmInterest(ids: string[]): Observable<{ message: string; results: Array<{ id: string; ok: boolean; message: string }> }> {

@@ -2,7 +2,7 @@ const { DataTypes, Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { AR_SCHEMA } = require('../../platform/schemas');
 
-// InterestGeneration - the HOLDING header of the staged interest run (approved
+// Interest - the HOLDING header of the staged interest run (approved
 // 2026-08-05; mirrors the membership-import staging pattern): the account user
 // GENERATES into holding, reviews, then CONFIRMS - which posts ONE summary
 // Debit Note per header. ONE header per debtor per month; the partial unique
@@ -13,7 +13,7 @@ const { AR_SCHEMA } = require('../../platform/schemas');
 // FLAT per month, no day proration; rounded half-up to 2dp PER DETAIL LINE,
 // and this header's interestAmount = the sum of the rounded lines, so the
 // posted summary always equals the drill-down exactly.
-const InterestGeneration = sequelize.define('InterestGeneration', {
+const Interest = sequelize.define('Interest', {
     id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
@@ -70,7 +70,11 @@ const InterestGeneration = sequelize.define('InterestGeneration', {
         allowNull: false,
         defaultValue: 'pending',
     },
-    // Set on confirm - the summary ar.Ledger Debit Note this produced.
+    // Set on confirm - the summary ar.Ledger Debit Note this produced. The
+    // link is TWO-WAY: this column points at the ledger row, and the posted
+    // DN's generic producer columns point back (Ledger.sourceModule = 'ar',
+    // Ledger.sourceRef = this header's id - the platform pattern shared with
+    // offset CNs / deposit conversions, so Ledger stays producer-agnostic).
     postedLedgerId: {
         type: DataTypes.UUID,
         allowNull: true,
@@ -81,18 +85,18 @@ const InterestGeneration = sequelize.define('InterestGeneration', {
     updatedBy: { type: DataTypes.UUID, allowNull: true },
 }, {
     schema: AR_SCHEMA,
-    tableName: 'InterestGeneration',
+    tableName: 'Interest',
     timestamps: true,
     indexes: [
         // The month duplicate guard: cancelled rows don't block regeneration.
         {
-            name: 'IDX_InterestGeneration_Month_Guard',
+            name: 'IDX_Interest_Month_Guard',
             fields: ['companyId', 'debtorId', 'periodMonth'],
             unique: true,
             where: { status: { [Op.ne]: 'cancelled' } },
         },
-        { name: 'IDX_InterestGeneration_Company_Month', fields: ['companyId', 'periodMonth'] },
+        { name: 'IDX_Interest_Company_Month', fields: ['companyId', 'periodMonth'] },
     ],
 });
 
-module.exports = InterestGeneration;
+module.exports = Interest;

@@ -252,6 +252,23 @@ async function initializeDB() {
                 await sequelize.query('ALTER INDEX IF EXISTS ar."IDX_StatementLine_Company" RENAME TO "IDX_StatementDetail_Company"');
                 console.log('Migrated ar.StatementLine -> ar.StatementDetail.');
             }
+            // 1b. ar.InterestGeneration -> ar.Interest and
+            //     ar.InterestGenerationDetail -> ar.InterestDetail
+            //     (+ interestGenerationId -> interestId, index renames -
+            //     naming shortened 2026-09-04; rows preserved).
+            const [[intGen]] = await sequelize.query(
+                `SELECT to_regclass('ar."InterestGeneration"') AS o, to_regclass('ar."Interest"') AS n`,
+            );
+            if (intGen && intGen.o && !intGen.n) {
+                await sequelize.query('ALTER TABLE ar."InterestGeneration" RENAME TO "Interest"');
+                await sequelize.query('ALTER TABLE ar."InterestGenerationDetail" RENAME TO "InterestDetail"');
+                await sequelize.query('ALTER TABLE ar."InterestDetail" RENAME COLUMN "interestGenerationId" TO "interestId"');
+                await sequelize.query('ALTER INDEX IF EXISTS ar."IDX_InterestGeneration_Month_Guard" RENAME TO "IDX_Interest_Month_Guard"');
+                await sequelize.query('ALTER INDEX IF EXISTS ar."IDX_InterestGeneration_Company_Month" RENAME TO "IDX_Interest_Company_Month"');
+                await sequelize.query('ALTER INDEX IF EXISTS ar."IDX_InterestGenerationDetail_Parent" RENAME TO "IDX_InterestDetail_Parent"');
+                await sequelize.query('ALTER INDEX IF EXISTS ar."IDX_InterestGenerationDetail_Company" RENAME TO "IDX_InterestDetail_Company"');
+                console.log('Migrated ar.InterestGeneration -> ar.Interest (+ detail table/column/index renames).');
+            }
             // 2. ar.Statement NOT NULL snapshot columns whose backfill needs
             //    data the alter-sync cannot derive (month from periodEnd,
             //    debtor type/category via joins, issuer name from Company).

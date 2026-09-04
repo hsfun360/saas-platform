@@ -8,7 +8,7 @@ import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ArService } from '../services/ar.service';
-import { ArInterestDetail, ArInterestGeneration } from '../models/ar.models';
+import { ArInterestDetail, ArInterest } from '../models/ar.models';
 
 // Account Receivable → Interest Generation (staged run, approved design):
 // GENERATE holding headers (one per debtor per month - the holding list IS the
@@ -29,7 +29,7 @@ export class ArInterestComponent implements OnInit {
   private readonly service = inject(ArService);
   private readonly fb = inject(FormBuilder);
 
-  readonly rows = signal<ArInterestGeneration[]>([]);
+  readonly rows = signal<ArInterest[]>([]);
   readonly loading = signal(false);
   readonly generating = signal(false);
   readonly confirming = signal(false);
@@ -67,7 +67,7 @@ export class ArInterestComponent implements OnInit {
   // Detail dialog.
   readonly detailOpen = signal(false);
   readonly detailLoading = signal(false);
-  readonly detailGen = signal<ArInterestGeneration | null>(null);
+  readonly detailGen = signal<ArInterest | null>(null);
   readonly details = signal<ArInterestDetail[]>([]);
   readonly maintaining = signal(false);
   readonly includedCount = computed(() => this.details().filter((d) => !d.isExcluded).length);
@@ -177,7 +177,7 @@ export class ArInterestComponent implements OnInit {
     });
   }
 
-  onCancel(row: ArInterestGeneration): void {
+  onCancel(row: ArInterest): void {
     this.clearMessages();
     this.service.cancelInterest(row.id).subscribe({
       next: (res) => { this.successMessage.set(res.message); this.load(); },
@@ -185,7 +185,7 @@ export class ArInterestComponent implements OnInit {
     });
   }
 
-  openDetail(row: ArInterestGeneration): void {
+  openDetail(row: ArInterest): void {
     this.clearMessages();
     this.detailGen.set(row);
     this.details.set([]);

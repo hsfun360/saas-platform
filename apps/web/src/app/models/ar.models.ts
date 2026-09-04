@@ -407,7 +407,7 @@ export interface ArDebtorRef {
   name: string | null;
 }
 
-export interface ArInterestGeneration {
+export interface ArInterest {
   id: string;
   debtorId: string;
   debtor: ArDebtorRef | null;

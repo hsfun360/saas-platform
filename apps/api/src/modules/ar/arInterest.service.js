@@ -1,7 +1,7 @@
 // src/modules/ar/arInterest.service.js
 //
 // The staged interest run (approved 2026-08-05): GENERATE into holding
-// (InterestGeneration header per debtor per month + permanent detail
+// (Interest header per debtor per month + permanent detail
 // drill-down), review, then CONFIRM per header (the controller posts the
 // summary Debit Note through arPosting and stamps postedLedgerId).
 //
@@ -14,8 +14,8 @@ const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const Debtor = require('./debtor.model');
 const Ledger = require('./ledger.model');
-const InterestGeneration = require('./interestGeneration.model');
-const InterestGenerationDetail = require('./interestGenerationDetail.model');
+const Interest = require('./interest.model');
+const InterestDetail = require('./interestDetail.model');
 const { cents, money, shiftDate } = require('./arPosting.service');
 
 function daysBetween(fromStr, toStr) {
@@ -42,7 +42,7 @@ async function generateInterest({ companyId, periodMonth, cutoffDate, ratePercen
     const { getCompanyBaseCurrency } = require('../../platform/serviceContext');
     const baseCurrency = await getCompanyBaseCurrency(companyId);
 
-    const existing = await InterestGeneration.findAll({
+    const existing = await Interest.findAll({
         where: { companyId, periodMonth, status: { [Op.ne]: 'cancelled' } },
         attributes: ['debtorId'],
     });
@@ -93,7 +93,7 @@ async function generateInterest({ companyId, periodMonth, cutoffDate, ratePercen
 
             const headerCurrency = d.currencyCode && baseCurrency && d.currencyCode !== baseCurrency
                 ? d.currencyCode : null;
-            const header = await InterestGeneration.create({
+            const header = await Interest.create({
                 companyId,
                 debtorId: d.id,
                 periodMonth,
@@ -106,8 +106,8 @@ async function generateInterest({ companyId, periodMonth, cutoffDate, ratePercen
                 status: 'pending',
                 ...stamps,
             }, { transaction: t });
-            await InterestGenerationDetail.bulkCreate(
-                lines.map((l) => ({ companyId, interestGenerationId: header.id, ...l })),
+            await InterestDetail.bulkCreate(
+                lines.map((l) => ({ companyId, interestId: header.id, ...l })),
                 { transaction: t },
             );
             generated += 1;

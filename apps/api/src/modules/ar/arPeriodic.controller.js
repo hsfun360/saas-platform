@@ -10,8 +10,8 @@ const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const Debtor = require('./debtor.model');
 const OtherDebtor = require('./otherDebtor.model');
-const InterestGeneration = require('./interestGeneration.model');
-const InterestGenerationDetail = require('./interestGenerationDetail.model');
+const Interest = require('./interest.model');
+const InterestDetail = require('./interestDetail.model');
 const Statement = require('./statement.model');
 const StatementDetail = require('./statementDetail.model');
 const StatementRun = require('./statementRun.model');
@@ -122,7 +122,7 @@ exports.list = async (req, res) => {
         const where = { companyId };
         if (MONTH_RE.test(month)) where.periodMonth = `${month}-01`;
 
-        const rows = await InterestGeneration.findAll({
+        const rows = await Interest.findAll({
             where,
             order: [['periodMonth', 'DESC'], ['createdAt', 'ASC']],
             limit: 300,
@@ -155,10 +155,10 @@ exports.get = async (req, res) => {
     try {
         const { companyId } = getUserContext(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const row = await InterestGeneration.findOne({ where: { id: req.params.id, companyId } });
+        const row = await Interest.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Interest generation not found.' });
-        const details = await InterestGenerationDetail.findAll({
-            where: { interestGenerationId: row.id },
+        const details = await InterestDetail.findAll({
+            where: { interestId: row.id },
             order: [['dueDate', 'ASC']],
         });
         const display = await debtorDisplayMap(companyId, [row.debtorId]);
@@ -178,13 +178,13 @@ exports.setDetailExcluded = async (req, res) => {
     try {
         const { companyId, userId } = getUserContext(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const gen = await InterestGeneration.findOne({ where: { id: req.params.id, companyId } });
+        const gen = await Interest.findOne({ where: { id: req.params.id, companyId } });
         if (!gen) return res.status(404).json({ message: 'Interest generation not found.' });
         if (gen.status !== 'pending') {
             return res.status(400).json({ message: `Only a pending generation can be maintained (this one is ${gen.status}).` });
         }
-        const detail = await InterestGenerationDetail.findOne({
-            where: { id: req.params.detailId, interestGenerationId: gen.id, companyId },
+        const detail = await InterestDetail.findOne({
+            where: { id: req.params.detailId, interestId: gen.id, companyId },
         });
         if (!detail) return res.status(404).json({ message: 'Interest detail line not found.' });
         const excluded = req.body.excluded === true;
@@ -199,8 +199,8 @@ exports.setDetailExcluded = async (req, res) => {
             await detail.save({ transaction: t });
             // Recompute the header from the INCLUDED lines (sum of the
             // per-line rounded amounts - the posting formula's source).
-            const included = await InterestGenerationDetail.findAll({
-                where: { interestGenerationId: gen.id, isExcluded: false },
+            const included = await InterestDetail.findAll({
+                where: { interestId: gen.id, isExcluded: false },
                 transaction: t,
             });
             const sumC = (field) => included.reduce((s, d) => s + posting.cents(d[field]), 0);
@@ -224,7 +224,7 @@ exports.setDetailExcluded = async (req, res) => {
 // tax per that catalog row) and stamp postedLedgerId. Shared by the single and
 // bulk endpoints.
 async function confirmOne(req, companyId, id, interestType, stamps) {
-    const gen = await InterestGeneration.findOne({ where: { id, companyId } });
+    const gen = await Interest.findOne({ where: { id, companyId } });
     if (!gen) return { id, ok: false, message: 'Not found.' };
     if (gen.status !== 'pending') return { id, ok: false, message: `Already ${gen.status}.` };
     const debtor = await Debtor.findOne({ where: { id: gen.debtorId, companyId } });
@@ -327,7 +327,7 @@ exports.cancel = async (req, res) => {
     try {
         const { companyId, userId } = getUserContext(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const gen = await InterestGeneration.findOne({ where: { id: req.params.id, companyId } });
+        const gen = await Interest.findOne({ where: { id: req.params.id, companyId } });
         if (!gen) return res.status(404).json({ message: 'Interest generation not found.' });
         if (gen.status !== 'pending') return res.status(400).json({ message: `This generation is already ${gen.status}.` });
         gen.status = 'cancelled';

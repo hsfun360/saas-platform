@@ -2,12 +2,12 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { AR_SCHEMA } = require('../../platform/schemas');
 
-// InterestGenerationDetail - one row per overdue open item considered by an
+// InterestDetail - one row per overdue open item considered by an
 // interest generation (approved 2026-08-05). The PERMANENT drill-down/audit of
 // how the summary figure was computed - details are never deleted after
 // posting. Only charges with isInterestChargeable, past due after grace, on
 // debtors with chargeInterest, produce rows.
-const InterestGenerationDetail = sequelize.define('InterestGenerationDetail', {
+const InterestDetail = sequelize.define('InterestDetail', {
     id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
@@ -18,7 +18,7 @@ const InterestGenerationDetail = sequelize.define('InterestGenerationDetail', {
         allowNull: false,
     },
     // Intra-service parent (validated in the service, no FK - consistent style).
-    interestGenerationId: {
+    interestId: {
         type: DataTypes.UUID,
         allowNull: false,
     },
@@ -69,12 +69,12 @@ const InterestGenerationDetail = sequelize.define('InterestGenerationDetail', {
     excludedAt: { type: DataTypes.DATE, allowNull: true },
 }, {
     schema: AR_SCHEMA,
-    tableName: 'InterestGenerationDetail',
+    tableName: 'InterestDetail',
     timestamps: true,
     indexes: [
-        { name: 'IDX_InterestGenerationDetail_Parent', fields: ['interestGenerationId'] },
-        { name: 'IDX_InterestGenerationDetail_Company', fields: ['companyId'] },
+        { name: 'IDX_InterestDetail_Parent', fields: ['interestId'] },
+        { name: 'IDX_InterestDetail_Company', fields: ['companyId'] },
     ],
 });
 
-module.exports = InterestGenerationDetail;
+module.exports = InterestDetail;

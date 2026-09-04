@@ -142,8 +142,8 @@ const Receipt = require('../modules/ar/receipt.model');
 const Deposit = require('../modules/ar/deposit.model');
 const Allocation = require('../modules/ar/allocation.model');
 // AR periodic processing (slice 3): staged interest run + statement snapshots.
-const InterestGeneration = require('../modules/ar/interestGeneration.model');
-const InterestGenerationDetail = require('../modules/ar/interestGenerationDetail.model');
+const Interest = require('../modules/ar/interest.model');
+const InterestDetail = require('../modules/ar/interestDetail.model');
 const ArStatement = require('../modules/ar/statement.model');
 const ArStatementDetail = require('../modules/ar/statementDetail.model');
 const ArStatementRun = require('../modules/ar/statementRun.model');
@@ -364,8 +364,8 @@ module.exports = {
     Receipt,
     Deposit,
     Allocation,
-    InterestGeneration,
-    InterestGenerationDetail,
+    Interest,
+    InterestDetail,
     ArStatement,
     ArStatementDetail,
     ArStatementRun,
