@@ -1,5 +1,5 @@
 // Account Receivable - periodic processing: the staged interest run
-// (/ar/interest menu) and the statement run (/ar/statements menu).
+// (/ar/interest-generation menu) and the statement run (/ar/statements menu).
 //
 // Interest: generate -> holding headers (one per debtor per month) -> review
 // -> confirm (posts the summary Debit Note under the auto-seeded INTEREST

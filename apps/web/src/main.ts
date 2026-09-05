@@ -192,7 +192,7 @@ const routes: Routes = [
       // READ-ONLY listing; the Interest Generation run posts them.
       { path: 'ar/interests', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR', arDocType: 'interest' } },
       // Periodic processing: staged interest run + monthly statement run.
-      { path: 'ar/interest', loadComponent: () => import('./app/ar-interest/ar-interest').then((m) => m.ArInterestComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
+      { path: 'ar/interest-generation', loadComponent: () => import('./app/ar-interest/ar-interest').then((m) => m.ArInterestComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
       // AR Master File Setup - the AR-owned Transaction Type catalog (moved
       // from Membership 2026-08-15; the membership route is a read-only view).
       { path: 'ar/transaction-types', loadComponent: () => import('./app/ar-transaction-types/ar-transaction-types').then((m) => m.ArTransactionTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },

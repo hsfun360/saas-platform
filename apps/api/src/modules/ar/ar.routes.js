@@ -182,20 +182,20 @@ router.use(
     }),
 );
 
-// --- Interest run (its own screen/menu: /ar/interest) ---
+// --- Interest run (its own screen/menu: /ar/interest-generation) ---
 // NOTE: /meta must register BEFORE /:id or 'meta' would match as an id.
-router.get('/interest-generations/meta', requireMenuAction('/ar/interest'), periodicController.runMeta);
-router.get('/interest-generations', requireMenuAction('/ar/interest'), periodicController.list);
-router.post('/interest-generations', requireMenuAction('/ar/interest'), periodicController.generate);
+router.get('/interest-generations/meta', requireMenuAction('/ar/interest-generation'), periodicController.runMeta);
+router.get('/interest-generations', requireMenuAction('/ar/interest-generation'), periodicController.list);
+router.post('/interest-generations', requireMenuAction('/ar/interest-generation'), periodicController.generate);
 // The drill-down read is shared with the Interest documents listing's
 // breakdown viewer (2026-09-04) - either menu opens it (read-only).
-router.get('/interest-generations/:id', requireAnyMenuAction(['/ar/interest', '/ar/interests']), periodicController.get);
+router.get('/interest-generations/:id', requireAnyMenuAction(['/ar/interest-generation', '/ar/interests']), periodicController.get);
 // Posted Interest documents listing (docType 'interest', menu '/ar/interests'
 // - READ-ONLY: the run screen creates them, a Credit Note corrects them).
 router.get('/interests', requireMenuAction('/ar/interests'), documentController.listInterestDocuments);
-router.patch('/interest-generations/:id/details/:detailId', requireMenuAction('/ar/interest'), periodicController.setDetailExcluded);
-router.post('/interest-generations/confirm', requireMenuAction('/ar/interest'), periodicController.confirm);
-router.post('/interest-generations/:id/cancel', requireMenuAction('/ar/interest'), periodicController.cancel);
+router.patch('/interest-generations/:id/details/:detailId', requireMenuAction('/ar/interest-generation'), periodicController.setDetailExcluded);
+router.post('/interest-generations/confirm', requireMenuAction('/ar/interest-generation'), periodicController.confirm);
+router.post('/interest-generations/:id/cancel', requireMenuAction('/ar/interest-generation'), periodicController.cancel);
 
 // --- AR Specification (its own screen/menu: /ar/settings) ---
 // The per-company AR options singleton (statement cutoff day + aging
