@@ -61,14 +61,14 @@ router.get('/documents/:type/:id/tax-lines', requireAnyMenuAction(AR_TXN_META_ME
 // screen - so the '/ar/debtors' grant alone can no longer key documents. The
 // Debtor Account stays the account-first INQUIRY surface; its entry buttons
 // mirror these gates client-side. The kind-agnostic ledger door resolves the
-// menu from the requested docKind per request.
+// menu from the requested docType per request.
 const LEDGER_KIND_MENUS = {
     invoice: '/ar/invoices',
     'debit-note': '/ar/debit-notes',
     'credit-note': '/ar/credit-notes',
 };
 router.post('/debtors/:id/ledger', (req, res, next) => {
-    const menu = LEDGER_KIND_MENUS[String(req.body.docKind || '').trim()];
+    const menu = LEDGER_KIND_MENUS[String(req.body.docType || '').trim()];
     if (!menu) return res.status(400).json({ message: 'Select the document kind.' });
     return requireMenuAction(menu)(req, res, next);
 }, documentController.postLedger);
@@ -190,7 +190,7 @@ router.post('/interest-generations', requireMenuAction('/ar/interest'), periodic
 // The drill-down read is shared with the Interest documents listing's
 // breakdown viewer (2026-09-04) - either menu opens it (read-only).
 router.get('/interest-generations/:id', requireAnyMenuAction(['/ar/interest', '/ar/interests']), periodicController.get);
-// Posted Interest documents listing (docKind 'interest', menu '/ar/interests'
+// Posted Interest documents listing (docType 'interest', menu '/ar/interests'
 // - READ-ONLY: the run screen creates them, a Credit Note corrects them).
 router.get('/interests', requireMenuAction('/ar/interests'), documentController.listInterestDocuments);
 router.patch('/interest-generations/:id/details/:detailId', requireMenuAction('/ar/interest'), periodicController.setDetailExcluded);

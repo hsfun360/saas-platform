@@ -131,7 +131,7 @@ export class ArService {
     return this.http.get<ArDocListResult>(`${this.base}/invoices`, { params });
   }
 
-  // Posted Interest documents (docKind 'interest') - read-only listing; the
+  // Posted Interest documents (docType 'interest') - read-only listing; the
   // interest run posts them and a Credit Note corrects them.
   listInterestDocs(opts: { month?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
     let params = new HttpParams();

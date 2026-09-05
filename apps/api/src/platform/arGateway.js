@@ -151,7 +151,7 @@ async function postCharge(req, {
     try {
         const row = await sequelize.transaction(async (t) => {
             const posted = await posting.postLedgerDoc({
-                companyId, debtor, docKind: 'invoice', issueDocNo,
+                companyId, debtor, docType: 'invoice', issueDocNo,
                 docDate, trxDate, transactionTypeId,
                 isInterestChargeable: isInterestChargeable === true,
                 description, incurredByMemberId: incurredByMemberId || null,

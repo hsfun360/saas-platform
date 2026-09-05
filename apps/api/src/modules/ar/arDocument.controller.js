@@ -99,11 +99,11 @@ function docNoIssuer(req, purpose, manualNo) {
     };
 }
 
-async function ledgerNoInUse(companyId, docKind, docNo) {
-    return !!(await Ledger.findOne({ where: { companyId, docKind, docNo }, attributes: ['id'] }));
+async function ledgerNoInUse(companyId, docType, docNo) {
+    return !!(await Ledger.findOne({ where: { companyId, docType, docNo }, attributes: ['id'] }));
 }
-async function receiptNoInUse(companyId, docKind, docNo) {
-    return !!(await Receipt.findOne({ where: { companyId, docKind, docNo }, attributes: ['id'] }));
+async function receiptNoInUse(companyId, docType, docNo) {
+    return !!(await Receipt.findOne({ where: { companyId, docType, docNo }, attributes: ['id'] }));
 }
 
 // ---------------------------------------------------------------------------
@@ -165,7 +165,7 @@ exports.getAccount = async (req, res) => {
                 personalUsed: c.personalUsed,
             })),
             ledger: ledger.map((r) => ({
-                id: r.id, docKind: r.docKind, mode: r.mode, docNo: r.docNo,
+                id: r.id, docType: r.docType, mode: r.mode, docNo: r.docNo,
                 docDate: r.docDate, trxDate: r.trxDate, dueDate: r.dueDate,
                 description: r.description,
                 incurredBy: r.incurredByMemberId ? (personById.get(r.incurredByMemberId) || null) : null,
@@ -176,7 +176,7 @@ exports.getAccount = async (req, res) => {
                 ...fxDto(r), baseGrossAmount: r.baseGrossAmount,
             })),
             receipts: receipts.map((r) => ({
-                id: r.id, docKind: r.docKind, mode: r.mode, docNo: r.docNo,
+                id: r.id, docType: r.docType, mode: r.mode, docNo: r.docNo,
                 docDate: r.docDate, trxDate: r.trxDate,
                 paymentMethod: r.paymentMethod, paymentRef: r.paymentRef, description: r.description,
                 amount: r.amount, balanceAmount: r.balanceAmount, status: r.status,
@@ -223,7 +223,7 @@ exports.getAccountMeta = async (req, res) => {
         const openDebits = await Ledger.findAll({
             where: { debtorId: debtor.id, mode: 'debit', status: 'open' },
             order: [['docDate', 'ASC'], ['createdAt', 'ASC']],
-            attributes: ['id', 'docKind', 'docNo', 'grossAmount', 'balanceAmount'],
+            attributes: ['id', 'docType', 'docNo', 'grossAmount', 'balanceAmount'],
         });
         // The debtor's OPEN DEPOSITS, with both counters: the Receipt dialog
         // offers those with balanceAmount > 0 (still collectable) and the
@@ -262,7 +262,7 @@ exports.getAccountMeta = async (req, res) => {
             refundApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-refund'),
             depositApproval: await workflowGateway.hasActiveWorkflow(req, 'ar-deposit'),
             openDebits: openDebits.map((d) => ({
-                id: d.id, docKind: d.docKind, docNo: d.docNo,
+                id: d.id, docType: d.docType, docNo: d.docNo,
                 grossAmount: d.grossAmount, balanceAmount: d.balanceAmount,
             })),
             openDeposits: openDeposits.map((d) => ({
@@ -310,13 +310,13 @@ exports.getAllocations = async (req, res) => {
         const Deposit = require('./deposit.model');
         const TransactionType = require('./transactionType.model');
         const [ledgerDocs, receiptDocs, depositDocs, fxTypes] = await Promise.all([
-            ids.ledger.size ? Ledger.findAll({ where: { id: { [Op.in]: [...ids.ledger] } }, attributes: ['id', 'docNo', 'docKind'] }) : [],
-            ids.receipt.size ? Receipt.findAll({ where: { id: { [Op.in]: [...ids.receipt] } }, attributes: ['id', 'docNo', 'docKind'] }) : [],
+            ids.ledger.size ? Ledger.findAll({ where: { id: { [Op.in]: [...ids.ledger] } }, attributes: ['id', 'docNo', 'docType'] }) : [],
+            ids.receipt.size ? Receipt.findAll({ where: { id: { [Op.in]: [...ids.receipt] } }, attributes: ['id', 'docNo', 'docType'] }) : [],
             ids.deposit.size ? Deposit.findAll({ where: { id: { [Op.in]: [...ids.deposit] } }, attributes: ['id', 'docNo'] }) : [],
             fxTypeIds.size ? TransactionType.findAll({ where: { id: { [Op.in]: [...fxTypeIds] } }, attributes: ['id', 'transactionType'] }) : [],
         ]);
         const docNoById = new Map();
-        for (const d of [...ledgerDocs, ...receiptDocs, ...depositDocs]) docNoById.set(d.id, { docNo: d.docNo, docKind: d.docKind || 'deposit' });
+        for (const d of [...ledgerDocs, ...receiptDocs, ...depositDocs]) docNoById.set(d.id, { docNo: d.docNo, docType: d.docType || 'deposit' });
         const fxTypeById = new Map(fxTypes.map((t) => [t.id, t.transactionType]));
 
         // FULL deposit usage trail (2026-09-01): the deposit viewer follows
@@ -334,11 +334,11 @@ exports.getAllocations = async (req, res) => {
             const refundIds = rows.filter((a) => a.debitDocType === 'refund').map((a) => a.debitDocId);
             const [offsetCns, convCns] = await Promise.all([
                 refundIds.length ? Ledger.findAll({
-                    where: { companyId, docKind: 'credit-note', mode: 'credit', sourceModule: 'ar', sourceRef: { [Op.in]: refundIds } },
+                    where: { companyId, docType: 'credit-note', mode: 'credit', sourceModule: 'ar', sourceRef: { [Op.in]: refundIds } },
                     attributes: ['id', 'docNo', 'sourceRef'],
                 }) : [],
                 Ledger.findAll({
-                    where: { companyId, docKind: 'credit-note', mode: 'credit', sourceModule: 'ar', sourceRef: req.params.id },
+                    where: { companyId, docType: 'credit-note', mode: 'credit', sourceModule: 'ar', sourceRef: req.params.id },
                     attributes: ['id', 'docNo', 'grossAmount', 'balanceAmount', 'status', 'createdAt'],
                     order: [['createdAt', 'ASC']],
                 }),
@@ -351,12 +351,12 @@ exports.getAllocations = async (req, res) => {
             const settledIds = [...new Set(cnAllocs.map((a) => a.debitDocId))];
             const settledDocs = settledIds.length ? await Ledger.findAll({
                 where: { id: { [Op.in]: settledIds } },
-                attributes: ['id', 'docNo', 'docKind'],
+                attributes: ['id', 'docNo', 'docType'],
             }) : [];
             const settledById = new Map(settledDocs.map((d) => [d.id, d]));
             const settledOf = (cnId) => cnAllocs.filter((a) => a.creditDocId === cnId).map((a) => ({
                 docNo: (settledById.get(a.debitDocId) || {}).docNo || null,
-                docKind: (settledById.get(a.debitDocId) || {}).docKind || 'ledger',
+                docType: (settledById.get(a.debitDocId) || {}).docType || 'ledger',
                 amount: a.amount,
             }));
             const cnByRefund = new Map(offsetCns.map((c) => [c.sourceRef, c]));
@@ -406,7 +406,7 @@ exports.getAllocations = async (req, res) => {
 // GET /api/ar/documents/:type/:id/tax-lines - the FROZEN per-component tax
 // breakdown behind a Ledger document (ar.TaxLedger: written at save, replaced
 // on draft edit, copied by void reversals, never requoted). The rows' docType
-// mirrors the document's docKind and their status mirrors its lifecycle, so
+// mirrors the document's docType and their status mirrors its lifecycle, so
 // this is the drill-down for tax verification and reporting. docId alone
 // identifies the document; :type stays in the URL for shape-consistency with
 // the allocations drill-down.
@@ -464,13 +464,13 @@ const LIST_LIMIT = 50;
 
 // GET /api/ar/<type route> - cross-debtor listing of one ledger document kind
 // (month + docNo/description search + status filter, newest first).
-function makeLedgerListHandler(docKind) {
+function makeLedgerListHandler(docType) {
     return async (req, res) => {
         try {
             const { companyId } = getUserContext(req);
             if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
-            const where = { companyId, docKind };
+            const where = { companyId, docType };
             const month = str(req.query.month);
             if (/^\d{4}-\d{2}$/.test(month)) {
                 const [y, m] = month.split('-').map(Number);
@@ -515,7 +515,7 @@ function makeLedgerListHandler(docKind) {
                 // Rows in another currency get a chip client-side (step 5).
                 baseCurrencyCode: await getCompanyBaseCurrency(companyId),
                 documents: rows.map((r, i) => ({
-                    id: r.id, docKind: r.docKind, mode: r.mode, docNo: r.docNo,
+                    id: r.id, docType: r.docType, mode: r.mode, docNo: r.docNo,
                     docDate: r.docDate, trxDate: r.trxDate, dueDate: r.dueDate,
                     // sourceRef: the producing record's id (interest rows use
                     // it for the breakdown viewer -> ar.Interest header).
@@ -536,7 +536,7 @@ function makeLedgerListHandler(docKind) {
                 })),
             });
         } catch (err) {
-            console.error(`Error listing ${docKind} documents:`, err);
+            console.error(`Error listing ${docType} documents:`, err);
             res.status(500).json({ message: 'Internal server error' });
         }
     };
@@ -545,7 +545,7 @@ function makeLedgerListHandler(docKind) {
 exports.listInvoices = makeLedgerListHandler('invoice');
 exports.listCreditNotes = makeLedgerListHandler('credit-note');
 exports.listDebitNotes = makeLedgerListHandler('debit-note');
-// Interest documents (docKind 'interest' since 2026-09-04) are system-posted
+// Interest documents (docType 'interest' since 2026-09-04) are system-posted
 // by the interest run - this listing is READ-ONLY (no create/edit/void doors;
 // correction = a Credit Note, like any posted debit document).
 exports.listInterestDocuments = makeLedgerListHandler('interest');
@@ -562,15 +562,15 @@ exports.listInterestDocuments = makeLedgerListHandler('interest');
 // its own numbering series, workflow purpose and catalog class.
 const LIFECYCLE_KINDS = {
     invoice: {
-        docKind: 'invoice', mode: 'debit', label: 'Invoice',
+        docType: 'invoice', mode: 'debit', label: 'Invoice',
         numberingPurpose: 'ar-invoice', workflowPurpose: 'ar-invoice', trxClass: 'invoice',
     },
     'debit-note': {
-        docKind: 'debit-note', mode: 'debit', label: 'Debit Note',
+        docType: 'debit-note', mode: 'debit', label: 'Debit Note',
         numberingPurpose: 'ar-debit-note', workflowPurpose: 'ar-debit-note', trxClass: 'debit-note',
     },
     'credit-note': {
-        docKind: 'credit-note', mode: 'credit', label: 'Credit Note',
+        docType: 'credit-note', mode: 'credit', label: 'Credit Note',
         numberingPurpose: 'ar-credit-note', workflowPurpose: 'ar-credit-note', trxClass: 'credit-note',
     },
 };
@@ -596,7 +596,7 @@ async function readDraftFields(req, companyId, debtor, lk) {
     // (user rule 2026-08-20): an adjustment always knows its document.
     let applyToLedgerId = null;
     let cnTarget = null;
-    if (lk.docKind === 'credit-note') {
+    if (lk.docType === 'credit-note') {
         applyToLedgerId = strOrNull(req.body.targetLedgerId);
         if (applyToLedgerId) {
             cnTarget = await Ledger.findOne({
@@ -650,7 +650,7 @@ async function readDraftDocNo(req, companyId, lk, { ignoreId = null } = {}) {
     if (mode === 'manual' && !manualNo) return { error: `${lk.label} number is required (numbering is manual).` };
     if (mode !== 'auto' && manualNo) {
         const clash = await Ledger.findOne({
-            where: { companyId, docKind: lk.docKind, docNo: manualNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
+            where: { companyId, docType: lk.docType, docNo: manualNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
             attributes: ['id'],
         });
         if (clash) return { error: `${lk.label} number '${manualNo}' is already in use.` };
@@ -678,7 +678,7 @@ async function createDraft(req, res, companyId, debtor, lk) {
         const created = await Ledger.create({
         companyId,
         debtorId: debtor.id,
-        docKind: lk.docKind,
+        docType: lk.docType,
         mode: lk.mode,
         docNo: await issue(t),
         docDate: fields.dates.docDate,
@@ -739,7 +739,7 @@ exports.postDebitNote = makeCreateDoor(LIFECYCLE_KINDS['debit-note']);
 async function loadOwnedDoc(req, res, lk) {
     const { companyId } = getUserContext(req);
     if (!companyId) { res.status(400).json({ message: 'Select a workspace first.' }); return null; }
-    const row = await Ledger.findOne({ where: { id: req.params.id, companyId, docKind: lk.docKind } });
+    const row = await Ledger.findOne({ where: { id: req.params.id, companyId, docType: lk.docType } });
     if (!row) { res.status(404).json({ message: `${lk.label} not found.` }); return null; }
     const { canModifyRecord } = require('../../platform/serviceContext');
     if (!(await canModifyRecord(req, row))) {
@@ -848,7 +848,7 @@ function makeSubmit(lk) {
                 row.workflowInstanceId = wf.instanceId;
                 row.updatedBy = stamps.updatedBy;
                 await row.save({ transaction: t });
-                await require('./taxLedger.service').syncStatus({ docType: row.docKind, docId: row.id, status: row.status, t });
+                await require('./taxLedger.service').syncStatus({ docType: row.docType, docId: row.id, status: row.status, t });
                 outcome = { pending: true };
                 return;
             }
@@ -917,7 +917,7 @@ async function voidDraftRow(req, res, row, lk) {
     row.voidReason = reason.slice(0, 255);
     row.updatedBy = row.voidedBy;
     await row.save();
-    await require('./taxLedger.service').syncStatus({ docType: row.docKind, docId: row.id, status: 'void' });
+    await require('./taxLedger.service').syncStatus({ docType: row.docType, docId: row.id, status: 'void' });
     return res.status(200).json({ message: `${label} ${row.docNo} voided.` });
 }
 
@@ -959,7 +959,7 @@ async function readReceiptDocNo(req, companyId, { ignoreId = null } = {}) {
     if (mode === 'manual' && !manualNo) return { error: 'Receipt number is required (numbering is manual).' };
     if (mode !== 'auto' && manualNo) {
         const clash = await Receipt.findOne({
-            where: { companyId, docKind: 'receipt', docNo: manualNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
+            where: { companyId, docType: 'receipt', docNo: manualNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
             attributes: ['id'],
         });
         if (clash) return { error: `Receipt number '${manualNo}' is already in use.` };
@@ -982,7 +982,7 @@ async function createReceiptDraft(req, res, companyId, debtor) {
     const row = await sequelize.transaction(async (t) => Receipt.create({
         companyId,
         debtorId: debtor.id,
-        docKind: 'receipt',
+        docType: 'receipt',
         mode: 'credit',
         docNo: await issue(t),
         docDate: fields.dates.docDate,
@@ -1021,7 +1021,7 @@ exports.createReceipt = async (req, res) => {
 async function loadOwnedReceipt(req, res) {
     const { companyId } = getUserContext(req);
     if (!companyId) { res.status(400).json({ message: 'Select a workspace first.' }); return null; }
-    const row = await Receipt.findOne({ where: { id: req.params.id, companyId, docKind: 'receipt' } });
+    const row = await Receipt.findOne({ where: { id: req.params.id, companyId, docType: 'receipt' } });
     if (!row) { res.status(404).json({ message: 'Receipt not found.' }); return null; }
     const { canModifyRecord } = require('../../platform/serviceContext');
     if (!(await canModifyRecord(req, row))) {
@@ -1111,7 +1111,7 @@ exports.listReceipts = async (req, res) => {
         const { companyId } = getUserContext(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
-        const where = { companyId, docKind: 'receipt' };
+        const where = { companyId, docType: 'receipt' };
         const month = str(req.query.month);
         if (/^\d{4}-\d{2}$/.test(month)) {
             const [y, m] = month.split('-').map(Number);
@@ -1152,7 +1152,7 @@ exports.listReceipts = async (req, res) => {
             // Rows in another currency get a chip client-side (step 5).
             baseCurrencyCode: await getCompanyBaseCurrency(companyId),
             documents: rows.map((r, i) => ({
-                id: r.id, docKind: r.docKind, mode: r.mode, docNo: r.docNo,
+                id: r.id, docType: r.docType, mode: r.mode, docNo: r.docNo,
                 docDate: r.docDate, trxDate: r.trxDate, dueDate: null,
                 description: r.description, sourceModule: r.sourceModule || 'ar',
                 netAmount: r.amount, taxAmount: '0.00', grossAmount: r.amount,
@@ -1224,7 +1224,7 @@ async function readRefundDraftFields(req, companyId, debtor) {
         }
     } else {
         const credits = await Receipt.findAll({
-            where: { debtorId: debtor.id, docKind: 'receipt', status: 'open' },
+            where: { debtorId: debtor.id, docType: 'receipt', status: 'open' },
             attributes: ['balanceAmount'],
         });
         const availableC = credits.reduce((s, c) => s + posting.cents(c.balanceAmount), 0);
@@ -1243,7 +1243,7 @@ async function readRefundDocNo(req, companyId, { ignoreId = null } = {}) {
     if (mode === 'manual' && !manualNo) return { error: 'Refund number is required (numbering is manual).' };
     if (mode !== 'auto' && manualNo) {
         const clash = await Receipt.findOne({
-            where: { companyId, docKind: 'refund', docNo: manualNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
+            where: { companyId, docType: 'refund', docNo: manualNo, ...(ignoreId ? { id: { [Op.ne]: ignoreId } } : {}) },
             attributes: ['id'],
         });
         if (clash) return { error: `Refund number '${manualNo}' is already in use.` };
@@ -1270,7 +1270,7 @@ exports.createRefund = async (req, res) => {
         const row = await sequelize.transaction(async (t) => Receipt.create({
             companyId,
             debtorId: debtor.id,
-            docKind: 'refund',
+            docType: 'refund',
             mode: 'debit',
             docNo: await issue(t),
             docDate: fields.dates.docDate,
@@ -1300,7 +1300,7 @@ exports.createRefund = async (req, res) => {
 async function loadOwnedRefund(req, res) {
     const { companyId } = getUserContext(req);
     if (!companyId) { res.status(400).json({ message: 'Select a workspace first.' }); return null; }
-    const row = await Receipt.findOne({ where: { id: req.params.id, companyId, docKind: 'refund' } });
+    const row = await Receipt.findOne({ where: { id: req.params.id, companyId, docType: 'refund' } });
     if (!row) { res.status(404).json({ message: 'Refund not found.' }); return null; }
     const { canModifyRecord } = require('../../platform/serviceContext');
     if (!(await canModifyRecord(req, row))) {
@@ -1450,7 +1450,7 @@ exports.listRefunds = async (req, res) => {
         const { companyId } = getUserContext(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
-        const where = { companyId, docKind: 'refund' };
+        const where = { companyId, docType: 'refund' };
         const month = str(req.query.month);
         if (/^\d{4}-\d{2}$/.test(month)) {
             const [y, m] = month.split('-').map(Number);
@@ -1490,7 +1490,7 @@ exports.listRefunds = async (req, res) => {
             offset,
             baseCurrencyCode: await getCompanyBaseCurrency(companyId),
             documents: rows.map((r, i) => ({
-                id: r.id, docKind: r.docKind, mode: r.mode, docNo: r.docNo,
+                id: r.id, docType: r.docType, mode: r.mode, docNo: r.docNo,
                 docDate: r.docDate, trxDate: r.trxDate, dueDate: null,
                 description: r.description, sourceModule: r.sourceModule || 'ar',
                 netAmount: r.amount, taxAmount: '0.00', grossAmount: r.amount,
@@ -1748,7 +1748,7 @@ exports.listDeposits = async (req, res) => {
             offset,
             baseCurrencyCode: await getCompanyBaseCurrency(companyId),
             documents: rows.map((r, i) => ({
-                id: r.id, docKind: 'deposit', mode: 'debit', docNo: r.docNo,
+                id: r.id, docType: 'deposit', mode: 'debit', docNo: r.docNo,
                 docDate: r.docDate, trxDate: r.trxDate, dueDate: null,
                 description: r.description, sourceModule: 'ar',
                 netAmount: r.amount, taxAmount: '0.00', grossAmount: r.amount,
@@ -1773,7 +1773,7 @@ exports.postLedger = async (req, res) => {
         const { error, companyId, debtor } = await loadDebtor(req);
         if (error) return res.status(error.status).json({ message: error.message });
 
-        const kind = LEDGER_DOC_KINDS.find((k) => k.key === str(req.body.docKind));
+        const kind = LEDGER_DOC_KINDS.find((k) => k.key === str(req.body.docType));
         if (!kind) return res.status(400).json({ message: 'Select the document kind.' });
         // Lifecycle kinds (invoice 2026-08-13, credit-note 2026-08-20) follow
         // Save->Submit on BOTH doors; DN keeps immediate posting until its slice.
@@ -1841,7 +1841,7 @@ exports.postLedger = async (req, res) => {
             const taxLedger = require('./taxLedger.service');
             row = await sequelize.transaction(async (t) => {
                 const posted = await posting.postLedgerDoc({
-                    companyId, debtor, docKind: kind.key,
+                    companyId, debtor, docType: kind.key,
                     issueDocNo: docNoIssuer(req, kind.numberingPurpose, manualNo),
                     docDate: dates.docDate, trxDate: dates.trxDate,
                     transactionTypeId: txnType.id,
@@ -1923,9 +1923,9 @@ exports.voidLedger = async (req, res) => {
         if (!(await canModifyRecord(req, row))) {
             return res.status(403).json({ message: 'This document belongs to another user (outside your data scope).' });
         }
-        // Interest documents (own docKind since 2026-09-04) are system-posted
+        // Interest documents (own docType since 2026-09-04) are system-posted
         // and never draft: no void, ever - the correction is a Credit Note.
-        if (row.docKind === 'interest') {
+        if (row.docType === 'interest') {
             return res.status(400).json({ message: 'An interest charge cannot be voided - raise a Credit Note to offset it.' });
         }
         // Debit documents (Invoice / Debit Note since its slice 2026-09-01):
@@ -1933,9 +1933,9 @@ exports.voidLedger = async (req, res) => {
         // the same way; a POSTED CN falls through to the reversal path below
         // (unallocated-only - this is also how a deposit-conversion CN void
         // restores the deposit's held balance).
-        if (row.docKind === 'invoice') return await voidDraftRow(req, res, row, LIFECYCLE_KINDS.invoice);
-        if (row.docKind === 'debit-note') return await voidDraftRow(req, res, row, LIFECYCLE_KINDS['debit-note']);
-        if (row.docKind === 'credit-note' && ['draft', 'pending-approval', 'void'].includes(row.status)) {
+        if (row.docType === 'invoice') return await voidDraftRow(req, res, row, LIFECYCLE_KINDS.invoice);
+        if (row.docType === 'debit-note') return await voidDraftRow(req, res, row, LIFECYCLE_KINDS['debit-note']);
+        if (row.docType === 'credit-note' && ['draft', 'pending-approval', 'void'].includes(row.status)) {
             return await voidDraftRow(req, res, row, LIFECYCLE_KINDS['credit-note']);
         }
         const debtor = await Debtor.findOne({ where: { id: row.debtorId, companyId } });
@@ -1944,7 +1944,7 @@ exports.voidLedger = async (req, res) => {
         const dates = parseDates({ docDate: str(req.body.docDate) || row.docDate, trxDate: strOrNull(req.body.trxDate) });
         if (dates.error) return res.status(400).json({ message: dates.error });
 
-        const kind = LEDGER_DOC_KINDS.find((k) => k.key === row.docKind);
+        const kind = LEDGER_DOC_KINDS.find((k) => k.key === row.docType);
         const placement = await getCallerPlacement(req);
         const stamps = ownershipStamps(req, placement);
 
@@ -1988,7 +1988,7 @@ exports.voidReceipt = async (req, res) => {
         // Receipt DRAFTS void like ledger drafts (never financial): a REASON
         // is kept for audit - the gapless-series trail (receipt lifecycle
         // 2026-08-20). Posted receipts keep the allocation-free flip below.
-        if (row.docKind === 'receipt' && row.status === 'draft') {
+        if (row.docType === 'receipt' && row.status === 'draft') {
             const reason = str(req.body.reason);
             if (!reason) return res.status(400).json({ message: 'A void reason is required (kept for audit).' });
             row.status = 'void';

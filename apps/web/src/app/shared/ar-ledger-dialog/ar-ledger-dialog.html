@@ -132,7 +132,7 @@
                   <select id="ldTarget" formControlName="targetLedgerId">
                     <option value="">— Leave as available credit —</option>
                     @for (doc of effOpenDebits(); track doc.id) {
-                      <option [value]="doc.id">{{ kindLabel(doc.docKind) }} {{ doc.docNo }} — open {{ remaining(doc) }}</option>
+                      <option [value]="doc.id">{{ kindLabel(doc.docType) }} {{ doc.docNo }} — open {{ remaining(doc) }}</option>
                     }
                   </select>
                   <p class="cell-subtle" style="margin: 2px 0 0;">No target — the amount stays on the account as available credit.</p>

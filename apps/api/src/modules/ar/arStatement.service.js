@@ -569,7 +569,7 @@ async function notifyRunDone(run) {
 function docDelta(doc) {
     if (doc.kind === 'ledger') return doc.mode === 'debit' ? cents(doc.grossAmount) : -cents(doc.grossAmount);
     const ar = cents(doc.amount) - (doc.depositC || 0);
-    return doc.docKind === 'receipt' ? -ar : ar;
+    return doc.docType === 'receipt' ? -ar : ar;
 }
 
 function daysBetween(fromDate, toDate) {
@@ -641,11 +641,11 @@ async function generateOne({
 
     const docs = [];
     for (const r of ledgerRows) {
-        docs.push({ kind: 'ledger', row: r, mode: r.mode, docKind: r.docKind, docDate: r.docDate, grossAmount: r.grossAmount, createdAt: r.createdAt });
+        docs.push({ kind: 'ledger', row: r, mode: r.mode, docType: r.docType, docDate: r.docDate, grossAmount: r.grossAmount, createdAt: r.createdAt });
     }
     for (const r of receiptRows) {
         docs.push({
-            kind: 'receipt', row: r, mode: r.mode, docKind: r.docKind, docDate: r.docDate,
+            kind: 'receipt', row: r, mode: r.mode, docType: r.docType, docDate: r.docDate,
             amount: r.amount, createdAt: r.createdAt, depositC: depositCByDoc.get(r.id) || 0,
         });
     }
@@ -717,7 +717,7 @@ async function generateOne({
             companyId,
             lineNo: i + 1,
             docDate: doc.docDate,
-            docType: doc.docKind,
+            docType: doc.docType,
             docId: doc.row.id,
             docNo: doc.row.docNo,
             description: doc.row.description || null,

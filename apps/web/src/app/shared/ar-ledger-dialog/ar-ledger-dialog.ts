@@ -423,7 +423,7 @@ export class ArLedgerDialogComponent implements OnInit {
   }
   lockedTargetLabel(): string {
     const target = this.effOpenDebits().find((d) => d.id === this.presetTargetId());
-    return target ? `${this.kindLabel(target.docKind)} ${target.docNo} — open ${this.remaining(target)}` : 'Selected document';
+    return target ? `${this.kindLabel(target.docType)} ${target.docNo} — open ${this.remaining(target)}` : 'Selected document';
   }
 
   // A new draft saved by a Submit whose submit step then failed - further
@@ -442,7 +442,7 @@ export class ArLedgerDialogComponent implements OnInit {
         : k === 'debit-note' ? this.service.updateDebitNote(editId, this.payload())
         : this.service.updateInvoice(editId, this.payload());
     }
-    if (this.debtor()) return this.service.postLedger(debtor!.id, { ...this.payload(), docKind: k });
+    if (this.debtor()) return this.service.postLedger(debtor!.id, { ...this.payload(), docType: k });
     return k === 'credit-note' ? this.service.postCreditNote({ ...this.payload(), debtorId: debtor!.id })
       : k === 'debit-note' ? this.service.postDebitNote({ ...this.payload(), debtorId: debtor!.id })
       : this.service.postInvoice({ ...this.payload(), debtorId: debtor!.id });

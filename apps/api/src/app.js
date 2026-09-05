@@ -269,6 +269,20 @@ async function initializeDB() {
                 await sequelize.query('ALTER INDEX IF EXISTS ar."IDX_InterestGenerationDetail_Company" RENAME TO "IDX_InterestDetail_Company"');
                 console.log('Migrated ar.InterestGeneration -> ar.Interest (+ detail table/column/index renames).');
             }
+            // 1c. ar.Ledger / ar.Receipt column docKind -> docType (user
+            //     decision 2026-09-05: one vocabulary with TaxLedger.docType
+            //     and Allocation.debitDocType/creditDocType). Indexes keep
+            //     their names - Postgres tracks the column, not the name.
+            const [[dkCols]] = await sequelize.query(
+                `SELECT
+                    (SELECT 1 FROM information_schema.columns
+                      WHERE table_schema = 'ar' AND table_name = 'Ledger' AND column_name = 'docKind') AS l,
+                    (SELECT 1 FROM information_schema.columns
+                      WHERE table_schema = 'ar' AND table_name = 'Receipt' AND column_name = 'docKind') AS r`,
+            );
+            if (dkCols && dkCols.l) await sequelize.query('ALTER TABLE ar."Ledger" RENAME COLUMN "docKind" TO "docType"');
+            if (dkCols && dkCols.r) await sequelize.query('ALTER TABLE ar."Receipt" RENAME COLUMN "docKind" TO "docType"');
+            if (dkCols && (dkCols.l || dkCols.r)) console.log('Renamed docKind -> docType on ar.Ledger / ar.Receipt.');
             // 2. ar.Statement NOT NULL snapshot columns whose backfill needs
             //    data the alter-sync cannot derive (month from periodEnd,
             //    debtor type/category via joins, issuer name from Company).
@@ -671,15 +685,15 @@ async function initializeDB() {
             if (n) console.log(`Reverted ${n} stranded pending-approval row(s) in ${tbl} to draft.`);
         }
 
-        // docKind 'interest' (user decision 2026-09-04): interest-run Debit
+        // docType 'interest' (user decision 2026-09-04): interest-run Debit
         // Notes became their own document kind. Flip existing rows (identified
         // by sourceRef -> ar.Interest) plus their TaxLedger docType mirror.
-        // OUTSIDE the fingerprint gate (docKind is a plain STRING - no model
+        // OUTSIDE the fingerprint gate (docType is a plain STRING - no model
         // change to trip the sync); idempotent - matches zero rows once done.
         {
             const [, flipped] = await sequelize.query(
-                `UPDATE ar."Ledger" l SET "docKind" = 'interest'
-                 WHERE l."docKind" = 'debit-note' AND l."sourceModule" = 'ar'
+                `UPDATE ar."Ledger" l SET "docType" = 'interest'
+                 WHERE l."docType" = 'debit-note' AND l."sourceModule" = 'ar'
                    AND EXISTS (SELECT 1 FROM ar."Interest" i WHERE i."id"::text = l."sourceRef")`,
             ).catch(() => [null, 0]);
             const nFlipped = flipped && flipped.rowCount !== undefined ? flipped.rowCount : flipped;
@@ -687,9 +701,9 @@ async function initializeDB() {
                 await sequelize.query(
                     `UPDATE ar."TaxLedger" t SET "docType" = 'interest'
                      WHERE t."docType" = 'debit-note'
-                       AND EXISTS (SELECT 1 FROM ar."Ledger" l WHERE l."id" = t."docId" AND l."docKind" = 'interest')`,
+                       AND EXISTS (SELECT 1 FROM ar."Ledger" l WHERE l."id" = t."docId" AND l."docType" = 'interest')`,
                 ).catch(() => [null, 0]);
-                console.log(`Migrated ${nFlipped} interest Debit Note(s) to docKind 'interest' (+ TaxLedger mirror).`);
+                console.log(`Migrated ${nFlipped} interest Debit Note(s) to docType 'interest' (+ TaxLedger mirror).`);
             }
         }
 

@@ -37,7 +37,7 @@ const Allocation = sequelize.define('Allocation', {
         allowNull: false,
     },
     // 'ledger' | 'refund' | 'deposit' - where it goes. 'refund' targets an
-    // ar.Receipt row of docKind 'refund'.
+    // ar.Receipt row of docType 'refund'.
     debitDocType: {
         type: DataTypes.STRING(10),
         allowNull: false,

@@ -171,7 +171,7 @@ async function applyAllocation({ companyId, creditType, creditRow, debitType, de
         creditRow.balanceAmount = money(cents(creditRow.balanceAmount) - amountCents);
         if (cents(creditRow.balanceAmount) <= 0) {
             creditRow.status = 'settled';
-            await require('./taxLedger.service').syncStatus({ docType: creditRow.docKind, docId: creditRow.id, status: 'settled', t });
+            await require('./taxLedger.service').syncStatus({ docType: creditRow.docType, docId: creditRow.id, status: 'settled', t });
         }
         await creditRow.save({ transaction: t });
     } else {
@@ -186,7 +186,7 @@ async function applyAllocation({ companyId, creditType, creditRow, debitType, de
         debitRow.balanceAmount = money(cents(debitRow.balanceAmount) - amountCents);
         if (cents(debitRow.balanceAmount) <= 0) {
             debitRow.status = 'settled';
-            await require('./taxLedger.service').syncStatus({ docType: debitRow.docKind, docId: debitRow.id, status: 'settled', t });
+            await require('./taxLedger.service').syncStatus({ docType: debitRow.docType, docId: debitRow.id, status: 'settled', t });
         }
         await debitRow.save({ transaction: t });
         if (debitRow.incurredByMemberId) {
@@ -260,13 +260,13 @@ function maybeCloseDeposit(deposit) {
 // selections; void reversals copy the original's; system producers may pass
 // them later).
 async function postLedgerDoc({
-    companyId, debtor, docKind, mode = null, reversalOfId = null,
+    companyId, debtor, docType, mode = null, reversalOfId = null,
     issueDocNo, docDate, trxDate, transactionTypeId, isInterestChargeable = false,
     description = null, incurredByMemberId = null, sourceModule, sourceRef,
     amounts, stamps = {}, targetLedger = null, fifo = false, enforceCredit = false,
     exchangeRate = null, fx = null, analysisColumns = {}, t,
 }) {
-    const kind = ledgerKindDef(docKind);
+    const kind = ledgerKindDef(docType);
     if (!kind) throw bizError(400, 'Invalid ledger document kind.');
     const rowMode = mode || kind.mode;
     const grossC = amounts.grossC;
@@ -295,7 +295,7 @@ async function postLedgerDoc({
     const row = await Ledger.create({
         companyId,
         debtorId: debtor.id,
-        docKind,
+        docType,
         mode: rowMode,
         reversalOfId,
         docNo,
@@ -379,7 +379,7 @@ async function postDraftLedger({ companyId, debtor, row, issueDocNo, stamps = {}
         row.updatedBy = stamps.updatedBy;
     }
     await row.save({ transaction: t });
-    await require('./taxLedger.service').syncStatus({ docType: row.docKind, docId: row.id, status: row.status, t });
+    await require('./taxLedger.service').syncStatus({ docType: row.docType, docId: row.id, status: row.status, t });
 
     if (row.mode === 'debit') {
         await bumpOutstanding(pool, grossC, t);
@@ -420,7 +420,7 @@ async function postReceipt({
     const pool = await lockPool(companyId, debtor.id, t);
     const docNo = await issueDocNo(t);
     const row = await Receipt.create({
-        companyId, debtorId: debtor.id, docKind: 'receipt', mode: 'credit',
+        companyId, debtorId: debtor.id, docType: 'receipt', mode: 'credit',
         docNo, docDate, trxDate: trxDate || docDate,
         paymentMethod: paymentMethod || null, paymentRef: paymentRef || null, description,
         amount: money(amountC), balanceAmount: money(amountC), status: 'open',
@@ -524,7 +524,7 @@ async function postRefund({
     const pool = await lockPool(companyId, debtor.id, t);
     const docNo = await issueDocNo(t);
     const row = await Receipt.create({
-        companyId, debtorId: debtor.id, docKind: 'refund', mode: 'debit',
+        companyId, debtorId: debtor.id, docType: 'refund', mode: 'debit',
         docNo, docDate, trxDate: trxDate || docDate,
         paymentMethod: paymentMethod || null, paymentRef: paymentRef || null, description,
         // A refund's balance is its UNFUNDED portion - the funding allocations
@@ -550,7 +550,7 @@ async function postRefund({
 async function fundRefundFromCredit({ companyId, debtor, row, amountC, stamps, pool, t }) {
     let remaining = amountC;
     const credits = await Receipt.findAll({
-        where: { debtorId: debtor.id, docKind: 'receipt', status: 'open' },
+        where: { debtorId: debtor.id, docType: 'receipt', status: 'open' },
         order: [['docDate', 'ASC'], ['createdAt', 'ASC']],
         transaction: t,
         lock: t.LOCK.UPDATE,
@@ -628,7 +628,7 @@ async function postDraftRefund({ companyId, debtor, row, issueDocNo, issueCnDocN
         // refund's frozen rate so the pair nets in base, FIFO to open items.
         const conversionType = await require('./catalogDefaults').depositConversionType(companyId);
         await postLedgerDoc({
-            companyId, debtor, docKind: 'credit-note',
+            companyId, debtor, docType: 'credit-note',
             issueDocNo: issueCnDocNo,
             docDate: row.docDate, trxDate: row.trxDate,
             transactionTypeId: conversionType.id,
@@ -661,7 +661,7 @@ async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxD
     }
     if (row.mode === 'debit') {
         const reversal = await postLedgerDoc({
-            companyId, debtor, docKind: row.docKind, mode: 'credit', reversalOfId: row.id,
+            companyId, debtor, docType: row.docType, mode: 'credit', reversalOfId: row.id,
             issueDocNo, docDate, trxDate, transactionTypeId: row.transactionTypeId,
             description: `Void of ${row.docNo}`,
             incurredByMemberId: row.incurredByMemberId,
@@ -684,16 +684,16 @@ async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxD
         row.status = 'void';
         if (stamps.updatedBy) row.updatedBy = stamps.updatedBy;
         await row.save({ transaction: t });
-        await require('./taxLedger.service').syncStatus({ docType: row.docKind, docId: row.id, status: 'void', t });
+        await require('./taxLedger.service').syncStatus({ docType: row.docType, docId: row.id, status: 'void', t });
         return reversal;
     }
     // An offset-refund CN (refund slice 2026-08-31: sourceRef = the REFUND
     // row) is one leg of a two-document internal transfer - voiding it alone
     // would strand the refund's consumed deposit value. Neither leg reverses:
     // correct with a fresh Debit Note instead.
-    if (row.docKind === 'credit-note' && row.sourceModule === 'ar' && UUID_RE.test(row.sourceRef || '')) {
+    if (row.docType === 'credit-note' && row.sourceModule === 'ar' && UUID_RE.test(row.sourceRef || '')) {
         const linkedRefund = await Receipt.findOne({
-            where: { id: row.sourceRef, companyId, docKind: 'refund' },
+            where: { id: row.sourceRef, companyId, docType: 'refund' },
             attributes: ['docNo'],
             transaction: t,
         });
@@ -706,14 +706,14 @@ async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxD
     row.status = 'void';
     if (stamps.updatedBy) row.updatedBy = stamps.updatedBy;
     await row.save({ transaction: t });
-    await require('./taxLedger.service').syncStatus({ docType: row.docKind, docId: row.id, status: 'void', t });
+    await require('./taxLedger.service').syncStatus({ docType: row.docType, docId: row.id, status: 'void', t });
     await bumpOutstanding(pool, cents(row.grossAmount), t);
 
     // A deposit-conversion CN (sourceModule 'ar', sourceRef = the Deposit id)
     // dropped heldAmount as a PROCESS, not an allocation - voiding it must
     // give the deposit its money back (and reopen a closed deposit). The held
     // balance can never exceed what was collected (amount - balanceAmount).
-    if (row.docKind === 'credit-note' && row.sourceModule === 'ar' && UUID_RE.test(row.sourceRef || '')) {
+    if (row.docType === 'credit-note' && row.sourceModule === 'ar' && UUID_RE.test(row.sourceRef || '')) {
         const Deposit = require('./deposit.model');
         const deposit = await Deposit.findOne({ where: { id: row.sourceRef, companyId }, transaction: t, lock: t.LOCK.UPDATE });
         if (deposit) {
@@ -733,7 +733,7 @@ async function voidLedgerDoc({ companyId, debtor, row, issueDocNo, docDate, trxD
 // money already left; bring it back with a new receipt.
 async function voidReceipt({ companyId, row, stamps = {}, t }) {
     if (row.status === 'void') throw bizError(400, 'This receipt is already void.');
-    if (row.docKind !== 'receipt') throw bizError(400, 'Refunds cannot be voided - post a new Official Receipt instead.');
+    if (row.docType !== 'receipt') throw bizError(400, 'Refunds cannot be voided - post a new Official Receipt instead.');
     if (cents(row.balanceAmount) !== cents(row.amount)) {
         throw bizError(400, 'This receipt has allocations - it can no longer be voided.');
     }

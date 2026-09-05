@@ -93,7 +93,7 @@ async function reconcileCompany(companyId, { fix = false } = {}) {
                 if (row.incurredByMemberId) bump(expPersonal, `${row.debtorId}:${row.incurredByMemberId}`, remaining);
             } else {
                 bump(expOutstanding, row.debtorId, -remaining);
-                if (row.docKind === 'credit-note' && row.sourceModule === 'ar') {
+                if (row.docType === 'credit-note' && row.sourceModule === 'ar') {
                     // Deposit-conversion CN: sourceRef carries the Deposit id.
                     bump(conversionByDeposit, row.sourceRef, cents(row.grossAmount));
                 }
@@ -112,14 +112,14 @@ async function reconcileCompany(companyId, { fix = false } = {}) {
         // Draft receipts (lifecycle 2026-08-20) are not financial: no counters,
         // never in outstanding - same as ledger drafts above.
         if (row.status === 'draft') continue;
-        if (row.status !== 'void' && row.docKind === 'receipt') {
+        if (row.status !== 'void' && row.docType === 'receipt') {
             bump(expOutstanding, row.debtorId, -cents(row.balanceAmount));
         }
         // Receipts sit on the CREDIT side of their allocations under docType
         // 'receipt'; refunds sit on the DEBIT side under docType 'refund'
         // (deposit->refund / receipt->refund pairs).
-        const side = row.docKind === 'receipt' ? allocByCredit : allocByDebit;
-        const expectedBalance = cents(row.amount) - (side.get(`${row.docKind}:${row.id}`) || 0);
+        const side = row.docType === 'receipt' ? allocByCredit : allocByDebit;
+        const expectedBalance = cents(row.amount) - (side.get(`${row.docType}:${row.id}`) || 0);
         note('receipt', row.docNo, 'balanceAmount', expectedBalance, cents(row.balanceAmount), async (t) => {
             await Receipt.update({ balanceAmount: money(expectedBalance) }, { where: { id: row.id }, transaction: t });
         });

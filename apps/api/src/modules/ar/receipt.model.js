@@ -30,7 +30,7 @@ const Receipt = sequelize.define('Receipt', {
         allowNull: false,
     },
     // 'receipt' | 'refund' - each its own numbering series.
-    docKind: {
+    docType: {
         type: DataTypes.STRING(20),
         allowNull: false,
     },
@@ -129,8 +129,8 @@ const Receipt = sequelize.define('Receipt', {
     tableName: 'Receipt',
     timestamps: true,
     indexes: [
-        { name: 'IDX_Receipt_Company_Kind_No', fields: ['companyId', 'docKind', 'docNo'], unique: true },
-        { name: 'IDX_Receipt_Debtor_Kind_Status', fields: ['debtorId', 'docKind', 'status'] },
+        { name: 'IDX_Receipt_Company_Kind_No', fields: ['companyId', 'docType', 'docNo'], unique: true },
+        { name: 'IDX_Receipt_Debtor_Kind_Status', fields: ['debtorId', 'docType', 'status'] },
         { name: 'IDX_Receipt_Company_TrxDate', fields: ['companyId', 'trxDate'] },
     ],
 });

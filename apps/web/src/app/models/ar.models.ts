@@ -102,7 +102,7 @@ export interface ArLedgerDoc {
   id: string;
   // 'interest' (own kind since 2026-09-04) is system-posted by the interest
   // run - mode 'debit', immutable, corrected via Credit Note.
-  docKind: 'invoice' | 'debit-note' | 'credit-note' | 'interest';
+  docType: 'invoice' | 'debit-note' | 'credit-note' | 'interest';
   mode: 'debit' | 'credit';
   docNo: string | null;
   docDate: string;
@@ -128,7 +128,7 @@ export interface ArLedgerDoc {
 
 export interface ArReceiptDoc {
   id: string;
-  docKind: 'receipt' | 'refund';
+  docType: 'receipt' | 'refund';
   mode: 'debit' | 'credit';
   docNo: string;
   docDate: string;
@@ -203,7 +203,7 @@ export type ArRefundMode = 'deposit' | 'credit' | 'offset';
 
 export interface ArDocListRow {
   id: string;
-  docKind: string;
+  docType: string;
   mode: 'debit' | 'credit';
   docNo: string | null;
   docDate: string;
@@ -262,10 +262,10 @@ export interface ArAllocationRow {
   id: string;
   creditDocType: 'receipt' | 'ledger' | 'deposit';
   creditDocId: string;
-  creditDoc: { docNo: string; docKind: string } | null;
+  creditDoc: { docNo: string; docType: string } | null;
   debitDocType: 'ledger' | 'refund' | 'deposit';
   debitDocId: string;
-  debitDoc: { docNo: string; docKind: string } | null;
+  debitDoc: { docNo: string; docType: string } | null;
   amount: string;
   fxGainLoss: string | null;
   fxTransactionType: string | null;
@@ -280,7 +280,7 @@ export interface ArAllocationRow {
 // second hop).
 export interface ArAllocationOnwardRow {
   docNo: string | null;
-  docKind: string;
+  docType: string;
   amount: string;
 }
 
@@ -397,7 +397,7 @@ export interface ArAccountMeta {
   refundApproval?: boolean;
   depositApproval?: boolean;
   // The debtor's open debits - the CN entry's "Apply against" choices.
-  openDebits?: { id: string; docKind: string; docNo: string | null; grossAmount: string; balanceAmount: string }[];
+  openDebits?: { id: string; docType: string; docNo: string | null; grossAmount: string; balanceAmount: string }[];
   // The debtor's OPEN deposits with both counters: the Receipt dialog offers
   // balanceAmount > 0 (collectable), the Refund dialog heldAmount > 0
   // (refundable) - each filters client-side.

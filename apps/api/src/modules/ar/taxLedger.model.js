@@ -28,7 +28,7 @@ const TaxLedger = sequelize.define('ArTaxLedger', {
         type: DataTypes.UUID,
         allowNull: false,
     },
-    // Mirrors ar.Ledger.docKind ('invoice' | 'debit-note' | 'credit-note') -
+    // Mirrors ar.Ledger.docType ('invoice' | 'debit-note' | 'credit-note') -
     // user decision 2026-08-24; Deposit joins later if deposit billing
     // becomes taxable.
     docType: {

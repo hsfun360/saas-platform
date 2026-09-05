@@ -16,7 +16,7 @@ function rowsFromQuote({ companyId, row, quote, stamps }) {
     const rate = row.exchangeRate ? Number(row.exchangeRate) : 1;
     return (quote.lines || []).map((l, i) => ({
         companyId,
-        docType: row.docKind,
+        docType: row.docType,
         docId: row.id,
         // Parent-row mirrors: mode never changes; status follows the parent
         // through syncStatus below.
@@ -43,7 +43,7 @@ function rowsFromQuote({ companyId, row, quote, stamps }) {
 // caller's transaction). quote null / taxless -> the delete alone (an edit
 // that switched to a tax-free transaction type clears stale lines).
 async function replaceTaxLines({ companyId, row, quote, stamps = {}, t }) {
-    await TaxLedger.destroy({ where: { docType: row.docKind, docId: row.id }, transaction: t });
+    await TaxLedger.destroy({ where: { docType: row.docType, docId: row.id }, transaction: t });
     if (!quote || !Array.isArray(quote.lines) || quote.lines.length === 0) return;
     await TaxLedger.bulkCreate(rowsFromQuote({ companyId, row, quote, stamps }), { transaction: t });
 }
@@ -52,14 +52,14 @@ async function replaceTaxLines({ companyId, row, quote, stamps = {}, t }) {
 // rate - the reversal reuses the original's fx, so base figures match too).
 async function copyTaxLines({ fromRow, toRow, stamps = {}, t }) {
     const lines = await TaxLedger.findAll({
-        where: { docType: fromRow.docKind, docId: fromRow.id },
+        where: { docType: fromRow.docType, docId: fromRow.id },
         order: [['lineNo', 'ASC']],
         transaction: t,
     });
     if (!lines.length) return;
     await TaxLedger.bulkCreate(lines.map((l) => ({
         companyId: l.companyId,
-        docType: toRow.docKind,
+        docType: toRow.docType,
         docId: toRow.id,
         mode: toRow.mode,
         status: toRow.status,

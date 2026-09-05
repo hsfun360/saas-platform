@@ -292,7 +292,7 @@ async function confirmOne(req, companyId, id, interestType, stamps) {
                 // was 'debit-note'): mode stays 'debit' so the engine (FIFO,
                 // aging, CN offsets) treats it like any debit document, but
                 // listings/labels see a first-class Interest document.
-                docKind: 'interest',
+                docType: 'interest',
                 issueDocNo,
                 docDate: gen.cutoffDate,
                 trxDate: gen.cutoffDate,

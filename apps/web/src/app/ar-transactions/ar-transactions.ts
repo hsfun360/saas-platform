@@ -535,12 +535,12 @@ export class ArTransactionsComponent implements OnInit {
     const mine = a.creditDocId === this.allocDoc()?.id;
     const doc = mine ? a.debitDoc : a.creditDoc;
     const kind = mine ? a.debitDocType : a.creditDocType;
-    const label = doc?.docKind ? (DOC_KIND_LABELS[doc.docKind] || doc.docKind) : (DOC_KIND_LABELS[kind] || kind);
+    const label = doc?.docType ? (DOC_KIND_LABELS[doc.docType] || doc.docType) : (DOC_KIND_LABELS[kind] || kind);
     return doc?.docNo ? `${label} ${doc.docNo}` : label;
   }
   // A trail hop's display label ("Invoice INV202600008").
   onwardLabel(o: ArAllocationOnwardRow): string {
-    const label = DOC_KIND_LABELS[o.docKind] || o.docKind;
+    const label = DOC_KIND_LABELS[o.docType] || o.docType;
     return o.docNo ? `${label} ${o.docNo}` : label;
   }
   // Nonzero realized fx, phrased with its Forex designation.

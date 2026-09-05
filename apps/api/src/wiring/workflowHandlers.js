@@ -26,7 +26,7 @@ const purposeRegistry = require('../modules/workflow/purposeRegistry');
 //   cancelled -> back to 'draft' (submitter recalled it)
 // Posting is small (one row + counter updates under the pool lock), so it
 // stays inside the completing transaction per the execution-flow agreement.
-function registerArLedgerPurpose(purpose, docKind, synthPrefix) {
+function registerArLedgerPurpose(purpose, docType, synthPrefix) {
     purposeRegistry.register(purpose, {
         onApproved: async ({ entityId, instance, transaction }) => {
             const Ledger = require('../modules/ar/ledger.model');
@@ -35,7 +35,7 @@ function registerArLedgerPurpose(purpose, docKind, synthPrefix) {
             const numberingGateway = require('../platform/numberingGateway');
 
             const row = await Ledger.findOne({
-                where: { id: entityId, companyId: instance.companyId, docKind, status: 'pending-approval' },
+                where: { id: entityId, companyId: instance.companyId, docType, status: 'pending-approval' },
                 transaction,
             });
             if (!row) return; // already handled / voided out-of-band - never fail the approval
@@ -59,18 +59,18 @@ function registerArLedgerPurpose(purpose, docKind, synthPrefix) {
             const Ledger = require('../modules/ar/ledger.model');
             const [n] = await Ledger.update(
                 { status: 'draft' },
-                { where: { id: entityId, companyId: instance.companyId, docKind, status: 'pending-approval' }, transaction },
+                { where: { id: entityId, companyId: instance.companyId, docType, status: 'pending-approval' }, transaction },
             );
             // Keep the tax-breakdown status mirror in step (ar.TaxLedger).
-            if (n) await require('../modules/ar/taxLedger.service').syncStatus({ docType: docKind, docId: entityId, status: 'draft', t: transaction });
+            if (n) await require('../modules/ar/taxLedger.service').syncStatus({ docType: docType, docId: entityId, status: 'draft', t: transaction });
         },
         onCancelled: async ({ entityId, instance, transaction }) => {
             const Ledger = require('../modules/ar/ledger.model');
             const [n] = await Ledger.update(
                 { status: 'draft' },
-                { where: { id: entityId, companyId: instance.companyId, docKind, status: 'pending-approval' }, transaction },
+                { where: { id: entityId, companyId: instance.companyId, docType, status: 'pending-approval' }, transaction },
             );
-            if (n) await require('../modules/ar/taxLedger.service').syncStatus({ docType: docKind, docId: entityId, status: 'draft', t: transaction });
+            if (n) await require('../modules/ar/taxLedger.service').syncStatus({ docType: docType, docId: entityId, status: 'draft', t: transaction });
         },
     });
 }
@@ -79,7 +79,7 @@ registerArLedgerPurpose('ar-credit-note', 'credit-note', 'CN');
 registerArLedgerPurpose('ar-debit-note', 'debit-note', 'DN');
 
 // --- AR Refund (refund slice 2026-08-31) ------------------------------------
-// Refunds are ar.Receipt rows (docKind 'refund'), so they get their own
+// Refunds are ar.Receipt rows (docType 'refund'), so they get their own
 // handler rather than the Ledger one. Approval posts the draft through
 // postDraftRefund, which resolves the stored intent (deposit payout / excess
 // credit / deposit-to-outstanding offset with its Credit Note leg) and
@@ -93,7 +93,7 @@ purposeRegistry.register('ar-refund', {
         const numberingGateway = require('../platform/numberingGateway');
 
         const row = await Receipt.findOne({
-            where: { id: entityId, companyId: instance.companyId, docKind: 'refund', status: 'pending-approval' },
+            where: { id: entityId, companyId: instance.companyId, docType: 'refund', status: 'pending-approval' },
             transaction,
         });
         if (!row) return; // already handled / voided out-of-band - never fail the approval
@@ -119,14 +119,14 @@ purposeRegistry.register('ar-refund', {
         const Receipt = require('../modules/ar/receipt.model');
         await Receipt.update(
             { status: 'draft' },
-            { where: { id: entityId, companyId: instance.companyId, docKind: 'refund', status: 'pending-approval' }, transaction },
+            { where: { id: entityId, companyId: instance.companyId, docType: 'refund', status: 'pending-approval' }, transaction },
         );
     },
     onCancelled: async ({ entityId, instance, transaction }) => {
         const Receipt = require('../modules/ar/receipt.model');
         await Receipt.update(
             { status: 'draft' },
-            { where: { id: entityId, companyId: instance.companyId, docKind: 'refund', status: 'pending-approval' }, transaction },
+            { where: { id: entityId, companyId: instance.companyId, docType: 'refund', status: 'pending-approval' }, transaction },
         );
     },
 });

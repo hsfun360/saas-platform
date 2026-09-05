@@ -160,11 +160,11 @@ export class ArDebtorAccountComponent {
   // invoice drafts (lifecycle 2026-08-20); a POSTED unallocated CN keeps the
   // reversal void (deposit-conversion CNs rely on it).
   canVoidLedgerDoc(doc: ArLedgerDoc): boolean {
-    if (doc.docKind === 'invoice' || doc.docKind === 'debit-note') return doc.status === 'draft';
+    if (doc.docType === 'invoice' || doc.docType === 'debit-note') return doc.status === 'draft';
     // Interest (own kind 2026-09-04): system-posted, never voidable - a
     // Credit Note corrects it (the reversal fallback below is CN-only).
-    if (doc.docKind === 'interest') return false;
-    if (doc.docKind === 'credit-note' && doc.status === 'draft') return true;
+    if (doc.docType === 'interest') return false;
+    if (doc.docType === 'credit-note' && doc.status === 'draft') return true;
     return doc.status === 'open' && Number(doc.balanceAmount) === Number(doc.grossAmount);
   }
 
@@ -278,15 +278,15 @@ export class ArDebtorAccountComponent {
   askVoidLedger(doc: ArLedgerDoc): void {
     // Draft void (reason required for audit): invoices and debit notes
     // always route there server-side; CN drafts too (lifecycle 2026-08-20).
-    const isDraftVoid = doc.docKind === 'invoice' || doc.docKind === 'debit-note'
-      || (doc.docKind === 'credit-note' && doc.status === 'draft');
+    const isDraftVoid = doc.docType === 'invoice' || doc.docType === 'debit-note'
+      || (doc.docType === 'credit-note' && doc.status === 'draft');
     this.voidNeedsReason.set(isDraftVoid);
     this.openVoid(
       isDraftVoid
-        ? `Void ${this.kindLabel(doc.docKind)} ${this.ledgerDocRef(doc)}? The draft never posted - the number stays consumed and the record remains as Void with your reason.`
+        ? `Void ${this.kindLabel(doc.docType)} ${this.ledgerDocRef(doc)}? The draft never posted - the number stays consumed and the record remains as Void with your reason.`
         : doc.mode === 'debit'
-          ? `Void ${this.kindLabel(doc.docKind)} ${doc.docNo}? A credit-mode reversal will be posted against it.`
-          : `Void ${this.kindLabel(doc.docKind)} ${doc.docNo}?`,
+          ? `Void ${this.kindLabel(doc.docType)} ${doc.docNo}? A credit-mode reversal will be posted against it.`
+          : `Void ${this.kindLabel(doc.docType)} ${doc.docNo}?`,
       () => this.service.voidLedger(doc.id, isDraftVoid ? { reason: this.voidReason().trim() } : {}).subscribe({
         next: (res) => this.voidDone(res.message),
         error: (err) => this.voidFailed(err),

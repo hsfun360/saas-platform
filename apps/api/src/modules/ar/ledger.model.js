@@ -38,7 +38,7 @@ const Ledger = sequelize.define('Ledger', {
         allowNull: false,
     },
     // 'invoice' | 'debit-note' | 'credit-note' - each its own numbering series.
-    docKind: {
+    docType: {
         type: DataTypes.STRING(20),
         allowNull: false,
     },
@@ -210,7 +210,7 @@ const Ledger = sequelize.define('Ledger', {
     tableName: 'Ledger',
     timestamps: true,
     indexes: [
-        { name: 'IDX_Ledger_Company_Kind_No', fields: ['companyId', 'docKind', 'docNo'], unique: true },
+        { name: 'IDX_Ledger_Company_Kind_No', fields: ['companyId', 'docType', 'docNo'], unique: true },
         // FIFO oldest-open-first + open-item scans.
         { name: 'IDX_Ledger_Debtor_Mode_Status_Date', fields: ['debtorId', 'mode', 'status', 'docDate'] },
         { name: 'IDX_Ledger_Source', fields: ['sourceModule', 'sourceRef'] },
