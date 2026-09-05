@@ -8,6 +8,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { CanDirective } from '../shared/can.directive';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 import { ArOption, ArTransactionTypeMeta, ArTransactionTypeRow } from '../models/ar.models';
 
 // Account Receivable → Master File Setup → Transaction Type (AR-OWNED since
@@ -18,7 +19,7 @@ import { ArOption, ArTransactionTypeMeta, ArTransactionTypeRow } from '../models
 @Component({
   selector: 'app-ar-transaction-types',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, CanDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, CanDirective, ComboboxComponent],
   templateUrl: './ar-transaction-types.html',
   // membership-types.css supplies the shared .mt-chip pill.
   styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css'],
@@ -35,6 +36,10 @@ export class ArTransactionTypesComponent implements OnInit {
   readonly rows = signal<ArTransactionTypeRow[]>([]);
   readonly meta = signal<ArTransactionTypeMeta | null>(null);
   readonly taxSchemes = signal<{ taxSchemeCode: string; name: string | null }[]>([]);
+  // Constrained-combobox options (house standard for long reference lists):
+  // code AND name in the label so type-to-filter matches both.
+  readonly taxSchemeOptions = computed(() =>
+    this.taxSchemes().map((s) => ({ value: s.taxSchemeCode, label: s.name ? `${s.taxSchemeCode} — ${s.name}` : s.taxSchemeCode })));
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);
 

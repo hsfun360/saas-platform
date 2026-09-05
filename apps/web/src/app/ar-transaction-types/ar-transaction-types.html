@@ -167,12 +167,12 @@
           <div class="form-row">
             <div class="form-group">
               <label for="attTax">Tax Scheme</label>
-              <select id="attTax" formControlName="taxSchemeCode">
-                <option value="">— None —</option>
-                @for (s of taxSchemes(); track s.taxSchemeCode) {
-                  <option [value]="s.taxSchemeCode">{{ s.taxSchemeCode }}@if (s.name) { — {{ s.name }}}</option>
-                }
-              </select>
+              <!-- Constrained combobox (house standard) - the scheme catalog
+                   is unbounded reference data, so the picker is type-to-filter. -->
+              <app-combobox inputId="attTax" formControlName="taxSchemeCode"
+                            [options]="taxSchemeOptions()"
+                            [allowEmpty]="true" emptyLabel="— None —"
+                            placeholder="Type to search…" />
               <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The single source of tax for this item — every consumer inherits it.</p>
             </div>
           </div>
