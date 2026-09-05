@@ -54,6 +54,22 @@
           <label for="aiGrace">Grace days</label>
           <input id="aiGrace" type="number" inputmode="numeric" min="0" max="365" step="1" formControlName="graceDays" />
         </div>
+        <!-- Run-level analysis dimensions (2026-09-04): every document this
+             run posts carries these values; required flags are enforced. -->
+        @if (orderedDimMeta().length > 0) {
+          <div class="ai-run__dims">
+            @for (dim of orderedDimMeta(); track dim.categoryId) {
+              <div class="form-group">
+                <label [for]="'aiDim' + dim.dimensionNo">{{ dim.name }}@if (dim.isRequired) { <span class="required">*</span> }</label>
+                <app-combobox [inputId]="'aiDim' + dim.dimensionNo"
+                              [options]="dimOptions(dim)"
+                              [allowEmpty]="!dim.isRequired"
+                              [value]="dimValue(dim.dimensionNo)"
+                              (valueChange)="pickDim(dim.dimensionNo, $event)" />
+              </div>
+            }
+          </div>
+        }
         <div class="ai-run__go">
           <button type="submit" class="btn btn--primary" [disabled]="generating()">
             {{ generating() ? 'Generating…' : 'Generate' }}

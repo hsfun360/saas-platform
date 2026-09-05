@@ -7,8 +7,9 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 import { ArService } from '../services/ar.service';
-import { ArInterestDetail, ArInterest } from '../models/ar.models';
+import { ArAnalysisEntryMeta, ArInterestDetail, ArInterest } from '../models/ar.models';
 
 // Account Receivable → Interest Generation (staged run, approved design):
 // GENERATE holding headers (one per debtor per month - the holding list IS the
@@ -21,6 +22,7 @@ import { ArInterestDetail, ArInterest } from '../models/ar.models';
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
     DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective,
+    ComboboxComponent,
   ],
   templateUrl: './ar-interest.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-interest.css'],
@@ -72,10 +74,36 @@ export class ArInterestComponent implements OnInit {
   readonly maintaining = signal(false);
   readonly includedCount = computed(() => this.details().filter((d) => !d.isExcluded).length);
 
+  // Run-level analysis dimensions (2026-09-04): one picker per assigned
+  // dimension on the Generate form; every header the run creates freezes the
+  // chosen values and confirm stamps them onto the posted document. The
+  // server validates (required, hierarchy) - the pickers are convenience.
+  readonly dimMeta = signal<ArAnalysisEntryMeta[]>([]);
+  readonly runAnalysis = signal<Record<string, string>>({});
+  readonly orderedDimMeta = computed(() => [...this.dimMeta()].sort((a, b) =>
+    (a.displaySeq ?? a.dimensionNo) - (b.displaySeq ?? b.dimensionNo)));
+  dimOptions(dim: ArAnalysisEntryMeta): { value: string; label: string }[] {
+    return dim.options.map((o) => ({ value: o.id, label: o.description ? `${o.code} — ${o.description}` : o.code }));
+  }
+  dimValue(no: number): string {
+    return this.runAnalysis()[String(no)] || '';
+  }
+  pickDim(no: number, value: string): void {
+    this.runAnalysis.update((sel) => {
+      const next = { ...sel };
+      if (value) next[String(no)] = value; else delete next[String(no)];
+      return next;
+    });
+  }
+
   ngOnInit(): void {
     const m = this.thisMonth();
     this.month.set(m);
     this.runForm.reset({ month: m, cutoffDate: this.lastDayOf(m), ratePercent: 1.5, graceDays: 0 });
+    this.service.interestRunMeta().subscribe({
+      next: (res) => this.dimMeta.set(res.analysis || []),
+      error: () => this.dimMeta.set([]),
+    });
     this.load();
   }
 
@@ -127,6 +155,7 @@ export class ArInterestComponent implements OnInit {
     this.generating.set(true);
     this.service.generateInterest({
       month: f.month, cutoffDate: f.cutoffDate, ratePercent: f.ratePercent, graceDays: f.graceDays,
+      analysis: this.runAnalysis(),
     }).subscribe({
       next: (res) => {
         this.successMessage.set(res.message);

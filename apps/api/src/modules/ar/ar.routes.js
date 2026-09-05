@@ -183,6 +183,8 @@ router.use(
 );
 
 // --- Interest run (its own screen/menu: /ar/interest) ---
+// NOTE: /meta must register BEFORE /:id or 'meta' would match as an id.
+router.get('/interest-generations/meta', requireMenuAction('/ar/interest'), periodicController.runMeta);
 router.get('/interest-generations', requireMenuAction('/ar/interest'), periodicController.list);
 router.post('/interest-generations', requireMenuAction('/ar/interest'), periodicController.generate);
 // The drill-down read is shared with the Interest documents listing's

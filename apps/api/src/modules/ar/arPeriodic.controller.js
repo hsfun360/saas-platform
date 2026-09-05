@@ -21,7 +21,10 @@ const arStatement = require('./arStatement.service');
 const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
 const membershipGateway = require('../../platform/membershipGateway');
 const numberingGateway = require('../../platform/numberingGateway');
+const dimensionGateway = require('../../platform/dimensionGateway');
 const { quoteTax } = require('../../platform/taxGateway');
+
+const AR_MODULE = 'AR'; // frozen Module.code (dimension gateway key)
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MONTH_RE = /^\d{4}-\d{2}$/;
@@ -67,8 +70,21 @@ async function debtorDisplayMap(companyId, debtorIds) {
 // ---------------------------------------------------------------------------
 // Interest run
 
+// GET /api/ar/interest-generations/meta - the Generate form's analysis
+// dimension pickers (run-level dimensions, approved 2026-09-04).
+exports.runMeta = async (req, res) => {
+    try {
+        const { companyId } = getUserContext(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        res.status(200).json({ analysis: await dimensionGateway.entryMeta(companyId, AR_MODULE) });
+    } catch (err) {
+        console.error('Error loading interest run meta:', err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 // POST /api/ar/interest-generations { month: 'YYYY-MM', cutoffDate,
-// ratePercent, graceDays } - generate holding headers for the month.
+// ratePercent, graceDays, analysis } - generate holding headers for the month.
 exports.generate = async (req, res) => {
     try {
         const { companyId } = getUserContext(req);
@@ -87,6 +103,12 @@ exports.generate = async (req, res) => {
             return res.status(400).json({ message: 'Grace days must be between 0 and 365.' });
         }
 
+        // Run-level analysis dimensions: validated like the manual doors
+        // (required ENFORCED - the run is an interactive action, not an
+        // exempt system producer); the headers freeze the choices.
+        const analysisRead = await dimensionGateway.readSelections(companyId, req.body, AR_MODULE);
+        if (analysisRead.error) return res.status(400).json({ message: analysisRead.error });
+
         const placement = await getCallerPlacement(req);
         const stamps = ownershipStamps(req, placement);
         const result = await generateInterest({
@@ -95,6 +117,7 @@ exports.generate = async (req, res) => {
             cutoffDate,
             ratePercent: rate,
             graceDays,
+            analysisColumns: analysisRead.columns,
             stamps,
         });
         // Per-currency totals (multicurrency step 5) - units are listed side
@@ -279,6 +302,8 @@ async function confirmOne(req, companyId, id, interestType, stamps) {
                 sourceModule: 'ar',
                 sourceRef: gen.id,
                 amounts,
+                // The run-level dimensions frozen on the header at generate.
+                analysisColumns: dimensionGateway.copyColumns(gen),
                 stamps,
                 t,
             });

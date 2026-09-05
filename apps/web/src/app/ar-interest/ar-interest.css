@@ -11,12 +11,26 @@
   display: flex;
   align-items: end;
   padding-bottom: 2px;
+  /* Pinned to the first row's action column so the run-level dimension
+     pickers (2026-09-04) flow onto their own rows below the run fields. */
+  grid-row: 1;
+  grid-column: 5;
+}
+
+/* Run-level dimension pickers: their own full-width row(s) under the run
+   fields, four-up like the fields above. */
+.ai-run__dims {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-sm);
 }
 
 @media (max-width: 767px) {
   .ai-run { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .ai-run__go { grid-column: 1 / -1; }
+  .ai-run__go { grid-row: auto; grid-column: 1 / -1; }
   .ai-run__go .btn { width: 100%; }
+  .ai-run__dims { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 
 .ai-toolbar {

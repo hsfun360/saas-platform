@@ -64,6 +64,18 @@ const Interest = sequelize.define('Interest', {
         type: DataTypes.DECIMAL(21, 2),
         allowNull: false,
     },
+    // Run-level analysis dimensions (approved 2026-09-04): the Generate form
+    // collects one value per assigned dimension (required flags enforced -
+    // this is an interactive action, not an exempt system producer); the
+    // header FREEZES the choices and confirm stamps them onto the posted
+    // interest document. The finer per-line association stays derivable via
+    // InterestDetail.chargeId -> the source charge's own analysis columns.
+    analysis1Id: { type: DataTypes.UUID, allowNull: true },
+    analysis2Id: { type: DataTypes.UUID, allowNull: true },
+    analysis3Id: { type: DataTypes.UUID, allowNull: true },
+    analysis4Id: { type: DataTypes.UUID, allowNull: true },
+    analysis5Id: { type: DataTypes.UUID, allowNull: true },
+    analysis6Id: { type: DataTypes.UUID, allowNull: true },
     // 'pending' | 'confirmed' | 'cancelled'.
     status: {
         type: DataTypes.STRING(20),

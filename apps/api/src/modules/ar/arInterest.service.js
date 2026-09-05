@@ -29,7 +29,7 @@ function daysBetween(fromStr, toStr) {
 // Run the generation for a whole company-month. Idempotent per debtor: a
 // pending/confirmed header blocks the month (skipped + reported); cancelled
 // ones are replaced by regeneration. Returns counts for the result flash.
-async function generateInterest({ companyId, periodMonth, cutoffDate, ratePercent, graceDays, stamps }) {
+async function generateInterest({ companyId, periodMonth, cutoffDate, ratePercent, graceDays, analysisColumns = {}, stamps }) {
     const debtors = await Debtor.findAll({
         where: { companyId, chargeInterest: true, status: 'active' },
         attributes: ['id', 'currencyCode'],
@@ -104,6 +104,9 @@ async function generateInterest({ companyId, periodMonth, cutoffDate, ratePercen
                 totalOverdue: money(overdueC),
                 interestAmount: money(interestC),
                 status: 'pending',
+                // Run-level analysis dimensions (2026-09-04) frozen per header;
+                // confirm stamps them onto the posted interest document.
+                ...analysisColumns,
                 ...stamps,
             }, { transaction: t });
             await InterestDetail.bulkCreate(

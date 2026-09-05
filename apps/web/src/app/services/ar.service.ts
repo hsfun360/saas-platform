@@ -15,6 +15,7 @@ import {
   ArAllocationRow,
   ArDepositConversionRow,
   ArDocListResult,
+  ArAnalysisEntryMeta,
   ArExchangeRate,
   ArExchangeRateMeta,
   ArInterestDetail,
@@ -315,11 +316,16 @@ export class ArService {
 
   // --- Interest run (slice 3) ---
 
-  generateInterest(payload: { month: string; cutoffDate: string; ratePercent: number; graceDays: number }):
+  generateInterest(payload: { month: string; cutoffDate: string; ratePercent: number; graceDays: number; analysis?: Record<string, string> }):
     Observable<{ message: string; generated: number; skippedExisting: number; totalInterest: string }> {
     return this.http.post<{ message: string; generated: number; skippedExisting: number; totalInterest: string }>(
       `${this.base}/interest-generations`, payload,
     );
+  }
+
+  // The Generate form's run-level analysis dimension pickers (2026-09-04).
+  interestRunMeta(): Observable<{ analysis: ArAnalysisEntryMeta[] }> {
+    return this.http.get<{ analysis: ArAnalysisEntryMeta[] }>(`${this.base}/interest-generations/meta`);
   }
 
   listInterest(month: string): Observable<{ generations: ArInterest[] }> {
