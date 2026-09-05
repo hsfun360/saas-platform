@@ -211,6 +211,9 @@ export interface ArDocListRow {
   dueDate: string | null;
   description: string | null;
   sourceModule: string;
+  // The producing record's id (interest rows: the ar.Interest header, which
+  // the breakdown viewer resolves).
+  sourceRef?: string | null;
   netAmount: string;
   taxAmount: string;
   grossAmount: string;

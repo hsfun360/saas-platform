@@ -185,7 +185,9 @@ router.use(
 // --- Interest run (its own screen/menu: /ar/interest) ---
 router.get('/interest-generations', requireMenuAction('/ar/interest'), periodicController.list);
 router.post('/interest-generations', requireMenuAction('/ar/interest'), periodicController.generate);
-router.get('/interest-generations/:id', requireMenuAction('/ar/interest'), periodicController.get);
+// The drill-down read is shared with the Interest documents listing's
+// breakdown viewer (2026-09-04) - either menu opens it (read-only).
+router.get('/interest-generations/:id', requireAnyMenuAction(['/ar/interest', '/ar/interests']), periodicController.get);
 // Posted Interest documents listing (docKind 'interest', menu '/ar/interests'
 // - READ-ONLY: the run screen creates them, a Credit Note corrects them).
 router.get('/interests', requireMenuAction('/ar/interests'), documentController.listInterestDocuments);

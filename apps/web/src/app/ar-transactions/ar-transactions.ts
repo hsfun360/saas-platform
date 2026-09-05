@@ -15,7 +15,7 @@ import { ArRefundDialogComponent } from '../shared/ar-refund-dialog/ar-refund-di
 import { ArDepositDialogComponent } from '../shared/ar-deposit-dialog/ar-deposit-dialog';
 import { ArService } from '../services/ar.service';
 import { PermissionsService } from '../services/permissions.service';
-import { ArAccountMeta, ArAllocationRow, ArAllocationOnwardRow, ArDepositConversionRow, ArDocListResult, ArDocListRow, ArDocStatus } from '../models/ar.models';
+import { ArAccountMeta, ArAllocationRow, ArAllocationOnwardRow, ArDepositConversionRow, ArDocListResult, ArDocListRow, ArDocStatus, ArInterest, ArInterestDetail } from '../models/ar.models';
 
 // Account Receivable → per-document-type transaction screens (hybrid design
 // 2026-08-12): each document type is its OWN menu, so RBAC can grant e.g.
@@ -158,7 +158,9 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
     OverflowMenuComponent, MenuItemDirective,
   ],
   templateUrl: './ar-transactions.html',
-  styleUrls: ['../system-setup/system-setup.css', './ar-transactions.css'],
+  // ar-interest.css supplies the .ai-lines drill-down grid the Interest
+  // breakdown viewer reuses (one look for the same data on both screens).
+  styleUrls: ['../system-setup/system-setup.css', '../ar-interest/ar-interest.css', './ar-transactions.css'],
 })
 export class ArTransactionsComponent implements OnInit {
   private readonly service = inject(ArService);
@@ -489,6 +491,41 @@ export class ArTransactionsComponent implements OnInit {
   closeAllocations(): void {
     this.allocOpen.set(false);
     this.allocDoc.set(null);
+  }
+
+  // --- Interest breakdown viewer (interest rows only, 2026-09-04): which
+  // overdue documents produced this figure - the run's drill-down, resolved
+  // through the document's sourceRef -> ar.Interest header. Read-only.
+  readonly breakdownOpen = signal(false);
+  readonly breakdownLoading = signal(false);
+  readonly breakdownDoc = signal<ArDocListRow | null>(null);
+  readonly breakdownGen = signal<ArInterest | null>(null);
+  readonly breakdownDetails = signal<ArInterestDetail[]>([]);
+  readonly breakdownIncluded = computed(() => this.breakdownDetails().filter((d) => !d.isExcluded).length);
+  openBreakdown(row: ArDocListRow): void {
+    this.clearMessages();
+    if (!row.sourceRef) { this.errorMessage.set('This document carries no generation reference.'); return; }
+    this.breakdownDoc.set(row);
+    this.breakdownGen.set(null);
+    this.breakdownDetails.set([]);
+    this.breakdownOpen.set(true);
+    this.breakdownLoading.set(true);
+    this.service.getInterest(row.sourceRef).subscribe({
+      next: (res) => {
+        this.breakdownGen.set(res.generation);
+        this.breakdownDetails.set(res.details);
+        this.breakdownLoading.set(false);
+      },
+      error: (err) => {
+        this.breakdownLoading.set(false);
+        this.breakdownOpen.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to load the interest breakdown.');
+      },
+    });
+  }
+  closeBreakdown(): void {
+    this.breakdownOpen.set(false);
+    this.breakdownDoc.set(null);
   }
   // The OTHER side of an allocation, seen from the viewed document.
   allocDirection(a: ArAllocationRow): string {

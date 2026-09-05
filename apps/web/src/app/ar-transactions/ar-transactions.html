@@ -129,6 +129,11 @@
                   <button type="button" appMenuItem (click)="openAllocations(doc)">
                     <span class="material-icons" aria-hidden="true">account_tree</span> Allocations
                   </button>
+                  @if (cfg().kind === 'interest') {
+                    <button type="button" appMenuItem (click)="openBreakdown(doc)">
+                      <span class="material-icons" aria-hidden="true">percent</span> Interest breakdown
+                    </button>
+                  }
                   @if (canRaiseCn(doc)) {
                     <button type="button" appMenuItem (click)="openRaiseCn(doc)">
                       <span class="material-icons" aria-hidden="true">remove_circle</span> Raise Credit Note
@@ -217,6 +222,43 @@
   }
 
   <!-- ============ Allocations drill-down (posted documents; viewer) ============ -->
+  <!-- ============ Interest breakdown viewer (interest rows only) ============ -->
+  @if (breakdownOpen()) {
+    <app-dialog #breakdownDlg [title]="'Interest breakdown — ' + docRef(breakdownDoc()!)" [busy]="breakdownLoading()" (close)="closeBreakdown()">
+      @if (breakdownLoading()) {
+        <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+      } @else {
+        <p class="cell-subtle" style="margin-top: 0;">
+          Rate {{ breakdownGen()?.interestRate }}% flat, cutoff {{ breakdownGen()?.cutoffDate | localDate }}.
+          @if (breakdownGen()?.currencyCode) { Amounts in {{ breakdownGen()?.currencyCode }}. }
+          The overdue documents this interest was computed from; excluded lines never contributed.
+        </p>
+        <div class="ai-lines">
+          <div class="ai-line ai-line--head">
+            <span>Document</span><span>Due</span><span>Days late</span><span class="ai-num">Overdue</span><span class="ai-num">Interest</span>
+          </div>
+          @for (d of breakdownDetails(); track d.id) {
+            <div class="ai-line" [class.ai-line--excluded]="d.isExcluded">
+              <span>{{ d.docNo }}</span>
+              <span>{{ d.dueDate | localDate }}</span>
+              <span>{{ d.overdueDays }}</span>
+              <span class="ai-num">{{ d.overdueAmount }}</span>
+              <span class="ai-num">{{ d.interestAmount }}</span>
+            </div>
+          }
+          <div class="ai-line ai-line--total">
+            <span>Total — {{ breakdownIncluded() }} of {{ breakdownDetails().length }} line(s) included</span><span></span><span></span>
+            <span class="ai-num">{{ breakdownGen()?.totalOverdue }}</span>
+            <span class="ai-num">{{ breakdownGen()?.interestAmount }}</span>
+          </div>
+        </div>
+      }
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="breakdownDlg.requestClose()">Close</button>
+      </ng-container>
+    </app-dialog>
+  }
+
   @if (allocOpen()) {
     <app-dialog #allocDlg [title]="'Allocations — ' + docRef(allocDoc()!)" [busy]="allocLoading()" (close)="closeAllocations()">
       @if (allocLoading()) {

@@ -517,7 +517,10 @@ function makeLedgerListHandler(docKind) {
                 documents: rows.map((r, i) => ({
                     id: r.id, docKind: r.docKind, mode: r.mode, docNo: r.docNo,
                     docDate: r.docDate, trxDate: r.trxDate, dueDate: r.dueDate,
+                    // sourceRef: the producing record's id (interest rows use
+                    // it for the breakdown viewer -> ar.Interest header).
                     description: r.description, sourceModule: r.sourceModule,
+                    sourceRef: r.sourceRef,
                     netAmount: r.netAmount, taxAmount: r.taxAmount, grossAmount: r.grossAmount,
                     balanceAmount: r.balanceAmount, status: r.status,
                     voidReason: r.voidReason,
