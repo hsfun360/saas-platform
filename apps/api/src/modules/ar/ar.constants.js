@@ -78,6 +78,14 @@ const LEDGER_DOC_KINDS = [
     { key: 'credit-note', label: 'Credit Note', mode: 'credit', numberingPurpose: 'ar-credit-note' },
 ];
 
+// SYSTEM-posted ledger kinds (own docType 2026-09-04): never manually keyed -
+// the manual doors keep validating against LEDGER_DOC_KINDS only, while the
+// posting ENGINE accepts both lists. Interest is posted solely by the
+// interest run's confirm.
+const SYSTEM_LEDGER_DOC_KINDS = [
+    { key: 'interest', label: 'Interest', mode: 'debit', numberingPurpose: 'ar-interest' },
+];
+
 // Money-movement documents.
 const RECEIPT_DOC_KINDS = [
     { key: 'receipt', label: 'Official Receipt', mode: 'credit', numberingPurpose: 'ar-receipt' },
@@ -113,6 +121,7 @@ module.exports = {
     DEBTOR_TYPE_KEYS,
     DEBTOR_STATUS_KEYS,
     LEDGER_DOC_KINDS,
+    SYSTEM_LEDGER_DOC_KINDS,
     LEDGER_DOC_KIND_KEYS,
     RECEIPT_DOC_KINDS,
     RECEIPT_DOC_KIND_KEYS,

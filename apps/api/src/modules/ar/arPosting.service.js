@@ -24,7 +24,7 @@ const CreditMemberLimit = require('./creditMemberLimit.model');
 const Ledger = require('./ledger.model');
 const Receipt = require('./receipt.model');
 const Allocation = require('./allocation.model');
-const { LEDGER_DOC_KINDS, ALLOCATION_PAIRS } = require('./ar.constants');
+const { LEDGER_DOC_KINDS, SYSTEM_LEDGER_DOC_KINDS, ALLOCATION_PAIRS } = require('./ar.constants');
 // Multicurrency (step 3): every row that enters the ledger is stamped with
 // its account currency + the frozen rate + base equivalents through ONE seam.
 const { resolveDocumentFx, ledgerFxColumns, amountFxColumns, baseCents } = require('./arCurrency.service');
@@ -34,7 +34,12 @@ function cents(v) { return Math.round(Number(v || 0) * 100); }
 function money(c) { return (c / 100).toFixed(2); }
 function bizError(status, message) { const e = new Error(message); e.httpStatus = status; return e; }
 
-function ledgerKindDef(key) { return LEDGER_DOC_KINDS.find((k) => k.key === key); }
+// The ENGINE accepts manual AND system kinds (the manual doors validate
+// against LEDGER_DOC_KINDS alone - interest is never keyed by hand).
+function ledgerKindDef(key) {
+    return LEDGER_DOC_KINDS.find((k) => k.key === key)
+        || SYSTEM_LEDGER_DOC_KINDS.find((k) => k.key === key);
+}
 
 // sourceRef is a free string ('manual', a docNo, or a linked row's UUID) -
 // only query by it as an id when it actually is one, or Postgres throws on
