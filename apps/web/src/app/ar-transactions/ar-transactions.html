@@ -60,7 +60,11 @@
     } @else {
       <div class="empty-state">
         <span class="empty-icon">📄</span>
-        <p>No {{ cfg().plural.toLowerCase() }} for this month yet. Use "New {{ cfg().label }}" to key the first one.</p>
+        @if (cfg().readOnly) {
+          <p>No {{ cfg().plural.toLowerCase() }} for this month yet. The Interest Generation run posts them.</p>
+        } @else {
+          <p>No {{ cfg().plural.toLowerCase() }} for this month yet. Use "New {{ cfg().label }}" to key the first one.</p>
+        }
       </div>
     }
   } @else {
@@ -147,10 +151,12 @@
   }
 
   <!-- New-document FAB -->
-  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openEntry()"
-          [attr.aria-label]="'New ' + cfg().label">
-    <span class="material-icons" aria-hidden="true">add</span> New {{ cfg().label }}
-  </button>
+  @if (!cfg().readOnly) {
+    <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openEntry()"
+            [attr.aria-label]="'New ' + cfg().label">
+      <span class="material-icons" aria-hidden="true">add</span> New {{ cfg().label }}
+    </button>
+  }
 
   <!-- ============ Entry / edit dialog (shared; new starts at the debtor picker) ============ -->
   @if (entryOpen()) {

@@ -671,6 +671,28 @@ async function initializeDB() {
             if (n) console.log(`Reverted ${n} stranded pending-approval row(s) in ${tbl} to draft.`);
         }
 
+        // docKind 'interest' (user decision 2026-09-04): interest-run Debit
+        // Notes became their own document kind. Flip existing rows (identified
+        // by sourceRef -> ar.Interest) plus their TaxLedger docType mirror.
+        // OUTSIDE the fingerprint gate (docKind is a plain STRING - no model
+        // change to trip the sync); idempotent - matches zero rows once done.
+        {
+            const [, flipped] = await sequelize.query(
+                `UPDATE ar."Ledger" l SET "docKind" = 'interest'
+                 WHERE l."docKind" = 'debit-note' AND l."sourceModule" = 'ar'
+                   AND EXISTS (SELECT 1 FROM ar."Interest" i WHERE i."id"::text = l."sourceRef")`,
+            ).catch(() => [null, 0]);
+            const nFlipped = flipped && flipped.rowCount !== undefined ? flipped.rowCount : flipped;
+            if (nFlipped) {
+                await sequelize.query(
+                    `UPDATE ar."TaxLedger" t SET "docType" = 'interest'
+                     WHERE t."docType" = 'debit-note'
+                       AND EXISTS (SELECT 1 FROM ar."Ledger" l WHERE l."id" = t."docId" AND l."docKind" = 'interest')`,
+                ).catch(() => [null, 0]);
+                console.log(`Migrated ${nFlipped} interest Debit Note(s) to docKind 'interest' (+ TaxLedger mirror).`);
+            }
+        }
+
         // Per-module dimension applicability (2026-08-27), second half: a
         // numbered dimension must apply to at least one module or it can never
         // be stamped, so seed the Account Receivable row - AR is the only

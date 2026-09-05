@@ -265,7 +265,11 @@ async function confirmOne(req, companyId, id, interestType, stamps) {
             const row = await posting.postLedgerDoc({
                 companyId,
                 debtor,
-                docKind: 'debit-note',
+                // Interest is its OWN document kind (user decision 2026-09-04;
+                // was 'debit-note'): mode stays 'debit' so the engine (FIFO,
+                // aging, CN offsets) treats it like any debit document, but
+                // listings/labels see a first-class Interest document.
+                docKind: 'interest',
                 issueDocNo,
                 docDate: gen.cutoffDate,
                 trxDate: gen.cutoffDate,

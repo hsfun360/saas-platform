@@ -542,6 +542,10 @@ function makeLedgerListHandler(docKind) {
 exports.listInvoices = makeLedgerListHandler('invoice');
 exports.listCreditNotes = makeLedgerListHandler('credit-note');
 exports.listDebitNotes = makeLedgerListHandler('debit-note');
+// Interest documents (docKind 'interest' since 2026-09-04) are system-posted
+// by the interest run - this listing is READ-ONLY (no create/edit/void doors;
+// correction = a Credit Note, like any posted debit document).
+exports.listInterestDocuments = makeLedgerListHandler('interest');
 
 // ---------------------------------------------------------------------------
 // Invoice lifecycle (defined 2026-08-13): Save -> 'draft' ("Open" on screen,
@@ -1915,6 +1919,11 @@ exports.voidLedger = async (req, res) => {
         const { canModifyRecord } = require('../../platform/serviceContext');
         if (!(await canModifyRecord(req, row))) {
             return res.status(403).json({ message: 'This document belongs to another user (outside your data scope).' });
+        }
+        // Interest documents (own docKind since 2026-09-04) are system-posted
+        // and never draft: no void, ever - the correction is a Credit Note.
+        if (row.docKind === 'interest') {
+            return res.status(400).json({ message: 'An interest charge cannot be voided - raise a Credit Note to offset it.' });
         }
         // Debit documents (Invoice / Debit Note since its slice 2026-09-01):
         // draft-only void (posted = Credit Note territory). CN DRAFTS void

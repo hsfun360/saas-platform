@@ -20,7 +20,9 @@ const periodicController = require('./arPeriodic.controller');
 // Menus whose screens open the shared entry dialogs (debtor picker + entry
 // meta). Extend as each per-document transaction slice lands.
 const AR_TXN_MENUS = ['/ar/invoices', '/ar/debit-notes', '/ar/credit-notes', '/ar/receipts', '/ar/refunds', '/ar/deposits'];
-const AR_TXN_META_MENUS = ['/ar/debtors', ...AR_TXN_MENUS];
+// The read-only Interest documents listing (2026-09-04) shares the viewers
+// (allocations, tax lines) but not the entry doors, so it joins only META.
+const AR_TXN_META_MENUS = ['/ar/debtors', ...AR_TXN_MENUS, '/ar/interests'];
 
 // Liveness probe - unauthenticated, so the gateway/monitoring can check the seam.
 router.get('/health', (req, res) => res.json({ service: 'ar', status: 'ok' }));
@@ -47,7 +49,10 @@ router.get('/debtors/:id/account', requireMenuAction('/ar/debtors'), documentCon
 // The entry dialogs' meta is shared with the per-document transaction screens
 // (they open the same dialog after picking a debtor).
 router.get('/debtors/:id/account/meta', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.getAccountMeta);
-router.get('/documents/:type/:id/allocations', requireMenuAction('/ar/debtors'), documentController.getAllocations);
+// Any transaction menu opens the Allocations viewer (its kebab item shows on
+// every transaction screen - the '/ar/debtors'-only gate 403'd e.g. a
+// receipts-only cashier; widened 2026-09-04 with the Interest listing).
+router.get('/documents/:type/:id/allocations', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.getAllocations);
 // The frozen tax breakdown behind a document - reachable from any transaction
 // screen (same broad gate as the shared entry meta).
 router.get('/documents/:type/:id/tax-lines', requireAnyMenuAction(AR_TXN_META_MENUS), documentController.getTaxLines);
@@ -181,6 +186,9 @@ router.use(
 router.get('/interest-generations', requireMenuAction('/ar/interest'), periodicController.list);
 router.post('/interest-generations', requireMenuAction('/ar/interest'), periodicController.generate);
 router.get('/interest-generations/:id', requireMenuAction('/ar/interest'), periodicController.get);
+// Posted Interest documents listing (docKind 'interest', menu '/ar/interests'
+// - READ-ONLY: the run screen creates them, a Credit Note corrects them).
+router.get('/interests', requireMenuAction('/ar/interests'), documentController.listInterestDocuments);
 router.patch('/interest-generations/:id/details/:detailId', requireMenuAction('/ar/interest'), periodicController.setDetailExcluded);
 router.post('/interest-generations/confirm', requireMenuAction('/ar/interest'), periodicController.confirm);
 router.post('/interest-generations/:id/cancel', requireMenuAction('/ar/interest'), periodicController.cancel);

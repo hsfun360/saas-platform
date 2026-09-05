@@ -130,6 +130,17 @@ export class ArService {
     return this.http.get<ArDocListResult>(`${this.base}/invoices`, { params });
   }
 
+  // Posted Interest documents (docKind 'interest') - read-only listing; the
+  // interest run posts them and a Credit Note corrects them.
+  listInterestDocs(opts: { month?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
+    let params = new HttpParams();
+    if (opts.month) params = params.set('month', opts.month);
+    if (opts.q) params = params.set('q', opts.q);
+    if (opts.status) params = params.set('status', opts.status);
+    if (opts.offset) params = params.set('offset', String(opts.offset));
+    return this.http.get<ArDocListResult>(`${this.base}/interests`, { params });
+  }
+
   // A document's allocation web (both directions), counterparts resolved
   // server-side - the transaction screens' drill-down viewer (step 5). For
   // deposits the response carries the FULL usage trail: onward settlements on

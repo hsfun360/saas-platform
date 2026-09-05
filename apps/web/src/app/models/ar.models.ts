@@ -100,7 +100,9 @@ export interface ArTransactionTypeMeta {
 
 export interface ArLedgerDoc {
   id: string;
-  docKind: 'invoice' | 'debit-note' | 'credit-note';
+  // 'interest' (own kind since 2026-09-04) is system-posted by the interest
+  // run - mode 'debit', immutable, corrected via Credit Note.
+  docKind: 'invoice' | 'debit-note' | 'credit-note' | 'interest';
   mode: 'debit' | 'credit';
   docNo: string | null;
   docDate: string;

@@ -24,7 +24,10 @@ import { ArAccountMeta, ArAllocationRow, ArAllocationOnwardRow, ArDepositConvers
 // types via route data (invoice first; the other five follow slice by slice).
 // The Debtor Account screen stays as the account-first inquiry surface.
 interface DocTypeCfg {
-  kind: 'invoice' | 'debit-note' | 'credit-note' | 'receipt' | 'refund' | 'deposit';
+  kind: 'invoice' | 'debit-note' | 'credit-note' | 'receipt' | 'refund' | 'deposit' | 'interest';
+  // READ-ONLY kind (interest): system-posted documents - no New FAB, no entry
+  // dialog; rows only offer the read/correct actions (Allocations, Raise CN).
+  readOnly?: boolean;
   label: string;       // singular, e.g. 'Invoice'
   plural: string;      // fallback screen title
   icon: string;
@@ -49,7 +52,7 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
     label: 'Invoice',
     plural: 'Invoices',
     icon: 'request_quote',
-    subtitle: 'Manual invoices across all debtors — key new invoices and void unsettled ones. System-generated invoices (fee runs, interest) appear here too.',
+    subtitle: 'Manual invoices across all debtors — key new invoices and void unsettled ones. System-generated invoices (fee runs) appear here too.',
     dialog: 'ledger',
     hasApproval: true,
     postText: 'The invoice number is issued now and the amount hits the debtor’s balance.',
@@ -113,6 +116,21 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
     submit: (s, id) => s.submitRefund(id),
     approvalOf: (m) => m.refundApproval === true,
     void: (s, id, reason) => s.voidRefund(id, reason),
+  },
+  interest: {
+    kind: 'interest',
+    readOnly: true,
+    label: 'Interest',
+    plural: 'Interest Documents',
+    icon: 'percent',
+    subtitle: 'Late-payment interest documents across all debtors — posted by the Interest Generation run. Corrections are made with a Credit Note; nothing is keyed here.',
+    dialog: 'ledger',            // never opens - read-only kind
+    hasApproval: false,
+    postText: '',                // never shown - read-only kind
+    list: (s, opts) => s.listInterestDocs(opts),
+    submit: (s, id) => s.submitInvoice(id),        // unreachable - no drafts exist
+    approvalOf: () => false,
+    void: (s, id, reason) => s.voidInvoice(id, reason), // unreachable - rows are never drafts
   },
   deposit: {
     kind: 'deposit',
@@ -279,7 +297,7 @@ export class ArTransactionsComponent implements OnInit {
   // deposits use their own dialogs, so this branch never renders for them).
   ledgerKind(): 'invoice' | 'debit-note' | 'credit-note' {
     const k = this.cfg().kind;
-    return k === 'receipt' || k === 'refund' || k === 'deposit' ? 'invoice' : k;
+    return k === 'receipt' || k === 'refund' || k === 'deposit' || k === 'interest' ? 'invoice' : k;
   }
   openEntry(): void {
     this.clearMessages();
@@ -397,7 +415,7 @@ export class ArTransactionsComponent implements OnInit {
     const k = this.cfg().kind;
     // canOnMenu: the CN menu must actually be HELD (cross-screen gate - the
     // permissive can() fallback would show this to users without it).
-    return (k === 'invoice' || k === 'debit-note') && this.isPosted(doc)
+    return (k === 'invoice' || k === 'debit-note' || k === 'interest') && this.isPosted(doc)
       && this.permissions.canOnMenu('create', '/ar/credit-notes');
   }
   openRaiseCn(row: ArDocListRow): void {

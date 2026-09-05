@@ -161,6 +161,9 @@ export class ArDebtorAccountComponent {
   // reversal void (deposit-conversion CNs rely on it).
   canVoidLedgerDoc(doc: ArLedgerDoc): boolean {
     if (doc.docKind === 'invoice' || doc.docKind === 'debit-note') return doc.status === 'draft';
+    // Interest (own kind 2026-09-04): system-posted, never voidable - a
+    // Credit Note corrects it (the reversal fallback below is CN-only).
+    if (doc.docKind === 'interest') return false;
     if (doc.docKind === 'credit-note' && doc.status === 'draft') return true;
     return doc.status === 'open' && Number(doc.balanceAmount) === Number(doc.grossAmount);
   }
@@ -174,7 +177,8 @@ export class ArDebtorAccountComponent {
       : kind === 'debit-note' ? 'Debit Note'
       : kind === 'credit-note' ? 'Credit Note'
       : kind === 'receipt' ? 'Official Receipt'
-      : kind === 'refund' ? 'Refund' : kind;
+      : kind === 'refund' ? 'Refund'
+      : kind === 'interest' ? 'Interest' : kind;
   }
   remaining(doc: ArLedgerDoc): string {
     return Number(doc.balanceAmount).toFixed(2);

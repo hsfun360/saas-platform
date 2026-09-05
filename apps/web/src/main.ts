@@ -188,6 +188,9 @@ const routes: Routes = [
       { path: 'ar/receipts', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR', arDocType: 'receipt' } },
       { path: 'ar/refunds', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR', arDocType: 'refund' } },
       { path: 'ar/deposits', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR', arDocType: 'deposit' } },
+      // Posted Interest documents (docKind 'interest' since 2026-09-04) -
+      // READ-ONLY listing; the Interest Generation run posts them.
+      { path: 'ar/interests', loadComponent: () => import('./app/ar-transactions/ar-transactions').then((m) => m.ArTransactionsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR', arDocType: 'interest' } },
       // Periodic processing: staged interest run + monthly statement run.
       { path: 'ar/interest', loadComponent: () => import('./app/ar-interest/ar-interest').then((m) => m.ArInterestComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
       // AR Master File Setup - the AR-owned Transaction Type catalog (moved
