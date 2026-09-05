@@ -29,6 +29,7 @@ import {
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { SortMenuComponent, SortOption, SortValue } from '../shared/sort-menu/sort-menu';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // Membership Management → Memberships (SRS 2.3 Phase 1).
 // The contract list: individual memberships (one auto-created Member) and
@@ -38,7 +39,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 @Component({
   selector: 'app-memberships',
   standalone: true,
-  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, MoneyInputDirective, SortMenuComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, MoneyInputDirective, SortMenuComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './memberships.html',
   styleUrls: ['../system-setup/system-setup.css', './memberships.css'],
 })
@@ -283,6 +284,31 @@ export class MembershipsComponent implements OnInit {
     const cls = this.pickedClass();
     return (this.options()?.types || []).filter((t) => t.membershipClass === cls);
   });
+
+  // Combobox option lists ({value, label}) for the long reference pickers -
+  // labels reproduce what the old native <option> texts rendered.
+  readonly statusFilterOptions = computed(() =>
+    (this.options()?.statuses || []).map((s) => ({ value: s.id, label: s.membershipStatus })));
+  readonly statusWithClassOptions = computed(() =>
+    (this.options()?.statuses || []).map((s) => ({ value: s.id, label: `${s.membershipStatus} (${s.statusClass})` })));
+  readonly feeOptions = computed(() =>
+    (this.options()?.fees || []).map((f) => ({ value: f.id, label: f.description ? `${f.membershipFeeCode} — ${f.description}` : f.membershipFeeCode })));
+  readonly agentOptions = computed(() =>
+    (this.options()?.agents || []).map((a) => ({ value: a.id, label: `${a.agentCode} — ${a.name}` })));
+  readonly classTypeOptions = computed(() =>
+    this.classTypes().map((t) => ({ value: t.id, label: t.description ? `${t.category} — ${t.description}` : t.category })));
+  readonly countryOptions = computed(() =>
+    this.countries().map((c) => ({ value: c.alpha2, label: c.flagEmoji ? `${c.flagEmoji} ${c.name}` : c.name })));
+  readonly salutationOptions = computed(() =>
+    this.salutations().map((s) => ({ value: s.salutationCode, label: s.description || s.salutationCode })));
+  readonly titleOptions = computed(() =>
+    this.titles().map((t) => ({ value: t.titleCode, label: t.description || t.titleCode })));
+  readonly nationalityOptions = computed(() =>
+    this.nationalities().map((n) => ({ value: n.nationalityCode, label: n.description || n.nationalityCode })));
+  readonly raceOptions = computed(() =>
+    this.races().map((r) => ({ value: r.raceCode, label: r.description || r.raceCode })));
+  readonly industryTypeOptions = computed(() =>
+    this.industryTypes().map((i) => ({ value: i.industryTypeCode, label: i.description || i.industryTypeCode })));
 
   readonly autoNumbering = computed(() => this.meta()?.numberingMode === 'auto');
 

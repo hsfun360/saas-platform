@@ -43,12 +43,11 @@
     </select>
     <!-- Account-currency filter: only exists while multi-currency is on. -->
     @if (multiCurrency()) {
-      <select #ardCcySel class="ard-status-select" [value]="currencyFilter()" (change)="setCurrencyFilter(ardCcySel.value)" aria-label="Filter by account currency">
-        <option value="">All currencies</option>
-        @for (c of currencies(); track c.code) {
-          <option [value]="c.code">{{ c.code }}@if (c.isBase) { (base)}</option>
-        }
-      </select>
+      <app-combobox [value]="currencyFilter()" (valueChange)="setCurrencyFilter($event)"
+                    [options]="currencyFilterOptions()"
+                    [allowEmpty]="true" emptyLabel="All currencies"
+                    ariaLabel="Filter by account currency"
+                    placeholder="All currencies" style="min-width: 200px;" />
     }
     <!-- Producer-side utility: open ledger accounts for memberships/nominees
          that were active before AR existed (idempotent). -->
@@ -281,11 +280,10 @@
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
               <div class="form-group">
                 <label for="odCurrency">Account currency</label>
-                <select id="odCurrency" formControlName="currencyCode">
-                  @for (c of currencies(); track c.code) {
-                    <option [value]="c.code">{{ c.code }} — {{ c.name }}@if (c.isBase) { (base)}</option>
-                  }
-                </select>
+                <app-combobox inputId="odCurrency" formControlName="currencyCode"
+                              [options]="currencyOptions()"
+                              [allowEmpty]="false"
+                              placeholder="Type to search…" />
                 <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">
                   @if (otherCurrencyLocked()) {
                     Locked — this account already has documents. Open a separate Other Debtor for another currency.
@@ -355,12 +353,10 @@
             </div>
             <div class="form-group">
               <label for="odCountry">Country</label>
-              <select id="odCountry" formControlName="countryCode">
-                <option value="">Not set</option>
-                @for (c of countries(); track c.alpha2) {
-                  <option [value]="c.alpha2">{{ c.flagEmoji }} {{ c.name }}</option>
-                }
-              </select>
+              <app-combobox inputId="odCountry" formControlName="countryCode"
+                            [options]="countryOptions()"
+                            [allowEmpty]="true" emptyLabel="Not set"
+                            placeholder="Type to search…" />
             </div>
           </div>
           <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">

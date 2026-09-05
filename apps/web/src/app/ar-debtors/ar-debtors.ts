@@ -12,6 +12,7 @@ import { MoneyInputDirective } from '../shared/money-input.directive';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { SortMenuComponent, SortOption, SortValue } from '../shared/sort-menu/sort-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 import { ArService } from '../services/ar.service';
 import { CountryService } from '../services/country.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
@@ -33,7 +34,7 @@ import { Country } from '../models/auth.models';
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
     RouterLink, DialogComponent, CanDirective, MoneyInputDirective, PhoneInputComponent,
-    OverflowMenuComponent, MenuItemDirective, SortMenuComponent,
+    OverflowMenuComponent, MenuItemDirective, SortMenuComponent, ComboboxComponent,
   ],
   templateUrl: './ar-debtors.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-debtors.css'],
@@ -64,6 +65,14 @@ export class ArDebtorsComponent implements OnInit {
   readonly multiCurrency = computed(() => this.meta()?.multiCurrencyEnabled === true);
   readonly baseCurrency = computed(() => this.meta()?.baseCurrencyCode || '');
   readonly currencies = computed(() => this.meta()?.currencies || []);
+  // Combobox rows: the toolbar filter shows the bare code, the account picker
+  // shows code — name (the labels the old selects rendered).
+  readonly currencyFilterOptions = computed(() =>
+    this.currencies().map((c) => ({ value: c.code, label: c.isBase ? `${c.code} (base)` : c.code })));
+  readonly currencyOptions = computed(() =>
+    this.currencies().map((c) => ({ value: c.code, label: `${c.code} — ${c.name}${c.isBase ? ' (base)' : ''}` })));
+  readonly countryOptions = computed(() =>
+    this.countries().map((c) => ({ value: c.alpha2, label: `${c.flagEmoji} ${c.name}` })));
   // Edit mode: the account already has documents - currency is immutable.
   readonly otherCurrencyLocked = signal(false);
   // Server-side sort (the listing is paginated, so sorting is a query param,

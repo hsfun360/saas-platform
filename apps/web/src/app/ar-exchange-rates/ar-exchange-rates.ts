@@ -10,6 +10,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 import { CanDirective } from '../shared/can.directive';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ArExchangeRate, ArExchangeRateMeta } from '../models/ar.models';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // Account Receivable → Master File Setup → Exchange Rates (multicurrency step
 // 1, 2026-08-21). The company's effective-dated foreign-currency rate table:
@@ -21,7 +22,7 @@ import { ArExchangeRate, ArExchangeRateMeta } from '../models/ar.models';
   standalone: true,
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, LocalDatePipe, CommonModule, ReactiveFormsModule,
-    DialogComponent, OverflowMenuComponent, MenuItemDirective, CanDirective,
+    DialogComponent, OverflowMenuComponent, MenuItemDirective, CanDirective, ComboboxComponent,
   ],
   templateUrl: './ar-exchange-rates.html',
   // membership-types.css supplies the shared .mt-chip pill.
@@ -63,6 +64,9 @@ export class ArExchangeRatesComponent implements OnInit {
 
   readonly baseCurrency = computed(() => this.meta()?.baseCurrencyCode || null);
   readonly currencies = computed(() => this.meta()?.currencies || []);
+  // Combobox rows for the currency picker (code — name so both match).
+  readonly currencyOptions = computed(() =>
+    this.currencies().map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` })));
   readonly multiCurrencyEnabled = computed(() => this.meta()?.multiCurrencyEnabled === true);
 
   // Today's local date (ISO) - decides which row is the CURRENT rate per

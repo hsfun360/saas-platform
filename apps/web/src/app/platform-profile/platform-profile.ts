@@ -11,6 +11,7 @@ import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import { PlatformProfile, PlatformChargeQuote, Country, Currency, TaxScheme, EInvoiceMsicCode } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // SaaS Administration → Platform Profile: the platform's own "company of record" (a
 // singleton). Its identity is the invoice header the platform issues to subscribers,
@@ -24,7 +25,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 @Component({
   selector: 'app-platform-profile',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, PhoneInputComponent, MoneyInputDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, PhoneInputComponent, MoneyInputDirective, ComboboxComponent],
   templateUrl: './platform-profile.html',
   styleUrls: ['../system-setup/system-setup.css', './platform-profile.css'],
 })
@@ -90,6 +91,15 @@ export class PlatformProfileComponent implements OnInit {
     if (!cc) return [];
     return this.platformSchemes().filter((s) => s.countryCode === cc && s.isActive !== false);
   });
+
+  // Combobox options (house standard: long reference lists get the shared
+  // constrained combobox). Labels mirror what the old <select> options rendered.
+  readonly countryOptions = computed(() =>
+    this.countries().map((c) => ({ value: c.alpha2, label: `${c.flagEmoji ? c.flagEmoji + ' ' : ''}${c.name}` })));
+  readonly currencyOptions = computed(() =>
+    this.currencies().map((cur) => ({ value: cur.code, label: `${cur.code} — ${cur.name}` })));
+  readonly schemeOptions = computed(() =>
+    this.schemesForCountry().map((s) => ({ value: s.taxSchemeCode, label: `${s.taxSchemeCode} — ${s.name}` })));
 
   // ---- Test: quote a charge through the profile ----
   readonly quoteAmount = signal<number>(100);

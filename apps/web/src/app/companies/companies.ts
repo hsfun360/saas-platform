@@ -11,8 +11,9 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { CompanySmtpDialogComponent } from '../company-smtp/company-smtp-dialog';
 import { CompanyWeekendDialogComponent } from '../company-weekend/company-weekend-dialog';
-import { TimezoneLabelPipe } from '../shared/timezone-label.pipe';
+import { timezoneWithOffset } from '../shared/timezone';
 import { COUNTRY_TIMEZONES, FALLBACK_COUNTRIES } from '../shared/countries';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
@@ -22,7 +23,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
   selector: 'app-companies',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, ReactiveFormsModule, DialogComponent, PhoneInputComponent, CompanySmtpDialogComponent, CompanyWeekendDialogComponent, TimezoneLabelPipe, OverflowMenuComponent, MenuItemDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, ReactiveFormsModule, DialogComponent, PhoneInputComponent, CompanySmtpDialogComponent, CompanyWeekendDialogComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './companies.html',
   styleUrls: ['./companies.css'],
 })
@@ -66,8 +67,17 @@ export class CompaniesComponent implements OnInit {
     }),
   );
   // Timezones for the currently-selected country (drives the Timezone shortlist).
-  // Rendered with the shared `tzLabel` pipe (standard "(UTC +08:00)" offset).
+  // Labelled via the shared timezoneWithOffset (standard "(UTC +08:00)" offset).
   readonly timezoneOptions = signal<string[]>([]);
+
+  // Combobox options (house standard: long reference lists get the shared
+  // constrained combobox). Labels mirror what the old <select> options rendered.
+  readonly countryComboOptions = computed(() =>
+    this.countryChoices().map((c) => ({ value: c.alpha2, label: c.flagEmoji ? `${c.flagEmoji} ${c.name}` : c.name })));
+  readonly timezoneComboOptions = computed(() =>
+    this.timezoneOptions().map((tz) => ({ value: tz, label: timezoneWithOffset(tz) })));
+  readonly currencyComboOptions = computed(() =>
+    this.accountCurrencies().map((cur) => ({ value: cur.code, label: `${cur.code} — ${cur.name}` })));
 
   // Curated timezone list for a country, keyed by ISO alpha-2 code (the value the
   // picker now stores). "Others"/blank/unknown codes have no linkage -> free text.

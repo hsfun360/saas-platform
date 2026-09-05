@@ -145,12 +145,11 @@
               @if (editId()) {
                 <input id="xrCurrency" type="text" [value]="form.controls.currencyCode.value + (currencyName(form.controls.currencyCode.value) ? ' — ' + currencyName(form.controls.currencyCode.value) : '')" disabled />
               } @else {
-                <select id="xrCurrency" formControlName="currencyCode"
-                        [attr.aria-invalid]="showError(form.controls.currencyCode)" aria-describedby="xrCurrencyErr">
-                  @for (c of currencies(); track c.code) {
-                    <option [value]="c.code">{{ c.code }} — {{ c.name }}</option>
-                  }
-                </select>
+                <app-combobox inputId="xrCurrency" formControlName="currencyCode"
+                              [options]="currencyOptions()"
+                              [allowEmpty]="false"
+                              [invalid]="showError(form.controls.currencyCode)" describedBy="xrCurrencyErr"
+                              placeholder="Type to search…" />
                 @if (showError(form.controls.currencyCode)) {
                   <p id="xrCurrencyErr" class="field-error" role="alert">Pick a currency.</p>
                 }

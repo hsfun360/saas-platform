@@ -25,14 +25,13 @@
 .ms-toolbar .ms-filter {
   margin-bottom: 0;
 }
+/* The status filter is the shared <app-combobox> (long reference list); its
+   inner input already carries the global field styling, so this class only
+   sizes the control within the toolbar row. */
 .ms-status-select {
-  min-height: 44px;
-  padding: var(--space-xs) var(--space-md);
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  background: var(--surface-card);
-  color: var(--text-secondary);
-  font-size: var(--font-body-2);
+  display: block;
+  width: 220px;
+  max-width: 100%;
 }
 
 /* Pagination footer under the list */

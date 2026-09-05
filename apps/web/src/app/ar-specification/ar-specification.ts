@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
@@ -7,6 +7,13 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
 import { ArService } from '../services/ar.service';
 import { ArDesignatedTypeOption, ArSetting, ArStatementColumn, ArStatementColumnKey } from '../models/ar.models';
+import { ComboboxComponent } from '../shared/combobox/combobox';
+
+// Combobox row for a designated-transaction-type picker: code — description.
+const toTypeChoice = (t: ArDesignatedTypeOption): { value: string; label: string } => ({
+  value: t.id,
+  label: t.description ? `${t.transactionType} — ${t.description}` : t.transactionType,
+});
 
 // The lines-table column catalogue (mirrors the PDF renderer's BASE_COLS).
 interface ColumnRow {
@@ -35,7 +42,7 @@ const COLUMN_CATALOG: { key: ArStatementColumnKey; name: string }[] = [
   standalone: true,
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
-    CanDirective, CdkDropList, CdkDrag, CdkDragHandle,
+    CanDirective, CdkDropList, CdkDrag, CdkDragHandle, ComboboxComponent,
   ],
   templateUrl: './ar-specification.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-specification.css'],
@@ -59,12 +66,15 @@ export class ArSpecificationComponent implements OnInit {
   readonly membershipEntitled = signal(false);
   readonly interestTypeOptions = signal<ArDesignatedTypeOption[]>([]);
   readonly depConvTypeOptions = signal<ArDesignatedTypeOption[]>([]);
+  readonly interestTypeChoices = computed(() => this.interestTypeOptions().map(toTypeChoice));
+  readonly depConvTypeChoices = computed(() => this.depConvTypeOptions().map(toTypeChoice));
 
   // Multi-currency (2026-08-21): the toggle needs the company's default
   // currency (= the AR base currency) - null keeps it off with a pointer to
   // the Companies screen; the API enforces the same prerequisite.
   readonly baseCurrencyCode = signal<string | null>(null);
   readonly forexTypeOptions = signal<ArDesignatedTypeOption[]>([]);
+  readonly forexTypeChoices = computed(() => this.forexTypeOptions().map(toTypeChoice));
 
   readonly form = this.fb.nonNullable.group({
     // Blank = calendar month; otherwise a whole day 1..31 (pattern runs on the

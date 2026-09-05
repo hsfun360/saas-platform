@@ -103,13 +103,11 @@
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
               <div class="form-group">
                 <label for="rfDeposit">From deposit <span class="required">*</span></label>
-                <select id="rfDeposit" formControlName="collectDepositId"
-                        [attr.aria-invalid]="showError(form.controls.collectDepositId)" aria-describedby="rfDepositErr">
-                  <option value="" disabled>Select a deposit…</option>
-                  @for (d of refundableDeposits(); track d.id) {
-                    <option [value]="d.id">{{ depositLabel(d) }}</option>
-                  }
-                </select>
+                <app-combobox inputId="rfDeposit" formControlName="collectDepositId"
+                              [options]="refundableDepositOptions()"
+                              [allowEmpty]="false"
+                              [invalid]="showError(form.controls.collectDepositId)" describedBy="rfDepositErr"
+                              placeholder="Select a deposit…" />
                 @if (showError(form.controls.collectDepositId)) {
                   <p id="rfDepositErr" class="field-error" role="alert">Select the deposit this refund draws on.</p>
                 }

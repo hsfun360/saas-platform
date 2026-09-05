@@ -134,12 +134,10 @@
           </div>
           <div class="form-group">
             <label for="fTax">Tax scheme</label>
-            <select id="fTax" formControlName="taxSchemeCode">
-              <option value="">— None —</option>
-              @for (t of taxSchemes(); track t.taxSchemeCode) {
-                <option [value]="t.taxSchemeCode">{{ t.taxSchemeCode }} — {{ t.name }}</option>
-              }
-            </select>
+            <app-combobox inputId="fTax" formControlName="taxSchemeCode"
+                          [options]="taxSchemeOptions()"
+                          [allowEmpty]="true" emptyLabel="— None —"
+                          placeholder="Type to search…" />
             @if (!countrySet()) {
               <span class="mf-hint">Set this company's country to use tax schemes.</span>
             }

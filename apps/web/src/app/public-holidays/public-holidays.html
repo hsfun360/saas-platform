@@ -148,13 +148,11 @@
           <div class="form-row">
             <div class="form-group">
               <label for="holCountry">Country <span class="required">*</span></label>
-              <select id="holCountry" formControlName="countryCode"
-                      [attr.aria-invalid]="showError(form.controls.countryCode)" aria-describedby="holCountryErr">
-                <option value="" disabled>Select a country…</option>
-                @for (c of countries(); track c.countryCode) {
-                  <option [value]="c.countryCode">{{ c.flagEmoji }} {{ c.name }}</option>
-                }
-              </select>
+              <app-combobox inputId="holCountry" formControlName="countryCode"
+                            [options]="countryOptions()"
+                            [allowEmpty]="false"
+                            placeholder="Select a country…"
+                            [invalid]="showError(form.controls.countryCode)" describedBy="holCountryErr" />
               @if (showError(form.controls.countryCode)) {
                 <p id="holCountryErr" class="field-error" role="alert">Country is required.</p>
               }

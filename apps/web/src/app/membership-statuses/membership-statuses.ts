@@ -9,6 +9,7 @@ import { CanDirective } from '../shared/can.directive';
 import { MembershipStatus, MembershipStatusOption, MembershipStatusCopySource } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // Membership Management → Master File Setup → Membership Status.
 // Per-company master file: company-defined status codes with a lifecycle class,
@@ -20,7 +21,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 @Component({
   selector: 'app-membership-statuses',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, OverflowMenuComponent, MenuItemDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './membership-statuses.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-statuses.css'],
 })
@@ -75,6 +76,9 @@ export class MembershipStatusesComponent implements OnInit {
   readonly copySelectedSource = computed(
     () => this.copySources().find((s) => s.companyId === this.copyFromCompanyId()) || null,
   );
+  // Combobox options for the Copy-from picker ({value, label}).
+  readonly copySourceOptions = computed(() =>
+    this.copySources().map((s) => ({ value: s.companyId, label: `${s.companyName} (${s.count})` })));
 
   readonly search = signal('');
   readonly successMessage = signal('');

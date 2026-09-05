@@ -137,12 +137,10 @@
           </div>
           <div class="form-group">
             <label for="agAddrCountry">Country</label>
-            <select id="agAddrCountry" formControlName="countryCode">
-              <option value="">—</option>
-              @for (c of countries(); track c.alpha2) {
-                <option [value]="c.alpha2">@if (c.flagEmoji) {{{ c.flagEmoji }} }{{ c.name }}</option>
-              }
-            </select>
+            <app-combobox inputId="agAddrCountry" formControlName="countryCode"
+                          [options]="countryOptions()"
+                          [allowEmpty]="true" emptyLabel="—"
+                          placeholder="Type to search…" />
           </div>
         </div>
         </details>

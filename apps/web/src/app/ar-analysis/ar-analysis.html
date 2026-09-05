@@ -195,12 +195,10 @@
           </div>
           <div class="form-group">
             <label for="anaCatParent">Parent dimension</label>
-            <select id="anaCatParent" formControlName="parentCategoryId">
-              <option value="">— Standalone dimension —</option>
-              @for (p of parentChoices(); track p.id) {
-                <option [value]="p.id">{{ p.name }} (Dimension {{ p.dimensionNo }})</option>
-              }
-            </select>
+            <app-combobox inputId="anaCatParent" formControlName="parentCategoryId"
+                          [options]="parentChoiceOptions()"
+                          [allowEmpty]="true" emptyLabel="— Standalone dimension —"
+                          placeholder="Type to search…" />
             <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">
               Makes this a level under another dimension, e.g. Department under Division. Both are
               stamped on the document, so picking the child fills in its parent. Independent of the
@@ -278,13 +276,11 @@
           <div class="form-row">
             <div class="form-group">
               <label for="anaOptParent">{{ parentCategoryName() }} <span class="required">*</span></label>
-              <select id="anaOptParent" formControlName="parentOptionId"
-                      [attr.aria-invalid]="showError(optForm.controls.parentOptionId)" aria-describedby="anaOptParentErr">
-                <option value="">— Select —</option>
-                @for (p of parentOptionChoices(); track p.id) {
-                  <option [value]="p.id">{{ p.code }}@if (p.description) { — {{ p.description }}}</option>
-                }
-              </select>
+              <app-combobox inputId="anaOptParent" formControlName="parentOptionId"
+                            [options]="parentOptionChoiceOptions()"
+                            [allowEmpty]="true" emptyLabel="— Select —"
+                            [invalid]="showError(optForm.controls.parentOptionId)" describedBy="anaOptParentErr"
+                            placeholder="Type to search…" />
               @if (showError(optForm.controls.parentOptionId)) {
                 <p id="anaOptParentErr" class="field-error" role="alert">Pick the {{ parentCategoryName() }} this option belongs to.</p>
               } @else {

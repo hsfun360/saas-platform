@@ -207,35 +207,31 @@
           </div>
           <div class="form-group">
             <label for="cc-country">Country</label>
-            <select id="cc-country" formControlName="country" (change)="onCountryChange($any($event.target).value, 'create')">
-              <option value="">Not specified</option>
-              @for (c of countryChoices(); track c.alpha2) {
-                <option [value]="c.alpha2">{{ c.name }}</option>
-              }
-            </select>
+            <app-combobox inputId="cc-country" formControlName="country"
+                          [options]="countryComboOptions()"
+                          [allowEmpty]="true" emptyLabel="Not specified"
+                          placeholder="Type to search…"
+                          (valueChange)="onCountryChange($event, 'create')" />
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="cc-tz">Timezone</label>
             @if (timezoneOptions().length > 0) {
-              <select id="cc-tz" formControlName="timezone">
-                @for (tz of timezoneOptions(); track tz) {
-                  <option [value]="tz">{{ tz | tzLabel }}</option>
-                }
-              </select>
+              <app-combobox inputId="cc-tz" formControlName="timezone"
+                            [options]="timezoneComboOptions()"
+                            [allowEmpty]="false"
+                            placeholder="Type to search…" />
             } @else {
               <input id="cc-tz" type="text" formControlName="timezone" placeholder="e.g. Asia/Kuala_Lumpur" />
             }
           </div>
           <div class="form-group">
             <label for="cc-cur">Default currency</label>
-            <select id="cc-cur" formControlName="defaultCurrencyCode">
-              <option value="">Not specified</option>
-              @for (cur of accountCurrencies(); track cur.code) {
-                <option [value]="cur.code">{{ cur.code }} — {{ cur.name }}</option>
-              }
-            </select>
+            <app-combobox inputId="cc-cur" formControlName="defaultCurrencyCode"
+                          [options]="currencyComboOptions()"
+                          [allowEmpty]="true" emptyLabel="Not specified"
+                          placeholder="Type to search…" />
             @if (accountCurrencies().length === 0) {
               <span style="font-size: var(--font-caption); color: var(--text-muted);">No currencies set for your organization yet — add them under System Setup → Currencies.</span>
             }
@@ -410,12 +406,11 @@
           </div>
           <div class="form-group">
             <label for="cd-country">Country</label>
-            <select id="cd-country" formControlName="country" (change)="onCountryChange($any($event.target).value, 'edit')">
-              <option value="">Not specified</option>
-              @for (c of countryChoices(); track c.alpha2) {
-                <option [value]="c.alpha2">{{ c.name }}</option>
-              }
-            </select>
+            <app-combobox inputId="cd-country" formControlName="country"
+                          [options]="countryComboOptions()"
+                          [allowEmpty]="true" emptyLabel="Not specified"
+                          placeholder="Type to search…"
+                          (valueChange)="onCountryChange($event, 'edit')" />
           </div>
         </div>
         <div class="form-row">
@@ -423,11 +418,10 @@
             <label for="cd-tz">Timezone</label>
             @if (timezoneOptions().length > 0) {
               <!-- Known country: pick from its timezones (shows all zones + UTC offset). -->
-              <select id="cd-tz" formControlName="timezone">
-                @for (tz of timezoneOptions(); track tz) {
-                  <option [value]="tz">{{ tz | tzLabel }}</option>
-                }
-              </select>
+              <app-combobox inputId="cd-tz" formControlName="timezone"
+                            [options]="timezoneComboOptions()"
+                            [allowEmpty]="false"
+                            placeholder="Type to search…" />
             } @else {
               <!-- Unknown / free-typed country: keep the timezone free-text. -->
               <input id="cd-tz" type="text" formControlName="timezone" placeholder="e.g. Asia/Kuala_Lumpur" />
@@ -435,12 +429,10 @@
           </div>
           <div class="form-group">
             <label for="cd-cur">Default currency</label>
-            <select id="cd-cur" formControlName="defaultCurrencyCode">
-              <option value="">Not specified</option>
-              @for (cur of accountCurrencies(); track cur.code) {
-                <option [value]="cur.code">{{ cur.code }} — {{ cur.name }}</option>
-              }
-            </select>
+            <app-combobox inputId="cd-cur" formControlName="defaultCurrencyCode"
+                          [options]="currencyComboOptions()"
+                          [allowEmpty]="true" emptyLabel="Not specified"
+                          placeholder="Type to search…" />
             @if (accountCurrencies().length === 0) {
               <span style="font-size: var(--font-caption); color: var(--text-muted);">No currencies set for your organization yet — add them under System Setup → Currencies.</span>
             }

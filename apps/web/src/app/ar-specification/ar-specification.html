@@ -177,21 +177,17 @@
               <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                 <div class="form-group">
                   <label for="arspInterestType">Interest run posts under</label>
-                  <select id="arspInterestType" formControlName="interestTransactionTypeId">
-                    <option value="">— Seeded INTEREST type —</option>
-                    @for (t of interestTypeOptions(); track t.id) {
-                      <option [value]="t.id">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
-                    }
-                  </select>
+                  <app-combobox inputId="arspInterestType" formControlName="interestTransactionTypeId"
+                                [options]="interestTypeChoices()"
+                                [allowEmpty]="true" emptyLabel="— Seeded INTEREST type —"
+                                placeholder="Type to search…" />
                 </div>
                 <div class="form-group">
                   <label for="arspDepConvType">Deposit conversions post under</label>
-                  <select id="arspDepConvType" formControlName="depositConversionTransactionTypeId">
-                    <option value="">— Seeded DEPCONV type —</option>
-                    @for (t of depConvTypeOptions(); track t.id) {
-                      <option [value]="t.id">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
-                    }
-                  </select>
+                  <app-combobox inputId="arspDepConvType" formControlName="depositConversionTransactionTypeId"
+                                [options]="depConvTypeChoices()"
+                                [allowEmpty]="true" emptyLabel="— Seeded DEPCONV type —"
+                                placeholder="Type to search…" />
                 </div>
               </div>
               <small class="cell-subtle">Interest-class and Credit-Note-class entries of the Transaction Type master. Blank = the seeded defaults.</small>
@@ -240,21 +236,17 @@
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
               <div class="form-group">
                 <label for="arspFxGain">Exchange gain posts under</label>
-                <select id="arspFxGain" formControlName="fxGainTransactionTypeId">
-                  <option value="">— Not set —</option>
-                  @for (t of forexTypeOptions(); track t.id) {
-                    <option [value]="t.id">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
-                  }
-                </select>
+                <app-combobox inputId="arspFxGain" formControlName="fxGainTransactionTypeId"
+                              [options]="forexTypeChoices()"
+                              [allowEmpty]="true" emptyLabel="— Not set —"
+                              placeholder="Type to search…" />
               </div>
               <div class="form-group">
                 <label for="arspFxLoss">Exchange loss posts under</label>
-                <select id="arspFxLoss" formControlName="fxLossTransactionTypeId">
-                  <option value="">— Not set —</option>
-                  @for (t of forexTypeOptions(); track t.id) {
-                    <option [value]="t.id">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
-                  }
-                </select>
+                <app-combobox inputId="arspFxLoss" formControlName="fxLossTransactionTypeId"
+                              [options]="forexTypeChoices()"
+                              [allowEmpty]="true" emptyLabel="— Not set —"
+                              placeholder="Type to search…" />
               </div>
             </div>
             <small class="cell-subtle">Forex-class entries of the Transaction Type master. Realized gain or loss arises when a receipt settles a foreign-currency document at a different rate; it is classified under these entries for the GL, never posted to the debtor.</small>

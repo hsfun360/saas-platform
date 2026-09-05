@@ -170,25 +170,21 @@
         <div class="row">
           <div class="field">
             <label for="nuCompany">Company <span class="req">*</span></label>
-            <select id="nuCompany" formControlName="companyId"
-                    [attr.aria-invalid]="showError(createForm.controls.companyId)" aria-describedby="nuCompanyErr">
-              <option value="">— Select company —</option>
-              @for (c of companies(); track c.id) {
-                <option [value]="c.id">{{ c.name }}</option>
-              }
-            </select>
+            <app-combobox inputId="nuCompany" formControlName="companyId"
+                          [options]="companyOptions()"
+                          [allowEmpty]="true" emptyLabel="— Select company —"
+                          placeholder="Type to search…"
+                          [invalid]="showError(createForm.controls.companyId)" describedBy="nuCompanyErr" />
             @if (showError(createForm.controls.companyId)) {
               <p id="nuCompanyErr" class="field-error" role="alert">Choose a company for the new user.</p>
             }
           </div>
           <div class="field">
             <label for="nuRole">Role</label>
-            <select id="nuRole" formControlName="roleId">
-              <option value="">— No role —</option>
-              @for (r of rolesFor(createForm.controls.companyId.value); track r.id) {
-                <option [value]="r.id">{{ r.name }}</option>
-              }
-            </select>
+            <app-combobox inputId="nuRole" formControlName="roleId"
+                          [options]="roleOptionsFor(createForm.controls.companyId.value)"
+                          [allowEmpty]="true" emptyLabel="— No role —"
+                          placeholder="Type to search…" />
           </div>
         </div>
         <!-- Optional org placement — feeds the data-scope rule (whose records
@@ -196,21 +192,17 @@
         <div class="row">
           <div class="field">
             <label for="nuDept">Department</label>
-            <select id="nuDept" formControlName="departmentId">
-              <option value="">— No department —</option>
-              @for (d of departments(); track d.id) {
-                <option [value]="d.id">{{ d.description || d.departmentCode }}</option>
-              }
-            </select>
+            <app-combobox inputId="nuDept" formControlName="departmentId"
+                          [options]="departmentOptions()"
+                          [allowEmpty]="true" emptyLabel="— No department —"
+                          placeholder="Type to search…" />
           </div>
           <div class="field">
             <label for="nuPos">Position</label>
-            <select id="nuPos" formControlName="positionId">
-              <option value="">— No position —</option>
-              @for (p of positions(); track p.id) {
-                <option [value]="p.id">{{ p.description || p.positionCode }}</option>
-              }
-            </select>
+            <app-combobox inputId="nuPos" formControlName="positionId"
+                          [options]="positionOptions()"
+                          [allowEmpty]="true" emptyLabel="— No position —"
+                          placeholder="Type to search…" />
           </div>
         </div>
       </form>
@@ -248,25 +240,21 @@
           </div>
           <div class="field">
             <label for="ivCompany">Company <span class="req">*</span></label>
-            <select id="ivCompany" formControlName="companyId"
-                    [attr.aria-invalid]="showError(inviteForm.controls.companyId)" aria-describedby="ivCompanyErr">
-              <option value="">— Select company —</option>
-              @for (c of companies(); track c.id) {
-                <option [value]="c.id">{{ c.name }}</option>
-              }
-            </select>
+            <app-combobox inputId="ivCompany" formControlName="companyId"
+                          [options]="companyOptions()"
+                          [allowEmpty]="true" emptyLabel="— Select company —"
+                          placeholder="Type to search…"
+                          [invalid]="showError(inviteForm.controls.companyId)" describedBy="ivCompanyErr" />
             @if (showError(inviteForm.controls.companyId)) {
               <p id="ivCompanyErr" class="field-error" role="alert">Choose a company to invite them to.</p>
             }
           </div>
           <div class="field">
             <label for="ivRole">Role</label>
-            <select id="ivRole" formControlName="roleId">
-              <option value="">— No role —</option>
-              @for (r of rolesFor(inviteForm.controls.companyId.value); track r.id) {
-                <option [value]="r.id">{{ r.name }}</option>
-              }
-            </select>
+            <app-combobox inputId="ivRole" formControlName="roleId"
+                          [options]="roleOptionsFor(inviteForm.controls.companyId.value)"
+                          [allowEmpty]="true" emptyLabel="— No role —"
+                          placeholder="Type to search…" />
           </div>
         </div>
       </form>
@@ -374,30 +362,24 @@
             <div class="row">
               <div class="field">
                 <label for="plRole-{{ m.companyId }}">Role</label>
-                <select id="plRole-{{ m.companyId }}" formControlName="roleId">
-                  <option value="">— No role —</option>
-                  @for (r of rolesFor(m.companyId); track r.id) {
-                    <option [value]="r.id">{{ r.name }}</option>
-                  }
-                </select>
+                <app-combobox inputId="plRole-{{ m.companyId }}" formControlName="roleId"
+                              [options]="roleOptionsFor(m.companyId)"
+                              [allowEmpty]="true" emptyLabel="— No role —"
+                              placeholder="Type to search…" />
               </div>
               <div class="field">
                 <label for="plDept-{{ m.companyId }}">Department</label>
-                <select id="plDept-{{ m.companyId }}" formControlName="departmentId">
-                  <option value="">— No department —</option>
-                  @for (d of departments(); track d.id) {
-                    <option [value]="d.id">{{ d.description || d.departmentCode }}</option>
-                  }
-                </select>
+                <app-combobox inputId="plDept-{{ m.companyId }}" formControlName="departmentId"
+                              [options]="departmentOptions()"
+                              [allowEmpty]="true" emptyLabel="— No department —"
+                              placeholder="Type to search…" />
               </div>
               <div class="field">
                 <label for="plPos-{{ m.companyId }}">Position</label>
-                <select id="plPos-{{ m.companyId }}" formControlName="positionId">
-                  <option value="">— No position —</option>
-                  @for (p of positions(); track p.id) {
-                    <option [value]="p.id">{{ p.description || p.positionCode }}</option>
-                  }
-                </select>
+                <app-combobox inputId="plPos-{{ m.companyId }}" formControlName="positionId"
+                              [options]="positionOptions()"
+                              [allowEmpty]="true" emptyLabel="— No position —"
+                              placeholder="Type to search…" />
               </div>
             </div>
           </div>
@@ -420,21 +402,17 @@
           <div class="row">
             <div class="field">
               <label for="plAddCompany">Company</label>
-              <select id="plAddCompany" formControlName="companyId">
-                <option value="">— Company —</option>
-                @for (c of companiesNotJoined(person); track c.id) {
-                  <option [value]="c.id">{{ c.name }}</option>
-                }
-              </select>
+              <app-combobox inputId="plAddCompany" formControlName="companyId"
+                            [options]="companyOptionsNotJoined(person)"
+                            [allowEmpty]="true" emptyLabel="— Company —"
+                            placeholder="Type to search…" />
             </div>
             <div class="field">
               <label for="plAddRole">Role</label>
-              <select id="plAddRole" formControlName="roleId">
-                <option value="">— No role —</option>
-                @for (r of rolesFor(placeAddForm.controls.companyId.value); track r.id) {
-                  <option [value]="r.id">{{ r.name }}</option>
-                }
-              </select>
+              <app-combobox inputId="plAddRole" formControlName="roleId"
+                            [options]="roleOptionsFor(placeAddForm.controls.companyId.value)"
+                            [allowEmpty]="true" emptyLabel="— No role —"
+                            placeholder="Type to search…" />
             </div>
           </div>
         </div>

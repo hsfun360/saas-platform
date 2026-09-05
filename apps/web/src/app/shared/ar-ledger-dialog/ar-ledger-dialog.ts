@@ -99,6 +99,9 @@ export class ArLedgerDialogComponent implements OnInit {
     if (provided.length) return provided;
     return (this.effMeta()?.openDebits || []) as unknown as ArLedgerDoc[];
   });
+  // The same list shaped for the constrained combobox ({value, label}).
+  readonly targetOptions = computed<ComboOption[]>(() =>
+    this.effOpenDebits().map((d) => ({ value: d.id, label: `${this.kindLabel(d.docType)} ${d.docNo} — open ${this.remaining(d)}` })));
 
   readonly form = this.fb.nonNullable.group({
     docNo: [''],

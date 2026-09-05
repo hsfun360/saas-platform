@@ -129,12 +129,10 @@
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
               <div class="form-group">
                 <label for="rcDeposit">Collect deposit</label>
-                <select id="rcDeposit" formControlName="collectDepositId">
-                  <option value="">— No deposit collection —</option>
-                  @for (d of openDeposits(); track d.id) {
-                    <option [value]="d.id">{{ depositLabel(d) }}</option>
-                  }
-                </select>
+                <app-combobox inputId="rcDeposit" formControlName="collectDepositId"
+                              [options]="openDepositOptions()"
+                              [allowEmpty]="true" emptyLabel="— No deposit collection —"
+                              placeholder="Type to search…" />
                 <p class="cell-subtle" style="margin: 2px 0 0;">Pays the billed deposit in first; the remainder settles open items, oldest first.</p>
               </div>
             </div>

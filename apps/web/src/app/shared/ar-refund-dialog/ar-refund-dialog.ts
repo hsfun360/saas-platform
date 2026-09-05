@@ -95,6 +95,9 @@ export class ArRefundDialogComponent implements OnInit {
   // Refundable deposits: open, with a HELD balance to draw on.
   readonly refundableDeposits = computed(() =>
     (this.effMeta()?.openDeposits || []).filter((d) => Number(d.heldAmount ?? 0) > 0));
+  // The same list shaped for the constrained combobox ({value, label}).
+  readonly refundableDepositOptions = computed<ComboOption[]>(() =>
+    this.refundableDeposits().map((d) => ({ value: d.id, label: this.depositLabel(d) })));
   // The bank-facing kinds carry a payment method; the offset kind never does.
   readonly bankFacing = computed(() => this.refundKind() !== 'offset');
   readonly needsDeposit = computed(() => this.refundKind() === 'deposit' || this.refundKind() === 'offset');

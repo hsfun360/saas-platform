@@ -180,12 +180,10 @@
         <div class="form-row">
           <div class="form-group">
             <label for="gttTax">Tax Scheme</label>
-            <select id="gttTax" formControlName="taxSchemeCode">
-              <option value="">— None —</option>
-              @for (s of taxSchemes(); track s.taxSchemeCode) {
-                <option [value]="s.taxSchemeCode">{{ s.taxSchemeCode }}@if (s.name) { — {{ s.name }}}</option>
-              }
-            </select>
+            <app-combobox inputId="gttTax" formControlName="taxSchemeCode"
+                          [options]="taxSchemeOptions()"
+                          [allowEmpty]="true" emptyLabel="— None —"
+                          placeholder="Type to search…" />
             @if (isPackageForm()) {
               <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Applied to EVERY bill line generated from this package (element lines and the auto balance line) — the elements' own tax schemes are ignored for package billing.</p>
             } @else {
@@ -197,12 +195,10 @@
           <div class="form-row">
             <div class="form-group" style="max-width: 420px;">
               <label for="gttAutoType">Auto Transaction Type <span class="required">*</span></label>
-              <select id="gttAutoType" formControlName="autoTransactionTypeId">
-                <option value="">— Select —</option>
-                @for (o of elementOptions(); track o.id) {
-                  <option [value]="o.id">{{ o.transactionType }}@if (o.description) { — {{ o.description }}}</option>
-                }
-              </select>
+              <app-combobox inputId="gttAutoType" formControlName="autoTransactionTypeId"
+                            [options]="elementComboOptions()"
+                            [allowEmpty]="true" emptyLabel="— Select —"
+                            placeholder="Type to search…" />
               <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Billing adds an automatic line to this transaction type for the balance: package price minus the elements total (e.g. PAK1 450.00 − 169.00 → GF1 281.00).</p>
             </div>
           </div>
@@ -220,13 +216,11 @@
               }
               @for (row of pkgItems(); track $index; let i = $index) {
                 <div class="pkg-row">
-                  <select [value]="row.elementTransactionTypeId" (change)="setPkgElement(i, $any($event.target).value)"
-                          [attr.aria-label]="'Element ' + (i + 1) + ' transaction type'">
-                    <option value="">— Select —</option>
-                    @for (o of elementOptions(); track o.id) {
-                      <option [value]="o.id" [selected]="o.id === row.elementTransactionTypeId">{{ o.transactionType }}@if (o.description) { — {{ o.description }}}</option>
-                    }
-                  </select>
+                  <app-combobox [value]="row.elementTransactionTypeId" (valueChange)="setPkgElement(i, $event)"
+                                [options]="elementComboOptions()"
+                                [allowEmpty]="true" emptyLabel="— Select —"
+                                [ariaLabel]="'Package element ' + (i + 1)"
+                                placeholder="Type to search…" />
                   <input type="number" inputmode="numeric" min="1" max="99" step="1" [value]="row.quantity"
                          (input)="setPkgQuantity(i, $any($event.target).value)"
                          [attr.aria-label]="'Element ' + (i + 1) + ' quantity'" />

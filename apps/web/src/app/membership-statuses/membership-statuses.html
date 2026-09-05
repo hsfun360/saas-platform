@@ -298,13 +298,10 @@
           <div class="form-row">
             <div class="form-group">
               <label for="copyFrom">Copy from</label>
-              <select id="copyFrom" #copySel (change)="selectCopySource(copySel.value)">
-                @for (s of copySources(); track s.companyId) {
-                  <option [value]="s.companyId" [selected]="s.companyId === copyFromCompanyId()">
-                    {{ s.companyName }} ({{ s.count }})
-                  </option>
-                }
-              </select>
+              <app-combobox inputId="copyFrom" [value]="copyFromCompanyId()" (valueChange)="selectCopySource($event)"
+                            [options]="copySourceOptions()"
+                            [allowEmpty]="false"
+                            placeholder="Type to search…" />
             </div>
           </div>
           <p class="cell-subtle" style="margin: 0 0 var(--space-xs);">Select the statuses to copy:</p>

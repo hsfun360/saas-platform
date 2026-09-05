@@ -13,6 +13,7 @@ import { MoneyInputDirective } from '../shared/money-input.directive';
 import { ClubSettings, Currency, MembershipType, MembershipStatus, MembershipFee, MembershipStatusOption, TaxSchemeRef, TransactionTypePickerRow } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // Editable joining-fee row (amounts kept as strings for the inputs). The
 // transaction type comes from the Transaction Type master and carries the tax.
@@ -47,7 +48,7 @@ const MONTH_NAMES = [
 @Component({
   selector: 'app-membership-types',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective, OverflowMenuComponent, MenuItemDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './membership-types.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-types.css'],
 })
@@ -271,6 +272,23 @@ export class MembershipTypesComponent implements OnInit {
 
   // Active statuses for the per-row status picker.
   readonly activeStatuses = computed(() => this.statuses().filter((s) => s.isActive !== false));
+
+  // Combobox option lists ({value, label}) - labels reproduce the old native
+  // <option> texts.
+  readonly defaultStatusOptions = computed(() =>
+    this.statuses().map((s) => ({ value: s.id, label: s.membershipStatus })));
+  readonly defaultFeeOptions = computed(() =>
+    this.fees().map((f) => ({ value: f.id, label: f.membershipFeeCode })));
+  readonly otherTypeOptions = computed(() =>
+    this.otherTypes().map((t) => ({ value: t.id, label: t.category })));
+  readonly joiningFeeTxOptions = computed(() =>
+    this.joiningFeeTxTypes().map((t) => ({ value: t.transactionType, label: t.description ? `${t.transactionType} — ${t.description}` : t.transactionType })));
+  readonly standingTxOptions = computed(() =>
+    this.standingTxTypes().map((t) => ({ value: t.transactionType, label: t.description ? `${t.transactionType} — ${t.description}` : t.transactionType })));
+  readonly currencyOptions = computed(() =>
+    this.currencies().map((c) => ({ value: c.code, label: c.symbol ? `${c.code} (${c.symbol})` : c.code })));
+  readonly activeStatusOptions = computed(() =>
+    this.activeStatuses().map((s) => ({ value: s.id, label: `${s.membershipStatus} (${s.statusClass})` })));
 
   addStandingRow(): void {
     this.standingRows.update((rows) => [

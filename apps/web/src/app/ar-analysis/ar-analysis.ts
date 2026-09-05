@@ -8,6 +8,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { CanDirective } from '../shared/can.directive';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ArService } from '../services/ar.service';
 import { ArAnalysisCategory, ArAnalysisCategoryModule, ArAnalysisOption } from '../models/ar.models';
@@ -43,7 +44,7 @@ type ModuleRowForm = FormGroup<{
   standalone: true,
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
-    DialogComponent, OverflowMenuComponent, MenuItemDirective, CanDirective,
+    DialogComponent, OverflowMenuComponent, MenuItemDirective, CanDirective, ComboboxComponent,
   ],
   templateUrl: './ar-analysis.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-analysis.css'],
@@ -128,6 +129,9 @@ export class ArAnalysisComponent implements OnInit {
       .filter((c) => c.isActive !== false && c.dimensionNo !== null && !banned.has(c.id))
       .sort((a, b) => a.name.localeCompare(b.name));
   });
+  // Combobox rows for the parent-dimension picker.
+  readonly parentChoiceOptions = computed(() =>
+    this.parentChoices().map((p) => ({ value: p.id, label: `${p.name} (Dimension ${p.dimensionNo})` })));
   // Repointing the parent invalidates every option link at once, so say what
   // it will cost BEFORE the clerk saves rather than reporting it afterwards.
   readonly parentUnlinkWarning = computed(() => {
@@ -179,6 +183,9 @@ export class ArAnalysisComponent implements OnInit {
       .filter((o) => o.categoryId === cat.parentCategoryId && o.isActive !== false)
       .sort((a, b) => a.code.localeCompare(b.code));
   });
+  // Combobox rows for the parent-option picker.
+  readonly parentOptionChoiceOptions = computed(() =>
+    this.parentOptionChoices().map((p) => ({ value: p.id, label: p.description ? `${p.code} — ${p.description}` : p.code })));
   readonly parentCategoryName = computed(() => {
     const cat = this.selected();
     if (!cat?.parentCategoryId) return '';

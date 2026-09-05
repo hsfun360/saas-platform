@@ -214,21 +214,17 @@
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="tStatus">Default membership status</label>
-            <select id="tStatus" formControlName="defaultMembershipStatusId">
-              <option value="">— None —</option>
-              @for (s of statuses(); track s.id) {
-                <option [value]="s.id">{{ s.membershipStatus }}</option>
-              }
-            </select>
+            <app-combobox inputId="tStatus" formControlName="defaultMembershipStatusId"
+                          [options]="defaultStatusOptions()"
+                          [allowEmpty]="true" emptyLabel="— None —"
+                          placeholder="Type to search…" />
           </div>
           <div class="form-group">
             <label for="tFee">Default membership fee</label>
-            <select id="tFee" formControlName="defaultMembershipFeeId">
-              <option value="">— None —</option>
-              @for (f of fees(); track f.id) {
-                <option [value]="f.id">{{ f.membershipFeeCode }}</option>
-              }
-            </select>
+            <app-combobox inputId="tFee" formControlName="defaultMembershipFeeId"
+                          [options]="defaultFeeOptions()"
+                          [allowEmpty]="true" emptyLabel="— None —"
+                          placeholder="Type to search…" />
           </div>
         </div>
 
@@ -296,12 +292,10 @@
               </div>
               <div class="form-group">
                 <label for="tNomCat">Nominee membership type</label>
-                <select id="tNomCat" formControlName="nomineeCategoryId">
-                  <option value="">— None —</option>
-                  @for (t of otherTypes(); track t.id) {
-                    <option [value]="t.id">{{ t.category }}</option>
-                  }
-                </select>
+                <app-combobox inputId="tNomCat" formControlName="nomineeCategoryId"
+                              [options]="otherTypeOptions()"
+                              [allowEmpty]="true" emptyLabel="— None —"
+                              placeholder="Type to search…" />
               </div>
             </div>
           </fieldset>
@@ -344,13 +338,11 @@
               <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                 <div class="form-group">
                   <label [for]="'flType' + i">Transaction type <span class="required">*</span></label>
-                  <select [id]="'flType' + i" [value]="row.transactionType"
-                          (change)="updateFeeLine(i, 'transactionType', $any($event.target).value)">
-                    <option value="" disabled [selected]="!row.transactionType">Select a transaction type…</option>
-                    @for (t of joiningFeeTxTypes(); track t.transactionType) {
-                      <option [value]="t.transactionType" [selected]="t.transactionType === row.transactionType">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
-                    }
-                  </select>
+                  <app-combobox [inputId]="'flType' + i" [value]="row.transactionType"
+                                (valueChange)="updateFeeLine(i, 'transactionType', $event)"
+                                [options]="joiningFeeTxOptions()"
+                                [allowEmpty]="false"
+                                placeholder="Select a transaction type…" />
                   @if (row.transactionType) {
                     <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Tax: {{ txTaxLabel(row.transactionType) }}</p>
                   }
@@ -365,12 +357,11 @@
               <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                 <div class="form-group">
                   <label [for]="'flCur' + i">Currency <span class="required">*</span></label>
-                  <select [id]="'flCur' + i" [value]="row.currencyCode"
-                          (change)="updateFeeLine(i, 'currencyCode', $any($event.target).value)">
-                    @for (c of currencies(); track c.code) {
-                      <option [value]="c.code" [selected]="c.code === row.currencyCode">{{ c.code }}@if (c.symbol) { ({{ c.symbol }}) }</option>
-                    }
-                  </select>
+                  <app-combobox [inputId]="'flCur' + i" [value]="row.currencyCode"
+                                (valueChange)="updateFeeLine(i, 'currencyCode', $event)"
+                                [options]="currencyOptions()"
+                                [allowEmpty]="false"
+                                placeholder="Type to search…" />
                 </div>
                 <div class="form-group">
                   <label [for]="'flAmt' + i">Amount <span class="required">*</span></label>
@@ -420,23 +411,19 @@
               <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                 <div class="form-group">
                   <label [for]="'scStatus' + i">Membership status <span class="required">*</span></label>
-                  <select [id]="'scStatus' + i" [value]="row.membershipStatusId"
-                          (change)="updateStandingRow(i, 'membershipStatusId', $any($event.target).value)">
-                    <option value="" disabled [selected]="!row.membershipStatusId">Select a status…</option>
-                    @for (s of activeStatuses(); track s.id) {
-                      <option [value]="s.id" [selected]="s.id === row.membershipStatusId">{{ s.membershipStatus }} ({{ s.statusClass }})</option>
-                    }
-                  </select>
+                  <app-combobox [inputId]="'scStatus' + i" [value]="row.membershipStatusId"
+                                (valueChange)="updateStandingRow(i, 'membershipStatusId', $event)"
+                                [options]="activeStatusOptions()"
+                                [allowEmpty]="false"
+                                placeholder="Select a status…" />
                 </div>
                 <div class="form-group">
                   <label [for]="'scType' + i">Transaction type <span class="required">*</span></label>
-                  <select [id]="'scType' + i" [value]="row.transactionType"
-                          (change)="updateStandingRow(i, 'transactionType', $any($event.target).value)">
-                    <option value="" disabled [selected]="!row.transactionType">Select a transaction type…</option>
-                    @for (t of standingTxTypes(); track t.transactionType) {
-                      <option [value]="t.transactionType" [selected]="t.transactionType === row.transactionType">{{ t.transactionType }}@if (t.description) { — {{ t.description }}}</option>
-                    }
-                  </select>
+                  <app-combobox [inputId]="'scType' + i" [value]="row.transactionType"
+                                (valueChange)="updateStandingRow(i, 'transactionType', $event)"
+                                [options]="standingTxOptions()"
+                                [allowEmpty]="false"
+                                placeholder="Select a transaction type…" />
                   @if (row.transactionType) {
                     <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Tax: {{ txTaxLabel(row.transactionType) }}</p>
                   }
@@ -451,12 +438,11 @@
                 </div>
                 <div class="form-group">
                   <label [for]="'scCur' + i">Currency <span class="required">*</span></label>
-                  <select [id]="'scCur' + i" [value]="row.currencyCode"
-                          (change)="updateStandingRow(i, 'currencyCode', $any($event.target).value)">
-                    @for (c of currencies(); track c.code) {
-                      <option [value]="c.code" [selected]="c.code === row.currencyCode">{{ c.code }}@if (c.symbol) { ({{ c.symbol }}) }</option>
-                    }
-                  </select>
+                  <app-combobox [inputId]="'scCur' + i" [value]="row.currencyCode"
+                                (valueChange)="updateStandingRow(i, 'currencyCode', $event)"
+                                [options]="currencyOptions()"
+                                [allowEmpty]="false"
+                                placeholder="Type to search…" />
                 </div>
               </div>
               <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">

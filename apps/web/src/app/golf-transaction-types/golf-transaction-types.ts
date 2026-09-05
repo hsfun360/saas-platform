@@ -11,6 +11,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // The eight matrix cells - member vs guest/visitor × 9/18 holes × weekday vs
 // weekend (public holidays count as weekend platform-wide).
@@ -36,7 +37,7 @@ const PACKAGE_KEY = 'package';
   selector: 'app-golf-transaction-types',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
-    CanDirective, OverflowMenuComponent, MenuItemDirective, MoneyInputDirective, LocalDatePipe],
+    CanDirective, OverflowMenuComponent, MenuItemDirective, MoneyInputDirective, LocalDatePipe, ComboboxComponent],
   templateUrl: './golf-transaction-types.html',
   // membership-types.css supplies the shared .mt-chip pill; own css = pricing grid.
   styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css', './golf-transaction-types.css'],
@@ -54,6 +55,10 @@ export class GolfTransactionTypesComponent implements OnInit {
   readonly chargeTypes = signal<MembershipStatusOption[]>([]);
   readonly matrixKeys = signal<string[]>(['green-fee', 'caddy-fee', 'buggy-fee']);
   readonly taxSchemes = signal<TaxSchemeRef[]>([]);
+  // Constrained-combobox rows (house standard for long reference lists):
+  // code AND name in the label so type-to-filter matches both.
+  readonly taxSchemeOptions = computed(() =>
+    this.taxSchemes().map((s) => ({ value: s.taxSchemeCode, label: s.name ? `${s.taxSchemeCode} — ${s.name}` : s.taxSchemeCode })));
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);
 
@@ -84,6 +89,9 @@ export class GolfTransactionTypesComponent implements OnInit {
       .filter((t) => t.chargeType !== PACKAGE_KEY && t.isActive !== false && t.id !== selfId)
       .sort((a, b) => a.transactionType.localeCompare(b.transactionType));
   });
+  // The same list shaped for the constrained combobox ({value, label}).
+  readonly elementComboOptions = computed(() =>
+    this.elementOptions().map((o) => ({ value: o.id, label: o.description ? `${o.transactionType} — ${o.description}` : o.transactionType })));
 
   // ---- Pricing dialog (single instance, 'list' ↔ 'form' views) ----
   readonly prOpen = signal(false);

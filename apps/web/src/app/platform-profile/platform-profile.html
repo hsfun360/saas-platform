@@ -147,12 +147,11 @@
           </div>
           <div class="form-group">
             <label for="ppCountryCode">Country</label>
-            <select id="ppCountryCode" formControlName="countryCode" (change)="onCountryChange()">
-              <option value="">Select a country…</option>
-              @for (c of countries(); track c.alpha2) {
-                <option [value]="c.alpha2">{{ c.flagEmoji ? c.flagEmoji + ' ' : '' }}{{ c.name }}</option>
-              }
-            </select>
+            <app-combobox inputId="ppCountryCode" formControlName="countryCode"
+                          [options]="countryOptions()"
+                          [allowEmpty]="true" emptyLabel="Select a country…"
+                          placeholder="Type to search…"
+                          (valueChange)="onCountryChange()" />
             <p class="pp-field-hint">Also the platform's tax country - it determines which tax schemes apply below.</p>
           </div>
         </div>
@@ -166,21 +165,17 @@
         <div class="form-row">
           <div class="form-group">
             <label for="ppCurrency">Base currency</label>
-            <select id="ppCurrency" formControlName="baseCurrencyCode">
-              <option value="">Select a currency…</option>
-              @for (cur of currencies(); track cur.code) {
-                <option [value]="cur.code">{{ cur.code }} — {{ cur.name }}</option>
-              }
-            </select>
+            <app-combobox inputId="ppCurrency" formControlName="baseCurrencyCode"
+                          [options]="currencyOptions()"
+                          [allowEmpty]="true" emptyLabel="Select a currency…"
+                          placeholder="Type to search…" />
           </div>
           <div class="form-group">
             <label for="ppScheme">Default tax scheme</label>
-            <select id="ppScheme" formControlName="defaultTaxSchemeCode">
-              <option value="">{{ countryCode() ? 'No tax (none)' : 'Select a country first' }}</option>
-              @for (s of schemesForCountry(); track s.id) {
-                <option [value]="s.taxSchemeCode">{{ s.taxSchemeCode }} — {{ s.name }}</option>
-              }
-            </select>
+            <app-combobox inputId="ppScheme" formControlName="defaultTaxSchemeCode"
+                          [options]="schemeOptions()"
+                          [allowEmpty]="true" [emptyLabel]="countryCode() ? 'No tax (none)' : 'Select a country first'"
+                          placeholder="Type to search…" />
             @if (countryCode() && schemesForCountry().length === 0) {
               <p class="pp-field-hint">No platform tax schemes for {{ countryName(countryCode()) }} yet - add them in Platform Tax.</p>
             }

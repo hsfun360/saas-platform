@@ -18,6 +18,13 @@ import {
 } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
+
+// Combobox row for a nine picker: code — description (both filterable).
+const toNineOption = (u: UnitCourse): { value: string; label: string } => ({
+  value: u.id,
+  label: u.description ? `${u.unitCourseCode} — ${u.description}` : u.unitCourseCode,
+});
 
 // One editable slot row in the slot editor (strings from inputs).
 interface SlotRow {
@@ -73,7 +80,7 @@ function toHHMM(minutes: number): string {
   selector: 'app-golf-courses',
   standalone: true,
   imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
-    OverflowMenuComponent, MenuItemDirective],
+    OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './golf-courses.html',
   styleUrls: ['../system-setup/system-setup.css', './golf-courses.css'],
 })
@@ -234,6 +241,11 @@ export class GolfCoursesComponent implements OnInit {
   readonly nightNineOptions = computed(() =>
     this.unitCourses().filter((u) => u.isActive !== false && u.hasFloodlight === true),
   );
+  // The same lists shaped for the constrained comboboxes ({value, label}).
+  readonly firstNineComboOptions = computed(() => this.firstNineOptions().map(toNineOption));
+  readonly secondNineComboOptions = computed(() => this.secondNineOptions().map(toNineOption));
+  readonly alternateNineComboOptions = computed(() => this.alternateNineOptions().map(toNineOption));
+  readonly nightNineComboOptions = computed(() => this.nightNineOptions().map(toNineOption));
 
   readonly filtered = computed(() => {
     const q = this.search().trim().toLowerCase();

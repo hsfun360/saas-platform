@@ -125,12 +125,10 @@
           </div>
           <div class="form-group">
             <label for="titleCountry">Country</label>
-            <select id="titleCountry" formControlName="countryCode">
-              <option value="">— Any country (universal) —</option>
-              @for (c of countries(); track c.alpha2) {
-                <option [value]="c.alpha2">@if (c.flagEmoji) {{{ c.flagEmoji }} }{{ c.name }}</option>
-              }
-            </select>
+            <app-combobox inputId="titleCountry" formControlName="countryCode"
+                          [options]="countryOptions()"
+                          [allowEmpty]="true" emptyLabel="— Any country (universal) —"
+                          placeholder="Type to search…" />
           </div>
         </div>
         <div class="form-row">

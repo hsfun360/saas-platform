@@ -17,6 +17,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CanDirective } from '../shared/can.directive';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // System Setup → Workflow Setup (/admin/workflows). The approval-chain
 // designer: one definition per document type (purpose) per scope (all
@@ -44,6 +45,7 @@ type DialogMode = 'definition' | 'step' | 'preview';
     ScreenTitlePipe, ScreenSubtitlePipe, CanDirective,
     OverflowMenuComponent, MenuItemDirective,
     CdkDropList, CdkDrag, CdkDragHandle,
+    ComboboxComponent,
   ],
   templateUrl: './workflow-setup.html',
   styleUrls: ['../system-setup/system-setup.css', './workflow-setup.css'],
@@ -53,6 +55,19 @@ export class WorkflowSetupComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
 
   readonly meta = signal<WorkflowMeta | null>(null);
+
+  // Combobox options (house standard: long reference lists get the shared
+  // constrained combobox). Labels mirror what the old <select> options rendered.
+  readonly companyScopeOptions = computed(() =>
+    (this.meta()?.companies ?? []).map((c) => ({ value: c.id, label: `${c.name} only` })));
+  readonly roleApproverOptions = computed(() =>
+    (this.meta()?.roles ?? []).map((r) => ({ value: r.id, label: r.name })));
+  readonly userApproverOptions = computed(() =>
+    (this.meta()?.users ?? []).map((u) => ({ value: u.id, label: u.name })));
+  readonly departmentApproverOptions = computed(() =>
+    (this.meta()?.departments ?? []).map((d) => ({ value: d.id, label: d.name })));
+  readonly positionApproverOptions = computed(() =>
+    (this.meta()?.positions ?? []).map((p) => ({ value: p.id, label: p.name })));
   readonly definitions = signal<WorkflowDefinition[]>([]);
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);

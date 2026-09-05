@@ -27,12 +27,11 @@
         <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="kindFilter() === k.key" (click)="setKind(k.key)">{{ k.label }}</button>
       }
     </div>
-    <select #memStatusSel class="ms-status-select" [value]="statusFilter()" (change)="setStatus(memStatusSel.value)" aria-label="Filter by status">
-      <option value="">All statuses</option>
-      @for (s of meta()?.statuses; track s.id) {
-        <option [value]="s.id">{{ s.membershipStatus }}</option>
-      }
-    </select>
+    <app-combobox class="ms-status-select" [value]="statusFilter()" (valueChange)="setStatus($event)"
+                  [options]="statusFilterOptions()"
+                  [allowEmpty]="true" emptyLabel="All statuses"
+                  ariaLabel="Filter by status"
+                  placeholder="All statuses" />
   </div>
 
   <!-- Server-side search (the result list is capped) -->

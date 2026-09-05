@@ -42,6 +42,9 @@ export class ComboboxComponent implements OnDestroy, ControlValueAccessor {
   readonly options = input<ComboOption[]>([]);
   readonly value = input<string>('');
   readonly inputId = input<string>('');
+  // Accessible name for label-less placements (toolbar filters, grid rows) -
+  // fields with a real <label for> don't need it.
+  readonly ariaLabel = input<string>('');
   readonly placeholder = input<string>('Type to search…');
   readonly allowEmpty = input<boolean>(true);
   readonly emptyLabel = input<string>('— None —');

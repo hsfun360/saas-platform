@@ -23,12 +23,10 @@
     <!-- ============ SCOPE: which company's version is being edited ============ -->
     <div class="et-scope">
       <label for="et-scope">Editing version for</label>
-      <select id="et-scope" [value]="scopeCompanyId() ?? ''" (change)="changeScope($any($event.target).value)">
-        <option value="">All companies (shared)</option>
-        @for (c of companies(); track c.id) {
-          <option [value]="c.id">{{ c.name }}</option>
-        }
-      </select>
+      <app-combobox inputId="et-scope" [value]="scopeCompanyId() ?? ''" (valueChange)="changeScope($event)"
+                    [options]="companyOptions()"
+                    [allowEmpty]="true" emptyLabel="All companies (shared)"
+                    placeholder="Type to search…" />
       <span class="et-hint">A company's own version overrides the shared one for that company only.</span>
     </div>
 

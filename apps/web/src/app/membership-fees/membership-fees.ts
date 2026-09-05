@@ -60,6 +60,11 @@ export class MembershipFeesComponent implements OnInit {
     value: t.id,
     label: t.description ? `${t.transactionType} — ${t.description}` : t.transactionType,
   })));
+  // Tax Scheme picker options (same combobox standard).
+  readonly taxSchemeOptions = computed<ComboOption[]>(() => this.taxSchemes().map((t) => ({
+    value: t.taxSchemeCode,
+    label: `${t.taxSchemeCode} — ${t.name}`,
+  })));
   readonly countrySet = signal(true);
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);

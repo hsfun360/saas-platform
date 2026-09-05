@@ -10,6 +10,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { Country, Title } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // System Setup → Titles. Subscriber-owned reference data: honorifics (Datuk, Tan
 // Sri, Sir, Prof...), one list per Account, shared by every company and consumed
@@ -18,7 +19,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 @Component({
   selector: 'app-titles',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './titles.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
@@ -34,6 +35,9 @@ export class TitlesComponent implements OnInit {
 
   readonly titles = signal<Title[]>([]);
   readonly countries = signal<Country[]>([]);
+  // Combobox options for the Country picker ({value, label}).
+  readonly countryOptions = computed(() =>
+    this.countries().map((c) => ({ value: c.alpha2, label: c.flagEmoji ? `${c.flagEmoji} ${c.name}` : c.name })));
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);
 

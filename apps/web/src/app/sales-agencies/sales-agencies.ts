@@ -10,6 +10,7 @@ import { CanDirective } from '../shared/can.directive';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // Membership Management → Sales Agencies (SRS 2.2). The outsourced agency
 // companies a club engages to promote its memberships; their staff are Sales
@@ -17,7 +18,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 @Component({
   selector: 'app-sales-agencies',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './sales-agencies.html',
   styleUrls: ['../system-setup/system-setup.css', '../memberships/memberships.css'],
 })
@@ -27,6 +28,9 @@ export class SalesAgenciesComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
 
   readonly countries = signal<Country[]>([]);
+  // Combobox options for the Country picker ({value, label}).
+  readonly countryOptions = computed(() =>
+    this.countries().map((c) => ({ value: c.alpha2, label: c.flagEmoji ? `${c.flagEmoji} ${c.name}` : c.name })));
 
   readonly rows = signal<SalesAgency[]>([]);
   readonly loading = signal(false);

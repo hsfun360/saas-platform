@@ -25,6 +25,7 @@ import { ScrollReturnService } from '../services/scroll-return.service';
 import { AdminMenu, AdminModule, Language } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // A node in the module's menu tree (adjacency list). `children` are the menus
 // whose parentId is this menu, ordered by sequence. Held as plain objects whose
@@ -59,7 +60,7 @@ type TranslationGroup = FormGroup<{
   selector: 'app-modules-menus',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FavStarComponent, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle],
+  imports: [FavStarComponent, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle, ComboboxComponent],
   templateUrl: './modules-menus.html',
   styleUrls: ['./modules-menus.css'],
 })
@@ -146,6 +147,9 @@ export class ModulesMenusComponent implements OnInit {
   // Parent options for the menu dialog's "Parent" picker (depth-indented labels),
   // excluding the menu being edited and its own descendants (no cycles).
   readonly parentOptions = signal<{ id: string; label: string }[]>([]);
+  // The same list shaped for the shared combobox ({value, label}).
+  readonly parentComboOptions = computed(() =>
+    this.parentOptions().map((p) => ({ value: p.id, label: p.label })));
 
   // Live filter over the loaded menus (name / route).
   readonly menuSearch = signal('');

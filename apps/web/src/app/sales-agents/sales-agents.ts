@@ -11,6 +11,7 @@ import { CanDirective } from '../shared/can.directive';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // Membership Management → Sales Agents (SRS 2.2). Every salesperson - agency
 // staff, external individuals and internal sales staff - with an
@@ -18,7 +19,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 @Component({
   selector: 'app-sales-agents',
   standalone: true,
-  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './sales-agents.html',
   styleUrls: ['../system-setup/system-setup.css', '../memberships/memberships.css'],
 })
@@ -66,6 +67,9 @@ export class SalesAgentsComponent implements OnInit {
   });
 
   readonly activeAgencies = computed(() => (this.meta()?.agencies || []).filter((a) => a.isActive));
+  // Combobox options for the Agency picker ({value, label}).
+  readonly agencyOptions = computed(() =>
+    this.activeAgencies().map((a) => ({ value: a.id, label: `${a.agencyCode} — ${a.agencyName}` })));
 
   ngOnInit(): void {
     this.service.agentsMeta().subscribe({ next: (m) => this.meta.set(m), error: () => {} });

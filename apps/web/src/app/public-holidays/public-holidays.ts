@@ -10,6 +10,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { HolidayCountry, PublicHoliday } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // System Setup → Public Holidays. Subscriber-owned reference data, scoped by
 // country: the Tenant Admin maintains one holiday calendar per country their
@@ -20,7 +21,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 @Component({
   selector: 'app-public-holidays',
   standalone: true,
-  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './public-holidays.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
@@ -64,6 +65,9 @@ export class PublicHolidaysComponent implements OnInit {
     return list.length === 1 ? list[0] : null;
   });
   readonly multiCountry = computed(() => this.countries().length > 1);
+  // Combobox options for the Country picker ({value, label}).
+  readonly countryOptions = computed(() =>
+    this.countries().map((c) => ({ value: c.countryCode, label: c.flagEmoji ? `${c.flagEmoji} ${c.name}` : c.name })));
 
   private readonly countryByCode = computed(() => {
     const map = new Map<string, HolidayCountry>();

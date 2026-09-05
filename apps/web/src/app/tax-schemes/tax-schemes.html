@@ -59,12 +59,10 @@
         @if (usedCountries().length > 1) {
           <div class="form-group tx-filter">
             <label for="txCountryFilter">Country</label>
-            <select id="txCountryFilter" #cf (change)="setCountryFilter(cf.value)">
-              <option value="" [selected]="countryFilter() === ''">All countries</option>
-              @for (code of usedCountries(); track code) {
-                <option [value]="code" [selected]="countryFilter() === code">{{ countryName(code) }}</option>
-              }
-            </select>
+            <app-combobox inputId="txCountryFilter" [value]="countryFilter()" (valueChange)="setCountryFilter($event)"
+                          [options]="usedCountryOptions()"
+                          [allowEmpty]="true" emptyLabel="All countries"
+                          placeholder="All countries" />
           </div>
         }
         <div class="saas-search">
@@ -250,13 +248,11 @@
               @if (schemeEditId) {
                 <input id="sCountry" type="text" [value]="countryLabel(schemeForm.controls.countryCode.value)" disabled aria-label="Country" />
               } @else {
-                <select id="sCountry" formControlName="countryCode"
-                        [attr.aria-invalid]="showError(schemeForm.controls.countryCode)" aria-describedby="sCountryErr">
-                  <option value="" disabled>Select a country…</option>
-                  @for (c of selectableCountries(); track c.alpha2) {
-                    <option [value]="c.alpha2">{{ c.name }}</option>
-                  }
-                </select>
+                <app-combobox inputId="sCountry" formControlName="countryCode"
+                              [options]="selectableCountryOptions()"
+                              [allowEmpty]="false"
+                              [invalid]="showError(schemeForm.controls.countryCode)" describedBy="sCountryErr"
+                              placeholder="Select a country…" />
                 @if (showError(schemeForm.controls.countryCode)) {
                   <p id="sCountryErr" class="field-error" role="alert">Country is required.</p>
                 }

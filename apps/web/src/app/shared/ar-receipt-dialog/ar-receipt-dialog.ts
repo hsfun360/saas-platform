@@ -70,6 +70,9 @@ export class ArReceiptDialogComponent implements OnInit {
   // counters; the Refund dialog filters by heldAmount instead).
   readonly openDeposits = computed(() =>
     (this.effMeta()?.openDeposits || []).filter((d) => Number(d.balanceAmount) > 0));
+  // The same list shaped for the constrained combobox ({value, label}).
+  readonly openDepositOptions = computed<ComboOption[]>(() =>
+    this.openDeposits().map((d) => ({ value: d.id, label: this.depositLabel(d) })));
 
   readonly form = this.fb.nonNullable.group({
     docNo: [''],

@@ -10,6 +10,7 @@ import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { TaxScheme, TaxRate, TaxOption, Country, TaxTemplateOption } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // System Setup → Tax Setup (subscriber-owned catalog).
 // Master–detail: the scheme list is the master; the selected scheme (its header +
@@ -19,7 +20,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 @Component({
   selector: 'app-tax-schemes',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, ComboboxComponent],
   templateUrl: './tax-schemes.html',
   styleUrls: ['../system-setup/system-setup.css', './tax-schemes.css'],
 })
@@ -126,6 +127,9 @@ export class TaxSchemesComponent implements OnInit {
     const codes = new Set(this.schemes().map((s) => s.countryCode));
     return [...codes].sort();
   });
+  // The same list shaped for the constrained combobox ({value, label}).
+  readonly usedCountryOptions = computed(() =>
+    this.usedCountries().map((code) => ({ value: code, label: this.countryName(code) })));
 
   // Countries offered when ADDING a scheme. Platform scope: all active countries.
   // Subscriber scope: only the countries the subscriber's companies operate in
@@ -137,6 +141,9 @@ export class TaxSchemesComponent implements OnInit {
     const filtered = this.countries().filter((c) => codes.has(c.alpha2));
     return filtered.length ? filtered : this.countries();
   });
+  // Combobox rows for the Add-scheme country picker.
+  readonly selectableCountryOptions = computed(() =>
+    this.selectableCountries().map((c) => ({ value: c.alpha2, label: c.name })));
 
   // When the subscriber operates in exactly one country, that alpha-2 (else '') -
   // used to auto-select and skip the picker on Add.

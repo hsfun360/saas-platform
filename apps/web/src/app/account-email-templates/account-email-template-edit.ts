@@ -10,6 +10,7 @@ import { ScrollReturnService } from '../services/scroll-return.service';
 import { AccountEmailTemplateDetail, EmailTemplateVariable } from '../models/auth.models';
 import { EmailHtmlEditorComponent } from '../shared/email-html-editor/email-html-editor';
 import { VariableMenuComponent } from '../shared/variable-menu/variable-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // Tenant Admin: edit this subscriber's OWN version of a platform email template.
 // Saving creates/updates the override; "Revert" deletes it (back to the default).
@@ -17,7 +18,7 @@ import { VariableMenuComponent } from '../shared/variable-menu/variable-menu';
   selector: 'app-account-email-template-edit',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule, EmailHtmlEditorComponent, VariableMenuComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule, EmailHtmlEditorComponent, VariableMenuComponent, ComboboxComponent],
   templateUrl: './account-email-template-edit.html',
   styleUrls: ['../email-templates/email-template-edit.css'],
 })
@@ -45,6 +46,9 @@ export class AccountEmailTemplateEditComponent implements OnInit {
   // version, which wins over the shared one at send time.
   readonly scopeCompanyId = signal<string | null>(null);
   readonly companies = signal<{ id: string; name: string }[]>([]);
+  // The scope picker's combobox options (companies is an unbounded list).
+  readonly companyOptions = computed(() =>
+    this.companies().map((c) => ({ value: c.id, label: c.name })));
   readonly inheritedFrom = signal<'account' | 'platform' | null>(null);
   readonly scopeName = computed(() => {
     const id = this.scopeCompanyId();

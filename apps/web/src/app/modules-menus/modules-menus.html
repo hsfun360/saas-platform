@@ -412,12 +412,10 @@
         <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
           <div class="form-group">
             <label for="menu-parent">Parent <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional — nest this under another menu)</span></label>
-            <select id="menu-parent" formControlName="parentId">
-              <option value="">Top level (no parent)</option>
-              @for (p of parentOptions(); track p.id) {
-                <option [value]="p.id">{{ p.label }}</option>
-              }
-            </select>
+            <app-combobox inputId="menu-parent" formControlName="parentId"
+                          [options]="parentComboOptions()"
+                          [allowEmpty]="true" emptyLabel="Top level (no parent)"
+                          placeholder="Type to search…" />
             <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">A menu with children shows as a collapsible section in the sidebar.</p>
           </div>
         </div>

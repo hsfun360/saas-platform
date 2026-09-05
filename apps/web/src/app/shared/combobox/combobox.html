@@ -1,6 +1,7 @@
 <div class="combo" (focusout)="onFocusOut($event)">
   <input type="text" #comboInput
          [id]="inputId()"
+         [attr.aria-label]="ariaLabel() || null"
          role="combobox"
          aria-autocomplete="list"
          [attr.aria-expanded]="open()"

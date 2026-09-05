@@ -82,6 +82,9 @@ export class ArTransactionTypesComponent implements OnInit {
       code: c.code,
       label: `${c.code} — ${(c.description || '').length > 80 ? (c.description || '').slice(0, 80) + '…' : (c.description || '')}`,
     })));
+  // The same list shaped for the constrained combobox ({value, label}).
+  readonly einvComboOptions = computed(() =>
+    this.einvOptions().map((c) => ({ value: c.code, label: c.label })));
 
   readonly filtered = computed(() => {
     const q = this.search().trim().toLowerCase();

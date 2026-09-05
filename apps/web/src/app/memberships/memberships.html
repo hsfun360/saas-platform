@@ -46,12 +46,11 @@
         <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="classFilter() === 'individual'" (click)="setClassFilter('individual')">Individual</button>
         <button type="button" class="ms-filter__chip" [class.ms-filter__chip--on]="classFilter() === 'corporate'" (click)="setClassFilter('corporate')">Corporate</button>
       </div>
-      <select #msStatusSel class="ms-status-select" [value]="statusFilter()" (change)="setStatusFilter(msStatusSel.value)" aria-label="Filter by status">
-        <option value="">All statuses</option>
-        @for (s of options()?.statuses; track s.id) {
-          <option [value]="s.id">{{ s.membershipStatus }}</option>
-        }
-      </select>
+      <app-combobox class="ms-status-select" [value]="statusFilter()" (valueChange)="setStatusFilter($event)"
+                    [options]="statusFilterOptions()"
+                    [allowEmpty]="true" emptyLabel="All statuses"
+                    ariaLabel="Filter by status"
+                    placeholder="All statuses" />
     </div>
 
     <!-- Search + sort share one row: find on the left, order on the right. -->
@@ -175,12 +174,10 @@
           </div>
           <div class="form-group">
             <label [for]="prefix + 'Country' + i">Country</label>
-            <select [id]="prefix + 'Country' + i" formControlName="countryCode">
-              <option value="">—</option>
-              @for (c of countries(); track c.alpha2) {
-                <option [value]="c.alpha2">@if (c.flagEmoji) {{{ c.flagEmoji }} }{{ c.name }}</option>
-              }
-            </select>
+            <app-combobox [inputId]="prefix + 'Country' + i" formControlName="countryCode"
+                          [options]="countryOptions()"
+                          [allowEmpty]="true" emptyLabel="—"
+                          placeholder="Type to search…" />
           </div>
         </div>
         <div class="ms-addr__actions">
@@ -231,21 +228,17 @@
       <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
         <div class="form-group">
           <label for="mSalutation">Salutation</label>
-          <select id="mSalutation" formControlName="salutationCode">
-            <option value="">—</option>
-            @for (s of salutations(); track s.salutationCode) {
-              <option [value]="s.salutationCode">{{ s.description || s.salutationCode }}</option>
-            }
-          </select>
+          <app-combobox inputId="mSalutation" formControlName="salutationCode"
+                        [options]="salutationOptions()"
+                        [allowEmpty]="true" emptyLabel="—"
+                        placeholder="Type to search…" />
         </div>
         <div class="form-group">
           <label for="mTitle">Title</label>
-          <select id="mTitle" formControlName="titleCode">
-            <option value="">—</option>
-            @for (t of titles(); track t.titleCode) {
-              <option [value]="t.titleCode">{{ t.description || t.titleCode }}</option>
-            }
-          </select>
+          <app-combobox inputId="mTitle" formControlName="titleCode"
+                        [options]="titleOptions()"
+                        [allowEmpty]="true" emptyLabel="—"
+                        placeholder="Type to search…" />
         </div>
         <div class="form-group">
           <label for="mFirstName">First name</label>
@@ -296,21 +289,17 @@
         </div>
         <div class="form-group">
           <label for="mNationality">Nationality</label>
-          <select id="mNationality" formControlName="nationalityCode">
-            <option value="">—</option>
-            @for (n of nationalities(); track n.nationalityCode) {
-              <option [value]="n.nationalityCode">{{ n.description || n.nationalityCode }}</option>
-            }
-          </select>
+          <app-combobox inputId="mNationality" formControlName="nationalityCode"
+                        [options]="nationalityOptions()"
+                        [allowEmpty]="true" emptyLabel="—"
+                        placeholder="Type to search…" />
         </div>
         <div class="form-group">
           <label for="mRace">Race</label>
-          <select id="mRace" formControlName="raceCode">
-            <option value="">—</option>
-            @for (r of races(); track r.raceCode) {
-              <option [value]="r.raceCode">{{ r.description || r.raceCode }}</option>
-            }
-          </select>
+          <app-combobox inputId="mRace" formControlName="raceCode"
+                        [options]="raceOptions()"
+                        [allowEmpty]="true" emptyLabel="—"
+                        placeholder="Type to search…" />
         </div>
         <div class="form-group">
           <label for="mMarital">Marital status</label>
@@ -369,12 +358,10 @@
         </div>
         <div class="form-group">
           <label for="mIndustry">Industry</label>
-          <select id="mIndustry" formControlName="industryTypeCode">
-            <option value="">—</option>
-            @for (i of industryTypes(); track i.industryTypeCode) {
-              <option [value]="i.industryTypeCode">{{ i.description || i.industryTypeCode }}</option>
-            }
-          </select>
+          <app-combobox inputId="mIndustry" formControlName="industryTypeCode"
+                        [options]="industryTypeOptions()"
+                        [allowEmpty]="true" emptyLabel="—"
+                        placeholder="Type to search…" />
         </div>
       </div>
       </details>
@@ -438,13 +425,11 @@
             @if (editMembership()) {
               <input id="msType" type="text" [value]="typeCategory(editMembership()!.membershipTypeId)" disabled />
             } @else {
-              <select id="msType" formControlName="membershipTypeId"
-                      [attr.aria-invalid]="showError(membershipForm.controls.membershipTypeId)" aria-describedby="msTypeErr">
-                <option value="">— Select a type —</option>
-                @for (t of classTypes(); track t.id) {
-                  <option [value]="t.id">{{ t.category }}@if (t.description) { — {{ t.description }}}</option>
-                }
-              </select>
+              <app-combobox inputId="msType" formControlName="membershipTypeId"
+                            [options]="classTypeOptions()"
+                            [allowEmpty]="true" emptyLabel="— Select a type —"
+                            placeholder="Type to search…"
+                            [invalid]="showError(membershipForm.controls.membershipTypeId)" describedBy="msTypeErr" />
               @if (showError(membershipForm.controls.membershipTypeId)) {
                 <p id="msTypeErr" class="field-error" role="alert">Select the membership type.</p>
               }
@@ -462,21 +447,17 @@
           }
           <div class="form-group">
             <label for="msStatus">Status</label>
-            <select id="msStatus" formControlName="membershipStatusId">
-              <option value="">— Type default —</option>
-              @for (s of options()?.statuses; track s.id) {
-                <option [value]="s.id">{{ s.membershipStatus }} ({{ s.statusClass }})</option>
-              }
-            </select>
+            <app-combobox inputId="msStatus" formControlName="membershipStatusId"
+                          [options]="statusWithClassOptions()"
+                          [allowEmpty]="true" emptyLabel="— Type default —"
+                          placeholder="Type to search…" />
           </div>
           <div class="form-group">
             <label for="msFee">Membership fee</label>
-            <select id="msFee" formControlName="membershipFeeId">
-              <option value="">— None —</option>
-              @for (f of options()?.fees; track f.id) {
-                <option [value]="f.id">{{ f.membershipFeeCode }}@if (f.description) { — {{ f.description }}}</option>
-              }
-            </select>
+            <app-combobox inputId="msFee" formControlName="membershipFeeId"
+                          [options]="feeOptions()"
+                          [allowEmpty]="true" emptyLabel="— None —"
+                          placeholder="Type to search…" />
           </div>
           <div class="form-group">
             <label for="msJoinDate">Join date <span class="required">*</span></label>
@@ -576,21 +557,17 @@
             @if (showSalesPickers()) {
               <div class="form-group">
                 <label for="msSales">Sales agent (closed the sale)</label>
-                <select id="msSales" formControlName="salesAgentId">
-                  <option value="">—</option>
-                  @for (a of options()?.agents; track a.id) {
-                    <option [value]="a.id">{{ a.agentCode }} — {{ a.name }}</option>
-                  }
-                </select>
+                <app-combobox inputId="msSales" formControlName="salesAgentId"
+                              [options]="agentOptions()"
+                              [allowEmpty]="true" emptyLabel="—"
+                              placeholder="Type to search…" />
               </div>
               <div class="form-group">
                 <label for="msFollowupSales">Follow-up sales agent</label>
-                <select id="msFollowupSales" formControlName="followupSalesAgentId">
-                  <option value="">—</option>
-                  @for (a of options()?.agents; track a.id) {
-                    <option [value]="a.id">{{ a.agentCode }} — {{ a.name }}</option>
-                  }
-                </select>
+                <app-combobox inputId="msFollowupSales" formControlName="followupSalesAgentId"
+                              [options]="agentOptions()"
+                              [allowEmpty]="true" emptyLabel="—"
+                              placeholder="Type to search…" />
               </div>
             }
           </div>
@@ -639,12 +616,10 @@
             </div>
             <div class="form-group">
               <label for="msIndustry">Industry</label>
-              <select id="msIndustry" formControlName="industryTypeCode">
-                <option value="">—</option>
-                @for (i of industryTypes(); track i.industryTypeCode) {
-                  <option [value]="i.industryTypeCode">{{ i.description || i.industryTypeCode }}</option>
-                }
-              </select>
+              <app-combobox inputId="msIndustry" formControlName="industryTypeCode"
+                            [options]="industryTypeOptions()"
+                            [allowEmpty]="true" emptyLabel="—"
+                            placeholder="Type to search…" />
             </div>
           </div>
           </details>
@@ -820,13 +795,11 @@
           }
           <div class="form-group">
             <label for="memStatus">Status <span class="required">*</span></label>
-            <select id="memStatus" formControlName="memberStatusId"
-                    [attr.aria-invalid]="showError(memberMetaForm.controls.memberStatusId)" aria-describedby="memStatusErr">
-              <option value="">— Select —</option>
-              @for (s of options()?.statuses; track s.id) {
-                <option [value]="s.id">{{ s.membershipStatus }} ({{ s.statusClass }})</option>
-              }
-            </select>
+            <app-combobox inputId="memStatus" formControlName="memberStatusId"
+                          [options]="statusWithClassOptions()"
+                          [allowEmpty]="true" emptyLabel="— Select —"
+                          placeholder="Type to search…"
+                          [invalid]="showError(memberMetaForm.controls.memberStatusId)" describedBy="memStatusErr" />
             @if (showError(memberMetaForm.controls.memberStatusId)) {
               <p id="memStatusErr" class="field-error" role="alert">Select the member status.</p>
             }

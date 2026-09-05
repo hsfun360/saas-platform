@@ -170,26 +170,22 @@
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="gcFirst">First nine (OUT) <span class="required">*</span></label>
-            <select id="gcFirst" formControlName="firstNineId"
-                    [attr.aria-invalid]="showError(form.controls.firstNineId)" aria-describedby="gcFirstErr">
-              <option value="" disabled>Select the first nine…</option>
-              @for (u of firstNineOptions(); track u.id) {
-                <option [value]="u.id">{{ u.unitCourseCode }}@if (u.description) { — {{ u.description }} }</option>
-              }
-            </select>
+            <app-combobox inputId="gcFirst" formControlName="firstNineId"
+                          [options]="firstNineComboOptions()"
+                          [allowEmpty]="false"
+                          [invalid]="showError(form.controls.firstNineId)" describedBy="gcFirstErr"
+                          placeholder="Select the first nine…" />
             @if (showError(form.controls.firstNineId)) {
               <p id="gcFirstErr" class="field-error" role="alert">First nine is required.</p>
             }
           </div>
           <div class="form-group">
             <label for="gcSecond">Second nine (IN) <span class="required">*</span></label>
-            <select id="gcSecond" formControlName="secondNineId"
-                    [attr.aria-invalid]="showError(form.controls.secondNineId)" aria-describedby="gcSecondErr">
-              <option value="" disabled>Select the second nine…</option>
-              @for (u of secondNineOptions(); track u.id) {
-                <option [value]="u.id">{{ u.unitCourseCode }}@if (u.description) { — {{ u.description }} }</option>
-              }
-            </select>
+            <app-combobox inputId="gcSecond" formControlName="secondNineId"
+                          [options]="secondNineComboOptions()"
+                          [allowEmpty]="false"
+                          [invalid]="showError(form.controls.secondNineId)" describedBy="gcSecondErr"
+                          placeholder="Select the second nine…" />
             @if (showError(form.controls.secondNineId)) {
               <p id="gcSecondErr" class="field-error" role="alert">Second nine is required.</p>
             }
@@ -198,21 +194,17 @@
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
             <label for="gcAlternate">Alternate nine</label>
-            <select id="gcAlternate" formControlName="alternateNineId">
-              <option value="">None</option>
-              @for (u of alternateNineOptions(); track u.id) {
-                <option [value]="u.id">{{ u.unitCourseCode }}@if (u.description) { — {{ u.description }} }</option>
-              }
-            </select>
+            <app-combobox inputId="gcAlternate" formControlName="alternateNineId"
+                          [options]="alternateNineComboOptions()"
+                          [allowEmpty]="true" emptyLabel="None"
+                          placeholder="Type to search…" />
           </div>
           <div class="form-group">
             <label for="gcNight">Night nine (after dark)</label>
-            <select id="gcNight" formControlName="nightNineId" aria-describedby="gcNightHint">
-              <option value="">None</option>
-              @for (u of nightNineOptions(); track u.id) {
-                <option [value]="u.id">{{ u.unitCourseCode }}@if (u.description) { — {{ u.description }} }</option>
-              }
-            </select>
+            <app-combobox inputId="gcNight" formControlName="nightNineId" describedBy="gcNightHint"
+                          [options]="nightNineComboOptions()"
+                          [allowEmpty]="true" emptyLabel="None"
+                          placeholder="Type to search…" />
             <p id="gcNightHint" class="gc-hint">Only floodlit unit courses are offered.</p>
           </div>
         </div>

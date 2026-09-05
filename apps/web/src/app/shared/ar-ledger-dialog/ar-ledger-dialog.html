@@ -129,12 +129,10 @@
                        target is fixed (raise a free CN from the CN screen). -->
                   <input id="ldTarget" type="text" disabled [value]="lockedTargetLabel()" />
                 } @else {
-                  <select id="ldTarget" formControlName="targetLedgerId">
-                    <option value="">— Leave as available credit —</option>
-                    @for (doc of effOpenDebits(); track doc.id) {
-                      <option [value]="doc.id">{{ kindLabel(doc.docType) }} {{ doc.docNo }} — open {{ remaining(doc) }}</option>
-                    }
-                  </select>
+                  <app-combobox inputId="ldTarget" formControlName="targetLedgerId"
+                                [options]="targetOptions()"
+                                [allowEmpty]="true" emptyLabel="— Leave as available credit —"
+                                placeholder="Type to search…" />
                   <p class="cell-subtle" style="margin: 2px 0 0;">No target — the amount stays on the account as available credit.</p>
                 }
               </div>

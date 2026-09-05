@@ -12,6 +12,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent, ComboOption } from '../shared/combobox/combobox';
 
 // Per-membership placement form: role + org placement within one company.
 type PlacementForm = FormGroup<{
@@ -36,6 +37,7 @@ type PlacementForm = FormGroup<{
   imports: [
     FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule,
     ReactiveFormsModule, DialogComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective,
+    ComboboxComponent,
   ],
   templateUrl: './tenant-users.html',
   styleUrl: './tenant-users.css',
@@ -186,6 +188,26 @@ export class TenantUsersComponent implements OnInit {
   companiesNotJoined(person: AccountPerson): AccountCompany[] {
     const joined = new Set(person.memberships.map((m) => m.companyId));
     return this.companies().filter((c) => !joined.has(c.id));
+  }
+
+  // Combobox options (house standard: long reference lists get the shared
+  // constrained combobox). Labels mirror what the old <select> options rendered.
+  readonly companyOptions = computed<ComboOption[]>(() =>
+    this.companies().map((c) => ({ value: c.id, label: c.name })));
+  readonly departmentOptions = computed<ComboOption[]>(() =>
+    this.departments().map((d) => ({ value: d.id, label: d.description || d.departmentCode })));
+  readonly positionOptions = computed<ComboOption[]>(() =>
+    this.positions().map((p) => ({ value: p.id, label: p.description || p.positionCode })));
+
+  // Role options depend on the paired company control, so this stays a method
+  // (mirroring rolesFor(...), which the templates already call per row).
+  roleOptionsFor(companyId?: string | null): ComboOption[] {
+    return this.rolesFor(companyId).map((r) => ({ value: r.id, label: r.name }));
+  }
+
+  // Add-to-company picker: only the companies the person has NOT joined yet.
+  companyOptionsNotJoined(person: AccountPerson): ComboOption[] {
+    return this.companiesNotJoined(person).map((c) => ({ value: c.id, label: c.name }));
   }
 
   // ---------- Profile drawer (visible Edit) ----------

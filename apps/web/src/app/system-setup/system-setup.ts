@@ -5,6 +5,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { AdminService } from '../services/admin.service';
 import { Role, UserSummary } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // Assign Role — the last of the old System Setup tabs, now its own single-purpose
 // screen (Roles and Users were split into /admin/system-roles and
@@ -12,7 +13,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 @Component({
   selector: 'app-system-setup',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, ComboboxComponent],
   templateUrl: './system-setup.html',
   styleUrl: './system-setup.css',
 })
@@ -24,6 +25,13 @@ export class SystemSetupComponent implements OnInit {
 
   // Current assignments = platform users who already hold a system role.
   assignedUsers = computed(() => this.users().filter((u) => !!u.roleName));
+
+  // Combobox options (house standard: long reference lists get the shared
+  // constrained combobox). Labels mirror what the old <select> options rendered.
+  readonly userOptions = computed(() =>
+    this.users().map((u) => ({ value: u.id, label: u.full_name ? `${u.full_name} — ${u.email}` : u.email })));
+  readonly roleOptions = computed(() =>
+    this.roles().map((role) => ({ value: role.id, label: role.name })));
 
   readonly assignForm = this.fb.nonNullable.group({
     userId: ['', Validators.required],
