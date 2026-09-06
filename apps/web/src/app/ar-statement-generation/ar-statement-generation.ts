@@ -7,6 +7,8 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
+import { monthComboOptions } from '../shared/month-options';
 import { ArService } from '../services/ar.service';
 import { ArStatementCategory, ArStatementRun, ArStatementRunPreview } from '../models/ar.models';
 
@@ -26,11 +28,14 @@ import { ArStatementCategory, ArStatementRun, ArStatementRunPreview } from '../m
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
     DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective,
+    ComboboxComponent,
   ],
   templateUrl: './ar-statement-generation.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-statement-generation.css'],
 })
 export class ArStatementGenerationComponent implements OnInit, OnDestroy {
+  // Month picker options (shared combobox - Firefox has no native month input).
+  readonly monthOptions = monthComboOptions();
   private readonly service = inject(ArService);
   private readonly fb = inject(FormBuilder);
 

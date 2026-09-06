@@ -8,6 +8,7 @@ import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ComboboxComponent } from '../shared/combobox/combobox';
+import { monthComboOptions } from '../shared/month-options';
 import { ArService } from '../services/ar.service';
 import { ArAnalysisEntryMeta, ArInterestDetail, ArInterest } from '../models/ar.models';
 
@@ -28,6 +29,8 @@ import { ArAnalysisEntryMeta, ArInterestDetail, ArInterest } from '../models/ar.
   styleUrls: ['../system-setup/system-setup.css', './ar-interest.css'],
 })
 export class ArInterestComponent implements OnInit {
+  // Month picker options (shared combobox - Firefox has no native month input).
+  readonly monthOptions = monthComboOptions();
   private readonly service = inject(ArService);
   private readonly fb = inject(FormBuilder);
 

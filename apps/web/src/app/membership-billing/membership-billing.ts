@@ -8,6 +8,8 @@ import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { BillingService } from '../services/billing.service';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
+import { monthComboOptions } from '../shared/month-options';
 import { BillingSchedule } from '../models/billing.models';
 
 // Membership → Billing Schedules (fee runs). Generate the Membership Fee /
@@ -19,11 +21,14 @@ import { BillingSchedule } from '../models/billing.models';
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
     RouterLink, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective,
+    ComboboxComponent,
   ],
   templateUrl: './membership-billing.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-billing.css'],
 })
 export class MembershipBillingComponent implements OnInit {
+  // Month picker options (shared combobox - Firefox has no native month input).
+  readonly monthOptions = monthComboOptions();
   private readonly service = inject(BillingService);
   private readonly fb = inject(FormBuilder);
 

@@ -6,6 +6,8 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
+import { monthComboOptions } from '../shared/month-options';
 import { addressLines } from '../shared/address';
 import { ArService } from '../services/ar.service';
 import { ArStatementColumn, ArStatementColumnKey, ArStatementDetail, ArStatementSummary } from '../models/ar.models';
@@ -39,11 +41,14 @@ const VIEW_COL_ORDER: ArStatementColumnKey[] = ['date', 'docNo', 'details', 'deb
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule,
     DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective,
+    ComboboxComponent,
   ],
   templateUrl: './ar-statements.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-statements.css'],
 })
 export class ArStatementsComponent implements OnInit {
+  // Month picker options (shared combobox - Firefox has no native month input).
+  readonly monthOptions = monthComboOptions();
   private readonly service = inject(ArService);
 
   readonly rows = signal<ArStatementSummary[]>([]);

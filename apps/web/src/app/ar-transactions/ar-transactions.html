@@ -38,7 +38,10 @@
         <button type="button" class="art-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
       }
     </div>
-    <input type="month" [value]="month()" #m (change)="setMonth(m.value)" aria-label="Document month" />
+    <app-combobox [value]="month()" (valueChange)="setMonth($event)"
+                  [options]="monthOptions" [allowEmpty]="false"
+                  ariaLabel="Document month" placeholder="Month"
+                  style="min-width: 190px;" />
     <select [value]="status()" #st (change)="setStatus(st.value)" aria-label="Status filter">
       <option value="">All statuses</option>
       <option value="draft">Open</option>

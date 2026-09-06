@@ -56,7 +56,9 @@
         </div>
         <div class="form-group">
           <label for="mbMonth">Month <span class="required">*</span></label>
-          <input id="mbMonth" type="month" formControlName="month" #mbMonthInput (change)="onRunMonthChange(mbMonthInput.value)" />
+          <app-combobox inputId="mbMonth" formControlName="month" [options]="monthOptions"
+                        [allowEmpty]="false" placeholder="Select month…"
+                        (valueChange)="onRunMonthChange($event)" />
         </div>
         <div class="form-group">
           <label for="mbDocDate">Document date <span class="required">*</span></label>
@@ -78,7 +80,9 @@
   <!-- Listing -->
   <div class="mb-toolbar">
     <label for="mbFilterMonth" class="cell-subtle">Month</label>
-    <input id="mbFilterMonth" type="month" [value]="month()" #mbFilter (change)="setMonth(mbFilter.value)" />
+    <app-combobox inputId="mbFilterMonth" [value]="month()" (valueChange)="setMonth($event)"
+                  [options]="monthOptions" [allowEmpty]="false" placeholder="Month"
+                  style="min-width: 190px;" />
   </div>
 
   @if (loading()) {

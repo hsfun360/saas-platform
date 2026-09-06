@@ -9,6 +9,8 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { ComboboxComponent } from '../shared/combobox/combobox';
+import { monthComboOptions } from '../shared/month-options';
 import { ArLedgerDialogComponent } from '../shared/ar-ledger-dialog/ar-ledger-dialog';
 import { ArReceiptDialogComponent } from '../shared/ar-receipt-dialog/ar-receipt-dialog';
 import { ArRefundDialogComponent } from '../shared/ar-refund-dialog/ar-refund-dialog';
@@ -153,7 +155,7 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
   standalone: true,
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule,
-    DialogComponent, CanDirective, LocalDatePipe, ArLedgerDialogComponent,
+    DialogComponent, CanDirective, LocalDatePipe, ComboboxComponent, ArLedgerDialogComponent,
     ArReceiptDialogComponent, ArRefundDialogComponent, ArDepositDialogComponent,
     OverflowMenuComponent, MenuItemDirective,
   ],
@@ -163,6 +165,8 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
   styleUrls: ['../system-setup/system-setup.css', '../ar-interest/ar-interest.css', './ar-transactions.css'],
 })
 export class ArTransactionsComponent implements OnInit {
+  // Month picker options (shared combobox - Firefox has no native month input).
+  readonly monthOptions = monthComboOptions();
   private readonly service = inject(ArService);
   private readonly route = inject(ActivatedRoute);
   private readonly permissions = inject(PermissionsService);
