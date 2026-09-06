@@ -236,7 +236,7 @@ exports.listAccountMenus = async (req, res) => {
         const menus = moduleIds.length
             ? await Menu.findAll({
                 where: { moduleId: moduleIds },
-                include: [{ model: Module, as: 'Module', attributes: ['name', 'icon', 'landingRoute'] }],
+                include: [{ model: Module, as: 'Module', attributes: ['name', 'icon'] }],
                 order: [['name', 'ASC']],
             })
             : [];

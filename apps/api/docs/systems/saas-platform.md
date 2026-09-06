@@ -114,10 +114,9 @@ The shell is **menu-driven by the Control Plane**, so:
   granted menus). So to surface Golf / Membership / Facility: create the Module +
   a Menu for it (**Modules & Menus** admin screen) and grant that menu to a role
   (**Role Management**). Creating the Module alone is not enough.
-- The per-system **dashboards are always reachable directly by route**
-  (`/golf`, `/membership`, `/facility`, `/platform`) regardless of menus.
-- Landing routes are currently a hard-coded map in `dashboard.ts` (`moduleLanding`);
-  the planned **Stage 2b** moves this to a Control-Plane `Module.landingRoute` field.
+- There are **no per-system landing pages** (removed 2026-07-23): switching systems
+  lands on `/home` (My Dashboard), the one home page.
+  The `Module.landingRoute` column that once backed them was removed on 2026-09-04.
 - Possible follow-up: also list a **subscribed-but-menu-less** system in the switcher
   (today it requires ≥1 granted menu).
 

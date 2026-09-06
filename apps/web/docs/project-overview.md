@@ -275,7 +275,7 @@ Quick access details:
 - My Dashboard's own user manual is published at `/help/home.md` (slug `home`).
 The future workflow "my approvals / my tasks" inbox belongs here (user-scoped).
 **There are no per-system landing pages anymore** (removed 2026-07-23): switching systems in the apps switcher lands on /home, and the old `/x` + `/x/dashboard` launchpad routes (`SystemDashboardComponent`) are gone - Quick access favorites replaced the per-module tile pages.
-`Module.landingRoute` still exists in the DB/API payload but the web app ignores it (the Modules & Menus dialog no longer edits it); don't re-introduce per-system landings.
+`Module.landingRoute` was removed entirely on 2026-09-04 (column, API fields and the login payload's `moduleLanding`); don't re-introduce per-system landings.
 **The rule (agreed 2026-07-22): a home page only renders things DERIVED from what the user already has** - menu-driven navigation and caller-scoped data - **never aggregates of business tables.**
 Business counts/charts go behind their own RBAC-gated screens (e.g. Membership Management's Business Insights pair); role-tailored KPI cards on a home page would require a widget registry keyed to the owning menu's grant.
 

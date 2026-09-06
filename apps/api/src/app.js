@@ -487,6 +487,10 @@ async function initializeDB() {
             // creates the column, the seeds stamp the codes).
             const [[modulesTable]] = await sequelize.query(`SELECT to_regclass('public."Modules"') AS t`);
             if (modulesTable && modulesTable.t) {
+                // Module.landingRoute removed (2026-09-04): per-system landing
+                // pages were retired 2026-07-23 (/home is the one home page)
+                // and nothing read the column since. Idempotent drop.
+                await sequelize.query(`ALTER TABLE public."Modules" DROP COLUMN IF EXISTS "landingRoute"`);
                 await sequelize.query(`ALTER TABLE public."Modules" ADD COLUMN IF NOT EXISTS "code" VARCHAR(30)`);
                 // Known catalogue -> frozen codes. 'System Setup' and 'System
                 // Administration' are the SAME drifted module (renamed along

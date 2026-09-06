@@ -455,7 +455,6 @@ function mapMenuItem(m, fullAccess = false) {
         moduleCode: m.Module ? m.Module.code : null,
         moduleNames: m.Module ? (m.Module.names || {}) : {},    // localized module names
         moduleIcon: m.Module ? m.Module.icon : 'business',
-        moduleLanding: m.Module ? m.Module.landingRoute : null,
         // Adjacency-list nesting: parentId null = top level; a menu with children
         // renders as a collapsible sidebar section. `sequence` orders siblings.
         parentId: m.parentId || null,

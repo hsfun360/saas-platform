@@ -315,7 +315,7 @@ exports.listModules = async (req, res) => {
         const modules = await Module.findAll({
             // `code` must be here: the dialog displays it (frozen) and
             // isProtectedModule() below keys the platform-shell rule on it.
-            attributes: ['id', 'code', 'name', 'names', 'icon', 'description', 'landingRoute', 'isSystem', 'audience'],
+            attributes: ['id', 'code', 'name', 'names', 'icon', 'description', 'isSystem', 'audience'],
             order: [['name', 'ASC']],
         });
         // isProtected = not deletable, base name locked (system modules + the
@@ -360,7 +360,7 @@ const isProtectedModule = (m) => !!m.isSystem || (m.audience === 'platform' && m
 
 const MODULE_AUDIENCES = ['tenant', 'platform'];
 
-// POST /api/admin/modules  Body: { code, name, icon?, description?, landingRoute?, audience? }
+// POST /api/admin/modules  Body: { code, name, icon?, description?, audience? }
 // `code` is the FROZEN machine identity (UPPER_SNAKE, globally unique) -
 // entitlement checks, seeds and future license artifacts key on it, so it is
 // set once here and never changes. `audience` ('tenant' default | 'platform')
@@ -397,7 +397,6 @@ exports.createModule = async (req, res) => {
             names: mergeNames({}, req.body.names),
             icon: icon || undefined, // fall back to the model default ('widgets')
             description: (req.body.description || '').trim() || null,
-            landingRoute: (req.body.landingRoute || '').trim() || null,
             audience,
         });
         res.status(201).json({ message: "Module created.", module });
@@ -407,7 +406,7 @@ exports.createModule = async (req, res) => {
     }
 };
 
-// PUT /api/admin/modules/:moduleId  Body: { name?, icon?, description?, landingRoute? }
+// PUT /api/admin/modules/:moduleId  Body: { name?, icon?, description? }
 exports.updateModule = async (req, res) => {
     try {
         const module = await Module.findByPk(req.params.moduleId);
@@ -435,7 +434,6 @@ exports.updateModule = async (req, res) => {
         }
         if (typeof req.body.icon === 'string') updates.icon = req.body.icon.trim() || 'widgets';
         if (typeof req.body.description === 'string') updates.description = req.body.description.trim() || null;
-        if (typeof req.body.landingRoute === 'string') updates.landingRoute = req.body.landingRoute.trim() || null;
         if (req.body.names && typeof req.body.names === 'object') updates.names = mergeNames(module.names, req.body.names);
 
         await module.update(updates);
