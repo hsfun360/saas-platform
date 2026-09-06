@@ -462,6 +462,28 @@ async function debtorDisplayMap(companyId, debtors) {
 
 const LIST_LIMIT = 50;
 
+// Optional docDate window for the document listings: dateFrom / dateTo
+// (YYYY-MM-DD), each side independent and BOTH optional - no dates = all
+// history, so a docNo search alone can find a document keyed into the wrong
+// month. The legacy month=YYYY-MM param is still honoured for older clients.
+function applyDocDateFilter(where, query) {
+    const dateFrom = str(query.dateFrom);
+    const dateTo = str(query.dateTo);
+    const range = {};
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateFrom)) range[Op.gte] = dateFrom;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateTo)) range[Op.lte] = dateTo;
+    if (Object.getOwnPropertySymbols(range).length > 0) {
+        where.docDate = range;
+        return;
+    }
+    const month = str(query.month);
+    if (/^\d{4}-\d{2}$/.test(month)) {
+        const [y, m] = month.split('-').map(Number);
+        const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+        where.docDate = { [Op.gte]: `${month}-01`, [Op.lte]: `${month}-${String(last).padStart(2, '0')}` };
+    }
+}
+
 // GET /api/ar/<type route> - cross-debtor listing of one ledger document kind
 // (month + docNo/description search + status filter, newest first).
 function makeLedgerListHandler(docType) {
@@ -471,12 +493,7 @@ function makeLedgerListHandler(docType) {
             if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
             const where = { companyId, docType };
-            const month = str(req.query.month);
-            if (/^\d{4}-\d{2}$/.test(month)) {
-                const [y, m] = month.split('-').map(Number);
-                const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-                where.docDate = { [Op.gte]: `${month}-01`, [Op.lte]: `${month}-${String(last).padStart(2, '0')}` };
-            }
+            applyDocDateFilter(where, req.query);
             // Filter keys follow the DISPLAY vocabulary: 'draft' ("Open"),
             // 'pending-approval', 'posted' (= internal open|settled), 'void'.
             const status = str(req.query.status);
@@ -1112,12 +1129,7 @@ exports.listReceipts = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
         const where = { companyId, docType: 'receipt' };
-        const month = str(req.query.month);
-        if (/^\d{4}-\d{2}$/.test(month)) {
-            const [y, m] = month.split('-').map(Number);
-            const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-            where.docDate = { [Op.gte]: `${month}-01`, [Op.lte]: `${month}-${String(last).padStart(2, '0')}` };
-        }
+        applyDocDateFilter(where, req.query);
         const status = str(req.query.status);
         if (status === 'posted') where.status = 'open';
         else if (['draft', 'open', 'void'].includes(status)) where.status = status;
@@ -1451,12 +1463,7 @@ exports.listRefunds = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
         const where = { companyId, docType: 'refund' };
-        const month = str(req.query.month);
-        if (/^\d{4}-\d{2}$/.test(month)) {
-            const [y, m] = month.split('-').map(Number);
-            const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-            where.docDate = { [Op.gte]: `${month}-01`, [Op.lte]: `${month}-${String(last).padStart(2, '0')}` };
-        }
+        applyDocDateFilter(where, req.query);
         const status = str(req.query.status);
         if (status === 'posted') where.status = 'open';
         else if (['draft', 'pending-approval', 'open', 'void'].includes(status)) where.status = status;
@@ -1708,12 +1715,7 @@ exports.listDeposits = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
         const where = { companyId };
-        const month = str(req.query.month);
-        if (/^\d{4}-\d{2}$/.test(month)) {
-            const [y, m] = month.split('-').map(Number);
-            const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-            where.docDate = { [Op.gte]: `${month}-01`, [Op.lte]: `${month}-${String(last).padStart(2, '0')}` };
-        }
+        applyDocDateFilter(where, req.query);
         const status = str(req.query.status);
         // 'closed' = fully collected AND fully drawn down - still "posted" on
         // screen, so the posted filter covers both.

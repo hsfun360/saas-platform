@@ -122,9 +122,11 @@ export class ArService {
     return this.http.get<ArDebtorListResult>(`${this.base}/debtor-options`, { params });
   }
 
-  listInvoices(opts: { month?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
+  listInvoices(opts: { month?: string; dateFrom?: string; dateTo?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
     let params = new HttpParams();
     if (opts.month) params = params.set('month', opts.month);
+    if (opts.dateFrom) params = params.set('dateFrom', opts.dateFrom);
+    if (opts.dateTo) params = params.set('dateTo', opts.dateTo);
     if (opts.q) params = params.set('q', opts.q);
     if (opts.status) params = params.set('status', opts.status);
     if (opts.offset) params = params.set('offset', String(opts.offset));
@@ -133,9 +135,11 @@ export class ArService {
 
   // Posted Interest documents (docType 'interest') - read-only listing; the
   // interest run posts them and a Credit Note corrects them.
-  listInterestDocs(opts: { month?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
+  listInterestDocs(opts: { month?: string; dateFrom?: string; dateTo?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
     let params = new HttpParams();
     if (opts.month) params = params.set('month', opts.month);
+    if (opts.dateFrom) params = params.set('dateFrom', opts.dateFrom);
+    if (opts.dateTo) params = params.set('dateTo', opts.dateTo);
     if (opts.q) params = params.set('q', opts.q);
     if (opts.status) params = params.set('status', opts.status);
     if (opts.offset) params = params.set('offset', String(opts.offset));
@@ -169,9 +173,11 @@ export class ArService {
 
   // Debit Note lifecycle (last ledger slice 2026-09-01; same shape as
   // invoices - a posted DN is immutable, corrected with a Credit Note).
-  listDebitNotes(opts: { month?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
+  listDebitNotes(opts: { month?: string; dateFrom?: string; dateTo?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
     let params = new HttpParams();
     if (opts.month) params = params.set('month', opts.month);
+    if (opts.dateFrom) params = params.set('dateFrom', opts.dateFrom);
+    if (opts.dateTo) params = params.set('dateTo', opts.dateTo);
     if (opts.q) params = params.set('q', opts.q);
     if (opts.status) params = params.set('status', opts.status);
     if (opts.offset) params = params.set('offset', String(opts.offset));
@@ -195,9 +201,11 @@ export class ArService {
   }
 
   // Credit Note lifecycle (same shape as invoices; own menu/grants).
-  listCreditNotes(opts: { month?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
+  listCreditNotes(opts: { month?: string; dateFrom?: string; dateTo?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
     let params = new HttpParams();
     if (opts.month) params = params.set('month', opts.month);
+    if (opts.dateFrom) params = params.set('dateFrom', opts.dateFrom);
+    if (opts.dateTo) params = params.set('dateTo', opts.dateTo);
     if (opts.q) params = params.set('q', opts.q);
     if (opts.status) params = params.set('status', opts.status);
     if (opts.offset) params = params.set('offset', String(opts.offset));
@@ -221,9 +229,11 @@ export class ArService {
   }
 
   // Official Receipt lifecycle (drafts post directly on submit - no workflow).
-  listReceipts(opts: { month?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
+  listReceipts(opts: { month?: string; dateFrom?: string; dateTo?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
     let params = new HttpParams();
     if (opts.month) params = params.set('month', opts.month);
+    if (opts.dateFrom) params = params.set('dateFrom', opts.dateFrom);
+    if (opts.dateTo) params = params.set('dateTo', opts.dateTo);
     if (opts.q) params = params.set('q', opts.q);
     if (opts.status) params = params.set('status', opts.status);
     if (opts.offset) params = params.set('offset', String(opts.offset));
@@ -252,9 +262,11 @@ export class ArService {
 
   // --- Deposit lifecycle (deposit slice 2026-09-01) ---
 
-  listDeposits(opts: { month?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
+  listDeposits(opts: { month?: string; dateFrom?: string; dateTo?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
     let params = new HttpParams();
     if (opts.month) params = params.set('month', opts.month);
+    if (opts.dateFrom) params = params.set('dateFrom', opts.dateFrom);
+    if (opts.dateTo) params = params.set('dateTo', opts.dateTo);
     if (opts.q) params = params.set('q', opts.q);
     if (opts.status) params = params.set('status', opts.status);
     if (opts.offset) params = params.set('offset', String(opts.offset));
@@ -275,9 +287,11 @@ export class ArService {
 
   // --- Refund lifecycle (refund slice 2026-08-31) ---
 
-  listRefunds(opts: { month?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
+  listRefunds(opts: { month?: string; dateFrom?: string; dateTo?: string; q?: string; status?: string; offset?: number } = {}): Observable<ArDocListResult> {
     let params = new HttpParams();
     if (opts.month) params = params.set('month', opts.month);
+    if (opts.dateFrom) params = params.set('dateFrom', opts.dateFrom);
+    if (opts.dateTo) params = params.set('dateTo', opts.dateTo);
     if (opts.q) params = params.set('q', opts.q);
     if (opts.status) params = params.set('status', opts.status);
     if (opts.offset) params = params.set('offset', String(opts.offset));

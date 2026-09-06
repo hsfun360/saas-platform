@@ -38,10 +38,18 @@
         <button type="button" class="art-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
       }
     </div>
-    <app-combobox [value]="month()" (valueChange)="setMonth($event)"
-                  [options]="monthOptions" [allowEmpty]="false"
-                  ariaLabel="Document month" placeholder="Month"
-                  style="min-width: 190px;" />
+    <!-- Optional docDate window: From pick snaps To to that month's last day
+         (editable), To never precedes From, "All dates" clears both. -->
+    <div class="art-dates">
+      <input type="date" [value]="dateFrom()" #df (change)="setDateFrom(df.value)"
+             [attr.max]="dateTo() || null" aria-label="Document date from" />
+      <span class="cell-subtle" aria-hidden="true">–</span>
+      <input type="date" [value]="dateTo()" #dt (change)="setDateTo(dt.value)"
+             [attr.min]="dateFrom() || null" aria-label="Document date to" />
+      @if (dateFrom() || dateTo()) {
+        <button type="button" class="btn btn--link btn--sm" (click)="clearDates()">All dates</button>
+      }
+    </div>
     <select [value]="status()" #st (change)="setStatus(st.value)" aria-label="Status filter">
       <option value="">All statuses</option>
       <option value="draft">Open</option>

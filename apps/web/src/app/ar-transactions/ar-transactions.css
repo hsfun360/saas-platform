@@ -45,7 +45,7 @@
   min-height: 44px;
 }
 
-.art-toolbar input[type='month'],
+.art-toolbar input[type='date'],
 .art-toolbar select {
   min-height: 44px;
   padding: var(--space-xs) var(--space-sm);
@@ -53,6 +53,13 @@
   border-radius: 8px;
   background: var(--surface-input);
   color: var(--text-primary);
+}
+
+/* The optional From–To docDate window sits as one group in the toolbar. */
+.art-dates {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
 }
 
 /* Producer chip for system-generated documents (fee runs, interest, …) */

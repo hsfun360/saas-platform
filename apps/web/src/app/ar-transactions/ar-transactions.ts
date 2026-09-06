@@ -9,8 +9,6 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
-import { ComboboxComponent } from '../shared/combobox/combobox';
-import { monthComboOptions } from '../shared/month-options';
 import { ArLedgerDialogComponent } from '../shared/ar-ledger-dialog/ar-ledger-dialog';
 import { ArReceiptDialogComponent } from '../shared/ar-receipt-dialog/ar-receipt-dialog';
 import { ArRefundDialogComponent } from '../shared/ar-refund-dialog/ar-refund-dialog';
@@ -42,7 +40,7 @@ interface DocTypeCfg {
   hasApproval: boolean;
   // What Submit's direct-post confirm says the posting will DO.
   postText: string;
-  list: (service: ArService, opts: { month?: string; q?: string; status?: string; offset?: number }) => ReturnType<ArService['listInvoices']>;
+  list: (service: ArService, opts: { dateFrom?: string; dateTo?: string; q?: string; status?: string; offset?: number }) => ReturnType<ArService['listInvoices']>;
   submit: (service: ArService, id: string) => ReturnType<ArService['submitInvoice']>;
   approvalOf: (m: ArAccountMeta) => boolean;
   void: (service: ArService, id: string, reason: string) => ReturnType<ArService['voidInvoice']>;
@@ -155,7 +153,7 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
   standalone: true,
   imports: [
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule,
-    DialogComponent, CanDirective, LocalDatePipe, ComboboxComponent, ArLedgerDialogComponent,
+    DialogComponent, CanDirective, LocalDatePipe, ArLedgerDialogComponent,
     ArReceiptDialogComponent, ArRefundDialogComponent, ArDepositDialogComponent,
     OverflowMenuComponent, MenuItemDirective,
   ],
@@ -165,8 +163,6 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
   styleUrls: ['../system-setup/system-setup.css', '../ar-interest/ar-interest.css', './ar-transactions.css'],
 })
 export class ArTransactionsComponent implements OnInit {
-  // Month picker options (shared combobox - Firefox has no native month input).
-  readonly monthOptions = monthComboOptions();
   private readonly service = inject(ArService);
   private readonly route = inject(ActivatedRoute);
   private readonly permissions = inject(PermissionsService);
@@ -180,7 +176,13 @@ export class ArTransactionsComponent implements OnInit {
   readonly baseCurrencyCode = signal<string | null>(null);
   readonly loading = signal(false);
   readonly loadingMore = signal(false);
-  readonly month = signal('');
+  // Optional docDate window (user standard 2026-09-06): defaults to the
+  // current month, picking a From date snaps To to that month's last day
+  // (still editable), To can never precede From, and BOTH can be cleared -
+  // "All dates" - so a docNo search alone finds a document keyed into the
+  // wrong month.
+  readonly dateFrom = signal('');
+  readonly dateTo = signal('');
   readonly status = signal('');
   readonly search = signal('');
   readonly successMessage = signal('');
@@ -204,13 +206,14 @@ export class ArTransactionsComponent implements OnInit {
   ngOnInit(): void {
     const type = String(this.route.snapshot.data['arDocType'] || 'invoice');
     this.cfg.set(DOC_TYPES[type] || DOC_TYPES['invoice']);
-    this.month.set(this.thisMonth());
+    const now = new Date();
+    this.dateFrom.set(ArTransactionsComponent.iso(new Date(now.getFullYear(), now.getMonth(), 1)));
+    this.dateTo.set(ArTransactionsComponent.iso(new Date(now.getFullYear(), now.getMonth() + 1, 0)));
     this.load(true);
   }
 
-  private thisMonth(): string {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  private static iso(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
   load(reset = true): void {
@@ -218,7 +221,8 @@ export class ArTransactionsComponent implements OnInit {
     else this.loadingMore.set(true);
     const offset = reset ? 0 : this.rows().length;
     this.cfg().list(this.service, {
-      month: this.month(),
+      dateFrom: this.dateFrom(),
+      dateTo: this.dateTo(),
       q: this.search().trim(),
       status: this.status(),
       offset,
@@ -252,8 +256,27 @@ export class ArTransactionsComponent implements OnInit {
     this.load(true);
   }
 
-  setMonth(value: string): void {
-    this.month.set(value);
+  // From picked -> To snaps to the last day of that month (then freely
+  // editable). Clearing From leaves To as the sole (upper) bound.
+  setDateFrom(value: string): void {
+    this.dateFrom.set(value);
+    if (value) {
+      const [y, m] = value.split('-').map(Number);
+      this.dateTo.set(ArTransactionsComponent.iso(new Date(y, m, 0)));
+    }
+    this.load(true);
+  }
+
+  // To can never precede From - an earlier pick clamps to From.
+  setDateTo(value: string): void {
+    const from = this.dateFrom();
+    this.dateTo.set(value && from && value < from ? from : value);
+    this.load(true);
+  }
+
+  clearDates(): void {
+    this.dateFrom.set('');
+    this.dateTo.set('');
     this.load(true);
   }
 
