@@ -63,9 +63,10 @@ const Allocation = sequelize.define('Allocation', {
         allowNull: true,
     },
     // The Forex-class ar.TransactionType the realized difference is
-    // classified under (the AR Specification designations - gain vs loss by
-    // sign; explicit configuration, never inferred). NULL when the pair has
-    // no fx difference. GL-facing - never a debtor-facing document.
+    // classified under (the ONE AR Specification designation; gain vs loss is
+    // carried by the sign of fxGainLoss, never by the type - explicit
+    // configuration, never inferred). NULL when the pair has no fx
+    // difference. GL-facing - never a debtor-facing document.
     fxTransactionTypeId: {
         type: DataTypes.UUID,
         allowNull: true,

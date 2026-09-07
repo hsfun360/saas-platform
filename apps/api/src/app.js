@@ -283,6 +283,29 @@ async function initializeDB() {
             if (dkCols && dkCols.l) await sequelize.query('ALTER TABLE ar."Ledger" RENAME COLUMN "docKind" TO "docType"');
             if (dkCols && dkCols.r) await sequelize.query('ALTER TABLE ar."Receipt" RENAME COLUMN "docKind" TO "docType"');
             if (dkCols && (dkCols.l || dkCols.r)) console.log('Renamed docKind -> docType on ar.Ledger / ar.Receipt.');
+            // 1d. ar.Setting Forex designations collapsed to ONE (user
+            //     decision 2026-09-07): the sign of Allocation.fxGainLoss
+            //     already carries gain vs loss, so a single Forex-class
+            //     designation suffices. The gain column survives (renamed to
+            //     fxTransactionTypeId); a company that had only the LOSS side
+            //     designated carries that value over first, then the loss
+            //     column is dropped.
+            const [[fxCols]] = await sequelize.query(
+                `SELECT
+                    EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_schema = 'ar' AND table_name = 'Setting' AND column_name = 'fxGainTransactionTypeId') AS has_old,
+                    EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_schema = 'ar' AND table_name = 'Setting' AND column_name = 'fxTransactionTypeId') AS has_new`,
+            );
+            if (fxCols && fxCols.has_old && !fxCols.has_new) {
+                await sequelize.query(
+                    `UPDATE ar."Setting" SET "fxGainTransactionTypeId" = "fxLossTransactionTypeId"
+                     WHERE "fxGainTransactionTypeId" IS NULL AND "fxLossTransactionTypeId" IS NOT NULL`,
+                );
+                await sequelize.query('ALTER TABLE ar."Setting" RENAME COLUMN "fxGainTransactionTypeId" TO "fxTransactionTypeId"');
+                await sequelize.query('ALTER TABLE ar."Setting" DROP COLUMN IF EXISTS "fxLossTransactionTypeId"');
+                console.log('Collapsed ar.Setting Forex designations to one fxTransactionTypeId.');
+            }
             // 2. ar.Statement NOT NULL snapshot columns whose backfill needs
             //    data the alter-sync cannot derive (month from periodEnd,
             //    debtor type/category via joins, issuer name from Company).

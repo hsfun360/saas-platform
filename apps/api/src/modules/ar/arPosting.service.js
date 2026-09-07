@@ -112,17 +112,16 @@ function allocationFxCents(creditRow, debitRow, amountCents) {
 }
 
 // The Forex-class designation a nonzero realized difference is classified
-// under (AR Specification; gain vs loss by sign). Explicit configuration,
+// under (AR Specification - ONE designation; gain vs loss is carried by the
+// sign of Allocation.fxGainLoss, not by the type). Explicit configuration,
 // never inferred - missing means the posting refuses, naming the fix.
-async function resolveFxDesignation(companyId, fxC) {
+async function resolveFxDesignation(companyId) {
     const { getSetting } = require('./arStatement.service');
     const setting = await getSetting(companyId);
-    const id = fxC > 0 ? setting.fxGainTransactionTypeId : setting.fxLossTransactionTypeId;
-    if (!id) {
-        const kind = fxC > 0 ? 'gain' : 'loss';
-        throw bizError(400, `This allocation realizes an exchange ${kind} - designate a Forex ${kind} Transaction Type in AR Specification first.`);
+    if (!setting.fxTransactionTypeId) {
+        throw bizError(400, 'This allocation realizes an exchange difference - designate a Forex Transaction Type in AR Specification first.');
     }
-    return id;
+    return setting.fxTransactionTypeId;
 }
 
 // Move `amountCents` from a credit doc to a debit doc: validates the pair and
@@ -150,7 +149,7 @@ async function applyAllocation({ companyId, creditType, creditRow, debitType, de
         throw bizError(409, 'These documents disagree on currency - run Reconcile; allocation across currencies is never valid.');
     }
     const fxC = allocationFxCents(creditRow, debitRow, amountCents);
-    const fxTransactionTypeId = fxC === 0 ? null : await resolveFxDesignation(companyId, fxC);
+    const fxTransactionTypeId = fxC === 0 ? null : await resolveFxDesignation(companyId);
 
     const [alloc, created] = await Allocation.findOrCreate({
         where: { creditDocType: creditType, creditDocId: creditRow.id, debitDocType: debitType, debitDocId: debitRow.id },

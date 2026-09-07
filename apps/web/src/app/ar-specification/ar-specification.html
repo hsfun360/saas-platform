@@ -235,21 +235,14 @@
             </div>
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
               <div class="form-group">
-                <label for="arspFxGain">Exchange gain posts under</label>
-                <app-combobox inputId="arspFxGain" formControlName="fxGainTransactionTypeId"
-                              [options]="forexTypeChoices()"
-                              [allowEmpty]="true" emptyLabel="— Not set —"
-                              placeholder="Type to search…" />
-              </div>
-              <div class="form-group">
-                <label for="arspFxLoss">Exchange loss posts under</label>
-                <app-combobox inputId="arspFxLoss" formControlName="fxLossTransactionTypeId"
+                <label for="arspFxType">Exchange difference posts under</label>
+                <app-combobox inputId="arspFxType" formControlName="fxTransactionTypeId"
                               [options]="forexTypeChoices()"
                               [allowEmpty]="true" emptyLabel="— Not set —"
                               placeholder="Type to search…" />
               </div>
             </div>
-            <small class="cell-subtle">Forex-class entries of the Transaction Type master. Realized gain or loss arises when a receipt settles a foreign-currency document at a different rate; it is classified under these entries for the GL, never posted to the debtor.</small>
+            <small class="cell-subtle">A Forex-class entry of the Transaction Type master. Realized gain or loss arises when a receipt settles a foreign-currency document at a different rate; it is classified under this one entry for the GL - gain vs loss by the sign of the difference - never posted to the debtor.</small>
           </div>
         }
       </section>

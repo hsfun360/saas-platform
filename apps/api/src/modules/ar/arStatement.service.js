@@ -168,8 +168,7 @@ async function saveSetting(companyId, payload, stamps) {
             }
         }
     }
-    const fxGainTypeId = await designated(payload.fxGainTransactionTypeId, 'forex', 'Exchange-gain');
-    const fxLossTypeId = await designated(payload.fxLossTransactionTypeId, 'forex', 'Exchange-loss');
+    const fxTypeId = await designated(payload.fxTransactionTypeId, 'forex', 'Exchange-difference');
 
     const row = await getSetting(companyId);
     row.statementCutoffDay = cutoff;
@@ -177,8 +176,7 @@ async function saveSetting(companyId, payload, stamps) {
     if (interestTypeId !== undefined) row.interestTransactionTypeId = interestTypeId;
     if (depConvTypeId !== undefined) row.depositConversionTransactionTypeId = depConvTypeId;
     if (multiCurrencyEnabled !== null) row.multiCurrencyEnabled = multiCurrencyEnabled;
-    if (fxGainTypeId !== undefined) row.fxGainTransactionTypeId = fxGainTypeId;
-    if (fxLossTypeId !== undefined) row.fxLossTransactionTypeId = fxLossTypeId;
+    if (fxTypeId !== undefined) row.fxTransactionTypeId = fxTypeId;
     [row.aging1, row.aging2, row.aging3, row.aging4, row.aging5, row.aging6] = agings;
     row.statementShowLogo = payload.statementShowLogo !== false;
     row.statementBrandColor = brandColor;

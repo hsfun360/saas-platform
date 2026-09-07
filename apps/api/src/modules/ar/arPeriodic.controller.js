@@ -389,8 +389,7 @@ function settingJson(row) {
         interestTransactionTypeId: row.interestTransactionTypeId,
         depositConversionTransactionTypeId: row.depositConversionTransactionTypeId,
         multiCurrencyEnabled: row.multiCurrencyEnabled === true,
-        fxGainTransactionTypeId: row.fxGainTransactionTypeId,
-        fxLossTransactionTypeId: row.fxLossTransactionTypeId,
+        fxTransactionTypeId: row.fxTransactionTypeId,
     };
 }
 

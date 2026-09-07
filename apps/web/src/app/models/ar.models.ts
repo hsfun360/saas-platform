@@ -541,10 +541,10 @@ export interface ArSetting {
   interestTransactionTypeId: string | null;
   depositConversionTransactionTypeId: string | null;
   // Multi-currency (2026-08-21): foreign-currency Other Debtor accounts; the
-  // Forex-class types realized exchange gain/loss is classified under.
+  // ONE Forex-class type realized exchange differences are classified under
+  // (gain vs loss by the sign of the allocation's fxGainLoss).
   multiCurrencyEnabled: boolean;
-  fxGainTransactionTypeId: string | null;
-  fxLossTransactionTypeId: string | null;
+  fxTransactionTypeId: string | null;
 }
 
 export interface ArDesignatedTypeOption {

@@ -78,11 +78,13 @@ const Setting = sequelize.define('ArSetting', {
     // be set before this can be switched on). Same gate pattern as Club
     // Specification's creditFacilityEnabled.
     multiCurrencyEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
-    // Designated Forex-class catalog entries the realized exchange gain / loss
-    // on foreign-currency allocations is classified under (GL-facing; never a
-    // debtor-facing document). Explicit configuration, never inferred.
-    fxGainTransactionTypeId: { type: DataTypes.UUID, allowNull: true },
-    fxLossTransactionTypeId: { type: DataTypes.UUID, allowNull: true },
+    // The ONE designated Forex-class catalog entry realized exchange
+    // differences on foreign-currency allocations are classified under
+    // (GL-facing; never a debtor-facing document). Gain vs loss is carried by
+    // the SIGN of Allocation.fxGainLoss, so a single designation suffices
+    // (collapsed from a gain/loss pair 2026-09-07). Explicit configuration,
+    // never inferred.
+    fxTransactionTypeId: { type: DataTypes.UUID, allowNull: true },
     // Ownership stamps.
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

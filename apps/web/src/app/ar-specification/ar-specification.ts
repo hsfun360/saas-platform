@@ -101,8 +101,7 @@ export class ArSpecificationComponent implements OnInit {
     depositConversionTransactionTypeId: [''],
     // Multi-currency.
     multiCurrencyEnabled: [false],
-    fxGainTransactionTypeId: [''],
-    fxLossTransactionTypeId: [''],
+    fxTransactionTypeId: [''],
   });
 
   ngOnInit(): void {
@@ -211,8 +210,7 @@ export class ArSpecificationComponent implements OnInit {
       interestTransactionTypeId: s.interestTransactionTypeId || '',
       depositConversionTransactionTypeId: s.depositConversionTransactionTypeId || '',
       multiCurrencyEnabled: s.multiCurrencyEnabled === true,
-      fxGainTransactionTypeId: s.fxGainTransactionTypeId || '',
-      fxLossTransactionTypeId: s.fxLossTransactionTypeId || '',
+      fxTransactionTypeId: s.fxTransactionTypeId || '',
     });
     this.applyColumns(s.statementColumns);
   }
@@ -255,8 +253,7 @@ export class ArSpecificationComponent implements OnInit {
       // Multi-currency: the toggle only travels as ON when the base currency
       // exists (the control is disabled otherwise, and the API re-checks).
       multiCurrencyEnabled: !!this.baseCurrencyCode() && v.multiCurrencyEnabled,
-      fxGainTransactionTypeId: v.fxGainTransactionTypeId || null,
-      fxLossTransactionTypeId: v.fxLossTransactionTypeId || null,
+      fxTransactionTypeId: v.fxTransactionTypeId || null,
     }).subscribe({
       next: (res) => {
         this.saving.set(false);
