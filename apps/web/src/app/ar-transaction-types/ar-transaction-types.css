@@ -1,0 +1,66 @@
+/* AR Transaction Type - the copy-from-company picker rows (2026-09-05).
+   Tokens only, per the theming standard. */
+
+.att-copy__all {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.att-copy__all input[type='checkbox'],
+.att-copy__row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+  flex-shrink: 0;
+}
+
+.att-copy__list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.att-copy__row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.att-copy__row:last-child { border-bottom: none; }
+.att-copy__row:hover { background: var(--surface-hover); }
+
+.att-copy__row--exists {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.att-copy__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+}
+
+.att-copy__text > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.att-copy__note {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}

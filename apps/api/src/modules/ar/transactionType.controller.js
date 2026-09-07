@@ -14,6 +14,7 @@ const {
     companyHasModule,
     eInvoiceClassificationCodeExists,
     getCompanyCountryCode,
+    listCallerCompanies,
 } = require('../../platform/serviceContext');
 
 // LHDN MyInvois is a Malaysian mandate - e-Invoice fields only apply to
@@ -220,6 +221,163 @@ exports.create = async (req, res) => {
         res.status(201).json({ message: `Transaction type '${row.transactionType}' created.`, transactionType: toDto(row) });
     } catch (error) {
         console.error('Error creating transaction type:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// ---------------------------------------------------------------------------
+// Copy from another company (2026-09-05): a user may pull catalog entries
+// from a SIBLING company - but only one they hold an ACTIVE membership in
+// (listCallerCompanies - "access right", not every sibling), and only the
+// entries they select from a preview (show-expected-results). Copied entries
+// are adapted to the TARGET company's capabilities: a tax scheme the target
+// cannot use copies as None, module usability intersects the target's
+// entitlements, and e-Invoice fields drop where not applicable - each
+// adaptation is flagged in the preview BEFORE the copy commits.
+
+// The target-company facts every copy decision needs.
+async function copyTargetFacts(req, companyId) {
+    const { schemes } = await listCompanyTaxSchemes(req);
+    const schemeCodes = new Set((schemes || [])
+        .filter((r) => r.scheme.taxClass !== 'INPUT')
+        .map((r) => r.scheme.taxSchemeCode));
+    const existing = await TransactionType.findAll({ where: { companyId }, attributes: ['transactionType'] });
+    return {
+        schemeCodes,
+        entitled: await entitledModuleKeys(companyId),
+        einvApplicable: await eInvoiceApplicable(companyId),
+        existingCodes: new Set(existing.map((t) => t.transactionType)),
+    };
+}
+
+async function assertSourceAccess(req, sourceCompanyId, currentCompanyId) {
+    if (!sourceCompanyId || sourceCompanyId === currentCompanyId) {
+        return 'Select a different company to copy from.';
+    }
+    const accessible = await listCallerCompanies(req);
+    if (!accessible.some((c) => c.id === sourceCompanyId)) {
+        return 'You have no access to that company.';
+    }
+    return null;
+}
+
+// GET /api/ar/transaction-types/copy-sources - the caller's OTHER companies.
+exports.listCopySources = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const companies = (await listCallerCompanies(req)).filter((c) => c.id !== companyId);
+        res.status(200).json({ companies });
+    } catch (error) {
+        console.error('Error listing copy-source companies:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// GET /api/ar/transaction-types/copy-sources/:companyId - the source
+// company's ACTIVE entries, each flagged with what the copy would do here.
+exports.listCopyCandidates = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const sourceId = str(req.params.companyId);
+        const accessErr = await assertSourceAccess(req, sourceId, companyId);
+        if (accessErr) return res.status(403).json({ message: accessErr });
+
+        const facts = await copyTargetFacts(req, companyId);
+        const rows = await TransactionType.findAll({
+            where: { companyId: sourceId, isActive: true },
+            order: [['trxClass', 'ASC'], ['transactionType', 'ASC']],
+        });
+        res.status(200).json({
+            candidates: rows.map((t) => {
+                const modules = Array.isArray(t.usableInModules) ? t.usableInModules : [];
+                const keptModules = modules.filter((k) => facts.entitled.includes(k));
+                return {
+                    id: t.id,
+                    transactionType: t.transactionType,
+                    trxClass: t.trxClass,
+                    description: t.description,
+                    taxSchemeCode: t.taxSchemeCode,
+                    usableInModules: modules,
+                    isEInvoice: t.isEInvoice === true,
+                    exists: facts.existingCodes.has(t.transactionType),
+                    // Preview flags - what the copy will ADAPT for this company.
+                    taxSchemeDropped: !!t.taxSchemeCode && !facts.schemeCodes.has(t.taxSchemeCode),
+                    modulesDropped: modules.length > keptModules.length,
+                    eInvoiceDropped: t.isEInvoice === true && !facts.einvApplicable,
+                };
+            }),
+        });
+    } catch (error) {
+        console.error('Error listing copy candidates:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/ar/transaction-types/copy { sourceCompanyId, ids } - copy the
+// SELECTED entries. Codes already present are skipped (never overwritten).
+exports.copyFrom = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const sourceId = str(req.body.sourceCompanyId);
+        const accessErr = await assertSourceAccess(req, sourceId, companyId);
+        if (accessErr) return res.status(403).json({ message: accessErr });
+        const ids = Array.isArray(req.body.ids) ? req.body.ids.filter((x) => typeof x === 'string') : [];
+        if (!ids.length) return res.status(400).json({ message: 'Select at least one transaction type to copy.' });
+
+        const facts = await copyTargetFacts(req, companyId);
+        const rows = await TransactionType.findAll({ where: { id: ids, companyId: sourceId, isActive: true } });
+        if (!rows.length) return res.status(404).json({ message: 'None of the selected transaction types were found.' });
+
+        const placement = await getCallerPlacement(req);
+        const callerId = getUserContext(req).userId;
+        const created = [];
+        const skipped = [];
+        let adjusted = 0;
+        const { sequelize } = require('../../platform/db');
+        await sequelize.transaction(async (t) => {
+            for (const src of rows) {
+                if (facts.existingCodes.has(src.transactionType)) { skipped.push(src.transactionType); continue; }
+                const isPaymentClass = PAYMENT_TRX_CLASSES.includes(src.trxClass);
+                const modules = src.trxClass === 'invoice' && Array.isArray(src.usableInModules)
+                    ? src.usableInModules.filter((k) => facts.entitled.includes(k))
+                    : [];
+                const taxSchemeCode = !isPaymentClass && src.taxSchemeCode && facts.schemeCodes.has(src.taxSchemeCode)
+                    ? src.taxSchemeCode : null;
+                const einvOk = !isPaymentClass && facts.einvApplicable
+                    && !!src.eInvoiceClassificationCode
+                    && (await eInvoiceClassificationCodeExists(src.eInvoiceClassificationCode));
+                if ((src.taxSchemeCode && !taxSchemeCode)
+                    || (Array.isArray(src.usableInModules) && src.usableInModules.length > modules.length)
+                    || (src.isEInvoice === true && !einvOk)) adjusted += 1;
+                await TransactionType.create({
+                    companyId,
+                    transactionType: src.transactionType,
+                    trxClass: src.trxClass,
+                    description: src.description,
+                    taxSchemeCode,
+                    isInterestChargeable: !isPaymentClass && src.isInterestChargeable === true,
+                    usableInModules: modules,
+                    isEInvoice: einvOk && src.isEInvoice === true,
+                    eInvoiceClassificationCode: einvOk ? src.eInvoiceClassificationCode : null,
+                    isActive: true,
+                    createdBy: callerId,
+                    createdByDepartmentId: placement.departmentId,
+                    updatedBy: callerId,
+                }, { transaction: t });
+                created.push(src.transactionType);
+                facts.existingCodes.add(src.transactionType);
+            }
+        });
+
+        const parts = [`Copied ${created.length} transaction type(s).`];
+        if (skipped.length) parts.push(`${skipped.length} skipped (already exist here).`);
+        if (adjusted) parts.push(`${adjusted} adapted to this company (tax scheme / modules / e-Invoice).`);
+        res.status(201).json({ message: parts.join(' '), created, skipped });
+    } catch (error) {
+        console.error('Error copying transaction types:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };

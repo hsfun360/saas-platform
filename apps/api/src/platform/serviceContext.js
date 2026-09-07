@@ -461,6 +461,36 @@ async function annotateCanModify(req, records) {
 // Callers (e.g. the membership "copy from sibling" feature) never change.
 // Returns [{ id, name }] including the caller's own company; callers filter it
 // out when they want only the siblings.
+// Companies the CALLER may actually enter: their ACTIVE CompanyUser
+// memberships within the caller's account. Powers cross-company copy
+// features, where a "source" must be a workspace the user could open
+// themselves - listSubscriptionCompanies (below) would leak siblings the
+// user has no access right to.
+// WHEN SPLIT: GET {control-plane}/api/auth/my/companies
+async function listCallerCompanies(req) {
+    const { userId, companyId } = getUserContext(req);
+    if (!userId || !companyId) return [];
+
+    const Company = require('../modules/saas/company.model');
+    const CompanyUser = require('../modules/saas/companyUser.model');
+    const current = await Company.findByPk(companyId, { attributes: ['id', 'accountId'] });
+    if (!current || !current.accountId) return [];
+
+    const memberships = await CompanyUser.findAll({
+        where: { userId, isActive: true },
+        attributes: ['companyId'],
+    });
+    const ids = [...new Set(memberships.map((m) => m.companyId).filter(Boolean))];
+    if (!ids.length) return [];
+
+    const companies = await Company.findAll({
+        where: { accountId: current.accountId, id: ids },
+        attributes: ['id', 'name'],
+        order: [['name', 'ASC']],
+    });
+    return companies.map((c) => ({ id: c.id, name: c.name }));
+}
+
 async function listSubscriptionCompanies(req) {
     const { companyId } = getUserContext(req);
     if (!companyId) return [];
@@ -749,6 +779,7 @@ module.exports = {
     canModifyRecord,
     annotateCanModify,
     listSubscriptionCompanies,
+    listCallerCompanies,
     listAccountCurrencies,
     resolveApprovers,
     listApproverOptions,

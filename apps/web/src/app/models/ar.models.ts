@@ -88,6 +88,23 @@ export interface ArTransactionTypeRow {
   isActive: boolean;
 }
 
+// Copy-from-company preview row (2026-09-05): `exists` = code already in the
+// current company (skipped); the *Dropped flags say what the copy will ADAPT
+// to this company's capabilities.
+export interface ArCopyCandidate {
+  id: string;
+  transactionType: string;
+  trxClass: ArTrxClass;
+  description: string | null;
+  taxSchemeCode: string | null;
+  usableInModules: string[];
+  isEInvoice: boolean;
+  exists: boolean;
+  taxSchemeDropped: boolean;
+  modulesDropped: boolean;
+  eInvoiceDropped: boolean;
+}
+
 export interface ArTransactionTypeMeta {
   trxClasses: ArOption[];
   // Only modules the company is ENTITLED to (AR-only subscribers get none).

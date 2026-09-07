@@ -150,6 +150,11 @@ router.post('/deposits/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), doc
 // screen/menu '/ar/transaction-types'). Membership reads it READ-ONLY through
 // arGateway - never these write endpoints.
 const transactionTypeController = require('./transactionType.controller');
+// Copy from another company (2026-09-05): sources = companies the CALLER
+// holds an active membership in; POST maps to the menu's Create action.
+router.get('/transaction-types/copy-sources', requireMenuAction('/ar/transaction-types'), transactionTypeController.listCopySources);
+router.get('/transaction-types/copy-sources/:companyId', requireMenuAction('/ar/transaction-types'), transactionTypeController.listCopyCandidates);
+router.post('/transaction-types/copy', requireMenuAction('/ar/transaction-types'), transactionTypeController.copyFrom);
 router.get('/transaction-types/meta', requireMenuAction('/ar/transaction-types'), transactionTypeController.getMeta);
 router.get('/transaction-types/tax-schemes', requireMenuAction('/ar/transaction-types'), transactionTypeController.getTaxSchemes);
 router.get('/transaction-types', requireMenuAction('/ar/transaction-types'), transactionTypeController.list);

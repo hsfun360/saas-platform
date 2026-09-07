@@ -16,6 +16,7 @@ import {
   ArDepositConversionRow,
   ArDocListResult,
   ArAnalysisEntryMeta,
+  ArCopyCandidate,
   ArExchangeRate,
   ArExchangeRateMeta,
   ArInterestDetail,
@@ -392,6 +393,21 @@ export class ArService {
 
   transactionTypeTaxSchemes(): Observable<{ schemes: { taxSchemeCode: string; name: string | null }[]; countrySet: boolean }> {
     return this.http.get<{ schemes: { taxSchemeCode: string; name: string | null }[]; countrySet: boolean }>(`${this.base}/transaction-types/tax-schemes`);
+  }
+
+  // Copy from another company (2026-09-05): sources are ONLY companies the
+  // caller holds an active membership in; candidates preview what a copy
+  // would adapt for this company before anything commits.
+  transactionTypeCopySources(): Observable<{ companies: { id: string; name: string }[] }> {
+    return this.http.get<{ companies: { id: string; name: string }[] }>(`${this.base}/transaction-types/copy-sources`);
+  }
+
+  transactionTypeCopyCandidates(companyId: string): Observable<{ candidates: ArCopyCandidate[] }> {
+    return this.http.get<{ candidates: ArCopyCandidate[] }>(`${this.base}/transaction-types/copy-sources/${companyId}`);
+  }
+
+  copyTransactionTypes(sourceCompanyId: string, ids: string[]): Observable<{ message: string; created: string[]; skipped: string[] }> {
+    return this.http.post<{ message: string; created: string[]; skipped: string[] }>(`${this.base}/transaction-types/copy`, { sourceCompanyId, ids });
   }
 
   listTransactionTypes(): Observable<ArTransactionTypeRow[]> {
