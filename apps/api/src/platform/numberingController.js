@@ -103,6 +103,138 @@ function makeNumberingRouter({ model, purposes }) {
         }
     });
 
+    // --- Copy from another company (2026-09-07, mirrors the Transaction
+    // Type copy): sources = companies the CALLER holds an active membership
+    // in (listCallerCompanies - "access right", not every account sibling);
+    // the preview lists the source's configured series with what the copy
+    // will do here (show-expected-results). The copy brings CONFIGURATION
+    // only - the counter always starts fresh (currentNumber 0), because
+    // issued numbers belong to the source company's documents. Purposes
+    // already configured here are skipped, never overwritten.
+    const { listCallerCompanies } = require('./serviceContext');
+
+    async function sourceAccessError(req, sourceCompanyId, currentCompanyId) {
+        if (!sourceCompanyId || sourceCompanyId === currentCompanyId) {
+            return 'Select a different company to copy from.';
+        }
+        const accessible = await listCallerCompanies(req);
+        if (!accessible.some((c) => c.id === sourceCompanyId)) {
+            return 'You have no access to that company.';
+        }
+        return null;
+    }
+
+    const purposeLabelOf = (key) => (purposes.find((p) => p.key === key) || {}).label || key;
+
+    // What the first auto number issued HERE would look like (counter 0).
+    const firstPreview = (row) => previewNext({
+        prefix: row.prefix || '',
+        format: row.format || '{PREFIX}{SEQ}',
+        seqPadLength: row.seqPadLength ?? 5,
+        startingNumber: row.startingNumber ?? 1,
+        currentNumber: 0,
+        resetRule: row.resetRule || 'never',
+        currentPeriod: null,
+    }).number;
+
+    router.get('/copy-sources', async (req, res) => {
+        try {
+            const companyId = companyIdOf(req);
+            if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+            const companies = (await listCallerCompanies(req)).filter((c) => c.id !== companyId);
+            res.status(200).json({ companies });
+        } catch (error) {
+            console.error('Error listing numbering copy sources:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    });
+
+    router.get('/copy-sources/:companyId', async (req, res) => {
+        try {
+            const companyId = companyIdOf(req);
+            if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+            const sourceId = String(req.params.companyId || '');
+            const accessErr = await sourceAccessError(req, sourceId, companyId);
+            if (accessErr) return res.status(403).json({ message: accessErr });
+
+            const [rows, existing] = await Promise.all([
+                model.findAll({ where: { companyId: sourceId, isActive: true } }),
+                model.findAll({ where: { companyId }, attributes: ['purpose'] }),
+            ]);
+            const existingPurposes = new Set(existing.map((r) => r.purpose));
+            const candidates = rows
+                .filter((r) => purposeKeys.includes(r.purpose))
+                .sort((a, b) => purposeKeys.indexOf(a.purpose) - purposeKeys.indexOf(b.purpose))
+                .map((r) => ({
+                    id: r.id,
+                    purpose: r.purpose,
+                    purposeLabel: purposeLabelOf(r.purpose),
+                    mode: r.mode,
+                    prefix: r.prefix,
+                    format: r.format,
+                    seqPadLength: r.seqPadLength,
+                    startingNumber: r.startingNumber,
+                    resetRule: r.resetRule,
+                    nextPreview: r.mode === 'auto' ? firstPreview(r) : null,
+                    exists: existingPurposes.has(r.purpose),
+                }));
+            res.status(200).json({ candidates });
+        } catch (error) {
+            console.error('Error listing numbering copy candidates:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    });
+
+    router.post('/copy', async (req, res) => {
+        try {
+            const companyId = companyIdOf(req);
+            if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+            const sourceId = String(req.body.sourceCompanyId || '');
+            const accessErr = await sourceAccessError(req, sourceId, companyId);
+            if (accessErr) return res.status(403).json({ message: accessErr });
+            const ids = Array.isArray(req.body.ids) ? req.body.ids.filter((x) => typeof x === 'string') : [];
+            if (!ids.length) return res.status(400).json({ message: 'Select at least one numbering scheme to copy.' });
+
+            const rows = await model.findAll({ where: { id: ids, companyId: sourceId, isActive: true } });
+            if (!rows.length) return res.status(404).json({ message: 'None of the selected numbering schemes were found.' });
+            const existing = await model.findAll({ where: { companyId }, attributes: ['purpose'] });
+            const existingPurposes = new Set(existing.map((r) => r.purpose));
+
+            const { sequelize } = require('./db');
+            const created = [];
+            const skipped = [];
+            await sequelize.transaction(async (t) => {
+                for (const src of rows) {
+                    if (!purposeKeys.includes(src.purpose)) continue;
+                    if (existingPurposes.has(src.purpose)) { skipped.push(src.purpose); continue; }
+                    await model.create({
+                        companyId,
+                        purpose: src.purpose,
+                        mode: src.mode,
+                        prefix: src.prefix,
+                        format: src.format,
+                        seqPadLength: src.seqPadLength,
+                        startingNumber: src.startingNumber,
+                        resetRule: src.resetRule,
+                        // The counter never copies - numbering here starts fresh.
+                        currentNumber: 0,
+                        currentPeriod: null,
+                        isActive: true,
+                    }, { transaction: t });
+                    created.push(src.purpose);
+                    existingPurposes.add(src.purpose);
+                }
+            });
+
+            const parts = [`Copied ${created.length} numbering scheme(s) - counters start fresh here.`];
+            if (skipped.length) parts.push(`${skipped.length} skipped (already configured here).`);
+            res.status(201).json({ message: parts.join(' '), created, skipped });
+        } catch (error) {
+            console.error('Error copying numbering schemes:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    });
+
     // Config fields only - never the counter or the purpose.
     router.patch('/:id', async (req, res) => {
         try {

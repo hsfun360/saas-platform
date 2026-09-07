@@ -528,6 +528,23 @@ export interface NumberingScheme {
   nextPreview?: string | null;   // sample of the next number (auto mode)
 }
 
+// One source-company scheme in the Numbering "Copy from company" preview.
+// `nextPreview` shows what the FIRST number issued in the TARGET company
+// would look like (the counter never copies).
+export interface NumberingCopyCandidate {
+  id: string;
+  purpose: string;
+  purposeLabel: string;
+  mode: string;
+  prefix: string | null;
+  format: string | null;
+  seqPadLength: number;
+  startingNumber: number;
+  resetRule: string;
+  nextPreview: string | null;
+  exists: boolean;
+}
+
 export interface NumberingToken {
   token: string;
   label: string;

@@ -18,6 +18,7 @@ const {
     canModifyRecord,
     annotateCanModify,
     getTenantModuleCatalog,
+    listCallerCompanies,
 } = require('../../platform/serviceContext');
 const { validate, fields, z } = require('../../platform/validate');
 
@@ -232,12 +233,14 @@ const optionEditBody = z.object({
 });
 const activeBody = z.object({ isActive: z.boolean() });
 const idParams = z.object({ id: fields.uuid });
+const copyBody = z.object({ sourceCompanyId: fields.uuid, ids: z.array(fields.uuid).min(1) });
 
 exports.validateCategoryCreate = validate({ body: categoryBody });
 exports.validateCategoryUpdate = validate({ params: idParams, body: categoryBody });
 exports.validateOptionCreate = validate({ body: optionBody });
 exports.validateOptionUpdate = validate({ params: idParams, body: optionEditBody });
 exports.validateSetActive = validate({ params: idParams, body: activeBody });
+exports.validateCopy = validate({ body: copyBody });
 
 // GET /api/dimension - the whole setup (categories + options + the module
 // ticks) in one read, plus the modules this company MAY tick.
@@ -484,6 +487,275 @@ exports.updateOption = async (req, res) => {
         res.status(200).json({ message: `Option '${row.code}' updated.`, option: optionDto(row) });
     } catch (error) {
         console.error('Error updating dimension option:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// ---------------------------------------------------------------------------
+// Copy from another company (2026-09-07, mirrors the Transaction Type copy).
+// Sources = companies the CALLER holds an active membership in; the candidate
+// step previews each source dimension with what the copy would do HERE
+// (show-expected-results); dimensions whose NAME already exists here are
+// skipped, never overwritten. A copied dimension brings its ACTIVE options
+// and its module assignments, adapted to this company:
+//   - a dimension number already taken here (or a stamped dimension none of
+//     whose modules are available here) copies as CATALOG-ONLY;
+//   - module assignments intersect with this company's available modules;
+//   - the parent link is kept only when the parent is copied in the same run
+//     or already exists here by name AND the hierarchy rules still hold
+//     (stamped child under stamped parent, child modules nested in the
+//     parent's) - otherwise the link is dropped, options land unlinked;
+//   - option parent links map through the copied parent options, or match the
+//     existing parent category's options BY CODE; unmatched links copy as
+//     UNASSIGNED (the setup screen's existing warn group).
+
+async function copySourceAccessError(req, sourceCompanyId, currentCompanyId) {
+    if (!sourceCompanyId || sourceCompanyId === currentCompanyId) {
+        return 'Select a different company to copy from.';
+    }
+    const accessible = await listCallerCompanies(req);
+    if (!accessible.some((c) => c.id === sourceCompanyId)) {
+        return 'You have no access to that company.';
+    }
+    return null;
+}
+
+// Parent-first order among the SELECTED categories, so a copied child can
+// link to its just-copied parent. Cycle-safe: a stuck remainder flushes as-is.
+function parentFirst(rows) {
+    const selectedIds = new Set(rows.map((r) => r.id));
+    const placed = new Set();
+    const ordered = [];
+    let pending = rows.slice();
+    while (pending.length) {
+        const ready = pending.filter((c) => !c.parentCategoryId
+            || !selectedIds.has(c.parentCategoryId) || placed.has(c.parentCategoryId));
+        if (!ready.length) { ordered.push(...pending); break; }
+        for (const c of ready) { ordered.push(c); placed.add(c.id); }
+        pending = pending.filter((c) => !placed.has(c.id));
+    }
+    return ordered;
+}
+
+// GET /api/dimension/copy-sources - the caller's OTHER companies.
+exports.listCopySources = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const companies = (await listCallerCompanies(req)).filter((c) => c.id !== companyId);
+        res.status(200).json({ companies });
+    } catch (error) {
+        console.error('Error listing dimension copy sources:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// GET /api/dimension/copy-sources/:companyId - the source company's ACTIVE
+// dimensions, each flagged with what the copy would do here.
+exports.listCopyCandidates = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const sourceId = String(req.params.companyId || '');
+        const accessErr = await copySourceAccessError(req, sourceId, companyId);
+        if (accessErr) return res.status(403).json({ message: accessErr });
+
+        const [srcCatsAll, srcOptions, srcModules, targetCats, available, names] = await Promise.all([
+            DimensionCategory.findAll({ where: { companyId: sourceId } }),
+            DimensionOption.findAll({ where: { companyId: sourceId, isActive: true }, attributes: ['id', 'categoryId'] }),
+            DimensionCategoryModule.findAll({ where: { companyId: sourceId } }),
+            DimensionCategory.findAll({ where: { companyId }, attributes: ['name', 'dimensionNo'] }),
+            availableModules(companyId),
+            moduleNamesById(),
+        ]);
+        const allowedIds = new Set(available.map((m) => m.moduleId));
+        const targetNames = new Set(targetCats.map((c) => c.name));
+        const takenNumbers = new Set(targetCats.filter((c) => c.dimensionNo !== null).map((c) => c.dimensionNo));
+        const srcById = new Map(srcCatsAll.map((c) => [c.id, c]));
+        const optionCount = new Map();
+        for (const o of srcOptions) optionCount.set(o.categoryId, (optionCount.get(o.categoryId) || 0) + 1);
+        const modulesByCat = new Map();
+        for (const m of srcModules) {
+            if (!modulesByCat.has(m.categoryId)) modulesByCat.set(m.categoryId, []);
+            modulesByCat.get(m.categoryId).push(m);
+        }
+
+        const candidates = srcCatsAll
+            .filter((c) => c.isActive !== false)
+            .sort((a, b) => (a.dimensionNo ?? 99) - (b.dimensionNo ?? 99) || a.name.localeCompare(b.name))
+            .map((c) => {
+                const mods = modulesByCat.get(c.id) || [];
+                const kept = mods.filter((m) => allowedIds.has(m.moduleId));
+                const parent = c.parentCategoryId ? srcById.get(c.parentCategoryId) : null;
+                return {
+                    id: c.id,
+                    name: c.name,
+                    dimensionNo: c.dimensionNo,
+                    parentName: parent ? parent.name : null,
+                    parentExistsHere: !!parent && targetNames.has(parent.name),
+                    optionCount: optionCount.get(c.id) || 0,
+                    moduleNames: mods.map((m) => names.get(m.moduleId) || 'Unknown module').sort(),
+                    exists: targetNames.has(c.name),
+                    // Preview flags - what the copy will ADAPT for this company.
+                    numberTaken: c.dimensionNo !== null && takenNumbers.has(c.dimensionNo),
+                    noModuleHere: c.dimensionNo !== null && mods.length > 0 && kept.length === 0,
+                    modulesDropped: mods.length > kept.length && kept.length > 0,
+                };
+            });
+        res.status(200).json({ candidates });
+    } catch (error) {
+        console.error('Error listing dimension copy candidates:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/dimension/copy { sourceCompanyId, ids } - copy the SELECTED
+// dimensions (with their active options + module assignments), adapted.
+exports.copyFrom = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const { sourceCompanyId: sourceId, ids } = req.body;
+        const accessErr = await copySourceAccessError(req, sourceId, companyId);
+        if (accessErr) return res.status(403).json({ message: accessErr });
+
+        const [selected, srcCatsAll, srcOptions, srcModules, targetCats, targetOptions, targetModules, available] = await Promise.all([
+            DimensionCategory.findAll({ where: { id: ids, companyId: sourceId, isActive: true } }),
+            DimensionCategory.findAll({ where: { companyId: sourceId } }),
+            DimensionOption.findAll({ where: { companyId: sourceId, isActive: true } }),
+            DimensionCategoryModule.findAll({ where: { companyId: sourceId } }),
+            DimensionCategory.findAll({ where: { companyId } }),
+            DimensionOption.findAll({ where: { companyId } }),
+            DimensionCategoryModule.findAll({ where: { companyId } }),
+            availableModules(companyId),
+        ]);
+        if (!selected.length) return res.status(404).json({ message: 'None of the selected dimensions were found.' });
+
+        const allowedIds = new Set(available.map((m) => m.moduleId));
+        const srcById = new Map(srcCatsAll.map((c) => [c.id, c]));
+        const srcOptById = new Map(srcOptions.map((o) => [o.id, o]));
+        const optionsByCat = new Map();
+        for (const o of srcOptions) {
+            if (!optionsByCat.has(o.categoryId)) optionsByCat.set(o.categoryId, []);
+            optionsByCat.get(o.categoryId).push(o);
+        }
+        const srcModulesByCat = new Map();
+        for (const m of srcModules) {
+            if (!srcModulesByCat.has(m.categoryId)) srcModulesByCat.set(m.categoryId, []);
+            srcModulesByCat.get(m.categoryId).push(m);
+        }
+        const targetByName = new Map(targetCats.map((c) => [c.name, c]));
+        const takenNumbers = new Set(targetCats.filter((c) => c.dimensionNo !== null).map((c) => c.dimensionNo));
+        const targetModulesByCat = new Map();
+        for (const m of targetModules) {
+            if (!targetModulesByCat.has(m.categoryId)) targetModulesByCat.set(m.categoryId, new Set());
+            targetModulesByCat.get(m.categoryId).add(m.moduleId);
+        }
+        const targetOptionCodesByCat = new Map();
+        for (const o of targetOptions) {
+            if (!targetOptionCodesByCat.has(o.categoryId)) targetOptionCodesByCat.set(o.categoryId, new Map());
+            targetOptionCodesByCat.get(o.categoryId).set(o.code, o.id);
+        }
+
+        const placement = await getCallerPlacement(req);
+        const stamps = ownershipStamps(req, placement);
+        const created = [];
+        const skipped = [];
+        let adapted = 0;
+        let optionsCreated = 0;
+        // srcCatId -> { row, moduleIds } for parent resolution within the run.
+        const copiedCats = new Map();
+        // srcOptionId -> new option id, for parent-option mapping.
+        const copiedOpts = new Map();
+
+        await sequelize.transaction(async (transaction) => {
+            for (const src of parentFirst(selected)) {
+                if (targetByName.has(src.name)) { skipped.push(src.name); continue; }
+                let adaptedThis = false;
+
+                const mods = srcModulesByCat.get(src.id) || [];
+                const kept = mods.filter((m) => allowedIds.has(m.moduleId));
+                if (mods.length > kept.length) adaptedThis = true;
+
+                // A stamped dimension must keep a free number AND at least one
+                // module here - otherwise it lands catalog-only.
+                let dimensionNo = src.dimensionNo;
+                if (dimensionNo !== null && (takenNumbers.has(dimensionNo) || kept.length === 0)) {
+                    dimensionNo = null;
+                    adaptedThis = true;
+                }
+                const modRows = dimensionNo !== null ? kept : [];
+
+                // Parent link: the copied parent from this run, or an existing
+                // category here with the parent's name - kept only when the
+                // hierarchy rules still hold after adaptation.
+                let parentTarget = null;
+                if (src.parentCategoryId) {
+                    const copied = copiedCats.get(src.parentCategoryId);
+                    if (copied) {
+                        parentTarget = { id: copied.row.id, dimensionNo: copied.row.dimensionNo, moduleIds: copied.moduleIds };
+                    } else {
+                        const srcParent = srcById.get(src.parentCategoryId);
+                        const t = srcParent ? targetByName.get(srcParent.name) : null;
+                        if (t) parentTarget = { id: t.id, dimensionNo: t.dimensionNo, moduleIds: targetModulesByCat.get(t.id) || new Set() };
+                    }
+                    if (parentTarget) {
+                        const stampedUnderCatalogOnly = dimensionNo !== null && parentTarget.dimensionNo === null;
+                        const nested = modRows.every((m) => parentTarget.moduleIds.has(m.moduleId));
+                        if (stampedUnderCatalogOnly || !nested) parentTarget = null;
+                    }
+                    if (!parentTarget) adaptedThis = true;
+                }
+
+                const row = await DimensionCategory.create({
+                    companyId,
+                    name: src.name,
+                    dimensionNo,
+                    displaySeq: src.displaySeq ?? null,
+                    parentCategoryId: parentTarget ? parentTarget.id : null,
+                    isActive: true,
+                    ...stamps,
+                }, { transaction });
+                if (dimensionNo !== null) takenNumbers.add(dimensionNo);
+                for (const m of modRows) {
+                    await DimensionCategoryModule.create({
+                        companyId, categoryId: row.id, moduleId: m.moduleId,
+                        isRequired: m.isRequired === true, ...stamps,
+                    }, { transaction });
+                }
+                copiedCats.set(src.id, { row, moduleIds: new Set(modRows.map((m) => m.moduleId)) });
+                targetByName.set(src.name, row);
+
+                for (const o of optionsByCat.get(src.id) || []) {
+                    let parentOptionId = null;
+                    if (parentTarget && o.parentOptionId) {
+                        parentOptionId = copiedOpts.get(o.parentOptionId) || null;
+                        if (!parentOptionId) {
+                            const srcParentOpt = srcOptById.get(o.parentOptionId);
+                            const codes = targetOptionCodesByCat.get(parentTarget.id);
+                            if (srcParentOpt && codes) parentOptionId = codes.get(srcParentOpt.code) || null;
+                        }
+                    }
+                    const newOpt = await DimensionOption.create({
+                        companyId, categoryId: row.id, parentOptionId,
+                        code: o.code, description: o.description || null,
+                        isActive: true, ...stamps,
+                    }, { transaction });
+                    copiedOpts.set(o.id, newOpt.id);
+                    optionsCreated += 1;
+                }
+
+                if (adaptedThis) adapted += 1;
+                created.push(src.name);
+            }
+        });
+
+        const parts = [`Copied ${created.length} dimension(s) with ${optionsCreated} option(s).`];
+        if (skipped.length) parts.push(`${skipped.length} skipped (already exist here).`);
+        if (adapted) parts.push(`${adapted} adapted to this company (dimension number / modules / hierarchy).`);
+        res.status(201).json({ message: parts.join(' '), created, skipped });
+    } catch (error) {
+        console.error('Error copying dimensions:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };

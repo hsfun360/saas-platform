@@ -6,9 +6,10 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NumberingModule, NumberingService } from '../services/numbering.service';
 import { DialogComponent } from '../shared/dialog/dialog';
-import { NumberingScheme, NumberingToken, MembershipStatusOption } from '../models/auth.models';
+import { NumberingCopyCandidate, NumberingScheme, NumberingToken, MembershipStatusOption } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { CanDirective } from '../shared/can.directive';
 
 // Numbering Control - per-company document numbering, ONE screen instance per
 // OWNING MODULE (split 2026-08-05): /membership/numbering and /ar/numbering
@@ -19,9 +20,10 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 @Component({
   selector: 'app-numbering',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, CanDirective],
   templateUrl: './numbering.html',
-  styleUrls: ['../system-setup/system-setup.css', './numbering.css'],
+  // ar-transaction-types.css carries the shared copy-picker row styles.
+  styleUrls: ['../system-setup/system-setup.css', '../ar-transaction-types/ar-transaction-types.css', './numbering.css'],
 })
 export class NumberingComponent implements OnInit {
   private readonly service = inject(NumberingService);
@@ -257,6 +259,115 @@ export class NumberingComponent implements OnInit {
         this.togglingId.set(null);
       },
     });
+  }
+
+  // --- Copy from company (2026-09-07, mirrors the Transaction Type copy):
+  // sources = the caller's OTHER companies (server re-validates access); the
+  // candidate step previews each configured series (show-expected-results) -
+  // purposes already configured here are marked and unselectable, new rows
+  // pre-selected. Only the CONFIG copies; counters start fresh.
+  readonly copyOpen = signal(false);
+  readonly copyView = signal<'company' | 'pick'>('company');
+  readonly copySources = signal<{ id: string; name: string }[]>([]);
+  readonly copySource = signal<{ id: string; name: string } | null>(null);
+  readonly copyCandidates = signal<NumberingCopyCandidate[]>([]);
+  readonly copyLoading = signal(false);
+  readonly copyBusy = signal(false);
+  readonly copySelected = signal<Set<string>>(new Set());
+  readonly copySelectableCount = computed(() => this.copyCandidates().filter((c) => !c.exists).length);
+  readonly copySelectedCount = computed(() => this.copySelected().size);
+
+  openCopy(): void {
+    this.clearMessages();
+    this.copyView.set('company');
+    this.copySource.set(null);
+    this.copyCandidates.set([]);
+    this.copySelected.set(new Set());
+    this.copyOpen.set(true);
+    this.copyLoading.set(true);
+    this.service.copySources(this.module).subscribe({
+      next: (res) => {
+        this.copySources.set(res.companies);
+        this.copyLoading.set(false);
+        if (!res.companies.length) {
+          this.copyOpen.set(false);
+          this.errorMessage.set('You have access to no other company to copy from.');
+        }
+      },
+      error: (err) => {
+        this.copyLoading.set(false);
+        this.copyOpen.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to load your companies.');
+      },
+    });
+  }
+
+  pickCopySource(company: { id: string; name: string }): void {
+    this.copySource.set(company);
+    this.copyView.set('pick');
+    this.copyLoading.set(true);
+    this.copyCandidates.set([]);
+    this.service.copyCandidates(this.module, company.id).subscribe({
+      next: (res) => {
+        this.copyCandidates.set(res.candidates);
+        this.copySelected.set(new Set(res.candidates.filter((c) => !c.exists).map((c) => c.id)));
+        this.copyLoading.set(false);
+      },
+      error: (err) => {
+        this.copyLoading.set(false);
+        this.copyView.set('company');
+        this.errorMessage.set(err.error?.message || 'Failed to load that company’s numbering schemes.');
+      },
+    });
+  }
+
+  copyBack(): void {
+    this.copyView.set('company');
+    this.copySource.set(null);
+    this.copyCandidates.set([]);
+    this.copySelected.set(new Set());
+  }
+
+  isCopySelected(id: string): boolean {
+    return this.copySelected().has(id);
+  }
+  toggleCopySelected(c: NumberingCopyCandidate): void {
+    if (c.exists) return;
+    const next = new Set(this.copySelected());
+    if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
+    this.copySelected.set(next);
+  }
+  allCopySelected(): boolean {
+    const selectable = this.copyCandidates().filter((c) => !c.exists);
+    return selectable.length > 0 && selectable.every((c) => this.copySelected().has(c.id));
+  }
+  toggleAllCopy(): void {
+    const selectable = this.copyCandidates().filter((c) => !c.exists);
+    this.copySelected.set(this.allCopySelected() ? new Set() : new Set(selectable.map((c) => c.id)));
+  }
+
+  doCopy(): void {
+    const src = this.copySource();
+    const ids = [...this.copySelected()];
+    if (!src || !ids.length || this.copyBusy()) return;
+    this.clearMessages();
+    this.copyBusy.set(true);
+    this.service.copySchemes(this.module, src.id, ids).subscribe({
+      next: (res) => {
+        this.copyBusy.set(false);
+        this.copyOpen.set(false);
+        this.successMessage.set(res.message);
+        this.load();
+      },
+      error: (err) => {
+        this.copyBusy.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to copy numbering schemes.');
+      },
+    });
+  }
+
+  closeCopy(): void {
+    this.copyOpen.set(false);
   }
 
   private clearMessages(): void {

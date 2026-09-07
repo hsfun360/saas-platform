@@ -373,6 +373,22 @@ export interface ArAnalysisSetup {
   availableModules: { moduleId: string; name: string }[];
 }
 
+// One source-company dimension in the Analysis Setup "Copy from company"
+// preview, flagged with what the copy would do in the target company.
+export interface ArAnalysisCopyCandidate {
+  id: string;
+  name: string;
+  dimensionNo: number | null;
+  parentName: string | null;
+  parentExistsHere: boolean;
+  optionCount: number;
+  moduleNames: string[];
+  exists: boolean;
+  numberTaken: boolean;
+  noModuleHere: boolean;
+  modulesDropped: boolean;
+}
+
 // The entry dialogs' picker meta: one entry per number-assigned active dimension.
 export interface ArAnalysisEntryMeta {
   categoryId: string;

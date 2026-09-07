@@ -27,6 +27,15 @@
     </div>
   }
 
+  @if (!loading()) {
+    <div style="display: flex; justify-content: flex-end; margin-bottom: var(--space-sm);">
+      <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="openCopy()">
+        <span class="material-icons" aria-hidden="true">content_copy</span>
+        Copy from company
+      </button>
+    </div>
+  }
+
   @if (loading()) {
     <div class="loading-state"><div class="spinner large"></div><p>Loading numbering control…</p></div>
   } @else if (schemes().length === 0) {
@@ -164,6 +173,65 @@
         <button type="submit" form="numberingForm" class="btn btn--primary" [disabled]="saving()">
           {{ saving() ? 'Saving…' : 'Save' }}
         </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Copy from company (centered preview + selection picker) ============ -->
+  @if (copyOpen()) {
+    <app-dialog #copyDlg [title]="copyView() === 'company' ? 'Copy numbering — select company' : 'Copy from ' + (copySource()?.name || '')"
+                [busy]="copyBusy()" (close)="closeCopy()">
+      @if (copyLoading()) {
+        <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+      } @else if (copyView() === 'company') {
+        <p class="cell-subtle" style="margin-top: 0;">Only companies you have access to are listed. You pick exactly which series to copy in the next step.</p>
+        <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+          @for (c of copySources(); track c.id) {
+            <button type="button" class="btn btn--secondary dlg-pick" (click)="pickCopySource(c)">
+              <span class="material-icons" aria-hidden="true">business</span>
+              <span class="dlg-pick__text"><strong>{{ c.name }}</strong></span>
+            </button>
+          }
+        </div>
+      } @else {
+        @if (copyCandidates().length === 0) {
+          <div class="empty-state"><span class="empty-icon">📭</span><p>{{ copySource()?.name }} has no active numbering schemes to copy.</p></div>
+        } @else {
+          <p class="cell-subtle" style="margin-top: 0;">The copy brings the configuration only — numbering here always starts fresh from the starting number.</p>
+          <label class="att-copy__all">
+            <input type="checkbox" [checked]="allCopySelected()" (change)="toggleAllCopy()"
+                   [disabled]="copySelectableCount() === 0" />
+            Select all new ({{ copySelectableCount() }} of {{ copyCandidates().length }})
+          </label>
+          <div class="att-copy__list">
+            @for (c of copyCandidates(); track c.id) {
+              <label class="att-copy__row" [class.att-copy__row--exists]="c.exists">
+                <input type="checkbox" [checked]="isCopySelected(c.id)" (change)="toggleCopySelected(c)" [disabled]="c.exists" />
+                <span class="att-copy__text">
+                  <span>
+                    <strong>{{ c.purposeLabel }}</strong>
+                    <span class="cell-subtle">
+                      {{ modeLabel(c.mode) }}@if (c.mode === 'auto') { · First here: {{ c.nextPreview }} · Resets {{ resetRuleLabel(c.resetRule) }} }
+                    </span>
+                  </span>
+                  @if (c.exists) {
+                    <span class="att-copy__note">Already configured here — will be skipped.</span>
+                  }
+                </span>
+              </label>
+            }
+          </div>
+        }
+      }
+      <ng-container dialogFooter>
+        @if (copyView() === 'pick') {
+          <button type="button" class="btn btn--secondary" (click)="copyBack()" [disabled]="copyBusy()">Back</button>
+          <button type="button" class="btn btn--primary" (click)="doCopy()" [disabled]="copyBusy() || copySelectedCount() === 0">
+            {{ copyBusy() ? 'Copying…' : 'Copy ' + copySelectedCount() + ' scheme(s)' }}
+          </button>
+        } @else {
+          <button type="button" class="btn btn--secondary" (click)="copyDlg.requestClose()">Cancel</button>
+        }
       </ng-container>
     </app-dialog>
   }

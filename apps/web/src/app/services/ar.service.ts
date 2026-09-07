@@ -6,6 +6,7 @@ import {
   ArAccount,
   ArAccountMeta,
   ArAnalysisCategory,
+  ArAnalysisCopyCandidate,
   ArAnalysisOption,
   ArAnalysisSetup,
   ArAnalysisCategoryPayload,
@@ -460,6 +461,20 @@ export class ArService {
 
   setAnalysisOptionActive(id: string, isActive: boolean): Observable<{ message: string; option: ArAnalysisOption }> {
     return this.http.patch<{ message: string; option: ArAnalysisOption }>(`${this.dimensionBase}/options/${id}`, { isActive });
+  }
+
+  // Copy dimensions (with options + module assignments) from another company
+  // the caller has access to - preview + selection, skip existing names.
+  analysisCopySources(): Observable<{ companies: { id: string; name: string }[] }> {
+    return this.http.get<{ companies: { id: string; name: string }[] }>(`${this.dimensionBase}/copy-sources`);
+  }
+
+  analysisCopyCandidates(companyId: string): Observable<{ candidates: ArAnalysisCopyCandidate[] }> {
+    return this.http.get<{ candidates: ArAnalysisCopyCandidate[] }>(`${this.dimensionBase}/copy-sources/${companyId}`);
+  }
+
+  copyAnalysisDimensions(sourceCompanyId: string, ids: string[]): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.dimensionBase}/copy`, { sourceCompanyId, ids });
   }
 
   // --- Exchange Rates (multicurrency step 1, 2026-08-21) ---
