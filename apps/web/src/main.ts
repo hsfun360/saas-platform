@@ -239,9 +239,16 @@ export const appConfig: ApplicationConfig = {
 export function MSALInstanceFactory(): IPublicClientApplication {
   return new PublicClientApplication({
     auth: {
-      clientId: 'eceb828c-0816-4ccf-b4b5-9e05061d3526', // Your Entra ID
+      // ONE Entra app registration serves every environment - unlike Google
+      // (whose client must pair with the API's secret), the SPA code+PKCE flow
+      // has no backend secret, so environments differ only by redirect URI.
+      clientId: 'eceb828c-0816-4ccf-b4b5-9e05061d3526',
       authority: 'https://login.microsoftonline.com/common',
-      redirectUri: 'http://localhost:4200/login' // Must match your Entra app registration
+      // Derived from the current origin so the SAME web image works on
+      // localhost, dev, staging and prod. Each environment's <origin>/login
+      // must be registered as a Single-page application redirect URI on the
+      // Entra app registration, or Microsoft refuses the request (AADSTS9002326).
+      redirectUri: window.location.origin + '/login'
     },
     cache: {
       cacheLocation: 'sessionStorage', // sessionStorage is safer for redirects
