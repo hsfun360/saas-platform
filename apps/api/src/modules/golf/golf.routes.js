@@ -23,6 +23,7 @@ router.use(requireModule('GOLF'));
 router.use('/unit-courses', unitCourseRoutes);
 router.use('/courses', courseRoutes);
 router.use('/transaction-types', requireMenuAction('/golf/transaction-types'), transactionTypesRoutes);
+router.use('/payment-types', requireMenuAction('/golf/payment-types'), require('./paymentTypes.routes'));
 
 // --- Numbering Control (golf-owned series: booking / registration / bill /
 // rain check; split per module 2026-08-05) ---

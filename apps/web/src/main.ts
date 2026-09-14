@@ -214,6 +214,7 @@ const routes: Routes = [
       { path: 'golf/courses', loadComponent: () => import('./app/golf-courses/golf-courses').then((m) => m.GolfCoursesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Master File Setup → Transaction Type (golf billing-item catalog).
       { path: 'golf/transaction-types', loadComponent: () => import('./app/golf-transaction-types/golf-transaction-types').then((m) => m.GolfTransactionTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      { path: 'golf/payment-types', loadComponent: () => import('./app/golf-payment-types/golf-payment-types').then((m) => m.GolfPaymentTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Shown when systemAccessGuard denies a route (no guard on this one).
       { path: 'access-denied', loadComponent: () => import('./app/access-denied/access-denied').then((m) => m.AccessDeniedComponent) },
 

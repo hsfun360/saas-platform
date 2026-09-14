@@ -1281,6 +1281,19 @@ export interface GolfTransactionTypeElement {
   sortOrder?: number;
 }
 
+// Golf Payment Type master row - the settlement-tender catalog the front desk
+// picks from when a bill is paid. paymentClass is a fixed vocabulary
+// (debtor/cash/member/voucher/staff/online/suspend/creditcard).
+export interface GolfPaymentType {
+  id: string;
+  canModify?: boolean;
+  paymentType: string;
+  paymentClass: string;          // one of the meta paymentClasses[].key
+  description?: string | null;
+  iconUrl?: string | null;
+  isActive?: boolean;
+}
+
 // One effective-dated price card of a golf Transaction Type. Matrix charge
 // types (green/caddy/buggy fee) fill the eight member/visitor × 9/18 ×
 // weekday/weekend cells; flat charge types (no-show/miscellaneous) fill

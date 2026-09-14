@@ -66,6 +66,7 @@ const CompanyWeekendDay = require('../modules/saas/companyWeekendDay.model'); //
 const MembershipNumberingScheme = require('../modules/membership/numberingScheme.model');
 const ArNumberingScheme = require('../modules/ar/numberingScheme.model');
 const GolfNumberingScheme = require('../modules/golf/numberingScheme.model'); // golf-* series (booking/registration/bill/raincheck); no associations, required so sync creates the table
+const GolfPaymentType = require('../modules/golf/paymentType.model'); // settlement-tender master (companyId value ref; no associations)
 const ArExchangeRate = require('../modules/ar/exchangeRate.model'); // AR-owned effective-dated FX rates vs the company base currency (companyId + Currency.code value refs; no associations)
 const ArTaxLedger = require('../modules/ar/taxLedger.model'); // per-component tax breakdown frozen behind each Ledger document's tax snapshot (docType/docId value ref to ar.Ledger; no associations)
 // Shared Dimension capability (financial-analysis dimensions, promoted

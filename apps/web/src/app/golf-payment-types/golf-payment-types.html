@@ -1,0 +1,185 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">payments</span>
+      <div>
+        <h1>{{ 'Payment Type' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The settlement-tender catalog — how bills are paid at the golf front desk, each with its payment class.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (rows().length > 0) {
+        {{ rows().length }} payment types, {{ activeCount() }} active
+      } @else {
+        No payment types yet — use "New payment type" to add one.
+      }
+    </span>
+  </div>
+
+  <!-- Live filter -->
+  @if (!loading() && rows().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <input #gptSearchBox type="search" [value]="search()" (input)="search.set(gptSearchBox.value)"
+             placeholder="Search payment types…" aria-label="Search payment types" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading payment types…</p></div>
+  } @else if (rows().length === 0) {
+    <div class="empty-state"><span class="empty-icon">📭</span><p>No payment types yet. Use "New payment type" to add one (e.g. CASH — Cash, VISA — Visa Card).</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🔍</span>
+      <p>No payment types match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (t of filtered(); track t.id) {
+        <div class="data-card" [attr.data-return-id]="t.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="gpt-main">
+                @if (t.iconUrl) {
+                  <img class="gpt-thumb" [src]="t.iconUrl" [alt]="t.paymentType + ' icon'" />
+                }
+                <div class="gpt-info">
+                  <div class="data-card__title">{{ t.paymentType }}</div>
+                  <div class="data-card__subline">
+                    <span class="mt-chip">{{ classLabel(t.paymentClass) }}</span>
+                    @if (t.description) { <span class="data-card__reg">{{ t.description }}</span> }
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (t.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              @if (t.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+                <ng-container *appCan="'edit'">
+                  <app-overflow-menu [label]="'More actions for ' + t.paymentType">
+                    <button type="button" appMenuItem (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                      <span class="material-icons" aria-hidden="true">{{ t.isActive === false ? 'check_circle' : 'block' }}</span>
+                      {{ t.isActive === false ? 'Enable' : 'Disable' }}
+                    </button>
+                  </app-overflow-menu>
+                </ng-container>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New payment type FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New payment type">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New payment type</span>
+  </button>
+
+  <!-- ============ Add / edit dialog ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this payment type. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="gptForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-group">
+            <label for="gptCode">Payment Type <span class="required">*</span></label>
+            <input id="gptCode" type="text" formControlName="paymentType" placeholder="e.g. CASH" autocomplete="off" maxlength="50"
+                   [attr.aria-invalid]="showError(form.controls.paymentType)" aria-describedby="gptCodeErr" />
+            @if (showError(form.controls.paymentType)) {
+              <p id="gptCodeErr" class="field-error" role="alert">
+                @if (form.controls.paymentType.errors?.['required']) { Payment type is required. }
+                @else { Use 50 characters or fewer. }
+              </p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="gptClass">Payment Class <span class="required">*</span></label>
+            <select id="gptClass" formControlName="paymentClass"
+                    [attr.aria-invalid]="showError(form.controls.paymentClass)" aria-describedby="gptClassErr">
+              <option value="">— Select —</option>
+              @for (c of paymentClasses(); track c.key) {
+                <option [value]="c.key">{{ c.label }}</option>
+              }
+            </select>
+            @if (showError(form.controls.paymentClass)) {
+              <p id="gptClassErr" class="field-error" role="alert">Select the payment class.</p>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="gptDesc">Description</label>
+            <input id="gptDesc" type="text" formControlName="description" placeholder="e.g. Visa Card" maxlength="255" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="gptIcon">Icon</label>
+            @if (form.controls.iconUrl.value) {
+              <img class="gpt-icon-preview" [src]="form.controls.iconUrl.value" alt="Payment-type icon preview" />
+            }
+            <div class="gpt-icon-actions">
+              <input #gptIconFile id="gptIcon" type="file" accept="image/*" class="gpt-icon-file"
+                     (change)="onIconSelected(gptIconFile)" />
+              <button type="button" class="btn btn--secondary btn--sm" (click)="gptIconFile.click()" [disabled]="uploading()">
+                {{ uploading() ? 'Uploading…' : (form.controls.iconUrl.value ? 'Replace icon' : 'Upload icon') }}
+              </button>
+              @if (form.controls.iconUrl.value) {
+                <button type="button" class="btn btn--danger btn--sm" (click)="removeIcon()" [disabled]="uploading()">Remove</button>
+              }
+            </div>
+            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Shown on the front-desk settlement tiles (square images look best, up to 2 MB).</p>
+          </div>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="gptForm" class="btn btn--primary" [disabled]="saving() || uploading()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

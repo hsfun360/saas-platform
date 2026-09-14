@@ -1,0 +1,44 @@
+/* Golf Payment Types - icon bits only; shared listing/dialog chrome comes
+   from system-setup.css / styles.css. All colours are theme tokens. */
+
+/* Listing card with the tender icon leading the text (like golf masters). */
+.gpt-main {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+  min-width: 0;
+}
+.gpt-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.gpt-info {
+  min-width: 0;
+}
+
+/* Icon upload in the drawer - visually hidden file input, button-driven. */
+.gpt-icon-preview {
+  display: block;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-bottom: var(--space-sm);
+}
+.gpt-icon-actions {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+.gpt-icon-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
