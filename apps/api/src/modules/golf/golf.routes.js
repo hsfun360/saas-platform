@@ -24,6 +24,18 @@ router.use('/unit-courses', unitCourseRoutes);
 router.use('/courses', courseRoutes);
 router.use('/transaction-types', requireMenuAction('/golf/transaction-types'), transactionTypesRoutes);
 
+// --- Numbering Control (golf-owned series: booking / registration / bill /
+// rain check; split per module 2026-08-05) ---
+const { makeNumberingRouter } = require('../../platform/numberingController');
+router.use(
+    '/numbering-schemes',
+    requireMenuAction('/golf/numbering'),
+    makeNumberingRouter({
+        model: require('./numberingScheme.model'),
+        purposes: require('../saas/numberingScheme.constants').GOLF_NUMBERING_PURPOSES,
+    }),
+);
+
 // Not-yet-built areas of the service still 501 rather than 404, so a caller can
 // tell "wrong URL" from "planned but not implemented".
 router.use((req, res) => res.status(501).json({ message: 'This part of Golf Management is not implemented yet.' }));

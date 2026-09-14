@@ -6,11 +6,11 @@ import { NumberingCopyCandidate, NumberingScheme, NumberingSchemeMeta } from '..
 
 // Which module's numbering table a screen instance maintains (split 2026-08-05:
 // each product owns its schemes; the route provides the module).
-export type NumberingModule = 'membership' | 'ar';
+export type NumberingModule = 'membership' | 'golf' | 'ar';
 
 // Numbering Control - per-company document numbering config, maintained per
-// owning module (/membership/numbering, /ar/numbering). Consumed by products
-// via the server-side numbering gateway.
+// owning module (/membership/numbering, /golf/numbering, /ar/numbering).
+// Consumed by products via the server-side numbering gateway.
 @Injectable({ providedIn: 'root' })
 export class NumberingService {
   private readonly http = inject(HttpClient);

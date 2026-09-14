@@ -12,9 +12,9 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 import { CanDirective } from '../shared/can.directive';
 
 // Numbering Control - per-company document numbering, ONE screen instance per
-// OWNING MODULE (split 2026-08-05): /membership/numbering and /ar/numbering
-// share this component; the route's `numberingModule` data picks the module's
-// table + purpose list. `mode` decides auto-generate vs manual entry; for
+// OWNING MODULE (split 2026-08-05): /membership/numbering, /golf/numbering and
+// /ar/numbering share this component; the route's `numberingModule` data picks
+// the module's table + purpose list. `mode` decides auto-generate vs manual entry; for
 // auto, the format tokens + counter build the number. Live preview mirrors the
 // server generator. Reactive Forms + the dialog dirty-guard.
 @Component({

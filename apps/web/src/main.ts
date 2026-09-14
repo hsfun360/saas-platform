@@ -102,6 +102,7 @@ const routes: Routes = [
       // Numbering Control - split per owning module 2026-08-05 (one shared
       // component; the route data picks the module's table + purposes).
       { path: 'membership/numbering', loadComponent: () => import('./app/numbering/numbering').then((m) => m.NumberingComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP', numberingModule: 'membership' } },
+      { path: 'golf/numbering', loadComponent: () => import('./app/numbering/numbering').then((m) => m.NumberingComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF', numberingModule: 'golf' } },
       { path: 'ar/numbering', loadComponent: () => import('./app/numbering/numbering').then((m) => m.NumberingComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR', numberingModule: 'ar' } },
       { path: 'admin/titles', loadComponent: () => import('./app/titles/titles').then((m) => m.TitlesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
       { path: 'admin/public-holidays', loadComponent: () => import('./app/public-holidays/public-holidays').then((m) => m.PublicHolidaysComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },

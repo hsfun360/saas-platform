@@ -15,6 +15,7 @@ const { getUserContext } = require('./serviceContext');
 // as the documents it numbers. New purposes register here.
 function modelForPurpose(purpose) {
     if (String(purpose).startsWith('ar-')) return require('../modules/ar/numberingScheme.model');
+    if (String(purpose).startsWith('golf-')) return require('../modules/golf/numberingScheme.model');
     return require('../modules/membership/numberingScheme.model');
 }
 

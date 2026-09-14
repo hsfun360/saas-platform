@@ -22,6 +22,14 @@ const RESET_RULES = [
 const MEMBERSHIP_NUMBERING_PURPOSES = [
     { key: 'membership', label: 'Membership No.' },
 ];
+// Golf-owned series (user decision 2026-09-14), ordered by the flight
+// lifecycle: book -> register -> bill -> rain check.
+const GOLF_NUMBERING_PURPOSES = [
+    { key: 'golf-booking', label: 'Booking No.' },
+    { key: 'golf-registration', label: 'Registration No.' },
+    { key: 'golf-bill', label: 'Bill No.' },
+    { key: 'golf-raincheck', label: 'Rain Check No.' },
+];
 // Ordered to mirror the AR transaction CLASS list (invoice, DN, CN, interest,
 // deposit, receipt, refund) so the two vocabularies read in step.
 const AR_NUMBERING_PURPOSES = [
@@ -36,7 +44,7 @@ const AR_NUMBERING_PURPOSES = [
     { key: 'ar-other-debtor', label: 'Other Debtor Code' },
 ];
 // Combined view (gateway validation, legacy meta).
-const NUMBERING_PURPOSES = [...MEMBERSHIP_NUMBERING_PURPOSES, ...AR_NUMBERING_PURPOSES];
+const NUMBERING_PURPOSES = [...MEMBERSHIP_NUMBERING_PURPOSES, ...GOLF_NUMBERING_PURPOSES, ...AR_NUMBERING_PURPOSES];
 
 // Placeholders allowed in a scheme's `format`. Documented for the screen's help.
 //   {PREFIX} - the scheme's prefix string
@@ -61,6 +69,7 @@ module.exports = {
     RESET_RULES,
     NUMBERING_PURPOSES,
     MEMBERSHIP_NUMBERING_PURPOSES,
+    GOLF_NUMBERING_PURPOSES,
     AR_NUMBERING_PURPOSES,
     FORMAT_TOKENS,
     NUMBERING_MODE_KEYS,
