@@ -64,7 +64,9 @@
                 <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Opens the daily window this many hours before midnight — no need to wait for 12:00am.</p>
               </div>
             </div>
-            <p class="gs-preview">{{ windowPreview() }}</p>
+            @if (windowPreview(); as preview) {
+              <p class="gs-preview">{{ preview }}</p>
+            }
 
             <div class="form-row" style="margin-top: var(--space-md);">
               <label class="gs-check">

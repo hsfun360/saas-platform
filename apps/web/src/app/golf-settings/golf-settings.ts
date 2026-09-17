@@ -125,8 +125,11 @@ export class GolfSettingsComponent implements OnInit {
     this.ovDirty.set(true);
   }
 
-  // Live preview of the window rule with the current numbers.
+  // Live preview of the window rule with the current numbers. Hidden while
+  // either number is out of range - the field errors speak then (a 25-hour
+  // value once previewed as "-1:00 am").
   windowPreview(): string {
+    if (this.form.controls.advanceBookingDays.invalid || this.form.controls.advanceBookingHours.invalid) return '';
     const days = Number(this.form.controls.advanceBookingDays.value) || 0;
     const hours = Number(this.form.controls.advanceBookingHours.value) || 0;
     if (hours === 0) return `Bookings for a play date open ${days} day(s) before, at 12:00 midnight.`;
