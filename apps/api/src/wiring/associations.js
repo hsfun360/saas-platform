@@ -73,6 +73,10 @@ const GolfPaymentType = require('../modules/golf/paymentType.model'); // settlem
 // associations; required here so sync creates the tables.
 const Golfer = require('../modules/golf/golfer.model');
 const OtherGolfer = require('../modules/golf/otherGolfer.model');
+// Golf Specification singleton + advance-booking override lines (2026-09-17):
+// membershipTypeId stays a plain value ref (gateway-validated); no associations.
+const GolfSetting = require('../modules/golf/golfSetting.model');
+const AdvanceBookingOverride = require('../modules/golf/advanceBookingOverride.model');
 const ArExchangeRate = require('../modules/ar/exchangeRate.model'); // AR-owned effective-dated FX rates vs the company base currency (companyId + Currency.code value refs; no associations)
 const ArTaxLedger = require('../modules/ar/taxLedger.model'); // per-component tax breakdown frozen behind each Ledger document's tax snapshot (docType/docId value ref to ar.Ledger; no associations)
 // Shared Dimension capability (financial-analysis dimensions, promoted

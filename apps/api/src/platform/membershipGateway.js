@@ -241,6 +241,24 @@ async function classifyParties(companyId, { membershipIds = [], memberIds = [] }
     return out;
 }
 
+// The company's membership-type catalog for GOLF configuration pickers
+// (advance-booking overrides): id + category code + description + the golfing
+// right. Golf screens consume this through their own endpoints so a golf
+// admin never needs Membership menu grants.
+// WHEN SPLIT: GET {internalServiceUrl('membership')}/internal/membership-types
+async function listMembershipTypes(companyId, { activeOnly = true } = {}) {
+    if (!companyId) return [];
+    const MembershipType = require('../modules/membership/membershipType.model');
+    const where = { companyId };
+    if (activeOnly) where.isActive = true;
+    const rows = await MembershipType.findAll({
+        where,
+        attributes: ['id', 'category', 'description', 'isGolfAllow'],
+        order: [['category', 'ASC']],
+    });
+    return rows.map((r) => ({ id: r.id, category: r.category, description: r.description, isGolfAllow: r.isGolfAllow === true }));
+}
+
 module.exports = {
     lookupPartyDisplay,
     searchPartyIds,
@@ -248,4 +266,5 @@ module.exports = {
     listDebtorPersons,
     lookupPartyBilling,
     classifyParties,
+    listMembershipTypes,
 };

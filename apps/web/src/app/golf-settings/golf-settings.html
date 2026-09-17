@@ -1,0 +1,122 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">tune</span>
+      <div>
+        <h1>{{ 'Golf Specification' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Golf-wide settings for this club — booking rules today, more as the module grows.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading golf specification…</p></div>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+
+      <!-- ============ Booking Rules ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('booking')"
+                [attr.aria-expanded]="isExpanded('booking')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Booking Rules</span>
+            <span class="settings-header__sub">How far in advance flights can be booked — and when the daily window opens.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('booking')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('booking')) {
+          <div class="settings-body">
+            <div class="gs-grid">
+              <div class="form-group">
+                <label for="gsDays">Advance Booking Days <span class="required">*</span></label>
+                <input id="gsDays" type="number" inputmode="numeric" min="0" max="365" step="1" formControlName="advanceBookingDays"
+                       [attr.aria-invalid]="showError(form.controls.advanceBookingDays)" aria-describedby="gsDaysErr" />
+                @if (showError(form.controls.advanceBookingDays)) {
+                  <p id="gsDaysErr" class="field-error" role="alert">Enter a whole number between 0 and 365.</p>
+                }
+                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The general rule for everyone — members and public golfers.</p>
+              </div>
+              <div class="form-group">
+                <label for="gsHours">Advance Booking Hours <span class="required">*</span></label>
+                <input id="gsHours" type="number" inputmode="numeric" min="0" max="23" step="1" formControlName="advanceBookingHours"
+                       [attr.aria-invalid]="showError(form.controls.advanceBookingHours)" aria-describedby="gsHoursErr" />
+                @if (showError(form.controls.advanceBookingHours)) {
+                  <p id="gsHoursErr" class="field-error" role="alert">Enter a whole number between 0 and 23.</p>
+                }
+                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Opens the daily window this many hours before midnight — no need to wait for 12:00am.</p>
+              </div>
+            </div>
+            <p class="gs-preview">{{ windowPreview() }}</p>
+
+            <div class="form-row" style="margin-top: var(--space-md);">
+              <label class="gs-check">
+                <input type="checkbox" formControlName="allowMembershipTypeOverride" />
+                <span>Allow Membership Type to override the advance booking days</span>
+              </label>
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Grants selected membership types the privilege to book earlier than the general rule. The hours above always apply club-wide.</p>
+            </div>
+
+            @if (overridesOn()) {
+              <div class="gs-overrides">
+                @if (overrides().length > 0) {
+                  <div class="gs-ov-row gs-ov-row--head" aria-hidden="true">
+                    <span>Membership Type</span>
+                    <span>Days</span>
+                    <span></span>
+                  </div>
+                }
+                @for (row of overrides(); track $index; let i = $index) {
+                  <div class="gs-ov-row">
+                    <app-combobox [value]="row.membershipTypeId" (valueChange)="setOverrideType(i, $event)"
+                                  [options]="typeOptions()"
+                                  [allowEmpty]="true" emptyLabel="— Select —"
+                                  [ariaLabel]="'Override ' + (i + 1) + ' membership type'"
+                                  placeholder="Type to search…" />
+                    <input type="number" inputmode="numeric" min="0" max="365" step="1" [value]="row.advanceBookingDays"
+                           (input)="setOverrideDays(i, $any($event.target).value)"
+                           [attr.aria-label]="'Override ' + (i + 1) + ' advance booking days'" />
+                    <button type="button" class="btn btn--danger btn--sm" (click)="removeOverride(i)"
+                            [attr.aria-label]="'Remove override ' + (i + 1)">
+                      <span class="material-icons" aria-hidden="true">close</span>
+                    </button>
+                  </div>
+                }
+                <button type="button" class="btn btn--secondary btn--sm" (click)="addOverride()">
+                  <span class="material-icons" aria-hidden="true">add</span>
+                  Add override
+                </button>
+                @if (overrides().length === 0) {
+                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No overrides yet — every membership type follows the general days.</p>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="gs-actions" *appCan="'edit'">
+        <button type="submit" class="btn btn--primary" [disabled]="saving() || (!form.dirty && !ovDirty())">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </div>
+    </form>
+  }
+</div>

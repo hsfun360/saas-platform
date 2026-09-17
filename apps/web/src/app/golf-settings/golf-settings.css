@@ -1,0 +1,66 @@
+/* Golf Specification - screen-specific bits only; the section-card chrome
+   (.settings-card / .settings-header / .settings-body) is global in
+   styles.css. All colours are theme tokens. */
+
+/* Two-field row (collapses to one column on mobile via the global rule). */
+.gs-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-sm) var(--space-md);
+}
+@media (max-width: 767px) {
+  .gs-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Live window-rule preview line. */
+.gs-preview {
+  margin: var(--space-sm) 0 0;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--info-surface);
+  border: 1px solid var(--info-border);
+  color: var(--info-text);
+  border-radius: 8px;
+  font-size: var(--font-body-2);
+}
+
+.gs-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-height: 44px;
+}
+.gs-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* Override editor rows: type combobox flexes, days stays compact. */
+.gs-overrides {
+  margin-top: var(--space-sm);
+}
+.gs-ov-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.gs-ov-row--head {
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.gs-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-lg);
+}

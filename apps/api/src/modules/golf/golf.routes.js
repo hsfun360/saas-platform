@@ -25,6 +25,13 @@ router.use('/courses', courseRoutes);
 router.use('/transaction-types', requireMenuAction('/golf/transaction-types'), transactionTypesRoutes);
 router.use('/payment-types', requireMenuAction('/golf/payment-types'), require('./paymentTypes.routes'));
 
+// --- Golf Specification (per-company settings singleton + advance-booking
+// overrides; user decisions 2026-09-17) ---
+const golfSettingController = require('./golfSetting.controller');
+router.get('/settings', requireMenuAction('/golf/settings'), golfSettingController.get);
+router.get('/settings/membership-types', requireMenuAction('/golf/settings'), golfSettingController.getMembershipTypes);
+router.put('/settings', requireMenuAction('/golf/settings'), golfSettingController.save);
+
 // --- Numbering Control (golf-owned series: booking / registration / bill /
 // rain check; split per module 2026-08-05) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');
