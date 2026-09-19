@@ -5,6 +5,8 @@
 
 const GolfSetting = require('./golfSetting.model');
 const AdvanceBookingOverride = require('./advanceBookingOverride.model');
+const MinPlayerRule = require('./minPlayerRule.model');
+const Course = require('./course.model');
 const { sequelize } = require('../../platform/db');
 const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
 const { listMembershipTypes } = require('../../platform/membershipGateway');
@@ -13,7 +15,10 @@ function companyIdOf(req) {
     return getUserContext(req).companyId || null;
 }
 
-const DEFAULTS = { advanceBookingDays: 7, advanceBookingHours: 0, allowMembershipTypeOverride: false, allowBookingMerge: false };
+const DEFAULTS = {
+    advanceBookingDays: 7, advanceBookingHours: 0, allowMembershipTypeOverride: false,
+    allowBookingMerge: false, minPlayersWeekday: 1, minPlayersWeekend: 1,
+};
 
 function settingDto(row) {
     if (!row) return { ...DEFAULTS, saved: false };
@@ -22,8 +27,28 @@ function settingDto(row) {
         advanceBookingHours: row.advanceBookingHours,
         allowMembershipTypeOverride: row.allowMembershipTypeOverride === true,
         allowBookingMerge: row.allowBookingMerge === true,
+        minPlayersWeekday: row.minPlayersWeekday,
+        minPlayersWeekend: row.minPlayersWeekend,
         saved: true,
     };
+}
+
+const DAY_SCOPES = ['all', 'weekday', 'weekend'];
+
+// TIME values arrive as 'HH:MM' from the web time inputs (Postgres returns
+// 'HH:MM:SS'); normalize to 'HH:MM' both ways. Returns undefined when invalid.
+function parseTime(v) {
+    if (typeof v !== 'string') return undefined;
+    const m = v.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+    if (!m) return undefined;
+    const h = Number(m[1]);
+    const min = Number(m[2]);
+    if (h > 23 || min > 59) return undefined;
+    return `${m[1]}:${m[2]}`;
+}
+
+function timeDto(v) {
+    return v ? String(v).slice(0, 5) : null;
 }
 
 // Parse an integer within [min, max]. Returns undefined when invalid.
@@ -39,15 +64,23 @@ exports.get = async (req, res) => {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
-        const [row, overrides] = await Promise.all([
+        const [row, overrides, minPlayerRules] = await Promise.all([
             GolfSetting.findOne({ where: { companyId } }),
             AdvanceBookingOverride.findAll({ where: { companyId } }),
+            MinPlayerRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
         ]);
         res.status(200).json({
             setting: settingDto(row),
             overrides: overrides.map((o) => ({
                 membershipTypeId: o.membershipTypeId,
                 advanceBookingDays: o.advanceBookingDays,
+            })),
+            minPlayerRules: minPlayerRules.map((r) => ({
+                courseId: r.courseId,
+                dayScope: r.dayScope,
+                startTime: timeDto(r.startTime),
+                endTime: timeDto(r.endTime),
+                minPlayers: r.minPlayers,
             })),
         });
     } catch (error) {
@@ -71,6 +104,74 @@ exports.getMembershipTypes = async (req, res) => {
     }
 };
 
+// GET /api/golf/settings/courses - the course picker for the minimum-players
+// exception editor (same module, so a direct read; no /golf/courses menu
+// grant needed - mirror of the membership-types picker).
+exports.getCourses = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const courses = await Course.findAll({
+            where: { companyId },
+            attributes: ['id', 'courseCode', 'description', 'isActive'],
+            order: [['displaySequence', 'ASC'], ['courseCode', 'ASC']],
+        });
+        res.status(200).json({
+            courses: courses.map((c) => ({
+                id: c.id, courseCode: c.courseCode, description: c.description, isActive: c.isActive,
+            })),
+        });
+    } catch (error) {
+        console.error('Error listing courses for golf settings:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// Validate the minimum-players exception rows. Returns { error } or { rules }.
+// Rows with IDENTICAL (course, dayScope) must not overlap in time: at most one
+// whole-day row per key, and time bands within a key must not intersect.
+// Cross-specificity overlaps are allowed - resolution picks the most specific.
+function normalizeMinPlayerRules(raw, knownCourseIds) {
+    if (raw.length > 200) return { error: 'Too many minimum-player rules.' };
+    const rules = [];
+    for (const line of raw) {
+        if (!line || typeof line !== 'object') return { error: 'Invalid minimum-player rule line.' };
+        const courseId = line.courseId ? String(line.courseId) : null;
+        if (courseId && !knownCourseIds.has(courseId)) return { error: 'A minimum-player rule is not one of this company\'s courses.' };
+        const dayScope = String(line.dayScope || '');
+        if (!DAY_SCOPES.includes(dayScope)) return { error: 'Each minimum-player rule needs a day scope (all, weekday or weekend).' };
+        const hasStart = line.startTime !== null && line.startTime !== undefined && line.startTime !== '';
+        const hasEnd = line.endTime !== null && line.endTime !== undefined && line.endTime !== '';
+        if (hasStart !== hasEnd) return { error: 'A minimum-player rule time band needs both From and To times (or neither for the whole day).' };
+        let startTime = null;
+        let endTime = null;
+        if (hasStart) {
+            startTime = parseTime(line.startTime);
+            endTime = parseTime(line.endTime);
+            if (!startTime || !endTime) return { error: 'Minimum-player rule times must be valid times of day.' };
+            if (startTime >= endTime) return { error: 'A minimum-player rule\'s From time must be before its To time.' };
+        }
+        const minPlayers = parseIntIn(line.minPlayers, 1, 10);
+        if (minPlayers === undefined) return { error: 'Minimum players must be a whole number between 1 and 10.' };
+        rules.push({ courseId, dayScope, startTime, endTime, minPlayers });
+    }
+    const byKey = new Map();
+    for (const r of rules) {
+        const key = `${r.courseId || '*'}|${r.dayScope}`;
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key).push(r);
+    }
+    for (const group of byKey.values()) {
+        const wholeDay = group.filter((r) => !r.startTime);
+        if (wholeDay.length > 1) return { error: 'Two minimum-player rules cover the same course and day scope for the whole day.' };
+        const bands = group.filter((r) => r.startTime).sort((a, b) => (a.startTime < b.startTime ? -1 : 1));
+        for (let i = 1; i < bands.length; i += 1) {
+            if (bands[i].startTime < bands[i - 1].endTime) return { error: 'Two minimum-player rules for the same course and day scope have overlapping time bands.' };
+        }
+    }
+    return { rules };
+}
+
 // PUT /api/golf/settings - upsert the singleton + replace the override lines
 // atomically. Overrides are accepted (and stored) even while the flag is OFF,
 // so a club can stage them; they only take EFFECT while the flag is ON.
@@ -85,6 +186,10 @@ exports.save = async (req, res) => {
         if (advanceBookingHours === undefined) return res.status(400).json({ message: 'Advance booking hours must be a whole number between 0 and 23.' });
         const allowMembershipTypeOverride = req.body.allowMembershipTypeOverride === true;
         const allowBookingMerge = req.body.allowBookingMerge === true;
+        const minPlayersWeekday = parseIntIn(req.body.minPlayersWeekday, 1, 10);
+        if (minPlayersWeekday === undefined) return res.status(400).json({ message: 'Weekday minimum players must be a whole number between 1 and 10.' });
+        const minPlayersWeekend = parseIntIn(req.body.minPlayersWeekend, 1, 10);
+        if (minPlayersWeekend === undefined) return res.status(400).json({ message: 'Weekend minimum players must be a whole number between 1 and 10.' });
 
         const raw = Array.isArray(req.body.overrides) ? req.body.overrides : [];
         if (raw.length > 100) return res.status(400).json({ message: 'Too many override lines.' });
@@ -102,24 +207,39 @@ exports.save = async (req, res) => {
             overrides.push({ membershipTypeId: line.membershipTypeId, advanceBookingDays: days });
         }
 
+        const rawRules = Array.isArray(req.body.minPlayerRules) ? req.body.minPlayerRules : [];
+        const knownCourseIds = new Set((await Course.findAll({ where: { companyId }, attributes: ['id'] })).map((c) => c.id));
+        const ruleResult = normalizeMinPlayerRules(rawRules, knownCourseIds);
+        if (ruleResult.error) return res.status(400).json({ message: ruleResult.error });
+        const minPlayerRules = ruleResult.rules;
+
         const callerId = getUserContext(req).userId;
         const placement = await getCallerPlacement(req);
         const stamps = { createdBy: callerId, createdByDepartmentId: placement.departmentId, updatedBy: callerId };
 
         await sequelize.transaction(async (transaction) => {
             const existing = await GolfSetting.findOne({ where: { companyId }, transaction });
+            const values = {
+                advanceBookingDays, advanceBookingHours, allowMembershipTypeOverride, allowBookingMerge,
+                minPlayersWeekday, minPlayersWeekend,
+            };
             if (existing) {
-                Object.assign(existing, { advanceBookingDays, advanceBookingHours, allowMembershipTypeOverride, allowBookingMerge, updatedBy: callerId });
+                Object.assign(existing, { ...values, updatedBy: callerId });
                 await existing.save({ transaction });
             } else {
-                await GolfSetting.create({
-                    companyId, advanceBookingDays, advanceBookingHours, allowMembershipTypeOverride, allowBookingMerge, ...stamps,
-                }, { transaction });
+                await GolfSetting.create({ companyId, ...values, ...stamps }, { transaction });
             }
             await AdvanceBookingOverride.destroy({ where: { companyId }, transaction });
             if (overrides.length) {
                 await AdvanceBookingOverride.bulkCreate(
                     overrides.map((o) => ({ ...o, companyId, ...stamps })),
+                    { transaction },
+                );
+            }
+            await MinPlayerRule.destroy({ where: { companyId }, transaction });
+            if (minPlayerRules.length) {
+                await MinPlayerRule.bulkCreate(
+                    minPlayerRules.map((r) => ({ ...r, companyId, ...stamps })),
                     { transaction },
                 );
             }

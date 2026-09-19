@@ -9,6 +9,8 @@ import {
   GolfSettingService,
   GolfAdvanceBookingOverride,
   GolfMembershipTypeOption,
+  GolfMinPlayerRule,
+  GolfCourseOption,
 } from '../services/golf-setting.service';
 
 // Golf Management → Golf Specification (/golf/settings) - the per-company
@@ -35,21 +37,28 @@ export class GolfSettingsComponent implements OnInit {
   readonly errorMessage = signal('');
 
   readonly membershipTypes = signal<GolfMembershipTypeOption[]>([]);
+  readonly courses = signal<GolfCourseOption[]>([]);
 
   // Collapsible section state (section-card standard; sections start open).
-  readonly expanded = signal<Record<string, boolean>>({ booking: true });
+  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true });
 
   readonly form = this.fb.nonNullable.group({
     advanceBookingDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
     advanceBookingHours: [0, [Validators.required, Validators.min(0), Validators.max(23)]],
     allowMembershipTypeOverride: [false],
     allowBookingMerge: [false],
+    minPlayersWeekday: [1, [Validators.required, Validators.min(1), Validators.max(10)]],
+    minPlayersWeekend: [1, [Validators.required, Validators.min(1), Validators.max(10)]],
   });
 
   // Override lines kept outside the FormGroup (dynamic rows); ovDirty feeds
   // the Save state alongside form.dirty.
   readonly overrides = signal<GolfAdvanceBookingOverride[]>([]);
   readonly ovDirty = signal(false);
+
+  // Minimum-players exception rules (same dynamic-row pattern).
+  readonly minPlayerRules = signal<GolfMinPlayerRule[]>([]);
+  readonly mpDirty = signal(false);
 
   readonly typeOptions = computed(() =>
     this.membershipTypes().map((t) => ({
@@ -58,9 +67,17 @@ export class GolfSettingsComponent implements OnInit {
     })),
   );
 
+  readonly courseOptions = computed(() =>
+    this.courses().map((c) => ({
+      value: c.id,
+      label: `${c.courseCode}${c.description ? ' — ' + c.description : ''}${c.isActive ? '' : ' (inactive)'}`,
+    })),
+  );
+
   ngOnInit(): void {
     this.load();
     this.service.membershipTypes().subscribe({ next: (r) => this.membershipTypes.set(r.membershipTypes), error: () => {} });
+    this.service.courses().subscribe({ next: (r) => this.courses.set(r.courses), error: () => {} });
   }
 
   showError(control: AbstractControl): boolean {
@@ -94,9 +111,13 @@ export class GolfSettingsComponent implements OnInit {
           advanceBookingHours: doc.setting.advanceBookingHours,
           allowMembershipTypeOverride: doc.setting.allowMembershipTypeOverride,
           allowBookingMerge: doc.setting.allowBookingMerge,
+          minPlayersWeekday: doc.setting.minPlayersWeekday,
+          minPlayersWeekend: doc.setting.minPlayersWeekend,
         });
         this.overrides.set(doc.overrides);
         this.ovDirty.set(false);
+        this.minPlayerRules.set(doc.minPlayerRules ?? []);
+        this.mpDirty.set(false);
         this.loading.set(false);
       },
       error: (err) => {
@@ -125,6 +146,26 @@ export class GolfSettingsComponent implements OnInit {
     const days = Math.max(0, Math.min(365, Math.floor(Number(value) || 0)));
     this.overrides.update((rows) => rows.map((r, i) => (i === index ? { ...r, advanceBookingDays: days } : r)));
     this.ovDirty.set(true);
+  }
+
+  addRule(): void {
+    this.minPlayerRules.update((rows) => [...rows, { courseId: null, dayScope: 'all', startTime: null, endTime: null, minPlayers: 2 }]);
+    this.mpDirty.set(true);
+  }
+
+  removeRule(index: number): void {
+    this.minPlayerRules.update((rows) => rows.filter((_, i) => i !== index));
+    this.mpDirty.set(true);
+  }
+
+  setRule(index: number, patch: Partial<GolfMinPlayerRule>): void {
+    this.minPlayerRules.update((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+    this.mpDirty.set(true);
+  }
+
+  setRuleMin(index: number, value: string): void {
+    const min = Math.max(1, Math.min(10, Math.floor(Number(value) || 1)));
+    this.setRule(index, { minPlayers: min });
   }
 
   // Live preview of the window rule with the current numbers. Hidden while
@@ -156,6 +197,17 @@ export class GolfSettingsComponent implements OnInit {
       this.errorMessage.set('A membership type can only have one override line.');
       return;
     }
+    const rules = this.minPlayerRules();
+    for (const r of rules) {
+      if (!!r.startTime !== !!r.endTime) {
+        this.errorMessage.set('A minimum-players rule needs both From and To times — or neither for the whole day.');
+        return;
+      }
+      if (r.startTime && r.endTime && r.startTime >= r.endTime) {
+        this.errorMessage.set('A minimum-players rule\'s From time must be before its To time.');
+        return;
+      }
+    }
 
     const v = this.form.getRawValue();
     this.saving.set(true);
@@ -164,7 +216,10 @@ export class GolfSettingsComponent implements OnInit {
       advanceBookingHours: v.advanceBookingHours,
       allowMembershipTypeOverride: v.allowMembershipTypeOverride,
       allowBookingMerge: v.allowBookingMerge,
+      minPlayersWeekday: v.minPlayersWeekday,
+      minPlayersWeekend: v.minPlayersWeekend,
       overrides: rows,
+      minPlayerRules: rules,
     }).subscribe({
       next: (res) => {
         this.successMessage.set(res.message);

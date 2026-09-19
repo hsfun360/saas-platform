@@ -30,6 +30,7 @@ router.use('/payment-types', requireMenuAction('/golf/payment-types'), require('
 const golfSettingController = require('./golfSetting.controller');
 router.get('/settings', requireMenuAction('/golf/settings'), golfSettingController.get);
 router.get('/settings/membership-types', requireMenuAction('/golf/settings'), golfSettingController.getMembershipTypes);
+router.get('/settings/courses', requireMenuAction('/golf/settings'), golfSettingController.getCourses);
 router.put('/settings', requireMenuAction('/golf/settings'), golfSettingController.save);
 
 // --- Numbering Control (golf-owned series: booking / registration / bill /

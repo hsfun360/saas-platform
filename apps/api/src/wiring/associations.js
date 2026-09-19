@@ -77,6 +77,9 @@ const OtherGolfer = require('../modules/golf/otherGolfer.model');
 // membershipTypeId stays a plain value ref (gateway-validated); no associations.
 const GolfSetting = require('../modules/golf/golfSetting.model');
 const AdvanceBookingOverride = require('../modules/golf/advanceBookingOverride.model');
+// Minimum-players exception rules (2026-09-19): courseId stays a plain value
+// ref (NULL = every course); no associations.
+const MinPlayerRule = require('../modules/golf/minPlayerRule.model');
 const ArExchangeRate = require('../modules/ar/exchangeRate.model'); // AR-owned effective-dated FX rates vs the company base currency (companyId + Currency.code value refs; no associations)
 const ArTaxLedger = require('../modules/ar/taxLedger.model'); // per-component tax breakdown frozen behind each Ledger document's tax snapshot (docType/docId value ref to ar.Ledger; no associations)
 // Shared Dimension capability (financial-analysis dimensions, promoted

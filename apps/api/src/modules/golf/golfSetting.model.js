@@ -43,6 +43,22 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: false,
     },
+    // Minimum players per booking (spec 2.2.12; user decisions 2026-09-19) -
+    // the GENERAL rule per day type; 1 = no restriction. Per-course/time
+    // exceptions live in golf.MinPlayerRule (most specific rule wins).
+    // ENFORCEMENT: own player count meets the minimum OR joining brings the
+    // flight's total to the minimum.
+    minPlayersWeekday: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 1,
+    },
+    // Weekend + public holiday (classified via platform/calendarGateway.js).
+    minPlayersWeekend: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 1,
+    },
     // Merge booking (club-wide, user decision 2026-09-19). OFF = exclusive
     // flights: the first confirmed booking claims the whole flight, extra
     // players join only that same booking. ON = shared flights: bookings

@@ -122,8 +122,89 @@
         }
       </div>
 
+      <!-- ============ Minimum Players ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('minPlayers')"
+                [attr.aria-expanded]="isExpanded('minPlayers')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Minimum Players</span>
+            <span class="settings-header__sub">The fewest golfers a booking must bring — keep flights filled. 1 means no restriction.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('minPlayers')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('minPlayers')) {
+          <div class="settings-body">
+            <div class="gs-grid">
+              <div class="form-group">
+                <label for="gsMinWd">Weekday Minimum <span class="required">*</span></label>
+                <input id="gsMinWd" type="number" inputmode="numeric" min="1" max="10" step="1" formControlName="minPlayersWeekday"
+                       [attr.aria-invalid]="showError(form.controls.minPlayersWeekday)" aria-describedby="gsMinWdErr" />
+                @if (showError(form.controls.minPlayersWeekday)) {
+                  <p id="gsMinWdErr" class="field-error" role="alert">Enter a whole number between 1 and 10.</p>
+                }
+              </div>
+              <div class="form-group">
+                <label for="gsMinWe">Weekend &amp; Holiday Minimum <span class="required">*</span></label>
+                <input id="gsMinWe" type="number" inputmode="numeric" min="1" max="10" step="1" formControlName="minPlayersWeekend"
+                       [attr.aria-invalid]="showError(form.controls.minPlayersWeekend)" aria-describedby="gsMinWeErr" />
+                @if (showError(form.controls.minPlayersWeekend)) {
+                  <p id="gsMinWeErr" class="field-error" role="alert">Enter a whole number between 1 and 10.</p>
+                }
+              </div>
+            </div>
+            <p class="cell-subtle" style="margin: var(--space-sm) 0 0;">A booking passes when its own players meet the minimum — or when joining an existing flight brings the flight's total to it.</p>
+
+            <div class="gs-overrides">
+              @if (minPlayerRules().length > 0) {
+                <div class="gs-mp-row gs-mp-row--head" aria-hidden="true">
+                  <span>Course</span>
+                  <span>Days</span>
+                  <span>From</span>
+                  <span>To</span>
+                  <span>Min</span>
+                  <span></span>
+                </div>
+              }
+              @for (rule of minPlayerRules(); track $index; let i = $index) {
+                <div class="gs-mp-row">
+                  <app-combobox [value]="rule.courseId ?? ''" (valueChange)="setRule(i, { courseId: $event || null })"
+                                [options]="courseOptions()"
+                                [allowEmpty]="true" emptyLabel="Every course"
+                                [ariaLabel]="'Rule ' + (i + 1) + ' course'"
+                                placeholder="Every course" />
+                  <select [value]="rule.dayScope" (change)="setRule(i, { dayScope: $any($event.target).value })"
+                          [attr.aria-label]="'Rule ' + (i + 1) + ' day scope'">
+                    <option value="all">All days</option>
+                    <option value="weekday">Weekday</option>
+                    <option value="weekend">Weekend &amp; Holiday</option>
+                  </select>
+                  <input type="time" [value]="rule.startTime ?? ''" (change)="setRule(i, { startTime: $any($event.target).value || null })"
+                         [attr.aria-label]="'Rule ' + (i + 1) + ' from time'" />
+                  <input type="time" [value]="rule.endTime ?? ''" (change)="setRule(i, { endTime: $any($event.target).value || null })"
+                         [attr.aria-label]="'Rule ' + (i + 1) + ' to time'" />
+                  <input type="number" inputmode="numeric" min="1" max="10" step="1" [value]="rule.minPlayers"
+                         (input)="setRuleMin(i, $any($event.target).value)"
+                         [attr.aria-label]="'Rule ' + (i + 1) + ' minimum players'" />
+                  <button type="button" class="btn btn--danger btn--sm" (click)="removeRule(i)"
+                          [attr.aria-label]="'Remove rule ' + (i + 1)">
+                    <span class="material-icons" aria-hidden="true">close</span>
+                  </button>
+                </div>
+              }
+              <button type="button" class="btn btn--secondary btn--sm" (click)="addRule()">
+                <span class="material-icons" aria-hidden="true">add</span>
+                Add exception
+              </button>
+              @if (minPlayerRules().length === 0) {
+                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No exceptions — every flight follows the two general minimums. Add one for a course, day type or time band (empty times = whole day); the most specific rule wins.</p>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
       <div class="gs-actions" *appCan="'edit'">
-        <button type="submit" class="btn btn--primary" [disabled]="saving() || (!form.dirty && !ovDirty())">
+        <button type="submit" class="btn btn--primary" [disabled]="saving() || (!form.dirty && !ovDirty() && !mpDirty())">
           {{ saving() ? 'Saving…' : 'Save' }}
         </button>
       </div>

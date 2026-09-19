@@ -59,6 +59,33 @@
   color: var(--text-muted);
 }
 
+/* Minimum-players exception rows: course combobox flexes; day scope, times
+   and min stay compact. Collapses to a stacked block per rule on mobile. */
+.gs-mp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px 110px 110px 70px auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.gs-mp-row--head {
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+@media (max-width: 767px) {
+  .gs-mp-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border);
+  }
+  .gs-mp-row--head {
+    display: none;
+  }
+}
+
 .gs-actions {
   display: flex;
   justify-content: flex-end;
