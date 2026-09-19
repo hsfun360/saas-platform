@@ -14,6 +14,7 @@ export interface GolfSettingDoc {
     advanceBookingDays: number;
     advanceBookingHours: number;
     allowMembershipTypeOverride: boolean;
+    allowBookingMerge: boolean;
     saved: boolean;
   };
   overrides: GolfAdvanceBookingOverride[];
@@ -46,6 +47,7 @@ export class GolfSettingService {
     advanceBookingDays: number;
     advanceBookingHours: number;
     allowMembershipTypeOverride: boolean;
+    allowBookingMerge: boolean;
     overrides: GolfAdvanceBookingOverride[];
   }): Observable<{ message: string }> {
     return this.http.put<{ message: string }>(this.base, payload);

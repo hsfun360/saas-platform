@@ -43,6 +43,7 @@ export class GolfSettingsComponent implements OnInit {
     advanceBookingDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
     advanceBookingHours: [0, [Validators.required, Validators.min(0), Validators.max(23)]],
     allowMembershipTypeOverride: [false],
+    allowBookingMerge: [false],
   });
 
   // Override lines kept outside the FormGroup (dynamic rows); ovDirty feeds
@@ -92,6 +93,7 @@ export class GolfSettingsComponent implements OnInit {
           advanceBookingDays: doc.setting.advanceBookingDays,
           advanceBookingHours: doc.setting.advanceBookingHours,
           allowMembershipTypeOverride: doc.setting.allowMembershipTypeOverride,
+          allowBookingMerge: doc.setting.allowBookingMerge,
         });
         this.overrides.set(doc.overrides);
         this.ovDirty.set(false);
@@ -161,6 +163,7 @@ export class GolfSettingsComponent implements OnInit {
       advanceBookingDays: v.advanceBookingDays,
       advanceBookingHours: v.advanceBookingHours,
       allowMembershipTypeOverride: v.allowMembershipTypeOverride,
+      allowBookingMerge: v.allowBookingMerge,
       overrides: rows,
     }).subscribe({
       next: (res) => {

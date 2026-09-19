@@ -13,7 +13,7 @@ function companyIdOf(req) {
     return getUserContext(req).companyId || null;
 }
 
-const DEFAULTS = { advanceBookingDays: 7, advanceBookingHours: 0, allowMembershipTypeOverride: false };
+const DEFAULTS = { advanceBookingDays: 7, advanceBookingHours: 0, allowMembershipTypeOverride: false, allowBookingMerge: false };
 
 function settingDto(row) {
     if (!row) return { ...DEFAULTS, saved: false };
@@ -21,6 +21,7 @@ function settingDto(row) {
         advanceBookingDays: row.advanceBookingDays,
         advanceBookingHours: row.advanceBookingHours,
         allowMembershipTypeOverride: row.allowMembershipTypeOverride === true,
+        allowBookingMerge: row.allowBookingMerge === true,
         saved: true,
     };
 }
@@ -83,6 +84,7 @@ exports.save = async (req, res) => {
         const advanceBookingHours = parseIntIn(req.body.advanceBookingHours, 0, 23);
         if (advanceBookingHours === undefined) return res.status(400).json({ message: 'Advance booking hours must be a whole number between 0 and 23.' });
         const allowMembershipTypeOverride = req.body.allowMembershipTypeOverride === true;
+        const allowBookingMerge = req.body.allowBookingMerge === true;
 
         const raw = Array.isArray(req.body.overrides) ? req.body.overrides : [];
         if (raw.length > 100) return res.status(400).json({ message: 'Too many override lines.' });
@@ -107,11 +109,11 @@ exports.save = async (req, res) => {
         await sequelize.transaction(async (transaction) => {
             const existing = await GolfSetting.findOne({ where: { companyId }, transaction });
             if (existing) {
-                Object.assign(existing, { advanceBookingDays, advanceBookingHours, allowMembershipTypeOverride, updatedBy: callerId });
+                Object.assign(existing, { advanceBookingDays, advanceBookingHours, allowMembershipTypeOverride, allowBookingMerge, updatedBy: callerId });
                 await existing.save({ transaction });
             } else {
                 await GolfSetting.create({
-                    companyId, advanceBookingDays, advanceBookingHours, allowMembershipTypeOverride, ...stamps,
+                    companyId, advanceBookingDays, advanceBookingHours, allowMembershipTypeOverride, allowBookingMerge, ...stamps,
                 }, { transaction });
             }
             await AdvanceBookingOverride.destroy({ where: { companyId }, transaction });

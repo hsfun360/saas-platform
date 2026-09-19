@@ -43,6 +43,16 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: false,
     },
+    // Merge booking (club-wide, user decision 2026-09-19). OFF = exclusive
+    // flights: the first confirmed booking claims the whole flight, extra
+    // players join only that same booking. ON = shared flights: bookings
+    // attach to a flight until the slot's max players is reached. Read at
+    // booking time; flipping it never touches existing bookings.
+    allowBookingMerge: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     // Ownership stamps (RBAC data scope + future workflow).
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },
