@@ -39,6 +39,7 @@ export interface GolfSettingDoc {
     minPlayersWeekday: number;
     minPlayersWeekend: number;
     bookingLockMinutes: number;
+    oneBookingPerDay: boolean;
     guestControlEnabled: boolean;
     allowGuestWeekday: boolean;
     allowMemberGuestWeekday: boolean;
@@ -95,6 +96,7 @@ export class GolfSettingService {
     minPlayersWeekday: number;
     minPlayersWeekend: number;
     bookingLockMinutes: number;
+    oneBookingPerDay: boolean;
     guestControlEnabled: boolean;
     allowGuestWeekday: boolean;
     allowMemberGuestWeekday: boolean;

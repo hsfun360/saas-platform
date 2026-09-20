@@ -59,6 +59,17 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: 1,
     },
+    // One booking per day (user decisions 2026-09-20, default ON): a member
+    // may only be in ONE active booking per play date - counted when they are
+    // the BOOKER or a 'member' player line; member-as-guest lines are NOT
+    // counted, cancelled bookings free the day. Checked at search (prompt
+    // names the booked flight time) and re-checked at save for the booker AND
+    // every member player line.
+    oneBookingPerDay: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
     // Flight-lock duration in minutes (user decision 2026-09-20): how long a
     // clicked flight stays claimed (whole flight incl. crossover cell) while
     // the player list is keyed. 1-60; countdown shown on the player screen.

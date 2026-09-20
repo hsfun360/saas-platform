@@ -76,6 +76,33 @@ async function ensureMemberGolfer(companyId, standing, stamps, transaction) {
     return row;
 }
 
+// "08:05 (WEST, B260900001), 14:30 (EAST, ...)" - the flight list for a
+// one-booking-per-day conflict message.
+async function describeDayBookings(companyId, rows, { transaction } = {}) {
+    const courses = await Course.findAll({
+        where: { companyId, id: { [Op.in]: [...new Set(rows.map((r) => r.courseId))] } },
+        attributes: ['id', 'courseCode'],
+        transaction,
+    });
+    const codeById = new Map(courses.map((c) => [c.id, c.courseCode]));
+    return rows
+        .map((r) => `${availability.hhmm(r.startTime)} (${codeById.get(r.courseId) || 'course'}, ${r.bookingNo})`)
+        .join(', ');
+}
+
+// One-booking-per-day check for a member standing (null = no conflict). The
+// member's golfer identity may not exist yet (never booked) - no conflict.
+async function dayBookingConflict(companyId, standing, playDate, { transaction } = {}) {
+    const golfer = await Golfer.findOne({
+        where: { companyId, golferType: 'member', sourceId: standing.memberId },
+        transaction,
+    });
+    if (!golfer) return null;
+    const rows = await availability.memberDayBookings(companyId, golfer.id, playDate, { transaction });
+    if (!rows.length) return null;
+    return `${standing.memberNo} already has a booking on ${playDate} - ${await describeDayBookings(companyId, rows, { transaction })}.`;
+}
+
 function bookingDto(b, players, courseByIdMap) {
     const course = courseByIdMap ? courseByIdMap.get(b.courseId) : null;
     return {
@@ -167,6 +194,12 @@ async function parseSearch(req, body) {
     const window = await availability.bookingWindow(companyId, standing.membershipTypeId, timezone);
     if (playDate < window.dateFrom || playDate > window.dateTo) {
         return { error: `This member can book from ${window.dateFrom} to ${window.dateTo} (advance window).`, status: 400 };
+    }
+    // One booking per day (default ON): prompt at search which flight the
+    // member already holds on this date.
+    if (!window.setting || window.setting.oneBookingPerDay !== false) {
+        const conflict = await dayBookingConflict(companyId, standing, playDate);
+        if (conflict) return { error: conflict, status: 409 };
     }
     return { companyId, memberNo, playDate, holes, players, standing, window, timezone };
 }
@@ -416,6 +449,24 @@ exports.create = async (req, res) => {
                 if (line.standing && !golferByMemberId.has(line.standing.memberId)) {
                     const g = await ensureMemberGolfer(companyId, line.standing, stamps, transaction);
                     golferByMemberId.set(line.standing.memberId, g);
+                }
+            }
+
+            // One booking per day, re-checked under the advisory lock for the
+            // BOOKER and every 'member' player line (member-as-guest exempt).
+            if (!setting || setting.oneBookingPerDay !== false) {
+                const bookerRows = await availability.memberDayBookings(companyId, booker.id, playDate, { transaction });
+                if (bookerRows.length) {
+                    return { fail: `${standing.memberNo} already has a booking on ${playDate} - ${await describeDayBookings(companyId, bookerRows, { transaction })}.`, status: 400 };
+                }
+                for (const line of lines) {
+                    if (!line.standing || line.playerType !== 'member') continue;
+                    const g = golferByMemberId.get(line.standing.memberId);
+                    if (!g || g.id === booker.id) continue;
+                    const rows = await availability.memberDayBookings(companyId, g.id, playDate, { transaction });
+                    if (rows.length) {
+                        return { fail: `Player ${line.sortOrder}: ${line.memberNo} already has a booking on ${playDate} - ${await describeDayBookings(companyId, rows, { transaction })}.`, status: 400 };
+                    }
                 }
             }
 

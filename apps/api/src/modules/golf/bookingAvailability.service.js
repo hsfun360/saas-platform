@@ -305,6 +305,29 @@ function nearestFlights(flights, requestedTime, n) {
         .sort((a, b) => toMinutes(a.teeTime) - toMinutes(b.teeTime));
 }
 
+// A member golfer's ACTIVE bookings on a play date - the one-booking-per-day
+// rule's evidence. Counted: bookings they made (bookerGolferId) and bookings
+// where they appear as a 'member' player line; member-as-guest lines are NOT
+// counted, cancelled bookings free the day.
+async function memberDayBookings(companyId, golferId, playDate, { transaction } = {}) {
+    if (!golferId) return [];
+    const asBooker = await Booking.findAll({
+        where: { companyId, playDate, status: 'booked', bookerGolferId: golferId },
+        transaction,
+    });
+    const lines = await BookingPlayer.findAll({
+        where: { golferId, playerType: 'member' },
+        attributes: ['bookingId'],
+        transaction,
+    });
+    const seen = new Set(asBooker.map((b) => b.id));
+    const ids = [...new Set(lines.map((l) => l.bookingId))].filter((id) => !seen.has(id));
+    const asPlayer = ids.length
+        ? await Booking.findAll({ where: { companyId, playDate, status: 'booked', id: { [Op.in]: ids } }, transaction })
+        : [];
+    return [...asBooker, ...asPlayer];
+}
+
 // Shared rule loads for one company (settings + both sparse rule sets).
 async function loadRules(companyId) {
     const [setting, minRules, guestRules] = await Promise.all([
@@ -332,6 +355,7 @@ module.exports = {
     resolveMinPlayers,
     resolveGuestControl,
     seatsLeft,
+    memberDayBookings,
     courseFlights,
     nearestFlights,
     loadRules,

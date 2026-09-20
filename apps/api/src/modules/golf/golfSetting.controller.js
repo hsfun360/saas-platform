@@ -18,7 +18,7 @@ function companyIdOf(req) {
 
 const DEFAULTS = {
     advanceBookingDays: 7, advanceBookingHours: 0, allowMembershipTypeOverride: false,
-    allowBookingMerge: false, minPlayersWeekday: 1, minPlayersWeekend: 1, bookingLockMinutes: 5,
+    allowBookingMerge: false, minPlayersWeekday: 1, minPlayersWeekend: 1, bookingLockMinutes: 5, oneBookingPerDay: true,
     guestControlEnabled: false, allowGuestWeekday: true, allowMemberGuestWeekday: true,
     allowGuestWeekend: true, allowMemberGuestWeekend: true,
 };
@@ -33,6 +33,7 @@ function settingDto(row) {
         minPlayersWeekday: row.minPlayersWeekday,
         minPlayersWeekend: row.minPlayersWeekend,
         bookingLockMinutes: row.bookingLockMinutes,
+        oneBookingPerDay: row.oneBookingPerDay === true,
         guestControlEnabled: row.guestControlEnabled === true,
         allowGuestWeekday: row.allowGuestWeekday === true,
         allowMemberGuestWeekday: row.allowMemberGuestWeekday === true,
@@ -227,6 +228,7 @@ exports.save = async (req, res) => {
         if (minPlayersWeekend === undefined) return res.status(400).json({ message: 'Weekend minimum players must be a whole number between 1 and 10.' });
         const bookingLockMinutes = parseIntIn(req.body.bookingLockMinutes, 1, 60);
         if (bookingLockMinutes === undefined) return res.status(400).json({ message: 'Booking lock minutes must be a whole number between 1 and 60.' });
+        const oneBookingPerDay = req.body.oneBookingPerDay !== false;
         const guestControlEnabled = req.body.guestControlEnabled === true;
         const allowGuestWeekday = req.body.allowGuestWeekday !== false;
         const allowMemberGuestWeekday = req.body.allowMemberGuestWeekday !== false;
@@ -265,7 +267,7 @@ exports.save = async (req, res) => {
             const existing = await GolfSetting.findOne({ where: { companyId }, transaction });
             const values = {
                 advanceBookingDays, advanceBookingHours, allowMembershipTypeOverride, allowBookingMerge,
-                minPlayersWeekday, minPlayersWeekend, bookingLockMinutes,
+                minPlayersWeekday, minPlayersWeekend, bookingLockMinutes, oneBookingPerDay,
                 guestControlEnabled, allowGuestWeekday, allowMemberGuestWeekday, allowGuestWeekend, allowMemberGuestWeekend,
             };
             if (existing) {
