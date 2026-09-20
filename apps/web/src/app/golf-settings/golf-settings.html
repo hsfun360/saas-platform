@@ -111,6 +111,18 @@
               </div>
             }
 
+            <div class="gs-grid" style="margin-top: var(--space-md);">
+              <div class="form-group">
+                <label for="gsLock">Booking Lock (minutes) <span class="required">*</span></label>
+                <input id="gsLock" type="number" inputmode="numeric" min="1" max="60" step="1" formControlName="bookingLockMinutes"
+                       [attr.aria-invalid]="showError(form.controls.bookingLockMinutes)" aria-describedby="gsLockErr" />
+                @if (showError(form.controls.bookingLockMinutes)) {
+                  <p id="gsLockErr" class="field-error" role="alert">Enter a whole number between 1 and 60.</p>
+                }
+                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">A selected flight is held this long while the player list is keyed — a countdown shows on the booking screen.</p>
+              </div>
+            </div>
+
             <div class="form-row" style="margin-top: var(--space-md);">
               <label class="gs-check">
                 <input type="checkbox" formControlName="allowBookingMerge" />

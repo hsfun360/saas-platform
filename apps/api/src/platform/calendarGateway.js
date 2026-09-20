@@ -77,10 +77,22 @@ async function classifyDateRange(req, dateFrom, dateTo) {
     return out;
 }
 
+// The active company's IANA timezone (club-local time drives the golf
+// advance-booking window). Falls back to UTC until the company sets one.
+async function companyTimezone(req) {
+    const { companyId } = getUserContext(req);
+    if (!companyId) return 'UTC';
+    // WHEN SPLIT: part of GET {internalServiceUrl('saas')}/internal/company-basics
+    const Company = require('../modules/saas/company.model');
+    const c = await Company.findByPk(companyId, { attributes: ['timezone'] });
+    return (c && c.timezone) || 'UTC';
+}
+
 module.exports = {
     companyDayContext,
     classifyDateRange,
     isoDayOfWeek,
+    companyTimezone,
     // Re-exported so a future split can read the peer URL from one import site.
     internalServiceUrl,
 };

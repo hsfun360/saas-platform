@@ -259,6 +259,40 @@ async function listMembershipTypes(companyId, { activeOnly = true } = {}) {
     return rows.map((r) => ({ id: r.id, category: r.category, description: r.description, isGolfAllow: r.isGolfAllow === true }));
 }
 
+// A member's GOLF STANDING by member number - the one call the golf booking
+// flow makes per member keyed in: identity + membership type (golfing right,
+// advance-window override key) + status behaviour (actionControl drives
+// booking: allow / warning / barred). Case-insensitive exact memberNo match.
+// Returns null when the number is unknown.
+// WHEN SPLIT: GET {internalServiceUrl('membership')}/internal/golf-standing?memberNo
+async function getGolfMemberStanding(companyId, memberNo) {
+    if (!companyId || !memberNo) return null;
+    const Member = require('../modules/membership/member.model');
+    const MembershipType = require('../modules/membership/membershipType.model');
+    const MembershipStatus = require('../modules/membership/membershipStatus.model');
+    const row = await Member.findOne({
+        where: { companyId, memberNo: { [Op.iLike]: String(memberNo).trim() } },
+        attributes: ['id', 'memberNo', 'firstName', 'lastName', 'localName', 'membershipTypeId', 'memberStatusId'],
+    });
+    if (!row) return null;
+    const [type, status] = await Promise.all([
+        row.membershipTypeId ? MembershipType.findByPk(row.membershipTypeId, { attributes: ['id', 'category', 'isGolfAllow'] }) : null,
+        row.memberStatusId ? MembershipStatus.findByPk(row.memberStatusId, { attributes: ['membershipStatus', 'actionControl'] }) : null,
+    ]);
+    return {
+        memberId: row.id,
+        memberNo: row.memberNo,
+        name: personName(row),
+        membershipTypeId: type ? type.id : null,
+        membershipTypeCategory: type ? type.category : null,
+        isGolfAllow: type ? type.isGolfAllow === true : false,
+        statusLabel: status ? status.membershipStatus : null,
+        // 'allow' | 'warning' | 'barred' (membershipStatus.constants); a
+        // member with no status behaves as 'allow'.
+        actionControl: status ? status.actionControl : 'allow',
+    };
+}
+
 module.exports = {
     lookupPartyDisplay,
     searchPartyIds,
@@ -267,4 +301,5 @@ module.exports = {
     lookupPartyBilling,
     classifyParties,
     listMembershipTypes,
+    getGolfMemberStanding,
 };

@@ -1,0 +1,323 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">event_available</span>
+      <div>
+        <h1>{{ 'Golf Booking' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Search available flights and book tee times — the sheet is computed live from the course setup.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- DATE FILTER -->
+  <div class="gb-filter">
+    <label for="gbDate">Play date</label>
+    <input id="gbDate" type="date" [value]="listDate()" (change)="setListDate($any($event.target).value)" />
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading bookings…</p></div>
+  } @else if (bookings().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons" aria-hidden="true">event_busy</span>
+      <p>No bookings for {{ listDate() | localDate }} yet. Use 'New booking' to make the first one.</p>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (b of bookings(); track b.id) {
+        <div class="data-card" [attr.data-return-id]="b.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ b.startTime }} — {{ b.courseCode }}{{ b.courseDescription ? ' · ' + b.courseDescription : '' }}</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">({{ b.bookingNo }})</span>
+                <span>{{ b.holes }} holes</span>
+                @if (b.crossTime) {
+                  <span class="data-card__reg">cross over {{ b.crossTime }}</span>
+                }
+                @if (b.contactMobile) {
+                  <span class="data-card__reg">{{ b.contactMobile }}</span>
+                }
+              </div>
+              <div class="data-card__desc">{{ b.players.length }} player(s): {{ playerSummary(b) }}</div>
+            </div>
+            <span class="data-row__badge status-chip" [class.status-chip--on]="b.status === 'booked'" [class.status-chip--off]="b.status !== 'booked'">
+              {{ b.status === 'booked' ? 'BOOKED' : 'CANCELLED' }}
+            </span>
+            @if (b.status === 'booked' && b.canModify !== false) {
+              <div class="data-row__actions" *appCan="'edit'">
+                <app-overflow-menu [label]="'More actions for booking ' + b.bookingNo">
+                  <button type="button" appMenuItem (click)="openCancel(b)">
+                    <span class="material-icons" aria-hidden="true">event_busy</span>
+                    Cancel booking
+                  </button>
+                </app-overflow-menu>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <button type="button" class="btn btn--primary fab" (click)="openDialog()" aria-label="New booking" *appCan="'create'">
+    <span class="material-icons" aria-hidden="true">add</span>
+    New booking
+  </button>
+
+  <!-- ============ Booking wizard (single drawer dialog, 3 views) ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #bdlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="isDirty()"
+                discardTitle="Abandon this booking?"
+                discardMessage="The booking has not been confirmed. Leaving now releases the flight."
+                (close)="closeDialog()">
+
+      @switch (step()) {
+
+        <!-- ---- STEP 1: Search ---- -->
+        @case ('search') {
+          <form id="gbSearch" [formGroup]="searchForm" (ngSubmit)="search()" class="saas-form" style="padding: 0;">
+            <div class="form-group">
+              <label for="gbMember">Member No <span class="required">*</span></label>
+              <div class="gb-member-row">
+                <input id="gbMember" type="text" formControlName="memberNo" autocomplete="off" maxlength="50"
+                       placeholder="e.g. A0018" (blur)="loadContext()"
+                       [attr.aria-invalid]="showError(searchForm.controls.memberNo)" />
+                <button type="button" class="btn btn--secondary btn--sm" (click)="loadContext()" [disabled]="contextLoading()">
+                  {{ contextLoading() ? 'Checking…' : 'Check' }}
+                </button>
+              </div>
+              @if (showError(searchForm.controls.memberNo)) {
+                <p class="field-error" role="alert">Key in the member number.</p>
+              }
+            </div>
+
+            @if (context(); as ctx) {
+              <div class="gb-member-card" [class.gb-member-card--warn]="ctx.member.actionControl !== 'allow'">
+                <strong>{{ ctx.member.name }}</strong>
+                <span>{{ ctx.member.membershipTypeCategory || '—' }}</span>
+                <span>{{ ctx.member.statusLabel || 'No status' }}</span>
+                @if (!ctx.member.isGolfAllow) {
+                  <span class="gb-tag">No golfing right — member rate applies</span>
+                }
+                <span class="gb-window">Can book {{ ctx.window.dateFrom | localDate }} – {{ ctx.window.dateTo | localDate }}</span>
+              </div>
+              @if (memberWarning()) {
+                <p class="gb-warning" role="alert">{{ memberWarning() }}</p>
+              }
+
+              <div class="gb-grid">
+                <div class="form-group">
+                  <label for="gbPlayDate">Date <span class="required">*</span></label>
+                  <input id="gbPlayDate" type="date" formControlName="playDate"
+                         [min]="ctx.window.dateFrom" [max]="ctx.window.dateTo"
+                         [attr.aria-invalid]="showError(searchForm.controls.playDate)" />
+                  @if (showError(searchForm.controls.playDate)) {
+                    <p class="field-error" role="alert">Pick a play date inside the window.</p>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="gbCourse">Course</label>
+                  <app-combobox [value]="courseId()" (valueChange)="courseId.set($event)"
+                                [options]="courseOptions()"
+                                [allowEmpty]="true" emptyLabel="All courses"
+                                inputId="gbCourse" placeholder="All courses" />
+                </div>
+                <div class="form-group">
+                  <label for="gbTime">Preferred Time <span class="required">*</span></label>
+                  <input id="gbTime" type="time" formControlName="time" />
+                </div>
+                <div class="form-group">
+                  <label for="gbPlayers">Number of Players <span class="required">*</span></label>
+                  <select id="gbPlayers" formControlName="players">
+                    @for (n of [1,2,3,4,5,6,7,8]; track n) {
+                      <option [ngValue]="n">{{ n }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="gbHoles">No of Holes <span class="required">*</span></label>
+                  <select id="gbHoles" formControlName="holes">
+                    <option [ngValue]="9">9 holes</option>
+                    <option [ngValue]="18">18 holes</option>
+                  </select>
+                </div>
+              </div>
+            }
+          </form>
+        }
+
+        <!-- ---- STEP 2: Available flights ---- -->
+        @case ('flights') {
+          <div class="gb-flights">
+            @if (memberWarning()) {
+              <p class="gb-warning" role="alert">{{ memberWarning() }}</p>
+            }
+            @if (!hasFlights()) {
+              <div class="empty-state">
+                <span class="material-icons" aria-hidden="true">search_off</span>
+                <p>No available flight matches this search — try another time, date or course.</p>
+              </div>
+            }
+            @for (g of groups(); track g.courseId) {
+              @if (g.flights.length > 0) {
+                <div class="gb-course-group">
+                  <h3 class="gb-course-title">{{ g.courseCode }}{{ g.description ? ' — ' + g.description : '' }}</h3>
+                  @for (f of g.flights; track f.teeTime) {
+                    <div class="gb-flight-row">
+                      <span class="gb-flight-time">{{ f.teeTime }}</span>
+                      <span class="gb-flight-info">
+                        {{ f.seatsLeft }} seat(s) left
+                        @if (f.existingPlayers > 0) { · {{ f.existingPlayers }} booked }
+                        @if (f.crossTime) { · cross over {{ f.crossTime }} }
+                        @if (f.minPlayers > 1) { · min {{ f.minPlayers }} }
+                        @if (f.isFrontDesk) { · front desk }
+                      </span>
+                      <button type="button" class="btn btn--primary btn--sm" (click)="pickFlight(g, f.teeTime)" [disabled]="searching()">
+                        Book
+                      </button>
+                    </div>
+                  }
+                </div>
+              }
+            }
+          </div>
+        }
+
+        <!-- ---- STEP 3: Players + confirm ---- -->
+        @case ('players') {
+          @if (lock(); as lk) {
+            <div class="gb-lock-banner" role="status" aria-live="polite">
+              <span class="material-icons" aria-hidden="true">lock_clock</span>
+              <span>Flight held — confirm within <strong>{{ countdown() }}</strong></span>
+            </div>
+            <div class="gb-summary">
+              <span><strong>{{ lockedGroup()?.courseCode }}</strong> · {{ searchForm.controls.playDate.value | localDate }}</span>
+              <span>Tee time <strong>{{ lk.teeTime }}</strong>{{ lk.crossTime ? ' · cross over ' + lk.crossTime : '' }} · {{ searchForm.controls.holes.value }} holes</span>
+              @if (lk.existingPlayers > 0) {
+                <span>{{ lk.existingPlayers }} player(s) already booked on this flight</span>
+              }
+            </div>
+
+            <div class="gb-players">
+              <div class="gb-player-row gb-player-row--head" aria-hidden="true">
+                <span></span>
+                <span>Type</span>
+                <span>Member ID / Guest Name</span>
+                <span></span>
+              </div>
+              @for (line of playerLines(); track $index; let i = $index) {
+                <div class="gb-player-row">
+                  <span class="gb-player-no">{{ i + 1 }}</span>
+                  <select [value]="line.playerType" (change)="setLine(i, { playerType: $any($event.target).value })"
+                          [disabled]="i === 0" [attr.aria-label]="'Player ' + (i + 1) + ' type'">
+                    <option value="member">Member</option>
+                    <option value="member-guest">Member as Guest</option>
+                    <option value="guest">Guest</option>
+                  </select>
+                  @if (line.playerType === 'guest') {
+                    <input type="text" [value]="line.guestName" maxlength="100" placeholder="Guest name (or 'Guest')"
+                           (input)="setLine(i, { guestName: $any($event.target).value })"
+                           [attr.aria-label]="'Player ' + (i + 1) + ' guest name'" />
+                  } @else {
+                    <input type="text" [value]="line.memberNo" maxlength="50" placeholder="Member No"
+                           [readOnly]="i === 0"
+                           (input)="setLine(i, { memberNo: $any($event.target).value })"
+                           [attr.aria-label]="'Player ' + (i + 1) + ' member number'" />
+                  }
+                  @if (i > 0) {
+                    <button type="button" class="btn btn--danger btn--sm" (click)="removeLine(i)" [attr.aria-label]="'Remove player ' + (i + 1)">
+                      <span class="material-icons" aria-hidden="true">close</span>
+                    </button>
+                  } @else {
+                    <span class="gb-booker-tag">Booker</span>
+                  }
+                </div>
+              }
+              @if (playerLines().length < lk.seatsLeft) {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="addLine()">
+                  <span class="material-icons" aria-hidden="true">add</span>
+                  Add player
+                </button>
+              }
+            </div>
+
+            <div class="gb-grid" style="margin-top: var(--space-md);">
+              <div class="form-group">
+                <label for="gbMobile">Contact Mobile</label>
+                <input id="gbMobile" type="tel" [value]="contactMobile()" maxlength="30" autocomplete="off"
+                       (input)="contactMobile.set($any($event.target).value)" />
+              </div>
+              <div class="form-group">
+                <label for="gbRemarks">Remarks</label>
+                <input id="gbRemarks" type="text" [value]="remarks()" maxlength="255"
+                       (input)="remarks.set($any($event.target).value)" />
+              </div>
+            </div>
+          }
+        }
+      }
+
+      <ng-container dialogFooter>
+        @switch (step()) {
+          @case ('search') {
+            <button type="button" class="btn btn--secondary" (click)="bdlg.requestClose()">Cancel</button>
+            <button type="submit" form="gbSearch" class="btn btn--primary"
+                    [disabled]="searching() || contextLoading() || (context() && context()!.member.actionControl === 'barred')">
+              {{ searching() ? 'Searching…' : 'Search flights' }}
+            </button>
+          }
+          @case ('flights') {
+            <button type="button" class="btn btn--secondary" (click)="backToSearch()">« Back</button>
+            <button type="button" class="btn btn--secondary" (click)="search()" [disabled]="searching()">
+              {{ searching() ? 'Refreshing…' : 'Refresh' }}
+            </button>
+          }
+          @case ('players') {
+            <button type="button" class="btn btn--secondary" (click)="backToFlights()" [disabled]="saving()">« Back</button>
+            <button type="button" class="btn btn--primary" (click)="confirm()" [disabled]="saving() || !lock()">
+              {{ saving() ? 'Confirming…' : 'Confirm booking' }}
+            </button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Cancel confirmation (centred) ============ -->
+  @if (cancelTarget(); as target) {
+    <app-dialog title="Cancel booking" [busy]="cancelling()" (close)="cancelTarget.set(null)">
+      <p>Cancel booking <strong>{{ target.bookingNo }}</strong> — {{ target.startTime }} on {{ target.playDate | localDate }} ({{ target.courseCode }})?
+        The flight is freed for other bookings.</p>
+      <div class="form-group">
+        <label for="gbCancelReason">Reason</label>
+        <textarea id="gbCancelReason" rows="2" wrap="off" [value]="cancelReason()"
+                  (input)="cancelReason.set($any($event.target).value)"></textarea>
+      </div>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cancelTarget.set(null)" [disabled]="cancelling()">Keep booking</button>
+        <button type="button" class="btn btn--danger" (click)="confirmCancel()" [disabled]="cancelling()">
+          {{ cancelling() ? 'Cancelling…' : 'Cancel booking' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

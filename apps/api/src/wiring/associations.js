@@ -82,6 +82,15 @@ const AdvanceBookingOverride = require('../modules/golf/advanceBookingOverride.m
 const MinPlayerRule = require('../modules/golf/minPlayerRule.model');
 // Guest-control exception rules (2026-09-20): same shape - no associations.
 const GuestControlRule = require('../modules/golf/guestControlRule.model');
+// Booking stage (2026-09-20): Booking header + player details + the
+// short-lived FlightLock claims of the DYNAMIC tee sheet. Course/golfer refs
+// stay plain value refs; header->details is a real intra-service FK below.
+const GolfBooking = require('../modules/golf/booking.model');
+const GolfBookingPlayer = require('../modules/golf/bookingPlayer.model');
+const GolfFlightLock = require('../modules/golf/flightLock.model');
+
+GolfBooking.hasMany(GolfBookingPlayer, { foreignKey: 'bookingId', as: 'players', onDelete: 'CASCADE' });
+GolfBookingPlayer.belongsTo(GolfBooking, { foreignKey: 'bookingId', as: 'booking' });
 const ArExchangeRate = require('../modules/ar/exchangeRate.model'); // AR-owned effective-dated FX rates vs the company base currency (companyId + Currency.code value refs; no associations)
 const ArTaxLedger = require('../modules/ar/taxLedger.model'); // per-component tax breakdown frozen behind each Ledger document's tax snapshot (docType/docId value ref to ar.Ledger; no associations)
 // Shared Dimension capability (financial-analysis dimensions, promoted

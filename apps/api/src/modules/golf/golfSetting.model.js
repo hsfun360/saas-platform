@@ -59,6 +59,14 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: 1,
     },
+    // Flight-lock duration in minutes (user decision 2026-09-20): how long a
+    // clicked flight stays claimed (whole flight incl. crossover cell) while
+    // the player list is keyed. 1-60; countdown shown on the player screen.
+    bookingLockMinutes: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 5,
+    },
     // Guest control (user decisions 2026-09-20) - the master switch. OFF =
     // no restriction anywhere (the allow flags below and the GuestControlRule
     // rows are ignored). TWO switches per scope: visitor guests vs a member

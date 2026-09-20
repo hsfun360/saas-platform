@@ -33,6 +33,10 @@ router.get('/settings/membership-types', requireMenuAction('/golf/settings'), go
 router.get('/settings/courses', requireMenuAction('/golf/settings'), golfSettingController.getCourses);
 router.put('/settings', requireMenuAction('/golf/settings'), golfSettingController.save);
 
+// --- Booking (dynamic tee sheet: availability + flight locks + bookings;
+// user decisions 2026-09-20) ---
+router.use('/bookings', requireMenuAction('/golf/bookings'), require('./bookings.routes'));
+
 // --- Numbering Control (golf-owned series: booking / registration / bill /
 // rain check; split per module 2026-08-05) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');
