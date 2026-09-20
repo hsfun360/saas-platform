@@ -19,6 +19,17 @@ export interface GolfMinPlayerRule {
   minPlayers: number;
 }
 
+// One guest-control exception rule (same scoping as the minimum-players
+// rules; two switches per scope - visitor guests vs members-as-guests).
+export interface GolfGuestControlRule {
+  courseId: string | null;
+  dayScope: 'all' | 'weekday' | 'weekend';
+  startTime: string | null;
+  endTime: string | null;
+  allowGuest: boolean;
+  allowMemberGuest: boolean;
+}
+
 export interface GolfSettingDoc {
   setting: {
     advanceBookingDays: number;
@@ -27,10 +38,16 @@ export interface GolfSettingDoc {
     allowBookingMerge: boolean;
     minPlayersWeekday: number;
     minPlayersWeekend: number;
+    guestControlEnabled: boolean;
+    allowGuestWeekday: boolean;
+    allowMemberGuestWeekday: boolean;
+    allowGuestWeekend: boolean;
+    allowMemberGuestWeekend: boolean;
     saved: boolean;
   };
   overrides: GolfAdvanceBookingOverride[];
   minPlayerRules: GolfMinPlayerRule[];
+  guestControlRules: GolfGuestControlRule[];
 }
 
 export interface GolfMembershipTypeOption {
@@ -76,8 +93,14 @@ export class GolfSettingService {
     allowBookingMerge: boolean;
     minPlayersWeekday: number;
     minPlayersWeekend: number;
+    guestControlEnabled: boolean;
+    allowGuestWeekday: boolean;
+    allowMemberGuestWeekday: boolean;
+    allowGuestWeekend: boolean;
+    allowMemberGuestWeekend: boolean;
     overrides: GolfAdvanceBookingOverride[];
     minPlayerRules: GolfMinPlayerRule[];
+    guestControlRules: GolfGuestControlRule[];
   }): Observable<{ message: string }> {
     return this.http.put<{ message: string }>(this.base, payload);
   }

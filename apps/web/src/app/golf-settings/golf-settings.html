@@ -203,8 +203,108 @@
         }
       </div>
 
+      <!-- ============ Guest Control ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('guests')"
+                [attr.aria-expanded]="isExpanded('guests')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Guest Control</span>
+            <span class="settings-header__sub">When a booking may bring guests — visitors, and members playing as another member's guest.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('guests')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('guests')) {
+          <div class="settings-body">
+            <div class="form-row">
+              <label class="gs-check">
+                <input type="checkbox" formControlName="guestControlEnabled" />
+                <span>Enable guest control — restrict when a booking may bring guests</span>
+              </label>
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Off means no restriction anywhere: guests are always welcome.</p>
+            </div>
+
+            @if (guestControlOn()) {
+              <div class="gs-grid" style="margin-top: var(--space-md);">
+                <div class="gs-gc-day">
+                  <p class="gs-gc-day__title">Weekday</p>
+                  <label class="gs-check">
+                    <input type="checkbox" formControlName="allowGuestWeekday" />
+                    <span>Allow guest (visitor)</span>
+                  </label>
+                  <label class="gs-check">
+                    <input type="checkbox" formControlName="allowMemberGuestWeekday" />
+                    <span>Allow member as guest</span>
+                  </label>
+                </div>
+                <div class="gs-gc-day">
+                  <p class="gs-gc-day__title">Weekend &amp; Holiday</p>
+                  <label class="gs-check">
+                    <input type="checkbox" formControlName="allowGuestWeekend" />
+                    <span>Allow guest (visitor)</span>
+                  </label>
+                  <label class="gs-check">
+                    <input type="checkbox" formControlName="allowMemberGuestWeekend" />
+                    <span>Allow member as guest</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="gs-overrides">
+                @if (guestRules().length > 0) {
+                  <div class="gs-gc-row gs-gc-row--head" aria-hidden="true">
+                    <span>Course</span>
+                    <span>Days</span>
+                    <span>From</span>
+                    <span>To</span>
+                    <span>Guest</span>
+                    <span>Member guest</span>
+                    <span></span>
+                  </div>
+                }
+                @for (rule of guestRules(); track $index; let i = $index) {
+                  <div class="gs-gc-row">
+                    <app-combobox [value]="rule.courseId ?? ''" (valueChange)="setGuestRule(i, { courseId: $event || null })"
+                                  [options]="courseOptions()"
+                                  [allowEmpty]="true" emptyLabel="Every course"
+                                  [ariaLabel]="'Guest rule ' + (i + 1) + ' course'"
+                                  placeholder="Every course" />
+                    <select [value]="rule.dayScope" (change)="setGuestRule(i, { dayScope: $any($event.target).value })"
+                            [attr.aria-label]="'Guest rule ' + (i + 1) + ' day scope'">
+                      <option value="all">All days</option>
+                      <option value="weekday">Weekday</option>
+                      <option value="weekend">Weekend &amp; Holiday</option>
+                    </select>
+                    <input type="time" [value]="rule.startTime ?? ''" (change)="setGuestRule(i, { startTime: $any($event.target).value || null })"
+                           [attr.aria-label]="'Guest rule ' + (i + 1) + ' from time'" />
+                    <input type="time" [value]="rule.endTime ?? ''" (change)="setGuestRule(i, { endTime: $any($event.target).value || null })"
+                           [attr.aria-label]="'Guest rule ' + (i + 1) + ' to time'" />
+                    <input type="checkbox" class="gs-gc-row__check" [checked]="rule.allowGuest"
+                           (change)="setGuestRule(i, { allowGuest: $any($event.target).checked })"
+                           [attr.aria-label]="'Guest rule ' + (i + 1) + ' allow guest (visitor)'" />
+                    <input type="checkbox" class="gs-gc-row__check" [checked]="rule.allowMemberGuest"
+                           (change)="setGuestRule(i, { allowMemberGuest: $any($event.target).checked })"
+                           [attr.aria-label]="'Guest rule ' + (i + 1) + ' allow member as guest'" />
+                    <button type="button" class="btn btn--danger btn--sm" (click)="removeGuestRule(i)"
+                            [attr.aria-label]="'Remove guest rule ' + (i + 1)">
+                      <span class="material-icons" aria-hidden="true">close</span>
+                    </button>
+                  </div>
+                }
+                <button type="button" class="btn btn--secondary btn--sm" (click)="addGuestRule()">
+                  <span class="material-icons" aria-hidden="true">add</span>
+                  Add exception
+                </button>
+                @if (guestRules().length === 0) {
+                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No exceptions — the weekday and weekend answers above apply everywhere. Add one for a course, day type or flight-time band; the most specific rule wins.</p>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+
       <div class="gs-actions" *appCan="'edit'">
-        <button type="submit" class="btn btn--primary" [disabled]="saving() || (!form.dirty && !ovDirty() && !mpDirty())">
+        <button type="submit" class="btn btn--primary" [disabled]="saving() || (!form.dirty && !ovDirty() && !mpDirty() && !gcDirty())">
           {{ saving() ? 'Saving…' : 'Save' }}
         </button>
       </div>

@@ -59,6 +59,38 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: 1,
     },
+    // Guest control (user decisions 2026-09-20) - the master switch. OFF =
+    // no restriction anywhere (the allow flags below and the GuestControlRule
+    // rows are ignored). TWO switches per scope: visitor guests vs a member
+    // playing under another member's booking. Per-course/time exceptions live
+    // in golf.GuestControlRule (most specific rule wins). Enforced at booking
+    // and re-checked at registration.
+    guestControlEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
+    allowGuestWeekday: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
+    allowMemberGuestWeekday: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
+    // Weekend + public holiday (classified via platform/calendarGateway.js).
+    allowGuestWeekend: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
+    allowMemberGuestWeekend: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
     // Merge booking (club-wide, user decision 2026-09-19). OFF = exclusive
     // flights: the first confirmed booking claims the whole flight, extra
     // players join only that same booking. ON = shared flights: bookings

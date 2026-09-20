@@ -86,6 +86,50 @@
   }
 }
 
+/* Guest-control general flags: one titled block per day type. */
+.gs-gc-day__title {
+  margin: 0 0 var(--space-xs);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Guest-control exception rows: course combobox flexes; day scope, times and
+   the two allow checkboxes stay compact. Stacks per rule on mobile. */
+.gs-gc-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px 110px 110px 60px 110px auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.gs-gc-row--head {
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.gs-gc-row__check {
+  width: 18px;
+  height: 18px;
+  justify-self: center;
+}
+@media (max-width: 767px) {
+  .gs-gc-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border);
+  }
+  .gs-gc-row--head {
+    display: none;
+  }
+  .gs-gc-row__check {
+    justify-self: start;
+  }
+}
+
 .gs-actions {
   display: flex;
   justify-content: flex-end;

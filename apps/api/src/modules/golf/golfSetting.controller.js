@@ -6,6 +6,7 @@
 const GolfSetting = require('./golfSetting.model');
 const AdvanceBookingOverride = require('./advanceBookingOverride.model');
 const MinPlayerRule = require('./minPlayerRule.model');
+const GuestControlRule = require('./guestControlRule.model');
 const Course = require('./course.model');
 const { sequelize } = require('../../platform/db');
 const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
@@ -18,6 +19,8 @@ function companyIdOf(req) {
 const DEFAULTS = {
     advanceBookingDays: 7, advanceBookingHours: 0, allowMembershipTypeOverride: false,
     allowBookingMerge: false, minPlayersWeekday: 1, minPlayersWeekend: 1,
+    guestControlEnabled: false, allowGuestWeekday: true, allowMemberGuestWeekday: true,
+    allowGuestWeekend: true, allowMemberGuestWeekend: true,
 };
 
 function settingDto(row) {
@@ -29,6 +32,11 @@ function settingDto(row) {
         allowBookingMerge: row.allowBookingMerge === true,
         minPlayersWeekday: row.minPlayersWeekday,
         minPlayersWeekend: row.minPlayersWeekend,
+        guestControlEnabled: row.guestControlEnabled === true,
+        allowGuestWeekday: row.allowGuestWeekday === true,
+        allowMemberGuestWeekday: row.allowMemberGuestWeekday === true,
+        allowGuestWeekend: row.allowGuestWeekend === true,
+        allowMemberGuestWeekend: row.allowMemberGuestWeekend === true,
         saved: true,
     };
 }
@@ -64,10 +72,11 @@ exports.get = async (req, res) => {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
-        const [row, overrides, minPlayerRules] = await Promise.all([
+        const [row, overrides, minPlayerRules, guestControlRules] = await Promise.all([
             GolfSetting.findOne({ where: { companyId } }),
             AdvanceBookingOverride.findAll({ where: { companyId } }),
             MinPlayerRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
+            GuestControlRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
         ]);
         res.status(200).json({
             setting: settingDto(row),
@@ -81,6 +90,14 @@ exports.get = async (req, res) => {
                 startTime: timeDto(r.startTime),
                 endTime: timeDto(r.endTime),
                 minPlayers: r.minPlayers,
+            })),
+            guestControlRules: guestControlRules.map((r) => ({
+                courseId: r.courseId,
+                dayScope: r.dayScope,
+                startTime: timeDto(r.startTime),
+                endTime: timeDto(r.endTime),
+                allowGuest: r.allowGuest === true,
+                allowMemberGuest: r.allowMemberGuest === true,
             })),
         });
     } catch (error) {
@@ -127,33 +144,36 @@ exports.getCourses = async (req, res) => {
     }
 };
 
-// Validate the minimum-players exception rows. Returns { error } or { rules }.
-// Rows with IDENTICAL (course, dayScope) must not overlap in time: at most one
-// whole-day row per key, and time bands within a key must not intersect.
-// Cross-specificity overlaps are allowed - resolution picks the most specific.
-function normalizeMinPlayerRules(raw, knownCourseIds) {
-    if (raw.length > 200) return { error: 'Too many minimum-player rules.' };
+// Validate scoped exception rows (shared by the minimum-players and
+// guest-control editors): course/day-scope/time-band parsing, plus the
+// overlap rule - rows with IDENTICAL (course, dayScope) must not overlap in
+// time (at most one whole-day row per key, bands within a key must not
+// intersect). Cross-specificity overlaps are allowed - resolution picks the
+// most specific. `parseLine(line)` returns { error } or { fields } with the
+// editor-specific payload. Returns { error } or { rules }.
+function normalizeScopedRules(raw, knownCourseIds, noun, parseLine) {
+    if (raw.length > 200) return { error: `Too many ${noun} rules.` };
     const rules = [];
     for (const line of raw) {
-        if (!line || typeof line !== 'object') return { error: 'Invalid minimum-player rule line.' };
+        if (!line || typeof line !== 'object') return { error: `Invalid ${noun} rule line.` };
         const courseId = line.courseId ? String(line.courseId) : null;
-        if (courseId && !knownCourseIds.has(courseId)) return { error: 'A minimum-player rule is not one of this company\'s courses.' };
+        if (courseId && !knownCourseIds.has(courseId)) return { error: `A ${noun} rule is not one of this company's courses.` };
         const dayScope = String(line.dayScope || '');
-        if (!DAY_SCOPES.includes(dayScope)) return { error: 'Each minimum-player rule needs a day scope (all, weekday or weekend).' };
+        if (!DAY_SCOPES.includes(dayScope)) return { error: `Each ${noun} rule needs a day scope (all, weekday or weekend).` };
         const hasStart = line.startTime !== null && line.startTime !== undefined && line.startTime !== '';
         const hasEnd = line.endTime !== null && line.endTime !== undefined && line.endTime !== '';
-        if (hasStart !== hasEnd) return { error: 'A minimum-player rule time band needs both From and To times (or neither for the whole day).' };
+        if (hasStart !== hasEnd) return { error: `A ${noun} rule time band needs both From and To times (or neither for the whole day).` };
         let startTime = null;
         let endTime = null;
         if (hasStart) {
             startTime = parseTime(line.startTime);
             endTime = parseTime(line.endTime);
-            if (!startTime || !endTime) return { error: 'Minimum-player rule times must be valid times of day.' };
-            if (startTime >= endTime) return { error: 'A minimum-player rule\'s From time must be before its To time.' };
+            if (!startTime || !endTime) return { error: `${noun[0].toUpperCase()}${noun.slice(1)} rule times must be valid times of day.` };
+            if (startTime >= endTime) return { error: `A ${noun} rule's From time must be before its To time.` };
         }
-        const minPlayers = parseIntIn(line.minPlayers, 1, 10);
-        if (minPlayers === undefined) return { error: 'Minimum players must be a whole number between 1 and 10.' };
-        rules.push({ courseId, dayScope, startTime, endTime, minPlayers });
+        const parsed = parseLine(line);
+        if (parsed.error) return { error: parsed.error };
+        rules.push({ courseId, dayScope, startTime, endTime, ...parsed.fields });
     }
     const byKey = new Map();
     for (const r of rules) {
@@ -163,13 +183,27 @@ function normalizeMinPlayerRules(raw, knownCourseIds) {
     }
     for (const group of byKey.values()) {
         const wholeDay = group.filter((r) => !r.startTime);
-        if (wholeDay.length > 1) return { error: 'Two minimum-player rules cover the same course and day scope for the whole day.' };
+        if (wholeDay.length > 1) return { error: `Two ${noun} rules cover the same course and day scope for the whole day.` };
         const bands = group.filter((r) => r.startTime).sort((a, b) => (a.startTime < b.startTime ? -1 : 1));
         for (let i = 1; i < bands.length; i += 1) {
-            if (bands[i].startTime < bands[i - 1].endTime) return { error: 'Two minimum-player rules for the same course and day scope have overlapping time bands.' };
+            if (bands[i].startTime < bands[i - 1].endTime) return { error: `Two ${noun} rules for the same course and day scope have overlapping time bands.` };
         }
     }
     return { rules };
+}
+
+function normalizeMinPlayerRules(raw, knownCourseIds) {
+    return normalizeScopedRules(raw, knownCourseIds, 'minimum-player', (line) => {
+        const minPlayers = parseIntIn(line.minPlayers, 1, 10);
+        if (minPlayers === undefined) return { error: 'Minimum players must be a whole number between 1 and 10.' };
+        return { fields: { minPlayers } };
+    });
+}
+
+function normalizeGuestControlRules(raw, knownCourseIds) {
+    return normalizeScopedRules(raw, knownCourseIds, 'guest-control', (line) => ({
+        fields: { allowGuest: line.allowGuest === true, allowMemberGuest: line.allowMemberGuest === true },
+    }));
 }
 
 // PUT /api/golf/settings - upsert the singleton + replace the override lines
@@ -190,6 +224,11 @@ exports.save = async (req, res) => {
         if (minPlayersWeekday === undefined) return res.status(400).json({ message: 'Weekday minimum players must be a whole number between 1 and 10.' });
         const minPlayersWeekend = parseIntIn(req.body.minPlayersWeekend, 1, 10);
         if (minPlayersWeekend === undefined) return res.status(400).json({ message: 'Weekend minimum players must be a whole number between 1 and 10.' });
+        const guestControlEnabled = req.body.guestControlEnabled === true;
+        const allowGuestWeekday = req.body.allowGuestWeekday !== false;
+        const allowMemberGuestWeekday = req.body.allowMemberGuestWeekday !== false;
+        const allowGuestWeekend = req.body.allowGuestWeekend !== false;
+        const allowMemberGuestWeekend = req.body.allowMemberGuestWeekend !== false;
 
         const raw = Array.isArray(req.body.overrides) ? req.body.overrides : [];
         if (raw.length > 100) return res.status(400).json({ message: 'Too many override lines.' });
@@ -207,11 +246,13 @@ exports.save = async (req, res) => {
             overrides.push({ membershipTypeId: line.membershipTypeId, advanceBookingDays: days });
         }
 
-        const rawRules = Array.isArray(req.body.minPlayerRules) ? req.body.minPlayerRules : [];
         const knownCourseIds = new Set((await Course.findAll({ where: { companyId }, attributes: ['id'] })).map((c) => c.id));
-        const ruleResult = normalizeMinPlayerRules(rawRules, knownCourseIds);
+        const ruleResult = normalizeMinPlayerRules(Array.isArray(req.body.minPlayerRules) ? req.body.minPlayerRules : [], knownCourseIds);
         if (ruleResult.error) return res.status(400).json({ message: ruleResult.error });
         const minPlayerRules = ruleResult.rules;
+        const guestResult = normalizeGuestControlRules(Array.isArray(req.body.guestControlRules) ? req.body.guestControlRules : [], knownCourseIds);
+        if (guestResult.error) return res.status(400).json({ message: guestResult.error });
+        const guestControlRules = guestResult.rules;
 
         const callerId = getUserContext(req).userId;
         const placement = await getCallerPlacement(req);
@@ -222,6 +263,7 @@ exports.save = async (req, res) => {
             const values = {
                 advanceBookingDays, advanceBookingHours, allowMembershipTypeOverride, allowBookingMerge,
                 minPlayersWeekday, minPlayersWeekend,
+                guestControlEnabled, allowGuestWeekday, allowMemberGuestWeekday, allowGuestWeekend, allowMemberGuestWeekend,
             };
             if (existing) {
                 Object.assign(existing, { ...values, updatedBy: callerId });
@@ -240,6 +282,13 @@ exports.save = async (req, res) => {
             if (minPlayerRules.length) {
                 await MinPlayerRule.bulkCreate(
                     minPlayerRules.map((r) => ({ ...r, companyId, ...stamps })),
+                    { transaction },
+                );
+            }
+            await GuestControlRule.destroy({ where: { companyId }, transaction });
+            if (guestControlRules.length) {
+                await GuestControlRule.bulkCreate(
+                    guestControlRules.map((r) => ({ ...r, companyId, ...stamps })),
                     { transaction },
                 );
             }

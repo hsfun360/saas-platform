@@ -10,6 +10,7 @@ import {
   GolfAdvanceBookingOverride,
   GolfMembershipTypeOption,
   GolfMinPlayerRule,
+  GolfGuestControlRule,
   GolfCourseOption,
 } from '../services/golf-setting.service';
 
@@ -40,7 +41,7 @@ export class GolfSettingsComponent implements OnInit {
   readonly courses = signal<GolfCourseOption[]>([]);
 
   // Collapsible section state (section-card standard; sections start open).
-  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true });
+  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true });
 
   readonly form = this.fb.nonNullable.group({
     advanceBookingDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
@@ -49,6 +50,11 @@ export class GolfSettingsComponent implements OnInit {
     allowBookingMerge: [false],
     minPlayersWeekday: [1, [Validators.required, Validators.min(1), Validators.max(10)]],
     minPlayersWeekend: [1, [Validators.required, Validators.min(1), Validators.max(10)]],
+    guestControlEnabled: [false],
+    allowGuestWeekday: [true],
+    allowMemberGuestWeekday: [true],
+    allowGuestWeekend: [true],
+    allowMemberGuestWeekend: [true],
   });
 
   // Override lines kept outside the FormGroup (dynamic rows); ovDirty feeds
@@ -59,6 +65,10 @@ export class GolfSettingsComponent implements OnInit {
   // Minimum-players exception rules (same dynamic-row pattern).
   readonly minPlayerRules = signal<GolfMinPlayerRule[]>([]);
   readonly mpDirty = signal(false);
+
+  // Guest-control exception rules (same dynamic-row pattern).
+  readonly guestRules = signal<GolfGuestControlRule[]>([]);
+  readonly gcDirty = signal(false);
 
   readonly typeOptions = computed(() =>
     this.membershipTypes().map((t) => ({
@@ -113,11 +123,18 @@ export class GolfSettingsComponent implements OnInit {
           allowBookingMerge: doc.setting.allowBookingMerge,
           minPlayersWeekday: doc.setting.minPlayersWeekday,
           minPlayersWeekend: doc.setting.minPlayersWeekend,
+          guestControlEnabled: doc.setting.guestControlEnabled,
+          allowGuestWeekday: doc.setting.allowGuestWeekday,
+          allowMemberGuestWeekday: doc.setting.allowMemberGuestWeekday,
+          allowGuestWeekend: doc.setting.allowGuestWeekend,
+          allowMemberGuestWeekend: doc.setting.allowMemberGuestWeekend,
         });
         this.overrides.set(doc.overrides);
         this.ovDirty.set(false);
         this.minPlayerRules.set(doc.minPlayerRules ?? []);
         this.mpDirty.set(false);
+        this.guestRules.set(doc.guestControlRules ?? []);
+        this.gcDirty.set(false);
         this.loading.set(false);
       },
       error: (err) => {
@@ -168,6 +185,26 @@ export class GolfSettingsComponent implements OnInit {
     this.setRule(index, { minPlayers: min });
   }
 
+  // Method, not computed: control values are not signals (same as overridesOn).
+  guestControlOn(): boolean {
+    return this.form.controls.guestControlEnabled.value === true;
+  }
+
+  addGuestRule(): void {
+    this.guestRules.update((rows) => [...rows, { courseId: null, dayScope: 'all', startTime: null, endTime: null, allowGuest: true, allowMemberGuest: true }]);
+    this.gcDirty.set(true);
+  }
+
+  removeGuestRule(index: number): void {
+    this.guestRules.update((rows) => rows.filter((_, i) => i !== index));
+    this.gcDirty.set(true);
+  }
+
+  setGuestRule(index: number, patch: Partial<GolfGuestControlRule>): void {
+    this.guestRules.update((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+    this.gcDirty.set(true);
+  }
+
   // Live preview of the window rule with the current numbers. Hidden while
   // either number is out of range - the field errors speak then (a 25-hour
   // value once previewed as "-1:00 am").
@@ -198,14 +235,17 @@ export class GolfSettingsComponent implements OnInit {
       return;
     }
     const rules = this.minPlayerRules();
-    for (const r of rules) {
-      if (!!r.startTime !== !!r.endTime) {
-        this.errorMessage.set('A minimum-players rule needs both From and To times — or neither for the whole day.');
-        return;
-      }
-      if (r.startTime && r.endTime && r.startTime >= r.endTime) {
-        this.errorMessage.set('A minimum-players rule\'s From time must be before its To time.');
-        return;
+    const guestRules = this.guestRules();
+    for (const [label, scoped] of [['minimum-players', rules], ['guest-control', guestRules]] as const) {
+      for (const r of scoped) {
+        if (!!r.startTime !== !!r.endTime) {
+          this.errorMessage.set(`A ${label} rule needs both From and To times — or neither for the whole day.`);
+          return;
+        }
+        if (r.startTime && r.endTime && r.startTime >= r.endTime) {
+          this.errorMessage.set(`A ${label} rule's From time must be before its To time.`);
+          return;
+        }
       }
     }
 
@@ -218,8 +258,14 @@ export class GolfSettingsComponent implements OnInit {
       allowBookingMerge: v.allowBookingMerge,
       minPlayersWeekday: v.minPlayersWeekday,
       minPlayersWeekend: v.minPlayersWeekend,
+      guestControlEnabled: v.guestControlEnabled,
+      allowGuestWeekday: v.allowGuestWeekday,
+      allowMemberGuestWeekday: v.allowMemberGuestWeekday,
+      allowGuestWeekend: v.allowGuestWeekend,
+      allowMemberGuestWeekend: v.allowMemberGuestWeekend,
       overrides: rows,
       minPlayerRules: rules,
+      guestControlRules: guestRules,
     }).subscribe({
       next: (res) => {
         this.successMessage.set(res.message);
