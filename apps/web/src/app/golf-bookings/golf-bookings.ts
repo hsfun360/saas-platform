@@ -32,6 +32,13 @@ interface PlayerLine {
   guestName: string;
 }
 
+// The DEVICE-local calendar date as 'YYYY-MM-DD'. toISOString() would give
+// the UTC date - in Malaysia that is yesterday until 8am.
+function localToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 @Component({
   selector: 'app-golf-bookings',
   standalone: true,
@@ -53,7 +60,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
   readonly errorMessage = signal('');
 
   // ---- listing ----
-  readonly listDate = signal(new Date().toISOString().slice(0, 10));
+  readonly listDate = signal(localToday());
   readonly bookings = signal<GolfBookingRow[]>([]);
 
   // ---- wizard dialog ----
