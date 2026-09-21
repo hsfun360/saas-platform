@@ -14,7 +14,7 @@ Two workflows in [`.github/workflows/`](../../.github/workflows/), keyless GCP a
 
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
-| `deploy-dev.yml` | push to `dev` touching `apps/**` (or the workflow itself) | build + push both images, deploy worker -> api -> web to dev BY DIGEST, smoke-check the api root and `/api/auth/sso-config` through the web proxy |
+| `deploy-dev.yml` | push to `dev` touching `apps/**` (or the workflow itself) | run the web unit tests (`ng test`, a `web-tests` job gating everything else), then build + push both images, deploy worker -> api -> web to dev BY DIGEST, smoke-check the api root and `/api/auth/sso-config` through the web proxy |
 | `promote-staging.yml` | manual (`workflow_dispatch` - this IS the approval gate) | read the digests dev currently serves, deploy them worker -> api -> web to staging, smoke-check staging |
 
 Run the promotion from the GitHub UI (Actions -> "Promote to staging" -> Run workflow) or:
