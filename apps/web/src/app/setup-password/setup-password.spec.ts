@@ -1,18 +1,21 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+﻿import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 
-import { SetupPassword } from './setup-password';
+import { SetupPasswordComponent } from './setup-password';
 
-describe('SetupPassword', () => {
-  let component: SetupPassword;
-  let fixture: ComponentFixture<SetupPassword>;
+describe('SetupPasswordComponent', () => {
+  let component: SetupPasswordComponent;
+  let fixture: ComponentFixture<SetupPasswordComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [SetupPassword]
-    })
-    .compileComponents();
+      imports: [SetupPasswordComponent],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
 
-    fixture = TestBed.createComponent(SetupPassword);
+    fixture = TestBed.createComponent(SetupPasswordComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

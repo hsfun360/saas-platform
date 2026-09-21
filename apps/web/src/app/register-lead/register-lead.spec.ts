@@ -1,18 +1,21 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+﻿import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 
-import { RegisterLead } from './register-lead';
+import { RegisterLeadComponent } from './register-lead';
 
-describe('RegisterLead', () => {
-  let component: RegisterLead;
-  let fixture: ComponentFixture<RegisterLead>;
+describe('RegisterLeadComponent', () => {
+  let component: RegisterLeadComponent;
+  let fixture: ComponentFixture<RegisterLeadComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [RegisterLead]
-    })
-    .compileComponents();
+      imports: [RegisterLeadComponent],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
 
-    fixture = TestBed.createComponent(RegisterLead);
+    fixture = TestBed.createComponent(RegisterLeadComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

@@ -1,4 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 
 import { Dashboard } from './dashboard';
 
@@ -8,13 +11,17 @@ describe('Dashboard', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [Dashboard]
-    })
-    .compileComponents();
+      imports: [Dashboard],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(Dashboard);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    fixture?.destroy(); // clears the notification polling interval
   });
 
   it('should create', () => {
