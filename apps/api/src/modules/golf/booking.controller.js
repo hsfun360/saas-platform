@@ -83,31 +83,58 @@ function playDateText(iso) {
     return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
-// Queue a booking email to every recipient with an email address (members and
-// members-as-guests resolve through the membership seam; name-only guests have
-// no address until registration). Deduped by address. NON-CRITICAL: an email
-// problem must never abort the booking - each enqueue is caught and logged;
-// queued rows still commit/roll back with the caller's transaction.
-async function queueBookingEmails({ companyId, templateKey, recipients, data, transaction }) {
+// Queue ONE booking email addressed to every recipient with an email address
+// TOGETHER (user decision 2026-09-22: the addresses are concatenated in To:,
+// so every player sees the rest were informed). Members and members-as-guests
+// resolve their address through the membership seam; name-only guests have no
+// address until registration. Deduped by address. NON-CRITICAL: an email
+// problem must never abort the booking - the enqueue is caught and logged;
+// the queued row still commits/rolls back with the caller's transaction.
+async function queueBookingEmail({ companyId, templateKey, recipients, data, transaction }) {
     const company = await getCompanyProfile(companyId);
     const seen = new Set();
+    const to = [];
     for (const r of recipients) {
         if (!r || !r.email) continue;
         const key = r.email.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
-        try {
-            await enqueueEmail({
-                templateKey,
-                accountId: company ? company.accountId : null,
-                companyId,
-                to: r.email,
-                data: { playerName: r.name, companyName: company ? company.name : '', ...data },
-            }, transaction);
-        } catch (error) {
-            console.error(`Error queueing ${templateKey} email to ${r.email}:`, error);
-        }
+        to.push(r.email);
     }
+    if (!to.length) return;
+    try {
+        await enqueueEmail({
+            templateKey,
+            accountId: company ? company.accountId : null,
+            companyId,
+            to: to.join(', '),
+            data: { companyName: company ? company.name : '', ...data },
+        }, transaction);
+    } catch (error) {
+        console.error(`Error queueing ${templateKey} email:`, error);
+    }
+}
+
+const PLAYER_TYPE_LABELS = new Map(PLAYER_TYPES.map((t) => [t.key, t.label]));
+
+function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// The flight's player list as an email-safe HTML table (inline styles - email
+// clients ignore stylesheets). Injected into the templates via {{{playersTable}}}.
+function playersTableHtml(players) {
+    const td = 'border: 1px solid #e2e8f0; padding: 6px 10px; font-size: 14px;';
+    const th = `${td} background-color: #f8fafc; text-align: left;`;
+    const rows = players.map((p) => `<tr>`
+        + `<td style="${td}">${p.sortOrder}</td>`
+        + `<td style="${td}">${escapeHtml(p.playerName)}</td>`
+        + `<td style="${td}">${p.memberNo ? escapeHtml(p.memberNo) : '—'}</td>`
+        + `<td style="${td}">${PLAYER_TYPE_LABELS.get(p.playerType) || p.playerType}</td>`
+        + `</tr>`).join('');
+    return `<table style="border-collapse: collapse; width: 100%; margin-top: 8px;">`
+        + `<tr><th style="${th}">#</th><th style="${th}">Player</th><th style="${th}">Member No</th><th style="${th}">Type</th></tr>`
+        + `${rows}</table>`;
 }
 
 // "08:05 (WEST, B260900001), 14:30 (EAST, ...)" - the flight list for a
@@ -552,9 +579,10 @@ exports.create = async (req, res) => {
             })), { transaction });
             await FlightLock.destroy({ where: { companyId, groupId }, transaction });
 
-            // Confirmation email to every player with an address (booker
-            // included; queued rows commit only with the booking).
-            await queueBookingEmails({
+            // ONE confirmation email addressed to every player with an
+            // address (booker included; the queued row commits only with the
+            // booking).
+            await queueBookingEmail({
                 companyId,
                 templateKey: 'golf.booking.confirmed',
                 recipients: [standing, ...lines.filter((l) => l.standing).map((l) => l.standing)],
@@ -565,7 +593,7 @@ exports.create = async (req, res) => {
                     crossTime: crossTime || '',
                     courseName: `${course.courseCode}${course.description ? ' — ' + course.description : ''}`,
                     holes,
-                    playersList: lines.map((l) => l.playerName).join(', '),
+                    playersTable: playersTableHtml(lines),
                 },
                 transaction,
             });
@@ -646,7 +674,7 @@ exports.cancel = async (req, res) => {
         const course = await Course.findOne({ where: { companyId, id: booking.courseId } });
         await sequelize.transaction(async (transaction) => {
             await booking.save({ transaction });
-            await queueBookingEmails({
+            await queueBookingEmail({
                 companyId,
                 templateKey: 'golf.booking.cancelled',
                 recipients,
@@ -656,6 +684,7 @@ exports.cancel = async (req, res) => {
                     teeTime: availability.hhmm(booking.startTime),
                     courseName: course ? `${course.courseCode}${course.description ? ' — ' + course.description : ''}` : '',
                     cancelReason: booking.cancelReason || '',
+                    playersTable: playersTableHtml(players),
                 },
                 transaction,
             });

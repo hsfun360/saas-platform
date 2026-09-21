@@ -847,6 +847,30 @@ async function initializeDB() {
             END $$;
         `);
 
+        // One-time refresh (2026-09-22) of the two golf booking templates to
+        // their v2 catalogue content (ONE email to ALL players + players
+        // table). The seeder below is insert-only, so rows seeded with the v1
+        // body are updated in place. The {{playerName}} marker guard makes
+        // this a no-op once applied (the v2 bodies dropped that variable) and
+        // never touches a later admin customisation.
+        try {
+            const catalog = require('./modules/notification/email-templates.catalog');
+            const EmailTemplate = require('./modules/notification/emailTemplate.model');
+            for (const key of ['golf.booking.confirmed', 'golf.booking.cancelled']) {
+                const entry = catalog.find((t) => t.key === key);
+                if (!entry) continue;
+                const row = await EmailTemplate.findOne({ where: { accountId: null, templateKey: key } });
+                if (row && /\{\{playerName\}\}/.test(row.bodyHtml || '')) {
+                    row.subject = entry.subject;
+                    row.bodyHtml = entry.bodyHtml;
+                    await row.save();
+                    console.log(`Email template ${key} refreshed to v2 catalogue content.`);
+                }
+            }
+        } catch (error) {
+            console.error('Golf booking template refresh failed (non-fatal):', error.message);
+        }
+
         // Ensure the platform email-template defaults exist (idempotent, always
         // runs — unlike the RUN_SEED-gated demo seeder — so emails never break).
         await require('./modules/notification/emailTemplate.service').seedPlatformDefaults();
