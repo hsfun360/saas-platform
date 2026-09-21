@@ -413,6 +413,15 @@ exports.create = async (req, res) => {
             const bySlotTime = new Map(slots.map((s) => [availability.hhmm(s.teeTime), s]));
             const startSlot = bySlotTime.get(startTime);
             if (!startSlot) return { fail: 'The flight time no longer exists on the tee sheet.', status: 409 };
+            // Closure re-check (maintenance / tournament blocks saved while
+            // the flight was locked must still stop the booking).
+            const blocks = await availability.closureBlocks(course.id, playDate);
+            if (availability.nineBlocked(blocks, 'first', t)) {
+                return { fail: 'The flight is now blocked by a course closure.', status: 409 };
+            }
+            if (crossTime && availability.nineBlocked(blocks, 'second', availability.toMinutes(crossTime))) {
+                return { fail: 'The crossover flight is now blocked by a course closure.', status: 409 };
+            }
             const startOcc = occ.get(availability.cellKey(course.id, 'first', startTime));
             if (availability.seatsLeft(allowMerge, startOcc, startSlot.maxPlayers) < lines.length) {
                 return { fail: 'The flight no longer has room for these players.', status: 409 };
