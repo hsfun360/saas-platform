@@ -83,7 +83,10 @@ async function bookingWindow(companyId, membershipTypeId, timezone) {
     const now = clubNow(timezone);
     let dateTo = addDays(now.date, effectiveDays);
     if (hours > 0 && toMinutes(now.time) >= (24 - hours) * 60) dateTo = addDays(dateTo, 1);
-    return { dateFrom: now.date, dateTo, effectiveDays, hours, setting };
+    // Same-day booking OFF (default): the window STARTS TOMORROW - today's
+    // flights are front-desk registration only (user decision 2026-09-21).
+    const dateFrom = setting && setting.allowSameDayBooking === true ? now.date : addDays(now.date, 1);
+    return { dateFrom, dateTo, effectiveDays, hours, setting };
 }
 
 // ---- grid resolution -------------------------------------------------------

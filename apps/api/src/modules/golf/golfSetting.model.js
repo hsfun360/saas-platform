@@ -59,6 +59,16 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: 1,
     },
+    // Same-day booking (user decision 2026-09-21, default OFF): when OFF the
+    // booking window STARTS TOMORROW (club-local) - today's flights are not
+    // bookable at all; golfers take today's flights by front-desk
+    // REGISTRATION (the registration stage owns walk-ins). ON = the window
+    // starts today. The window END stays the advance days + hours rule.
+    allowSameDayBooking: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     // One booking per day (user decisions 2026-09-20, default ON): a member
     // may only be in ONE active booking per play date - counted when they are
     // the BOOKER or a 'member' player line; member-as-guest lines are NOT
