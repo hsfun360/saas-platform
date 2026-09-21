@@ -14,9 +14,10 @@ const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const {
-    getUserContext, getCallerPlacement, annotateCanModify, canModifyRecord,
+    getUserContext, getCallerPlacement, annotateCanModify, canModifyRecord, getCompanyProfile,
 } = require('../../platform/serviceContext');
 const { getGolfMemberStanding } = require('../../platform/membershipGateway');
+const { enqueueEmail } = require('../notification/emailOutbox');
 const { classifyDateRange, companyTimezone } = require('../../platform/calendarGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const availability = require('./bookingAvailability.service');
@@ -74,6 +75,39 @@ async function ensureMemberGolfer(companyId, standing, stamps, transaction) {
         await row.save({ transaction });
     }
     return row;
+}
+
+// '27 Sept 2026' from 'YYYY-MM-DD' - a fixed readable style for emails (UTC
+// so the server timezone never shifts the date).
+function playDateText(iso) {
+    return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
+// Queue a booking email to every recipient with an email address (members and
+// members-as-guests resolve through the membership seam; name-only guests have
+// no address until registration). Deduped by address. NON-CRITICAL: an email
+// problem must never abort the booking - each enqueue is caught and logged;
+// queued rows still commit/roll back with the caller's transaction.
+async function queueBookingEmails({ companyId, templateKey, recipients, data, transaction }) {
+    const company = await getCompanyProfile(companyId);
+    const seen = new Set();
+    for (const r of recipients) {
+        if (!r || !r.email) continue;
+        const key = r.email.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        try {
+            await enqueueEmail({
+                templateKey,
+                accountId: company ? company.accountId : null,
+                companyId,
+                to: r.email,
+                data: { playerName: r.name, companyName: company ? company.name : '', ...data },
+            }, transaction);
+        } catch (error) {
+            console.error(`Error queueing ${templateKey} email to ${r.email}:`, error);
+        }
+    }
 }
 
 // "08:05 (WEST, B260900001), 14:30 (EAST, ...)" - the flight list for a
@@ -517,6 +551,24 @@ exports.create = async (req, res) => {
                 ...stamps,
             })), { transaction });
             await FlightLock.destroy({ where: { companyId, groupId }, transaction });
+
+            // Confirmation email to every player with an address (booker
+            // included; queued rows commit only with the booking).
+            await queueBookingEmails({
+                companyId,
+                templateKey: 'golf.booking.confirmed',
+                recipients: [standing, ...lines.filter((l) => l.standing).map((l) => l.standing)],
+                data: {
+                    bookingNo,
+                    playDateText: playDateText(playDate),
+                    teeTime: startTime,
+                    crossTime: crossTime || '',
+                    courseName: `${course.courseCode}${course.description ? ' — ' + course.description : ''}`,
+                    holes,
+                    playersList: lines.map((l) => l.playerName).join(', '),
+                },
+                transaction,
+            });
             return { booking };
         });
 
@@ -581,7 +633,33 @@ exports.cancel = async (req, res) => {
         booking.cancelledBy = getUserContext(req).userId;
         booking.cancelReason = req.body.reason ? String(req.body.reason).slice(0, 255) : null;
         booking.updatedBy = getUserContext(req).userId;
-        await booking.save();
+
+        // Cancellation email to every member/member-guest player with an
+        // address (name-only guests have none), atomic with the cancel.
+        const players = await BookingPlayer.findAll({ where: { bookingId: booking.id }, order: [['sortOrder', 'ASC']] });
+        const recipients = [];
+        for (const p of players) {
+            if (!p.memberNo) continue;
+            const s = await getGolfMemberStanding(companyId, p.memberNo);
+            if (s && s.email) recipients.push({ name: p.playerName, email: s.email });
+        }
+        const course = await Course.findOne({ where: { companyId, id: booking.courseId } });
+        await sequelize.transaction(async (transaction) => {
+            await booking.save({ transaction });
+            await queueBookingEmails({
+                companyId,
+                templateKey: 'golf.booking.cancelled',
+                recipients,
+                data: {
+                    bookingNo: booking.bookingNo,
+                    playDateText: playDateText(String(booking.playDate)),
+                    teeTime: availability.hhmm(booking.startTime),
+                    courseName: course ? `${course.courseCode}${course.description ? ' — ' + course.description : ''}` : '',
+                    cancelReason: booking.cancelReason || '',
+                },
+                transaction,
+            });
+        });
         res.status(200).json({ message: `Booking ${booking.bookingNo} cancelled.` });
     } catch (error) {
         console.error('Error cancelling golf booking:', error);

@@ -272,7 +272,7 @@ async function getGolfMemberStanding(companyId, memberNo) {
     const MembershipStatus = require('../modules/membership/membershipStatus.model');
     const row = await Member.findOne({
         where: { companyId, memberNo: { [Op.iLike]: String(memberNo).trim() } },
-        attributes: ['id', 'memberNo', 'firstName', 'lastName', 'localName', 'membershipTypeId', 'memberStatusId'],
+        attributes: ['id', 'memberNo', 'firstName', 'lastName', 'localName', 'email', 'membershipTypeId', 'memberStatusId'],
     });
     if (!row) return null;
     const [type, status] = await Promise.all([
@@ -283,6 +283,7 @@ async function getGolfMemberStanding(companyId, memberNo) {
         memberId: row.id,
         memberNo: row.memberNo,
         name: personName(row),
+        email: row.email || null,
         membershipTypeId: type ? type.id : null,
         membershipTypeCategory: type ? type.category : null,
         isGolfAllow: type ? type.isGolfAllow === true : false,

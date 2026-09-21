@@ -428,4 +428,76 @@ module.exports = [
             ${button('{{listLink}}', 'View statements')}
         `),
     },
+    {
+        key: 'golf.booking.confirmed',
+        name: 'Golf booking confirmation',
+        description: 'Sent to every player with an email address when a golf booking is confirmed.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'playerName', description: "The recipient player's name." },
+            { name: 'bookingNo', description: 'The booking number.' },
+            { name: 'playDateText', description: "The play date, e.g. '27 Sept 2026'." },
+            { name: 'teeTime', description: "The tee-off time, e.g. '08:05'." },
+            { name: 'crossTime', description: 'The 18-hole cross-over time (empty for 9 holes).' },
+            { name: 'courseName', description: 'The course, e.g. WEST - West Course.' },
+            { name: 'holes', description: '9 or 18.' },
+            { name: 'playersList', description: 'All players of the flight, comma-separated.' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: {
+            playerName: 'Ahmad Faizal', bookingNo: 'B260900001', playDateText: '27 Sept 2026',
+            teeTime: '08:05', crossTime: '10:05', courseName: 'WEST — West Course', holes: 18,
+            playersList: 'Ahmad Faizal, Lee Chun, Guest', companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: 'Booking {{bookingNo}} confirmed — {{playDateText}} {{teeTime}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Tee time confirmed</h2>
+            <p>Dear {{playerName}},</p>
+            <p>Your flight at <strong>{{companyName}}</strong> is confirmed:</p>
+            <p>
+                <strong>Booking No.:</strong> {{bookingNo}}<br>
+                <strong>Date:</strong> {{playDateText}}<br>
+                <strong>Tee time:</strong> {{teeTime}} · {{holes}} holes{{#if crossTime}} · cross over {{crossTime}}{{/if}}<br>
+                <strong>Course:</strong> {{courseName}}<br>
+                <strong>Players:</strong> {{playersList}}
+            </p>
+            <p style="font-size: 12px; color: #666;">Please arrive at the club in good time before your tee-off. Contact the front desk for any changes.</p>
+        `),
+    },
+    {
+        key: 'golf.booking.cancelled',
+        name: 'Golf booking cancellation',
+        description: 'Sent to every player with an email address when a golf booking is cancelled.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'playerName', description: "The recipient player's name." },
+            { name: 'bookingNo', description: 'The booking number.' },
+            { name: 'playDateText', description: "The play date, e.g. '27 Sept 2026'." },
+            { name: 'teeTime', description: "The tee-off time, e.g. '08:05'." },
+            { name: 'courseName', description: 'The course, e.g. WEST - West Course.' },
+            { name: 'cancelReason', description: 'The reason keyed at cancellation (may be empty).' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: {
+            playerName: 'Ahmad Faizal', bookingNo: 'B260900001', playDateText: '27 Sept 2026',
+            teeTime: '08:05', courseName: 'WEST — West Course', cancelReason: 'Course maintenance',
+            companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: 'Booking {{bookingNo}} cancelled — {{playDateText}} {{teeTime}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Booking cancelled</h2>
+            <p>Dear {{playerName}},</p>
+            <p>The following flight at <strong>{{companyName}}</strong> has been <strong>cancelled</strong>:</p>
+            <p>
+                <strong>Booking No.:</strong> {{bookingNo}}<br>
+                <strong>Date:</strong> {{playDateText}}<br>
+                <strong>Tee time:</strong> {{teeTime}}<br>
+                <strong>Course:</strong> {{courseName}}{{#if cancelReason}}<br>
+                <strong>Reason:</strong> {{cancelReason}}{{/if}}
+            </p>
+            <p style="font-size: 12px; color: #666;">If this is unexpected, please contact the club's front desk.</p>
+        `),
+    },
 ];
