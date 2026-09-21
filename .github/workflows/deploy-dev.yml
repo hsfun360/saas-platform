@@ -46,6 +46,12 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
+      # The lockfile is authored by npm 11 (local dev). Node 20 bundles npm 10,
+      # whose `npm ci` rejects the lock's optional-peer entries (chokidar ^5 on
+      # @angular-devkit/core) as "missing from lock file" - so pin npm 11 here.
+      - name: Use npm 11 (matches the lockfile author)
+        run: npm install -g npm@11
+
       - name: Install web dependencies
         working-directory: apps/web
         run: npm ci
