@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -214,11 +214,17 @@ export class MembershipsComponent implements OnInit {
   readonly memberMetaValue = toSignal(this.memberMetaForm.valueChanges, { initialValue: this.memberMetaForm.getRawValue() });
 
   // --- Members dialog (the people under one membership) ---
+  // ONE <app-dialog> instance whose body switches between the members LIST view
+  // (mode null) and the member FORM view (per the single-dialog standard - two
+  // swapping instances race on the dialog's history back-trap: the destroyed
+  // dialog's async history.back() pops the new dialog's trap entry, which reads
+  // as the Back button and closes the form the instant it opens).
   readonly membersOpen = signal(false);
   readonly membersLoading = signal(false);
   readonly activeMembership = signal<Membership | null>(null);
+  private readonly membersDlg = viewChild<DialogComponent>('memDlg');
 
-  // --- Member dialog (add nominee / add dependent / edit member) ---
+  // --- Member form view (add nominee / add dependent / edit member) ---
   readonly memberDialogMode = signal<'nominee' | 'dependent' | 'edit' | null>(null);
   readonly memberSaving = signal(false);
   readonly editMember = signal<Member | null>(null);
@@ -357,6 +363,16 @@ export class MembershipsComponent implements OnInit {
     const m = this.editMember();
     return m ? `Edit — ${this.memberName(m)}` : 'Edit member';
   });
+
+  // The one Members dialog: title follows the active view.
+  readonly membersDialogTitle = computed(() =>
+    this.memberDialogMode() ? this.memberDialogTitle() : `Members — ${this.membersTitleNo()}`);
+
+  // Dirty only applies to the form view (form.dirty is not a signal, so this is
+  // a method the template re-reads each check - same shape as golf-courses).
+  membersDialogDirty(): boolean {
+    return this.memberDialogMode() ? this.memberForm.dirty || this.memberMetaForm.dirty : false;
+  }
 
   ngOnInit(): void {
     this.load();
@@ -708,6 +724,9 @@ export class MembershipsComponent implements OnInit {
     this.membersOpen.set(false);
     this.activeMembership.set(null);
     this.membersId = '';
+    this.memberDialogMode.set(null);
+    this.editMember.set(null);
+    this.dependentPrincipal.set(null);
   }
 
   private reloadActiveMembership(): void {
@@ -829,6 +848,9 @@ export class MembershipsComponent implements OnInit {
     this.editMember.set(member);
     this.dependentPrincipal.set(principal);
     if (mode !== 'edit') this.resetMemberForm();
+    // View swap inside the one open dialog - the dialog only focuses on OPEN,
+    // so land focus on the form's first field once it has rendered.
+    this.membersDlg()?.focusFirstField();
   }
 
   private resetMemberForm(): void {
@@ -844,10 +866,12 @@ export class MembershipsComponent implements OnInit {
     this.memberMetaForm.reset({ memberNo: '', dependentType: '', memberStatusId: '' });
   }
 
-  closeMemberDialog(): void {
+  // Return to the members list view inside the open dialog.
+  backToMembersList(): void {
     this.memberDialogMode.set(null);
     this.editMember.set(null);
     this.dependentPrincipal.set(null);
+    this.membersDlg()?.focusFirstField();
   }
 
   onSaveMember(): void {
@@ -892,7 +916,7 @@ export class MembershipsComponent implements OnInit {
       next: (res) => {
         this.successMessage.set(res.message);
         this.memberSaving.set(false);
-        this.closeMemberDialog();
+        this.backToMembersList();
         this.reloadActiveMembership();
         this.load(); // counts on the list cards
       },

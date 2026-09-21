@@ -673,100 +673,104 @@
     </app-dialog>
   }
 
-  <!-- ============ Members dialog (the people under one membership) ============ -->
-  @if (membersOpen() && !memberDialogMode()) {
-    <app-dialog [title]="'Members — ' + membersTitleNo()" [busy]="membersLoading()"
-                (close)="closeMembers()">
-      @if (membersLoading()) {
-        <div class="loading-state"><div class="spinner large"></div><p>Loading members…</p></div>
-      } @else {
-        @if (activeMembership()?.membershipClass === 'corporate') {
-          <div class="mem-toolbar">
-            <span class="cell-subtle">{{ nomineeSeatText() }}</span>
-            <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="openAddNominee()" [disabled]="nomineeSeatsFull()">
-              <span class="material-icons" aria-hidden="true">person_add</span> New nominee
-            </button>
-          </div>
-        }
-
-        @if (memberTree().length === 0) {
-          <div class="empty-state">
-            <span class="empty-icon">👥</span>
-            <p>No members yet.@if (activeMembership()?.membershipClass === 'corporate') { Use "New nominee" to fill the first seat.}</p>
-          </div>
-        }
-
-        @for (group of memberTree(); track group.principal.id) {
-          <div class="mem-card">
-            <div class="mem-row">
-              <div class="mem-row__main">
-                <div class="mem-row__name">
-                  @if (group.principal.photoUrl) {
-                    <img class="ms-avatar" [src]="group.principal.photoUrl" alt="" />
-                  }
-                  <span class="ms-class-chip">{{ kindLabel(group.principal.memberKind) }}</span>
-                  {{ memberName(group.principal) }}
-                </div>
-                <div class="mem-row__sub">
-                  {{ group.principal.memberNo }}
-                  <span class="ms-status">
-                    <span class="ms-status__dot" [style.background]="statusColor(group.principal.memberStatusId)" aria-hidden="true"></span>
-                    {{ statusName(group.principal.memberStatusId) }}
-                  </span>
-                </div>
-              </div>
-              <div class="mem-row__actions">
-                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditMember(group.principal)">Edit</button>
-                <app-overflow-menu *appCan="'create'" [label]="'More actions for ' + group.principal.memberNo">
-                  <button type="button" appMenuItem (click)="openAddDependent(group.principal)">
-                    <span class="material-icons" aria-hidden="true">person_add</span>
-                    Add dependent
-                  </button>
-                </app-overflow-menu>
-              </div>
-            </div>
-
-            @for (d of group.dependents; track d.id) {
-              <div class="mem-row mem-row--dep">
-                <div class="mem-row__main">
-                  <div class="mem-row__name">
-                    @if (d.photoUrl) {
-                      <img class="ms-avatar" [src]="d.photoUrl" alt="" />
-                    }
-                    <span class="ms-class-chip ms-class-chip--dep">{{ dependentLabel(d.dependentType) }}</span>
-                    {{ memberName(d) }}
-                  </div>
-                  <div class="mem-row__sub">
-                    {{ d.memberNo }}
-                    <span class="ms-status">
-                      <span class="ms-status__dot" [style.background]="statusColor(d.memberStatusId)" aria-hidden="true"></span>
-                      {{ statusName(d.memberStatusId) }}
-                    </span>
-                    @if (d.expiryDate) { <span class="cell-subtle">expires {{ d.expiryDate | localDate }}</span> }
-                  </div>
-                </div>
-                <div class="mem-row__actions">
-                  <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditMember(d)">Edit</button>
-                </div>
-              </div>
-            }
-          </div>
-        }
-      }
-
-      <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="closeMembers()">Close</button>
-      </ng-container>
-    </app-dialog>
-  }
-
-  <!-- ============ Member dialog (new nominee / new dependent / edit) ============ -->
-  @if (memberDialogMode()) {
-    <app-dialog #memDlg variant="drawer" [title]="memberDialogTitle()" [busy]="memberSaving()"
-                [dirty]="memberForm.dirty || memberMetaForm.dirty"
+  <!-- ============ Members dialog: ONE dialog, list + member-form views ============ -->
+  <!-- The shared dialog manages a history back-trap per instance, so this flow
+       switches VIEWS inside one open dialog (the single-dialog standard - ref
+       the golf-courses tee-times dialog). Two swapping instances raced on that
+       trap: the destroyed list dialog's async history.back() popped the new
+       form dialog's entry, which read as the Back button and closed the member
+       form the instant Edit opened it. -->
+  @if (membersOpen()) {
+    <app-dialog #memDlg [variant]="memberDialogMode() ? 'drawer' : 'center'"
+                [title]="membersDialogTitle()" [busy]="membersLoading() || memberSaving()"
+                [dirty]="membersDialogDirty()"
                 discardTitle="Discard this member?"
                 discardMessage="You have unsaved changes to this member. Leaving now will discard them."
-                (close)="closeMemberDialog()">
+                (close)="closeMembers()">
+      @switch (memberDialogMode()) {
+
+        <!-- ============ Members list view (the people under one membership) ============ -->
+        @case (null) {
+          @if (membersLoading()) {
+            <div class="loading-state"><div class="spinner large"></div><p>Loading members…</p></div>
+          } @else {
+            @if (activeMembership()?.membershipClass === 'corporate') {
+              <div class="mem-toolbar">
+                <span class="cell-subtle">{{ nomineeSeatText() }}</span>
+                <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="openAddNominee()" [disabled]="nomineeSeatsFull()">
+                  <span class="material-icons" aria-hidden="true">person_add</span> New nominee
+                </button>
+              </div>
+            }
+
+            @if (memberTree().length === 0) {
+              <div class="empty-state">
+                <span class="empty-icon">👥</span>
+                <p>No members yet.@if (activeMembership()?.membershipClass === 'corporate') { Use "New nominee" to fill the first seat.}</p>
+              </div>
+            }
+
+            @for (group of memberTree(); track group.principal.id) {
+              <div class="mem-card">
+                <div class="mem-row">
+                  <div class="mem-row__main">
+                    <div class="mem-row__name">
+                      @if (group.principal.photoUrl) {
+                        <img class="ms-avatar" [src]="group.principal.photoUrl" alt="" />
+                      }
+                      <span class="ms-class-chip">{{ kindLabel(group.principal.memberKind) }}</span>
+                      {{ memberName(group.principal) }}
+                    </div>
+                    <div class="mem-row__sub">
+                      {{ group.principal.memberNo }}
+                      <span class="ms-status">
+                        <span class="ms-status__dot" [style.background]="statusColor(group.principal.memberStatusId)" aria-hidden="true"></span>
+                        {{ statusName(group.principal.memberStatusId) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="mem-row__actions">
+                    <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditMember(group.principal)">Edit</button>
+                    <app-overflow-menu *appCan="'create'" [label]="'More actions for ' + group.principal.memberNo">
+                      <button type="button" appMenuItem (click)="openAddDependent(group.principal)">
+                        <span class="material-icons" aria-hidden="true">person_add</span>
+                        Add dependent
+                      </button>
+                    </app-overflow-menu>
+                  </div>
+                </div>
+
+                @for (d of group.dependents; track d.id) {
+                  <div class="mem-row mem-row--dep">
+                    <div class="mem-row__main">
+                      <div class="mem-row__name">
+                        @if (d.photoUrl) {
+                          <img class="ms-avatar" [src]="d.photoUrl" alt="" />
+                        }
+                        <span class="ms-class-chip ms-class-chip--dep">{{ dependentLabel(d.dependentType) }}</span>
+                        {{ memberName(d) }}
+                      </div>
+                      <div class="mem-row__sub">
+                        {{ d.memberNo }}
+                        <span class="ms-status">
+                          <span class="ms-status__dot" [style.background]="statusColor(d.memberStatusId)" aria-hidden="true"></span>
+                          {{ statusName(d.memberStatusId) }}
+                        </span>
+                        @if (d.expiryDate) { <span class="cell-subtle">expires {{ d.expiryDate | localDate }}</span> }
+                      </div>
+                    </div>
+                    <div class="mem-row__actions">
+                      <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditMember(d)">Edit</button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          }
+        }
+
+        <!-- ============ Member form view (new nominee / new dependent / edit) ============ -->
+        @default {
       <form id="memberDlgForm" [formGroup]="memberMetaForm" (ngSubmit)="onSaveMember()" class="saas-form" style="padding: 0;">
         <details class="dlg-sec" open>
         <summary><h3 class="dlg-section">Member</h3></summary>
@@ -830,12 +834,21 @@
 
         <ng-container [ngTemplateOutlet]="profileFields"></ng-container>
       </form>
+        }
+      }
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="memDlg.requestClose()" [disabled]="memberSaving()">Cancel</button>
-        <button type="submit" form="memberDlgForm" class="btn btn--primary" [disabled]="memberSaving()">
-          {{ memberSaving() ? 'Saving…' : 'Save' }}
-        </button>
+        @switch (memberDialogMode()) {
+          @case (null) {
+            <button type="button" class="btn btn--secondary" (click)="memDlg.requestClose()">Close</button>
+          }
+          @default {
+            <button type="button" class="btn btn--secondary" (click)="backToMembersList()" [disabled]="memberSaving()">Back to list</button>
+            <button type="submit" form="memberDlgForm" class="btn btn--primary" [disabled]="memberSaving()">
+              {{ memberSaving() ? 'Saving…' : 'Save' }}
+            </button>
+          }
+        }
       </ng-container>
     </app-dialog>
   }
