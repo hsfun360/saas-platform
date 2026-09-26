@@ -80,12 +80,16 @@ function normalizeBody(body) {
     const chargeType = str(body.chargeType);
     if (!CHARGE_TYPE_KEYS.includes(chargeType)) return { error: 'Select a valid charge type.' };
 
-    // Green fees carry WHO they charge (one active type per category - the
-    // registration auto-billing key); every other charge type stays NULL.
+    // Green fees may name the golfer category they are the DEFAULT for (the
+    // registration auto-billing key; optional - NULL = a manual item such as
+    // a group-booking or tournament green fee). Other charge types stay NULL.
     let golferType = null;
     if (chargeType === 'green-fee') {
-        golferType = str(body.golferType);
-        if (!GOLFER_TYPE_KEYS.includes(golferType)) return { error: 'Select which golfer this green fee applies to.' };
+        const raw = str(body.golferType);
+        if (raw) {
+            if (!GOLFER_TYPE_KEYS.includes(raw)) return { error: 'Select a valid golfer type for the green-fee default.' };
+            golferType = raw;
+        }
     }
 
     return {
@@ -107,8 +111,9 @@ function normalizeBody(body) {
     };
 }
 
-// One ACTIVE green-fee type per golfer category - otherwise registration
-// auto-billing cannot resolve the item. Returns an error string or null.
+// At most one ACTIVE green-fee DEFAULT per golfer category - otherwise
+// registration auto-billing cannot resolve the item. Non-default green fees
+// (golferType NULL) are unrestricted. Returns an error string or null.
 async function activeGreenFeeConflict(companyId, golferType, selfId) {
     if (!golferType) return null;
     const where = { companyId, chargeType: 'green-fee', golferType, isActive: true };
@@ -116,7 +121,7 @@ async function activeGreenFeeConflict(companyId, golferType, selfId) {
     const clash = await GolfTransactionType.findOne({ where });
     if (!clash) return null;
     const label = (GOLFER_TYPES.find((g) => g.key === golferType) || {}).label || golferType;
-    return `'${clash.transactionType}' is already the active green fee for ${label} - disable it first or pick another golfer category.`;
+    return `'${clash.transactionType}' is already the default green fee for ${label} - disable it first or clear the golfer-type default.`;
 }
 
 // The package's auto (balance-line) transaction type: required, same company,

@@ -29,11 +29,13 @@ const MATRIX_CHARGE_TYPE_KEYS = ['green-fee', 'caddy-fee', 'buggy-fee'];
 // (user decisions 2026-08-27, superseding the earlier per-element-scheme idea).
 const PACKAGE_CHARGE_TYPE_KEY = 'package';
 
-// WHO a green-fee transaction type charges (user decision 2026-09-26): the
-// golfer category lives ON the type - one active green-fee type per category,
-// so registration auto-billing resolves the item without extra configuration.
-// Members WITH golfing right are never charged a green fee at all; the
-// 'member' category prices members WITHOUT the right (member rate).
+// DEFAULT FOR GOLFER TYPE (user decisions 2026-09-26): an OPTIONAL marker on
+// a green-fee transaction type naming which golfer category it auto-charges
+// at registration - at most ONE ACTIVE default per category. NULL = not a
+// default: a manual billing item (e.g. a Group Booking or Tournament green
+// fee) the desk adds from the tiles. Members WITH golfing right are never
+// auto-charged a green fee; the 'member' category prices members WITHOUT the
+// right (member rate).
 const GOLFER_TYPES = [
     { key: 'member', label: 'Member (no golfing right)' },
     { key: 'member-guest', label: 'Member as Guest' },

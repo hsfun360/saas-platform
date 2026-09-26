@@ -174,18 +174,14 @@
         @if (form.controls.chargeType.value === 'green-fee') {
           <div class="form-row">
             <div class="form-group">
-              <label for="gttGolferType">Applies to golfer <span class="required">*</span></label>
-              <select id="gttGolferType" formControlName="golferType"
-                      [attr.aria-invalid]="showError(form.controls.golferType)" aria-describedby="gttGolferTypeErr">
-                <option value="">— Select —</option>
+              <label for="gttGolferType">Default for golfer type</label>
+              <select id="gttGolferType" formControlName="golferType">
+                <option value="">— None — manual billing item</option>
                 @for (g of golferTypes(); track g.key) {
                   <option [value]="g.key">{{ g.label }}</option>
                 }
               </select>
-              @if (showError(form.controls.golferType)) {
-                <p id="gttGolferTypeErr" class="field-error" role="alert">Select which golfer this green fee applies to.</p>
-              }
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">One active green fee per golfer category — registration auto-bills by this. Members with golfing right are never charged.</p>
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Optional: makes this the green fee auto-charged at registration for that golfer type (one active default each). Leave as None for manual items like group-booking or tournament green fees. Members with golfing right are never auto-charged.</p>
             </div>
           </div>
         }

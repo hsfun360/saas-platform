@@ -319,14 +319,10 @@ export class GolfTransactionTypesComponent implements OnInit {
         return;
       }
     }
-    if (v.chargeType === 'green-fee' && !v.golferType) {
-      this.errorMessage.set('Select which golfer this green fee applies to.');
-      return;
-    }
     const payload: Partial<GolfTransactionType> = {
       transactionType: v.transactionType.trim(),
       chargeType: v.chargeType,
-      golferType: v.chargeType === 'green-fee' ? v.golferType : null,
+      golferType: v.chargeType === 'green-fee' ? (v.golferType || null) : null,
       description: v.description.trim() || null,
       taxSchemeCode: v.taxSchemeCode || null,
       allowPriceOverride: v.allowPriceOverride,

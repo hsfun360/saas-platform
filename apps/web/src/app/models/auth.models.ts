@@ -1259,8 +1259,10 @@ export interface CourseClosureDayPreview extends CourseClosureDay {
 // charge-type vocabulary differs (green-fee / caddy-fee / buggy-fee / no-show
 // / miscellaneous).
 export interface GolfTransactionType extends MembershipTransactionType {
-  // Green fees only: WHO this item charges (member | member-guest | guest) -
-  // one active green-fee type per category drives registration auto-billing.
+  // Green fees only, OPTIONAL: the golfer type this item is the DEFAULT for
+  // (member | member-guest | guest) - at most one active default per
+  // category drives registration auto-billing; NULL = a manual item
+  // (group-booking / tournament green fees).
   golferType?: string | null;
   // Whether the pre-set price may be amended manually when billing this item.
   allowPriceOverride?: boolean;
