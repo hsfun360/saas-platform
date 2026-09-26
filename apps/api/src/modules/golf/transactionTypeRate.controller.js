@@ -1,9 +1,9 @@
 // Pricing of a Transaction Type (Golf Management → Master File Setup →
-// Transaction Type → Pricing). Effective-dated price cards: the 8-cell
-// member/visitor × 9/18 holes × weekday/weekend matrix for green-fee /
-// caddy-fee / buggy-fee, a single flat amount for no-show / miscellaneous.
-// Resolution at billing: the active card with the latest effective date
-// on-or-before the play date.
+// Transaction Type → Pricing). Effective-dated price cards: the 4-cell
+// 9/18 holes × weekday/weekend matrix for green-fee / caddy-fee / buggy-fee
+// (the golfer category lives on the TYPE since 2026-09-26), a single flat
+// amount for no-show / miscellaneous / package. Resolution at billing: the
+// active card with the latest effective date on-or-before the play date.
 
 const GolfTransactionType = require('./transactionType.model');
 const GolfTransactionTypeRate = require('./transactionTypeRate.model');
@@ -16,8 +16,7 @@ const {
 const { MATRIX_CHARGE_TYPE_KEYS } = require('./transactionType.constants');
 
 const MATRIX_CELLS = [
-    'member9Weekday', 'member18Weekday', 'member9Weekend', 'member18Weekend',
-    'visitor9Weekday', 'visitor18Weekday', 'visitor9Weekend', 'visitor18Weekend',
+    'price9Weekday', 'price18Weekday', 'price9Weekend', 'price18Weekend',
 ];
 
 function companyIdOf(req) {

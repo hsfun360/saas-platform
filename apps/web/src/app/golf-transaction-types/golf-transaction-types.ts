@@ -13,11 +13,10 @@ import { MoneyInputDirective } from '../shared/money-input.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 
-// The eight matrix cells - member vs guest/visitor × 9/18 holes × weekday vs
+// The four matrix cells - 9/18 holes × weekday vs
 // weekend (public holidays count as weekend platform-wide).
 const MATRIX_CELLS = [
-  'member9Weekday', 'member18Weekday', 'member9Weekend', 'member18Weekend',
-  'visitor9Weekday', 'visitor18Weekday', 'visitor9Weekend', 'visitor18Weekend',
+  'price9Weekday', 'price18Weekday', 'price9Weekend', 'price18Weekend',
 ] as const;
 
 // The charge-type key whose transaction types bundle OTHER transaction types
@@ -54,6 +53,7 @@ export class GolfTransactionTypesComponent implements OnInit {
   readonly rows = signal<GolfTransactionType[]>([]);
   readonly chargeTypes = signal<MembershipStatusOption[]>([]);
   readonly matrixKeys = signal<string[]>(['green-fee', 'caddy-fee', 'buggy-fee']);
+  readonly golferTypes = signal<{ key: string; label: string }[]>([]);
   readonly taxSchemes = signal<TaxSchemeRef[]>([]);
   // Constrained-combobox rows (house standard for long reference lists):
   // code AND name in the label so type-to-filter matches both.
@@ -70,6 +70,7 @@ export class GolfTransactionTypesComponent implements OnInit {
   readonly form = this.fb.nonNullable.group({
     transactionType: ['', [Validators.required, Validators.maxLength(50)]],
     chargeType: ['', [Validators.required]],
+    golferType: [''],
     description: ['', [Validators.maxLength(255)]],
     taxSchemeCode: [''],
     allowPriceOverride: [false],
@@ -105,14 +106,10 @@ export class GolfTransactionTypesComponent implements OnInit {
 
   readonly rateForm = this.fb.nonNullable.group({
     effectiveDate: ['', [Validators.required]],
-    member9Weekday: [0, [Validators.required, Validators.min(0)]],
-    member18Weekday: [0, [Validators.required, Validators.min(0)]],
-    member9Weekend: [0, [Validators.required, Validators.min(0)]],
-    member18Weekend: [0, [Validators.required, Validators.min(0)]],
-    visitor9Weekday: [0, [Validators.required, Validators.min(0)]],
-    visitor18Weekday: [0, [Validators.required, Validators.min(0)]],
-    visitor9Weekend: [0, [Validators.required, Validators.min(0)]],
-    visitor18Weekend: [0, [Validators.required, Validators.min(0)]],
+    price9Weekday: [0, [Validators.required, Validators.min(0)]],
+    price18Weekday: [0, [Validators.required, Validators.min(0)]],
+    price9Weekend: [0, [Validators.required, Validators.min(0)]],
+    price18Weekend: [0, [Validators.required, Validators.min(0)]],
     flatAmount: [0, [Validators.required, Validators.min(0)]],
   });
 
@@ -170,6 +167,7 @@ export class GolfTransactionTypesComponent implements OnInit {
       next: (m) => {
         this.chargeTypes.set(m.chargeTypes);
         if (m.matrixChargeTypes?.length) this.matrixKeys.set(m.matrixChargeTypes);
+        if (m.golferTypes?.length) this.golferTypes.set(m.golferTypes);
       },
       error: () => {},
     });
@@ -261,7 +259,7 @@ export class GolfTransactionTypesComponent implements OnInit {
   openAdd(): void {
     this.clearMessages();
     this.editId.set(null);
-    this.form.reset({ transactionType: '', chargeType: '', description: '', taxSchemeCode: '', allowPriceOverride: false, iconUrl: '', autoTransactionTypeId: '' });
+    this.form.reset({ transactionType: '', chargeType: '', golferType: '', description: '', taxSchemeCode: '', allowPriceOverride: false, iconUrl: '', autoTransactionTypeId: '' });
     this.pkgItems.set([]);
     this.pkgDirty.set(false);
     this.dialogOpen.set(true);
@@ -273,6 +271,7 @@ export class GolfTransactionTypesComponent implements OnInit {
     this.form.reset({
       transactionType: t.transactionType,
       chargeType: t.chargeType,
+      golferType: t.golferType || '',
       description: t.description || '',
       taxSchemeCode: t.taxSchemeCode || '',
       allowPriceOverride: t.allowPriceOverride === true,
@@ -320,9 +319,14 @@ export class GolfTransactionTypesComponent implements OnInit {
         return;
       }
     }
+    if (v.chargeType === 'green-fee' && !v.golferType) {
+      this.errorMessage.set('Select which golfer this green fee applies to.');
+      return;
+    }
     const payload: Partial<GolfTransactionType> = {
       transactionType: v.transactionType.trim(),
       chargeType: v.chargeType,
+      golferType: v.chargeType === 'green-fee' ? v.golferType : null,
       description: v.description.trim() || null,
       taxSchemeCode: v.taxSchemeCode || null,
       allowPriceOverride: v.allowPriceOverride,
@@ -433,14 +437,10 @@ export class GolfTransactionTypesComponent implements OnInit {
     this.prEditId.set(r?.id || null);
     this.rateForm.reset({
       effectiveDate: r?.effectiveDate || '',
-      member9Weekday: r?.member9Weekday ?? 0,
-      member18Weekday: r?.member18Weekday ?? 0,
-      member9Weekend: r?.member9Weekend ?? 0,
-      member18Weekend: r?.member18Weekend ?? 0,
-      visitor9Weekday: r?.visitor9Weekday ?? 0,
-      visitor18Weekday: r?.visitor18Weekday ?? 0,
-      visitor9Weekend: r?.visitor9Weekend ?? 0,
-      visitor18Weekend: r?.visitor18Weekend ?? 0,
+      price9Weekday: r?.price9Weekday ?? 0,
+      price18Weekday: r?.price18Weekday ?? 0,
+      price9Weekend: r?.price9Weekend ?? 0,
+      price18Weekend: r?.price18Weekend ?? 0,
       flatAmount: r?.flatAmount ?? 0,
     });
     this.prMode.set('form');
@@ -450,10 +450,8 @@ export class GolfTransactionTypesComponent implements OnInit {
   copyWeekdayToWeekend(): void {
     const v = this.rateForm.getRawValue();
     this.rateForm.patchValue({
-      member9Weekend: v.member9Weekday,
-      member18Weekend: v.member18Weekday,
-      visitor9Weekend: v.visitor9Weekday,
-      visitor18Weekend: v.visitor18Weekday,
+      price9Weekend: v.price9Weekday,
+      price18Weekend: v.price18Weekday,
     });
     this.rateForm.markAsDirty();
   }

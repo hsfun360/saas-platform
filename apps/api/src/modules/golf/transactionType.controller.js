@@ -4,6 +4,7 @@
 // membership Transaction Type controller.
 
 const { Storage } = require('@google-cloud/storage');
+const { Op } = require('sequelize');
 const GolfTransactionType = require('./transactionType.model');
 const GolfTransactionTypeElement = require('./transactionTypeElement.model');
 const { sequelize } = require('../../platform/db');
@@ -19,6 +20,8 @@ const {
     CHARGE_TYPE_KEYS,
     MATRIX_CHARGE_TYPE_KEYS,
     PACKAGE_CHARGE_TYPE_KEY,
+    GOLFER_TYPES,
+    GOLFER_TYPE_KEYS,
 } = require('./transactionType.constants');
 
 function companyIdOf(req) {
@@ -45,6 +48,7 @@ function toDto(t, canModify = true) {
         canModify,
         transactionType: t.transactionType,
         chargeType: t.chargeType,
+        golferType: t.golferType,
         description: t.description,
         taxSchemeCode: t.taxSchemeCode,
         allowPriceOverride: t.allowPriceOverride === true,
@@ -76,10 +80,19 @@ function normalizeBody(body) {
     const chargeType = str(body.chargeType);
     if (!CHARGE_TYPE_KEYS.includes(chargeType)) return { error: 'Select a valid charge type.' };
 
+    // Green fees carry WHO they charge (one active type per category - the
+    // registration auto-billing key); every other charge type stays NULL.
+    let golferType = null;
+    if (chargeType === 'green-fee') {
+        golferType = str(body.golferType);
+        if (!GOLFER_TYPE_KEYS.includes(golferType)) return { error: 'Select which golfer this green fee applies to.' };
+    }
+
     return {
         value: {
             transactionType,
             chargeType,
+            golferType,
             description: typeof body.description === 'string' ? body.description.trim() || null : null,
             // Packages DO carry their own tax scheme (spec 2026-08-28): it is
             // applied to ALL bill lines generated from the package, with the
@@ -92,6 +105,18 @@ function normalizeBody(body) {
             autoTransactionTypeId: chargeType === PACKAGE_CHARGE_TYPE_KEY ? (str(body.autoTransactionTypeId) || null) : null,
         },
     };
+}
+
+// One ACTIVE green-fee type per golfer category - otherwise registration
+// auto-billing cannot resolve the item. Returns an error string or null.
+async function activeGreenFeeConflict(companyId, golferType, selfId) {
+    if (!golferType) return null;
+    const where = { companyId, chargeType: 'green-fee', golferType, isActive: true };
+    if (selfId) where.id = { [Op.ne]: selfId };
+    const clash = await GolfTransactionType.findOne({ where });
+    if (!clash) return null;
+    const label = (GOLFER_TYPES.find((g) => g.key === golferType) || {}).label || golferType;
+    return `'${clash.transactionType}' is already the active green fee for ${label} - disable it first or pick another golfer category.`;
 }
 
 // The package's auto (balance-line) transaction type: required, same company,
@@ -181,7 +206,7 @@ async function validateTaxScheme(req, taxSchemeCode) {
 // GET /api/golf/transaction-types/meta - the charge-type options, plus which
 // of them price by the 8-cell matrix (the rest take a flat amount).
 exports.getMeta = async (req, res) => {
-    res.status(200).json({ chargeTypes: CHARGE_TYPES, matrixChargeTypes: MATRIX_CHARGE_TYPE_KEYS });
+    res.status(200).json({ chargeTypes: CHARGE_TYPES, matrixChargeTypes: MATRIX_CHARGE_TYPE_KEYS, golferTypes: GOLFER_TYPES });
 };
 
 // GET /api/golf/transaction-types/tax-schemes - the company's usable OUTPUT
@@ -259,6 +284,9 @@ exports.create = async (req, res) => {
         const existing = await GolfTransactionType.findOne({ where: { companyId, transactionType: v.transactionType } });
         if (existing) return res.status(409).json({ message: `Transaction type '${v.transactionType}' already exists.` });
 
+        const gfErr = await activeGreenFeeConflict(companyId, v.golferType, null);
+        if (gfErr) return res.status(409).json({ message: gfErr });
+
         const isPackage = v.chargeType === PACKAGE_CHARGE_TYPE_KEY;
         let items = null;
         if (isPackage) {
@@ -314,6 +342,11 @@ exports.update = async (req, res) => {
             if (clash) return res.status(409).json({ message: `Transaction type '${v.transactionType}' already exists.` });
         }
 
+        if (row.isActive !== false) {
+            const gfErr = await activeGreenFeeConflict(companyId, v.golferType, row.id);
+            if (gfErr) return res.status(409).json({ message: gfErr });
+        }
+
         const isPackage = v.chargeType === PACKAGE_CHARGE_TYPE_KEY;
         let items = null;
         if (isPackage) {
@@ -361,6 +394,10 @@ exports.setActive = async (req, res) => {
         }
 
         if (typeof req.body.isActive === 'boolean') {
+            if (req.body.isActive === true) {
+                const gfErr = await activeGreenFeeConflict(companyId, row.golferType, row.id);
+                if (gfErr) return res.status(409).json({ message: gfErr });
+            }
             row.isActive = req.body.isActive;
             row.updatedBy = getUserContext(req).userId;
             await row.save();

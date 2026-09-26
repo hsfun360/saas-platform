@@ -6,9 +6,11 @@ const { GOLF_SCHEMA } = require('../../platform/schemas');
 // force from `effectiveDate` (latest on-or-before the play date wins, the same
 // resolution rule as CourseTeeTimeSet). Two shapes, decided by the parent's
 // charge type:
-//   - matrix (green-fee / caddy-fee / buggy-fee): the eight member/visitor ×
-//     9/18 holes × weekday/weekend cells are set, `flatAmount` stays NULL.
-//   - flat (no-show / miscellaneous): only `flatAmount` is set.
+//   - matrix (green-fee / caddy-fee / buggy-fee): the four 9/18 holes ×
+//     weekday/weekend cells are set, `flatAmount` stays NULL. (Simplified
+//     2026-09-26 from the 8-cell member/visitor matrix: the golfer category
+//     moved onto the transaction type itself - one billing item per category.)
+//   - flat (no-show / miscellaneous / package): only `flatAmount` is set.
 // "Weekend" includes public holidays by platform-wide business rule (see
 // platform/calendarGateway.js). Amounts are tax-exclusive - tax comes from the
 // parent's taxSchemeCode at billing time. Whether a resolved price may be
@@ -32,16 +34,12 @@ const GolfTransactionTypeRate = sequelize.define('GolfTransactionTypeRate', {
         type: DataTypes.DATEONLY,
         allowNull: false,
     },
-    // The 8 matrix cells - member vs guest/visitor, 9 vs 18 holes, weekday vs
-    // weekend/public-holiday. NULL on flat-priced charge types.
-    member9Weekday: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
-    member18Weekday: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
-    member9Weekend: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
-    member18Weekend: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
-    visitor9Weekday: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
-    visitor18Weekday: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
-    visitor9Weekend: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
-    visitor18Weekend: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
+    // The 4 matrix cells - 9 vs 18 holes, weekday vs weekend/public-holiday.
+    // NULL on flat-priced charge types.
+    price9Weekday: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
+    price18Weekday: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
+    price9Weekend: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
+    price18Weekend: { type: DataTypes.DECIMAL(21, 2), allowNull: true },
     // Single price for flat charge types (no-show / miscellaneous); NULL on
     // matrix charge types.
     flatAmount: { type: DataTypes.DECIMAL(21, 2), allowNull: true },

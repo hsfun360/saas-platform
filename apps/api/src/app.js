@@ -252,6 +252,25 @@ async function initializeDB() {
                 await sequelize.query('ALTER INDEX IF EXISTS ar."IDX_StatementLine_Company" RENAME TO "IDX_StatementDetail_Company"');
                 console.log('Migrated ar.StatementLine -> ar.StatementDetail.');
             }
+            // Golf rate matrix simplification (2026-09-26) - BEFORE the
+            // alter-sync: the 8 member/visitor cells collapse to 4 neutral
+            // price cells (the golfer category moved onto the transaction
+            // type). Existing cards keep their MEMBER prices (visitor cells
+            // as fallback - dev test data), then the old columns drop.
+            // Idempotent: guarded on the OLD column's existence.
+            const [[gfRate]] = await sequelize.query(`
+                SELECT 1 AS present FROM information_schema.columns
+                WHERE table_schema = 'golf' AND table_name = 'TransactionTypeRate' AND column_name = 'member9Weekday'
+            `);
+            if (gfRate && gfRate.present) {
+                for (const cell of ['9Weekday', '18Weekday', '9Weekend', '18Weekend']) {
+                    await sequelize.query(`ALTER TABLE golf."TransactionTypeRate" ADD COLUMN IF NOT EXISTS "price${cell}" numeric(21,2)`);
+                    await sequelize.query(`UPDATE golf."TransactionTypeRate" SET "price${cell}" = COALESCE("member${cell}", "visitor${cell}") WHERE "price${cell}" IS NULL`);
+                    await sequelize.query(`ALTER TABLE golf."TransactionTypeRate" DROP COLUMN IF EXISTS "member${cell}"`);
+                    await sequelize.query(`ALTER TABLE golf."TransactionTypeRate" DROP COLUMN IF EXISTS "visitor${cell}"`);
+                }
+                console.log('Migrated golf.TransactionTypeRate to the 4-cell price matrix.');
+            }
             // 1b. ar.InterestGeneration -> ar.Interest and
             //     ar.InterestGenerationDetail -> ar.InterestDetail
             //     (+ interestGenerationId -> interestId, index renames -

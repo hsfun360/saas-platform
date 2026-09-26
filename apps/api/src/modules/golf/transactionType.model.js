@@ -41,6 +41,16 @@ const GolfTransactionType = sequelize.define('GolfTransactionType', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    // WHO a green-fee type charges (transactionType.constants GOLFER_TYPES:
+    // member | member-guest | guest; user decision 2026-09-26). REQUIRED for
+    // chargeType 'green-fee' - one ACTIVE green-fee type per category,
+    // enforced in the controller so registration auto-billing resolves
+    // unambiguously. NULL for every other charge type. Members WITH golfing
+    // right are never auto-charged a green fee.
+    golferType: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+    },
     // Tax Scheme by code via the tax seam; null = no tax.
     taxSchemeCode: {
         type: DataTypes.STRING,

@@ -677,8 +677,10 @@ export interface MembershipTransactionType {
 
 export interface TransactionTypeMeta {
   chargeTypes: MembershipStatusOption[];
-  // Golf only: charge-type keys priced by the 8-cell matrix (the rest are flat).
+  // Golf only: charge-type keys priced by the 4-cell matrix (the rest are flat).
   matrixChargeTypes?: string[];
+  // Golf only: the golfer categories a green-fee type may charge.
+  golferTypes?: { key: string; label: string }[];
 }
 
 // Picker row served to the Membership Type screen's fee/charge dialogs.
@@ -1257,6 +1259,9 @@ export interface CourseClosureDayPreview extends CourseClosureDay {
 // charge-type vocabulary differs (green-fee / caddy-fee / buggy-fee / no-show
 // / miscellaneous).
 export interface GolfTransactionType extends MembershipTransactionType {
+  // Green fees only: WHO this item charges (member | member-guest | guest) -
+  // one active green-fee type per category drives registration auto-billing.
+  golferType?: string | null;
   // Whether the pre-set price may be amended manually when billing this item.
   allowPriceOverride?: boolean;
   // Billing-item icon (public GCS URL) shown in the catalog and on the
@@ -1295,21 +1300,18 @@ export interface GolfPaymentType {
 }
 
 // One effective-dated price card of a golf Transaction Type. Matrix charge
-// types (green/caddy/buggy fee) fill the eight member/visitor × 9/18 ×
-// weekday/weekend cells; flat charge types (no-show/miscellaneous) fill
-// flatAmount only. "Weekend" includes public holidays platform-wide.
+// types (green/caddy/buggy fee) fill the four 9/18 × weekday/weekend cells
+// (the golfer category lives on the TYPE); flat charge types
+// (no-show/miscellaneous/package) fill flatAmount only. "Weekend" includes
+// public holidays platform-wide.
 export interface GolfTransactionTypeRate {
   id: string;
   canModify?: boolean;
   effectiveDate: string;          // YYYY-MM-DD
-  member9Weekday: number | null;
-  member18Weekday: number | null;
-  member9Weekend: number | null;
-  member18Weekend: number | null;
-  visitor9Weekday: number | null;
-  visitor18Weekday: number | null;
-  visitor9Weekend: number | null;
-  visitor18Weekend: number | null;
+  price9Weekday: number | null;
+  price18Weekday: number | null;
+  price9Weekend: number | null;
+  price18Weekend: number | null;
   flatAmount: number | null;
   isActive?: boolean;
 }

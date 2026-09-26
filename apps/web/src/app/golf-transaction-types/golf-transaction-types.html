@@ -171,6 +171,24 @@
             }
           </div>
         </div>
+        @if (form.controls.chargeType.value === 'green-fee') {
+          <div class="form-row">
+            <div class="form-group">
+              <label for="gttGolferType">Applies to golfer <span class="required">*</span></label>
+              <select id="gttGolferType" formControlName="golferType"
+                      [attr.aria-invalid]="showError(form.controls.golferType)" aria-describedby="gttGolferTypeErr">
+                <option value="">— Select —</option>
+                @for (g of golferTypes(); track g.key) {
+                  <option [value]="g.key">{{ g.label }}</option>
+                }
+              </select>
+              @if (showError(form.controls.golferType)) {
+                <p id="gttGolferTypeErr" class="field-error" role="alert">Select which golfer this green fee applies to.</p>
+              }
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">One active green fee per golfer category — registration auto-bills by this. Members with golfing right are never charged.</p>
+            </div>
+          </div>
+        }
         <div class="form-row">
           <div class="form-group">
             <label for="gttDesc">Description</label>
@@ -299,7 +317,7 @@
               <div class="empty-state">
                 <span class="empty-icon">🏷️</span>
                 @if (prIsMatrix()) {
-                  <p>No prices yet. Use "New price" to set the member/visitor matrix — a later effective date lets you pre-set a future price change.</p>
+                  <p>No prices yet. Use "New price" to set the 9/18-hole weekday/weekend prices — a later effective date lets you pre-set a future price change.</p>
                 } @else {
                   <p>No prices yet. Use "New price" to set the amount — a later effective date lets you pre-set a future price change.</p>
                 }
@@ -336,18 +354,11 @@
                         </thead>
                         <tbody>
                           <tr>
-                            <th scope="row">Member</th>
-                            <td>{{ fmt(r.member9Weekday) }}</td>
-                            <td>{{ fmt(r.member18Weekday) }}</td>
-                            <td>{{ fmt(r.member9Weekend) }}</td>
-                            <td>{{ fmt(r.member18Weekend) }}</td>
-                          </tr>
-                          <tr>
-                            <th scope="row">Guest / Visitor</th>
-                            <td>{{ fmt(r.visitor9Weekday) }}</td>
-                            <td>{{ fmt(r.visitor18Weekday) }}</td>
-                            <td>{{ fmt(r.visitor9Weekend) }}</td>
-                            <td>{{ fmt(r.visitor18Weekend) }}</td>
+                            <th scope="row">Price</th>
+                            <td>{{ fmt(r.price9Weekday) }}</td>
+                            <td>{{ fmt(r.price18Weekday) }}</td>
+                            <td>{{ fmt(r.price9Weekend) }}</td>
+                            <td>{{ fmt(r.price18Weekend) }}</td>
                           </tr>
                         </tbody>
                       </table>
@@ -395,24 +406,14 @@
                 <h3 class="pr-section">Weekday</h3>
                 <div class="pr-grid">
                   <div class="form-group">
-                    <label for="prM9WD">Member · 9 holes</label>
-                    <input id="prM9WD" type="number" inputmode="decimal" appMoney formControlName="member9Weekday" min="0" step="0.01"
-                           [attr.aria-invalid]="showError(rateForm.controls.member9Weekday)" />
+                    <label for="prP9WD">9 holes</label>
+                    <input id="prP9WD" type="number" inputmode="decimal" appMoney formControlName="price9Weekday" min="0" step="0.01"
+                           [attr.aria-invalid]="showError(rateForm.controls.price9Weekday)" />
                   </div>
                   <div class="form-group">
-                    <label for="prM18WD">Member · 18 holes</label>
-                    <input id="prM18WD" type="number" inputmode="decimal" appMoney formControlName="member18Weekday" min="0" step="0.01"
-                           [attr.aria-invalid]="showError(rateForm.controls.member18Weekday)" />
-                  </div>
-                  <div class="form-group">
-                    <label for="prV9WD">Guest / Visitor · 9 holes</label>
-                    <input id="prV9WD" type="number" inputmode="decimal" appMoney formControlName="visitor9Weekday" min="0" step="0.01"
-                           [attr.aria-invalid]="showError(rateForm.controls.visitor9Weekday)" />
-                  </div>
-                  <div class="form-group">
-                    <label for="prV18WD">Guest / Visitor · 18 holes</label>
-                    <input id="prV18WD" type="number" inputmode="decimal" appMoney formControlName="visitor18Weekday" min="0" step="0.01"
-                           [attr.aria-invalid]="showError(rateForm.controls.visitor18Weekday)" />
+                    <label for="prP18WD">18 holes</label>
+                    <input id="prP18WD" type="number" inputmode="decimal" appMoney formControlName="price18Weekday" min="0" step="0.01"
+                           [attr.aria-invalid]="showError(rateForm.controls.price18Weekday)" />
                   </div>
                 </div>
 
@@ -423,24 +424,14 @@
                 <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">These prices apply on the company's weekend days and on public holidays.</p>
                 <div class="pr-grid">
                   <div class="form-group">
-                    <label for="prM9WE">Member · 9 holes</label>
-                    <input id="prM9WE" type="number" inputmode="decimal" appMoney formControlName="member9Weekend" min="0" step="0.01"
-                           [attr.aria-invalid]="showError(rateForm.controls.member9Weekend)" />
+                    <label for="prP9WE">9 holes</label>
+                    <input id="prP9WE" type="number" inputmode="decimal" appMoney formControlName="price9Weekend" min="0" step="0.01"
+                           [attr.aria-invalid]="showError(rateForm.controls.price9Weekend)" />
                   </div>
                   <div class="form-group">
-                    <label for="prM18WE">Member · 18 holes</label>
-                    <input id="prM18WE" type="number" inputmode="decimal" appMoney formControlName="member18Weekend" min="0" step="0.01"
-                           [attr.aria-invalid]="showError(rateForm.controls.member18Weekend)" />
-                  </div>
-                  <div class="form-group">
-                    <label for="prV9WE">Guest / Visitor · 9 holes</label>
-                    <input id="prV9WE" type="number" inputmode="decimal" appMoney formControlName="visitor9Weekend" min="0" step="0.01"
-                           [attr.aria-invalid]="showError(rateForm.controls.visitor9Weekend)" />
-                  </div>
-                  <div class="form-group">
-                    <label for="prV18WE">Guest / Visitor · 18 holes</label>
-                    <input id="prV18WE" type="number" inputmode="decimal" appMoney formControlName="visitor18Weekend" min="0" step="0.01"
-                           [attr.aria-invalid]="showError(rateForm.controls.visitor18Weekend)" />
+                    <label for="prP18WE">18 holes</label>
+                    <input id="prP18WE" type="number" inputmode="decimal" appMoney formControlName="price18Weekend" min="0" step="0.01"
+                           [attr.aria-invalid]="showError(rateForm.controls.price18Weekend)" />
                   </div>
                 </div>
               } @else {
