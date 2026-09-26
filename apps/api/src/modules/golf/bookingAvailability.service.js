@@ -134,35 +134,56 @@ function nineBlocked(blocks, nine, timeMinutes) {
 
 // ---- occupancy + locks -----------------------------------------------------
 
-// Occupancy of every cell of the given courses on a date, from active
-// bookings: cellKey -> { bookings: n, players: n }.
+// Occupancy of every cell of the given courses on a date: cellKey ->
+// { bookings: n, players: n }. Counts active BOOKINGS plus WALK-IN
+// registrations (rows without a booking - user decision 2026-09-26): each
+// cell's walk-in group counts once toward `bookings` (so an exclusive-flight
+// club never offers a flight strangers already occupy) and per-head toward
+// `players`. Registrations OF booked players never double-count - their
+// booking already did.
 async function occupancy(companyId, courseIds, playDate, { transaction } = {}) {
     const map = new Map();
     if (!courseIds.length) return map;
+    const bump = (key, players, claims) => {
+        const cur = map.get(key) || { bookings: 0, players: 0 };
+        cur.bookings += claims;
+        cur.players += players;
+        map.set(key, cur);
+    };
+
     const rows = await Booking.findAll({
         where: { companyId, courseId: { [Op.in]: courseIds }, playDate, status: 'booked' },
         attributes: ['id', 'courseId', 'startNine', 'startTime', 'crossNine', 'crossTime'],
         transaction,
     });
-    if (!rows.length) return map;
-    const counts = await BookingPlayer.findAll({
-        where: { bookingId: { [Op.in]: rows.map((r) => r.id) } },
-        attributes: ['bookingId'],
+    if (rows.length) {
+        const counts = await BookingPlayer.findAll({
+            where: { bookingId: { [Op.in]: rows.map((r) => r.id) } },
+            attributes: ['bookingId'],
+            transaction,
+        });
+        const playersByBooking = new Map();
+        for (const p of counts) playersByBooking.set(p.bookingId, (playersByBooking.get(p.bookingId) || 0) + 1);
+        for (const r of rows) {
+            const players = playersByBooking.get(r.id) || 0;
+            bump(cellKey(r.courseId, r.startNine, r.startTime), players, 1);
+            if (r.crossNine && r.crossTime) bump(cellKey(r.courseId, r.crossNine, r.crossTime), players, 1);
+        }
+    }
+
+    const RegistrationPlayer = require('./registrationPlayer.model');
+    const walkIns = await RegistrationPlayer.findAll({
+        where: { companyId, courseId: { [Op.in]: courseIds }, playDate, status: 'registered', bookingId: null },
+        attributes: ['courseId', 'nine', 'teeTime', 'crossNine', 'crossTime'],
         transaction,
     });
-    const playersByBooking = new Map();
-    for (const p of counts) playersByBooking.set(p.bookingId, (playersByBooking.get(p.bookingId) || 0) + 1);
-    const bump = (key, players) => {
-        const cur = map.get(key) || { bookings: 0, players: 0 };
-        cur.bookings += 1;
-        cur.players += players;
-        map.set(key, cur);
-    };
-    for (const r of rows) {
-        const players = playersByBooking.get(r.id) || 0;
-        bump(cellKey(r.courseId, r.startNine, r.startTime), players);
-        if (r.crossNine && r.crossTime) bump(cellKey(r.courseId, r.crossNine, r.crossTime), players);
+    const walkInCells = new Map();
+    for (const w of walkIns) {
+        const keys = [cellKey(w.courseId, w.nine, w.teeTime)];
+        if (w.crossNine && w.crossTime) keys.push(cellKey(w.courseId, w.crossNine, w.crossTime));
+        for (const key of keys) walkInCells.set(key, (walkInCells.get(key) || 0) + 1);
     }
+    for (const [key, players] of walkInCells) bump(key, players, 1);
     return map;
 }
 

@@ -37,6 +37,10 @@ router.put('/settings', requireMenuAction('/golf/settings'), golfSettingControll
 // user decisions 2026-09-20) ---
 router.use('/bookings', requireMenuAction('/golf/bookings'), require('./bookings.routes'));
 
+// --- Front Desk (registration + billing + settlement; user decisions
+// 2026-09-26) ---
+router.use('/front-desk', requireMenuAction('/golf/front-desk'), require('./frontdesk.routes'));
+
 // --- Numbering Control (golf-owned series: booking / registration / bill /
 // rain check; split per module 2026-08-05) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');

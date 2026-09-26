@@ -277,7 +277,7 @@ async function getGolfMemberStanding(companyId, memberNo) {
     if (!row) return null;
     const [type, status] = await Promise.all([
         row.membershipTypeId ? MembershipType.findByPk(row.membershipTypeId, { attributes: ['id', 'category', 'isGolfAllow'] }) : null,
-        row.memberStatusId ? MembershipStatus.findByPk(row.memberStatusId, { attributes: ['membershipStatus', 'actionControl'] }) : null,
+        row.memberStatusId ? MembershipStatus.findByPk(row.memberStatusId, { attributes: ['membershipStatus', 'actionControl', 'chargeControl'] }) : null,
     ]);
     return {
         memberId: row.id,
@@ -289,14 +289,38 @@ async function getGolfMemberStanding(companyId, memberNo) {
         isGolfAllow: type ? type.isGolfAllow === true : false,
         statusLabel: status ? status.membershipStatus : null,
         // 'allow' | 'warning' | 'barred' (membershipStatus.constants); a
-        // member with no status behaves as 'allow'.
+        // member with no status behaves as 'allow'. actionControl gates
+        // booking/registration; chargeControl gates charge-to-account.
         actionControl: status ? status.actionControl : 'allow',
+        chargeControl: status ? status.chargeControl : 'allow',
+    };
+}
+
+// Where a member's frontend consumption CHARGES TO (golf/POS charge-to-
+// account): individual members and dependents post to the CONTRACT debtor
+// (debtorType 'membership'), nominees to their own personal debtor
+// (debtorType 'member') - the AR one-debtor routing rules. Returns
+// { debtorType, sourceId, incurredByMemberId } or null for an unknown member.
+// WHEN SPLIT: GET {internalServiceUrl('membership')}/internal/charge-target
+async function getChargeTarget(companyId, memberId) {
+    if (!companyId || !memberId) return null;
+    const Member = require('../modules/membership/member.model');
+    const row = await Member.findOne({
+        where: { companyId, id: memberId },
+        attributes: ['id', 'memberKind', 'membershipId'],
+    });
+    if (!row) return null;
+    return {
+        debtorType: row.memberKind === 'nominee' ? 'member' : 'membership',
+        sourceId: row.memberKind === 'nominee' ? row.id : row.membershipId,
+        incurredByMemberId: row.id,
     };
 }
 
 module.exports = {
     lookupPartyDisplay,
     searchPartyIds,
+    getChargeTarget,
     countTransactionTypeReferences,
     listDebtorPersons,
     lookupPartyBilling,

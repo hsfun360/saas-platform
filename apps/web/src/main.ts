@@ -216,6 +216,7 @@ const routes: Routes = [
       { path: 'golf/transaction-types', loadComponent: () => import('./app/golf-transaction-types/golf-transaction-types').then((m) => m.GolfTransactionTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/payment-types', loadComponent: () => import('./app/golf-payment-types/golf-payment-types').then((m) => m.GolfPaymentTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/bookings', loadComponent: () => import('./app/golf-bookings/golf-bookings').then((m) => m.GolfBookingsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      { path: 'golf/front-desk', loadComponent: () => import('./app/golf-front-desk/golf-front-desk').then((m) => m.GolfFrontDeskComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/settings', loadComponent: () => import('./app/golf-settings/golf-settings').then((m) => m.GolfSettingsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Shown when systemAccessGuard denies a route (no guard on this one).
       { path: 'access-denied', loadComponent: () => import('./app/access-denied/access-denied').then((m) => m.AccessDeniedComponent) },

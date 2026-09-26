@@ -91,6 +91,19 @@ const GolfFlightLock = require('../modules/golf/flightLock.model');
 
 GolfBooking.hasMany(GolfBookingPlayer, { foreignKey: 'bookingId', as: 'players', onDelete: 'CASCADE' });
 GolfBookingPlayer.belongsTo(GolfBooking, { foreignKey: 'bookingId', as: 'booking' });
+
+// Front desk (2026-09-26): per-player registration (booking refs stay plain
+// value refs - walk-ins have none) + per-player Bill with its items and
+// payments as real intra-service FKs.
+const GolfRegistrationPlayer = require('../modules/golf/registrationPlayer.model');
+const GolfBill = require('../modules/golf/bill.model');
+const GolfBillItem = require('../modules/golf/billItem.model');
+const GolfBillPayment = require('../modules/golf/billPayment.model');
+
+GolfBill.hasMany(GolfBillItem, { foreignKey: 'billId', as: 'items', onDelete: 'CASCADE' });
+GolfBillItem.belongsTo(GolfBill, { foreignKey: 'billId', as: 'bill' });
+GolfBill.hasMany(GolfBillPayment, { foreignKey: 'billId', as: 'payments', onDelete: 'CASCADE' });
+GolfBillPayment.belongsTo(GolfBill, { foreignKey: 'billId', as: 'bill' });
 const ArExchangeRate = require('../modules/ar/exchangeRate.model'); // AR-owned effective-dated FX rates vs the company base currency (companyId + Currency.code value refs; no associations)
 const ArTaxLedger = require('../modules/ar/taxLedger.model'); // per-component tax breakdown frozen behind each Ledger document's tax snapshot (docType/docId value ref to ar.Ledger; no associations)
 // Shared Dimension capability (financial-analysis dimensions, promoted
