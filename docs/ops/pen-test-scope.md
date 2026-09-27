@@ -37,7 +37,18 @@ Direct Cloud Run URLs (origin servers behind the load balancer; **out of scope**
 In scope:
 
 1. The full web application: staff back-office, System Admin (platform) area, self-service onboarding wizard, member portal, sales-agent portal.
-2. The full API surface: roughly 314 REST endpoints under `/api/*`, of which 17 are unauthenticated (login, registration, password reset, email verification, SSO exchange, MFA step-up, portal registration).
+2. The full API surface: **503 REST route handlers** under `/api/*` (recount 2026-09-27), of which about **20 are unauthenticated** - 18 rate-limited auth/portal endpoints (login, registration, password reset, email verification, SSO exchange, MFA step-up, member/agent portal register + context) plus a public language lookup, the `/` health root, and logout.
+   Approximate distribution by module (route handlers):
+
+   | Module | Handlers | Module | Handlers |
+   | --- | --- | --- | --- |
+   | saas (control plane) | 114 | golf | 63 |
+   | identity / auth | 108 | tax | 13 |
+   | membership | 86 | workflow | 12 |
+   | ar (accounts receivable) | 82 | dimension | 11 |
+   | | | notification / facility | 6 |
+
+   Note for cleanup before the test: a leftover `GET /api/auth/debug-test` info endpoint is still mounted and unauthenticated; harmless but a typical pen-test "remove debug endpoints" finding, so it should be deleted first.
 3. Authentication and session management: password flows, HIBP/breach handling, rate limiting and backoff behaviour, TOTP MFA including forced admin enrollment and recovery codes, refresh-token rotation and replay revocation, logout/revocation.
 4. **Authorization - the priority of this engagement:**
    - **Horizontal, cross-tenant: prove or disprove that one tenant can read or affect another tenant's data.** Two dedicated test tenants are provided for exactly this.
