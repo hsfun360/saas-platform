@@ -27,73 +27,152 @@
     </div>
   }
 
-  <!-- DATE FILTER -->
+  <!-- DATE + SEARCH TOOLBAR -->
   <div class="fd-filter">
     <label for="fdDate">Play date</label>
     <input id="fdDate" type="date" [value]="listDate()" (change)="setListDate($any($event.target).value)" />
+    <div class="fd-search">
+      <span class="material-icons" aria-hidden="true">search</span>
+      <input id="fdSearch" type="search" [value]="search()" (input)="onSearch($any($event.target).value)"
+             placeholder="Find by name, member no or booking no…" aria-label="Find a golfer or booking" />
+      @if (search()) {
+        <button type="button" class="fd-search__clear" (click)="onSearch('')" aria-label="Clear search">✕</button>
+      }
+    </div>
   </div>
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading the day…</p></div>
-  } @else if (flights().length === 0) {
+    <div class="loading-state"><div class="spinner large"></div><p>Loading the tee sheet…</p></div>
+  } @else if (sheet().length === 0) {
     <div class="empty-state">
       <span class="material-icons" aria-hidden="true">golf_course</span>
-      <p>No bookings or registrations for {{ listDate() | localDate }} yet. Walk-ins register with the button below.</p>
+      <p>No course operates on {{ listDate() | localDate }} — no tee-time set covers this date.</p>
     </div>
   } @else {
-    <div class="data-list">
-      @for (f of flights(); track flightKey(f)) {
-        <div class="data-card" [attr.data-return-id]="flightKey(f)">
-          <div class="data-card__title">{{ f.teeTime }} — {{ f.courseCode }}{{ f.courseDescription ? ' · ' + f.courseDescription : '' }}</div>
-          @for (e of f.entries; track $index) {
-            <div class="fd-entry">
-              <div class="fd-entry__main">
-                <span class="fd-entry__name">{{ e.playerName }}</span>
-                <span class="fd-entry__meta">
-                  {{ playerTypeLabel(e.playerType) }}
-                  @if (e.memberNo) { · {{ e.memberNo }} }
-                  · {{ e.holes }}H
-                  @if (e.kind === 'walkin') { · walk-in }
-                  @if (e.registration) { · {{ e.registration.registrationNo }} }
-                  @if (e.bill) { · {{ e.bill.billNo }} ({{ e.bill.totalAmount.toFixed(2) }}) }
-                </span>
-              </div>
-              <span class="status-chip"
-                    [class.status-chip--on]="e.bill?.status === 'settled'"
-                    [class.status-chip--off]="e.bill?.status !== 'settled'">
-                @if (e.bill?.status === 'settled') { SETTLED }
-                @else if (e.bill) { BILLED }
-                @else if (e.registration) { REGISTERED }
-                @else { BOOKED }
-              </span>
-              <div class="fd-entry__actions">
-                @if (!e.registration && e.kind === 'booked') {
-                  <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="register(e)" [disabled]="busy()">Register</button>
-                } @else if (e.registration && e.bill?.status !== 'settled') {
-                  <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="openBill(e)" [disabled]="busy()">Bill</button>
-                } @else if (e.bill) {
-                  <button type="button" class="btn btn--secondary btn--sm" (click)="openBill(e)" [disabled]="busy()">View</button>
-                }
-                @if (e.registration && (!e.bill || e.bill.status === 'open')) {
-                  <app-overflow-menu [label]="'More actions for ' + e.playerName">
-                    @if (!e.bill) {
-                      <button type="button" appMenuItem (click)="askCancelRegistration(e)">
-                        <span class="material-icons" aria-hidden="true">person_off</span>
-                        Cancel registration
-                      </button>
-                    } @else {
-                      <button type="button" appMenuItem (click)="askVoidBill(e)">
-                        <span class="material-icons" aria-hidden="true">block</span>
-                        Void bill
-                      </button>
-                    }
-                  </app-overflow-menu>
-                }
-              </div>
+    @if (searchActive() && matchKeys().size === 0) {
+      <p class="fd-nomatch"><span class="material-icons" aria-hidden="true">search_off</span> No golfer or booking matches "{{ search() }}".</p>
+    }
+    <div class="fd-sheet-scroll">
+      <div class="fd-sheet" [style.--fd-cols]="sheet().length">
+        <div class="fd-row fd-row--head" aria-hidden="true">
+          <div class="fd-time fd-time--head">Time</div>
+          @for (c of sheet(); track c.courseId) {
+            <div class="fd-course-head">
+              {{ c.courseCode }}
+              @if (c.courseDescription) { <span class="fd-course-head__desc">{{ c.courseDescription }}</span> }
+              @if (!c.operating) { <span class="fd-course-head__off">not operating</span> }
             </div>
           }
         </div>
-      }
+        @for (time of rows(); track time) {
+          <div class="fd-row">
+            <div class="fd-time">{{ time }}</div>
+            @for (c of sheet(); track c.courseId) {
+              @if (cellFor(c.courseId, time); as f) {
+                <div class="fd-cell" [attr.data-flight]="c.courseId + '|' + time"
+                     [class.fd-cell--closed]="f.closed"
+                     [class.fd-cell--full]="!f.closed && !f.offGrid && f.seatsLeft === 0"
+                     [class.fd-cell--dim]="searchActive() && !isHit(c.courseId, time)"
+                     [class.fd-cell--hit]="isHit(c.courseId, time)">
+                  <div class="fd-cell__top">
+                    <span class="fd-cell__course">{{ c.courseCode }}</span>
+                    @if (f.closed) {
+                      <span class="fd-cell__state">CLOSED</span>
+                    } @else if (f.offGrid) {
+                      <span class="fd-cell__state">OFF GRID</span>
+                    } @else {
+                      <span class="fd-seats" role="img" [attr.aria-label]="f.seatsTaken + ' of ' + f.maxPlayers + ' seats taken'">
+                        @for (taken of seatDots(f); track $index) {
+                          <span class="fd-seat" [class.fd-seat--taken]="taken"></span>
+                        }
+                      </span>
+                    }
+                    @if (f.crossCount > 0) {
+                      <span class="fd-cross" [title]="f.crossCount + ' player(s) crossing over onto the second nine here'">↷{{ f.crossCount }}</span>
+                    }
+                  </div>
+
+                  @for (e of f.entries; track $index) {
+                    <div class="fd-p">
+                      <div class="fd-p__line">
+                        <span class="fd-p__name">{{ e.playerName }}</span>
+                        <span class="status-chip"
+                              [class.status-chip--on]="e.bill?.status === 'settled'"
+                              [class.status-chip--off]="e.bill?.status !== 'settled'">
+                          @if (e.bill?.status === 'settled') { SETTLED }
+                          @else if (e.bill) { BILLED }
+                          @else if (e.registration) { REG }
+                          @else { BOOKED }
+                        </span>
+                      </div>
+                      <div class="fd-p__meta">
+                        {{ playerTypeLabel(e.playerType) }}
+                        @if (e.memberNo) { · {{ e.memberNo }} }
+                        · {{ e.holes }}H
+                        @if (e.kind === 'walkin') { · walk-in }
+                        @if (e.bookingNo) { · {{ e.bookingNo }} }
+                        @if (e.registration) { · {{ e.registration.registrationNo }} }
+                        @if (e.bill) { · {{ e.bill.billNo }} ({{ e.bill.totalAmount.toFixed(2) }}) }
+                      </div>
+                      <div class="fd-p__actions">
+                        @if (!e.registration && e.kind === 'booked') {
+                          <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="register(e)" [disabled]="busy()">Register</button>
+                        } @else if (e.registration && e.bill?.status !== 'settled') {
+                          <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="openBill(e)" [disabled]="busy()">Bill</button>
+                        } @else if (e.bill) {
+                          <button type="button" class="btn btn--secondary btn--sm" (click)="openBill(e)" [disabled]="busy()">View</button>
+                        }
+                        @if (e.registration && (!e.bill || e.bill.status === 'open')) {
+                          <app-overflow-menu [label]="'More actions for ' + e.playerName">
+                            @if (!e.bill) {
+                              <button type="button" appMenuItem (click)="askCancelRegistration(e)">
+                                <span class="material-icons" aria-hidden="true">person_off</span>
+                                Cancel registration
+                              </button>
+                            } @else {
+                              <button type="button" appMenuItem (click)="askVoidBill(e)">
+                                <span class="material-icons" aria-hidden="true">block</span>
+                                Void bill
+                              </button>
+                            }
+                          </app-overflow-menu>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  @if (unregistered(f) >= 2) {
+                    <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm fd-cell__regall"
+                            (click)="registerAll(c.courseId, time)" [disabled]="busy()">
+                      <span class="material-icons" aria-hidden="true">group_add</span>
+                      Register all ({{ unregistered(f) }})
+                    </button>
+                    @if (bookingGroups(f).length > 1) {
+                      @for (g of bookingGroups(f); track g.bookingId) {
+                        @if (g.unregistered > 0) {
+                          <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm fd-cell__regall"
+                                  (click)="registerAll(c.courseId, time, g.bookingId)" [disabled]="busy()">
+                            {{ g.bookingNo }} ({{ g.unregistered }})
+                          </button>
+                        }
+                      }
+                    }
+                  }
+
+                  @if (!f.closed && !f.offGrid && f.seatsLeft > 0) {
+                    <button *appCan="'create'" type="button" class="fd-cell__walkin"
+                            (click)="openWalkIn(c.courseId, f.teeTime)" [disabled]="busy()">
+                      + Walk-in · {{ f.seatsLeft }} seat{{ f.seatsLeft === 1 ? '' : 's' }} free
+                    </button>
+                  }
+                </div>
+              } @else {
+                <div class="fd-cell fd-cell--na" aria-hidden="true"></div>
+              }
+            }
+          </div>
+        }
+      </div>
     </div>
   }
 

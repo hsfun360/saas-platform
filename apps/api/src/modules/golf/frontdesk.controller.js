@@ -32,6 +32,7 @@ const Bill = require('./bill.model');
 const BillItem = require('./billItem.model');
 const BillPayment = require('./billPayment.model');
 const Course = require('./course.model');
+const CourseTeeTimeSlot = require('./courseTeeTimeSlot.model');
 const Golfer = require('./golfer.model');
 const OtherGolfer = require('./otherGolfer.model');
 const GolfTransactionType = require('./transactionType.model');
@@ -349,19 +350,28 @@ async function billDto(bill, { transaction } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// GET /front-desk/day?playDate= - the day's flights: booked players overlaid
-// with their registration/bill state, plus walk-in registrations.
+// GET /front-desk/day?playDate= - the TEE SHEET (user request 2026-09-27):
+// per course, EVERY flight time of the day's tee-time set with capacity,
+// occupancy and closure state, the booked/walk-in players overlaid with their
+// registration/bill state, and 18H crossover claims counted so seats stay
+// honest. Availability shown here is display-level (start-cell seats); the
+// register endpoints re-check the authoritative rules.
 exports.getDay = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const playDate = String(req.query.playDate || '');
         if (!DATE_RE.test(playDate)) return res.status(400).json({ message: 'Pick a play date.' });
+        const dayType = await dayTypeOf(req, playDate);
 
         const [bookings, registrations, courses] = await Promise.all([
             Booking.findAll({ where: { companyId, playDate, status: 'booked' }, order: [['startTime', 'ASC']] }),
             RegistrationPlayer.findAll({ where: { companyId, playDate }, order: [['registeredAt', 'ASC']] }),
-            Course.findAll({ where: { companyId }, attributes: ['id', 'courseCode', 'description'] }),
+            Course.findAll({
+                where: { companyId },
+                attributes: ['id', 'courseCode', 'description', 'isActive'],
+                order: [['displaySequence', 'ASC'], ['courseCode', 'ASC']],
+            }),
         ]);
         const players = bookings.length
             ? await BookingPlayer.findAll({ where: { bookingId: { [Op.in]: bookings.map((b) => b.id) } }, order: [['sortOrder', 'ASC']] })
@@ -369,34 +379,35 @@ exports.getDay = async (req, res) => {
         const bills = registrations.length
             ? await Bill.findAll({ where: { companyId, registrationPlayerId: { [Op.in]: registrations.map((r) => r.id) }, status: { [Op.ne]: 'voided' } } })
             : [];
-        const courseById = new Map(courses.map((c) => [c.id, c]));
         const regByBookingPlayer = new Map(registrations.filter((r) => r.bookingPlayerId && r.status === 'registered').map((r) => [r.bookingPlayerId, r]));
         const billByRegistration = new Map(bills.map((b) => [b.registrationPlayerId, b]));
 
-        const flights = new Map();
-        const flightOf = (courseId, teeTime, holes) => {
+        // Entries per start cell (courseId|HH:MM) + crossover player counts
+        // per landing cell - both feed the per-slot rows below.
+        const entriesByCell = new Map();
+        const cellEntries = (courseId, teeTime) => {
             const key = `${courseId}|${availability.hhmm(teeTime)}`;
-            if (!flights.has(key)) {
-                const course = courseById.get(courseId);
-                flights.set(key, {
-                    courseId,
-                    courseCode: course ? course.courseCode : null,
-                    courseDescription: course ? course.description : null,
-                    teeTime: availability.hhmm(teeTime),
-                    holes,
-                    entries: [],
-                });
-            }
-            return flights.get(key);
+            if (!entriesByCell.has(key)) entriesByCell.set(key, []);
+            return entriesByCell.get(key);
+        };
+        const crossByCell = new Map();
+        const bumpCross = (courseId, crossTime, n) => {
+            const key = `${courseId}|${availability.hhmm(crossTime)}`;
+            crossByCell.set(key, (crossByCell.get(key) || 0) + n);
         };
 
         const bookingById = new Map(bookings.map((b) => [b.id, b]));
+        const playersByBooking = new Map();
+        for (const p of players) playersByBooking.set(p.bookingId, (playersByBooking.get(p.bookingId) || 0) + 1);
+        for (const b of bookings) {
+            if (b.crossTime) bumpCross(b.courseId, b.crossTime, playersByBooking.get(b.id) || 0);
+        }
         for (const p of players) {
             const booking = bookingById.get(p.bookingId);
             if (!booking) continue;
             const reg = regByBookingPlayer.get(p.id) || null;
             const bill = reg ? billByRegistration.get(reg.id) || null : null;
-            flightOf(booking.courseId, booking.startTime, booking.holes).entries.push({
+            cellEntries(booking.courseId, booking.startTime).push({
                 kind: 'booked',
                 bookingId: booking.id,
                 bookingNo: booking.bookingNo,
@@ -411,8 +422,9 @@ exports.getDay = async (req, res) => {
         }
         for (const r of registrations) {
             if (r.bookingId || r.status !== 'registered') continue; // walk-ins only
+            if (r.crossTime) bumpCross(r.courseId, r.crossTime, 1);
             const bill = billByRegistration.get(r.id) || null;
-            flightOf(r.courseId, r.teeTime, r.holes).entries.push({
+            cellEntries(r.courseId, r.teeTime).push({
                 kind: 'walkin',
                 playerType: r.playerType,
                 playerName: r.playerName,
@@ -423,10 +435,63 @@ exports.getDay = async (req, res) => {
             });
         }
 
-        const list = [...flights.values()].sort((a, b) => (a.teeTime === b.teeTime
-            ? String(a.courseCode).localeCompare(String(b.courseCode))
-            : a.teeTime.localeCompare(b.teeTime)));
-        res.status(200).json({ playDate, flights: list });
+        const occ = await availability.occupancy(companyId, courses.map((c) => c.id), playDate);
+
+        const sheets = [];
+        for (const course of courses) {
+            const set = course.isActive ? await availability.resolveTeeTimeSet(course.id, dayType, playDate) : null;
+            const blocks = set ? await availability.closureBlocks(course.id, playDate) : [];
+            const slots = set
+                ? await CourseTeeTimeSlot.findAll({ where: { teeTimeSetId: set.id }, order: [['teeTime', 'ASC']] })
+                : [];
+
+            const flights = [];
+            const onGrid = new Set();
+            for (const slot of slots) {
+                const teeTime = availability.hhmm(slot.teeTime);
+                onGrid.add(teeTime);
+                const t = availability.toMinutes(slot.teeTime);
+                const closed = availability.nineBlocked(blocks, 'first', t);
+                const startOcc = occ.get(availability.cellKey(course.id, 'first', teeTime));
+                const seatsTaken = startOcc ? startOcc.players : 0;
+                flights.push({
+                    teeTime,
+                    maxPlayers: slot.maxPlayers,
+                    isFrontDesk: slot.isFrontDesk === true,
+                    closed,
+                    seatsTaken,
+                    seatsLeft: closed ? 0 : Math.max(0, slot.maxPlayers - seatsTaken),
+                    crossCount: crossByCell.get(`${course.id}|${teeTime}`) || 0,
+                    entries: entriesByCell.get(`${course.id}|${teeTime}`) || [],
+                });
+            }
+            // Defensive: entries at times no longer on the grid (set edited
+            // after booking) still show, as unbookable off-grid rows.
+            for (const [key, entries] of entriesByCell) {
+                const [cid, teeTime] = key.split('|');
+                if (cid !== course.id || onGrid.has(teeTime)) continue;
+                flights.push({
+                    teeTime, maxPlayers: null, isFrontDesk: false, closed: false,
+                    seatsTaken: entries.length, seatsLeft: 0, offGrid: true,
+                    crossCount: crossByCell.get(key) || 0, entries,
+                });
+            }
+            flights.sort((a, b) => a.teeTime.localeCompare(b.teeTime));
+
+            // A course appears when it operates that day (has a tee sheet) or
+            // still has something to show; silent courses stay off the sheet.
+            if (set || flights.length) {
+                sheets.push({
+                    courseId: course.id,
+                    courseCode: course.courseCode,
+                    courseDescription: course.description,
+                    operating: !!set,
+                    flights,
+                });
+            }
+        }
+
+        res.status(200).json({ playDate, dayType, courses: sheets });
     } catch (error) {
         console.error('Error loading golf front-desk day:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -500,6 +565,46 @@ async function resolvePlayerIdentity({ req, companyId, playerType, memberNo, gue
     return { golfer, playerName: standing.name, memberNo: standing.memberNo, standing };
 }
 
+// Register ONE booked player line inside `transaction` - shared by the single
+// register endpoint and the bulk flight/booking registration. Returns { row }
+// or { fail, status }.
+async function registerBookedLine({ req, companyId, bp, booking, guest, manualRegistrationNo, stamps, transaction }) {
+    const identity = await resolvePlayerIdentity({
+        req, companyId, playerType: bp.playerType, memberNo: bp.memberNo,
+        guest, fallbackName: bp.playerName, stamps, transaction,
+    });
+    if (identity.error) return { fail: identity.error, status: 400 };
+    if (bp.playerType === 'guest' && !bp.golferId) {
+        bp.golferId = identity.golfer.id;
+        await bp.save({ transaction });
+    }
+    const issued = await numberingGateway.issueNumber(req, 'golf-registration', { transaction });
+    let registrationNo = issued && issued.number ? issued.number : null;
+    if (!registrationNo) {
+        if (issued && issued.manual) registrationNo = String(manualRegistrationNo || '').trim();
+        if (!registrationNo) return { fail: 'Configure the Registration No. numbering scheme first (Golf Management → Numbering Control).', status: 400 };
+    }
+    const row = await RegistrationPlayer.create({
+        companyId,
+        registrationNo,
+        bookingId: booking.id,
+        bookingPlayerId: bp.id,
+        courseId: booking.courseId,
+        playDate: booking.playDate,
+        nine: booking.startNine,
+        teeTime: booking.startTime,
+        crossNine: booking.crossNine,
+        crossTime: booking.crossTime,
+        holes: booking.holes,
+        golferId: identity.golfer.id,
+        playerType: bp.playerType,
+        playerName: identity.playerName,
+        memberNo: identity.memberNo,
+        ...stamps,
+    }, { transaction });
+    return { row };
+}
+
 // POST /front-desk/registrations - register a BOOKED player
 // ({ bookingPlayerId, guest? }) or a WALK-IN ({ walkIn: { playDate, courseId,
 // teeTime, holes, playerType, memberNo?, guest? } }).
@@ -518,42 +623,10 @@ exports.register = async (req, res) => {
             const existing = await RegistrationPlayer.findOne({ where: { bookingPlayerId: bp.id, status: 'registered' } });
             if (existing) return res.status(409).json({ message: `${bp.playerName} is already registered (${existing.registrationNo}).` });
 
-            const result = await sequelize.transaction(async (transaction) => {
-                const identity = await resolvePlayerIdentity({
-                    req, companyId, playerType: bp.playerType, memberNo: bp.memberNo,
-                    guest: req.body.guest, fallbackName: bp.playerName, stamps, transaction,
-                });
-                if (identity.error) return { fail: identity.error, status: 400 };
-                if (bp.playerType === 'guest' && !bp.golferId) {
-                    bp.golferId = identity.golfer.id;
-                    await bp.save({ transaction });
-                }
-                const issued = await numberingGateway.issueNumber(req, 'golf-registration', { transaction });
-                let registrationNo = issued && issued.number ? issued.number : null;
-                if (!registrationNo) {
-                    if (issued && issued.manual) registrationNo = String(req.body.registrationNo || '').trim();
-                    if (!registrationNo) return { fail: 'Configure the Registration No. numbering scheme first (Golf Management → Numbering Control).', status: 400 };
-                }
-                const row = await RegistrationPlayer.create({
-                    companyId,
-                    registrationNo,
-                    bookingId: booking.id,
-                    bookingPlayerId: bp.id,
-                    courseId: booking.courseId,
-                    playDate: booking.playDate,
-                    nine: booking.startNine,
-                    teeTime: booking.startTime,
-                    crossNine: booking.crossNine,
-                    crossTime: booking.crossTime,
-                    holes: booking.holes,
-                    golferId: identity.golfer.id,
-                    playerType: bp.playerType,
-                    playerName: identity.playerName,
-                    memberNo: identity.memberNo,
-                    ...stamps,
-                }, { transaction });
-                return { row };
-            });
+            const result = await sequelize.transaction(async (transaction) => registerBookedLine({
+                req, companyId, bp, booking, guest: req.body.guest,
+                manualRegistrationNo: req.body.registrationNo, stamps, transaction,
+            }));
             if (result.fail) return res.status(result.status).json({ message: result.fail });
             return res.status(201).json({ message: `Registered ${result.row.playerName} (${result.row.registrationNo}).`, registration: registrationDto(result.row) });
         }
@@ -637,6 +710,75 @@ exports.register = async (req, res) => {
         res.status(201).json({ message: `Registered ${result.row.playerName} (${result.row.registrationNo}).`, registration: registrationDto(result.row) });
     } catch (error) {
         console.error('Error registering golf player:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /front-desk/register-flight { playDate, courseId, teeTime, bookingId? }
+// Bulk registration (user request 2026-09-27): register every not-yet-
+// registered booked player of the flight - or of ONE booking in it when
+// `bookingId` narrows it. Guests register NAME-ONLY (user decision: no
+// identity prompt at bulk speed; the profile can be completed later). Each
+// player registers in its OWN transaction so one barred member or numbering
+// hiccup never blocks the rest; the result reports registered vs skipped.
+exports.registerFlight = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const playDate = String(req.body.playDate || '');
+        const teeTime = String(req.body.teeTime || '');
+        const courseId = String(req.body.courseId || '');
+        if (!DATE_RE.test(playDate) || !TIME_RE.test(teeTime) || !courseId) {
+            return res.status(400).json({ message: 'Pick the flight to register.' });
+        }
+        const stamps = await callerStamps(req);
+
+        const dayBookings = await Booking.findAll({ where: { companyId, courseId, playDate, status: 'booked' } });
+        let flightBookings = dayBookings.filter((b) => availability.hhmm(b.startTime) === teeTime);
+        const bookingId = req.body.bookingId ? String(req.body.bookingId) : null;
+        if (bookingId) flightBookings = flightBookings.filter((b) => b.id === bookingId);
+        if (!flightBookings.length) return res.status(404).json({ message: 'No active booking on that flight.' });
+
+        const lines = await BookingPlayer.findAll({
+            where: { bookingId: { [Op.in]: flightBookings.map((b) => b.id) } },
+            order: [['sortOrder', 'ASC']],
+        });
+        const existing = await RegistrationPlayer.findAll({
+            where: { bookingPlayerId: { [Op.in]: lines.map((l) => l.id) }, status: 'registered' },
+            attributes: ['bookingPlayerId'],
+        });
+        const already = new Set(existing.map((r) => r.bookingPlayerId));
+        const todo = lines.filter((l) => !already.has(l.id));
+        if (!todo.length) {
+            return res.status(200).json({ message: 'Everyone here is already registered.', registered: [], skipped: [] });
+        }
+
+        const bookingById = new Map(flightBookings.map((b) => [b.id, b]));
+        const registered = [];
+        const skipped = [];
+        for (const bp of todo) {
+            const booking = bookingById.get(bp.bookingId);
+            try {
+                const result = await sequelize.transaction(async (transaction) => {
+                    // Race re-check inside the tx - a colleague may have just
+                    // registered this line from another terminal.
+                    const again = await RegistrationPlayer.findOne({ where: { bookingPlayerId: bp.id, status: 'registered' }, transaction });
+                    if (again) return { fail: `already registered (${again.registrationNo})` };
+                    return registerBookedLine({ req, companyId, bp, booking, guest: null, stamps, transaction });
+                });
+                if (result.fail) skipped.push({ playerName: bp.playerName, reason: result.fail });
+                else registered.push({ playerName: result.row.playerName, registrationNo: result.row.registrationNo });
+            } catch (e) {
+                console.error('Bulk registration line failed:', e);
+                skipped.push({ playerName: bp.playerName, reason: 'registration failed' });
+            }
+        }
+        const message = skipped.length
+            ? `Registered ${registered.length} player(s); skipped ${skipped.length} - ${skipped.map((s) => `${s.playerName}: ${s.reason}`).join('; ')}`
+            : `Registered ${registered.length} player(s).`;
+        res.status(200).json({ message, registered, skipped });
+    } catch (error) {
+        console.error('Error bulk-registering golf flight:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };

@@ -8,6 +8,7 @@ const controller = require('./frontdesk.controller');
 router.get('/day', controller.getDay);
 router.get('/meta', controller.getMeta);
 router.post('/registrations', controller.register);
+router.post('/register-flight', controller.registerFlight);
 router.post('/registrations/:id/cancel', controller.cancelRegistration);
 router.post('/registrations/:id/bills', controller.openBill);
 router.get('/bills/:billId', controller.getBill);

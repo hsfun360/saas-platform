@@ -12,6 +12,7 @@ import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import {
   GolfFrontDeskService,
+  FrontDeskCourseSheet,
   FrontDeskFlight,
   FrontDeskEntry,
   FrontDeskMeta,
@@ -61,8 +62,85 @@ export class GolfFrontDeskComponent implements OnInit {
   readonly errorMessage = signal('');
 
   readonly listDate = signal(localToday());
-  readonly flights = signal<FrontDeskFlight[]>([]);
   readonly meta = signal<FrontDeskMeta | null>(null);
+
+  // ---- the tee sheet (user request 2026-09-27): rows = tee times, one
+  // column per course; search highlights the matching flights. ----
+  readonly sheet = signal<FrontDeskCourseSheet[]>([]);
+  readonly search = signal('');
+
+  // The row axis: the union of every course's tee times, sorted.
+  readonly rows = computed(() => {
+    const times = new Set<string>();
+    for (const c of this.sheet()) for (const f of c.flights) times.add(f.teeTime);
+    return [...times].sort((a, b) => a.localeCompare(b));
+  });
+
+  private readonly cellMap = computed(() => {
+    const map = new Map<string, FrontDeskFlight>();
+    for (const c of this.sheet()) for (const f of c.flights) map.set(`${c.courseId}|${f.teeTime}`, f);
+    return map;
+  });
+
+  cellFor(courseId: string, teeTime: string): FrontDeskFlight | null {
+    return this.cellMap().get(`${courseId}|${teeTime}`) || null;
+  }
+
+  // Flights whose players match the search (name, member no, booking no or
+  // registration no) - matches highlight, the rest dim.
+  readonly matchKeys = computed(() => {
+    const q = this.search().trim().toLowerCase();
+    const hits = new Set<string>();
+    if (!q) return hits;
+    for (const c of this.sheet()) {
+      for (const f of c.flights) {
+        const hit = f.entries.some((e) =>
+          e.playerName.toLowerCase().includes(q)
+          || (e.memberNo || '').toLowerCase().includes(q)
+          || (e.bookingNo || '').toLowerCase().includes(q)
+          || (e.registration?.registrationNo || '').toLowerCase().includes(q));
+        if (hit) hits.add(`${c.courseId}|${f.teeTime}`);
+      }
+    }
+    return hits;
+  });
+
+  readonly searchActive = computed(() => this.search().trim().length > 0);
+
+  isHit(courseId: string, teeTime: string): boolean {
+    return this.matchKeys().has(`${courseId}|${teeTime}`);
+  }
+
+  onSearch(value: string): void {
+    this.search.set(value);
+    // Bring the first matching flight into view once the classes render.
+    setTimeout(() => {
+      const el = document.querySelector('.fd-cell--hit');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    });
+  }
+
+  seatDots(f: FrontDeskFlight): boolean[] {
+    const max = f.maxPlayers || 0;
+    return Array.from({ length: max }, (_, i) => i < f.seatsTaken);
+  }
+
+  unregistered(f: FrontDeskFlight): number {
+    return f.entries.filter((e) => e.kind === 'booked' && !e.registration).length;
+  }
+
+  // Distinct bookings in a cell with their unregistered counts - per-booking
+  // register-all only matters when merged bookings share the flight.
+  bookingGroups(f: FrontDeskFlight): { bookingId: string; bookingNo: string; unregistered: number }[] {
+    const groups = new Map<string, { bookingId: string; bookingNo: string; unregistered: number }>();
+    for (const e of f.entries) {
+      if (e.kind !== 'booked' || !e.bookingId) continue;
+      const g = groups.get(e.bookingId) || { bookingId: e.bookingId, bookingNo: e.bookingNo || '', unregistered: 0 };
+      if (!e.registration) g.unregistered += 1;
+      groups.set(e.bookingId, g);
+    }
+    return [...groups.values()];
+  }
 
   // ---- the one drawer dialog: mode + per-mode state ----
   readonly dlgMode = signal<'guest' | 'walkin' | 'bill' | 'settle' | null>(null);
@@ -160,7 +238,7 @@ export class GolfFrontDeskComponent implements OnInit {
     this.loading.set(true);
     this.service.day(this.listDate()).subscribe({
       next: (res) => {
-        this.flights.set(res.flights);
+        this.sheet.set(res.courses);
         this.loading.set(false);
         this.returnScroll.consume('/golf/front-desk', this.injector);
       },
@@ -171,11 +249,26 @@ export class GolfFrontDeskComponent implements OnInit {
     });
   }
 
-  flightKey(f: FrontDeskFlight): string {
-    return `${f.courseId}|${f.teeTime}`;
-  }
-
   // ---------- registration ----------
+
+  // Bulk register a whole flight (or one booking in it) - guests go in
+  // name-only, skips are reported in the result message.
+  registerAll(courseId: string, teeTime: string, bookingId?: string): void {
+    this.clearMessages();
+    this.busy.set(true);
+    this.service.registerFlight({ playDate: this.listDate(), courseId, teeTime, bookingId }).subscribe({
+      next: (res) => {
+        this.busy.set(false);
+        if (res.skipped.length) this.errorMessage.set(res.message);
+        else this.successMessage.set(res.message);
+        this.load();
+      },
+      error: (err) => {
+        this.busy.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to register the flight.');
+      },
+    });
+  }
 
   register(entry: FrontDeskEntry): void {
     this.clearMessages();
@@ -229,12 +322,13 @@ export class GolfFrontDeskComponent implements OnInit {
     });
   }
 
-  openWalkIn(): void {
+  // Clicking an available flight on the sheet pre-fills its course + time.
+  openWalkIn(courseId?: string, teeTime?: string): void {
     this.clearMessages();
     const m = this.meta();
     this.walkinForm.reset({
-      courseId: m && m.courses.length === 1 ? m.courses[0].id : '',
-      teeTime: '',
+      courseId: courseId || (m && m.courses.length === 1 ? m.courses[0].id : ''),
+      teeTime: teeTime || '',
       holes: 18,
       playerType: 'member',
       memberNo: '',

@@ -42,13 +42,33 @@ export interface FrontDeskEntry {
   bill: FrontDeskBillSummary | null;
 }
 
+// One row of a course's tee sheet: capacity + occupancy + closure state with
+// the players overlaid. `offGrid` marks entries whose time is no longer on
+// the tee-time set (still shown, never bookable).
 export interface FrontDeskFlight {
-  courseId: string;
-  courseCode: string | null;
-  courseDescription: string | null;
   teeTime: string;
-  holes: number;
+  maxPlayers: number | null;
+  isFrontDesk: boolean;
+  closed: boolean;
+  seatsTaken: number;
+  seatsLeft: number;
+  crossCount: number;
+  offGrid?: boolean;
   entries: FrontDeskEntry[];
+}
+
+export interface FrontDeskCourseSheet {
+  courseId: string;
+  courseCode: string;
+  courseDescription: string | null;
+  operating: boolean;
+  flights: FrontDeskFlight[];
+}
+
+export interface FrontDeskDay {
+  playDate: string;
+  dayType: string;
+  courses: FrontDeskCourseSheet[];
 }
 
 export interface FrontDeskTile {
@@ -139,8 +159,20 @@ export class GolfFrontDeskService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiUrl}/golf/front-desk`;
 
-  day(playDate: string): Observable<{ playDate: string; flights: FrontDeskFlight[] }> {
-    return this.http.get<{ playDate: string; flights: FrontDeskFlight[] }>(`${this.base}/day`, { params: { playDate } });
+  day(playDate: string): Observable<FrontDeskDay> {
+    return this.http.get<FrontDeskDay>(`${this.base}/day`, { params: { playDate } });
+  }
+
+  registerFlight(payload: { playDate: string; courseId: string; teeTime: string; bookingId?: string }): Observable<{
+    message: string;
+    registered: { playerName: string; registrationNo: string }[];
+    skipped: { playerName: string; reason: string }[];
+  }> {
+    return this.http.post<{
+      message: string;
+      registered: { playerName: string; registrationNo: string }[];
+      skipped: { playerName: string; reason: string }[];
+    }>(`${this.base}/register-flight`, payload);
   }
 
   meta(): Observable<FrontDeskMeta> {
