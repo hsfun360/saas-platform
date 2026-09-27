@@ -53,6 +53,34 @@ Out of scope:
 - The internal-only outbox worker and the nightly backup job (no public surface).
 - Destructive testing against non-test tenants (production is shared; see rules of engagement).
 
+## 3a. Required named abuse-case scenarios (leaked-credential threat model)
+
+The engagement MUST explicitly attempt and report on each scenario below.
+The premise for all of them is that an attacker holds a **valid set of credentials for one low-to-mid privilege account** (the assumption is a leaked or phished password), and we want to know how far that gets them.
+A "pass" is a documented, evidenced failure of the attack; a "fail" is any success, with reproduction steps.
+
+1. **Cross-tenant data read (horizontal).**
+   Authenticated as a `Pentest Alpha Club` user, attempt to read any `Pentest Bravo Club` data by tampering with identifiers (record IDs, `companyId`/`accountId` in bodies, query params, JWT claims), path traversal on REST resources, and IDOR on every list/detail/report endpoint.
+   Expected control: every query is scoped by `accountId`; no Alpha token may return a Bravo row.
+
+2. **Cross-tenant data write / corruption (horizontal).**
+   Same as above but for create/update/delete: try to modify, delete, or inject rows into the other tenant, including via bulk endpoints, the Excel membership import, and workflow actions.
+
+3. **Vertical privilege escalation.**
+   From the view-only `Membership Officer`, attempt actions the role's flags forbid (create/edit/delete), reach screens/endpoints not granted to the role, and exercise data outside the role's data scope (own vs department vs all). From a Tenant Admin, attempt to reach System Admin (platform) functions.
+
+4. **Injection from an authenticated session.**
+   Probe every parameter reachable with the credential for SQL injection (the app is Sequelize ORM with a handful of bound raw queries - test the ORM edges and those raw reporting/dashboard queries specifically), plus Handlebars template injection in the email-template editor, and formula/injection via the Excel import.
+   Expected control: ORM parameterization + Zod boundary validation + bound `replacements` in raw queries.
+
+5. **Session and token abuse with the credential.**
+   Attempt refresh-token replay/fixation, JWT tampering (algorithm confusion, claim editing, expiry bypass), and MFA bypass on an admin account whose password is known (the credential leak scenario) - confirm the mandatory-MFA gate cannot be skipped with the password alone.
+
+6. **Mass-assignment / over-posting.**
+   On every create/update endpoint, submit extra fields (e.g. `accountId`, `roleId`, `dataScope`, ownership stamps, `isSystemAdmin`) to see whether the Zod strip-unknown-keys boundary and server-side ownership assignment actually prevent privilege or tenancy fields from being set by the client.
+
+Each scenario maps to a control we believe already holds; the value of the test is independent confirmation (or a finding).
+
 ## 4. Test accounts and tenants
 
 Two dedicated test tenants are provisioned by the idempotent script
