@@ -747,6 +747,48 @@ exports.getMembership = async (req, res) => {
     }
 };
 
+// GET /api/membership/memberships/:id/ar-credit[?memberId=] - the LIVE credit
+// standing of the party's AR ledger account (the pool the credit gate actually
+// enforces), shown beside the credit-limit field so the membership office sees
+// exposure where they maintain the limit. `memberId` targets a nominee's
+// personal account; without it, the contract account. Read through the AR seam
+// (golden rule #4) - membership never reads AR tables directly.
+exports.getArCredit = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+
+        const ms = await Membership.findOne({ where: { id: req.params.id, companyId }, attributes: ['id'] });
+        if (!ms) return res.status(404).json({ message: 'Membership not found.' });
+
+        let debtorType = 'membership';
+        let sourceId = ms.id;
+        const memberId = strOrNull(req.query.memberId);
+        if (memberId) {
+            const member = await Member.findOne({ where: { id: memberId, membershipId: ms.id }, attributes: ['id', 'memberKind'] });
+            if (!member) return res.status(404).json({ message: 'Member not found on this membership.' });
+            // Only nominees carry a personal ledger account; anyone else
+            // charges to the contract account.
+            if (member.memberKind !== 'nominee') return res.status(200).json({ exists: false });
+            debtorType = 'member';
+            sourceId = member.id;
+        }
+
+        const { getCreditStanding } = require('../../platform/arGateway');
+        const standing = await getCreditStanding(companyId, debtorType, sourceId);
+        if (!standing) return res.status(200).json({ exists: false });
+        res.status(200).json({
+            exists: true,
+            status: standing.status,
+            creditLimit: Number(standing.creditLimit),
+            outstanding: Number(standing.outstanding),
+        });
+    } catch (error) {
+        console.error('Error loading AR credit standing:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 // POST /api/membership/memberships - create. Individual class requires a nested
 // `member` profile object and auto-creates the Member row; corporate does not.
 exports.createMembership = async (req, res) => {
@@ -1010,6 +1052,10 @@ exports.updateMembership = async (req, res) => {
         const placement = await getCallerPlacement(req);
         const stamps = ownershipStamps(req, placement);
 
+        // Credit-limit ownership split (2026-09-27): Membership owns member-
+        // account limits, so a changed limit syncs into the AR credit pool.
+        const prevCreditLimit = Number(ms.creditLimit) || 0;
+
         await sequelize.transaction(async (t) => {
             Object.assign(ms, v);
             ms.membershipFeeId = membershipFeeId;
@@ -1034,6 +1080,12 @@ exports.updateMembership = async (req, res) => {
             // AR: entering an active status class opens the contract debtor
             // (outbox event, idempotent - re-activations are no-ops).
             if (statusChanged) await arProvisioning.onMembershipStatus(ms, newStatus, t, getUserContext(req).userId);
+
+            // AR: a changed credit limit pushes into the existing pool (no-op
+            // when the ledger account is not open yet - provisioning seeds it).
+            if ((Number(ms.creditLimit) || 0) !== prevCreditLimit) {
+                await arProvisioning.syncContractCreditLimit(ms, t);
+            }
         });
 
         const members = await Member.findAll({ where: { membershipId: ms.id }, order: [['memberNo', 'ASC']] });
@@ -1283,6 +1335,9 @@ exports.updateMember = async (req, res) => {
 
         const placement = await getCallerPlacement(req);
         const stamps = ownershipStamps(req, placement);
+        // Credit-limit ownership split (2026-09-27): a nominee's personal
+        // ledger account syncs from THEIR member-level limit.
+        const prevCreditLimit = Number(member.creditLimit) || 0;
         await sequelize.transaction(async (t) => {
             Object.assign(member, profile);
             if (statusChanged) {
@@ -1310,6 +1365,11 @@ exports.updateMember = async (req, res) => {
                 if (member.memberKind === 'individual') {
                     await arProvisioning.onMembershipStatus(ms, newStatus, t, requestedBy);
                 }
+            }
+
+            // AR: a nominee's changed credit limit syncs their personal pool.
+            if (member.memberKind === 'nominee' && (Number(member.creditLimit) || 0) !== prevCreditLimit) {
+                await arProvisioning.syncNomineeCreditLimit(member, t);
             }
         });
 

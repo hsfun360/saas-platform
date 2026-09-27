@@ -13,13 +13,18 @@
 //     (frontend charges and possibly their own subscription always land
 //     there). Individual members and dependents never get one.
 //   - Credit terms seed from the membership/member row ONCE; after that the AR
-//     Debtor screen is the single maintenance place (credit-terms migration
-//     decision) - replayed events never overwrite AR's copy.
+//     Debtor screen maintains repayment terms / reminders / interest -
+//     replayed provisioning events never overwrite AR's copy.
+//   - CREDIT LIMIT ownership split (decision 2026-09-27): the Membership
+//     department owns member-account credit limits, so a membership/nominee
+//     save whose limit changed pushes the value into the AR pool (the
+//     'DebtorCreditLimitSyncRequested' event below). Finance keeps Other
+//     Debtor limits on the AR Debtor screen.
 //   - Enqueue is idempotent end-to-end, so callers fire on every entry into an
 //     active class without checking whether the account already exists.
 
 const { Op } = require('sequelize');
-const { enqueueDebtorProvisioning } = require('../../platform/arGateway');
+const { enqueueDebtorProvisioning, enqueueCreditLimitSync } = require('../../platform/arGateway');
 
 // Status classes that mean "this party is live" - entering one opens the
 // ledger account (membershipStatus.constants STATUS_CLASSES).
@@ -106,6 +111,28 @@ async function onMemberStatus(member, membership, statusRow, transaction, reques
     }
 }
 
+// Credit-limit sync helpers (ownership split 2026-09-27). Callers fire these
+// when the SAVED credit limit actually changed; AR silently no-ops when the
+// ledger account does not exist yet (the value seeds at provisioning instead),
+// so no status check is needed here.
+async function syncContractCreditLimit(membership, transaction) {
+    await enqueueCreditLimitSync({
+        companyId: membership.companyId,
+        debtorType: 'membership',
+        sourceId: membership.id,
+        creditLimit: toMoney(membership.creditLimit),
+    }, transaction);
+}
+
+async function syncNomineeCreditLimit(member, transaction) {
+    await enqueueCreditLimitSync({
+        companyId: member.companyId,
+        debtorType: 'member',
+        sourceId: member.id,
+        creditLimit: toMoney(member.creditLimit),
+    }, transaction);
+}
+
 // Backfill for data that predates AR (or arrived via import before the hooks):
 // enqueue a provisioning event for every currently-active contract + nominee
 // of the company. Idempotent - existing debtors are untouched - so it is safe
@@ -152,5 +179,7 @@ module.exports = {
     isActiveClass,
     onMembershipStatus,
     onMemberStatus,
+    syncContractCreditLimit,
+    syncNomineeCreditLimit,
     backfillCompanyDebtors,
 };

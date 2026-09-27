@@ -251,8 +251,19 @@ export class ArDebtorsComponent implements OnInit {
       chargeInterest: row.chargeInterest,
       status: row.status,
     });
+    // Credit-limit ownership split: membership/nominee account limits are
+    // maintained by the Membership department (they sync into the pool from
+    // the membership/member record); Finance edits only Other Debtor limits.
+    if (row.debtorType === 'other') this.editForm.controls.creditLimit.enable();
+    else this.editForm.controls.creditLimit.disable();
     this.editOpen.set(true);
   }
+
+  // The open edit dialog targets a membership-sourced account (limit read-only).
+  readonly editIsMemberAccount = computed(() => {
+    const row = this.editRow();
+    return !!row && row.debtorType !== 'other';
+  });
 
   closeEdit(): void {
     this.editOpen.set(false);
@@ -268,14 +279,17 @@ export class ArDebtorsComponent implements OnInit {
     }
     const f = this.editForm.getRawValue();
     this.editSaving.set(true);
+    const payload: Record<string, unknown> = {
+      terms: f.terms,
+      sendReminders: f.sendReminders,
+      chargeInterest: f.chargeInterest,
+      status: f.status,
+    };
+    // Membership-sourced accounts never send the limit (the server rejects
+    // it) - it is maintained on the membership/member record and syncs in.
+    if (row.debtorType === 'other') payload['creditLimit'] = f.creditLimit;
     this.service
-      .updateDebtor(row.id, {
-        terms: f.terms,
-        creditLimit: f.creditLimit,
-        sendReminders: f.sendReminders,
-        chargeInterest: f.chargeInterest,
-        status: f.status,
-      })
+      .updateDebtor(row.id, payload)
       .subscribe({
         next: (res) => {
           this.successMessage.set(res.message);

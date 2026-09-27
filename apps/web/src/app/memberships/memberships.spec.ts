@@ -106,6 +106,7 @@ describe('MembershipsComponent members dialog', () => {
     },
     createNominee: () => of({ message: 'Nominee created.', member: NOMINEE }),
     createDependent: () => of({ message: 'Dependent created.', member: NOMINEE }),
+    arCredit: () => of({ exists: false }),
   };
 
   const emptyListActive = { listActive: () => of([]) };

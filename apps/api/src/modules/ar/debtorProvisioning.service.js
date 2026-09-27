@@ -10,6 +10,12 @@
 // Debtor is NEVER updated by a provisioning event (Finance may have edited the
 // terms on the AR screen since - AR owns them after first provisioning, per the
 // credit-terms migration decision 2026-08-05).
+//
+// EXCEPTION (ownership split, 2026-09-27): the CREDIT LIMIT of a membership/
+// nominee account is owned by the Membership department, so a dedicated
+// 'DebtorCreditLimitSyncRequested' event (syncCreditLimit below) DOES update
+// the pool after provisioning. Other Debtor limits stay Finance-owned on the
+// AR screen; repayment terms / reminders / interest stay AR-owned for all.
 
 const { sequelize } = require('../../platform/db');
 const Debtor = require('./debtor.model');
@@ -102,4 +108,39 @@ async function provisionDebtor(payload, transaction = null) {
     return sequelize.transaction(run);
 }
 
-module.exports = { provisionDebtor };
+// Consumer of 'DebtorCreditLimitSyncRequested': push a membership-maintained
+// credit limit into the AR pool. Only membership/nominee account types - the
+// ownership split keeps Other Debtor limits with Finance, so an 'other'
+// payload is a producer bug and poisons loudly.
+// No ledger account yet is a silent no-op: the limit travels in the
+// provisioning payload when the account eventually opens, so nothing is lost.
+// Idempotent - replays converge on the same pool value.
+async function syncCreditLimit(payload, transaction = null) {
+    const { companyId, debtorType, sourceId } = payload || {};
+    if (!companyId || !sourceId || !['membership', 'member'].includes(debtorType)) {
+        throw new Error(`DebtorCreditLimitSyncRequested payload invalid: ${JSON.stringify(payload)}`);
+    }
+    const creditLimit = money(payload.creditLimit);
+
+    const run = async (t) => {
+        const debtor = await Debtor.findOne({ where: { companyId, debtorType, sourceId }, transaction: t });
+        if (!debtor) return { synced: false, reason: 'no ledger account yet' };
+        // findOrCreate repairs a missing pool row (a half-provisioned account)
+        // instead of dropping the sync.
+        const [pool] = await CreditAccount.findOrCreate({
+            where: { debtorId: debtor.id },
+            defaults: { companyId, creditLimit, outstanding: 0 },
+            transaction: t,
+        });
+        if (pool.creditLimit !== creditLimit) {
+            pool.creditLimit = creditLimit;
+            await pool.save({ transaction: t });
+        }
+        return { synced: true, debtorId: debtor.id, creditLimit };
+    };
+
+    if (transaction) return run(transaction);
+    return sequelize.transaction(run);
+}
+
+module.exports = { provisionDebtor, syncCreditLimit };

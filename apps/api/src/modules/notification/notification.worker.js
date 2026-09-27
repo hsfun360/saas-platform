@@ -300,6 +300,15 @@ async function processOutboxSafely() {
                         }
                     }
                 }
+                else if (msg.type === 'DebtorCreditLimitSyncRequested') {
+                    // Credit-limit ownership split (2026-09-27): Membership owns
+                    // member-account limits and pushes edits into the AR pool.
+                    // No ledger account yet = silent no-op (provisioning seeds
+                    // the value later); replays are idempotent.
+                    const { syncCreditLimit } = require('../ar/debtorProvisioning.service');
+                    const result = await syncCreditLimit(msg.payload);
+                    console.log(`[OUTBOX WORKER] Credit limit sync (${msg.payload.debtorType}/${msg.payload.sourceId}) -> ${result.synced ? result.creditLimit : `skipped (${result.reason})`}`);
+                }
 
                 // Mark as done
                 // 🟢 SUCCESS: Mark as completed

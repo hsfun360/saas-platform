@@ -10,8 +10,13 @@ const { AR_SCHEMA } = require('../../platform/schemas');
 // Balances are MATERIALIZED, never SUMmed at check time; a scheduled
 // reconciliation job asserts outstanding == open items - unallocated credits.
 //
-// `creditLimit` is set manually by Finance (decision 2026-08-05: the security
-// deposit is an operational prerequisite but NEVER derives the limit).
+// `creditLimit` ownership is split by debtor type (decision 2026-09-27,
+// superseding the 2026-08-05 "Finance sets it manually" rule for member
+// accounts): membership/nominee account limits are maintained by the
+// MEMBERSHIP department on the membership/member record and sync in via the
+// 'DebtorCreditLimitSyncRequested' event; Finance maintains OTHER Debtor
+// limits on the AR Debtor screen. Unchanged either way: the security deposit
+// is an operational prerequisite but NEVER derives the limit.
 // `outstanding` can go negative: unallocated receipt credit reduces the pool
 // immediately (auto-releases credit for uncapped persons).
 const CreditAccount = sequelize.define('CreditAccount', {

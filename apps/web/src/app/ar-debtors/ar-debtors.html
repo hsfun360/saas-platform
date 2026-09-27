@@ -202,7 +202,11 @@
       <form id="editDebtorForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
         <p class="cell-subtle" style="margin-top: 0;">
           {{ editRow()?.name }} — {{ typeLabel(editRow()?.debtorType || '') }}.
-          Credit terms are maintained here; the party profile stays with its master record.
+          @if (editIsMemberAccount()) {
+            Terms and status are maintained here; the credit limit and party profile stay with the membership/member record.
+          } @else {
+            Credit terms are maintained here; the party profile stays with its master record.
+          }
         </p>
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
@@ -212,6 +216,9 @@
           <div class="form-group">
             <label for="edLimit">Credit limit</label>
             <input id="edLimit" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="creditLimit" />
+            @if (editIsMemberAccount()) {
+              <span class="cell-subtle">Maintained in Membership - edit the limit on the membership/member record and it syncs here.</span>
+            }
           </div>
         </div>
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">

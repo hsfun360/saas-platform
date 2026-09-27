@@ -892,6 +892,15 @@ export interface MembershipListResult {
   memberships: MembershipListRow[];
 }
 
+// Live AR credit standing of a membership/nominee ledger account (the pool the
+// credit gate enforces), shown beside the membership-maintained credit limit.
+export interface ArCreditStanding {
+  exists: boolean;
+  status?: string;
+  creditLimit?: number;
+  outstanding?: number;
+}
+
 // Vocabularies + the active company's numbering mode for the membership form.
 export interface MembershipMeta {
   memberKinds: MembershipStatusOption[];

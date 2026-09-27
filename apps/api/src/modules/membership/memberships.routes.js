@@ -19,6 +19,9 @@ router.get('/', controller.listMemberships);
 router.post('/', controller.createMembership);
 router.get('/:id', controller.getMembership);
 router.put('/:id', controller.updateMembership);
+// Live AR credit standing (ownership split 2026-09-27): the pool the credit
+// gate enforces, shown beside the membership-maintained limit.
+router.get('/:id/ar-credit', controller.getArCredit);
 
 // Members under a membership.
 router.get('/:id/members/suggest-no', controller.suggestMemberNo);

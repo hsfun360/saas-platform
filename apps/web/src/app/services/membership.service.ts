@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
+  ArCreditStanding,
   Member,
   MemberSearchResult,
   MembersMeta,
@@ -44,6 +45,16 @@ export class MembershipService {
 
   get(id: string): Observable<Membership> {
     return this.http.get<Membership>(`${this.base}/${id}`);
+  }
+
+  // Live AR credit standing of the party's ledger account (credit-limit
+  // ownership split: Membership maintains member-account limits, so the
+  // dialog shows the pool the credit gate actually enforces). `memberId`
+  // targets a nominee's personal account.
+  arCredit(membershipId: string, memberId?: string): Observable<ArCreditStanding> {
+    let params = new HttpParams();
+    if (memberId) params = params.set('memberId', memberId);
+    return this.http.get<ArCreditStanding>(`${this.base}/${membershipId}/ar-credit`, { params });
   }
 
   create(payload: Record<string, unknown>): Observable<{ message: string; membership: Membership }> {

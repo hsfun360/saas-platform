@@ -18,6 +18,7 @@ import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import {
   AddressEntry,
+  ArCreditStanding,
   Country,
   Member,
   Membership,
@@ -229,6 +230,13 @@ export class MembershipsComponent implements OnInit {
   readonly memberSaving = signal(false);
   readonly editMember = signal<Member | null>(null);
   readonly dependentPrincipal = signal<Member | null>(null);
+
+  // Live AR credit standing beside the credit-limit field (ownership split:
+  // Membership maintains member-account limits; the AR pool is what the
+  // credit gate enforces, so show it where the limit is keyed). One signal per
+  // dialog: the contract's account and a nominee's personal account.
+  readonly arCredit = signal<ArCreditStanding | null>(null);
+  readonly memberArCredit = signal<ArCreditStanding | null>(null);
 
   readonly individualCount = computed(() => this.counts().individual);
   readonly corporateCount = computed(() => this.counts().corporate);
@@ -593,6 +601,16 @@ export class MembershipsComponent implements OnInit {
     this.pickedClass.set(cls);
   }
 
+  // One-line live AR standing under the credit-limit field. The saved limit
+  // syncs into the AR pool, so a mismatch here means the membership was edited
+  // before the sync shipped (a re-save pushes it through).
+  arCreditText(standing: ArCreditStanding | null): string {
+    if (!standing) return '';
+    if (!standing.exists) return 'No AR ledger account yet - the limit applies when the account opens on activation.';
+    const fmt = (n: number | undefined) => (n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `AR account in force: limit ${fmt(standing.creditLimit)} · outstanding ${fmt(standing.outstanding)}. Saving a new limit updates the AR account.`;
+  }
+
   // Back to the class picker - offered only while both forms are pristine, so
   // a mis-click never costs entered data.
   changeClass(): void {
@@ -619,6 +637,15 @@ export class MembershipsComponent implements OnInit {
 
   private populateEditForm(ms: Membership): void {
     this.editMembership.set(ms);
+    // Live AR standing of the contract account (best-effort - the hint just
+    // stays absent when the lookup fails).
+    this.arCredit.set(null);
+    if (this.showCreditFields()) {
+      this.service.arCredit(ms.id).subscribe({
+        next: (standing) => this.arCredit.set(standing),
+        error: () => {},
+      });
+    }
     this.membershipForm.reset({
       membershipTypeId: ms.membershipTypeId,
       membershipNo: ms.membershipNo,
@@ -770,6 +797,15 @@ export class MembershipsComponent implements OnInit {
 
   openEditMember(m: Member): void {
     this.startMemberDialog('edit', m, null);
+    // A nominee carries a personal ledger account - show its live standing
+    // beside the member-level credit limit (best-effort).
+    const ms = this.activeMembership();
+    if (ms && m.memberKind === 'nominee' && this.showCreditFields()) {
+      this.service.arCredit(ms.id, m.id).subscribe({
+        next: (standing) => this.memberArCredit.set(standing),
+        error: () => {},
+      });
+    }
     this.memberMetaForm.patchValue({
       memberNo: m.memberNo,
       dependentType: m.dependentType || '',
@@ -844,6 +880,7 @@ export class MembershipsComponent implements OnInit {
 
   private startMemberDialog(mode: 'nominee' | 'dependent' | 'edit', member: Member | null, principal: Member | null): void {
     this.clearMessages();
+    this.memberArCredit.set(null); // openEditMember refetches for a nominee
     this.memberDialogMode.set(mode);
     this.editMember.set(member);
     this.dependentPrincipal.set(principal);

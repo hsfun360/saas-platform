@@ -24,7 +24,10 @@ Key rules a maintainer must not break:
   Freshness: stamped from the provisioning payload (event-carried state; replays fill NULLs but never overwrite), refreshed same-tx on Other Debtor saves, read-repaired by the listing when a page's live value differs, and verified by reconciliation (missing = stamped every run; drift = reported, repaired in fix mode; unresolvable party = reported).
   NOT NULL since 2026-08-11 (backfill verified zero NULLs first): a ledger account can never exist without number + name; a provisioning payload without them fails and retries via the outbox.
 - Hot balances live in `CreditAccount` (pool) and `CreditMemberLimit` (per-person caps, row = capped person only), materialized in the same tx as every posting, pool row locked first.
-- After first provisioning, AR owns the credit terms (the membership screen shows them read-only).
+- After first provisioning, AR owns repayment terms / reminders / interest - EXCEPT the credit limit of membership/nominee accounts.
+  **Credit-limit ownership split (user decision 2026-09-27, superseding the 2026-08-05 "Finance sets it manually" rule for member accounts):** the Membership department maintains member-account limits on the membership/member record, and a changed limit syncs into `CreditAccount.creditLimit` via the `DebtorCreditLimitSyncRequested` outbox event (no ledger account yet = silent no-op; provisioning seeds the value instead).
+  Finance maintains ONLY Other Debtor limits on the AR Debtor screen - the PATCH endpoint rejects a credit-limit edit for membership/member accounts, and the Edit-terms dialog shows the field read-only with a "maintained in Membership" hint.
+  The membership dialogs show the live pool (limit + outstanding) beside the credit-limit field via `arGateway.getCreditStanding`.
 - Dependents never get debtor rows; their charges resolve to the principal at posting time.
 - Every document table (Ledger, Receipt, Deposit) carries BOTH `docDate` and `trxDate`.
   `docDate` is the actual occurrence date - it drives aging and `dueDate` and prints on the document.

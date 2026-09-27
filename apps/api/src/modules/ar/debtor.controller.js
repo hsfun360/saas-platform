@@ -245,6 +245,13 @@ exports.updateDebtor = async (req, res) => {
 
         let creditLimit = null;
         if ('creditLimit' in req.body) {
+            // Credit-limit ownership split (2026-09-27): membership/nominee
+            // account limits are maintained by the Membership department on
+            // the membership/member record (and sync into the pool from
+            // there); Finance edits only Other Debtor limits here.
+            if (debtor.debtorType !== 'other') {
+                return res.status(400).json({ message: 'This account\'s credit limit is maintained in Membership - edit it on the membership/member record.' });
+            }
             const n = Number(req.body.creditLimit);
             if (!Number.isFinite(n) || n < 0) return res.status(400).json({ message: 'Credit limit must be zero or a positive amount.' });
             creditLimit = n.toFixed(2);

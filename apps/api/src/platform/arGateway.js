@@ -42,6 +42,43 @@ async function enqueueDebtorProvisioning(payload, transaction) {
     pingOutboxWorker(transaction);
 }
 
+// Enqueue a 'DebtorCreditLimitSyncRequested' event (credit-limit ownership
+// split, decision 2026-09-27): MEMBERSHIP owns member-account credit limits,
+// so a membership/nominee save whose credit limit changed pushes the new value
+// into the AR credit pool. Finance keeps Other Debtor limits on the AR screen.
+//   { companyId, debtorType: 'membership'|'member', sourceId, creditLimit }
+// Fire-and-forget like provisioning: AR no-ops when the ledger account does
+// not exist yet (the value seeds at provisioning instead), so producers just
+// send on every change without checking.
+async function enqueueCreditLimitSync(payload, transaction) {
+    await OutboxMessage.create(
+        {
+            id: uuidv4(),
+            type: 'DebtorCreditLimitSyncRequested',
+            payload,
+        },
+        { transaction },
+    );
+    pingOutboxWorker(transaction);
+}
+
+// Live credit standing of a party's ledger account - lets a producer screen
+// (Membership) show the pool the credit gate actually enforces. Read-only.
+// Returns { creditLimit, outstanding, status } or null when no account exists.
+// WHEN SPLIT: GET {internalServiceUrl('ar')}/internal/credit-standing
+async function getCreditStanding(companyId, debtorType, sourceId) {
+    const Debtor = require('../modules/ar/debtor.model');
+    const CreditAccount = require('../modules/ar/creditAccount.model');
+    const debtor = await Debtor.findOne({ where: { companyId, debtorType, sourceId }, attributes: ['id', 'status'] });
+    if (!debtor) return null;
+    const pool = await CreditAccount.findOne({ where: { debtorId: debtor.id }, attributes: ['creditLimit', 'outstanding'] });
+    return {
+        status: debtor.status,
+        creditLimit: pool ? pool.creditLimit : '0.00',
+        outstanding: pool ? pool.outstanding : '0.00',
+    };
+}
+
 // --- AR-owned Transaction Type catalog (moved from Membership 2026-08-15) --
 // Producer modules and their screens read the catalog through HERE - a module
 // only ever sees entries opened to it (`usableInModules`), and the posting
@@ -172,6 +209,8 @@ async function postCharge(req, {
 
 module.exports = {
     enqueueDebtorProvisioning,
+    enqueueCreditLimitSync,
+    getCreditStanding,
     authorizeCharge,
     postCharge,
     listTransactionTypes,
