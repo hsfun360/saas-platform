@@ -48,7 +48,7 @@ In scope:
    | ar (accounts receivable) | 82 | dimension | 11 |
    | | | notification / facility | 6 |
 
-   Note for cleanup before the test: a leftover `GET /api/auth/debug-test` info endpoint is still mounted and unauthenticated; harmless but a typical pen-test "remove debug endpoints" finding, so it should be deleted first.
+   (The leftover `GET /api/auth/debug-test` info endpoint was removed 2026-09-27.)
 3. Authentication and session management: password flows, HIBP/breach handling, rate limiting and backoff behaviour, TOTP MFA including forced admin enrollment and recovery codes, refresh-token rotation and replay revocation, logout/revocation.
 4. **Authorization - the priority of this engagement:**
    - **Horizontal, cross-tenant: prove or disprove that one tenant can read or affect another tenant's data.** Two dedicated test tenants are provided for exactly this.

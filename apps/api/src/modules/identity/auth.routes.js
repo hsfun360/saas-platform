@@ -33,11 +33,6 @@ const userFavoriteController = require('../saas/userFavorite.controller');
 const { hasTenantAdminRole } = require('../saas/tenant');
 
 // Test Route to verify that the auth routes are working
-// GET: /api/auth/debug-test
-router.get('/debug-test', (req, res) => {
-    res.json({ message: "Auth Routes are working!" });
-});
-
 // --- Middleware to verify the JWT (Must be defined here to work in this file) ---
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
