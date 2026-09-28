@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">golf_course</span>
       <div>
         <h1>{{ 'Courses' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ '18-hole courses — pair an OUT and an IN nine, with optional alternate and night nines.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ '18-hole courses — pair any two nines (rotations welcome), with optional alternate and night nines.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -55,7 +55,7 @@
   } @else if (courses().length === 0) {
     <div class="empty-state">
       <span class="empty-icon">🏌️</span>
-      <p>No courses yet. A course pairs two unit courses — the 1st as the first nine (OUT) and the 2nd as the second nine (IN). Set up your unit courses first, then pair them here.</p>
+      <p>No courses yet. A course pairs two unit courses — any nine may sit in either seat. Set up your unit courses first, then pair them here.</p>
     </div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
@@ -121,6 +121,10 @@
                   <span class="material-icons" aria-hidden="true">{{ c.isActive === false ? 'toggle_on' : 'toggle_off' }}</span>
                   {{ c.isActive === false ? 'Enable' : 'Disable' }}
                 </button>
+                <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(c)">
+                  <span class="material-icons" aria-hidden="true">delete</span>
+                  Delete
+                </button>
               </app-overflow-menu>
             </div>
           </div>
@@ -169,7 +173,7 @@
         </div>
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
           <div class="form-group">
-            <label for="gcFirst">First nine (OUT) <span class="required">*</span></label>
+            <label for="gcFirst">First nine <span class="required">*</span></label>
             <app-combobox inputId="gcFirst" formControlName="firstNineId"
                           [options]="firstNineComboOptions()"
                           [allowEmpty]="false"
@@ -180,7 +184,7 @@
             }
           </div>
           <div class="form-group">
-            <label for="gcSecond">Second nine (IN) <span class="required">*</span></label>
+            <label for="gcSecond">Second nine <span class="required">*</span></label>
             <app-combobox inputId="gcSecond" formControlName="secondNineId"
                           [options]="secondNineComboOptions()"
                           [allowEmpty]="false"
@@ -649,6 +653,20 @@
             </button>
           }
         }
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Delete confirm (centred) ============ -->
+  @if (deleteTarget(); as target) {
+    <app-dialog title="Delete course" [busy]="deleting()" (close)="deleteTarget.set(null)">
+      <p>Delete <strong>{{ target.courseCode }}</strong>{{ target.description ? ' — ' + target.description : '' }}? Its tee-time sets and closure plans are removed with it. This cannot be undone.</p>
+      <p class="cell-subtle">A course with bookings or registrations cannot be deleted — the server will refuse; disable it instead.</p>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="deleteTarget.set(null)" [disabled]="deleting()">Keep</button>
+        <button type="button" class="btn btn--danger" (click)="confirmDelete()" [disabled]="deleting()">
+          {{ deleting() ? 'Deleting…' : 'Delete' }}
+        </button>
       </ng-container>
     </app-dialog>
   }

@@ -30,6 +30,12 @@ export class UnitCourseService {
     return this.http.patch<{ message: string; unitCourse: UnitCourse }>(`${this.base}/${id}`, patch);
   }
 
+  // Hard delete for a mis-keyed nine - refused server-side while any course
+  // references it.
+  delete(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.base}/${id}`);
+  }
+
   // Saved hole rows of a unit course (may be empty until first save).
   holes(id: string): Observable<UnitCourseHole[]> {
     return this.http.get<UnitCourseHole[]>(`${this.base}/${id}/holes`);

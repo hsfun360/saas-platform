@@ -19,6 +19,7 @@ import {
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ComboboxComponent } from '../shared/combobox/combobox';
+import { CanDirective } from '../shared/can.directive';
 
 // Combobox row for a nine picker: code — description (both filterable).
 const toNineOption = (u: UnitCourse): { value: string; label: string } => ({
@@ -82,7 +83,7 @@ function toHHMM(minutes: number): string {
   selector: 'app-golf-courses',
   standalone: true,
   imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
-    OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
+    OverflowMenuComponent, MenuItemDirective, ComboboxComponent, CanDirective],
   templateUrl: './golf-courses.html',
   styleUrls: ['../system-setup/system-setup.css', './golf-courses.css'],
 })
@@ -435,6 +436,34 @@ export class GolfCoursesComponent implements OnInit {
       error: (err) => {
         this.errorMessage.set(err.error?.message || 'Failed to update course.');
         this.togglingId.set(null);
+      },
+    });
+  }
+
+  // --- Delete (mis-keyed course; refused server-side once bookings or
+  // registrations reference it) ---
+  readonly deleteTarget = signal<GolfCourse | null>(null);
+  readonly deleting = signal(false);
+
+  askDelete(c: GolfCourse): void {
+    this.clearMessages();
+    this.deleteTarget.set(c);
+  }
+
+  confirmDelete(): void {
+    const c = this.deleteTarget();
+    if (!c) return;
+    this.deleting.set(true);
+    this.service.delete(c.id).subscribe({
+      next: (res) => {
+        this.deleting.set(false);
+        this.deleteTarget.set(null);
+        this.successMessage.set(res.message);
+        this.load();
+      },
+      error: (err) => {
+        this.deleting.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to delete course.');
       },
     });
   }

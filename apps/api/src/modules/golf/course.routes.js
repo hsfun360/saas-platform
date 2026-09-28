@@ -18,6 +18,7 @@ router.get('/', controller.listCourses);
 router.post('/', controller.createCourse);
 router.post('/photo', upload.single('photo'), controller.uploadPhoto);
 router.patch('/:id', controller.updateCourse);
+router.delete('/:id', controller.deleteCourse);
 
 // Tee-time sets (spec 2.2.5/2.2.6 collapsed) - each course owns its own
 // tee-off/flight time setups, versioned by day scope + effective date.

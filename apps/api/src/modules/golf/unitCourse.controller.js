@@ -145,3 +145,43 @@ exports.updateUnitCourse = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+
+// DELETE /api/golf/unit-courses/:id - hard delete for a MIS-KEYED nine (user
+// request 2026-09-28: setup mistakes should not linger as disabled rows).
+// Refused while ANY course references it in any seat - referenced records
+// stay enable/disable only. Holes and tee boxes cascade with the row.
+exports.deleteUnitCourse = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+
+        const unitCourse = await UnitCourse.findOne({ where: { id: req.params.id, companyId } });
+        if (!unitCourse) return res.status(404).json({ message: 'Unit course not found.' });
+
+        const { Op } = require('sequelize');
+        const Course = require('./course.model');
+        const referencing = await Course.findAll({
+            where: {
+                companyId,
+                [Op.or]: [
+                    { firstNineId: unitCourse.id },
+                    { secondNineId: unitCourse.id },
+                    { alternateNineId: unitCourse.id },
+                    { nightNineId: unitCourse.id },
+                ],
+            },
+            attributes: ['courseCode'],
+        });
+        if (referencing.length) {
+            return res.status(409).json({
+                message: `Cannot delete ${unitCourse.unitCourseCode} - course(s) ${referencing.map((c) => c.courseCode).join(', ')} still use this nine. Repoint or delete those courses first.`,
+            });
+        }
+
+        await unitCourse.destroy();
+        res.status(200).json({ message: `Unit course ${unitCourse.unitCourseCode} deleted.` });
+    } catch (error) {
+        console.error('Error deleting unit course:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};

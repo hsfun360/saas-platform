@@ -15,6 +15,7 @@ import {
 } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { CanDirective } from '../shared/can.directive';
 
 // One editable hole row in the Holes dialog. Inputs bind strings; parsing
 // happens on save. Numbering comes from the course type, never the user.
@@ -57,8 +58,9 @@ const SEQ_OPTIONS = [1, 2, 3, 4, 5];
 
 // Golf Management → Master File Setup → Unit Courses.
 // Per-company master file: the 9-hole building blocks of golf setup. A full
-// 18-hole course is formed later (Course Setup) by pairing two unit courses -
-// one OUT (front nine) + one IN (back nine). Enable/disable (no hard delete).
+// 18-hole course is formed later (Course Setup) by pairing two unit courses;
+// COMPOSITE nines may sit in either seat. Enable/disable, plus hard DELETE
+// for mis-keyed nines no course references (2026-09-28).
 // Reuses the System Setup stylesheet for the shared admin-screen look.
 //
 // Forms use typed Reactive Forms (canonical reference: platform-users): validators
@@ -67,7 +69,7 @@ const SEQ_OPTIONS = [1, 2, 3, 4, 5];
   selector: 'app-golf-unit-courses',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
-    OverflowMenuComponent, MenuItemDirective],
+    OverflowMenuComponent, MenuItemDirective, CanDirective],
   templateUrl: './golf-unit-courses.html',
   styleUrls: ['../system-setup/system-setup.css', './golf-unit-courses.css'],
 })
@@ -306,6 +308,33 @@ export class GolfUnitCoursesComponent implements OnInit {
       error: (err) => {
         this.errorMessage.set(err.error?.message || 'Failed to update unit course.');
         this.togglingId.set(null);
+      },
+    });
+  }
+
+  // --- Delete (mis-keyed nine; refused server-side while a course uses it) ---
+  readonly deleteTarget = signal<UnitCourse | null>(null);
+  readonly deleting = signal(false);
+
+  askDelete(c: UnitCourse): void {
+    this.clearMessages();
+    this.deleteTarget.set(c);
+  }
+
+  confirmDelete(): void {
+    const c = this.deleteTarget();
+    if (!c) return;
+    this.deleting.set(true);
+    this.service.delete(c.id).subscribe({
+      next: (res) => {
+        this.deleting.set(false);
+        this.deleteTarget.set(null);
+        this.successMessage.set(res.message);
+        this.load();
+      },
+      error: (err) => {
+        this.deleting.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to delete unit course.');
       },
     });
   }

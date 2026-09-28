@@ -199,6 +199,44 @@ exports.updateCourse = async (req, res) => {
     }
 };
 
+// DELETE /api/golf/courses/:id - hard delete for a MIS-KEYED course (user
+// request 2026-09-28). Refused once ANY booking or registration references it
+// (documents outlive setup) - such courses stay enable/disable only. Tee-time
+// sets/slots and closure plans/days CASCADE; flight locks are transient and
+// swept here.
+exports.deleteCourse = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+
+        const course = await Course.findOne({ where: { id: req.params.id, companyId } });
+        if (!course) return res.status(404).json({ message: 'Course not found.' });
+
+        const Booking = require('./booking.model');
+        const RegistrationPlayer = require('./registrationPlayer.model');
+        const [bookings, registrations] = await Promise.all([
+            Booking.count({ where: { companyId, courseId: course.id } }),
+            RegistrationPlayer.count({ where: { companyId, courseId: course.id } }),
+        ]);
+        if (bookings || registrations) {
+            return res.status(409).json({
+                message: `Cannot delete ${course.courseCode} - ${bookings} booking(s) and ${registrations} registration(s) reference it. Disable the course instead.`,
+            });
+        }
+
+        const { sequelize } = require('../../platform/db');
+        const FlightLock = require('./flightLock.model');
+        await sequelize.transaction(async (t) => {
+            await FlightLock.destroy({ where: { companyId, courseId: course.id }, transaction: t });
+            await course.destroy({ transaction: t });
+        });
+        res.status(200).json({ message: `Course ${course.courseCode} deleted.` });
+    } catch (error) {
+        console.error('Error deleting course:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 // POST /api/golf/courses/photo  (multipart, field "photo")
 // Upload the course picture to GCS and return its public URL; the caller stores
 // the URL via create/patch (same shape as the company/platform logo flow).

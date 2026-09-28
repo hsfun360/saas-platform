@@ -11,6 +11,7 @@ router.get('/meta', controller.getMeta);
 router.get('/', controller.listUnitCourses);
 router.post('/', controller.createUnitCourse);
 router.patch('/:id', controller.updateUnitCourse);
+router.delete('/:id', controller.deleteUnitCourse);
 
 // Hole Setup (spec 2.2.2) - child rows of a unit course; numbering is fixed by
 // the course type, the user maintains par / stroke index / remarks.

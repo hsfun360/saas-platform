@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">sports_golf</span>
       <div>
         <h1>{{ 'Unit Courses' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'The 9-hole building blocks — pair an OUT and an IN nine later to form an 18-hole course.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'The 9-hole building blocks — pair two nines later to form an 18-hole course. A COMPOSITE nine plays as either the front or the back.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -118,6 +118,10 @@
                 <button type="button" appMenuItem (click)="toggleActive(c)" [disabled]="togglingId() === c.id">
                   <span class="material-icons" aria-hidden="true">{{ c.isActive === false ? 'toggle_on' : 'toggle_off' }}</span>
                   {{ c.isActive === false ? 'Enable' : 'Disable' }}
+                </button>
+                <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(c)">
+                  <span class="material-icons" aria-hidden="true">delete</span>
+                  Delete
                 </button>
               </app-overflow-menu>
             </div>
@@ -375,6 +379,20 @@
             {{ teesSaving() ? 'Saving…' : 'Save ' + teeRows().length + ' tee ' + (teeRows().length === 1 ? 'box' : 'boxes') }}
           </button>
         }
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Delete confirm (centred) ============ -->
+  @if (deleteTarget(); as target) {
+    <app-dialog title="Delete unit course" [busy]="deleting()" (close)="deleteTarget.set(null)">
+      <p>Delete <strong>{{ target.unitCourseCode }}</strong>{{ target.description ? ' — ' + target.description : '' }}? Its holes and tee boxes are removed with it. This cannot be undone.</p>
+      <p class="cell-subtle">A nine still used by a course cannot be deleted — the server will refuse and name the course(s).</p>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="deleteTarget.set(null)" [disabled]="deleting()">Keep</button>
+        <button type="button" class="btn btn--danger" (click)="confirmDelete()" [disabled]="deleting()">
+          {{ deleting() ? 'Deleting…' : 'Delete' }}
+        </button>
       </ng-container>
     </app-dialog>
   }

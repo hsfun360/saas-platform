@@ -29,6 +29,12 @@ export class GolfCourseService {
     return this.http.post<{ message: string; course: GolfCourse }>(this.base, payload);
   }
 
+  // Hard delete for a mis-keyed course - refused server-side once bookings
+  // or registrations reference it.
+  delete(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.base}/${id}`);
+  }
+
   update(id: string, patch: Partial<GolfCourse>): Observable<{ message: string; course: GolfCourse }> {
     return this.http.patch<{ message: string; course: GolfCourse }>(`${this.base}/${id}`, patch);
   }
