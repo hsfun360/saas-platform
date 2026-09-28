@@ -402,8 +402,9 @@
                 <p>No flight times yet — generate them from this set's schedule, then adjust individual flights as needed.</p>
               </div>
             } @else {
+              <p class="cell-subtle" style="margin: 0 0 var(--space-xs);">Front desk = no advance bookings, walk-ins only. X-over = closed for crossover: no new tee-offs at all, the time exists for 18-hole flights to land on their second nine.</p>
               <div class="tt-slot-head" aria-hidden="true">
-                <span>#</span><span>Tee-off</span><span>Players</span><span>Front desk</span>
+                <span>#</span><span>Tee-off</span><span>Players</span><span>Front desk</span><span>X-over</span>
               </div>
               @for (row of slotRows(); track row.slotNumber; let i = $index) {
                 <div class="tt-slot-row">
@@ -417,6 +418,10 @@
                   <label class="tt-slot-fd">
                     <input type="checkbox" [checked]="row.isFrontDesk" (change)="toggleSlotFrontDesk(i)"
                            [attr.aria-label]="'Slot ' + row.slotNumber + ' front desk only'" />
+                  </label>
+                  <label class="tt-slot-fd">
+                    <input type="checkbox" [checked]="row.isCrossoverOnly" (change)="toggleSlotCrossoverOnly(i)"
+                           [attr.aria-label]="'Slot ' + row.slotNumber + ' crossover only - no new tee-offs'" />
                   </label>
                 </div>
               }

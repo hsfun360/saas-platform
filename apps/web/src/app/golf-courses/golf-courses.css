@@ -103,7 +103,7 @@
 .tt-slot-head,
 .tt-slot-row {
   display: grid;
-  grid-template-columns: 44px 120px 90px 90px;
+  grid-template-columns: 44px 120px 90px 90px 90px;
   gap: var(--space-sm);
   align-items: center;
 }

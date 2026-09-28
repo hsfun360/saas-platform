@@ -454,13 +454,15 @@ exports.getDay = async (req, res) => {
                 const closed = availability.nineBlocked(blocks, 'first', t);
                 const startOcc = occ.get(availability.cellKey(course.id, 'first', teeTime));
                 const seatsTaken = startOcc ? startOcc.players : 0;
+                const crossoverOnly = slot.isCrossoverOnly === true;
                 flights.push({
                     teeTime,
                     maxPlayers: slot.maxPlayers,
                     isFrontDesk: slot.isFrontDesk === true,
+                    crossoverOnly,
                     closed,
                     seatsTaken,
-                    seatsLeft: closed ? 0 : Math.max(0, slot.maxPlayers - seatsTaken),
+                    seatsLeft: closed || crossoverOnly ? 0 : Math.max(0, slot.maxPlayers - seatsTaken),
                     crossCount: crossByCell.get(`${course.id}|${teeTime}`) || 0,
                     entries: entriesByCell.get(`${course.id}|${teeTime}`) || [],
                 });
@@ -471,7 +473,7 @@ exports.getDay = async (req, res) => {
                 const [cid, teeTime] = key.split('|');
                 if (cid !== course.id || onGrid.has(teeTime)) continue;
                 flights.push({
-                    teeTime, maxPlayers: null, isFrontDesk: false, closed: false,
+                    teeTime, maxPlayers: null, isFrontDesk: false, crossoverOnly: false, closed: false,
                     seatsTaken: entries.length, seatsLeft: 0, offGrid: true,
                     crossCount: crossByCell.get(key) || 0, entries,
                 });
@@ -660,6 +662,12 @@ exports.register = async (req, res) => {
             const slots = await CourseTeeTimeSlot.findAll({ where: { teeTimeSetId: set.id }, order: [['teeTime', 'ASC']], transaction });
             const slot = slots.find((s) => availability.hhmm(s.teeTime) === teeTime);
             if (!slot) return { fail: 'That flight time is not on the tee sheet.', status: 400 };
+            // Crossover-only slots take NO new tee-offs from any channel -
+            // they exist as second-nine landing times (2026-09-28). The
+            // front-desk-only flag is fine here: this IS the front desk.
+            if (slot.isCrossoverOnly === true) {
+                return { fail: 'That flight time is closed for crossover - no new tee-offs.', status: 400 };
+            }
             const occ = await availability.occupancy(companyId, [course.id], playDate, { transaction });
             const startOcc = occ.get(availability.cellKey(course.id, 'first', teeTime));
             if ((startOcc ? startOcc.players : 0) >= slot.maxPlayers) return { fail: 'That flight is full.', status: 409 };

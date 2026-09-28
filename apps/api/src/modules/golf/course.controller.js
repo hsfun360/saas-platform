@@ -47,19 +47,18 @@ async function resolveNines(companyId, patch) {
         return { value: u };
     }
 
+    // ANY active nine may sit in either seat (relaxed 2026-09-28 for 27-hole
+    // ROTATIONS - Tropicana control procedure 1.1: East 1 -> East 2, East 2 ->
+    // West 3, West 3 -> East 1 - where every nine both STARTS rounds and
+    // RECEIVES crossovers). The OUT/IN unit type keeps only its hole-numbering
+    // meaning (1-9 vs 10-18); it no longer restricts pairing.
     const first = pick(patch.firstNineId, 'First nine');
     if (first.error) return { error: first.error };
     if (!first.value) return { error: 'First nine is required.' };
-    if (!['out', 'composite'].includes(first.value.courseType)) {
-        return { error: `First nine (${first.value.unitCourseCode}) must be an OUT or COMPOSITE unit course.` };
-    }
 
     const second = pick(patch.secondNineId, 'Second nine');
     if (second.error) return { error: second.error };
     if (!second.value) return { error: 'Second nine is required.' };
-    if (!['in', 'composite'].includes(second.value.courseType)) {
-        return { error: `Second nine (${second.value.unitCourseCode}) must be an IN or COMPOSITE unit course.` };
-    }
     if (second.value.id === first.value.id) {
         return { error: 'First nine and second nine must be two different unit courses.' };
     }

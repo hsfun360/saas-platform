@@ -33,9 +33,18 @@ const CourseTeeTimeSlot = sequelize.define('CourseTeeTimeSlot', {
         type: DataTypes.INTEGER,
         allowNull: false,
     },
-    // Front-desk-only slot (前台时间): visible to other modules, allocatable
-    // only by the front desk.
+    // Front-desk-only slot (前台时间): NO advance bookings - the front desk
+    // may still start walk-ins here. ENFORCED at booking availability + save
+    // since 2026-09-28 (was display-only).
     isFrontDesk: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
+    // Crossover-only slot (2026-09-28, Tropicana control procedure 3.1
+    // "course closed for crossover"): NO new tee-offs from ANY channel - the
+    // slot exists so 18-hole flights can LAND on it as their second nine.
+    isCrossoverOnly: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false,

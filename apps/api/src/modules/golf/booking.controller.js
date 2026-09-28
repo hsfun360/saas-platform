@@ -474,6 +474,15 @@ exports.create = async (req, res) => {
             const bySlotTime = new Map(slots.map((s) => [availability.hhmm(s.teeTime), s]));
             const startSlot = bySlotTime.get(startTime);
             if (!startSlot) return { fail: 'The flight time no longer exists on the tee sheet.', status: 409 };
+            // Slot-role re-check (2026-09-28): crossover-only and front-desk
+            // slots never take a BOOKED tee-off, even if a stale client sends
+            // one (availability already hides them).
+            if (startSlot.isCrossoverOnly === true) {
+                return { fail: 'That flight time is closed for crossover - no new tee-offs.', status: 400 };
+            }
+            if (startSlot.isFrontDesk === true) {
+                return { fail: 'That flight time is reserved for front-desk registration - it cannot be booked in advance.', status: 400 };
+            }
             // Closure re-check (maintenance / tournament blocks saved while
             // the flight was locked must still stop the booking).
             const blocks = await availability.closureBlocks(course.id, playDate);

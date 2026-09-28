@@ -32,6 +32,8 @@ interface SlotRow {
   teeTime: string; // 'HH:MM'
   maxPlayers: string;
   isFrontDesk: boolean;
+  // Crossover landing only - no new tee-offs from any channel (2026-09-28).
+  isCrossoverOnly: boolean;
 }
 
 // One editable closure-day row in the day editor (strings from inputs).
@@ -71,8 +73,8 @@ function toHHMM(minutes: number): string {
 }
 
 // Golf Management → Master File Setup → Courses (spec 2.2.4).
-// An 18-hole course pairs two unit courses - first nine (OUT|COMPOSITE) +
-// second nine (IN|COMPOSITE) - with optional alternate and night fallback
+// An 18-hole course pairs two unit courses - ANY nine in either seat since
+// 2026-09-28 (27-hole rotations) - with optional alternate and night fallback
 // nines, a cross over time and a course picture. Field names match the screen
 // labels and DB columns (user's vocabulary). Legacy zone column dropped.
 // Enable/disable (no hard delete). Reuses the System Setup stylesheet.
@@ -230,13 +232,11 @@ export class GolfCoursesComponent implements OnInit {
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
 
-  // Picker option lists, filtered by the pairing rules (mirrors the API).
-  readonly firstNineOptions = computed(() =>
-    this.unitCourses().filter((u) => u.isActive !== false && (u.courseType === 'out' || u.courseType === 'composite')),
-  );
-  readonly secondNineOptions = computed(() =>
-    this.unitCourses().filter((u) => u.isActive !== false && (u.courseType === 'in' || u.courseType === 'composite')),
-  );
+  // Picker option lists (mirrors the API). ANY active nine may sit in either
+  // seat (relaxed 2026-09-28 for 27-hole rotations, e.g. E1->E2, E2->W3,
+  // W3->E1); the OUT/IN type keeps only its hole-numbering meaning.
+  readonly firstNineOptions = computed(() => this.unitCourses().filter((u) => u.isActive !== false));
+  readonly secondNineOptions = computed(() => this.unitCourses().filter((u) => u.isActive !== false));
   readonly alternateNineOptions = computed(() => this.unitCourses().filter((u) => u.isActive !== false));
   readonly nightNineOptions = computed(() =>
     this.unitCourses().filter((u) => u.isActive !== false && u.hasFloodlight === true),
@@ -590,6 +590,7 @@ export class GolfCoursesComponent implements OnInit {
         teeTime: this.hhmm(sl.teeTime),
         maxPlayers: String(sl.maxPlayers),
         isFrontDesk: sl.isFrontDesk === true,
+        isCrossoverOnly: sl.isCrossoverOnly === true,
       })),
     );
     this.ttMode.set('slots');
@@ -610,6 +611,7 @@ export class GolfCoursesComponent implements OnInit {
         teeTime: toHHMM(t),
         maxPlayers: String(s.playersPerFlight),
         isFrontDesk: fd !== null && t >= fd,
+        isCrossoverOnly: false,
       });
     }
     this.slotRows.set(rows);
@@ -622,7 +624,12 @@ export class GolfCoursesComponent implements OnInit {
   }
 
   toggleSlotFrontDesk(index: number): void {
-    this.slotRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, isFrontDesk: !r.isFrontDesk } : r)));
+    this.slotRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, isFrontDesk: !r.isFrontDesk, isCrossoverOnly: false } : r)));
+    this.ttSlotsDirty.set(true);
+  }
+
+  toggleSlotCrossoverOnly(index: number): void {
+    this.slotRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, isCrossoverOnly: !r.isCrossoverOnly, isFrontDesk: false } : r)));
     this.ttSlotsDirty.set(true);
   }
 
@@ -644,7 +651,7 @@ export class GolfCoursesComponent implements OnInit {
         this.errorMessage.set(`Slot ${r.slotNumber}: players must be between 1 and 10.`);
         return;
       }
-      slots.push({ slotNumber: r.slotNumber, teeTime: r.teeTime, maxPlayers, isFrontDesk: r.isFrontDesk });
+      slots.push({ slotNumber: r.slotNumber, teeTime: r.teeTime, maxPlayers, isFrontDesk: r.isFrontDesk, isCrossoverOnly: r.isCrossoverOnly });
     }
 
     this.ttSlotsSaving.set(true);

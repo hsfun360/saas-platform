@@ -49,6 +49,7 @@ export interface FrontDeskFlight {
   teeTime: string;
   maxPlayers: number | null;
   isFrontDesk: boolean;
+  crossoverOnly: boolean;
   closed: boolean;
   seatsTaken: number;
   seatsLeft: number;

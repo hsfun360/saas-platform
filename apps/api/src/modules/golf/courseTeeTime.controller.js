@@ -187,9 +187,11 @@ exports.updateSet = async (req, res) => {
 };
 
 // PUT /api/golf/courses/:id/tee-time-sets/:setId/slots
-// Body: { slots: [{ slotNumber, teeTime, maxPlayers, isFrontDesk? }] }
+// Body: { slots: [{ slotNumber, teeTime, maxPlayers, isFrontDesk?,
+// isCrossoverOnly? }] }
 // Replaces the set's slot list atomically (generated client-side from the
-// header, then hand-adjusted).
+// header, then hand-adjusted). isCrossoverOnly wins over isFrontDesk - a
+// crossover-only slot takes NO new tee-offs from any channel.
 exports.saveSlots = async (req, res) => {
     try {
         const target = await findOwnedSet(req);
@@ -220,12 +222,14 @@ exports.saveSlots = async (req, res) => {
                 return res.status(400).json({ message: `Slot ${slotNumber}: players must be a whole number between 1 and 10.` });
             }
 
+            const isCrossoverOnly = s.isCrossoverOnly === true;
             rows.push({
                 teeTimeSetId: set.id,
                 slotNumber,
                 teeTime: teeTime.value,
                 maxPlayers: maxPlayers.value,
-                isFrontDesk: s.isFrontDesk === true,
+                isFrontDesk: !isCrossoverOnly && s.isFrontDesk === true,
+                isCrossoverOnly,
             });
         }
 

@@ -70,7 +70,7 @@
             @for (c of sheet(); track c.courseId) {
               @if (cellFor(c.courseId, time); as f) {
                 <div class="fd-cell" [attr.data-flight]="c.courseId + '|' + time"
-                     [class.fd-cell--closed]="f.closed"
+                     [class.fd-cell--closed]="f.closed || f.crossoverOnly"
                      [class.fd-cell--full]="!f.closed && !f.offGrid && f.seatsLeft === 0"
                      [class.fd-cell--dim]="searchActive() && !isHit(c.courseId, time)"
                      [class.fd-cell--hit]="isHit(c.courseId, time)">
@@ -78,6 +78,8 @@
                     <span class="fd-cell__course">{{ c.courseCode }}</span>
                     @if (f.closed) {
                       <span class="fd-cell__state">CLOSED</span>
+                    } @else if (f.crossoverOnly) {
+                      <span class="fd-cell__state">X-OVER</span>
                     } @else if (f.offGrid) {
                       <span class="fd-cell__state">OFF GRID</span>
                     } @else {

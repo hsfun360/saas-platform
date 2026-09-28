@@ -1203,6 +1203,7 @@ export interface CourseTeeTimeSlot {
   teeTime: string; // 'HH:MM' (API may return 'HH:MM:SS')
   maxPlayers: number;
   isFrontDesk?: boolean;
+  isCrossoverOnly?: boolean;
 }
 
 // Golf - one tee-off time setup of a course. A course holds several, versioned

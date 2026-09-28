@@ -290,6 +290,12 @@ async function courseFlights({ companyId, course, playDate, dayType, holes, play
     const flights = [];
     for (const slot of slots) {
         const t = toMinutes(slot.teeTime);
+        // ENFORCED slot roles (2026-09-28): crossover-only slots exist purely
+        // as second-nine LANDING times ("course closed for crossover"), and
+        // front-desk-only slots take walk-ins at the counter - neither offers
+        // NEW tee-offs to the booking channel. Both remain valid crossover
+        // targets below.
+        if (slot.isCrossoverOnly === true || slot.isFrontDesk === true) continue;
         // 9-hole play is not offered while 18 holes are mandatory.
         if (holes === 9 && mustPlay18 !== null && t <= mustPlay18) continue;
         if (nineBlocked(blocks, 'first', t)) continue;
