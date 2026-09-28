@@ -206,20 +206,34 @@ async function activeLockCells(companyId, courseIds, playDate, { excludeGroupId,
 
 // ---- rule resolution (minimum players / guest control) ---------------------
 
+// The day-of-week of a YYYY-MM-DD play date (dates are club-local already).
+const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+function dayOfWeekOf(dateStr) {
+    const d = new Date(`${dateStr}T00:00:00Z`);
+    return Number.isNaN(d.getTime()) ? null : DAY_NAMES[d.getUTCDay()];
+}
+
 // Most-specific-wins over the sparse exception rows: specific course beats
-// every-course, a time band beats whole day, exact dayScope beats 'all'.
-function pickRule(rules, courseId, dayType, timeMinutes) {
+// every-course, a time band beats whole day, and the day scope ladders
+// specific DAY-OF-WEEK (e.g. 'sunday', user request 2026-09-28) > exact
+// weekday/weekend > 'all'.
+function pickRule(rules, courseId, dayType, timeMinutes, dayOfWeek = null) {
     let best = null;
     let bestScore = -1;
     for (const r of rules) {
         if (r.courseId && r.courseId !== courseId) continue;
-        if (r.dayScope !== 'all' && r.dayScope !== dayType) continue;
+        let scopeScore = 0;
+        if (r.dayScope !== 'all') {
+            if (r.dayScope === dayType) scopeScore = 1;
+            else if (dayOfWeek && r.dayScope === dayOfWeek) scopeScore = 2;
+            else continue;
+        }
         if (r.startTime) {
             const s = toMinutes(r.startTime);
             const e = toMinutes(r.endTime);
             if (timeMinutes < s || timeMinutes >= e) continue;
         }
-        const score = (r.courseId ? 4 : 0) + (r.startTime ? 2 : 0) + (r.dayScope !== 'all' ? 1 : 0);
+        const score = (r.courseId ? 8 : 0) + (r.startTime ? 4 : 0) + scopeScore;
         if (score > bestScore) {
             best = r;
             bestScore = score;
@@ -228,8 +242,8 @@ function pickRule(rules, courseId, dayType, timeMinutes) {
     return best;
 }
 
-function resolveMinPlayers(setting, rules, courseId, dayType, timeMinutes) {
-    const rule = pickRule(rules, courseId, dayType, timeMinutes);
+function resolveMinPlayers(setting, rules, courseId, dayType, timeMinutes, dayOfWeek = null) {
+    const rule = pickRule(rules, courseId, dayType, timeMinutes, dayOfWeek);
     if (rule) return rule.minPlayers;
     if (!setting) return 1;
     return dayType === 'weekend' ? setting.minPlayersWeekend : setting.minPlayersWeekday;
@@ -237,9 +251,9 @@ function resolveMinPlayers(setting, rules, courseId, dayType, timeMinutes) {
 
 // { allowGuest, allowMemberGuest } for a flight - both true when the master
 // switch is off.
-function resolveGuestControl(setting, rules, courseId, dayType, timeMinutes) {
+function resolveGuestControl(setting, rules, courseId, dayType, timeMinutes, dayOfWeek = null) {
     if (!setting || setting.guestControlEnabled !== true) return { allowGuest: true, allowMemberGuest: true };
-    const rule = pickRule(rules, courseId, dayType, timeMinutes);
+    const rule = pickRule(rules, courseId, dayType, timeMinutes, dayOfWeek);
     if (rule) return { allowGuest: rule.allowGuest === true, allowMemberGuest: rule.allowMemberGuest === true };
     return dayType === 'weekend'
         ? { allowGuest: setting.allowGuestWeekend === true, allowMemberGuest: setting.allowMemberGuestWeekend === true }
@@ -301,7 +315,7 @@ async function courseFlights({ companyId, course, playDate, dayType, holes, play
         }
 
         const existingPlayers = (startOcc && startOcc.players) || 0;
-        const minPlayers = resolveMinPlayers(setting, minRules, course.id, dayType, t);
+        const minPlayers = resolveMinPlayers(setting, minRules, course.id, dayType, t, dayOfWeekOf(playDate));
         // Enforcement rule: own count meets the minimum OR joining brings the
         // flight's total to it (merge OFF degenerates to per-booking).
         if (players < minPlayers && !(existingPlayers > 0 && existingPlayers + players >= minPlayers)) continue;
@@ -369,6 +383,7 @@ module.exports = {
     cellKey,
     clubNow,
     addDays,
+    dayOfWeekOf,
     bookingWindow,
     resolveTeeTimeSet,
     closureBlocks,

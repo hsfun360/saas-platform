@@ -87,6 +87,18 @@ export class GolfSettingsComponent implements OnInit {
     })),
   );
 
+  // Specific days for the exception-rule day scopes (2026-09-28, e.g. a
+  // Sunday guest ban); a specific day outranks weekday/weekend at resolution.
+  readonly daysOfWeek = [
+    { key: 'monday', label: 'Monday' },
+    { key: 'tuesday', label: 'Tuesday' },
+    { key: 'wednesday', label: 'Wednesday' },
+    { key: 'thursday', label: 'Thursday' },
+    { key: 'friday', label: 'Friday' },
+    { key: 'saturday', label: 'Saturday' },
+    { key: 'sunday', label: 'Sunday' },
+  ];
+
   ngOnInit(): void {
     this.load();
     this.service.membershipTypes().subscribe({ next: (r) => this.membershipTypes.set(r.membershipTypes), error: () => {} });

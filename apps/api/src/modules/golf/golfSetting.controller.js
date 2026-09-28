@@ -45,7 +45,10 @@ function settingDto(row) {
     };
 }
 
-const DAY_SCOPES = ['all', 'weekday', 'weekend'];
+// Day scopes for the exception editors: the weekday/weekend pair plus
+// SPECIFIC days of the week (user request 2026-09-28, e.g. "no guests on
+// Sunday"). Resolution ladders specific day > weekday/weekend > all.
+const DAY_SCOPES = ['all', 'weekday', 'weekend', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 // TIME values arrive as 'HH:MM' from the web time inputs (Postgres returns
 // 'HH:MM:SS'); normalize to 'HH:MM' both ways. Returns undefined when invalid.
@@ -163,7 +166,7 @@ function normalizeScopedRules(raw, knownCourseIds, noun, parseLine) {
         const courseId = line.courseId ? String(line.courseId) : null;
         if (courseId && !knownCourseIds.has(courseId)) return { error: `A ${noun} rule is not one of this company's courses.` };
         const dayScope = String(line.dayScope || '');
-        if (!DAY_SCOPES.includes(dayScope)) return { error: `Each ${noun} rule needs a day scope (all, weekday or weekend).` };
+        if (!DAY_SCOPES.includes(dayScope)) return { error: `Each ${noun} rule needs a day scope (all, weekday, weekend or a specific day).` };
         const hasStart = line.startTime !== null && line.startTime !== undefined && line.startTime !== '';
         const hasEnd = line.endTime !== null && line.endTime !== undefined && line.endTime !== '';
         if (hasStart !== hasEnd) return { error: `A ${noun} rule time band needs both From and To times (or neither for the whole day).` };

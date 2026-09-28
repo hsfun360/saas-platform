@@ -498,18 +498,34 @@ exports.create = async (req, res) => {
 
             // Minimum players: own count OR the flight's total after joining.
             const existingPlayers = (startOcc && startOcc.players) || 0;
-            const minPlayers = availability.resolveMinPlayers(setting, minRules, course.id, dayType, t);
+            const dayOfWeek = availability.dayOfWeekOf(playDate);
+            const minPlayers = availability.resolveMinPlayers(setting, minRules, course.id, dayType, t, dayOfWeek);
             if (lines.length < minPlayers && !(existingPlayers > 0 && existingPlayers + lines.length >= minPlayers)) {
                 return { fail: `This flight needs at least ${minPlayers} player(s).`, status: 400 };
             }
 
-            // Guest control for this course/day/time.
-            const gc = availability.resolveGuestControl(setting, guestRules, course.id, dayType, t);
+            // Guest control for this course/day/time (day-of-week rules beat
+            // weekday/weekend, e.g. a Sunday guest ban).
+            const gc = availability.resolveGuestControl(setting, guestRules, course.id, dayType, t, dayOfWeek);
             if (!gc.allowGuest && lines.some((l) => l.playerType === 'guest')) {
                 return { fail: 'Guests are not allowed on this flight (guest control).', status: 400 };
             }
             if (!gc.allowMemberGuest && lines.some((l) => l.playerType === 'member-guest')) {
                 return { fail: 'Members as guests are not allowed on this flight (guest control).', status: 400 };
+            }
+
+            // Guest quota (user decision 2026-09-28): the BOOKER's membership
+            // type caps how many guests one booking may carry - member-as-
+            // guest lines COUNT toward it. NULL = no limit; 0 = none at all.
+            const guestCount = lines.filter((l) => l.playerType === 'guest' || l.playerType === 'member-guest').length;
+            const quota = standing.guestQuota;
+            if (guestCount > 0 && quota !== null && quota !== undefined && guestCount > quota) {
+                return {
+                    fail: quota === 0
+                        ? `Membership type ${standing.membershipTypeCategory || ''} cannot bring guests.`.replace('  ', ' ')
+                        : `Membership type ${standing.membershipTypeCategory || ''} can bring up to ${quota} guest(s) per booking - this booking has ${guestCount} (members as guests count).`.replace('  ', ' '),
+                    status: 400,
+                };
             }
 
             // Provision golfer identities (booker + every member line).

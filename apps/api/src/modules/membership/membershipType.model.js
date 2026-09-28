@@ -41,6 +41,11 @@ const MembershipType = sequelize.define('MembershipType', {
     // Renamed from golfingAllow (in-place column rename, 2026-07-16).
     isGolfAllow: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     dependentGolfingAllow: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    // Golf guest quota (user decision 2026-09-28): how many guests a member
+    // of this type may bring PER BOOKING (members-as-guests count too).
+    // NULL = no limit, 0 = cannot bring guests. Enforced at golf booking
+    // save via membershipGateway.getGolfMemberStanding.
+    guestQuota: { type: DataTypes.INTEGER, allowNull: true },
     votingRight: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     transferRight: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 

@@ -276,7 +276,7 @@ async function getGolfMemberStanding(companyId, memberNo) {
     });
     if (!row) return null;
     const [type, status] = await Promise.all([
-        row.membershipTypeId ? MembershipType.findByPk(row.membershipTypeId, { attributes: ['id', 'category', 'isGolfAllow'] }) : null,
+        row.membershipTypeId ? MembershipType.findByPk(row.membershipTypeId, { attributes: ['id', 'category', 'isGolfAllow', 'guestQuota'] }) : null,
         row.memberStatusId ? MembershipStatus.findByPk(row.memberStatusId, { attributes: ['membershipStatus', 'actionControl', 'chargeControl'] }) : null,
     ]);
     return {
@@ -287,6 +287,9 @@ async function getGolfMemberStanding(companyId, memberNo) {
         membershipTypeId: type ? type.id : null,
         membershipTypeCategory: type ? type.category : null,
         isGolfAllow: type ? type.isGolfAllow === true : false,
+        // Guest quota per booking from the type (2026-09-28): NULL = no
+        // limit, 0 = cannot bring guests; member-as-guest lines count.
+        guestQuota: type && type.guestQuota != null ? Number(type.guestQuota) : null,
         statusLabel: status ? status.membershipStatus : null,
         // 'allow' | 'warning' | 'barred' (membershipStatus.constants); a
         // member with no status behaves as 'allow'. actionControl gates

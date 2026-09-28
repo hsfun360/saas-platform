@@ -187,6 +187,13 @@
             <label class="mt-check"><input type="checkbox" formControlName="votingRight" /><span>Voting right</span></label>
             <label class="mt-check"><input type="checkbox" formControlName="transferRight" /><span>Transfer right</span></label>
           </div>
+          @if (showGolf()) {
+            <div class="form-group" style="max-width: 280px; margin-top: var(--space-sm);">
+              <label for="tGuestQuota">Golf guest quota (per booking)</label>
+              <input id="tGuestQuota" type="number" inputmode="numeric" formControlName="guestQuota" min="0" step="1" placeholder="No limit" />
+              <p class="mt-hint">Guests a member of this type may bring on one booking — members playing as guests count. Blank = no limit, 0 = cannot bring guests.</p>
+            </div>
+          }
         </fieldset>
 
         <!-- Term: lifetime by default; a fixed period in months when enabled. -->

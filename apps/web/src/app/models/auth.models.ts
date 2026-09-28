@@ -712,6 +712,7 @@ export interface MembershipType {
   childAgeFrom?: number | null;       // personal
   childAgeTo?: number | null;         // personal
   playTimes?: number | null;          // personal
+  guestQuota?: number | null;         // golf: guests per booking (null = no limit)
   noOfNominee?: number | null;        // corporate
   nomineeCategoryId?: string | null;  // corporate → another MembershipType id
   defaultMembershipStatusId?: string | null;

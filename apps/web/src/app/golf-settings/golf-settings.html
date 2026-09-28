@@ -205,6 +205,9 @@
                     <option value="all">All days</option>
                     <option value="weekday">Weekday</option>
                     <option value="weekend">Weekend &amp; Holiday</option>
+                    @for (d of daysOfWeek; track d.key) {
+                      <option [value]="d.key">{{ d.label }}</option>
+                    }
                   </select>
                   <input type="time" [value]="rule.startTime ?? ''" (change)="setRule(i, { startTime: $any($event.target).value || null })"
                          [attr.aria-label]="'Rule ' + (i + 1) + ' from time'" />
@@ -224,7 +227,7 @@
                 Add exception
               </button>
               @if (minPlayerRules().length === 0) {
-                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No exceptions — every flight follows the two general minimums. Add one for a course, day type or time band (empty times = whole day); the most specific rule wins.</p>
+                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No exceptions — every flight follows the two general minimums. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a time band (empty times = whole day); the most specific rule wins.</p>
               }
             </div>
           </div>
@@ -301,6 +304,9 @@
                       <option value="all">All days</option>
                       <option value="weekday">Weekday</option>
                       <option value="weekend">Weekend &amp; Holiday</option>
+                      @for (d of daysOfWeek; track d.key) {
+                        <option [value]="d.key">{{ d.label }}</option>
+                      }
                     </select>
                     <input type="time" [value]="rule.startTime ?? ''" (change)="setGuestRule(i, { startTime: $any($event.target).value || null })"
                            [attr.aria-label]="'Guest rule ' + (i + 1) + ' from time'" />
@@ -323,7 +329,7 @@
                   Add exception
                 </button>
                 @if (guestRules().length === 0) {
-                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No exceptions — the weekday and weekend answers above apply everywhere. Add one for a course, day type or flight-time band; the most specific rule wins.</p>
+                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No exceptions — the weekday and weekend answers above apply everywhere. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a flight-time band; the most specific rule wins.</p>
                 }
               </div>
             }

@@ -125,6 +125,8 @@ export class MembershipTypesComponent implements OnInit {
     defaultMembershipFeeId: [''],
     arDebtorType: ['', [Validators.maxLength(50)]],
     creditLimit: this.fb.control<number | null>(null, [Validators.min(0)]),
+    // Golf guest quota per booking (2026-09-28): null = no limit, 0 = none.
+    guestQuota: this.fb.control<number | null>(null, [Validators.min(0)]),
     // personal-only (enabled by class)
     childAgeFrom: this.fb.control<number | null>({ value: null, disabled: true }, [Validators.min(0)]),
     childAgeTo: this.fb.control<number | null>({ value: null, disabled: true }, [Validators.min(0)]),
@@ -353,6 +355,7 @@ export class MembershipTypesComponent implements OnInit {
       defaultMembershipFeeId: '',
       arDebtorType: '',
       creditLimit: null,
+      guestQuota: null,
       childAgeFrom: null,
       childAgeTo: null,
       playTimes: null,
@@ -381,6 +384,7 @@ export class MembershipTypesComponent implements OnInit {
       defaultMembershipFeeId: t.defaultMembershipFeeId || '',
       arDebtorType: t.arDebtorType || '',
       creditLimit: t.creditLimit ?? null,
+      guestQuota: t.guestQuota ?? null,
       childAgeFrom: t.childAgeFrom ?? null,
       childAgeTo: t.childAgeTo ?? null,
       playTimes: t.playTimes ?? null,
@@ -606,6 +610,7 @@ export class MembershipTypesComponent implements OnInit {
       defaultMembershipFeeId: v.defaultMembershipFeeId || null,
       arDebtorType: v.arDebtorType.trim() || null,
       creditLimit: v.creditLimit ?? null,
+      guestQuota: v.guestQuota ?? null,
       childAgeFrom: personal ? v.childAgeFrom ?? null : null,
       childAgeTo: personal ? v.childAgeTo ?? null : null,
       playTimes: personal && v.isGolfAllow ? v.playTimes ?? null : null,

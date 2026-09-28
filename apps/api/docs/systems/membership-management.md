@@ -19,7 +19,10 @@ Facility, points rules to a future Loyalty module) - attached by
 `membershipTypeId` value reference, shown only when the company subscribes to
 that module.
 Known legacy leak to unwind when a second product needs type-level privileges:
-`MembershipType.isGolfAllow` / `dependentGolfingAllow` / `playTimes` are
+`MembershipType.isGolfAllow` / `dependentGolfingAllow` / `playTimes` /
+`guestQuota` (2026-09-28: golf guests per booking, NULL = no limit, 0 = none;
+member-as-guest lines count; user chose the Membership Type master as its home,
+enforced at golf booking save via `membershipGateway.getGolfMemberStanding`) are
 golf-specific and should migrate to a golf-side privileges table at that point.
 Triage every remaining SRS item through this lens (e.g. play times -> golf;
 vehicle passes and articles/newsletters -> generic).

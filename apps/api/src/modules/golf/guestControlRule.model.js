@@ -30,8 +30,10 @@ const GuestControlRule = sequelize.define('GuestControlRule', {
         type: DataTypes.UUID,
         allowNull: true,
     },
-    // all | weekday | weekend - the shared day vocabulary (public holidays
-    // count as weekend, classified via platform/calendarGateway.js).
+    // all | weekday | weekend | a specific day-of-week ('monday'..'sunday',
+    // added 2026-09-28 - e.g. a Sunday guest ban). Public holidays count as
+    // weekend (platform/calendarGateway.js); a specific day outranks the
+    // weekday/weekend scopes at resolution.
     dayScope: {
         type: DataTypes.STRING(10),
         allowNull: false,
