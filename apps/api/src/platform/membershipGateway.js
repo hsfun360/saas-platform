@@ -268,15 +268,26 @@ async function listMembershipTypes(companyId, { activeOnly = true } = {}) {
 async function getGolfMemberStanding(companyId, memberNo) {
     if (!companyId || !memberNo) return null;
     const Member = require('../modules/membership/member.model');
+    const Membership = require('../modules/membership/membership.model');
     const MembershipType = require('../modules/membership/membershipType.model');
     const MembershipStatus = require('../modules/membership/membershipStatus.model');
     const row = await Member.findOne({
         where: { companyId, memberNo: { [Op.iLike]: String(memberNo).trim() } },
-        attributes: ['id', 'memberNo', 'firstName', 'lastName', 'localName', 'email', 'membershipTypeId', 'memberStatusId'],
+        attributes: ['id', 'memberNo', 'firstName', 'lastName', 'localName', 'email', 'membershipId', 'membershipTypeId', 'memberStatusId'],
     });
     if (!row) return null;
+    // EFFECTIVE type (fix 2026-09-28): Member.membershipTypeId is a nominee-
+    // only OVERRIDE - null means "the contract's type" (member.model.js), so
+    // fall back to the Membership's type. Reading only the member row left
+    // every individual member type-less (no golfing right, no window
+    // override, no guest quota).
+    let typeId = row.membershipTypeId || null;
+    if (!typeId && row.membershipId) {
+        const contract = await Membership.findByPk(row.membershipId, { attributes: ['membershipTypeId'] });
+        typeId = contract ? contract.membershipTypeId : null;
+    }
     const [type, status] = await Promise.all([
-        row.membershipTypeId ? MembershipType.findByPk(row.membershipTypeId, { attributes: ['id', 'category', 'isGolfAllow', 'guestQuota'] }) : null,
+        typeId ? MembershipType.findByPk(typeId, { attributes: ['id', 'category', 'isGolfAllow', 'guestQuota'] }) : null,
         row.memberStatusId ? MembershipStatus.findByPk(row.memberStatusId, { attributes: ['membershipStatus', 'actionControl', 'chargeControl'] }) : null,
     ]);
     return {
