@@ -446,6 +446,13 @@ exports.getDay = async (req, res) => {
 
             const flights = [];
             const onGrid = new Set();
+            // A course's second nine that NO course starts on (classic
+            // OUT/IN pairing) has no column of its own - show its crossover
+            // arrivals in THIS course's column (the pre-revamp view). Those
+            // arrivals occupy the OTHER physical nine, so they never reduce
+            // this column's seats; rotation clubs (landing nine owned by
+            // another course's column) skip this and show arrivals there.
+            const borrowSecondNine = !ctx.nineOwner.has(course.secondNineId);
             for (const slot of slots) {
                 const teeTime = availability.hhmm(slot.teeTime);
                 onGrid.add(teeTime);
@@ -454,7 +461,10 @@ exports.getDay = async (req, res) => {
                 const key = availability.nineKey(course.firstNineId, teeTime);
                 consumed.add(key);
                 const entries = entriesByCell.get(key) || [];
-                const crossCount = crossByCell.get(key) || 0;
+                const sameNineCross = crossByCell.get(key) || 0;
+                const borrowedCross = borrowSecondNine
+                    ? crossByCell.get(availability.nineKey(course.secondNineId, teeTime)) || 0
+                    : 0;
                 const crossoverOnly = slot.isCrossoverOnly === true;
                 flights.push({
                     teeTime,
@@ -463,8 +473,8 @@ exports.getDay = async (req, res) => {
                     crossoverOnly,
                     closed,
                     seatsTaken: entries.length,
-                    seatsLeft: closed || crossoverOnly ? 0 : Math.max(0, slot.maxPlayers - entries.length - crossCount),
-                    crossCount,
+                    seatsLeft: closed || crossoverOnly ? 0 : Math.max(0, slot.maxPlayers - entries.length - sameNineCross),
+                    crossCount: sameNineCross + borrowedCross,
                     entries,
                 });
             }
