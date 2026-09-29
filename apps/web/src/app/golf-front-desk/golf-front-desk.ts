@@ -16,24 +16,35 @@ import {
   FrontDeskFlight,
   FrontDeskEntry,
   FrontDeskMeta,
-  FrontDeskRegistration,
   GolfBillDoc,
   WalkInPayload,
 } from '../services/golf-frontdesk.service';
 
-// Golf Management → Front Desk (/golf/front-desk) - the day-of-play cycle
-// (user decisions 2026-09-26): register booked players and WALK-INS (per
-// player, own Registration No.), bill per player (green fee auto-charged by
-// the golfer category on the green-fee transaction type; billing tiles add
-// items; packages explode), settle with multiple tenders (member class posts
-// to the member's AR account). ONE drawer dialog hosts the flows as @switch
-// views (guest identity → n/a, walk-in, bill items, settle); the centred
-// confirm dialog covers cancel-registration / void-bill.
+// Golf Management → Front Desk (/golf/front-desk) - the day-of-play cycle.
+// Tee sheet redesign (user decisions 2026-09-29): each COURSE is its own
+// CARD with its own timeline (courses may run different grids), a flight
+// row shows the tee time + one status-coloured seat dot per player (colours
+// from Golf Specification; blank outline = free seat) + the player names,
+// and CLICKING THE FLIGHT opens the one drawer in 'flight' mode - the
+// flight workspace with all seats as slots: booked players multi-select to
+// register, registered players bill from their row, free slots take a
+// walk-in directly. Billing/settlement stay as further views of the same
+// dialog; cancel-registration / void-bill are an in-dialog confirm view
+// (single-dialog standard). The FAB keeps free-form walk-in entry.
 interface PaymentLine {
   paymentTypeId: string;
   amount: number;
   reference: string;
 }
+
+type PlayerDayStatus = 'booked' | 'registered' | 'billed' | 'settled';
+
+const DEFAULT_DOT_COLORS: Record<PlayerDayStatus, string> = {
+  booked: '#2563eb',
+  registered: '#f59e0b',
+  billed: '#8b5cf6',
+  settled: '#16a34a',
+};
 
 function localToday(): string {
   const d = new Date();
@@ -64,27 +75,9 @@ export class GolfFrontDeskComponent implements OnInit {
   readonly listDate = signal(localToday());
   readonly meta = signal<FrontDeskMeta | null>(null);
 
-  // ---- the tee sheet (user request 2026-09-27): rows = tee times, one
-  // column per course; search highlights the matching flights. ----
+  // ---- the tee sheet: one card per course, each with its own timeline ----
   readonly sheet = signal<FrontDeskCourseSheet[]>([]);
   readonly search = signal('');
-
-  // The row axis: the union of every course's tee times, sorted.
-  readonly rows = computed(() => {
-    const times = new Set<string>();
-    for (const c of this.sheet()) for (const f of c.flights) times.add(f.teeTime);
-    return [...times].sort((a, b) => a.localeCompare(b));
-  });
-
-  private readonly cellMap = computed(() => {
-    const map = new Map<string, FrontDeskFlight>();
-    for (const c of this.sheet()) for (const f of c.flights) map.set(`${c.courseId}|${f.teeTime}`, f);
-    return map;
-  });
-
-  cellFor(courseId: string, teeTime: string): FrontDeskFlight | null {
-    return this.cellMap().get(`${courseId}|${teeTime}`) || null;
-  }
 
   // Flights whose players match the search (name, member no, booking no or
   // registration no) - matches highlight, the rest dim.
@@ -115,47 +108,96 @@ export class GolfFrontDeskComponent implements OnInit {
     this.search.set(value);
     // Bring the first matching flight into view once the classes render.
     setTimeout(() => {
-      const el = document.querySelector('.fd-cell--hit');
+      const el = document.querySelector('.fd-flight--hit');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
     });
   }
 
-  seatDots(f: FrontDeskFlight): boolean[] {
-    const max = f.maxPlayers || 0;
-    return Array.from({ length: max }, (_, i) => i < f.seatsTaken);
+  // ---- seat dots: one per player, coloured by day status ----
+
+  statusOf(e: FrontDeskEntry): PlayerDayStatus {
+    if (e.bill?.status === 'settled') return 'settled';
+    if (e.bill) return 'billed';
+    if (e.registration) return 'registered';
+    return 'booked';
   }
 
-  unregistered(f: FrontDeskFlight): number {
-    return f.entries.filter((e) => e.kind === 'booked' && !e.registration).length;
+  colorFor(status: PlayerDayStatus): string {
+    const colors = this.meta()?.teeSheetColors;
+    return (colors && colors[status]) || DEFAULT_DOT_COLORS[status];
   }
 
-  // Distinct bookings in a cell with their unregistered counts - per-booking
-  // register-all only matters when merged bookings share the flight.
-  bookingGroups(f: FrontDeskFlight): { bookingProfileId: string; bookingNo: string; unregistered: number }[] {
-    const groups = new Map<string, { bookingProfileId: string; bookingNo: string; unregistered: number }>();
-    for (const e of f.entries) {
-      if (e.kind !== 'booked' || !e.bookingProfileId) continue;
-      const g = groups.get(e.bookingProfileId) || { bookingProfileId: e.bookingProfileId, bookingNo: e.bookingNo || '', unregistered: 0 };
-      if (!e.registration) g.unregistered += 1;
-      groups.set(e.bookingProfileId, g);
-    }
-    return [...groups.values()];
+  statusLabel(status: PlayerDayStatus): string {
+    return status === 'booked' ? 'Booked' : status === 'registered' ? 'Registered' : status === 'billed' ? 'Billed' : 'Settled';
+  }
+
+  readonly legend: PlayerDayStatus[] = ['booked', 'registered', 'billed', 'settled'];
+
+  // The flight's dots: a colour per player, null per free seat.
+  dots(f: FrontDeskFlight): (PlayerDayStatus | null)[] {
+    const max = f.maxPlayers ?? f.entries.length;
+    return Array.from({ length: Math.max(max, f.entries.length) }, (_, i) =>
+      i < f.entries.length ? this.statusOf(f.entries[i]) : null);
+  }
+
+  // A flight opens the drawer when there is anything to do there.
+  flightOpenable(f: FrontDeskFlight): boolean {
+    if (f.closed || f.crossoverOnly) return false;
+    return f.entries.length > 0 || (!f.offGrid && (f.seatsLeft > 0 || f.maxPlayers !== null));
   }
 
   // ---- the one drawer dialog: mode + per-mode state ----
-  readonly dlgMode = signal<'guest' | 'walkin' | 'bill' | 'settle' | null>(null);
+  readonly dlgMode = signal<'flight' | 'walkin' | 'bill' | 'settle' | 'confirm' | null>(null);
   readonly busy = signal(false);
 
-  // Guest identity capture when registering a booked guest line.
-  readonly guestTarget = signal<FrontDeskEntry | null>(null);
-  readonly guestForm = this.fb.nonNullable.group({
-    name: ['', [Validators.required, Validators.maxLength(100)]],
-    identityNo: ['', [Validators.maxLength(50)]],
-    mobile: ['', [Validators.maxLength(30)]],
-    email: ['', [Validators.email, Validators.maxLength(100)]],
+  // The open flight, tracked by reference so a reload refreshes it in place.
+  readonly flightRef = signal<{ courseId: string; teeTime: string } | null>(null);
+  readonly flightCourse = computed(() => {
+    const ref = this.flightRef();
+    return ref ? this.sheet().find((c) => c.courseId === ref.courseId) || null : null;
+  });
+  readonly flight = computed(() => {
+    const ref = this.flightRef();
+    const course = this.flightCourse();
+    return ref && course ? course.flights.find((f) => f.teeTime === ref.teeTime) || null : null;
   });
 
-  // Walk-in registration.
+  // Free-seat slots of the open flight (drawer shows every seat).
+  readonly freeSlots = computed(() => {
+    const f = this.flight();
+    if (!f || f.offGrid || f.maxPlayers === null) return [];
+    return Array.from({ length: Math.max(0, f.maxPlayers - f.entries.length) }, (_, i) => i);
+  });
+
+  // Multi-select of still-booked players for registration.
+  readonly selected = signal<Set<string>>(new Set());
+
+  toggleSelected(playerId: string): void {
+    this.selected.update((s) => {
+      const next = new Set(s);
+      if (next.has(playerId)) next.delete(playerId);
+      else next.add(playerId);
+      return next;
+    });
+  }
+
+  readonly selectableCount = computed(() => {
+    const f = this.flight();
+    return f ? f.entries.filter((e) => !e.registration).length : 0;
+  });
+
+  // Inline walk-in form inside a free slot of the flight drawer.
+  readonly slotWalkinOpen = signal(false);
+  readonly slotWalkinForm = this.fb.nonNullable.group({
+    playerType: ['member', [Validators.required]],
+    memberNo: [''],
+    guestName: [''],
+    guestIdentityNo: [''],
+    guestMobile: [''],
+    holes: [18, [Validators.required]],
+  });
+
+  // Free-form walk-in (the FAB).
   readonly walkinForm = this.fb.nonNullable.group({
     courseId: ['', [Validators.required]],
     teeTime: ['', [Validators.required]],
@@ -167,20 +209,19 @@ export class GolfFrontDeskComponent implements OnInit {
     guestMobile: [''],
   });
 
-  // Billing drawer.
+  // Billing drawer (reached from a flight row - Back returns to the flight).
   readonly bill = signal<GolfBillDoc | null>(null);
-  readonly billRegistration = signal<FrontDeskRegistration | null>(null);
   readonly billEntryName = signal('');
+  readonly fromFlight = signal(false);
 
   // Settlement lines (dynamic rows outside the FormGroup, house pattern).
   readonly payments = signal<PaymentLine[]>([]);
   readonly paymentsDirty = signal(false);
 
-  // Centred confirm dialog: cancel a registration or void a bill.
+  // In-dialog confirm view: cancel a registration or void a bill.
   readonly confirmKind = signal<'cancel-registration' | 'void-bill' | null>(null);
   readonly confirmTarget = signal<FrontDeskEntry | null>(null);
   readonly confirmReason = signal('');
-  readonly confirming = signal(false);
 
   readonly courseOptions = computed(() => {
     const m = this.meta();
@@ -206,9 +247,14 @@ export class GolfFrontDeskComponent implements OnInit {
 
   readonly dialogTitle = computed(() => {
     switch (this.dlgMode()) {
-      case 'guest': return 'Guest identity';
+      case 'flight': {
+        const c = this.flightCourse();
+        const ref = this.flightRef();
+        return c && ref ? `${c.courseCode} · ${ref.teeTime}` : 'Flight';
+      }
       case 'walkin': return 'Walk-in registration';
       case 'settle': return `Settle bill ${this.bill()?.billNo || ''}`;
+      case 'confirm': return this.confirmKind() === 'void-bill' ? 'Void bill' : 'Cancel registration';
       default: return `Bill ${this.bill()?.billNo || ''}`;
     }
   });
@@ -249,86 +295,117 @@ export class GolfFrontDeskComponent implements OnInit {
     });
   }
 
-  // ---------- registration ----------
+  // ---------- the flight drawer ----------
 
-  // Bulk register a whole flight (or one booking in it) - guests go in
-  // name-only, skips are reported in the result message.
-  registerAll(courseId: string, teeTime: string, bookingProfileId?: string): void {
+  openFlight(course: FrontDeskCourseSheet, f: FrontDeskFlight): void {
+    if (!this.flightOpenable(f)) return;
     this.clearMessages();
-    this.busy.set(true);
-    this.service.registerFlight({ playDate: this.listDate(), courseId, teeTime, bookingProfileId }).subscribe({
-      next: (res) => {
-        this.busy.set(false);
-        if (res.skipped.length) this.errorMessage.set(res.message);
-        else this.successMessage.set(res.message);
-        this.load();
-      },
-      error: (err) => {
-        this.busy.set(false);
-        this.errorMessage.set(err.error?.message || 'Failed to register the flight.');
-      },
+    this.flightRef.set({ courseId: course.courseId, teeTime: f.teeTime });
+    // Preselect every still-booked player - "register the flight" is one click.
+    this.selected.set(new Set(f.entries.filter((e) => !e.registration).map((e) => e.playerId)));
+    this.slotWalkinOpen.set(false);
+    this.resetSlotWalkin();
+    this.fromFlight.set(false);
+    this.dlgMode.set('flight');
+  }
+
+  private resetSlotWalkin(): void {
+    this.slotWalkinForm.reset({
+      playerType: 'member', memberNo: '', guestName: '', guestIdentityNo: '', guestMobile: '', holes: 18,
     });
   }
 
-  register(entry: FrontDeskEntry): void {
+  registerSelected(): void {
     this.clearMessages();
-    if (!entry.playerId || entry.kind !== 'booked') return;
-    if (entry.playerType === 'guest') {
-      this.guestTarget.set(entry);
-      this.guestForm.reset({ name: entry.playerName === 'Guest' ? '' : entry.playerName, identityNo: '', mobile: '', email: '' });
-      this.dlgMode.set('guest');
-      return;
+    const f = this.flight();
+    const ids = [...this.selected()].filter((id) => f?.entries.some((e) => e.playerId === id && !e.registration));
+    if (!ids.length) return;
+    this.busy.set(true);
+    const entriesById = new Map((f?.entries || []).map((e) => [e.playerId, e]));
+    const messages: string[] = [];
+    const failures: string[] = [];
+    const step = (i: number) => {
+      if (i >= ids.length) {
+        this.busy.set(false);
+        this.selected.set(new Set());
+        if (failures.length) this.errorMessage.set(failures.join(' '));
+        if (messages.length) this.successMessage.set(messages.join(' '));
+        this.load();
+        return;
+      }
+      this.service.registerBooked(ids[i]).subscribe({
+        next: (res) => {
+          messages.push(res.message);
+          step(i + 1);
+        },
+        error: (err) => {
+          const name = entriesById.get(ids[i])?.playerName || 'player';
+          failures.push(`${name}: ${err.error?.message || 'registration failed'}`);
+          step(i + 1);
+        },
+      });
+    };
+    step(0);
+  }
+
+  openSlotWalkin(): void {
+    this.resetSlotWalkin();
+    this.slotWalkinOpen.set(true);
+  }
+
+  submitSlotWalkin(): void {
+    this.clearMessages();
+    const ref = this.flightRef();
+    if (!ref) return;
+    const v = this.slotWalkinForm.getRawValue();
+    const payload: WalkInPayload = {
+      playDate: this.listDate(),
+      courseId: ref.courseId,
+      teeTime: ref.teeTime,
+      holes: Number(v.holes),
+      playerType: v.playerType,
+    };
+    if (v.playerType === 'guest') {
+      if (!v.guestName.trim()) {
+        this.errorMessage.set("Key in the guest name (or 'Guest').");
+        return;
+      }
+      payload.guest = {
+        name: v.guestName.trim(),
+        identityNo: v.guestIdentityNo.trim() || undefined,
+        mobile: v.guestMobile.trim() || undefined,
+      };
+    } else {
+      if (!v.memberNo.trim()) {
+        this.errorMessage.set('Key in the member number.');
+        return;
+      }
+      payload.memberNo = v.memberNo.trim();
     }
     this.busy.set(true);
-    this.service.registerBooked(entry.playerId).subscribe({
+    this.service.registerWalkIn(payload).subscribe({
       next: (res) => {
         this.busy.set(false);
+        this.slotWalkinOpen.set(false);
+        this.resetSlotWalkin();
         this.successMessage.set(res.message);
         this.load();
       },
       error: (err) => {
         this.busy.set(false);
-        this.errorMessage.set(err.error?.message || 'Failed to register.');
+        this.errorMessage.set(err.error?.message || 'Failed to register the walk-in.');
       },
     });
   }
 
-  submitGuestRegistration(): void {
-    this.clearMessages();
-    const entry = this.guestTarget();
-    if (!entry || !entry.playerId) return;
-    if (this.guestForm.invalid) {
-      this.guestForm.markAllAsTouched();
-      return;
-    }
-    const v = this.guestForm.getRawValue();
-    this.busy.set(true);
-    this.service.registerBooked(entry.playerId, {
-      name: v.name.trim(),
-      identityNo: v.identityNo.trim() || undefined,
-      mobile: v.mobile.trim() || undefined,
-      email: v.email.trim() || undefined,
-    }).subscribe({
-      next: (res) => {
-        this.busy.set(false);
-        this.dlgMode.set(null);
-        this.successMessage.set(res.message);
-        this.load();
-      },
-      error: (err) => {
-        this.busy.set(false);
-        this.errorMessage.set(err.error?.message || 'Failed to register.');
-      },
-    });
-  }
+  // ---------- free-form walk-in (the FAB) ----------
 
-  // Clicking an available flight on the sheet pre-fills its course + time.
-  openWalkIn(courseId?: string, teeTime?: string): void {
+  openWalkIn(): void {
     this.clearMessages();
     const m = this.meta();
     this.walkinForm.reset({
-      courseId: courseId || (m && m.courses.length === 1 ? m.courses[0].id : ''),
-      teeTime: teeTime || '',
+      courseId: m && m.courses.length === 1 ? m.courses[0].id : '',
+      teeTime: '',
       holes: 18,
       playerType: 'member',
       memberNo: '',
@@ -336,6 +413,7 @@ export class GolfFrontDeskComponent implements OnInit {
       guestIdentityNo: '',
       guestMobile: '',
     });
+    this.flightRef.set(null);
     this.dlgMode.set('walkin');
   }
 
@@ -396,10 +474,10 @@ export class GolfFrontDeskComponent implements OnInit {
       next: (res) => {
         this.busy.set(false);
         this.bill.set(res.bill);
-        this.billRegistration.set(entry.registration);
         for (const w of res.warnings || []) this.errorMessage.set(w);
         this.payments.set([]);
         this.paymentsDirty.set(false);
+        this.fromFlight.set(this.dlgMode() === 'flight');
         this.dlgMode.set('bill');
       },
       error: (err) => {
@@ -407,6 +485,14 @@ export class GolfFrontDeskComponent implements OnInit {
         this.errorMessage.set(err.error?.message || 'Failed to open the bill.');
       },
     });
+  }
+
+  backToFlight(): void {
+    this.bill.set(null);
+    this.payments.set([]);
+    this.paymentsDirty.set(false);
+    this.dlgMode.set('flight');
+    this.load();
   }
 
   billOpen(): boolean {
@@ -516,10 +602,14 @@ export class GolfFrontDeskComponent implements OnInit {
     }))).subscribe({
       next: (res) => {
         this.busy.set(false);
-        this.dlgMode.set(null);
         this.successMessage.set(res.message);
         this.paymentsDirty.set(false);
-        this.load();
+        if (this.fromFlight()) {
+          this.backToFlight();
+        } else {
+          this.dlgMode.set(null);
+          this.load();
+        }
       },
       error: (err) => {
         this.busy.set(false);
@@ -528,13 +618,14 @@ export class GolfFrontDeskComponent implements OnInit {
     });
   }
 
-  // ---------- confirmations ----------
+  // ---------- in-dialog confirmations ----------
 
   askCancelRegistration(entry: FrontDeskEntry): void {
     this.clearMessages();
     this.confirmKind.set('cancel-registration');
     this.confirmTarget.set(entry);
     this.confirmReason.set('');
+    this.dlgMode.set('confirm');
   }
 
   askVoidBill(entry: FrontDeskEntry): void {
@@ -542,22 +633,30 @@ export class GolfFrontDeskComponent implements OnInit {
     this.confirmKind.set('void-bill');
     this.confirmTarget.set(entry);
     this.confirmReason.set('');
+    this.dlgMode.set('confirm');
+  }
+
+  keepConfirm(): void {
+    this.confirmKind.set(null);
+    this.confirmTarget.set(null);
+    this.dlgMode.set('flight');
   }
 
   confirmAction(): void {
     const entry = this.confirmTarget();
     const kind = this.confirmKind();
     if (!entry || !kind) return;
-    this.confirming.set(true);
+    this.busy.set(true);
     const done = (message: string) => {
-      this.confirming.set(false);
+      this.busy.set(false);
       this.confirmKind.set(null);
       this.confirmTarget.set(null);
       this.successMessage.set(message);
+      this.dlgMode.set('flight');
       this.load();
     };
     const fail = (err: { error?: { message?: string } }) => {
-      this.confirming.set(false);
+      this.busy.set(false);
       this.errorMessage.set(err.error?.message || 'The action failed.');
     };
     if (kind === 'cancel-registration' && entry.registration) {
@@ -569,16 +668,21 @@ export class GolfFrontDeskComponent implements OnInit {
 
   closeDialog(): void {
     this.dlgMode.set(null);
+    this.flightRef.set(null);
+    this.fromFlight.set(false);
     this.bill.set(null);
-    this.billRegistration.set(null);
     this.payments.set([]);
     this.paymentsDirty.set(false);
+    this.confirmKind.set(null);
+    this.confirmTarget.set(null);
+    this.slotWalkinOpen.set(false);
+    this.selected.set(new Set());
     this.load();
   }
 
   isDirty(): boolean {
     switch (this.dlgMode()) {
-      case 'guest': return this.guestForm.dirty;
+      case 'flight': return this.slotWalkinOpen() && this.slotWalkinForm.dirty;
       case 'walkin': return this.walkinForm.dirty;
       case 'settle': return this.paymentsDirty();
       default: return false; // bill items save immediately

@@ -75,6 +75,10 @@ export interface GolfSettingDoc {
     allowGuestWeekend: boolean;
     allowMemberGuestWeekend: boolean;
     handicapControlEnabled: boolean;
+    teeSheetColorBooked: string;
+    teeSheetColorRegistered: string;
+    teeSheetColorBilled: string;
+    teeSheetColorSettled: string;
     saved: boolean;
   };
   overrides: GolfAdvanceBookingOverride[];
@@ -136,6 +140,10 @@ export class GolfSettingService {
     allowGuestWeekend: boolean;
     allowMemberGuestWeekend: boolean;
     handicapControlEnabled: boolean;
+    teeSheetColorBooked: string;
+    teeSheetColorRegistered: string;
+    teeSheetColorBilled: string;
+    teeSheetColorSettled: string;
     overrides: GolfAdvanceBookingOverride[];
     minPlayerRules: GolfMinPlayerRule[];
     guestControlRules: GolfGuestControlRule[];

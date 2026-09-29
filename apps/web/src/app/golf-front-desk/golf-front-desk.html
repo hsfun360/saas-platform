@@ -41,6 +41,17 @@
     </div>
   </div>
 
+  <!-- SEAT-DOT LEGEND -->
+  <div class="fd-legend" aria-hidden="true">
+    @for (s of legend; track s) {
+      <span class="fd-legend__item">
+        <span class="fd-seat fd-seat--taken" [style.background]="colorFor(s)" [style.border-color]="colorFor(s)"></span>
+        {{ statusLabel(s) }}
+      </span>
+    }
+    <span class="fd-legend__item"><span class="fd-seat"></span> Free seat</span>
+  </div>
+
   @if (loading()) {
     <div class="loading-state"><div class="spinner large"></div><p>Loading the tee sheet…</p></div>
   } @else if (sheet().length === 0) {
@@ -52,127 +63,60 @@
     @if (searchActive() && matchKeys().size === 0) {
       <p class="fd-nomatch"><span class="material-icons" aria-hidden="true">search_off</span> No golfer or booking matches "{{ search() }}".</p>
     }
-    <div class="fd-sheet-scroll">
-      <div class="fd-sheet" [style.--fd-cols]="sheet().length">
-        <div class="fd-row fd-row--head" aria-hidden="true">
-          <div class="fd-time fd-time--head">Time</div>
-          @for (c of sheet(); track c.courseId) {
-            <div class="fd-course-head">
-              {{ c.courseCode }}
-              @if (c.courseDescription) { <span class="fd-course-head__desc">{{ c.courseDescription }}</span> }
-              @if (!c.operating) { <span class="fd-course-head__off">not operating</span> }
-            </div>
-          }
-        </div>
-        @for (time of rows(); track time) {
-          <div class="fd-row">
-            <div class="fd-time">{{ time }}</div>
-            @for (c of sheet(); track c.courseId) {
-              @if (cellFor(c.courseId, time); as f) {
-                <div class="fd-cell" [attr.data-flight]="c.courseId + '|' + time"
-                     [class.fd-cell--closed]="f.closed || f.crossoverOnly"
-                     [class.fd-cell--full]="!f.closed && !f.offGrid && f.seatsLeft === 0"
-                     [class.fd-cell--dim]="searchActive() && !isHit(c.courseId, time)"
-                     [class.fd-cell--hit]="isHit(c.courseId, time)">
-                  <div class="fd-cell__top">
-                    <span class="fd-cell__course">{{ c.courseCode }}</span>
+    <div class="fd-cards-scroll">
+      <div class="fd-cards" [style.--fd-cols]="sheet().length">
+        @for (c of sheet(); track c.courseId) {
+          <section class="fd-card">
+            <header class="fd-card__head">
+              <span class="fd-card__code">{{ c.courseCode }}</span>
+              @if (c.courseDescription) { <span class="fd-card__desc">{{ c.courseDescription }}</span> }
+              @if (!c.operating) { <span class="fd-card__off">not operating</span> }
+            </header>
+            <div class="fd-card__list">
+              @for (f of c.flights; track f.teeTime) {
+                <button type="button" class="fd-flight" [attr.data-flight]="c.courseId + '|' + f.teeTime"
+                        (click)="openFlight(c, f)"
+                        [disabled]="!flightOpenable(f)"
+                        [class.fd-flight--closed]="f.closed || f.crossoverOnly"
+                        [class.fd-flight--full]="!f.closed && !f.crossoverOnly && !f.offGrid && f.seatsLeft === 0"
+                        [class.fd-flight--dim]="searchActive() && !isHit(c.courseId, f.teeTime)"
+                        [class.fd-flight--hit]="isHit(c.courseId, f.teeTime)">
+                  <span class="fd-flight__top">
+                    <span class="fd-flight__time">{{ f.teeTime }}</span>
                     @if (f.closed) {
-                      <span class="fd-cell__state">CLOSED</span>
+                      <span class="fd-flight__state">CLOSED</span>
                     } @else if (f.crossoverOnly) {
-                      <span class="fd-cell__state">X-OVER</span>
+                      <span class="fd-flight__state">X-OVER</span>
                     } @else if (f.offGrid) {
-                      <span class="fd-cell__state">OFF GRID</span>
+                      <span class="fd-flight__state">OFF GRID</span>
                     } @else {
                       <span class="fd-seats" role="img" [attr.aria-label]="f.seatsTaken + ' of ' + f.maxPlayers + ' seats taken'">
-                        @for (taken of seatDots(f); track $index) {
-                          <span class="fd-seat" [class.fd-seat--taken]="taken"></span>
+                        @for (s of dots(f); track $index) {
+                          <span class="fd-seat" [class.fd-seat--taken]="s !== null"
+                                [style.background]="s !== null ? colorFor(s) : null"
+                                [style.border-color]="s !== null ? colorFor(s) : null"
+                                [title]="s !== null ? statusLabel(s) : 'Free seat'"></span>
                         }
                       </span>
                     }
                     @if (f.crossCount > 0) {
-                      <span class="fd-cross" [title]="f.crossCount + ' player(s) crossing over onto the second nine here'">↷{{ f.crossCount }}</span>
+                      <span class="fd-cross" [title]="f.crossCount + ' player(s) crossing over onto this nine here'">↷{{ f.crossCount }}</span>
                     }
-                  </div>
-
-                  @for (e of f.entries; track $index) {
-                    <div class="fd-p">
-                      <div class="fd-p__line">
-                        <span class="fd-p__name">{{ e.playerName }}</span>
-                        <span class="status-chip"
-                              [class.status-chip--on]="e.bill?.status === 'settled'"
-                              [class.status-chip--off]="e.bill?.status !== 'settled'">
-                          @if (e.bill?.status === 'settled') { SETTLED }
-                          @else if (e.bill) { BILLED }
-                          @else if (e.registration) { REG }
-                          @else { BOOKED }
-                        </span>
-                      </div>
-                      <div class="fd-p__meta">
-                        {{ playerTypeLabel(e.playerType) }}
-                        @if (e.memberNo) { · {{ e.memberNo }} }
-                        · {{ e.holes }}H
-                        @if (e.kind === 'walkin') { · walk-in }
-                        @if (e.bookingNo) { · {{ e.bookingNo }} }
-                        @if (e.registration) { · {{ e.registration.registrationNo }} }
-                        @if (e.bill) { · {{ e.bill.billNo }} ({{ e.bill.totalAmount.toFixed(2) }}) }
-                      </div>
-                      <div class="fd-p__actions">
-                        @if (!e.registration && e.kind === 'booked') {
-                          <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="register(e)" [disabled]="busy()">Register</button>
-                        } @else if (e.registration && e.bill?.status !== 'settled') {
-                          <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="openBill(e)" [disabled]="busy()">Bill</button>
-                        } @else if (e.bill) {
-                          <button type="button" class="btn btn--secondary btn--sm" (click)="openBill(e)" [disabled]="busy()">View</button>
-                        }
-                        @if (e.registration && (!e.bill || e.bill.status === 'open')) {
-                          <app-overflow-menu [label]="'More actions for ' + e.playerName">
-                            @if (!e.bill) {
-                              <button type="button" appMenuItem (click)="askCancelRegistration(e)">
-                                <span class="material-icons" aria-hidden="true">person_off</span>
-                                Cancel registration
-                              </button>
-                            } @else {
-                              <button type="button" appMenuItem (click)="askVoidBill(e)">
-                                <span class="material-icons" aria-hidden="true">block</span>
-                                Void bill
-                              </button>
-                            }
-                          </app-overflow-menu>
-                        }
-                      </div>
-                    </div>
+                  </span>
+                  @for (e of f.entries; track e.playerId) {
+                    <span class="fd-flight__player">
+                      <span class="fd-seat fd-seat--taken fd-seat--inline"
+                            [style.background]="colorFor(statusOf(e))" [style.border-color]="colorFor(statusOf(e))"></span>
+                      <span class="fd-flight__pname">{{ e.playerName }}</span>
+                      <span class="fd-flight__pmeta">
+                        {{ playerTypeLabel(e.playerType) }}@if (e.memberNo) { · {{ e.memberNo }} } · {{ e.holes }}H
+                      </span>
+                    </span>
                   }
-
-                  @if (unregistered(f) >= 2) {
-                    <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm fd-cell__regall"
-                            (click)="registerAll(c.courseId, time)" [disabled]="busy()">
-                      <span class="material-icons" aria-hidden="true">group_add</span>
-                      Register all ({{ unregistered(f) }})
-                    </button>
-                    @if (bookingGroups(f).length > 1) {
-                      @for (g of bookingGroups(f); track g.bookingProfileId) {
-                        @if (g.unregistered > 0) {
-                          <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm fd-cell__regall"
-                                  (click)="registerAll(c.courseId, time, g.bookingProfileId)" [disabled]="busy()">
-                            {{ g.bookingNo }} ({{ g.unregistered }})
-                          </button>
-                        }
-                      }
-                    }
-                  }
-
-                  @if (!f.closed && !f.offGrid && f.seatsLeft > 0) {
-                    <button *appCan="'create'" type="button" class="fd-cell__walkin"
-                            (click)="openWalkIn(c.courseId, f.teeTime)" [disabled]="busy()">
-                      + Walk-in · {{ f.seatsLeft }} seat{{ f.seatsLeft === 1 ? '' : 's' }} free
-                    </button>
-                  }
-                </div>
-              } @else {
-                <div class="fd-cell fd-cell--na" aria-hidden="true"></div>
+                </button>
               }
-            }
-          </div>
+            </div>
+          </section>
         }
       </div>
     </div>
@@ -183,47 +127,134 @@
     Walk-in
   </button>
 
-  <!-- ============ The one drawer dialog (guest / walk-in / bill / settle) ============ -->
+  <!-- ============ The one drawer dialog (flight / walk-in / bill / settle / confirm) ============ -->
   @if (dlgMode(); as mode) {
     <app-dialog #fdlg variant="drawer" [title]="dialogTitle()" [busy]="busy()" [dirty]="isDirty()"
                 (close)="closeDialog()">
 
       @switch (mode) {
 
-        <!-- ---- Guest identity for a booked guest line ---- -->
-        @case ('guest') {
-          <form id="fdGuest" [formGroup]="guestForm" (ngSubmit)="submitGuestRegistration()" class="saas-form" style="padding: 0;">
-            <p class="cell-subtle" style="margin: 0 0 var(--space-md);">Capture the guest's identity — returning guests are matched by identity no. or mobile so their history stays on one profile.</p>
-            <div class="fd-grid">
-              <div class="form-group">
-                <label for="fdgName">Guest Name <span class="required">*</span></label>
-                <input id="fdgName" type="text" formControlName="name" maxlength="100" autocomplete="off"
-                       [attr.aria-invalid]="showError(guestForm.controls.name)" />
-                @if (showError(guestForm.controls.name)) {
-                  <p class="field-error" role="alert">Key in the guest name.</p>
-                }
-              </div>
-              <div class="form-group">
-                <label for="fdgId">Identity / Passport No.</label>
-                <input id="fdgId" type="text" formControlName="identityNo" maxlength="50" autocomplete="off" />
-              </div>
-              <div class="form-group">
-                <label for="fdgMobile">Mobile</label>
-                <input id="fdgMobile" type="tel" formControlName="mobile" maxlength="30" autocomplete="off" />
-              </div>
-              <div class="form-group">
-                <label for="fdgEmail">Email</label>
-                <input id="fdgEmail" type="email" inputmode="email" formControlName="email" maxlength="100" autocomplete="off"
-                       [attr.aria-invalid]="showError(guestForm.controls.email)" />
-                @if (showError(guestForm.controls.email)) {
-                  <p class="field-error" role="alert">Key in a valid email address.</p>
-                }
-              </div>
+        <!-- ---- The flight workspace: every seat is a slot ---- -->
+        @case ('flight') {
+          @if (flight(); as f) {
+            <div class="fd-bill-head">
+              <span>{{ listDate() | localDate }} · <strong>{{ flightCourse()?.courseDescription || flightCourse()?.courseCode }}</strong></span>
+              @if (f.offGrid) { <span class="fd-flight__state">OFF GRID</span> }
+              @else { <span class="cell-subtle">{{ f.seatsLeft }} seat{{ f.seatsLeft === 1 ? '' : 's' }} free</span> }
             </div>
-          </form>
+
+            @for (e of f.entries; track e.playerId) {
+              <div class="fd-slot">
+                @if (!e.registration) {
+                  <input type="checkbox" class="fd-slot__check" [checked]="selected().has(e.playerId)"
+                         (change)="toggleSelected(e.playerId)"
+                         [attr.aria-label]="'Select ' + e.playerName + ' for registration'" />
+                } @else {
+                  <span class="fd-seat fd-seat--taken fd-slot__dot"
+                        [style.background]="colorFor(statusOf(e))" [style.border-color]="colorFor(statusOf(e))"></span>
+                }
+                <span class="fd-slot__main">
+                  <span class="fd-slot__name">{{ e.playerName }}</span>
+                  <span class="fd-slot__meta">
+                    {{ playerTypeLabel(e.playerType) }}
+                    @if (e.memberNo) { · {{ e.memberNo }} }
+                    · {{ e.holes }}H
+                    @if (e.kind === 'walkin') { · walk-in }
+                    @if (e.bookingNo) { · {{ e.bookingNo }} }
+                    @if (e.registration) { · {{ e.registration.registrationNo }} }
+                    @if (e.bill) { · {{ e.bill.billNo }} ({{ e.bill.totalAmount.toFixed(2) }}) }
+                  </span>
+                </span>
+                <span class="fd-slot__status" [style.color]="colorFor(statusOf(e))">{{ statusLabel(statusOf(e)).toUpperCase() }}</span>
+                <span class="fd-slot__actions">
+                  @if (e.registration && e.bill?.status !== 'settled') {
+                    <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="openBill(e)" [disabled]="busy()">Bill</button>
+                  } @else if (e.bill?.status === 'settled') {
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="openBill(e)" [disabled]="busy()">View</button>
+                  }
+                  @if (e.registration && (!e.bill || e.bill.status === 'open')) {
+                    <app-overflow-menu [label]="'More actions for ' + e.playerName">
+                      @if (!e.bill) {
+                        <button type="button" appMenuItem (click)="askCancelRegistration(e)">
+                          <span class="material-icons" aria-hidden="true">person_off</span>
+                          Cancel registration
+                        </button>
+                      } @else {
+                        <button type="button" appMenuItem (click)="askVoidBill(e)">
+                          <span class="material-icons" aria-hidden="true">block</span>
+                          Void bill
+                        </button>
+                      }
+                    </app-overflow-menu>
+                  }
+                </span>
+              </div>
+            }
+
+            @for (i of freeSlots(); track i) {
+              @if (i === 0 && slotWalkinOpen()) {
+                <form id="fdSlotWalkin" [formGroup]="slotWalkinForm" (ngSubmit)="submitSlotWalkin()" class="fd-slot fd-slot--form saas-form">
+                  <div class="fd-grid" style="width: 100%;">
+                    <div class="form-group">
+                      <label for="fdswType">Player Type <span class="required">*</span></label>
+                      <select id="fdswType" formControlName="playerType">
+                        @for (p of meta()?.playerTypes || []; track p.key) {
+                          <option [value]="p.key">{{ p.label }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label for="fdswHoles">No of Holes <span class="required">*</span></label>
+                      <select id="fdswHoles" formControlName="holes">
+                        <option [ngValue]="9">9 holes</option>
+                        <option [ngValue]="18">18 holes</option>
+                      </select>
+                    </div>
+                    @if (slotWalkinForm.controls.playerType.value === 'guest') {
+                      <div class="form-group">
+                        <label for="fdswGName">Guest Name <span class="required">*</span></label>
+                        <input id="fdswGName" type="text" formControlName="guestName" maxlength="100" autocomplete="off" />
+                      </div>
+                      <div class="form-group">
+                        <label for="fdswGId">Identity / Passport No.</label>
+                        <input id="fdswGId" type="text" formControlName="guestIdentityNo" maxlength="50" autocomplete="off" />
+                      </div>
+                      <div class="form-group">
+                        <label for="fdswGMobile">Mobile</label>
+                        <input id="fdswGMobile" type="tel" formControlName="guestMobile" maxlength="30" autocomplete="off" />
+                      </div>
+                    } @else {
+                      <div class="form-group">
+                        <label for="fdswMember">Member No <span class="required">*</span></label>
+                        <input id="fdswMember" type="text" formControlName="memberNo" maxlength="50" autocomplete="off" placeholder="e.g. A0018" />
+                      </div>
+                    }
+                  </div>
+                  <div class="fd-slot__formactions">
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="slotWalkinOpen.set(false)" [disabled]="busy()">Cancel</button>
+                    <button type="submit" class="btn btn--primary btn--sm" [disabled]="busy()">
+                      {{ busy() ? 'Registering…' : 'Register walk-in' }}
+                    </button>
+                  </div>
+                </form>
+              } @else if (i === 0) {
+                <button *appCan="'create'" type="button" class="fd-slot fd-slot--free" (click)="openSlotWalkin()" [disabled]="busy()">
+                  <span class="fd-seat fd-slot__dot"></span>
+                  <span class="fd-slot__free">+ Add walk-in</span>
+                </button>
+              } @else {
+                <div class="fd-slot fd-slot--empty" aria-hidden="true">
+                  <span class="fd-seat fd-slot__dot"></span>
+                  <span class="fd-slot__free">Free seat</span>
+                </div>
+              }
+            }
+          } @else {
+            <p class="cell-subtle">This flight is no longer on the sheet.</p>
+          }
         }
 
-        <!-- ---- Walk-in registration ---- -->
+        <!-- ---- Free-form walk-in registration (the FAB) ---- -->
         @case ('walkin') {
           <form id="fdWalkin" [formGroup]="walkinForm" (ngSubmit)="submitWalkIn()" class="saas-form" style="padding: 0;">
             <p class="cell-subtle" style="margin: 0 0 var(--space-md);">Registers directly on {{ listDate() | localDate }} — the desk needs only a free seat on the flight.</p>
@@ -393,15 +424,36 @@
             <p class="cell-subtle" style="margin: var(--space-md) 0 0;">Member class charges the bill to the member's own account (credit checked); cash-like tenders just record the payment.</p>
           }
         }
+
+        <!-- ---- Confirm (cancel registration / void bill) ---- -->
+        @case ('confirm') {
+          @if (confirmTarget(); as target) {
+            @if (confirmKind() === 'void-bill') {
+              <p>Void bill <strong>{{ target.bill?.billNo }}</strong> for {{ target.playerName }}? Its items are discarded; the registration stays.</p>
+            } @else if (target.kind === 'booked') {
+              <p>Cancel registration <strong>{{ target.registration?.registrationNo }}</strong> for {{ target.playerName }}? The player goes back to booked — the booking keeps the seat.</p>
+            } @else {
+              <p>Cancel registration <strong>{{ target.registration?.registrationNo }}</strong> for {{ target.playerName }}? The seat is freed.</p>
+            }
+          }
+          <div class="form-group">
+            <label for="fdConfirmReason">Reason</label>
+            <textarea id="fdConfirmReason" rows="2" wrap="off" [value]="confirmReason()"
+                      (input)="confirmReason.set($any($event.target).value)"></textarea>
+          </div>
+        }
       }
 
       <ng-container dialogFooter>
         @switch (dlgMode()) {
-          @case ('guest') {
-            <button type="button" class="btn btn--secondary" (click)="fdlg.requestClose()" [disabled]="busy()">Cancel</button>
-            <button type="submit" form="fdGuest" class="btn btn--primary" [disabled]="busy()">
-              {{ busy() ? 'Registering…' : 'Register guest' }}
-            </button>
+          @case ('flight') {
+            <button type="button" class="btn btn--secondary" (click)="fdlg.requestClose()" [disabled]="busy()">Close</button>
+            @if (selectableCount() > 0) {
+              <button *appCan="'create'" type="button" class="btn btn--primary" (click)="registerSelected()"
+                      [disabled]="busy() || selected().size === 0">
+                {{ busy() ? 'Registering…' : 'Register selected (' + selected().size + ')' }}
+              </button>
+            }
           }
           @case ('walkin') {
             <button type="button" class="btn btn--secondary" (click)="fdlg.requestClose()" [disabled]="busy()">Cancel</button>
@@ -410,7 +462,11 @@
             </button>
           }
           @case ('bill') {
-            <button type="button" class="btn btn--secondary" (click)="fdlg.requestClose()" [disabled]="busy()">Close</button>
+            @if (fromFlight()) {
+              <button type="button" class="btn btn--secondary" (click)="backToFlight()" [disabled]="busy()">« Back</button>
+            } @else {
+              <button type="button" class="btn btn--secondary" (click)="fdlg.requestClose()" [disabled]="busy()">Close</button>
+            }
             @if (billOpen()) {
               <button type="button" class="btn btn--primary" (click)="toSettle()" [disabled]="busy() || (bill()?.items?.length || 0) === 0">
                 Settle…
@@ -423,33 +479,13 @@
               {{ busy() ? 'Settling…' : 'Settle bill' }}
             </button>
           }
+          @case ('confirm') {
+            <button type="button" class="btn btn--secondary" (click)="keepConfirm()" [disabled]="busy()">Keep</button>
+            <button type="button" class="btn btn--danger" (click)="confirmAction()" [disabled]="busy()">
+              {{ busy() ? 'Working…' : (confirmKind() === 'void-bill' ? 'Void bill' : 'Cancel registration') }}
+            </button>
+          }
         }
-      </ng-container>
-    </app-dialog>
-  }
-
-  <!-- ============ Centred confirm (cancel registration / void bill) ============ -->
-  @if (confirmKind(); as kind) {
-    <app-dialog [title]="kind === 'void-bill' ? 'Void bill' : 'Cancel registration'" [busy]="confirming()" (close)="confirmKind.set(null)">
-      @if (confirmTarget(); as target) {
-        @if (kind === 'void-bill') {
-          <p>Void bill <strong>{{ target.bill?.billNo }}</strong> for {{ target.playerName }}? Its items are discarded; the registration stays.</p>
-        } @else if (target.kind === 'booked') {
-          <p>Cancel registration <strong>{{ target.registration?.registrationNo }}</strong> for {{ target.playerName }}? The player goes back to booked - the booking keeps the seat.</p>
-        } @else {
-          <p>Cancel registration <strong>{{ target.registration?.registrationNo }}</strong> for {{ target.playerName }}? The seat is freed.</p>
-        }
-      }
-      <div class="form-group">
-        <label for="fdConfirmReason">Reason</label>
-        <textarea id="fdConfirmReason" rows="2" wrap="off" [value]="confirmReason()"
-                  (input)="confirmReason.set($any($event.target).value)"></textarea>
-      </div>
-      <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="confirmKind.set(null)" [disabled]="confirming()">Keep</button>
-        <button type="button" class="btn btn--danger" (click)="confirmAction()" [disabled]="confirming()">
-          {{ confirming() ? 'Working…' : (kind === 'void-bill' ? 'Void bill' : 'Cancel registration') }}
-        </button>
       </ng-container>
     </app-dialog>
   }

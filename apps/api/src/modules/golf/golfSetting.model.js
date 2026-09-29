@@ -120,6 +120,31 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: true,
     },
+    // Tee-sheet seat-dot colours (user request 2026-09-29): the front desk
+    // paints one dot per player, coloured by how far through the day they
+    // are - booked (not arrived) / registered / billed (open bill) /
+    // settled; a blank outline is a free seat. Hex '#rrggbb'; defaults
+    // chosen AA-legible in both themes.
+    teeSheetColorBooked: {
+        type: DataTypes.STRING(7),
+        allowNull: false,
+        defaultValue: '#2563eb',
+    },
+    teeSheetColorRegistered: {
+        type: DataTypes.STRING(7),
+        allowNull: false,
+        defaultValue: '#f59e0b',
+    },
+    teeSheetColorBilled: {
+        type: DataTypes.STRING(7),
+        allowNull: false,
+        defaultValue: '#8b5cf6',
+    },
+    teeSheetColorSettled: {
+        type: DataTypes.STRING(7),
+        allowNull: false,
+        defaultValue: '#16a34a',
+    },
     // Handicap control (user decisions 2026-09-29, Tropicana procedure 2) -
     // the master switch. OFF = no restriction (HandicapLimitRule and
     // HandicapAccompanimentRule rows are stored but ignored). ON = the

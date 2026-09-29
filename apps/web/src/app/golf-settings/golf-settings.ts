@@ -43,7 +43,7 @@ export class GolfSettingsComponent implements OnInit {
   readonly courses = signal<GolfCourseOption[]>([]);
 
   // Collapsible section state (section-card standard; sections start open).
-  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true, handicap: true });
+  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true, handicap: true, teesheet: true });
 
   readonly form = this.fb.nonNullable.group({
     advanceBookingDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
@@ -61,6 +61,10 @@ export class GolfSettingsComponent implements OnInit {
     allowGuestWeekend: [true],
     allowMemberGuestWeekend: [true],
     handicapControlEnabled: [false],
+    teeSheetColorBooked: ['#2563eb'],
+    teeSheetColorRegistered: ['#f59e0b'],
+    teeSheetColorBilled: ['#8b5cf6'],
+    teeSheetColorSettled: ['#16a34a'],
   });
 
   // Override lines kept outside the FormGroup (dynamic rows); ovDirty feeds
@@ -156,6 +160,10 @@ export class GolfSettingsComponent implements OnInit {
           allowGuestWeekend: doc.setting.allowGuestWeekend,
           allowMemberGuestWeekend: doc.setting.allowMemberGuestWeekend,
           handicapControlEnabled: doc.setting.handicapControlEnabled,
+          teeSheetColorBooked: doc.setting.teeSheetColorBooked || '#2563eb',
+          teeSheetColorRegistered: doc.setting.teeSheetColorRegistered || '#f59e0b',
+          teeSheetColorBilled: doc.setting.teeSheetColorBilled || '#8b5cf6',
+          teeSheetColorSettled: doc.setting.teeSheetColorSettled || '#16a34a',
         });
         this.overrides.set(doc.overrides);
         this.ovDirty.set(false);
@@ -366,6 +374,10 @@ export class GolfSettingsComponent implements OnInit {
       allowGuestWeekend: v.allowGuestWeekend,
       allowMemberGuestWeekend: v.allowMemberGuestWeekend,
       handicapControlEnabled: v.handicapControlEnabled,
+      teeSheetColorBooked: v.teeSheetColorBooked,
+      teeSheetColorRegistered: v.teeSheetColorRegistered,
+      teeSheetColorBilled: v.teeSheetColorBilled,
+      teeSheetColorSettled: v.teeSheetColorSettled,
       overrides: rows,
       minPlayerRules: rules,
       guestControlRules: guestRules,

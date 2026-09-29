@@ -74,55 +74,66 @@
   }
 }
 
-/* ---- The tee sheet: rows = tee times, one column per course. ---- */
-.fd-sheet-scroll {
+/* ---- Seat-dot legend (colours from Golf Specification). ---- */
+.fd-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+  font-size: var(--font-caption);
+  color: var(--text-secondary);
+}
+.fd-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+/* ---- The tee sheet: one CARD per course, each its own timeline (user
+   decisions 2026-09-29 - courses may run different grids). ---- */
+.fd-cards-scroll {
   overflow-x: auto;
 }
-.fd-sheet {
+.fd-cards {
+  display: grid;
+  grid-template-columns: repeat(var(--fd-cols, 1), minmax(280px, 1fr));
+  gap: var(--space-md);
+  align-items: start;
   min-width: 100%;
 }
-.fd-row {
-  display: grid;
-  grid-template-columns: 56px repeat(var(--fd-cols, 1), minmax(240px, 1fr));
-  gap: var(--space-xs);
-  margin-bottom: var(--space-xs);
+.fd-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-card);
+  min-width: 0;
 }
-.fd-row--head {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: var(--surface-page);
-  margin-bottom: var(--space-sm);
-}
-.fd-time {
-  font-weight: var(--weight-semibold);
-  color: var(--text-secondary);
-  font-size: var(--font-body-2);
-  padding-top: var(--space-sm);
-  text-align: right;
-  padding-right: var(--space-xs);
-}
-.fd-time--head {
-  padding-top: var(--space-xs);
-}
-.fd-course-head {
+.fd-card__head {
   display: flex;
   align-items: baseline;
   gap: var(--space-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
-  padding: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
   border-bottom: 2px solid var(--border-strong);
+  background: var(--surface-sunken);
+  border-radius: 12px 12px 0 0;
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
-.fd-course-head__desc {
-  font-weight: normal;
+.fd-card__code {
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+}
+.fd-card__desc {
   font-size: var(--font-body-2);
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
-.fd-course-head__off {
+.fd-card__off {
+  margin-left: auto;
   font-size: var(--font-overline);
   font-weight: var(--weight-bold);
   text-transform: uppercase;
@@ -131,24 +142,40 @@
   background: var(--chip-off-surface);
   border-radius: 12px;
   padding: 2px var(--space-sm);
+  white-space: nowrap;
+}
+.fd-card__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
 }
 
-/* One flight cell. */
-.fd-cell {
+/* One flight row - the WHOLE row is the click target that opens the flight
+   drawer (all per-player buttons moved into the drawer). */
+.fd-flight {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-card);
   padding: var(--space-xs) var(--space-sm);
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
+  cursor: pointer;
+  color: var(--text-primary);
+  font: inherit;
 }
-.fd-cell--na {
-  border-style: dashed;
-  background: transparent;
+.fd-flight:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
 }
-.fd-cell--closed {
+.fd-flight:disabled {
+  cursor: default;
+}
+.fd-flight--closed {
   background: repeating-linear-gradient(
     -45deg,
     var(--surface-sunken),
@@ -157,31 +184,34 @@
     var(--surface-card) 16px
   );
   color: var(--text-muted);
+  min-height: 32px;
 }
-.fd-cell--full {
+.fd-flight--full {
   border-color: var(--border-strong);
   background: var(--surface-sunken);
 }
-.fd-cell--dim {
+.fd-flight--dim {
   opacity: 0.35;
 }
-.fd-cell--hit {
+.fd-flight--hit {
   border-color: var(--brand);
   box-shadow: 0 0 0 2px var(--focus-glow);
 }
-.fd-cell__top {
+.fd-flight__top {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   min-height: 20px;
 }
-.fd-cell__course {
-  display: none;
-  font-size: var(--font-caption);
-  font-weight: var(--weight-bold);
-  color: var(--brand-text);
+.fd-flight__time {
+  font-weight: var(--weight-semibold);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
 }
-.fd-cell__state {
+.fd-flight--closed .fd-flight__time {
+  color: var(--text-muted);
+}
+.fd-flight__state {
   font-size: var(--font-overline);
   font-weight: var(--weight-bold);
   letter-spacing: 0.5px;
@@ -198,10 +228,15 @@
   border-radius: 50%;
   border: 1.5px solid var(--border-strong);
   background: transparent;
+  flex-shrink: 0;
 }
 .fd-seat--taken {
   background: var(--brand);
   border-color: var(--brand);
+}
+.fd-seat--inline {
+  width: 8px;
+  height: 8px;
 }
 .fd-cross {
   margin-left: auto;
@@ -210,76 +245,114 @@
   white-space: nowrap;
 }
 
-/* One player inside a cell. */
-.fd-p {
-  border-top: 1px solid var(--border);
-  padding-top: var(--space-xs);
-}
-.fd-p__line {
+/* A player line inside a flight row (display only). */
+.fd-flight__player {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: baseline;
   gap: var(--space-xs);
+  min-width: 0;
 }
-.fd-p__name {
+.fd-flight__pname {
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
-  min-width: 0;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
 }
-.fd-p__meta {
+.fd-flight__pmeta {
+  font-size: var(--font-caption);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mobile: cards stack. */
+@media (max-width: 767px) {
+  .fd-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- The flight drawer: every seat is a SLOT. ---- */
+.fd-slot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  background: var(--surface-card);
+}
+.fd-slot__check {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.fd-slot__dot {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.fd-slot__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.fd-slot__name {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.fd-slot__meta {
   font-size: var(--font-caption);
   color: var(--text-secondary);
 }
-.fd-p__actions {
+.fd-slot__status {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.fd-slot__actions {
   display: flex;
   gap: var(--space-xs);
   align-items: center;
-  justify-content: flex-end;
-  margin-top: var(--space-xs);
+  flex-shrink: 0;
 }
-
-.fd-cell__regall {
-  width: 100%;
-}
-.fd-cell__walkin {
-  min-height: 36px;
-  border: 1px dashed var(--border-strong);
-  border-radius: 6px;
+.fd-slot--free {
+  border-style: dashed;
   background: transparent;
   color: var(--brand-text);
-  font-size: var(--font-body-2);
   cursor: pointer;
-  margin-top: auto;
+  font: inherit;
+  min-height: 48px;
+  width: 100%;
 }
-.fd-cell__walkin:hover {
+.fd-slot--free:hover:not(:disabled) {
   background: var(--surface-hover);
 }
-.fd-cell__walkin:disabled {
+.fd-slot--empty {
+  border-style: dashed;
+  background: transparent;
   color: var(--text-muted);
-  cursor: default;
+  min-height: 48px;
 }
-
-/* Mobile: cells stack under the time, each carrying its course chip; the
-   column header row disappears. */
-@media (max-width: 767px) {
-  .fd-row {
-    grid-template-columns: 48px 1fr;
-  }
-  .fd-row--head {
-    display: none;
-  }
-  .fd-time {
-    grid-row: 1;
-  }
-  .fd-cell {
-    grid-column: 2;
-  }
-  .fd-cell__course {
-    display: inline;
-  }
+.fd-slot__free {
+  font-size: var(--font-body-2);
+}
+.fd-slot--form {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+}
+.fd-slot__formactions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
 }
 
 /* Bill drawer. */

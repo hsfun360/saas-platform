@@ -91,12 +91,22 @@ export interface FrontDeskTender {
   iconUrl: string | null;
 }
 
+// Seat-dot colours (Golf Specification): one dot per player on the sheet,
+// coloured by how far through the day they are; blank outline = free seat.
+export interface TeeSheetColors {
+  booked: string;
+  registered: string;
+  billed: string;
+  settled: string;
+}
+
 export interface FrontDeskMeta {
   tiles: FrontDeskTile[];
   paymentTypes: FrontDeskTender[];
   courses: { id: string; courseCode: string; description?: string | null }[];
   playerTypes: { key: string; label: string }[];
   holesOptions: number[];
+  teeSheetColors?: TeeSheetColors;
 }
 
 export interface GolfBillItemRow {

@@ -495,6 +495,44 @@
         }
       </div>
 
+      <!-- ============ Tee Sheet (seat-dot colours) ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('teesheet')"
+                [attr.aria-expanded]="isExpanded('teesheet')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Tee Sheet</span>
+            <span class="settings-header__sub">Seat-dot colours on the Front Desk sheet — one dot per player, coloured by their status; a blank outline is a free seat.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('teesheet')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('teesheet')) {
+          <div class="settings-body">
+            <div class="gs-colors">
+              <div class="gs-color">
+                <label for="gsColBooked">Booked</label>
+                <input id="gsColBooked" type="color" formControlName="teeSheetColorBooked" />
+                <span class="cell-subtle">Booked, not arrived</span>
+              </div>
+              <div class="gs-color">
+                <label for="gsColReg">Registered</label>
+                <input id="gsColReg" type="color" formControlName="teeSheetColorRegistered" />
+                <span class="cell-subtle">Registered at the desk</span>
+              </div>
+              <div class="gs-color">
+                <label for="gsColBilled">Billed</label>
+                <input id="gsColBilled" type="color" formControlName="teeSheetColorBilled" />
+                <span class="cell-subtle">Bill open</span>
+              </div>
+              <div class="gs-color">
+                <label for="gsColSettled">Settled</label>
+                <input id="gsColSettled" type="color" formControlName="teeSheetColorSettled" />
+                <span class="cell-subtle">Bill settled</span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
       <div class="gs-actions" *appCan="'edit'">
         <button type="submit" class="btn btn--primary" [disabled]="saving() || (!form.dirty && !ovDirty() && !mpDirty() && !gcDirty() && !hlDirty() && !haDirty())">
           {{ saving() ? 'Saving…' : 'Save' }}

@@ -25,6 +25,8 @@ const DEFAULTS = {
     guestControlEnabled: false, allowGuestWeekday: true, allowMemberGuestWeekday: true,
     allowGuestWeekend: true, allowMemberGuestWeekend: true,
     handicapControlEnabled: false,
+    teeSheetColorBooked: '#2563eb', teeSheetColorRegistered: '#f59e0b',
+    teeSheetColorBilled: '#8b5cf6', teeSheetColorSettled: '#16a34a',
 };
 
 function settingDto(row) {
@@ -45,6 +47,10 @@ function settingDto(row) {
         allowGuestWeekend: row.allowGuestWeekend === true,
         allowMemberGuestWeekend: row.allowMemberGuestWeekend === true,
         handicapControlEnabled: row.handicapControlEnabled === true,
+        teeSheetColorBooked: row.teeSheetColorBooked || DEFAULTS.teeSheetColorBooked,
+        teeSheetColorRegistered: row.teeSheetColorRegistered || DEFAULTS.teeSheetColorRegistered,
+        teeSheetColorBilled: row.teeSheetColorBilled || DEFAULTS.teeSheetColorBilled,
+        teeSheetColorSettled: row.teeSheetColorSettled || DEFAULTS.teeSheetColorSettled,
         saved: true,
     };
 }
@@ -399,6 +405,13 @@ exports.save = async (req, res) => {
         if (guestResult.error) return res.status(400).json({ message: guestResult.error });
         const guestControlRules = guestResult.rules;
         const handicapControlEnabled = req.body.handicapControlEnabled === true;
+        const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+        const colors = {};
+        for (const key of ['teeSheetColorBooked', 'teeSheetColorRegistered', 'teeSheetColorBilled', 'teeSheetColorSettled']) {
+            const v = req.body[key] !== undefined && req.body[key] !== null && req.body[key] !== '' ? String(req.body[key]) : DEFAULTS[key];
+            if (!HEX_RE.test(v)) return res.status(400).json({ message: 'Tee-sheet colours must be #rrggbb values.' });
+            colors[key] = v.toLowerCase();
+        }
         const limitResult = normalizeHandicapLimitRules(Array.isArray(req.body.handicapLimitRules) ? req.body.handicapLimitRules : [], knownCourseIds);
         if (limitResult.error) return res.status(400).json({ message: limitResult.error });
         const handicapLimitRules = limitResult.rules;
@@ -416,7 +429,7 @@ exports.save = async (req, res) => {
                 advanceBookingDays, advanceBookingHours, allowMembershipTypeOverride, allowBookingMerge,
                 minPlayersWeekday, minPlayersWeekend, bookingLockMinutes, oneBookingPerDay, allowSameDayBooking,
                 guestControlEnabled, allowGuestWeekday, allowMemberGuestWeekday, allowGuestWeekend, allowMemberGuestWeekend,
-                handicapControlEnabled,
+                handicapControlEnabled, ...colors,
             };
             if (existing) {
                 Object.assign(existing, { ...values, updatedBy: callerId });

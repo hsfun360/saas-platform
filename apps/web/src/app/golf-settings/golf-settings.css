@@ -172,6 +172,32 @@
   }
 }
 
+/* Tee-sheet seat-dot colour pickers. */
+.gs-colors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-md);
+}
+.gs-color {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.gs-color label {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  font-size: var(--font-body-2);
+}
+.gs-color input[type='color'] {
+  width: 64px;
+  height: 44px;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  cursor: pointer;
+}
+
 .gs-actions {
   display: flex;
   justify-content: flex-end;

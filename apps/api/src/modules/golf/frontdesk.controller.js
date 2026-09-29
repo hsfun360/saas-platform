@@ -519,7 +519,7 @@ exports.getMeta = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const [types, tenders, courses] = await Promise.all([
+        const [types, tenders, courses, setting] = await Promise.all([
             GolfTransactionType.findAll({
                 where: { companyId, isActive: true },
                 attributes: ['id', 'transactionType', 'chargeType', 'golferType', 'description', 'iconUrl', 'allowPriceOverride'],
@@ -535,6 +535,7 @@ exports.getMeta = async (req, res) => {
                 attributes: ['id', 'courseCode', 'description'],
                 order: [['displaySequence', 'ASC'], ['courseCode', 'ASC']],
             }),
+            GolfSetting.findOne({ where: { companyId } }),
         ]);
         res.status(200).json({
             tiles: types,
@@ -544,6 +545,14 @@ exports.getMeta = async (req, res) => {
             holesOptions: HOLES_OPTIONS,
             playerStatuses: PLAYER_STATUSES,
             billStatuses: BILL_STATUSES,
+            // Seat-dot colours for the tee sheet (Golf Specification; user
+            // request 2026-09-29). Blank outline = free seat.
+            teeSheetColors: {
+                booked: (setting && setting.teeSheetColorBooked) || '#2563eb',
+                registered: (setting && setting.teeSheetColorRegistered) || '#f59e0b',
+                billed: (setting && setting.teeSheetColorBilled) || '#8b5cf6',
+                settled: (setting && setting.teeSheetColorSettled) || '#16a34a',
+            },
         });
     } catch (error) {
         console.error('Error loading golf front-desk meta:', error);
