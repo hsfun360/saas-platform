@@ -82,20 +82,23 @@ const AdvanceBookingOverride = require('../modules/golf/advanceBookingOverride.m
 const MinPlayerRule = require('../modules/golf/minPlayerRule.model');
 // Guest-control exception rules (2026-09-20): same shape - no associations.
 const GuestControlRule = require('../modules/golf/guestControlRule.model');
-// Booking stage (2026-09-20): Booking header + player details + the
-// short-lived FlightLock claims of the DYNAMIC tee sheet. Course/golfer refs
-// stay plain value refs; header->details is a real intra-service FK below.
-const GolfBooking = require('../modules/golf/booking.model');
-const GolfBookingPlayer = require('../modules/golf/bookingPlayer.model');
+// Booking + registration revamp (2026-09-29): BookingProfile header (booker
+// info only) + golf.Player records (one per golfer per NINE - an 18-hole
+// play is a linked pair) + the short-lived FlightLock claims of the DYNAMIC
+// tee sheet. Course/nine/golfer refs stay plain value refs; header->players
+// and the pair link are real intra-service FKs below.
+const GolfBookingProfile = require('../modules/golf/bookingProfile.model');
+const GolfPlayer = require('../modules/golf/player.model');
 const GolfFlightLock = require('../modules/golf/flightLock.model');
 
-GolfBooking.hasMany(GolfBookingPlayer, { foreignKey: 'bookingId', as: 'players', onDelete: 'CASCADE' });
-GolfBookingPlayer.belongsTo(GolfBooking, { foreignKey: 'bookingId', as: 'booking' });
+GolfBookingProfile.hasMany(GolfPlayer, { foreignKey: 'bookingProfileId', as: 'players' });
+GolfPlayer.belongsTo(GolfBookingProfile, { foreignKey: 'bookingProfileId', as: 'bookingProfile' });
+// The crossover record points at its starting-nine record (one per pair).
+GolfPlayer.hasOne(GolfPlayer, { foreignKey: 'firstNinePlayerId', as: 'secondNineRecord' });
 
-// Front desk (2026-09-26): per-player registration (booking refs stay plain
-// value refs - walk-ins have none) + per-player Bill with its items and
-// payments as real intra-service FKs.
-const GolfRegistrationPlayer = require('../modules/golf/registrationPlayer.model');
+// Front desk billing (2026-09-26): per-player Bill with its items and
+// payments as real intra-service FKs (Bill.playerId stays a plain value ref
+// to the starting-nine Player record).
 const GolfBill = require('../modules/golf/bill.model');
 const GolfBillItem = require('../modules/golf/billItem.model');
 const GolfBillPayment = require('../modules/golf/billPayment.model');

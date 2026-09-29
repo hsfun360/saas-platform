@@ -1,14 +1,15 @@
 // Golf Booking (Golf Management → /golf/bookings) - the make-booking flow
-// (user decisions 2026-09-20, modeled on the 2006 SRS screens):
+// (user decisions 2026-09-20, revamped 2026-09-29 to the per-nine model):
 //   1. context   - member no resolves standing + the bookable date window
 //   2. availability - the dynamic tee sheet's 5 nearest flights per course
-//   3. lock      - clicking a flight claims it (whole flight, incl. crossover)
+//   3. lock      - clicking a flight claims it (both nines for 18 holes)
 //                  for GolfSetting.bookingLockMinutes while players are keyed
-//   4. save      - re-validates EVERY rule server-side and books atomically
+//   4. save      - re-validates EVERY rule server-side and books atomically:
+//                  ONE BookingProfile header + golf.Player records (one per
+//                  golfer per NINE - an 18-hole play is a linked pair)
 // All state-changing steps run in a transaction under a Postgres advisory
-// lock on (company, course, playDate) - the single serialization point that
-// makes double booking impossible in a multi-user (and future member-portal)
-// environment.
+// lock on (company, playDate) - one serialization point for the whole day,
+// because courses SHARE physical nines under composite rotation.
 
 const crypto = require('crypto');
 const { Op } = require('sequelize');
@@ -22,8 +23,8 @@ const { classifyDateRange, companyTimezone } = require('../../platform/calendarG
 const numberingGateway = require('../../platform/numberingGateway');
 const availability = require('./bookingAvailability.service');
 const { BOOKING_STATUSES, PLAYER_TYPES, PLAYER_TYPE_KEYS, HOLES_OPTIONS } = require('./booking.constants');
-const Booking = require('./booking.model');
-const BookingPlayer = require('./bookingPlayer.model');
+const BookingProfile = require('./bookingProfile.model');
+const Player = require('./player.model');
 const FlightLock = require('./flightLock.model');
 const Course = require('./course.model');
 const Golfer = require('./golfer.model');
@@ -35,20 +36,21 @@ function companyIdOf(req) {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^\d{2}:\d{2}$/;
 
-// One advisory lock key per (company, course, playDate) - every lock/save
-// transaction for the same course-day serializes here.
-async function advisoryLock(transaction, companyId, courseId, playDate) {
+// One advisory lock key per (company, playDate) - every lock/save
+// transaction for the same day serializes here. Day-wide (not per course)
+// because rotation courses share physical nines.
+async function advisoryLock(transaction, companyId, playDate) {
     await sequelize.query('SELECT pg_advisory_xact_lock(hashtext(:key))', {
-        replacements: { key: `golf-booking:${companyId}:${courseId}:${playDate}` },
+        replacements: { key: `golf-booking:${companyId}:${playDate}` },
         transaction,
     });
 }
 
-// Remove expired locks for a course-day (inside the advisory lock, so the
-// unique cell index never falsely blocks a new claim).
-async function sweepExpiredLocks(companyId, courseId, playDate, transaction) {
+// Remove expired locks for a day (inside the advisory lock, so the unique
+// cell index never falsely blocks a new claim).
+async function sweepExpiredLocks(companyId, playDate, transaction) {
     await FlightLock.destroy({
-        where: { companyId, courseId, playDate, expiresAt: { [Op.lte]: new Date() } },
+        where: { companyId, playDate, expiresAt: { [Op.lte]: new Date() } },
         transaction,
     });
 }
@@ -126,8 +128,8 @@ function escapeHtml(s) {
 function playersTableHtml(players) {
     const td = 'border: 1px solid #e2e8f0; padding: 6px 10px; font-size: 14px;';
     const th = `${td} background-color: #f8fafc; text-align: left;`;
-    const rows = players.map((p) => `<tr>`
-        + `<td style="${td}">${p.sortOrder}</td>`
+    const rows = players.map((p, i) => `<tr>`
+        + `<td style="${td}">${p.sortOrder || i + 1}</td>`
         + `<td style="${td}">${escapeHtml(p.playerName)}</td>`
         + `<td style="${td}">${p.memberNo ? escapeHtml(p.memberNo) : '—'}</td>`
         + `<td style="${td}">${PLAYER_TYPE_LABELS.get(p.playerType) || p.playerType}</td>`
@@ -137,17 +139,34 @@ function playersTableHtml(players) {
         + `${rows}</table>`;
 }
 
+// The starting-nine Player records of a set of booking profiles, ordered by
+// creation (creation order IS the keyed player order - see create()).
+async function firstNineRecords(profileIds, { transaction } = {}) {
+    if (!profileIds.length) return [];
+    return Player.findAll({
+        where: { bookingProfileId: { [Op.in]: profileIds }, secondNineFlag: 0 },
+        order: [['createdAt', 'ASC'], ['id', 'ASC']],
+        transaction,
+    });
+}
+
 // "08:05 (WEST, B260900001), 14:30 (EAST, ...)" - the flight list for a
-// one-booking-per-day conflict message.
-async function describeDayBookings(companyId, rows, { transaction } = {}) {
+// one-booking-per-day conflict message. Start times come from the profiles'
+// starting-nine Player records.
+async function describeDayBookings(companyId, profiles, { transaction } = {}) {
     const courses = await Course.findAll({
-        where: { companyId, id: { [Op.in]: [...new Set(rows.map((r) => r.courseId))] } },
+        where: { companyId, id: { [Op.in]: [...new Set(profiles.map((r) => r.courseId))] } },
         attributes: ['id', 'courseCode'],
         transaction,
     });
     const codeById = new Map(courses.map((c) => [c.id, c.courseCode]));
-    return rows
-        .map((r) => `${availability.hhmm(r.startTime)} (${codeById.get(r.courseId) || 'course'}, ${r.bookingNo})`)
+    const firsts = await firstNineRecords(profiles.map((p) => p.id), { transaction });
+    const timeByProfile = new Map();
+    for (const f of firsts) {
+        if (!timeByProfile.has(f.bookingProfileId)) timeByProfile.set(f.bookingProfileId, availability.hhmm(f.teeTime));
+    }
+    return profiles
+        .map((r) => `${timeByProfile.get(r.id) || '—'} (${codeById.get(r.courseId) || 'course'}, ${r.bookingNo})`)
         .join(', ');
 }
 
@@ -164,30 +183,42 @@ async function dayBookingConflict(companyId, standing, playDate, { transaction }
     return `${standing.memberNo} already has a booking on ${playDate} - ${await describeDayBookings(companyId, rows, { transaction })}.`;
 }
 
-function bookingDto(b, players, courseByIdMap) {
-    const course = courseByIdMap ? courseByIdMap.get(b.courseId) : null;
+// DTO from a profile + its Player records (both nines). The flight fields
+// are DERIVED from the records: start = the first-nine records' tee time,
+// crossover = the paired second-nine records' tee time, holes = 18 when a
+// pair exists. The dto shape matches the pre-revamp one so the web wizard
+// and listing keep working unchanged.
+function bookingDto(profile, records, courseByIdMap) {
+    const course = courseByIdMap ? courseByIdMap.get(profile.courseId) : null;
+    const rows = records || [];
+    const firsts = rows.filter((r) => Number(r.secondNineFlag) === 0)
+        .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : (a.id < b.id ? -1 : 1)));
+    const seconds = rows.filter((r) => Number(r.secondNineFlag) === 1);
+    const startTime = firsts.length ? availability.hhmm(firsts[0].teeTime) : null;
+    const crossTime = seconds.length ? availability.hhmm(seconds[0].teeTime) : null;
     return {
-        id: b.id,
-        bookingNo: b.bookingNo,
-        courseId: b.courseId,
+        id: profile.id,
+        bookingNo: profile.bookingNo,
+        bookingType: profile.bookingType,
+        courseId: profile.courseId,
         courseCode: course ? course.courseCode : null,
         courseDescription: course ? course.description : null,
-        playDate: b.playDate,
-        holes: b.holes,
-        startNine: b.startNine,
-        startTime: availability.hhmm(b.startTime),
-        crossNine: b.crossNine,
-        crossTime: availability.hhmm(b.crossTime),
-        contactMobile: b.contactMobile,
-        remarks: b.remarks,
-        status: b.status,
-        cancelReason: b.cancelReason,
-        canModify: b.get ? b.get('canModify') : undefined,
-        players: (players || []).map((p) => ({
-            sortOrder: p.sortOrder,
+        playDate: profile.playDate,
+        holes: seconds.length ? 18 : 9,
+        startTime,
+        crossTime,
+        contactMobile: profile.contactMobile,
+        remarks: profile.remarks,
+        status: profile.status,
+        cancelReason: profile.cancelReason,
+        canModify: profile.get ? profile.get('canModify') : undefined,
+        players: firsts.map((p, i) => ({
+            sortOrder: i + 1,
             playerType: p.playerType,
             memberNo: p.memberNo,
             playerName: p.playerName,
+            status: p.status,
+            registrationNo: p.registrationNo,
         })),
     };
 }
@@ -267,35 +298,35 @@ async function parseSearch(req, body) {
 
 // POST /api/golf/bookings/availability - the 5 nearest available flights per
 // course (all courses, or one when courseId is given). The 2006 stored
-// procedure, computed from the dynamic tee sheet.
+// procedure, computed from the dynamic per-nine tee sheet.
 exports.searchAvailability = async (req, res) => {
     try {
         const parsed = await parseSearch(req, req.body);
         if (parsed.error) return res.status(parsed.status).json({ message: parsed.error });
-        const { companyId, playDate, holes, players, window } = parsed;
+        const { companyId, playDate, holes, players } = parsed;
         const time = String(req.body.time || '');
         if (!TIME_RE.test(time)) return res.status(400).json({ message: 'Pick a preferred tee time.' });
 
-        const courseWhere = { companyId, isActive: true };
-        if (req.body.courseId) courseWhere.id = String(req.body.courseId);
-        const courses = await Course.findAll({
-            where: courseWhere,
-            order: [['displaySequence', 'ASC'], ['courseCode', 'ASC']],
-        });
-        if (!courses.length) return res.status(400).json({ message: 'No active course to search.' });
-
         const dayType = await dayTypeOf(req, playDate);
         const { setting, minRules } = await availability.loadRules(companyId);
-        const courseIds = courses.map((c) => c.id);
+        // The context spans ALL active courses even for a one-course search -
+        // nine ownership (whose grid rules a crossover landing) needs them.
+        const ctx = await availability.dayContext(companyId, playDate, dayType);
+        if (!ctx.courses.length) return res.status(400).json({ message: 'No active course to search.' });
+        const wanted = req.body.courseId
+            ? ctx.courses.filter((c) => c.id === String(req.body.courseId))
+            : ctx.courses;
+        if (!wanted.length) return res.status(400).json({ message: 'No active course to search.' });
+
         const [occ, locks] = await Promise.all([
-            availability.occupancy(companyId, courseIds, playDate),
-            availability.activeLockCells(companyId, courseIds, playDate),
+            availability.occupancy(companyId, playDate),
+            availability.activeLockCells(companyId, playDate),
         ]);
 
         const groups = [];
-        for (const course of courses) {
+        for (const course of wanted) {
             const result = await availability.courseFlights({
-                companyId, course, playDate, dayType, holes, players, setting, minRules, occ, locks,
+                course, ctx, playDate, dayType, holes, players, setting, minRules, occ, locks,
             });
             if (!result) continue;
             const flights = availability.nearestFlights(result.flights, time, 5);
@@ -313,8 +344,8 @@ exports.searchAvailability = async (req, res) => {
     }
 };
 
-// POST /api/golf/bookings/locks - claim a flight (whole flight, including the
-// crossover cell) while the player list is keyed.
+// POST /api/golf/bookings/locks - claim a flight (both nines for 18 holes)
+// while the player list is keyed.
 exports.createLock = async (req, res) => {
     try {
         const parsed = await parseSearch(req, req.body);
@@ -331,15 +362,16 @@ exports.createLock = async (req, res) => {
         const lockMinutes = setting ? setting.bookingLockMinutes : 5;
 
         const out = await sequelize.transaction(async (transaction) => {
-            await advisoryLock(transaction, companyId, course.id, playDate);
-            await sweepExpiredLocks(companyId, course.id, playDate, transaction);
+            await advisoryLock(transaction, companyId, playDate);
+            await sweepExpiredLocks(companyId, playDate, transaction);
 
+            const ctx = await availability.dayContext(companyId, playDate, dayType, { transaction });
             const [occ, locks] = await Promise.all([
-                availability.occupancy(companyId, [course.id], playDate, { transaction }),
-                availability.activeLockCells(companyId, [course.id], playDate, { transaction }),
+                availability.occupancy(companyId, playDate, { transaction }),
+                availability.activeLockCells(companyId, playDate, { transaction }),
             ]);
             const result = await availability.courseFlights({
-                companyId, course, playDate, dayType, holes, players, setting, minRules, occ, locks,
+                course, ctx, playDate, dayType, holes, players, setting, minRules, occ, locks,
             });
             const flight = result ? result.flights.find((f) => f.teeTime === teeTime) : null;
             if (!flight) return { taken: true };
@@ -347,11 +379,11 @@ exports.createLock = async (req, res) => {
             const groupId = crypto.randomUUID();
             const expiresAt = new Date(Date.now() + lockMinutes * 60000);
             const rows = [{
-                companyId, groupId, courseId: course.id, playDate, nine: 'first', teeTime: flight.teeTime, expiresAt, lockedBy: callerId,
+                companyId, groupId, courseId: course.id, unitCourseId: course.firstNineId, playDate, teeTime: flight.teeTime, expiresAt, lockedBy: callerId,
             }];
-            if (holes === 18 && flight.crossTime && flight.crossTime !== flight.teeTime) {
+            if (holes === 18 && flight.crossTime) {
                 rows.push({
-                    companyId, groupId, courseId: course.id, playDate, nine: 'second', teeTime: flight.crossTime, expiresAt, lockedBy: callerId,
+                    companyId, groupId, courseId: course.id, unitCourseId: course.secondNineId, playDate, teeTime: flight.crossTime, expiresAt, lockedBy: callerId,
                 });
             }
             await FlightLock.bulkCreate(rows, { transaction });
@@ -432,13 +464,13 @@ exports.create = async (req, res) => {
         // The lock names the flight - never trust the client for the cells.
         const lockRows = await FlightLock.findAll({ where: { companyId, groupId } });
         if (!lockRows.length) return res.status(409).json({ message: 'The flight lock expired - pick a flight again.' });
-        const startRow = lockRows.find((r) => r.nine === 'first');
-        const crossRow = lockRows.find((r) => r.nine === 'second') || null;
-        if (!startRow || startRow.lockedBy !== callerId) return res.status(409).json({ message: 'The flight lock is not yours - pick a flight again.' });
-        const course = await Course.findOne({ where: { companyId, id: startRow.courseId } });
+        const course = await Course.findOne({ where: { companyId, id: lockRows[0].courseId } });
         if (!course) return res.status(400).json({ message: 'The locked course no longer exists.' });
+        const startRow = lockRows.find((r) => r.unitCourseId === course.firstNineId);
+        const crossRow = lockRows.find((r) => r.unitCourseId === course.secondNineId) || null;
+        if (!startRow || startRow.lockedBy !== callerId) return res.status(409).json({ message: 'The flight lock is not yours - pick a flight again.' });
         const playDate = String(startRow.playDate);
-        const holes = Number(req.body.holes) === 18 || crossRow ? 18 : 9;
+        const holes = crossRow ? 18 : 9;
 
         // Window re-check for the BOOKER.
         const timezone = await companyTimezone(req);
@@ -454,7 +486,7 @@ exports.create = async (req, res) => {
         const allowMerge = setting ? setting.allowBookingMerge === true : false;
 
         const result = await sequelize.transaction(async (transaction) => {
-            await advisoryLock(transaction, companyId, course.id, playDate);
+            await advisoryLock(transaction, companyId, playDate);
 
             // Lock still valid under the serialization point?
             const fresh = await FlightLock.findAll({ where: { companyId, groupId }, transaction });
@@ -465,14 +497,10 @@ exports.create = async (req, res) => {
             const crossTime = crossRow ? availability.hhmm(crossRow.teeTime) : null;
             const t = availability.toMinutes(startTime);
 
-            // Capacity re-check under the merge rule (our own lock excluded).
-            const occ = await availability.occupancy(companyId, [course.id], playDate, { transaction });
-            const set = await availability.resolveTeeTimeSet(course.id, dayType, playDate);
-            if (!set) return { fail: 'The tee sheet for this date is no longer configured.', status: 409 };
-            const CourseTeeTimeSlot = require('./courseTeeTimeSlot.model');
-            const slots = await CourseTeeTimeSlot.findAll({ where: { teeTimeSetId: set.id }, transaction });
-            const bySlotTime = new Map(slots.map((s) => [availability.hhmm(s.teeTime), s]));
-            const startSlot = bySlotTime.get(startTime);
+            const ctx = await availability.dayContext(companyId, playDate, dayType, { transaction });
+            const day = ctx.byCourse.get(course.id);
+            if (!day || !day.set || !day.slots.length) return { fail: 'The tee sheet for this date is no longer configured.', status: 409 };
+            const startSlot = day.slots.find((s) => availability.hhmm(s.teeTime) === startTime);
             if (!startSlot) return { fail: 'The flight time no longer exists on the tee sheet.', status: 409 };
             // Slot-role re-check (2026-09-28): crossover-only and front-desk
             // slots never take a BOOKED tee-off, even if a stale client sends
@@ -485,22 +513,24 @@ exports.create = async (req, res) => {
             }
             // Closure re-check (maintenance / tournament blocks saved while
             // the flight was locked must still stop the booking).
-            const blocks = await availability.closureBlocks(course.id, playDate);
-            if (availability.nineBlocked(blocks, 'first', t)) {
+            if (availability.nineBlocked(day.blocks, 'first', t)) {
                 return { fail: 'The flight is now blocked by a course closure.', status: 409 };
             }
-            if (crossTime && availability.nineBlocked(blocks, 'second', availability.toMinutes(crossTime))) {
-                return { fail: 'The crossover flight is now blocked by a course closure.', status: 409 };
-            }
-            const startOcc = occ.get(availability.cellKey(course.id, 'first', startTime));
+            // Capacity re-check per NINE-cell under the merge rule.
+            const occ = await availability.occupancy(companyId, playDate, { transaction });
+            const startOcc = occ.get(availability.nineKey(course.firstNineId, startTime));
             if (availability.seatsLeft(allowMerge, startOcc, startSlot.maxPlayers) < lines.length) {
                 return { fail: 'The flight no longer has room for these players.', status: 409 };
             }
             if (crossTime) {
-                const crossSlot = bySlotTime.get(crossTime);
-                if (!crossSlot) return { fail: 'The crossover time no longer exists on the tee sheet.', status: 409 };
-                const crossOcc = occ.get(availability.cellKey(course.id, 'second', crossTime));
-                if (availability.seatsLeft(allowMerge, crossOcc, crossSlot.maxPlayers) < lines.length) {
+                const target = availability.crossTarget(ctx, course, t);
+                if (!target) return { fail: 'The crossover time no longer exists on the tee sheet.', status: 409 };
+                const ct = availability.toMinutes(crossTime);
+                if (availability.crossBlocked(ctx, course, target, ct)) {
+                    return { fail: 'The crossover flight is now blocked by a course closure.', status: 409 };
+                }
+                const crossOcc = occ.get(availability.nineKey(course.secondNineId, crossTime));
+                if (availability.seatsLeft(allowMerge, crossOcc, target.slot.maxPlayers) < lines.length) {
                     return { fail: 'The crossover flight no longer has room for these players.', status: 409 };
                 }
             }
@@ -577,31 +607,56 @@ exports.create = async (req, res) => {
                 return { fail: 'Configure the Booking No. numbering scheme first (Golf Management → Numbering Control).', status: 400 };
             }
 
-            const booking = await Booking.create({
+            const profile = await BookingProfile.create({
                 companyId,
                 bookingNo,
+                bookingType: 'flight',
                 courseId: course.id,
                 playDate,
-                holes,
-                startNine: 'first',
-                startTime,
-                crossNine: crossTime ? 'second' : null,
-                crossTime,
                 bookerGolferId: booker.id,
                 contactMobile,
                 remarks,
                 status: 'booked',
                 ...stamps,
             }, { transaction });
-            await BookingPlayer.bulkCreate(lines.map((l) => ({
-                bookingId: booking.id,
-                sortOrder: l.sortOrder,
-                playerType: l.playerType,
-                golferId: l.standing ? golferByMemberId.get(l.standing.memberId).id : null,
-                playerName: l.playerName,
-                memberNo: l.memberNo,
-                ...stamps,
-            })), { transaction });
+
+            // One Player record per golfer per NINE. Creation order encodes
+            // the keyed player order (no sortOrder column - user decision
+            // 2026-09-29), so createdAt is offset per line to stay distinct.
+            const base = Date.now();
+            const records = [];
+            for (const l of lines) {
+                const shared = {
+                    companyId,
+                    bookingProfileId: profile.id,
+                    courseId: course.id,
+                    playDate,
+                    playerType: l.playerType,
+                    golferId: l.standing ? golferByMemberId.get(l.standing.memberId).id : null,
+                    playerName: l.playerName,
+                    memberNo: l.memberNo,
+                    status: 'booked',
+                    ...stamps,
+                };
+                const first = await Player.create({
+                    ...shared,
+                    secondNineFlag: 0,
+                    unitCourseId: course.firstNineId,
+                    teeTime: startTime,
+                    createdAt: new Date(base + (l.sortOrder - 1) * 2),
+                }, { transaction });
+                records.push(first);
+                if (crossTime) {
+                    records.push(await Player.create({
+                        ...shared,
+                        secondNineFlag: 1,
+                        firstNinePlayerId: first.id,
+                        unitCourseId: course.secondNineId,
+                        teeTime: crossTime,
+                        createdAt: new Date(base + (l.sortOrder - 1) * 2 + 1),
+                    }, { transaction }));
+                }
+            }
             await FlightLock.destroy({ where: { companyId, groupId }, transaction });
 
             // ONE confirmation email addressed to every player with an
@@ -622,14 +677,13 @@ exports.create = async (req, res) => {
                 },
                 transaction,
             });
-            return { booking };
+            return { profile, records };
         });
 
         if (result.fail) return res.status(result.status).json({ message: result.fail });
-        const players = await BookingPlayer.findAll({ where: { bookingId: result.booking.id }, order: [['sortOrder', 'ASC']] });
         res.status(201).json({
-            message: `Booking ${result.booking.bookingNo} confirmed.`,
-            booking: bookingDto(result.booking, players, new Map([[course.id, course]])),
+            message: `Booking ${result.profile.bookingNo} confirmed.`,
+            booking: bookingDto(result.profile, result.records, new Map([[course.id, course]])),
         });
     } catch (error) {
         console.error('Error creating golf booking:', error);
@@ -645,23 +699,25 @@ exports.list = async (req, res) => {
         const playDate = String(req.query.playDate || '');
         if (!DATE_RE.test(playDate)) return res.status(400).json({ message: 'Pick a play date.' });
 
-        const rows = await Booking.findAll({
-            where: { companyId, playDate },
-            order: [['startTime', 'ASC'], ['bookingNo', 'ASC']],
-        });
+        const rows = await BookingProfile.findAll({ where: { companyId, playDate } });
         await annotateCanModify(req, rows);
-        const players = rows.length
-            ? await BookingPlayer.findAll({ where: { bookingId: { [Op.in]: rows.map((r) => r.id) } }, order: [['sortOrder', 'ASC']] })
+        const records = rows.length
+            ? await Player.findAll({
+                where: { bookingProfileId: { [Op.in]: rows.map((r) => r.id) } },
+                order: [['secondNineFlag', 'ASC'], ['createdAt', 'ASC'], ['id', 'ASC']],
+            })
             : [];
-        const byBooking = new Map();
-        for (const p of players) {
-            if (!byBooking.has(p.bookingId)) byBooking.set(p.bookingId, []);
-            byBooking.get(p.bookingId).push(p);
+        const byProfile = new Map();
+        for (const p of records) {
+            if (!byProfile.has(p.bookingProfileId)) byProfile.set(p.bookingProfileId, []);
+            byProfile.get(p.bookingProfileId).push(p);
         }
         const courses = await Course.findAll({ where: { companyId }, attributes: ['id', 'courseCode', 'description'] });
         const courseById = new Map(courses.map((c) => [c.id, c]));
+        const dtos = rows.map((b) => bookingDto(b, byProfile.get(b.id), courseById));
+        dtos.sort((a, b) => String(a.startTime || '').localeCompare(String(b.startTime || '')) || a.bookingNo.localeCompare(b.bookingNo));
         res.status(200).json({
-            bookings: rows.map((b) => bookingDto(b, byBooking.get(b.id), courseById)),
+            bookings: dtos,
             statuses: BOOKING_STATUSES,
             playerTypes: PLAYER_TYPES,
         });
@@ -671,50 +727,68 @@ exports.list = async (req, res) => {
     }
 };
 
-// POST /api/golf/bookings/:id/cancel - free the flight.
+// POST /api/golf/bookings/:id/cancel - free the flight. Cancels the profile
+// and its still-BOOKED player records (already-registered players stay - the
+// desk record reflects who physically plays).
 exports.cancel = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const booking = await Booking.findOne({ where: { companyId, id: req.params.id } });
-        if (!booking) return res.status(404).json({ message: 'Booking not found.' });
-        if (booking.status !== 'booked') return res.status(400).json({ message: 'Only a booked booking can be cancelled.' });
-        if (!(await canModifyRecord(req, booking))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const profile = await BookingProfile.findOne({ where: { companyId, id: req.params.id } });
+        if (!profile) return res.status(404).json({ message: 'Booking not found.' });
+        if (profile.status !== 'booked') return res.status(400).json({ message: 'Only a booked booking can be cancelled.' });
+        if (!(await canModifyRecord(req, profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
 
-        booking.status = 'cancelled';
-        booking.cancelledAt = new Date();
-        booking.cancelledBy = getUserContext(req).userId;
-        booking.cancelReason = req.body.reason ? String(req.body.reason).slice(0, 255) : null;
-        booking.updatedBy = getUserContext(req).userId;
+        const callerId = getUserContext(req).userId;
+        profile.status = 'cancelled';
+        profile.cancelledAt = new Date();
+        profile.cancelledBy = callerId;
+        profile.cancelReason = req.body.reason ? String(req.body.reason).slice(0, 255) : null;
+        profile.updatedBy = callerId;
 
         // Cancellation email to every member/member-guest player with an
         // address (name-only guests have none), atomic with the cancel.
-        const players = await BookingPlayer.findAll({ where: { bookingId: booking.id }, order: [['sortOrder', 'ASC']] });
+        const records = await Player.findAll({
+            where: { bookingProfileId: profile.id },
+            order: [['secondNineFlag', 'ASC'], ['createdAt', 'ASC'], ['id', 'ASC']],
+        });
+        const firsts = records.filter((r) => Number(r.secondNineFlag) === 0);
         const recipients = [];
-        for (const p of players) {
+        for (const p of firsts) {
             if (!p.memberNo) continue;
             const s = await getGolfMemberStanding(companyId, p.memberNo);
             if (s && s.email) recipients.push({ name: p.playerName, email: s.email });
         }
-        const course = await Course.findOne({ where: { companyId, id: booking.courseId } });
+        const course = await Course.findOne({ where: { companyId, id: profile.courseId } });
+        const startTime = firsts.length ? availability.hhmm(firsts[0].teeTime) : '';
         await sequelize.transaction(async (transaction) => {
-            await booking.save({ transaction });
+            await profile.save({ transaction });
+            await Player.update({
+                status: 'cancelled',
+                cancelledAt: new Date(),
+                cancelledBy: callerId,
+                cancelReason: profile.cancelReason,
+                updatedBy: callerId,
+            }, {
+                where: { bookingProfileId: profile.id, status: 'booked' },
+                transaction,
+            });
             await queueBookingEmail({
                 companyId,
                 templateKey: 'golf.booking.cancelled',
                 recipients,
                 data: {
-                    bookingNo: booking.bookingNo,
-                    playDateText: playDateText(String(booking.playDate)),
-                    teeTime: availability.hhmm(booking.startTime),
+                    bookingNo: profile.bookingNo,
+                    playDateText: playDateText(String(profile.playDate)),
+                    teeTime: startTime,
                     courseName: course ? `${course.courseCode}${course.description ? ' — ' + course.description : ''}` : '',
-                    cancelReason: booking.cancelReason || '',
-                    playersTable: playersTableHtml(players),
+                    cancelReason: profile.cancelReason || '',
+                    playersTable: playersTableHtml(firsts),
                 },
                 transaction,
             });
         });
-        res.status(200).json({ message: `Booking ${booking.bookingNo} cancelled.` });
+        res.status(200).json({ message: `Booking ${profile.bookingNo} cancelled.` });
     } catch (error) {
         console.error('Error cancelling golf booking:', error);
         res.status(500).json({ message: 'Internal server error' });

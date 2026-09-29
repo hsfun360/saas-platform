@@ -17,9 +17,6 @@ const PLAYER_TYPES = [
 const BOOKING_STATUS_KEYS = BOOKING_STATUSES.map((s) => s.key);
 const PLAYER_TYPE_KEYS = PLAYER_TYPES.map((t) => t.key);
 
-// The two nines of the per-nine tee-sheet model.
-const NINES = ['first', 'second'];
-
 const HOLES_OPTIONS = [9, 18];
 
 module.exports = {
@@ -27,6 +24,5 @@ module.exports = {
     BOOKING_STATUS_KEYS,
     PLAYER_TYPES,
     PLAYER_TYPE_KEYS,
-    NINES,
     HOLES_OPTIONS,
 };

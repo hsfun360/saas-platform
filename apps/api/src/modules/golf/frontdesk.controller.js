@@ -1,8 +1,11 @@
 // Golf Front Desk (Golf Management → /golf/front-desk) - registration,
-// billing and settlement (user decisions 2026-09-26):
-//   - REGISTRATION is per player (one RegistrationPlayer row, own
-//     Registration No.), from a booking line or as a WALK-IN (no booking;
-//     occupancy counts walk-ins; the desk checks SEATS only).
+// billing and settlement (user decisions 2026-09-26, revamped 2026-09-29 to
+// the per-nine golf.Player model):
+//   - REGISTRATION is per player: a BOOKED player's Player record flips
+//     booked -> registered (own Registration No. on the starting-nine
+//     record); a WALK-IN creates its Player record(s) directly as
+//     'registered'. Occupancy is one count over Player per nine-cell, so
+//     the desk and the booking channel can never oversell a nine.
 //   - BILLING is per player: green fee AUTO-charges by the golfer category
 //     living on the green-fee transaction type (members WITH golfing right
 //     pay none), tiles add further items, packages EXPLODE per the approved
@@ -23,16 +26,14 @@ const arGateway = require('../../platform/arGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const availability = require('./bookingAvailability.service');
 const { PLAYER_TYPES, PLAYER_TYPE_KEYS, HOLES_OPTIONS } = require('./booking.constants');
-const { REGISTRATION_STATUSES, BILL_STATUSES } = require('./registration.constants');
+const { PLAYER_STATUSES, BILL_STATUSES, ACTIVE_PLAYER_STATUS_KEYS } = require('./registration.constants');
 const { PACKAGE_CHARGE_TYPE_KEY, MATRIX_CHARGE_TYPE_KEYS } = require('./transactionType.constants');
-const Booking = require('./booking.model');
-const BookingPlayer = require('./bookingPlayer.model');
-const RegistrationPlayer = require('./registrationPlayer.model');
+const BookingProfile = require('./bookingProfile.model');
+const Player = require('./player.model');
 const Bill = require('./bill.model');
 const BillItem = require('./billItem.model');
 const BillPayment = require('./billPayment.model');
 const Course = require('./course.model');
-const CourseTeeTimeSlot = require('./courseTeeTimeSlot.model');
 const Golfer = require('./golfer.model');
 const OtherGolfer = require('./otherGolfer.model');
 const GolfTransactionType = require('./transactionType.model');
@@ -114,6 +115,20 @@ async function guestGolfer({ companyId, name, identityNo, mobile, email, stamps,
 }
 
 // ---------------------------------------------------------------------------
+// Player-pair helpers (starting-nine record + optional crossover record)
+
+// The crossover record of a starting-nine record (null for 9 holes).
+async function secondNineOf(playerId, { transaction } = {}) {
+    return Player.findOne({ where: { firstNinePlayerId: playerId }, transaction });
+}
+
+// { holes, crossTime } derived from the pair.
+async function playShapeOf(row, { transaction } = {}) {
+    const second = await secondNineOf(row.id, { transaction });
+    return { holes: second ? 18 : 9, crossTime: second ? availability.hhmm(second.teeTime) : null, second };
+}
+
+// ---------------------------------------------------------------------------
 // Pricing + tax helpers
 
 // The active rate card in force on the play date (latest effectiveDate <=).
@@ -125,8 +140,8 @@ async function rateFor(transactionTypeId, playDate, transaction) {
     });
 }
 
-// The unit price of a type for a registration (matrix cell by holes + day
-// type, or flatAmount). null = no price configured.
+// The unit price of a type for a play (matrix cell by holes + day type, or
+// flatAmount). null = no price configured.
 function unitPriceOf(type, rate, dayType, holes) {
     if (!rate) return null;
     if (MATRIX_CHARGE_TYPE_KEYS.includes(type.chargeType)) {
@@ -176,16 +191,17 @@ async function nextSortOrder(billId, transaction) {
     return (max || 0) + 1;
 }
 
-// Add ONE ordinary (non-package) item. Returns the created BillItem.
-async function addOrdinaryItem({ req, bill, registration, type, quantity, dayType, stamps, transaction, allowMissingPrice = false }) {
-    const rate = await rateFor(type.id, registration.playDate, transaction);
-    const unit = unitPriceOf(type, rate, dayType, registration.holes);
+// Add ONE ordinary (non-package) item. `play` = { playDate, holes } of the
+// billed player. Returns the created BillItem.
+async function addOrdinaryItem({ req, bill, play, type, quantity, dayType, stamps, transaction, allowMissingPrice = false }) {
+    const rate = await rateFor(type.id, play.playDate, transaction);
+    const unit = unitPriceOf(type, rate, dayType, play.holes);
     if (unit === null && !type.allowPriceOverride && !allowMissingPrice) {
-        return { error: `'${type.transactionType}' has no price in force for ${registration.playDate} - set up its pricing first.` };
+        return { error: `'${type.transactionType}' has no price in force for ${play.playDate} - set up its pricing first.` };
     }
     const unitAmount = unit === null ? 0 : unit;
     const amount = round2(unitAmount * quantity);
-    const tax = await quoteItemTax(req, type.taxSchemeCode, amount, registration.playDate);
+    const tax = await quoteItemTax(req, type.taxSchemeCode, amount, play.playDate);
     const sortOrder = await nextSortOrder(bill.id, transaction);
     const item = await BillItem.create({
         billId: bill.id,
@@ -207,11 +223,11 @@ async function addOrdinaryItem({ req, bill, registration, type, quantity, dayTyp
 // (approved spec): package price from its flat rate; the PACKAGE's tax scheme
 // on every generated line; the LAST line's tax adjusted so the group's tax
 // equals the tax computed directly on the package amount.
-async function addPackageItems({ req, bill, registration, type, stamps, transaction }) {
-    const rate = await rateFor(type.id, registration.playDate, transaction);
+async function addPackageItems({ req, bill, play, type, stamps, transaction }) {
+    const rate = await rateFor(type.id, play.playDate, transaction);
     const packagePrice = rate && rate.flatAmount !== null ? Number(rate.flatAmount) : null;
     if (packagePrice === null) {
-        return { error: `Package '${type.transactionType}' has no price in force for ${registration.playDate}.` };
+        return { error: `Package '${type.transactionType}' has no price in force for ${play.playDate}.` };
     }
     const elements = await GolfTransactionTypeElement.findAll({
         where: { transactionTypeId: type.id },
@@ -241,8 +257,8 @@ async function addPackageItems({ req, bill, registration, type, stamps, transact
 
     // Package tax on each line + the direct tax on the package amount.
     const taxes = [];
-    for (const line of lines) taxes.push(await quoteItemTax(req, type.taxSchemeCode, line.amount, registration.playDate));
-    const target = await quoteItemTax(req, type.taxSchemeCode, packagePrice, registration.playDate);
+    for (const line of lines) taxes.push(await quoteItemTax(req, type.taxSchemeCode, line.amount, play.playDate));
+    const target = await quoteItemTax(req, type.taxSchemeCode, packagePrice, play.playDate);
     const lineTaxSum = round2(taxes.reduce((s, t) => s + t.taxAmount, 0));
     const adjust = round2(target.taxAmount - lineTaxSum);
     if (adjust !== 0 && taxes.length) {
@@ -280,22 +296,23 @@ async function addPackageItems({ req, bill, registration, type, stamps, transact
 // ---------------------------------------------------------------------------
 // DTOs
 
-function registrationDto(r) {
+// A registered player's registration view - the Player record itself plus
+// the pair-derived crossTime/holes.
+function registrationDto(row, shape) {
     return {
-        id: r.id,
-        registrationNo: r.registrationNo,
-        bookingId: r.bookingId,
-        bookingPlayerId: r.bookingPlayerId,
-        courseId: r.courseId,
-        playDate: r.playDate,
-        teeTime: availability.hhmm(r.teeTime),
-        crossTime: availability.hhmm(r.crossTime),
-        holes: r.holes,
-        golferId: r.golferId,
-        playerType: r.playerType,
-        playerName: r.playerName,
-        memberNo: r.memberNo,
-        status: r.status,
+        id: row.id,
+        registrationNo: row.registrationNo,
+        bookingProfileId: row.bookingProfileId,
+        courseId: row.courseId,
+        playDate: row.playDate,
+        teeTime: availability.hhmm(row.teeTime),
+        crossTime: shape ? shape.crossTime : null,
+        holes: shape ? shape.holes : 9,
+        golferId: row.golferId,
+        playerType: row.playerType,
+        playerName: row.playerName,
+        memberNo: row.memberNo,
+        status: row.status,
     };
 }
 
@@ -338,7 +355,7 @@ async function billDto(bill, { transaction } = {}) {
     return {
         id: bill.id,
         billNo: bill.billNo,
-        registrationPlayerId: bill.registrationPlayerId,
+        playerId: bill.playerId,
         billDate: bill.billDate,
         status: bill.status,
         totalAmount: Number(bill.totalAmount),
@@ -352,10 +369,11 @@ async function billDto(bill, { transaction } = {}) {
 // ---------------------------------------------------------------------------
 // GET /front-desk/day?playDate= - the TEE SHEET (user request 2026-09-27):
 // per course, EVERY flight time of the day's tee-time set with capacity,
-// occupancy and closure state, the booked/walk-in players overlaid with their
-// registration/bill state, and 18H crossover claims counted so seats stay
-// honest. Availability shown here is display-level (start-cell seats); the
-// register endpoints re-check the authoritative rules.
+// occupancy and closure state. A course's column is the timeline of its
+// FIRST nine, so crossover arrivals from ANOTHER course landing on that nine
+// appear (and consume seats) in this course's cells - the user's 2026-09-29
+// requirement. Availability shown here is display-level; the register
+// endpoints re-check the authoritative rules.
 exports.getDay = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
@@ -364,86 +382,67 @@ exports.getDay = async (req, res) => {
         if (!DATE_RE.test(playDate)) return res.status(400).json({ message: 'Pick a play date.' });
         const dayType = await dayTypeOf(req, playDate);
 
-        const [bookings, registrations, courses] = await Promise.all([
-            Booking.findAll({ where: { companyId, playDate, status: 'booked' }, order: [['startTime', 'ASC']] }),
-            RegistrationPlayer.findAll({ where: { companyId, playDate }, order: [['registeredAt', 'ASC']] }),
+        const [records, profiles, courses] = await Promise.all([
+            Player.findAll({
+                where: { companyId, playDate, status: { [Op.in]: ACTIVE_PLAYER_STATUS_KEYS } },
+                order: [['createdAt', 'ASC'], ['id', 'ASC']],
+            }),
+            BookingProfile.findAll({ where: { companyId, playDate } }),
             Course.findAll({
                 where: { companyId },
-                attributes: ['id', 'courseCode', 'description', 'isActive'],
+                attributes: ['id', 'courseCode', 'description', 'isActive', 'firstNineId', 'secondNineId', 'crossOverMinutes', 'displaySequence'],
                 order: [['displaySequence', 'ASC'], ['courseCode', 'ASC']],
             }),
         ]);
-        const players = bookings.length
-            ? await BookingPlayer.findAll({ where: { bookingId: { [Op.in]: bookings.map((b) => b.id) } }, order: [['sortOrder', 'ASC']] })
+        const profileById = new Map(profiles.map((b) => [b.id, b]));
+        const firsts = records.filter((r) => Number(r.secondNineFlag) === 0);
+        const seconds = records.filter((r) => Number(r.secondNineFlag) === 1);
+        const secondByFirst = new Map(seconds.map((r) => [r.firstNinePlayerId, r]));
+        const bills = firsts.length
+            ? await Bill.findAll({ where: { companyId, playerId: { [Op.in]: firsts.map((r) => r.id) }, status: { [Op.ne]: 'voided' } } })
             : [];
-        const bills = registrations.length
-            ? await Bill.findAll({ where: { companyId, registrationPlayerId: { [Op.in]: registrations.map((r) => r.id) }, status: { [Op.ne]: 'voided' } } })
-            : [];
-        const regByBookingPlayer = new Map(registrations.filter((r) => r.bookingPlayerId && r.status === 'registered').map((r) => [r.bookingPlayerId, r]));
-        const billByRegistration = new Map(bills.map((b) => [b.registrationPlayerId, b]));
+        const billByPlayer = new Map(bills.map((b) => [b.playerId, b]));
 
-        // Entries per start cell (courseId|HH:MM) + crossover player counts
-        // per landing cell - both feed the per-slot rows below.
+        // Entries per NINE-cell (unitCourseId|HH:MM) from starting-nine
+        // records + crossover arrival counts per landing cell.
         const entriesByCell = new Map();
-        const cellEntries = (courseId, teeTime) => {
-            const key = `${courseId}|${availability.hhmm(teeTime)}`;
+        for (const r of firsts) {
+            const key = availability.nineKey(r.unitCourseId, r.teeTime);
             if (!entriesByCell.has(key)) entriesByCell.set(key, []);
-            return entriesByCell.get(key);
-        };
-        const crossByCell = new Map();
-        const bumpCross = (courseId, crossTime, n) => {
-            const key = `${courseId}|${availability.hhmm(crossTime)}`;
-            crossByCell.set(key, (crossByCell.get(key) || 0) + n);
-        };
-
-        const bookingById = new Map(bookings.map((b) => [b.id, b]));
-        const playersByBooking = new Map();
-        for (const p of players) playersByBooking.set(p.bookingId, (playersByBooking.get(p.bookingId) || 0) + 1);
-        for (const b of bookings) {
-            if (b.crossTime) bumpCross(b.courseId, b.crossTime, playersByBooking.get(b.id) || 0);
-        }
-        for (const p of players) {
-            const booking = bookingById.get(p.bookingId);
-            if (!booking) continue;
-            const reg = regByBookingPlayer.get(p.id) || null;
-            const bill = reg ? billByRegistration.get(reg.id) || null : null;
-            cellEntries(booking.courseId, booking.startTime).push({
-                kind: 'booked',
-                bookingId: booking.id,
-                bookingNo: booking.bookingNo,
-                bookingPlayerId: p.id,
-                playerType: p.playerType,
-                playerName: p.playerName,
-                memberNo: p.memberNo,
-                holes: booking.holes,
-                registration: reg ? registrationDto(reg) : null,
-                bill: bill ? { id: bill.id, billNo: bill.billNo, status: bill.status, totalAmount: Number(bill.totalAmount) } : null,
-            });
-        }
-        for (const r of registrations) {
-            if (r.bookingId || r.status !== 'registered') continue; // walk-ins only
-            if (r.crossTime) bumpCross(r.courseId, r.crossTime, 1);
-            const bill = billByRegistration.get(r.id) || null;
-            cellEntries(r.courseId, r.teeTime).push({
-                kind: 'walkin',
+            const profile = r.bookingProfileId ? profileById.get(r.bookingProfileId) : null;
+            const second = secondByFirst.get(r.id) || null;
+            const bill = billByPlayer.get(r.id) || null;
+            const shape = { holes: second ? 18 : 9, crossTime: second ? availability.hhmm(second.teeTime) : null };
+            entriesByCell.get(key).push({
+                kind: r.bookingProfileId ? 'booked' : 'walkin',
+                bookingProfileId: r.bookingProfileId,
+                bookingNo: profile ? profile.bookingNo : null,
+                playerId: r.id,
                 playerType: r.playerType,
                 playerName: r.playerName,
                 memberNo: r.memberNo,
-                holes: r.holes,
-                registration: registrationDto(r),
+                holes: shape.holes,
+                registration: r.status === 'registered' ? registrationDto(r, shape) : null,
                 bill: bill ? { id: bill.id, billNo: bill.billNo, status: bill.status, totalAmount: Number(bill.totalAmount) } : null,
             });
         }
+        const crossByCell = new Map();
+        for (const r of seconds) {
+            const key = availability.nineKey(r.unitCourseId, r.teeTime);
+            crossByCell.set(key, (crossByCell.get(key) || 0) + 1);
+        }
 
-        const occ = await availability.occupancy(companyId, courses.map((c) => c.id), playDate);
+        const ctx = await availability.dayContext(companyId, playDate, dayType, {
+            courses: courses.filter((c) => c.isActive),
+        });
 
+        const consumed = new Set();
         const sheets = [];
         for (const course of courses) {
-            const set = course.isActive ? await availability.resolveTeeTimeSet(course.id, dayType, playDate) : null;
-            const blocks = set ? await availability.closureBlocks(course.id, playDate) : [];
-            const slots = set
-                ? await CourseTeeTimeSlot.findAll({ where: { teeTimeSetId: set.id }, order: [['teeTime', 'ASC']] })
-                : [];
+            const day = ctx.byCourse.get(course.id) || null;
+            const set = day ? day.set : null;
+            const slots = day ? day.slots : [];
+            const blocks = day ? day.blocks : [];
 
             const flights = [];
             const onGrid = new Set();
@@ -452,8 +451,10 @@ exports.getDay = async (req, res) => {
                 onGrid.add(teeTime);
                 const t = availability.toMinutes(slot.teeTime);
                 const closed = availability.nineBlocked(blocks, 'first', t);
-                const startOcc = occ.get(availability.cellKey(course.id, 'first', teeTime));
-                const seatsTaken = startOcc ? startOcc.players : 0;
+                const key = availability.nineKey(course.firstNineId, teeTime);
+                consumed.add(key);
+                const entries = entriesByCell.get(key) || [];
+                const crossCount = crossByCell.get(key) || 0;
                 const crossoverOnly = slot.isCrossoverOnly === true;
                 flights.push({
                     teeTime,
@@ -461,17 +462,19 @@ exports.getDay = async (req, res) => {
                     isFrontDesk: slot.isFrontDesk === true,
                     crossoverOnly,
                     closed,
-                    seatsTaken,
-                    seatsLeft: closed || crossoverOnly ? 0 : Math.max(0, slot.maxPlayers - seatsTaken),
-                    crossCount: crossByCell.get(`${course.id}|${teeTime}`) || 0,
-                    entries: entriesByCell.get(`${course.id}|${teeTime}`) || [],
+                    seatsTaken: entries.length,
+                    seatsLeft: closed || crossoverOnly ? 0 : Math.max(0, slot.maxPlayers - entries.length - crossCount),
+                    crossCount,
+                    entries,
                 });
             }
-            // Defensive: entries at times no longer on the grid (set edited
-            // after booking) still show, as unbookable off-grid rows.
+            // Defensive: entries on this course's first nine at times no
+            // longer on the grid (set edited after booking) still show, as
+            // unbookable off-grid rows.
             for (const [key, entries] of entriesByCell) {
-                const [cid, teeTime] = key.split('|');
-                if (cid !== course.id || onGrid.has(teeTime)) continue;
+                const [nineId, teeTime] = key.split('|');
+                if (nineId !== course.firstNineId || onGrid.has(teeTime) || consumed.has(key)) continue;
+                consumed.add(key);
                 flights.push({
                     teeTime, maxPlayers: null, isFrontDesk: false, crossoverOnly: false, closed: false,
                     seatsTaken: entries.length, seatsLeft: 0, offGrid: true,
@@ -528,7 +531,7 @@ exports.getMeta = async (req, res) => {
             courses,
             playerTypes: PLAYER_TYPES,
             holesOptions: HOLES_OPTIONS,
-            registrationStatuses: REGISTRATION_STATUSES,
+            playerStatuses: PLAYER_STATUSES,
             billStatuses: BILL_STATUSES,
         });
     } catch (error) {
@@ -567,48 +570,47 @@ async function resolvePlayerIdentity({ req, companyId, playerType, memberNo, gue
     return { golfer, playerName: standing.name, memberNo: standing.memberNo, standing };
 }
 
-// Register ONE booked player line inside `transaction` - shared by the single
-// register endpoint and the bulk flight/booking registration. Returns { row }
-// or { fail, status }.
-async function registerBookedLine({ req, companyId, bp, booking, guest, manualRegistrationNo, stamps, transaction }) {
+// Register ONE booked Player record inside `transaction` - shared by the
+// single register endpoint and the bulk flight/booking registration. Flips
+// booked -> registered on BOTH records of the pair; the Registration No.
+// lives on the starting-nine record. Returns { row, shape } or
+// { fail, status }.
+async function registerBookedRecord({ req, companyId, row, guest, manualRegistrationNo, stamps, transaction }) {
     const identity = await resolvePlayerIdentity({
-        req, companyId, playerType: bp.playerType, memberNo: bp.memberNo,
-        guest, fallbackName: bp.playerName, stamps, transaction,
+        req, companyId, playerType: row.playerType, memberNo: row.memberNo,
+        guest, fallbackName: row.playerName, stamps, transaction,
     });
     if (identity.error) return { fail: identity.error, status: 400 };
-    if (bp.playerType === 'guest' && !bp.golferId) {
-        bp.golferId = identity.golfer.id;
-        await bp.save({ transaction });
-    }
     const issued = await numberingGateway.issueNumber(req, 'golf-registration', { transaction });
     let registrationNo = issued && issued.number ? issued.number : null;
     if (!registrationNo) {
         if (issued && issued.manual) registrationNo = String(manualRegistrationNo || '').trim();
         if (!registrationNo) return { fail: 'Configure the Registration No. numbering scheme first (Golf Management → Numbering Control).', status: 400 };
     }
-    const row = await RegistrationPlayer.create({
-        companyId,
-        registrationNo,
-        bookingId: booking.id,
-        bookingPlayerId: bp.id,
-        courseId: booking.courseId,
-        playDate: booking.playDate,
-        nine: booking.startNine,
-        teeTime: booking.startTime,
-        crossNine: booking.crossNine,
-        crossTime: booking.crossTime,
-        holes: booking.holes,
-        golferId: identity.golfer.id,
-        playerType: bp.playerType,
-        playerName: identity.playerName,
-        memberNo: identity.memberNo,
-        ...stamps,
-    }, { transaction });
-    return { row };
+    const now = new Date();
+    row.golferId = identity.golfer.id;
+    row.playerName = identity.playerName;
+    row.memberNo = identity.memberNo;
+    row.registrationNo = registrationNo;
+    row.status = 'registered';
+    row.registeredAt = now;
+    row.updatedBy = stamps.updatedBy;
+    await row.save({ transaction });
+    const second = await secondNineOf(row.id, { transaction });
+    if (second) {
+        second.golferId = identity.golfer.id;
+        second.playerName = identity.playerName;
+        second.memberNo = identity.memberNo;
+        second.status = 'registered';
+        second.registeredAt = now;
+        second.updatedBy = stamps.updatedBy;
+        await second.save({ transaction });
+    }
+    return { row, shape: { holes: second ? 18 : 9, crossTime: second ? availability.hhmm(second.teeTime) : null } };
 }
 
 // POST /front-desk/registrations - register a BOOKED player
-// ({ bookingPlayerId, guest? }) or a WALK-IN ({ walkIn: { playDate, courseId,
+// ({ playerId, guest? }) or a WALK-IN ({ walkIn: { playDate, courseId,
 // teeTime, holes, playerType, memberNo?, guest? } }).
 exports.register = async (req, res) => {
     try {
@@ -617,20 +619,22 @@ exports.register = async (req, res) => {
         const stamps = await callerStamps(req);
 
         // ---- booked-player path ----
-        if (req.body.bookingPlayerId) {
-            const bp = await BookingPlayer.findByPk(String(req.body.bookingPlayerId));
-            const booking = bp ? await Booking.findOne({ where: { companyId, id: bp.bookingId } }) : null;
-            if (!bp || !booking) return res.status(404).json({ message: 'Booking player not found.' });
-            if (booking.status !== 'booked') return res.status(400).json({ message: 'This booking is cancelled.' });
-            const existing = await RegistrationPlayer.findOne({ where: { bookingPlayerId: bp.id, status: 'registered' } });
-            if (existing) return res.status(409).json({ message: `${bp.playerName} is already registered (${existing.registrationNo}).` });
+        if (req.body.playerId) {
+            const row = await Player.findOne({
+                where: { companyId, id: String(req.body.playerId), secondNineFlag: 0 },
+            });
+            const profile = row && row.bookingProfileId ? await BookingProfile.findOne({ where: { companyId, id: row.bookingProfileId } }) : null;
+            if (!row || !profile) return res.status(404).json({ message: 'Booked player not found.' });
+            if (profile.status !== 'booked') return res.status(400).json({ message: 'This booking is cancelled.' });
+            if (row.status === 'registered') return res.status(409).json({ message: `${row.playerName} is already registered (${row.registrationNo}).` });
+            if (row.status !== 'booked') return res.status(400).json({ message: `This player is ${row.status}.` });
 
-            const result = await sequelize.transaction(async (transaction) => registerBookedLine({
-                req, companyId, bp, booking, guest: req.body.guest,
+            const result = await sequelize.transaction(async (transaction) => registerBookedRecord({
+                req, companyId, row, guest: req.body.guest,
                 manualRegistrationNo: req.body.registrationNo, stamps, transaction,
             }));
             if (result.fail) return res.status(result.status).json({ message: result.fail });
-            return res.status(201).json({ message: `Registered ${result.row.playerName} (${result.row.registrationNo}).`, registration: registrationDto(result.row) });
+            return res.status(201).json({ message: `Registered ${result.row.playerName} (${result.row.registrationNo}).`, registration: registrationDto(result.row, result.shape) });
         }
 
         // ---- walk-in path ----
@@ -649,18 +653,17 @@ exports.register = async (req, res) => {
 
         const result = await sequelize.transaction(async (transaction) => {
             await sequelize.query('SELECT pg_advisory_xact_lock(hashtext(:key))', {
-                replacements: { key: `golf-booking:${companyId}:${course.id}:${playDate}` },
+                replacements: { key: `golf-booking:${companyId}:${playDate}` },
                 transaction,
             });
 
             // Seat check ONLY (desk is authoritative; merge/min/guest rules
             // are booking-channel controls). The flight must exist on the
-            // grid with a free seat - the crossover leg too for 18 holes.
-            const set = await availability.resolveTeeTimeSet(course.id, dayType, playDate);
-            if (!set) return { fail: 'No tee sheet is configured for this course on that date.', status: 400 };
-            const CourseTeeTimeSlot = require('./courseTeeTimeSlot.model');
-            const slots = await CourseTeeTimeSlot.findAll({ where: { teeTimeSetId: set.id }, order: [['teeTime', 'ASC']], transaction });
-            const slot = slots.find((s) => availability.hhmm(s.teeTime) === teeTime);
+            // grid with a free NINE seat - the crossover landing too for 18.
+            const ctx = await availability.dayContext(companyId, playDate, dayType, { transaction });
+            const day = ctx.byCourse.get(course.id);
+            if (!day || !day.set || !day.slots.length) return { fail: 'No tee sheet is configured for this course on that date.', status: 400 };
+            const slot = day.slots.find((s) => availability.hhmm(s.teeTime) === teeTime);
             if (!slot) return { fail: 'That flight time is not on the tee sheet.', status: 400 };
             // Crossover-only slots take NO new tee-offs from any channel -
             // they exist as second-nine landing times (2026-09-28). The
@@ -668,19 +671,17 @@ exports.register = async (req, res) => {
             if (slot.isCrossoverOnly === true) {
                 return { fail: 'That flight time is closed for crossover - no new tee-offs.', status: 400 };
             }
-            const occ = await availability.occupancy(companyId, [course.id], playDate, { transaction });
-            const startOcc = occ.get(availability.cellKey(course.id, 'first', teeTime));
+            const occ = await availability.occupancy(companyId, playDate, { transaction });
+            const startOcc = occ.get(availability.nineKey(course.firstNineId, teeTime));
             if ((startOcc ? startOcc.players : 0) >= slot.maxPlayers) return { fail: 'That flight is full.', status: 409 };
-            let crossNine = null;
             let crossTime = null;
             if (holes === 18) {
                 const t = availability.toMinutes(teeTime);
-                const crossSlot = slots.find((s) => availability.toMinutes(s.teeTime) >= t + (course.crossOverMinutes || 0));
-                if (!crossSlot) return { fail: 'No crossover flight remains for 18 holes at that time.', status: 400 };
-                crossNine = 'second';
-                crossTime = availability.hhmm(crossSlot.teeTime);
-                const crossOcc = occ.get(availability.cellKey(course.id, 'second', crossTime));
-                if ((crossOcc ? crossOcc.players : 0) >= crossSlot.maxPlayers) return { fail: 'The crossover flight is full.', status: 409 };
+                const target = availability.crossTarget(ctx, course, t);
+                if (!target) return { fail: 'No crossover flight remains for 18 holes at that time.', status: 400 };
+                crossTime = availability.hhmm(target.slot.teeTime);
+                const crossOcc = occ.get(availability.nineKey(course.secondNineId, crossTime));
+                if ((crossOcc ? crossOcc.players : 0) >= target.slot.maxPlayers) return { fail: 'The crossover flight is full.', status: 409 };
             }
 
             const identity = await resolvePlayerIdentity({
@@ -694,41 +695,54 @@ exports.register = async (req, res) => {
                 if (issued && issued.manual) registrationNo = String(req.body.registrationNo || '').trim();
                 if (!registrationNo) return { fail: 'Configure the Registration No. numbering scheme first (Golf Management → Numbering Control).', status: 400 };
             }
-            const row = await RegistrationPlayer.create({
+            const now = new Date();
+            const shared = {
                 companyId,
-                registrationNo,
-                bookingId: null,
-                bookingPlayerId: null,
+                bookingProfileId: null,
                 courseId: course.id,
                 playDate,
-                nine: 'first',
-                teeTime,
-                crossNine,
-                crossTime,
-                holes,
                 golferId: identity.golfer.id,
                 playerType,
                 playerName: identity.playerName,
                 memberNo: identity.memberNo,
+                status: 'registered',
+                registeredAt: now,
                 ...stamps,
+            };
+            const row = await Player.create({
+                ...shared,
+                secondNineFlag: 0,
+                unitCourseId: course.firstNineId,
+                teeTime,
+                registrationNo,
             }, { transaction });
-            return { row };
+            if (crossTime) {
+                await Player.create({
+                    ...shared,
+                    secondNineFlag: 1,
+                    firstNinePlayerId: row.id,
+                    unitCourseId: course.secondNineId,
+                    teeTime: crossTime,
+                }, { transaction });
+            }
+            return { row, shape: { holes, crossTime } };
         });
         if (result.fail) return res.status(result.status).json({ message: result.fail });
-        res.status(201).json({ message: `Registered ${result.row.playerName} (${result.row.registrationNo}).`, registration: registrationDto(result.row) });
+        res.status(201).json({ message: `Registered ${result.row.playerName} (${result.row.registrationNo}).`, registration: registrationDto(result.row, result.shape) });
     } catch (error) {
         console.error('Error registering golf player:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// POST /front-desk/register-flight { playDate, courseId, teeTime, bookingId? }
-// Bulk registration (user request 2026-09-27): register every not-yet-
-// registered booked player of the flight - or of ONE booking in it when
-// `bookingId` narrows it. Guests register NAME-ONLY (user decision: no
-// identity prompt at bulk speed; the profile can be completed later). Each
-// player registers in its OWN transaction so one barred member or numbering
-// hiccup never blocks the rest; the result reports registered vs skipped.
+// POST /front-desk/register-flight { playDate, courseId, teeTime,
+// bookingProfileId? } - bulk registration (user request 2026-09-27):
+// register every still-BOOKED player of the flight - or of ONE booking in it
+// when `bookingProfileId` narrows it. Guests register NAME-ONLY (user
+// decision: no identity prompt at bulk speed; the profile can be completed
+// later). Each player registers in its OWN transaction so one barred member
+// or numbering hiccup never blocks the rest; the result reports registered
+// vs skipped.
 exports.registerFlight = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
@@ -741,44 +755,49 @@ exports.registerFlight = async (req, res) => {
         }
         const stamps = await callerStamps(req);
 
-        const dayBookings = await Booking.findAll({ where: { companyId, courseId, playDate, status: 'booked' } });
-        let flightBookings = dayBookings.filter((b) => availability.hhmm(b.startTime) === teeTime);
-        const bookingId = req.body.bookingId ? String(req.body.bookingId) : null;
-        if (bookingId) flightBookings = flightBookings.filter((b) => b.id === bookingId);
-        if (!flightBookings.length) return res.status(404).json({ message: 'No active booking on that flight.' });
-
-        const lines = await BookingPlayer.findAll({
-            where: { bookingId: { [Op.in]: flightBookings.map((b) => b.id) } },
-            order: [['sortOrder', 'ASC']],
-        });
-        const existing = await RegistrationPlayer.findAll({
-            where: { bookingPlayerId: { [Op.in]: lines.map((l) => l.id) }, status: 'registered' },
-            attributes: ['bookingPlayerId'],
-        });
-        const already = new Set(existing.map((r) => r.bookingPlayerId));
-        const todo = lines.filter((l) => !already.has(l.id));
-        if (!todo.length) {
+        const where = {
+            companyId,
+            playDate,
+            courseId,
+            secondNineFlag: 0,
+            status: 'booked',
+            bookingProfileId: { [Op.ne]: null },
+        };
+        const profileId = req.body.bookingProfileId ? String(req.body.bookingProfileId) : null;
+        if (profileId) where.bookingProfileId = profileId;
+        const candidates = (await Player.findAll({ where, order: [['createdAt', 'ASC'], ['id', 'ASC']] }))
+            .filter((r) => availability.hhmm(r.teeTime) === teeTime);
+        if (!candidates.length) {
             return res.status(200).json({ message: 'Everyone here is already registered.', registered: [], skipped: [] });
         }
+        const profiles = await BookingProfile.findAll({
+            where: { companyId, id: { [Op.in]: [...new Set(candidates.map((r) => r.bookingProfileId))] } },
+        });
+        const profileById = new Map(profiles.map((p) => [p.id, p]));
 
-        const bookingById = new Map(flightBookings.map((b) => [b.id, b]));
         const registered = [];
         const skipped = [];
-        for (const bp of todo) {
-            const booking = bookingById.get(bp.bookingId);
+        for (const candidate of candidates) {
+            const profile = profileById.get(candidate.bookingProfileId);
+            if (!profile || profile.status !== 'booked') {
+                skipped.push({ playerName: candidate.playerName, reason: 'booking cancelled' });
+                continue;
+            }
             try {
                 const result = await sequelize.transaction(async (transaction) => {
                     // Race re-check inside the tx - a colleague may have just
-                    // registered this line from another terminal.
-                    const again = await RegistrationPlayer.findOne({ where: { bookingPlayerId: bp.id, status: 'registered' }, transaction });
-                    if (again) return { fail: `already registered (${again.registrationNo})` };
-                    return registerBookedLine({ req, companyId, bp, booking, guest: null, stamps, transaction });
+                    // registered this player from another terminal.
+                    const row = await Player.findOne({ where: { id: candidate.id }, transaction });
+                    if (!row || row.status !== 'booked') {
+                        return { fail: row && row.status === 'registered' ? `already registered (${row.registrationNo})` : 'no longer booked' };
+                    }
+                    return registerBookedRecord({ req, companyId, row, guest: null, stamps, transaction });
                 });
-                if (result.fail) skipped.push({ playerName: bp.playerName, reason: result.fail });
+                if (result.fail) skipped.push({ playerName: candidate.playerName, reason: result.fail });
                 else registered.push({ playerName: result.row.playerName, registrationNo: result.row.registrationNo });
             } catch (e) {
                 console.error('Bulk registration line failed:', e);
-                skipped.push({ playerName: bp.playerName, reason: 'registration failed' });
+                skipped.push({ playerName: candidate.playerName, reason: 'registration failed' });
             }
         }
         const message = skipped.length
@@ -791,25 +810,47 @@ exports.registerFlight = async (req, res) => {
     }
 };
 
-// POST /front-desk/registrations/:id/cancel
+// POST /front-desk/registrations/:id/cancel - :id is the starting-nine
+// Player record. A BOOKED player's registration cancel reverts the pair to
+// 'booked' (the seat stays held by the booking); a WALK-IN cancels outright
+// (the seat frees). Both records of the pair move together.
 exports.cancelRegistration = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const row = await RegistrationPlayer.findOne({ where: { companyId, id: req.params.id } });
+        const row = await Player.findOne({ where: { companyId, id: req.params.id, secondNineFlag: 0 } });
         if (!row) return res.status(404).json({ message: 'Registration not found.' });
-        if (row.status !== 'registered') return res.status(400).json({ message: 'This registration is already cancelled.' });
+        if (row.status !== 'registered') return res.status(400).json({ message: 'This player is not registered.' });
         if (!(await canModifyRecord(req, row))) return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
-        const bill = await Bill.findOne({ where: { companyId, registrationPlayerId: row.id, status: { [Op.ne]: 'voided' } } });
+        const bill = await Bill.findOne({ where: { companyId, playerId: row.id, status: { [Op.ne]: 'voided' } } });
         if (bill) return res.status(409).json({ message: `Bill ${bill.billNo} exists for this registration - void it first.` });
 
-        row.status = 'cancelled';
-        row.cancelledAt = new Date();
-        row.cancelledBy = getUserContext(req).userId;
-        row.cancelReason = req.body.reason ? String(req.body.reason).slice(0, 255) : null;
-        row.updatedBy = getUserContext(req).userId;
-        await row.save();
-        res.status(200).json({ message: `Registration ${row.registrationNo} cancelled.` });
+        const callerId = getUserContext(req).userId;
+        const reason = req.body.reason ? String(req.body.reason).slice(0, 255) : null;
+        const registrationNo = row.registrationNo;
+        const walkIn = !row.bookingProfileId;
+        await sequelize.transaction(async (transaction) => {
+            const second = await secondNineOf(row.id, { transaction });
+            for (const r of [row, second].filter(Boolean)) {
+                if (walkIn) {
+                    r.status = 'cancelled';
+                    r.cancelledAt = new Date();
+                    r.cancelledBy = callerId;
+                    r.cancelReason = reason;
+                } else {
+                    r.status = 'booked';
+                    r.registrationNo = null;
+                    r.registeredAt = null;
+                }
+                r.updatedBy = callerId;
+                await r.save({ transaction });
+            }
+        });
+        res.status(200).json({
+            message: walkIn
+                ? `Registration ${registrationNo} cancelled.`
+                : `Registration ${registrationNo} cancelled - ${row.playerName} is back to booked.`,
+        });
     } catch (error) {
         console.error('Error cancelling golf registration:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -819,22 +860,25 @@ exports.cancelRegistration = async (req, res) => {
 // ---------------------------------------------------------------------------
 // Billing
 
-// POST /front-desk/registrations/:id/bills - get-or-create the player's bill.
-// On CREATE the green fee auto-charges by the golfer category on the active
-// green-fee transaction type (members WITH golfing right pay none).
+// POST /front-desk/registrations/:id/bills - get-or-create the player's bill
+// (:id = the starting-nine Player record). On CREATE the green fee
+// auto-charges by the golfer category on the active green-fee transaction
+// type (members WITH golfing right pay none).
 exports.openBill = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const registration = await RegistrationPlayer.findOne({ where: { companyId, id: req.params.id } });
+        const registration = await Player.findOne({ where: { companyId, id: req.params.id, secondNineFlag: 0 } });
         if (!registration) return res.status(404).json({ message: 'Registration not found.' });
-        if (registration.status !== 'registered') return res.status(400).json({ message: 'This registration is cancelled.' });
+        if (registration.status !== 'registered') return res.status(400).json({ message: 'This player is not registered.' });
 
-        const existing = await Bill.findOne({ where: { companyId, registrationPlayerId: registration.id, status: { [Op.ne]: 'voided' } } });
+        const existing = await Bill.findOne({ where: { companyId, playerId: registration.id, status: { [Op.ne]: 'voided' } } });
         if (existing) return res.status(200).json({ bill: await billDto(existing), warnings: [] });
 
         const stamps = await callerStamps(req);
         const dayType = await dayTypeOf(req, String(registration.playDate));
+        const shape = await playShapeOf(registration);
+        const play = { playDate: String(registration.playDate), holes: shape.holes };
         const warnings = [];
 
         const result = await sequelize.transaction(async (transaction) => {
@@ -847,7 +891,7 @@ exports.openBill = async (req, res) => {
             const bill = await Bill.create({
                 companyId,
                 billNo,
-                registrationPlayerId: registration.id,
+                playerId: registration.id,
                 golferId: registration.golferId,
                 billDate: registration.playDate,
                 ...stamps,
@@ -869,11 +913,11 @@ exports.openBill = async (req, res) => {
                     warnings.push(`No active green-fee transaction type for '${category}' - green fee not auto-charged.`);
                 } else {
                     const added = await addOrdinaryItem({
-                        req, bill, registration, type: gfType, quantity: 1, dayType, stamps, transaction, allowMissingPrice: true,
+                        req, bill, play, type: gfType, quantity: 1, dayType, stamps, transaction, allowMissingPrice: true,
                     });
                     if (added.error) warnings.push(added.error);
                     else if (Number(added.item.unitAmount) === 0 && !gfType.allowPriceOverride) {
-                        warnings.push(`'${gfType.transactionType}' has no price in force for ${registration.playDate}.`);
+                        warnings.push(`'${gfType.transactionType}' has no price in force for ${play.playDate}.`);
                     }
                 }
             }
@@ -888,7 +932,7 @@ exports.openBill = async (req, res) => {
     }
 };
 
-// The bill + its registration, guarded to the caller's company and, when
+// The bill + its player record, guarded to the caller's company and, when
 // `openOnly`, to amendable status.
 async function findBill(req, { openOnly = false } = {}) {
     const companyId = companyIdOf(req);
@@ -896,7 +940,7 @@ async function findBill(req, { openOnly = false } = {}) {
     const bill = await Bill.findOne({ where: { companyId, id: req.params.billId } });
     if (!bill) return { status: 404, message: 'Bill not found.' };
     if (openOnly && bill.status !== 'open') return { status: 409, message: `This bill is ${bill.status} and cannot be amended.` };
-    const registration = await RegistrationPlayer.findOne({ where: { companyId, id: bill.registrationPlayerId } });
+    const registration = await Player.findOne({ where: { companyId, id: bill.playerId } });
     return { bill, registration, companyId };
 }
 
@@ -905,7 +949,8 @@ exports.getBill = async (req, res) => {
     try {
         const found = await findBill(req);
         if (!found.bill) return res.status(found.status).json({ message: found.message });
-        res.status(200).json({ bill: await billDto(found.bill), registration: found.registration ? registrationDto(found.registration) : null });
+        const shape = found.registration ? await playShapeOf(found.registration) : null;
+        res.status(200).json({ bill: await billDto(found.bill), registration: found.registration ? registrationDto(found.registration, shape) : null });
     } catch (error) {
         console.error('Error loading golf bill:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -918,6 +963,7 @@ exports.addItem = async (req, res) => {
         const found = await findBill(req, { openOnly: true });
         if (!found.bill) return res.status(found.status).json({ message: found.message });
         const { bill, registration, companyId } = found;
+        if (!registration) return res.status(409).json({ message: 'The bill\'s player record no longer exists.' });
         const type = await GolfTransactionType.findOne({ where: { companyId, id: String(req.body.transactionTypeId || ''), isActive: true } });
         if (!type) return res.status(400).json({ message: 'Pick a billing item.' });
         const quantity = Number.isInteger(Number(req.body.quantity)) ? Number(req.body.quantity) : 1;
@@ -925,13 +971,15 @@ exports.addItem = async (req, res) => {
 
         const stamps = await callerStamps(req);
         const dayType = await dayTypeOf(req, String(registration.playDate));
+        const shape = await playShapeOf(registration);
+        const play = { playDate: String(registration.playDate), holes: shape.holes };
         const result = await sequelize.transaction(async (transaction) => {
             if (type.chargeType === PACKAGE_CHARGE_TYPE_KEY) {
                 if (quantity !== 1) return { fail: 'Packages are billed one at a time.', status: 400 };
-                const out = await addPackageItems({ req, bill, registration, type, stamps, transaction });
+                const out = await addPackageItems({ req, bill, play, type, stamps, transaction });
                 if (out.error) return { fail: out.error, status: 400 };
             } else {
-                const out = await addOrdinaryItem({ req, bill, registration, type, quantity, dayType, stamps, transaction });
+                const out = await addOrdinaryItem({ req, bill, play, type, quantity, dayType, stamps, transaction });
                 if (out.error) return { fail: out.error, status: 400 };
             }
             await recomputeTotals(bill, transaction);
@@ -1027,7 +1075,7 @@ exports.settleBill = async (req, res) => {
         const found = await findBill(req, { openOnly: true });
         if (!found.bill) return res.status(found.status).json({ message: found.message });
         const { bill, registration, companyId } = found;
-        if (!registration) return res.status(409).json({ message: 'The bill\'s registration no longer exists.' });
+        if (!registration) return res.status(409).json({ message: 'The bill\'s player record no longer exists.' });
 
         const raw = Array.isArray(req.body.payments) ? req.body.payments : [];
         if (!raw.length) return res.status(400).json({ message: 'Key in at least one payment.' });

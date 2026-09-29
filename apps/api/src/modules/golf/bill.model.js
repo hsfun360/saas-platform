@@ -3,7 +3,8 @@ const { sequelize } = require('../../platform/db');
 const { GOLF_SCHEMA } = require('../../platform/schemas');
 
 // Golf front-desk BILL - PER PLAYER (user decisions 2026-09-26): one bill per
-// registered golfer, hanging off their RegistrationPlayer row. Items in
+// registered golfer, hanging off their golf.Player STARTING-NINE record
+// (revamp 2026-09-29 - the crossover record never carries a bill). Items in
 // golf.BillItem, tenders in golf.BillPayment (multiple tenders allowed;
 // member/debtor classes post to AR via arGateway.postCharge with
 // enforceCredit). Bill No. issues from the 'golf-bill' series at creation.
@@ -24,7 +25,7 @@ const Bill = sequelize.define('GolfBill', {
         type: DataTypes.STRING(50),
         allowNull: false,
     },
-    registrationPlayerId: {
+    playerId: {
         type: DataTypes.UUID,
         allowNull: false,
     },
@@ -74,7 +75,7 @@ const Bill = sequelize.define('GolfBill', {
     indexes: [
         { name: 'UX_GolfBill_Company_No', fields: ['companyId', 'billNo'], unique: true },
         { name: 'IX_GolfBill_Company_Date', fields: ['companyId', 'billDate'] },
-        { name: 'IX_GolfBill_RegistrationPlayer', fields: ['registrationPlayerId'] },
+        { name: 'IX_GolfBill_Player', fields: ['playerId'] },
     ],
 });
 

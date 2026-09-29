@@ -212,15 +212,15 @@ exports.deleteCourse = async (req, res) => {
         const course = await Course.findOne({ where: { id: req.params.id, companyId } });
         if (!course) return res.status(404).json({ message: 'Course not found.' });
 
-        const Booking = require('./booking.model');
-        const RegistrationPlayer = require('./registrationPlayer.model');
-        const [bookings, registrations] = await Promise.all([
-            Booking.count({ where: { companyId, courseId: course.id } }),
-            RegistrationPlayer.count({ where: { companyId, courseId: course.id } }),
+        const BookingProfile = require('./bookingProfile.model');
+        const Player = require('./player.model');
+        const [bookings, players] = await Promise.all([
+            BookingProfile.count({ where: { companyId, courseId: course.id } }),
+            Player.count({ where: { companyId, courseId: course.id } }),
         ]);
-        if (bookings || registrations) {
+        if (bookings || players) {
             return res.status(409).json({
-                message: `Cannot delete ${course.courseCode} - ${bookings} booking(s) and ${registrations} registration(s) reference it. Disable the course instead.`,
+                message: `Cannot delete ${course.courseCode} - ${bookings} booking(s) and ${players} player record(s) reference it. Disable the course instead.`,
             });
         }
 
