@@ -273,7 +273,7 @@ async function getGolfMemberStanding(companyId, memberNo) {
     const MembershipStatus = require('../modules/membership/membershipStatus.model');
     const row = await Member.findOne({
         where: { companyId, memberNo: { [Op.iLike]: String(memberNo).trim() } },
-        attributes: ['id', 'memberNo', 'firstName', 'lastName', 'localName', 'email', 'membershipId', 'membershipTypeId', 'memberStatusId'],
+        attributes: ['id', 'memberNo', 'firstName', 'lastName', 'localName', 'email', 'gender', 'membershipId', 'membershipTypeId', 'memberStatusId'],
     });
     if (!row) return null;
     // EFFECTIVE type (fix 2026-09-28): Member.membershipTypeId is a nominee-
@@ -295,6 +295,8 @@ async function getGolfMemberStanding(companyId, memberNo) {
         memberNo: row.memberNo,
         name: personName(row),
         email: row.email || null,
+        // 'male' | 'female' | null - handicap-control rules branch on it.
+        gender: row.gender || null,
         membershipTypeId: type ? type.id : null,
         membershipTypeCategory: type ? type.category : null,
         isGolfAllow: type ? type.isGolfAllow === true : false,

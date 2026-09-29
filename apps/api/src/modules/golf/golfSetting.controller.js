@@ -7,6 +7,8 @@ const GolfSetting = require('./golfSetting.model');
 const AdvanceBookingOverride = require('./advanceBookingOverride.model');
 const MinPlayerRule = require('./minPlayerRule.model');
 const GuestControlRule = require('./guestControlRule.model');
+const HandicapLimitRule = require('./handicapLimitRule.model');
+const HandicapAccompanimentRule = require('./handicapAccompanimentRule.model');
 const Course = require('./course.model');
 const { sequelize } = require('../../platform/db');
 const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
@@ -22,6 +24,7 @@ const DEFAULTS = {
     oneBookingPerDay: true, allowSameDayBooking: false,
     guestControlEnabled: false, allowGuestWeekday: true, allowMemberGuestWeekday: true,
     allowGuestWeekend: true, allowMemberGuestWeekend: true,
+    handicapControlEnabled: false,
 };
 
 function settingDto(row) {
@@ -41,6 +44,7 @@ function settingDto(row) {
         allowMemberGuestWeekday: row.allowMemberGuestWeekday === true,
         allowGuestWeekend: row.allowGuestWeekend === true,
         allowMemberGuestWeekend: row.allowMemberGuestWeekend === true,
+        handicapControlEnabled: row.handicapControlEnabled === true,
         saved: true,
     };
 }
@@ -79,11 +83,13 @@ exports.get = async (req, res) => {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
-        const [row, overrides, minPlayerRules, guestControlRules] = await Promise.all([
+        const [row, overrides, minPlayerRules, guestControlRules, handicapLimitRules, handicapAccompanimentRules] = await Promise.all([
             GolfSetting.findOne({ where: { companyId } }),
             AdvanceBookingOverride.findAll({ where: { companyId } }),
             MinPlayerRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
             GuestControlRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
+            HandicapLimitRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
+            HandicapAccompanimentRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
         ]);
         res.status(200).json({
             setting: settingDto(row),
@@ -105,6 +111,27 @@ exports.get = async (req, res) => {
                 endTime: timeDto(r.endTime),
                 allowGuest: r.allowGuest === true,
                 allowMemberGuest: r.allowMemberGuest === true,
+            })),
+            handicapLimitRules: handicapLimitRules.map((r) => ({
+                courseId: r.courseId,
+                dayScope: r.dayScope,
+                holes: r.holes === null || r.holes === undefined ? null : Number(r.holes),
+                gender: r.gender,
+                maxHandicap: Number(r.maxHandicap),
+                latestTeeOff: timeDto(r.latestTeeOff),
+            })),
+            handicapAccompanimentRules: handicapAccompanimentRules.map((r) => ({
+                courseId: r.courseId,
+                dayScope: r.dayScope,
+                holes: r.holes === null || r.holes === undefined ? null : Number(r.holes),
+                startTime: timeDto(r.startTime),
+                endTime: timeDto(r.endTime),
+                appliesToBeginner: r.appliesToBeginner === true,
+                appliesToProvisional: r.appliesToProvisional === true,
+                minCompanions: r.minCompanions,
+                companionMaxHandicapMen: Number(r.companionMaxHandicapMen),
+                companionMaxHandicapWomen: Number(r.companionMaxHandicapWomen),
+                latestTeeOff: timeDto(r.latestTeeOff),
             })),
         });
     } catch (error) {
@@ -213,6 +240,113 @@ function normalizeGuestControlRules(raw, knownCourseIds) {
     }));
 }
 
+// Parse a handicap index value (0.0 - 54.0, one decimal). Returns undefined
+// when invalid.
+function parseHandicap(v) {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0 || n > 54) return undefined;
+    return Math.round(n * 10) / 10;
+}
+
+function parseHoles(v) {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    if (n !== 9 && n !== 18) return undefined;
+    return n;
+}
+
+// Handicap LIMIT rules (procedure 2.1): no time band; at most one rule per
+// (course, dayScope, holes, gender) key.
+function normalizeHandicapLimitRules(raw, knownCourseIds) {
+    if (raw.length > 200) return { error: 'Too many handicap limit rules.' };
+    const rules = [];
+    const seen = new Set();
+    for (const line of raw) {
+        if (!line || typeof line !== 'object') return { error: 'Invalid handicap limit rule line.' };
+        const courseId = line.courseId ? String(line.courseId) : null;
+        if (courseId && !knownCourseIds.has(courseId)) return { error: 'A handicap limit rule is not one of this company\'s courses.' };
+        const dayScope = String(line.dayScope || '');
+        if (!DAY_SCOPES.includes(dayScope)) return { error: 'Each handicap limit rule needs a day scope.' };
+        const holes = parseHoles(line.holes);
+        if (holes === undefined) return { error: 'A handicap limit rule\'s holes must be 9, 18 or Any.' };
+        const gender = String(line.gender || 'any');
+        if (!['men', 'women', 'any'].includes(gender)) return { error: 'A handicap limit rule\'s gender must be Men, Women or Any.' };
+        const maxHandicap = parseHandicap(line.maxHandicap);
+        if (maxHandicap === undefined) return { error: 'A handicap limit rule\'s maximum must be between 0.0 and 54.0.' };
+        let latestTeeOff = null;
+        if (line.latestTeeOff !== null && line.latestTeeOff !== undefined && line.latestTeeOff !== '') {
+            latestTeeOff = parseTime(line.latestTeeOff);
+            if (!latestTeeOff) return { error: 'A handicap limit rule\'s latest tee-off must be a valid time of day.' };
+        }
+        const key = `${courseId || '*'}|${dayScope}|${holes === null ? '*' : holes}|${gender}`;
+        if (seen.has(key)) return { error: 'Two handicap limit rules cover the same course, day scope, holes and gender.' };
+        seen.add(key);
+        rules.push({ courseId, dayScope, holes, gender, maxHandicap, latestTeeOff, isActive: true });
+    }
+    return { rules };
+}
+
+// Handicap ACCOMPANIMENT rules (procedure 2.2/2.3): optional time band; rows
+// with identical (course, dayScope, holes) must not overlap in time.
+function normalizeHandicapAccompanimentRules(raw, knownCourseIds) {
+    if (raw.length > 200) return { error: 'Too many accompaniment rules.' };
+    const rules = [];
+    for (const line of raw) {
+        if (!line || typeof line !== 'object') return { error: 'Invalid accompaniment rule line.' };
+        const courseId = line.courseId ? String(line.courseId) : null;
+        if (courseId && !knownCourseIds.has(courseId)) return { error: 'An accompaniment rule is not one of this company\'s courses.' };
+        const dayScope = String(line.dayScope || '');
+        if (!DAY_SCOPES.includes(dayScope)) return { error: 'Each accompaniment rule needs a day scope.' };
+        const holes = parseHoles(line.holes);
+        if (holes === undefined) return { error: 'An accompaniment rule\'s holes must be 9, 18 or Any.' };
+        const hasStart = line.startTime !== null && line.startTime !== undefined && line.startTime !== '';
+        const hasEnd = line.endTime !== null && line.endTime !== undefined && line.endTime !== '';
+        if (hasStart !== hasEnd) return { error: 'An accompaniment rule time band needs both From and To times (or neither for the whole day).' };
+        let startTime = null;
+        let endTime = null;
+        if (hasStart) {
+            startTime = parseTime(line.startTime);
+            endTime = parseTime(line.endTime);
+            if (!startTime || !endTime) return { error: 'Accompaniment rule times must be valid times of day.' };
+            if (startTime >= endTime) return { error: 'An accompaniment rule\'s From time must be before its To time.' };
+        }
+        const appliesToBeginner = line.appliesToBeginner === true;
+        const appliesToProvisional = line.appliesToProvisional === true;
+        if (!appliesToBeginner && !appliesToProvisional) return { error: 'An accompaniment rule must target beginners, provisional golfers, or both.' };
+        const minCompanions = parseIntIn(line.minCompanions, 1, 3);
+        if (minCompanions === undefined) return { error: 'An accompaniment rule\'s companions count must be between 1 and 3.' };
+        const companionMaxHandicapMen = parseHandicap(line.companionMaxHandicapMen);
+        if (companionMaxHandicapMen === undefined) return { error: 'The companion cap for men must be between 0.0 and 54.0.' };
+        const companionMaxHandicapWomen = parseHandicap(line.companionMaxHandicapWomen);
+        if (companionMaxHandicapWomen === undefined) return { error: 'The companion cap for ladies must be between 0.0 and 54.0.' };
+        let latestTeeOff = null;
+        if (line.latestTeeOff !== null && line.latestTeeOff !== undefined && line.latestTeeOff !== '') {
+            latestTeeOff = parseTime(line.latestTeeOff);
+            if (!latestTeeOff) return { error: 'An accompaniment rule\'s latest tee-off must be a valid time of day.' };
+        }
+        rules.push({
+            courseId, dayScope, holes, startTime, endTime,
+            appliesToBeginner, appliesToProvisional, minCompanions,
+            companionMaxHandicapMen, companionMaxHandicapWomen, latestTeeOff, isActive: true,
+        });
+    }
+    const byKey = new Map();
+    for (const r of rules) {
+        const key = `${r.courseId || '*'}|${r.dayScope}|${r.holes === null ? '*' : r.holes}`;
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key).push(r);
+    }
+    for (const group of byKey.values()) {
+        const wholeDay = group.filter((r) => !r.startTime);
+        if (wholeDay.length > 1) return { error: 'Two accompaniment rules cover the same course, day scope and holes for the whole day.' };
+        const bands = group.filter((r) => r.startTime).sort((a, b) => (a.startTime < b.startTime ? -1 : 1));
+        for (let i = 1; i < bands.length; i += 1) {
+            if (bands[i].startTime < bands[i - 1].endTime) return { error: 'Two accompaniment rules for the same course, day scope and holes have overlapping time bands.' };
+        }
+    }
+    return { rules };
+}
+
 // PUT /api/golf/settings - upsert the singleton + replace the override lines
 // atomically. Overrides are accepted (and stored) even while the flag is OFF,
 // so a club can stage them; they only take EFFECT while the flag is ON.
@@ -264,6 +398,13 @@ exports.save = async (req, res) => {
         const guestResult = normalizeGuestControlRules(Array.isArray(req.body.guestControlRules) ? req.body.guestControlRules : [], knownCourseIds);
         if (guestResult.error) return res.status(400).json({ message: guestResult.error });
         const guestControlRules = guestResult.rules;
+        const handicapControlEnabled = req.body.handicapControlEnabled === true;
+        const limitResult = normalizeHandicapLimitRules(Array.isArray(req.body.handicapLimitRules) ? req.body.handicapLimitRules : [], knownCourseIds);
+        if (limitResult.error) return res.status(400).json({ message: limitResult.error });
+        const handicapLimitRules = limitResult.rules;
+        const accResult = normalizeHandicapAccompanimentRules(Array.isArray(req.body.handicapAccompanimentRules) ? req.body.handicapAccompanimentRules : [], knownCourseIds);
+        if (accResult.error) return res.status(400).json({ message: accResult.error });
+        const handicapAccompanimentRules = accResult.rules;
 
         const callerId = getUserContext(req).userId;
         const placement = await getCallerPlacement(req);
@@ -275,6 +416,7 @@ exports.save = async (req, res) => {
                 advanceBookingDays, advanceBookingHours, allowMembershipTypeOverride, allowBookingMerge,
                 minPlayersWeekday, minPlayersWeekend, bookingLockMinutes, oneBookingPerDay, allowSameDayBooking,
                 guestControlEnabled, allowGuestWeekday, allowMemberGuestWeekday, allowGuestWeekend, allowMemberGuestWeekend,
+                handicapControlEnabled,
             };
             if (existing) {
                 Object.assign(existing, { ...values, updatedBy: callerId });
@@ -300,6 +442,20 @@ exports.save = async (req, res) => {
             if (guestControlRules.length) {
                 await GuestControlRule.bulkCreate(
                     guestControlRules.map((r) => ({ ...r, companyId, ...stamps })),
+                    { transaction },
+                );
+            }
+            await HandicapLimitRule.destroy({ where: { companyId }, transaction });
+            if (handicapLimitRules.length) {
+                await HandicapLimitRule.bulkCreate(
+                    handicapLimitRules.map((r) => ({ ...r, companyId, ...stamps })),
+                    { transaction },
+                );
+            }
+            await HandicapAccompanimentRule.destroy({ where: { companyId }, transaction });
+            if (handicapAccompanimentRules.length) {
+                await HandicapAccompanimentRule.bulkCreate(
+                    handicapAccompanimentRules.map((r) => ({ ...r, companyId, ...stamps })),
                     { transaction },
                 );
             }

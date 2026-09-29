@@ -82,6 +82,10 @@ const AdvanceBookingOverride = require('../modules/golf/advanceBookingOverride.m
 const MinPlayerRule = require('../modules/golf/minPlayerRule.model');
 // Guest-control exception rules (2026-09-20): same shape - no associations.
 const GuestControlRule = require('../modules/golf/guestControlRule.model');
+// Handicap-control exception rules (2026-09-29, Tropicana procedure 2):
+// limit + accompaniment rows, same shape - no associations.
+const HandicapLimitRule = require('../modules/golf/handicapLimitRule.model');
+const HandicapAccompanimentRule = require('../modules/golf/handicapAccompanimentRule.model');
 // Booking + registration revamp (2026-09-29): BookingProfile header (booker
 // info only) + golf.Player records (one per golfer per NINE - an 18-hole
 // play is a linked pair) + the short-lived FlightLock claims of the DYNAMIC

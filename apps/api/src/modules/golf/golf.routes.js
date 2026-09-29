@@ -25,6 +25,12 @@ router.use('/courses', courseRoutes);
 router.use('/transaction-types', requireMenuAction('/golf/transaction-types'), transactionTypesRoutes);
 router.use('/payment-types', requireMenuAction('/golf/payment-types'), require('./paymentTypes.routes'));
 
+// --- Golfers master (handicap index + status maintenance; user decisions
+// 2026-09-29 - the fields the handicap-control rules read) ---
+const golferController = require('./golfer.controller');
+router.get('/golfers', requireMenuAction('/golf/golfers'), golferController.list);
+router.patch('/golfers/:id', requireMenuAction('/golf/golfers'), golferController.update);
+
 // --- Golf Specification (per-company settings singleton + advance-booking
 // overrides; user decisions 2026-09-17) ---
 const golfSettingController = require('./golfSetting.controller');

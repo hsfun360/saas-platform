@@ -1,0 +1,130 @@
+<div class="screen-pad" style="max-width: 1140px; margin: 0 auto;">
+  <div class="saas-header" style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-lg);">
+    <span class="saas-icon material-icons" aria-hidden="true">sports_golf</span>
+    <div>
+      <h1 style="margin: 0;">{{ 'Golfers' | screenTitle }}<app-fav-star /></h1>
+      <p class="saas-subtitle" style="margin: 0;">{{ 'Every golfer identity — maintain the handicap index and status the handicap-control rules read.' | screenSubtitle }}</p>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: var(--space-sm); margin-bottom: var(--space-md);">
+    <div style="position: relative; flex: 1;">
+      <span class="material-icons" aria-hidden="true"
+            style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);">search</span>
+      <input type="search" [value]="search()" (input)="search.set($any($event.target).value)"
+             aria-label="Find a golfer by name or member number"
+             placeholder="Find by name or member no…"
+             style="width: 100%; min-height: 44px; padding: 0 40px 0 44px;" />
+      @if (search()) {
+        <button type="button" (click)="clearSearch()" aria-label="Clear search"
+                style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: none; background: transparent; min-width: 32px; min-height: 32px; cursor: pointer; color: var(--text-muted);">✕</button>
+      }
+    </div>
+  </div>
+
+  @if (loading()) {
+    <p class="cell-subtle">Loading golfers…</p>
+  } @else if (golfers().length === 0) {
+    <p class="cell-subtle">No golfers yet. Identities appear here automatically after a member's first booking or a visitor's first registration.</p>
+  } @else if (filtered().length === 0) {
+    <div style="text-align: center; padding: var(--space-xl) 0;">
+      <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: var(--text-muted);">search_off</span>
+      <p>No golfers match "{{ search() }}"</p>
+      <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (g of filtered(); track g.id) {
+        <div class="data-card" [attr.data-return-id]="g.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ g.name }}</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">{{ typeLabel(g.golferType) }}{{ g.memberNo ? ' · ' + g.memberNo : '' }}</span>
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Handicap</dt><dd>{{ g.handicapIndex === null ? '—' : g.handicapIndex.toFixed(1) }}</dd></div>
+                <div class="meta"><dt>Status</dt><dd>{{ statusLabel(g.handicapStatus) }}</dd></div>
+                @if (g.remarks) {
+                  <div class="meta"><dt>Remarks</dt><dd>{{ g.remarks }}</dd></div>
+                }
+              </dl>
+            </div>
+            <div class="data-row__badge">
+              <span class="status-chip" [class.status-chip--on]="g.isActive" [class.status-chip--off]="!g.isActive">
+                {{ g.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </div>
+            <div class="data-row__actions">
+              @if (g.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(g)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  @if (editing(); as golfer) {
+    <app-dialog #dlg variant="drawer" [title]="'Handicap — ' + golfer.name" [busy]="saving()" [dirty]="form.dirty"
+                (close)="closeEdit()">
+      <form id="golferForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form">
+        <div style="display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: var(--space-md);">
+          <div class="form-group">
+            <label for="gName">Golfer</label>
+            <input id="gName" type="text" [value]="golfer.name + (golfer.memberNo ? ' (' + golfer.memberNo + ')' : '')" disabled />
+          </div>
+          <div class="form-group">
+            <label for="gType">Type</label>
+            <input id="gType" type="text" [value]="typeLabel(golfer.golferType)" disabled />
+          </div>
+          <div class="form-group">
+            <label for="gIndex">Handicap index</label>
+            <input id="gIndex" type="number" inputmode="decimal" min="0" max="54" step="0.1"
+                   formControlName="handicapIndex" placeholder="Not recorded"
+                   [attr.aria-invalid]="showError(form.controls.handicapIndex)" aria-describedby="gIndexErr" />
+            @if (showError(form.controls.handicapIndex)) {
+              <p id="gIndexErr" class="field-error" role="alert">The index must be between 0.0 and 54.0 (one decimal).</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="gStatus">Handicap status</label>
+            <select id="gStatus" formControlName="handicapStatus">
+              <option value="">Not recorded</option>
+              @for (s of statuses(); track s.key) {
+                <option [value]="s.key">{{ s.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="gRemarks">Remarks</label>
+          <textarea id="gRemarks" rows="2" wrap="off" formControlName="remarks"></textarea>
+        </div>
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()">Cancel</button>
+        <button type="submit" form="golferForm" class="btn btn--primary" [disabled]="saving()">Save</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+</div>

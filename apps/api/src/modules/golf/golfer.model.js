@@ -53,10 +53,18 @@ const Golfer = sequelize.define('Golfer', {
         type: DataTypes.STRING,
         allowNull: true,
     },
-    // Golf-owned for BOTH kinds (membership holds no handicap). The planned
-    // handicap-control feature will maintain it; until then front-desk entry.
+    // Golf-owned for BOTH kinds (membership holds no handicap). Maintained on
+    // the Golfers screen (/golf/golfers); handicap control reads it.
     handicapIndex: {
         type: DataTypes.DECIMAL(4, 1),
+        allowNull: true,
+    },
+    // Proficiency standing (golfer.constants HANDICAP_STATUS_KEYS:
+    // 'established' | 'provisional' | 'beginner'; NULL = not recorded). The
+    // handicap-control rules branch on it: limit rules cap established
+    // indexes, accompaniment rules target beginners/provisional golfers.
+    handicapStatus: {
+        type: DataTypes.STRING(20),
         allowNull: true,
     },
     // Account-level front-desk notes (bans, VIP flags) - both kinds.

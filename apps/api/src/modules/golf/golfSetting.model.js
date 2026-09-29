@@ -120,6 +120,16 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: true,
     },
+    // Handicap control (user decisions 2026-09-29, Tropicana procedure 2) -
+    // the master switch. OFF = no restriction (HandicapLimitRule and
+    // HandicapAccompanimentRule rows are stored but ignored). ON = the
+    // booking channel REFUSES violations; the front desk registers with a
+    // WARNING (seats-authoritative, user decision).
+    handicapControlEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     // Merge booking (club-wide, user decision 2026-09-19). OFF = exclusive
     // flights: the first confirmed booking claims the whole flight, extra
     // players join only that same booking. ON = shared flights: bookings

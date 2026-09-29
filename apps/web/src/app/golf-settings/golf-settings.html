@@ -337,8 +337,166 @@
         }
       </div>
 
+      <!-- ============ Handicap Control (Tropicana procedure 2) ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('handicap')"
+                [attr.aria-expanded]="isExpanded('handicap')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Handicap Control</span>
+            <span class="settings-header__sub">Maximum handicap limits and beginner/provisional accompaniment. Handicap index and status are keyed on the Golfers screen.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('handicap')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('handicap')) {
+          <div class="settings-body">
+            <div class="form-row">
+              <label class="gs-check">
+                <input type="checkbox" formControlName="handicapControlEnabled" />
+                <span>Enable handicap control — bookings refuse violations; the front desk registers with a warning</span>
+              </label>
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Golfers with no handicap recorded are exempt from the limits; only golfers marked Beginner or Provisional need accompanying.</p>
+            </div>
+
+            @if (handicapControlOn()) {
+              <p class="gs-hc-title">Handicap limits</p>
+              @if (limitRules().length > 0) {
+                <div class="gs-hl-row gs-hl-row--head" aria-hidden="true">
+                  <span>Course</span>
+                  <span>Days</span>
+                  <span>Holes</span>
+                  <span>Gender</span>
+                  <span>Max hcp</span>
+                  <span>Latest tee-off</span>
+                  <span></span>
+                </div>
+              }
+              @for (rule of limitRules(); track $index; let i = $index) {
+                <div class="gs-hl-row">
+                  <app-combobox [value]="rule.courseId ?? ''" (valueChange)="setLimitRule(i, { courseId: $event || null })"
+                                [options]="courseOptions()"
+                                [allowEmpty]="true" emptyLabel="Every course"
+                                [ariaLabel]="'Handicap limit rule ' + (i + 1) + ' course'"
+                                placeholder="Every course" />
+                  <select [value]="rule.dayScope" (change)="setLimitRule(i, { dayScope: $any($event.target).value })"
+                          [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' day scope'">
+                    <option value="all">All days</option>
+                    <option value="weekday">Weekday</option>
+                    <option value="weekend">Weekend &amp; Holiday</option>
+                    @for (d of daysOfWeek; track d.key) {
+                      <option [value]="d.key">{{ d.label }}</option>
+                    }
+                  </select>
+                  <select [value]="rule.holes === null ? '' : rule.holes" (change)="setRuleHoles('limit', i, $any($event.target).value)"
+                          [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' holes'">
+                    <option value="">Any</option>
+                    <option value="9">9</option>
+                    <option value="18">18</option>
+                  </select>
+                  <select [value]="rule.gender" (change)="setLimitRule(i, { gender: $any($event.target).value })"
+                          [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' gender'">
+                    <option value="any">Any</option>
+                    <option value="men">Men</option>
+                    <option value="women">Ladies</option>
+                  </select>
+                  <input type="number" inputmode="decimal" min="0" max="54" step="0.1" [value]="rule.maxHandicap"
+                         (change)="setLimitMax(i, $any($event.target).value)"
+                         [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' maximum handicap'" />
+                  <input type="time" [value]="rule.latestTeeOff ?? ''" (change)="setLimitRule(i, { latestTeeOff: $any($event.target).value || null })"
+                         [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' latest tee-off'" />
+                  <button type="button" class="btn btn--danger btn--sm" (click)="removeLimitRule(i)"
+                          [attr.aria-label]="'Remove handicap limit rule ' + (i + 1)">
+                    <span class="material-icons" aria-hidden="true">close</span>
+                  </button>
+                </div>
+              }
+              <button type="button" class="btn btn--secondary btn--sm" (click)="addLimitRule()">
+                <span class="material-icons" aria-hidden="true">add</span>
+                Add limit
+              </button>
+              @if (limitRules().length === 0) {
+                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No limits — any handicap may play any time. Add one per gender/day, e.g. Men 36.0 and Ladies 40.0 on weekdays for 18 holes.</p>
+              }
+
+              <p class="gs-hc-title" style="margin-top: var(--space-lg);">Beginner &amp; provisional accompaniment</p>
+              @if (accRules().length > 0) {
+                <div class="gs-ha-row gs-ha-row--head" aria-hidden="true">
+                  <span>Course</span>
+                  <span>Days</span>
+                  <span>Holes</span>
+                  <span>From</span>
+                  <span>To</span>
+                  <span>Beg</span>
+                  <span>Prov</span>
+                  <span>Min</span>
+                  <span>Men ≤</span>
+                  <span>Ladies ≤</span>
+                  <span>Latest tee-off</span>
+                  <span></span>
+                </div>
+              }
+              @for (rule of accRules(); track $index; let i = $index) {
+                <div class="gs-ha-row">
+                  <app-combobox [value]="rule.courseId ?? ''" (valueChange)="setAccRule(i, { courseId: $event || null })"
+                                [options]="courseOptions()"
+                                [allowEmpty]="true" emptyLabel="Every course"
+                                [ariaLabel]="'Accompaniment rule ' + (i + 1) + ' course'"
+                                placeholder="Every course" />
+                  <select [value]="rule.dayScope" (change)="setAccRule(i, { dayScope: $any($event.target).value })"
+                          [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' day scope'">
+                    <option value="all">All days</option>
+                    <option value="weekday">Weekday</option>
+                    <option value="weekend">Weekend &amp; Holiday</option>
+                    @for (d of daysOfWeek; track d.key) {
+                      <option [value]="d.key">{{ d.label }}</option>
+                    }
+                  </select>
+                  <select [value]="rule.holes === null ? '' : rule.holes" (change)="setRuleHoles('acc', i, $any($event.target).value)"
+                          [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' holes'">
+                    <option value="">Any</option>
+                    <option value="9">9</option>
+                    <option value="18">18</option>
+                  </select>
+                  <input type="time" [value]="rule.startTime ?? ''" (change)="setAccRule(i, { startTime: $any($event.target).value || null })"
+                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' from time'" />
+                  <input type="time" [value]="rule.endTime ?? ''" (change)="setAccRule(i, { endTime: $any($event.target).value || null })"
+                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' to time'" />
+                  <input type="checkbox" class="gs-gc-row__check" [checked]="rule.appliesToBeginner"
+                         (change)="setAccRule(i, { appliesToBeginner: $any($event.target).checked })"
+                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' applies to beginners'" />
+                  <input type="checkbox" class="gs-gc-row__check" [checked]="rule.appliesToProvisional"
+                         (change)="setAccRule(i, { appliesToProvisional: $any($event.target).checked })"
+                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' applies to provisional handicaps'" />
+                  <input type="number" inputmode="numeric" min="1" max="3" step="1" [value]="rule.minCompanions"
+                         (change)="setAccCompanions(i, $any($event.target).value)"
+                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companions needed'" />
+                  <input type="number" inputmode="decimal" min="0" max="54" step="0.1" [value]="rule.companionMaxHandicapMen"
+                         (change)="setAccCap(i, 'companionMaxHandicapMen', $any($event.target).value)"
+                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companion cap for men'" />
+                  <input type="number" inputmode="decimal" min="0" max="54" step="0.1" [value]="rule.companionMaxHandicapWomen"
+                         (change)="setAccCap(i, 'companionMaxHandicapWomen', $any($event.target).value)"
+                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companion cap for ladies'" />
+                  <input type="time" [value]="rule.latestTeeOff ?? ''" (change)="setAccRule(i, { latestTeeOff: $any($event.target).value || null })"
+                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' latest tee-off'" />
+                  <button type="button" class="btn btn--danger btn--sm" (click)="removeAccRule(i)"
+                          [attr.aria-label]="'Remove accompaniment rule ' + (i + 1)">
+                    <span class="material-icons" aria-hidden="true">close</span>
+                  </button>
+                </div>
+              }
+              <button type="button" class="btn btn--secondary btn--sm" (click)="addAccRule()">
+                <span class="material-icons" aria-hidden="true">add</span>
+                Add rule
+              </button>
+              @if (accRules().length === 0) {
+                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No rules — beginners and provisional golfers play unaccompanied. A rule requires the flight to carry at least the given number of Established golfers under the per-gender handicap caps; the companion is checked across the whole flight.</p>
+              }
+            }
+          </div>
+        }
+      </div>
+
       <div class="gs-actions" *appCan="'edit'">
-        <button type="submit" class="btn btn--primary" [disabled]="saving() || (!form.dirty && !ovDirty() && !mpDirty() && !gcDirty())">
+        <button type="submit" class="btn btn--primary" [disabled]="saving() || (!form.dirty && !ovDirty() && !mpDirty() && !gcDirty() && !hlDirty() && !haDirty())">
           {{ saving() ? 'Saving…' : 'Save' }}
         </button>
       </div>

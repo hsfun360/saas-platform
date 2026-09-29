@@ -130,6 +130,48 @@
   }
 }
 
+/* Handicap-control editors (Tropicana procedure 2). Sub-titles split the
+   limits grid from the accompaniment grid inside the one section. */
+.gs-hc-title {
+  margin: var(--space-md) 0 var(--space-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.gs-hl-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px 70px 90px 90px 110px auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.gs-ha-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 130px 64px 100px 100px 40px 40px 56px 74px 74px 100px auto;
+  gap: var(--space-xs);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.gs-hl-row--head,
+.gs-ha-row--head {
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+@media (max-width: 767px) {
+  .gs-hl-row,
+  .gs-ha-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border);
+  }
+  .gs-hl-row--head,
+  .gs-ha-row--head {
+    display: none;
+  }
+}
+
 .gs-actions {
   display: flex;
   justify-content: flex-end;

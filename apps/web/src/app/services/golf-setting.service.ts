@@ -30,6 +30,34 @@ export interface GolfGuestControlRule {
   allowMemberGuest: boolean;
 }
 
+// One handicap LIMIT rule (Tropicana procedure 2.1): the maximum handicap
+// index allowed, scoped by day/course/holes/gender, with an optional latest
+// tee-off for the targeted players.
+export interface GolfHandicapLimitRule {
+  courseId: string | null;
+  dayScope: string;
+  holes: number | null;
+  gender: 'men' | 'women' | 'any';
+  maxHandicap: number;
+  latestTeeOff: string | null;
+}
+
+// One handicap ACCOMPANIMENT rule (procedure 2.2/2.3): beginners/provisional
+// golfers need an ESTABLISHED companion under the per-gender caps.
+export interface GolfHandicapAccompanimentRule {
+  courseId: string | null;
+  dayScope: string;
+  holes: number | null;
+  startTime: string | null;
+  endTime: string | null;
+  appliesToBeginner: boolean;
+  appliesToProvisional: boolean;
+  minCompanions: number;
+  companionMaxHandicapMen: number;
+  companionMaxHandicapWomen: number;
+  latestTeeOff: string | null;
+}
+
 export interface GolfSettingDoc {
   setting: {
     advanceBookingDays: number;
@@ -46,11 +74,14 @@ export interface GolfSettingDoc {
     allowMemberGuestWeekday: boolean;
     allowGuestWeekend: boolean;
     allowMemberGuestWeekend: boolean;
+    handicapControlEnabled: boolean;
     saved: boolean;
   };
   overrides: GolfAdvanceBookingOverride[];
   minPlayerRules: GolfMinPlayerRule[];
   guestControlRules: GolfGuestControlRule[];
+  handicapLimitRules: GolfHandicapLimitRule[];
+  handicapAccompanimentRules: GolfHandicapAccompanimentRule[];
 }
 
 export interface GolfMembershipTypeOption {
@@ -104,9 +135,12 @@ export class GolfSettingService {
     allowMemberGuestWeekday: boolean;
     allowGuestWeekend: boolean;
     allowMemberGuestWeekend: boolean;
+    handicapControlEnabled: boolean;
     overrides: GolfAdvanceBookingOverride[];
     minPlayerRules: GolfMinPlayerRule[];
     guestControlRules: GolfGuestControlRule[];
+    handicapLimitRules: GolfHandicapLimitRule[];
+    handicapAccompanimentRules: GolfHandicapAccompanimentRule[];
   }): Observable<{ message: string }> {
     return this.http.put<{ message: string }>(this.base, payload);
   }

@@ -577,6 +577,41 @@ exports.create = async (req, res) => {
                 }
             }
 
+            // Handicap control (Tropicana procedure 2, user decisions
+            // 2026-09-29): limit caps + accompaniment, evaluated over the
+            // WHOLE flight (these lines + players already seated in the
+            // cell). Name-only guests have no identity yet - they are
+            // re-checked (as a warning) at registration.
+            if (setting && setting.handicapControlEnabled === true) {
+                const handicap = require('./handicapControl.service');
+                const rules = await handicap.loadHandicapRules(companyId);
+                const standings = new Map();
+                const added = [];
+                for (const line of lines) {
+                    if (!line.standing) continue;
+                    const g = golferByMemberId.get(line.standing.memberId);
+                    if (!g) continue;
+                    standings.set(line.standing.memberNo, line.standing);
+                    added.push(await handicap.describeGolfer(companyId, g, { standingByMemberNo: standings, transaction }));
+                }
+                if (added.length) {
+                    const seated = await handicap.describeSeatedPlayers(companyId, {
+                        unitCourseId: course.firstNineId, playDate, teeTime: startTime, transaction,
+                    });
+                    const messages = handicap.evaluateFlight({
+                        ...rules,
+                        courseId: course.id,
+                        dayType,
+                        dayOfWeek,
+                        holes,
+                        teeTime: startTime,
+                        players: added,
+                        companions: [...added, ...seated],
+                    });
+                    if (messages.length) return { fail: messages.join(' '), status: 400 };
+                }
+            }
+
             // One booking per day, re-checked under the advisory lock for the
             // BOOKER and every 'member' player line (member-as-guest exempt).
             if (!setting || setting.oneBookingPerDay !== false) {

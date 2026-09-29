@@ -30,6 +30,7 @@ const { PLAYER_STATUSES, BILL_STATUSES, ACTIVE_PLAYER_STATUS_KEYS } = require('.
 const { PACKAGE_CHARGE_TYPE_KEY, MATRIX_CHARGE_TYPE_KEYS } = require('./transactionType.constants');
 const BookingProfile = require('./bookingProfile.model');
 const Player = require('./player.model');
+const GolfSetting = require('./golfSetting.model');
 const Bill = require('./bill.model');
 const BillItem = require('./billItem.model');
 const BillPayment = require('./billPayment.model');
@@ -553,6 +554,41 @@ exports.getMeta = async (req, res) => {
 // ---------------------------------------------------------------------------
 // Registration
 
+// Non-blocking handicap-control check for the desk (user decision
+// 2026-09-29: the BOOKING channel refuses violations, the desk WARNS - it
+// stays seats-authoritative). Evaluates the flight the just-registered
+// player(s) sit in; returns warning messages ('' -> none). Never throws.
+async function handicapWarnings(req, { companyId, courseId, unitCourseId, playDate, teeTime, holes, playerIds }) {
+    try {
+        const setting = await GolfSetting.findOne({ where: { companyId } });
+        if (!setting || setting.handicapControlEnabled !== true) return [];
+        const handicap = require('./handicapControl.service');
+        const rules = await handicap.loadHandicapRules(companyId);
+        if (!rules.limitRules.length && !rules.accompanimentRules.length) return [];
+        const dayType = await dayTypeOf(req, playDate);
+        const seated = await handicap.describeSeatedPlayers(companyId, { unitCourseId, playDate, teeTime });
+        const players = playerIds ? seated.filter((p) => playerIds.includes(p.playerId)) : seated;
+        if (!players.length) return [];
+        return handicap.evaluateFlight({
+            ...rules,
+            courseId,
+            dayType,
+            dayOfWeek: availability.dayOfWeekOf(playDate),
+            holes,
+            teeTime,
+            players,
+            companions: seated,
+        });
+    } catch (error) {
+        console.error('Handicap warning check failed:', error);
+        return [];
+    }
+}
+
+function withWarnings(message, warnings) {
+    return warnings.length ? `${message} WARNING: ${warnings.join(' ')}` : message;
+}
+
 // Resolve the golfer identity + snapshots for a player being registered.
 // Returns { golfer, playerName, memberNo, standing } or { error }.
 async function resolvePlayerIdentity({ req, companyId, playerType, memberNo, guest, fallbackName, stamps, transaction }) {
@@ -644,7 +680,15 @@ exports.register = async (req, res) => {
                 manualRegistrationNo: req.body.registrationNo, stamps, transaction,
             }));
             if (result.fail) return res.status(result.status).json({ message: result.fail });
-            return res.status(201).json({ message: `Registered ${result.row.playerName} (${result.row.registrationNo}).`, registration: registrationDto(result.row, result.shape) });
+            const warnings = await handicapWarnings(req, {
+                companyId, courseId: result.row.courseId, unitCourseId: result.row.unitCourseId,
+                playDate: String(result.row.playDate), teeTime: availability.hhmm(result.row.teeTime),
+                holes: result.shape.holes, playerIds: [result.row.id],
+            });
+            return res.status(201).json({
+                message: withWarnings(`Registered ${result.row.playerName} (${result.row.registrationNo}).`, warnings),
+                registration: registrationDto(result.row, result.shape),
+            });
         }
 
         // ---- walk-in path ----
@@ -738,7 +782,15 @@ exports.register = async (req, res) => {
             return { row, shape: { holes, crossTime } };
         });
         if (result.fail) return res.status(result.status).json({ message: result.fail });
-        res.status(201).json({ message: `Registered ${result.row.playerName} (${result.row.registrationNo}).`, registration: registrationDto(result.row, result.shape) });
+        const warnings = await handicapWarnings(req, {
+            companyId, courseId: result.row.courseId, unitCourseId: result.row.unitCourseId,
+            playDate: String(result.row.playDate), teeTime: availability.hhmm(result.row.teeTime),
+            holes: result.shape.holes, playerIds: [result.row.id],
+        });
+        res.status(201).json({
+            message: withWarnings(`Registered ${result.row.playerName} (${result.row.registrationNo}).`, warnings),
+            registration: registrationDto(result.row, result.shape),
+        });
     } catch (error) {
         console.error('Error registering golf player:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -786,6 +838,7 @@ exports.registerFlight = async (req, res) => {
         const profileById = new Map(profiles.map((p) => [p.id, p]));
 
         const registered = [];
+        const registeredIds = [];
         const skipped = [];
         for (const candidate of candidates) {
             const profile = profileById.get(candidate.bookingProfileId);
@@ -804,16 +857,27 @@ exports.registerFlight = async (req, res) => {
                     return registerBookedRecord({ req, companyId, row, guest: null, stamps, transaction });
                 });
                 if (result.fail) skipped.push({ playerName: candidate.playerName, reason: result.fail });
-                else registered.push({ playerName: result.row.playerName, registrationNo: result.row.registrationNo });
+                else {
+                    registered.push({ playerName: result.row.playerName, registrationNo: result.row.registrationNo });
+                    registeredIds.push(result.row.id);
+                }
             } catch (e) {
                 console.error('Bulk registration line failed:', e);
                 skipped.push({ playerName: candidate.playerName, reason: 'registration failed' });
             }
         }
+        let warnings = [];
+        if (registeredIds.length) {
+            const anySecond = await Player.findOne({ where: { firstNinePlayerId: { [Op.in]: registeredIds } }, attributes: ['id'] });
+            warnings = await handicapWarnings(req, {
+                companyId, courseId, unitCourseId: candidates[0].unitCourseId, playDate, teeTime,
+                holes: anySecond ? 18 : 9, playerIds: registeredIds,
+            });
+        }
         const message = skipped.length
             ? `Registered ${registered.length} player(s); skipped ${skipped.length} - ${skipped.map((s) => `${s.playerName}: ${s.reason}`).join('; ')}`
             : `Registered ${registered.length} player(s).`;
-        res.status(200).json({ message, registered, skipped });
+        res.status(200).json({ message: withWarnings(message, warnings), registered, skipped });
     } catch (error) {
         console.error('Error bulk-registering golf flight:', error);
         res.status(500).json({ message: 'Internal server error' });

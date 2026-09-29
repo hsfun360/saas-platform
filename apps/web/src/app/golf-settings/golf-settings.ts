@@ -11,6 +11,8 @@ import {
   GolfMembershipTypeOption,
   GolfMinPlayerRule,
   GolfGuestControlRule,
+  GolfHandicapLimitRule,
+  GolfHandicapAccompanimentRule,
   GolfCourseOption,
 } from '../services/golf-setting.service';
 
@@ -41,7 +43,7 @@ export class GolfSettingsComponent implements OnInit {
   readonly courses = signal<GolfCourseOption[]>([]);
 
   // Collapsible section state (section-card standard; sections start open).
-  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true });
+  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true, handicap: true });
 
   readonly form = this.fb.nonNullable.group({
     advanceBookingDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
@@ -58,6 +60,7 @@ export class GolfSettingsComponent implements OnInit {
     allowMemberGuestWeekday: [true],
     allowGuestWeekend: [true],
     allowMemberGuestWeekend: [true],
+    handicapControlEnabled: [false],
   });
 
   // Override lines kept outside the FormGroup (dynamic rows); ovDirty feeds
@@ -72,6 +75,12 @@ export class GolfSettingsComponent implements OnInit {
   // Guest-control exception rules (same dynamic-row pattern).
   readonly guestRules = signal<GolfGuestControlRule[]>([]);
   readonly gcDirty = signal(false);
+
+  // Handicap-control rules (Tropicana procedure 2; same dynamic-row pattern).
+  readonly limitRules = signal<GolfHandicapLimitRule[]>([]);
+  readonly hlDirty = signal(false);
+  readonly accRules = signal<GolfHandicapAccompanimentRule[]>([]);
+  readonly haDirty = signal(false);
 
   readonly typeOptions = computed(() =>
     this.membershipTypes().map((t) => ({
@@ -146,6 +155,7 @@ export class GolfSettingsComponent implements OnInit {
           allowMemberGuestWeekday: doc.setting.allowMemberGuestWeekday,
           allowGuestWeekend: doc.setting.allowGuestWeekend,
           allowMemberGuestWeekend: doc.setting.allowMemberGuestWeekend,
+          handicapControlEnabled: doc.setting.handicapControlEnabled,
         });
         this.overrides.set(doc.overrides);
         this.ovDirty.set(false);
@@ -153,6 +163,10 @@ export class GolfSettingsComponent implements OnInit {
         this.mpDirty.set(false);
         this.guestRules.set(doc.guestControlRules ?? []);
         this.gcDirty.set(false);
+        this.limitRules.set(doc.handicapLimitRules ?? []);
+        this.hlDirty.set(false);
+        this.accRules.set(doc.handicapAccompanimentRules ?? []);
+        this.haDirty.set(false);
         this.loading.set(false);
       },
       error: (err) => {
@@ -223,6 +237,66 @@ export class GolfSettingsComponent implements OnInit {
     this.gcDirty.set(true);
   }
 
+  // Method, not computed: control values are not signals (same as overridesOn).
+  handicapControlOn(): boolean {
+    return this.form.controls.handicapControlEnabled.value === true;
+  }
+
+  addLimitRule(): void {
+    this.limitRules.update((rows) => [...rows, { courseId: null, dayScope: 'weekday', holes: null, gender: 'any', maxHandicap: 36, latestTeeOff: null }]);
+    this.hlDirty.set(true);
+  }
+
+  removeLimitRule(index: number): void {
+    this.limitRules.update((rows) => rows.filter((_, i) => i !== index));
+    this.hlDirty.set(true);
+  }
+
+  setLimitRule(index: number, patch: Partial<GolfHandicapLimitRule>): void {
+    this.limitRules.update((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+    this.hlDirty.set(true);
+  }
+
+  setLimitMax(index: number, value: string): void {
+    const n = Math.max(0, Math.min(54, Math.round((Number(value) || 0) * 10) / 10));
+    this.setLimitRule(index, { maxHandicap: n });
+  }
+
+  setRuleHoles(kind: 'limit' | 'acc', index: number, value: string): void {
+    const holes = value === '' ? null : Number(value);
+    if (kind === 'limit') this.setLimitRule(index, { holes });
+    else this.setAccRule(index, { holes });
+  }
+
+  addAccRule(): void {
+    this.accRules.update((rows) => [...rows, {
+      courseId: null, dayScope: 'weekday', holes: null, startTime: null, endTime: null,
+      appliesToBeginner: true, appliesToProvisional: true, minCompanions: 1,
+      companionMaxHandicapMen: 24, companionMaxHandicapWomen: 36, latestTeeOff: null,
+    }]);
+    this.haDirty.set(true);
+  }
+
+  removeAccRule(index: number): void {
+    this.accRules.update((rows) => rows.filter((_, i) => i !== index));
+    this.haDirty.set(true);
+  }
+
+  setAccRule(index: number, patch: Partial<GolfHandicapAccompanimentRule>): void {
+    this.accRules.update((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+    this.haDirty.set(true);
+  }
+
+  setAccCap(index: number, field: 'companionMaxHandicapMen' | 'companionMaxHandicapWomen', value: string): void {
+    const n = Math.max(0, Math.min(54, Math.round((Number(value) || 0) * 10) / 10));
+    this.setAccRule(index, { [field]: n } as Partial<GolfHandicapAccompanimentRule>);
+  }
+
+  setAccCompanions(index: number, value: string): void {
+    const n = Math.max(1, Math.min(3, Math.floor(Number(value) || 1)));
+    this.setAccRule(index, { minCompanions: n });
+  }
+
   // Live preview of the window rule with the current numbers. Hidden while
   // either number is out of range - the field errors speak then (a 25-hour
   // value once previewed as "-1:00 am").
@@ -254,7 +328,8 @@ export class GolfSettingsComponent implements OnInit {
     }
     const rules = this.minPlayerRules();
     const guestRules = this.guestRules();
-    for (const [label, scoped] of [['minimum-players', rules], ['guest-control', guestRules]] as const) {
+    const accRules = this.accRules();
+    for (const [label, scoped] of [['minimum-players', rules], ['guest-control', guestRules], ['accompaniment', accRules]] as const) {
       for (const r of scoped) {
         if (!!r.startTime !== !!r.endTime) {
           this.errorMessage.set(`A ${label} rule needs both From and To times — or neither for the whole day.`);
@@ -264,6 +339,12 @@ export class GolfSettingsComponent implements OnInit {
           this.errorMessage.set(`A ${label} rule's From time must be before its To time.`);
           return;
         }
+      }
+    }
+    for (const r of accRules) {
+      if (!r.appliesToBeginner && !r.appliesToProvisional) {
+        this.errorMessage.set('An accompaniment rule must target beginners, provisional golfers, or both.');
+        return;
       }
     }
 
@@ -284,9 +365,12 @@ export class GolfSettingsComponent implements OnInit {
       allowMemberGuestWeekday: v.allowMemberGuestWeekday,
       allowGuestWeekend: v.allowGuestWeekend,
       allowMemberGuestWeekend: v.allowMemberGuestWeekend,
+      handicapControlEnabled: v.handicapControlEnabled,
       overrides: rows,
       minPlayerRules: rules,
       guestControlRules: guestRules,
+      handicapLimitRules: this.limitRules(),
+      handicapAccompanimentRules: accRules,
     }).subscribe({
       next: (res) => {
         this.successMessage.set(res.message);
