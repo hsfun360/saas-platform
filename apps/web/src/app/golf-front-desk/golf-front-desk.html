@@ -434,6 +434,8 @@
       @if (confirmTarget(); as target) {
         @if (kind === 'void-bill') {
           <p>Void bill <strong>{{ target.bill?.billNo }}</strong> for {{ target.playerName }}? Its items are discarded; the registration stays.</p>
+        } @else if (target.kind === 'booked') {
+          <p>Cancel registration <strong>{{ target.registration?.registrationNo }}</strong> for {{ target.playerName }}? The player goes back to booked - the booking keeps the seat.</p>
         } @else {
           <p>Cancel registration <strong>{{ target.registration?.registrationNo }}</strong> for {{ target.playerName }}? The seat is freed.</p>
         }
