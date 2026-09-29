@@ -131,13 +131,13 @@ export class GolfFrontDeskComponent implements OnInit {
 
   // Distinct bookings in a cell with their unregistered counts - per-booking
   // register-all only matters when merged bookings share the flight.
-  bookingGroups(f: FrontDeskFlight): { bookingId: string; bookingNo: string; unregistered: number }[] {
-    const groups = new Map<string, { bookingId: string; bookingNo: string; unregistered: number }>();
+  bookingGroups(f: FrontDeskFlight): { bookingProfileId: string; bookingNo: string; unregistered: number }[] {
+    const groups = new Map<string, { bookingProfileId: string; bookingNo: string; unregistered: number }>();
     for (const e of f.entries) {
-      if (e.kind !== 'booked' || !e.bookingId) continue;
-      const g = groups.get(e.bookingId) || { bookingId: e.bookingId, bookingNo: e.bookingNo || '', unregistered: 0 };
+      if (e.kind !== 'booked' || !e.bookingProfileId) continue;
+      const g = groups.get(e.bookingProfileId) || { bookingProfileId: e.bookingProfileId, bookingNo: e.bookingNo || '', unregistered: 0 };
       if (!e.registration) g.unregistered += 1;
-      groups.set(e.bookingId, g);
+      groups.set(e.bookingProfileId, g);
     }
     return [...groups.values()];
   }
@@ -253,10 +253,10 @@ export class GolfFrontDeskComponent implements OnInit {
 
   // Bulk register a whole flight (or one booking in it) - guests go in
   // name-only, skips are reported in the result message.
-  registerAll(courseId: string, teeTime: string, bookingId?: string): void {
+  registerAll(courseId: string, teeTime: string, bookingProfileId?: string): void {
     this.clearMessages();
     this.busy.set(true);
-    this.service.registerFlight({ playDate: this.listDate(), courseId, teeTime, bookingId }).subscribe({
+    this.service.registerFlight({ playDate: this.listDate(), courseId, teeTime, bookingProfileId }).subscribe({
       next: (res) => {
         this.busy.set(false);
         if (res.skipped.length) this.errorMessage.set(res.message);
@@ -272,7 +272,7 @@ export class GolfFrontDeskComponent implements OnInit {
 
   register(entry: FrontDeskEntry): void {
     this.clearMessages();
-    if (!entry.bookingPlayerId) return;
+    if (!entry.playerId || entry.kind !== 'booked') return;
     if (entry.playerType === 'guest') {
       this.guestTarget.set(entry);
       this.guestForm.reset({ name: entry.playerName === 'Guest' ? '' : entry.playerName, identityNo: '', mobile: '', email: '' });
@@ -280,7 +280,7 @@ export class GolfFrontDeskComponent implements OnInit {
       return;
     }
     this.busy.set(true);
-    this.service.registerBooked(entry.bookingPlayerId).subscribe({
+    this.service.registerBooked(entry.playerId).subscribe({
       next: (res) => {
         this.busy.set(false);
         this.successMessage.set(res.message);
@@ -296,14 +296,14 @@ export class GolfFrontDeskComponent implements OnInit {
   submitGuestRegistration(): void {
     this.clearMessages();
     const entry = this.guestTarget();
-    if (!entry || !entry.bookingPlayerId) return;
+    if (!entry || !entry.playerId) return;
     if (this.guestForm.invalid) {
       this.guestForm.markAllAsTouched();
       return;
     }
     const v = this.guestForm.getRawValue();
     this.busy.set(true);
-    this.service.registerBooked(entry.bookingPlayerId, {
+    this.service.registerBooked(entry.playerId, {
       name: v.name.trim(),
       identityNo: v.identityNo.trim() || undefined,
       mobile: v.mobile.trim() || undefined,

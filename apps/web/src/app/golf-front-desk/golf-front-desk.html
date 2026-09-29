@@ -150,10 +150,10 @@
                       Register all ({{ unregistered(f) }})
                     </button>
                     @if (bookingGroups(f).length > 1) {
-                      @for (g of bookingGroups(f); track g.bookingId) {
+                      @for (g of bookingGroups(f); track g.bookingProfileId) {
                         @if (g.unregistered > 0) {
                           <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm fd-cell__regall"
-                                  (click)="registerAll(c.courseId, time, g.bookingId)" [disabled]="busy()">
+                                  (click)="registerAll(c.courseId, time, g.bookingProfileId)" [disabled]="busy()">
                             {{ g.bookingNo }} ({{ g.unregistered }})
                           </button>
                         }

@@ -5,11 +5,12 @@ import { environment } from '../../environments/environment';
 
 // Golf Front Desk - registration, billing and settlement for a play day.
 
+// A registered player's registration view - the golf.Player starting-nine
+// record plus its pair-derived crossTime/holes (revamp 2026-09-29).
 export interface FrontDeskRegistration {
   id: string;
   registrationNo: string;
-  bookingId: string | null;
-  bookingPlayerId: string | null;
+  bookingProfileId: string | null;
   courseId: string;
   playDate: string;
   teeTime: string;
@@ -31,9 +32,9 @@ export interface FrontDeskBillSummary {
 
 export interface FrontDeskEntry {
   kind: 'booked' | 'walkin';
-  bookingId?: string;
-  bookingNo?: string;
-  bookingPlayerId?: string;
+  bookingProfileId?: string | null;
+  bookingNo?: string | null;
+  playerId: string;
   playerType: string;
   playerName: string;
   memberNo: string | null;
@@ -128,7 +129,7 @@ export interface GolfBillPaymentRow {
 export interface GolfBillDoc {
   id: string;
   billNo: string;
-  registrationPlayerId: string;
+  playerId: string;
   billDate: string;
   status: string;
   totalAmount: number;
@@ -164,7 +165,7 @@ export class GolfFrontDeskService {
     return this.http.get<FrontDeskDay>(`${this.base}/day`, { params: { playDate } });
   }
 
-  registerFlight(payload: { playDate: string; courseId: string; teeTime: string; bookingId?: string }): Observable<{
+  registerFlight(payload: { playDate: string; courseId: string; teeTime: string; bookingProfileId?: string }): Observable<{
     message: string;
     registered: { playerName: string; registrationNo: string }[];
     skipped: { playerName: string; reason: string }[];
@@ -180,8 +181,8 @@ export class GolfFrontDeskService {
     return this.http.get<FrontDeskMeta>(`${this.base}/meta`);
   }
 
-  registerBooked(bookingPlayerId: string, guest?: GuestIdentityPayload): Observable<{ message: string; registration: FrontDeskRegistration }> {
-    return this.http.post<{ message: string; registration: FrontDeskRegistration }>(`${this.base}/registrations`, { bookingPlayerId, guest });
+  registerBooked(playerId: string, guest?: GuestIdentityPayload): Observable<{ message: string; registration: FrontDeskRegistration }> {
+    return this.http.post<{ message: string; registration: FrontDeskRegistration }>(`${this.base}/registrations`, { playerId, guest });
   }
 
   registerWalkIn(walkIn: WalkInPayload): Observable<{ message: string; registration: FrontDeskRegistration }> {
