@@ -114,11 +114,14 @@ export class GolfGolfersComponent implements OnInit {
       return;
     }
     const v = this.form.getRawValue();
+    // The number input's value accessor yields a NUMBER (or null when
+    // cleared) even on a string-typed control - normalize via String().
+    const idx = v.handicapIndex === null || v.handicapIndex === undefined ? '' : String(v.handicapIndex).trim();
     this.saving.set(true);
     this.service.update(golfer.id, {
-      handicapIndex: v.handicapIndex.trim() === '' ? null : Number(v.handicapIndex),
+      handicapIndex: idx === '' ? null : Number(idx),
       handicapStatus: v.handicapStatus || null,
-      remarks: v.remarks.trim() || null,
+      remarks: (v.remarks || '').trim() || null,
     }).subscribe({
       next: (res) => {
         this.saving.set(false);
