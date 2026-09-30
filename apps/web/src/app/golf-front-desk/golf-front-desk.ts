@@ -100,6 +100,25 @@ export class GolfFrontDeskComponent implements OnInit {
 
   readonly searchActive = computed(() => this.search().trim().length > 0);
 
+  // Collapsible course cards (user request 2026-09-30): each card's header
+  // toggles its flight list - most useful on mobile where the cards stack
+  // into one long scroll. State is per course id and an ACTIVE SEARCH
+  // auto-expands every card so matches are never hidden behind a fold.
+  readonly collapsedCourses = signal<Set<string>>(new Set());
+
+  cardCollapsed(courseId: string): boolean {
+    return this.collapsedCourses().has(courseId) && !this.searchActive();
+  }
+
+  toggleCourse(courseId: string): void {
+    this.collapsedCourses.update((set) => {
+      const next = new Set(set);
+      if (next.has(courseId)) next.delete(courseId);
+      else next.add(courseId);
+      return next;
+    });
+  }
+
   isHit(courseId: string, teeTime: string): boolean {
     return this.matchKeys().has(`${courseId}|${teeTime}`);
   }

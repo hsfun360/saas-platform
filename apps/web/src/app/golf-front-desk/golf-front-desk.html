@@ -49,7 +49,7 @@
         {{ statusLabel(s) }}
       </span>
     }
-    <span class="fd-legend__item"><span class="fd-seat"></span> Free seat</span>
+    <span class="fd-legend__item"><span class="fd-seat"></span> Available</span>
   </div>
 
   @if (loading()) {
@@ -67,11 +67,20 @@
       <div class="fd-cards" [style.--fd-cols]="sheet().length">
         @for (c of sheet(); track c.courseId) {
           <section class="fd-card">
-            <header class="fd-card__head">
+            <!-- Collapsible course header (user request 2026-09-30): the header
+                 toggles the card's flight list, chevron per the app standard
+                 (collapsed >, expanded v). An active search auto-expands so
+                 matches are never hidden. -->
+            <button type="button" class="fd-card__head"
+                    (click)="toggleCourse(c.courseId)"
+                    [attr.aria-expanded]="!cardCollapsed(c.courseId)"
+                    [attr.aria-label]="'Toggle ' + c.courseCode + ' tee times'">
               <span class="fd-card__code">{{ c.courseCode }}</span>
               @if (c.courseDescription) { <span class="fd-card__desc">{{ c.courseDescription }}</span> }
               @if (!c.operating) { <span class="fd-card__off">not operating</span> }
-            </header>
+              <span class="material-icons fd-card__chevron" [class.fd-card__chevron--open]="!cardCollapsed(c.courseId)" aria-hidden="true">chevron_right</span>
+            </button>
+            @if (!cardCollapsed(c.courseId)) {
             <div class="fd-card__list">
               @for (f of c.flights; track f.teeTime) {
                 <button type="button" class="fd-flight" [attr.data-flight]="c.courseId + '|' + f.teeTime"
@@ -95,7 +104,7 @@
                           <span class="fd-seat" [class.fd-seat--taken]="s !== null"
                                 [style.background]="s !== null ? colorFor(s) : null"
                                 [style.border-color]="s !== null ? colorFor(s) : null"
-                                [title]="s !== null ? statusLabel(s) : 'Free seat'"></span>
+                                [title]="s !== null ? statusLabel(s) : 'Available'"></span>
                         }
                       </span>
                     }
@@ -116,6 +125,7 @@
                 </button>
               }
             </div>
+            }
           </section>
         }
       </div>
@@ -245,7 +255,7 @@
               } @else {
                 <div class="fd-slot fd-slot--empty" aria-hidden="true">
                   <span class="fd-seat fd-slot__dot"></span>
-                  <span class="fd-slot__free">Free seat</span>
+                  <span class="fd-slot__free">Available</span>
                 </div>
               }
             }

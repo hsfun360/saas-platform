@@ -108,17 +108,50 @@
   background: var(--surface-card);
   min-width: 0;
 }
+/* The header is a BUTTON toggling the card's flight list (collapsible cards,
+   2026-09-30) - full-width, keeps the original band look. */
 .fd-card__head {
   display: flex;
   align-items: baseline;
   gap: var(--space-xs);
+  width: 100%;
+  min-height: 44px;
   padding: var(--space-sm) var(--space-md);
+  border: none;
   border-bottom: 2px solid var(--border-strong);
   background: var(--surface-sunken);
   border-radius: 12px 12px 0 0;
   position: sticky;
   top: 0;
   z-index: 5;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fd-card__head:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+/* Collapsed card: the header keeps the card's full rounding (no list below). */
+.fd-card__head[aria-expanded='false'] {
+  border-bottom: none;
+  border-radius: 12px;
+}
+.fd-card__chevron {
+  margin-left: auto;
+  align-self: center;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+.fd-card__chevron--open {
+  transform: rotate(90deg);
+}
+/* not-operating chip sits before the chevron now */
+.fd-card__head .fd-card__off {
+  margin-left: auto;
+}
+.fd-card__head .fd-card__off + .fd-card__chevron {
+  margin-left: var(--space-xs);
 }
 .fd-card__code {
   font-weight: var(--weight-bold);
