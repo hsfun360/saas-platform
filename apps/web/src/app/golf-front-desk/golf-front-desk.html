@@ -77,6 +77,7 @@
                     [attr.aria-label]="'Toggle ' + c.courseCode + ' tee times'">
               <span class="fd-card__code">{{ c.courseCode }}</span>
               @if (c.courseDescription) { <span class="fd-card__desc">{{ c.courseDescription }}</span> }
+              @if (c.rotation) { <span class="fd-card__rotation">({{ c.rotation }})</span> }
               @if (!c.operating) { <span class="fd-card__off">not operating</span> }
               <span class="material-icons fd-card__chevron" [class.fd-card__chevron--open]="!cardCollapsed(c.courseId)" aria-hidden="true">chevron_right</span>
             </button>

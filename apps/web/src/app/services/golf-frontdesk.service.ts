@@ -63,6 +63,9 @@ export interface FrontDeskCourseSheet {
   courseId: string;
   courseCode: string;
   courseDescription: string | null;
+  // Derived nine pairing for the card header, e.g. 'E1 → E2' (null when the
+  // course's nines are missing) - never keyed into the description.
+  rotation: string | null;
   operating: boolean;
   flights: FrontDeskFlight[];
 }

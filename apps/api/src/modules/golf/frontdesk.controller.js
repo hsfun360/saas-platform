@@ -41,6 +41,7 @@ const GolfTransactionType = require('./transactionType.model');
 const GolfTransactionTypeRate = require('./transactionTypeRate.model');
 const GolfTransactionTypeElement = require('./transactionTypeElement.model');
 const PaymentType = require('./paymentType.model');
+const UnitCourse = require('./unitCourse.model');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^\d{2}:\d{2}$/;
@@ -437,6 +438,15 @@ exports.getDay = async (req, res) => {
             courses: courses.filter((c) => c.isActive),
         });
 
+        // Nine codes for the DERIVED rotation suffix on each card header
+        // ("E1 → E2") - so every club shows its pairing without keying it
+        // into the course description (user request 2026-09-30).
+        const nineIds = [...new Set(courses.flatMap((c) => [c.firstNineId, c.secondNineId]).filter(Boolean))];
+        const nineCodeById = new Map(
+            (await UnitCourse.findAll({ where: { id: { [Op.in]: nineIds } }, attributes: ['id', 'unitCourseCode'] }))
+                .map((u) => [u.id, u.unitCourseCode]),
+        );
+
         const consumed = new Set();
         const sheets = [];
         for (const course of courses) {
@@ -497,10 +507,13 @@ exports.getDay = async (req, res) => {
             // A course appears when it operates that day (has a tee sheet) or
             // still has something to show; silent courses stay off the sheet.
             if (set || flights.length) {
+                const firstCode = nineCodeById.get(course.firstNineId);
+                const secondCode = nineCodeById.get(course.secondNineId);
                 sheets.push({
                     courseId: course.id,
                     courseCode: course.courseCode,
                     courseDescription: course.description,
+                    rotation: firstCode && secondCode ? `${firstCode} → ${secondCode}` : null,
                     operating: !!set,
                     flights,
                 });
