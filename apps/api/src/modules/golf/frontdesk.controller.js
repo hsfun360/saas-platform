@@ -611,6 +611,32 @@ function withWarnings(message, warnings) {
     return warnings.length ? `${message} WARNING: ${warnings.join(' ')}` : message;
 }
 
+// Non-blocking desk closure warning for registering an ALREADY-BOOKED player
+// (the booking may predate the closure, so the desk decides - same
+// "book blocks, desk warns" split as handicap control). NEW walk-ins are
+// hard-refused in the walk-in path instead - a walk-in is a new tee-off.
+// Never throws.
+async function closureWarnings({ companyId, courseId, playDate, teeTime, crossTime }) {
+    try {
+        const course = await Course.findOne({ where: { companyId, id: courseId } });
+        if (!course) return [];
+        const blocks = await availability.closureBlocks(
+            [course.firstNineId, course.secondNineId].filter(Boolean), playDate,
+        );
+        const warnings = [];
+        if (availability.nineBlocked(blocks.get(course.firstNineId), availability.toMinutes(teeTime))) {
+            warnings.push(`The starting nine is closed at ${teeTime} (course closure).`);
+        }
+        if (crossTime && availability.nineBlocked(blocks.get(course.secondNineId), availability.toMinutes(crossTime))) {
+            warnings.push(`The crossover nine is closed at ${crossTime} (course closure).`);
+        }
+        return warnings;
+    } catch (error) {
+        console.error('Closure warning check failed (never blocks the desk):', error);
+        return [];
+    }
+}
+
 // Resolve the golfer identity + snapshots for a player being registered.
 // Returns { golfer, playerName, memberNo, standing } or { error }.
 async function resolvePlayerIdentity({ req, companyId, playerType, memberNo, guest, fallbackName, stamps, transaction }) {
@@ -707,6 +733,10 @@ exports.register = async (req, res) => {
                 playDate: String(result.row.playDate), teeTime: availability.hhmm(result.row.teeTime),
                 holes: result.shape.holes, playerIds: [result.row.id],
             });
+            warnings.push(...await closureWarnings({
+                companyId, courseId: result.row.courseId, playDate: String(result.row.playDate),
+                teeTime: availability.hhmm(result.row.teeTime), crossTime: result.shape.crossTime ? availability.hhmm(result.shape.crossTime) : null,
+            }));
             return res.status(201).json({
                 message: withWarnings(`Registered ${result.row.playerName} (${result.row.registrationNo}).`, warnings),
                 registration: registrationDto(result.row, result.shape),
@@ -747,6 +777,12 @@ exports.register = async (req, res) => {
             if (slot.isCrossoverOnly === true) {
                 return { fail: 'That flight time is closed for crossover - no new tee-offs.', status: 400 };
             }
+            // Closures block NEW tee-offs from the desk too (bug fix
+            // 2026-09-30: the nine is physically shut - only registering an
+            // EXISTING booking stays a desk-discretion warning).
+            if (availability.nineBlocked(ctx.nineBlocks.get(course.firstNineId), availability.toMinutes(teeTime))) {
+                return { fail: 'That flight is blocked by a course closure.', status: 409 };
+            }
             const occ = await availability.occupancy(companyId, playDate, { transaction });
             const startOcc = occ.get(availability.nineKey(course.firstNineId, teeTime));
             if ((startOcc ? startOcc.players : 0) >= slot.maxPlayers) return { fail: 'That flight is full.', status: 409 };
@@ -756,6 +792,9 @@ exports.register = async (req, res) => {
                 const target = availability.crossTarget(ctx, course, t);
                 if (!target) return { fail: 'No crossover flight remains for 18 holes at that time.', status: 400 };
                 crossTime = availability.hhmm(target.slot.teeTime);
+                if (availability.crossBlocked(ctx, course, availability.toMinutes(crossTime))) {
+                    return { fail: `The crossover nine is closed at ${crossTime} (course closure) - no 18-hole tee-off at this time.`, status: 409 };
+                }
                 const crossOcc = occ.get(availability.nineKey(course.secondNineId, crossTime));
                 if ((crossOcc ? crossOcc.players : 0) >= target.slot.maxPlayers) return { fail: 'The crossover flight is full.', status: 409 };
             }
@@ -890,11 +929,15 @@ exports.registerFlight = async (req, res) => {
         }
         let warnings = [];
         if (registeredIds.length) {
-            const anySecond = await Player.findOne({ where: { firstNinePlayerId: { [Op.in]: registeredIds } }, attributes: ['id'] });
+            const anySecond = await Player.findOne({ where: { firstNinePlayerId: { [Op.in]: registeredIds } }, attributes: ['id', 'teeTime'] });
             warnings = await handicapWarnings(req, {
                 companyId, courseId, unitCourseId: candidates[0].unitCourseId, playDate, teeTime,
                 holes: anySecond ? 18 : 9, playerIds: registeredIds,
             });
+            warnings.push(...await closureWarnings({
+                companyId, courseId, playDate, teeTime,
+                crossTime: anySecond ? availability.hhmm(anySecond.teeTime) : null,
+            }));
         }
         const message = skipped.length
             ? `Registered ${registered.length} player(s); skipped ${skipped.length} - ${skipped.map((s) => `${s.playerName}: ${s.reason}`).join('; ')}`
