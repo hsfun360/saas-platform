@@ -1,0 +1,253 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">event_busy</span>
+      <div>
+        <h1>{{ 'Course Closure' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Close a nine for maintenance or tournaments — every course that tees off on or crosses onto it is blocked.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <p class="gcl-count">{{ plans().length }} closure plan{{ plans().length === 1 ? '' : 's' }}, {{ activeCount() }} active</p>
+
+  <!-- SEARCH -->
+  <div class="gcl-search">
+    <span class="material-icons gcl-search__icon" aria-hidden="true">search</span>
+    <input type="search" [value]="search()" (input)="search.set($any($event.target).value)"
+           placeholder="Search by description, nine or date…" aria-label="Search closure plans" />
+    @if (search()) {
+      <button type="button" class="gcl-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner"></div><p>Loading closure plans…</p></div>
+  } @else if (plans().length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🚧</span>
+      <p>No closure plans yet. Use 'New closure plan' to close a nine over a date period — e.g. greens maintenance every weekday morning, or a tournament weekend.</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No closure plans match "{{ search() }}"</p>
+      <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (p of filtered(); track p.id) {
+        <div class="data-card" [attr.data-return-id]="p.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ p.description }}</div>
+              <div class="data-card__subline">
+                <span class="gcl-nine">{{ nineCode(p) }}</span>
+                @if (p.UnitCourse?.description) { <span class="data-card__reg">{{ p.UnitCourse?.description }}</span> }
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Period</dt><dd>{{ p.dateFrom | localDate }} → {{ p.dateTo | localDate }}</dd></div>
+                <div class="meta"><dt>Days</dt><dd>{{ scopeLabel(p.dayScope) }}</dd></div>
+                <div class="meta"><dt>Closed</dt><dd>{{ closureWindow(p.startTime, p.endTime) }}</dd></div>
+                <div class="meta"><dt>Closure days</dt><dd>{{ dayCount(p) }}</dd></div>
+              </dl>
+            </div>
+            <div class="data-card__badge data-row__badge">
+              @if (p.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openDays(p)">
+                <span class="material-icons" aria-hidden="true">event_busy</span>
+                Closure days ({{ dayCount(p) }})
+              </button>
+              <app-overflow-menu [label]="'More actions for ' + p.description">
+                <button *appCan="'edit'" type="button" appMenuItem (click)="openEdit(p)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+                <button *appCan="'edit'" type="button" appMenuItem (click)="toggleActive(p)" [disabled]="togglingId() === p.id">
+                  <span class="material-icons" aria-hidden="true">{{ p.isActive === false ? 'check_circle' : 'block' }}</span>
+                  {{ p.isActive === false ? 'Enable' : 'Disable' }}
+                </button>
+              </app-overflow-menu>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New closure plan FAB -->
+  <button type="button" class="btn btn--primary fab" (click)="openAdd()" aria-label="New closure plan" *appCan="'create'">
+    <span class="material-icons" aria-hidden="true">add</span>
+    New closure plan
+  </button>
+
+  <!-- ============ The ONE drawer dialog: plan form / day editor ============ -->
+  @if (dlgMode(); as mode) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="busy()" [dirty]="isDirty()"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved closure changes. Leaving now will discard them."
+                (close)="closeDialog()">
+      <div class="saas-form" style="padding: 0;">
+        @switch (mode) {
+
+          @case ('form') {
+            <form id="gclForm" [formGroup]="form" (ngSubmit)="onSave()">
+              @if (editPlan(); as p) {
+                <div class="form-group">
+                  <label for="gclNine">Unit course</label>
+                  <input id="gclNine" type="text" [value]="nineLabel(p)" disabled />
+                </div>
+              } @else {
+                <div class="form-group">
+                  <label id="gclNinesLabel">Close <span class="required">*</span></label>
+                  <div class="gcl-nine-picks" role="group" aria-labelledby="gclNinesLabel">
+                    @for (n of nines(); track n.id) {
+                      <label class="gcl-nine-pick">
+                        <input type="checkbox" [checked]="pickedNines().has(n.id)" (change)="toggleNine(n.id)" />
+                        {{ n.unitCourseCode }}@if (n.description) { <span class="gcl-nine-pick__desc">— {{ n.description }}</span> }
+                      </label>
+                    }
+                  </div>
+                  <p class="gcl-hint">One plan is created per ticked nine — tick all nines for a whole-club shutdown. Each plan's days are generated separately.</p>
+                </div>
+              }
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="gclDesc">Description <span class="required">*</span></label>
+                  <input id="gclDesc" type="text" formControlName="description" placeholder="e.g. Greens maintenance" maxlength="255"
+                         [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="gclDescErr" />
+                  @if (showError(form.controls.description)) {
+                    <p id="gclDescErr" class="field-error" role="alert">Description is required.</p>
+                  }
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label for="gclScope">Day scope <span class="required">*</span></label>
+                  <select id="gclScope" formControlName="dayScope" aria-describedby="gclScopeHint">
+                    @for (sc of dayScopes; track sc.key) {
+                      <option [value]="sc.key">{{ sc.label }}</option>
+                    }
+                  </select>
+                  <p id="gclScopeHint" class="gcl-hint">Public holidays count as weekends.</p>
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label for="gclFrom">Start date <span class="required">*</span></label>
+                  <input id="gclFrom" type="date" formControlName="dateFrom"
+                         [attr.aria-invalid]="showError(form.controls.dateFrom)" aria-describedby="gclFromErr" />
+                  @if (showError(form.controls.dateFrom)) {
+                    <p id="gclFromErr" class="field-error" role="alert">Start date is required.</p>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="gclTo">End date <span class="required">*</span></label>
+                  <input id="gclTo" type="date" formControlName="dateTo"
+                         [attr.aria-invalid]="showError(form.controls.dateTo)" aria-describedby="gclToErr" />
+                  @if (showError(form.controls.dateTo)) {
+                    <p id="gclToErr" class="field-error" role="alert">End date is required.</p>
+                  }
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-group">
+                  <label for="gclStart">Closed from</label>
+                  <input id="gclStart" type="time" formControlName="startTime" aria-describedby="gclTimeHint" />
+                </div>
+                <div class="form-group">
+                  <label for="gclEnd">Closed until</label>
+                  <input id="gclEnd" type="time" formControlName="endTime" />
+                </div>
+              </div>
+              <p id="gclTimeHint" class="gcl-hint">Leave both times empty to close for the whole day.</p>
+            </form>
+          }
+
+          @case ('days') {
+            @if (dayRows().length === 0) {
+              <div class="empty-state">
+                <span class="empty-icon">🚧</span>
+                <p>No closure days yet — generate them from this plan's period and day scope, then adjust or except individual days as needed.</p>
+              </div>
+            } @else {
+              <div class="gcl-day-scroll">
+                <div class="gcl-day-head" aria-hidden="true">
+                  <span>Date</span><span>From</span><span>Until</span><span>On</span><span></span>
+                </div>
+                @for (row of dayRows(); track row.closureDate; let i = $index) {
+                  <div class="gcl-day-row" [class.gcl-day-row--off]="!row.isActive">
+                    <span class="gcl-day-date">
+                      {{ row.closureDate | localDate }}
+                      @if (row.isHoliday) {
+                        <span class="gcl-day-tag">Holiday</span>
+                      } @else if (row.dayType === 'weekend') {
+                        <span class="gcl-day-tag">Weekend</span>
+                      }
+                    </span>
+                    <input type="time" [value]="row.startTime"
+                           (input)="updateDay(i, 'startTime', $any($event.target).value)"
+                           [attr.aria-label]="row.closureDate + ' closed from'" />
+                    <input type="time" [value]="row.endTime"
+                           (input)="updateDay(i, 'endTime', $any($event.target).value)"
+                           [attr.aria-label]="row.closureDate + ' closed until'" />
+                    <label class="gcl-day-on">
+                      <input type="checkbox" [checked]="row.isActive" (change)="toggleDayActive(i)"
+                             [attr.aria-label]="row.closureDate + ' closure applies'" />
+                    </label>
+                    <button type="button" class="gcl-day-remove" (click)="removeDay(i)"
+                            [attr.aria-label]="'Remove ' + row.closureDate">✕</button>
+                  </div>
+                }
+              </div>
+            }
+            <button type="button" class="btn btn--secondary" (click)="generateDays()" [disabled]="generating()">
+              <span class="material-icons" aria-hidden="true">event_busy</span>
+              <span>{{ generating() ? 'Generating…' : (dayRows().length ? 'Regenerate days' : 'Generate days') + ' (' + scopeLabel(dayPlan()?.dayScope || 'all') + ', ' + (dayPlan()?.dateFrom || '') + ' → ' + (dayPlan()?.dateTo || '') + ')' }}</span>
+            </button>
+          }
+        }
+      </div>
+
+      <ng-container dialogFooter>
+        @switch (mode) {
+          @case ('form') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+            <button type="submit" form="gclForm" class="btn btn--primary" [disabled]="saving()">
+              {{ saving() ? 'Saving…' : (editPlan() || pickedNines().size < 2 ? 'Save' : 'Save on ' + pickedNines().size + ' nines') }}
+            </button>
+          }
+          @case ('days') {
+            <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="daysSaving()">Cancel</button>
+            <button type="button" class="btn btn--primary" (click)="onSaveDays()" [disabled]="daysSaving()">
+              {{ daysSaving() ? 'Saving…' : 'Save ' + dayRows().length + ' days' }}
+            </button>
+          }
+        }
+      </ng-container>
+    </app-dialog>
+  }
+</div>

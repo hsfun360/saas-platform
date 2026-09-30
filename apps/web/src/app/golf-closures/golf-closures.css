@@ -1,0 +1,203 @@
+/* Course Closure - standalone menu (2026-09-30). Composes the shared
+   listing/dialog primitives; only the screen-specific bits live here. */
+
+.gcl-count {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+/* Search on top (listing standard). */
+.gcl-search {
+  position: relative;
+  margin-bottom: var(--space-md);
+}
+
+.gcl-search input[type='search'] {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-sm) 40px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+}
+
+.gcl-search__icon {
+  position: absolute;
+  left: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.gcl-search__clear {
+  position: absolute;
+  right: var(--space-xs);
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 36px;
+  min-height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.gcl-search__clear:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/* The nine code chip on a plan card's subline. */
+.gcl-nine {
+  font-weight: var(--weight-semibold);
+  color: var(--brand-text);
+  background: var(--brand-surface, var(--surface-sunken));
+  border-radius: 8px;
+  padding: 1px var(--space-sm);
+  font-size: var(--font-body-2);
+}
+
+.gcl-hint {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+
+/* Nine multi-select on the create form - one checkbox per active nine. */
+.gcl-nine-picks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.gcl-nine-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.gcl-nine-pick input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+}
+
+.gcl-nine-pick__desc {
+  color: var(--text-secondary);
+  font-size: var(--font-body-2);
+}
+
+/* Closure day editor - date | from | until | on-checkbox | remove.
+   Wide grid scrolls horizontally on narrow screens; the 4px padding + negative
+   margin keeps the focus ring unclipped inside the scroll container. */
+.gcl-day-scroll {
+  overflow-x: auto;
+  padding: 4px;
+  margin: -4px -4px var(--space-sm);
+}
+
+.gcl-day-head,
+.gcl-day-row {
+  display: grid;
+  grid-template-columns: 170px 110px 110px 44px 36px;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.gcl-day-head {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.gcl-day-row {
+  margin-bottom: var(--space-xs);
+}
+
+.gcl-day-row--off > .gcl-day-date {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.gcl-day-date {
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  white-space: nowrap;
+}
+
+.gcl-day-tag {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px var(--space-xs);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+}
+
+/* Same shared input standard as the other grid editors (base + focus). */
+.gcl-day-row input[type='time'] {
+  min-height: 40px;
+  padding: var(--space-xs);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.gcl-day-row input[type='time']:focus {
+  background: var(--surface-card); /* border/glow from the global field-focus rule */
+}
+
+.gcl-day-on {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 40px;
+  cursor: pointer;
+}
+
+.gcl-day-on input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+}
+
+.gcl-day-remove {
+  min-height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-body);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.gcl-day-remove:hover {
+  color: var(--danger-text);
+  background: var(--surface-hover);
+}
+
+.gcl-day-remove:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}

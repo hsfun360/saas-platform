@@ -216,6 +216,9 @@ const routes: Routes = [
       { path: 'golf/transaction-types', loadComponent: () => import('./app/golf-transaction-types/golf-transaction-types').then((m) => m.GolfTransactionTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/payment-types', loadComponent: () => import('./app/golf-payment-types/golf-payment-types').then((m) => m.GolfPaymentTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/golfers', loadComponent: () => import('./app/golf-golfers/golf-golfers').then((m) => m.GolfGolfersComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      // Course Closure - standalone menu so closure keying is grantable
+      // without the Unit Course setup screen (2026-09-30).
+      { path: 'golf/closures', loadComponent: () => import('./app/golf-closures/golf-closures').then((m) => m.GolfClosuresComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/bookings', loadComponent: () => import('./app/golf-bookings/golf-bookings').then((m) => m.GolfBookingsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/front-desk', loadComponent: () => import('./app/golf-front-desk/golf-front-desk').then((m) => m.GolfFrontDeskComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/settings', loadComponent: () => import('./app/golf-settings/golf-settings').then((m) => m.GolfSettingsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },

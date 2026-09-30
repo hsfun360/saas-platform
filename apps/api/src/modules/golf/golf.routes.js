@@ -22,6 +22,9 @@ router.use(requireModule('GOLF'));
 // --- Master File Setup ---
 router.use('/unit-courses', unitCourseRoutes);
 router.use('/courses', courseRoutes);
+// Course Closure is a standalone menu (2026-09-30): closure keying is
+// grantable without the Unit Course setup grant.
+router.use('/closures', requireMenuAction('/golf/closures'), require('./closures.routes'));
 router.use('/transaction-types', requireMenuAction('/golf/transaction-types'), transactionTypesRoutes);
 router.use('/payment-types', requireMenuAction('/golf/payment-types'), require('./paymentTypes.routes'));
 

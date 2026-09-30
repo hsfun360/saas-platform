@@ -2,15 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import {
-  UnitCourse,
-  UnitCourseClosureDay,
-  UnitCourseClosureDayPreview,
-  UnitCourseClosurePlan,
-  UnitCourseHole,
-  UnitCourseMeta,
-  UnitCourseTeeBox,
-} from '../models/auth.models';
+import { UnitCourse, UnitCourseHole, UnitCourseMeta, UnitCourseTeeBox } from '../models/auth.models';
 
 // Unit Course (9-hole) master file for the active company (club). All endpoints
 // sit behind the Golf Management module entitlement on the API. Enable/disable
@@ -65,39 +57,6 @@ export class UnitCourseService {
     return this.http.put<{ message: string; teeBoxes: UnitCourseTeeBox[] }>(`${this.base}/${id}/tee-boxes`, { teeBoxes });
   }
 
-  // --- Closure plans (per NINE, spec 2.2.8 re-keyed 2026-09-30) ---
-  closurePlans(id: string): Observable<UnitCourseClosurePlan[]> {
-    return this.http.get<UnitCourseClosurePlan[]>(`${this.base}/${id}/closure-plans`);
-  }
-
-  // `alsoUnitCourseIds` fans the same header out to extra nines (whole-course
-  // closure keyed once) - one plan per nine comes back.
-  createClosurePlan(
-    id: string,
-    payload: Partial<UnitCourseClosurePlan> & { alsoUnitCourseIds?: string[] },
-  ): Observable<{ message: string; plan: UnitCourseClosurePlan; plans: UnitCourseClosurePlan[] }> {
-    return this.http.post<{ message: string; plan: UnitCourseClosurePlan; plans: UnitCourseClosurePlan[] }>(
-      `${this.base}/${id}/closure-plans`,
-      payload,
-    );
-  }
-
-  updateClosurePlan(id: string, planId: string, patch: Partial<UnitCourseClosurePlan>): Observable<{ message: string; plan: UnitCourseClosurePlan }> {
-    return this.http.patch<{ message: string; plan: UnitCourseClosurePlan }>(`${this.base}/${id}/closure-plans/${planId}`, patch);
-  }
-
-  // Server-side generation PREVIEW: classifies each date of the plan's period
-  // (weekday/weekend, holidays count as weekend) and returns the matching day
-  // rows without saving them.
-  generateClosureDays(id: string, planId: string): Observable<{ days: UnitCourseClosureDayPreview[]; totalInPeriod: number }> {
-    return this.http.post<{ days: UnitCourseClosureDayPreview[]; totalInPeriod: number }>(
-      `${this.base}/${id}/closure-plans/${planId}/generate-days`,
-      {},
-    );
-  }
-
-  // Replace a plan's day list atomically.
-  saveClosureDays(id: string, planId: string, days: UnitCourseClosureDay[]): Observable<{ message: string; days: UnitCourseClosureDay[] }> {
-    return this.http.put<{ message: string; days: UnitCourseClosureDay[] }>(`${this.base}/${id}/closure-plans/${planId}/days`, { days });
-  }
+  // Closure plans moved to the standalone Course Closure menu (2026-09-30) -
+  // see GolfClosureService.
 }

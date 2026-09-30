@@ -1246,6 +1246,8 @@ export interface UnitCourseClosurePlan {
   endTime?: string | null;
   isActive?: boolean;
   Days?: UnitCourseClosureDay[];
+  // Served by the Course Closure listing: the plan's nine.
+  UnitCourse?: { id: string; unitCourseCode: string; description: string | null };
 }
 
 // Golf - one concrete closure day of a plan (generated, then hand-adjusted).

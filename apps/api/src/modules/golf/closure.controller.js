@@ -1,10 +1,15 @@
-// Unit Course Closure Plan (spec 2.2.8, re-keyed to the physical nine
-// 2026-09-30). A plan is a rule header on ONE unit course; the user GENERATES
-// per-day rows from it (server classifies each date in the period against
-// Company Weekend Days + Public Holidays via the calendar seam - holidays
-// count as weekend), reviews them, and saves the set atomically. Closing a
-// whole 18-hole course = one plan per nine; create accepts extra nines and
-// fans the header out so the operator keys it once.
+// Course Closure (spec 2.2.8; STANDALONE MENU 2026-09-30). A plan closes ONE
+// physical nine over a date period; the user GENERATES per-day rows from it
+// (server classifies each date against Company Weekend Days + Public
+// Holidays via the calendar seam - holidays count as weekend), reviews them,
+// and saves the set atomically.
+//
+// Moved out of the Unit Courses screen so closure keying is grantable on its
+// own (user decision: maintenance schedulers must not need - or get - the
+// Unit Course setup grant). The screen lists EVERY nine's plans in one
+// place, so the endpoints are PLAN-centric: create takes the target nines
+// (one plan per nine), and :planId requests scope through the plan's unit
+// course to the active company.
 
 const { sequelize } = require('../../platform/db');
 const { Op } = require('sequelize');
@@ -18,22 +23,21 @@ const { DAY_SCOPE_KEYS } = require('./courseTeeTime.constants');
 // A plan's period (and therefore a generation run) is capped at one year.
 const MAX_RANGE_DAYS = 366;
 
-// Closure plans are children of a unit course; every request scopes through
-// the parent (active company + :id), never by plan id alone.
-async function findOwnedNine(req) {
-    const companyId = getUserContext(req).companyId || null;
-    if (!companyId) return { status: 400, message: 'Select a workspace first.' };
-    const nine = await UnitCourse.findOne({ where: { id: req.params.id, companyId } });
-    if (!nine) return { status: 404, message: 'Unit course not found.' };
-    return { nine, companyId };
+function companyIdOf(req) {
+    return getUserContext(req).companyId || null;
 }
 
+// Resolve :planId to a plan OWNED by the active company (scoped through the
+// plan's unit course - closure plans have no companyId of their own).
 async function findOwnedPlan(req) {
-    const target = await findOwnedNine(req);
-    if (target.status) return target;
-    const plan = await UnitCourseClosurePlan.findOne({ where: { id: req.params.planId, unitCourseId: target.nine.id } });
+    const companyId = companyIdOf(req);
+    if (!companyId) return { status: 400, message: 'Select a workspace first.' };
+    const plan = await UnitCourseClosurePlan.findOne({
+        where: { id: req.params.planId },
+        include: [{ model: UnitCourse, as: 'UnitCourse', where: { companyId } }],
+    });
     if (!plan) return { status: 404, message: 'Closure plan not found.' };
-    return { nine: target.nine, companyId: target.companyId, plan };
+    return { companyId, plan };
 }
 
 // 'HH:MM' (or 'HH:MM:SS') time of day; normalized to 'HH:MM:00' for storage.
@@ -107,38 +111,45 @@ function validateHeader(body, current) {
     return { values: out };
 }
 
-function listQuery(unitCourseId) {
-    return UnitCourseClosurePlan.findAll({
-        where: { unitCourseId },
-        include: [{ model: UnitCourseClosureDay, as: 'Days' }],
-        order: [
-            ['dateFrom', 'DESC'],
-            [{ model: UnitCourseClosureDay, as: 'Days' }, 'closureDate', 'ASC'],
-        ],
-    });
-}
-
-// GET /api/golf/unit-courses/:id/closure-plans - the nine's plans with days.
-exports.listPlans = async (req, res) => {
+// GET /api/golf/closures - EVERY closure plan of the active company, newest
+// period first, each with its days and its nine's code/description (the
+// screen's one listing across all nines). Also returns the active nines for
+// the create dialog's picker.
+exports.list = async (req, res) => {
     try {
-        const target = await findOwnedNine(req);
-        if (target.status) return res.status(target.status).json({ message: target.message });
-        res.status(200).json(await listQuery(target.nine.id));
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const plans = await UnitCourseClosurePlan.findAll({
+            include: [
+                { model: UnitCourse, as: 'UnitCourse', where: { companyId }, attributes: ['id', 'unitCourseCode', 'description'] },
+                { model: UnitCourseClosureDay, as: 'Days' },
+            ],
+            order: [
+                ['dateFrom', 'DESC'],
+                ['createdAt', 'DESC'],
+                [{ model: UnitCourseClosureDay, as: 'Days' }, 'closureDate', 'ASC'],
+            ],
+        });
+        const nines = await UnitCourse.findAll({
+            where: { companyId, isActive: true },
+            attributes: ['id', 'unitCourseCode', 'description'],
+            order: [['seq', 'ASC'], ['unitCourseCode', 'ASC']],
+        });
+        res.status(200).json({ plans, nines });
     } catch (error) {
         console.error('Error listing closure plans:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// POST /api/golf/unit-courses/:id/closure-plans
-// Body: { description, dayScope, dateFrom, dateTo, startTime?, endTime?,
-//         alsoUnitCourseIds?: [] }. The optional extra nines each get their
-// own identical plan (whole-course closure keyed once); day generation stays
-// per plan.
-exports.createPlan = async (req, res) => {
+// POST /api/golf/closures
+// Body: { unitCourseIds: [..], description, dayScope, dateFrom, dateTo,
+//         startTime?, endTime? } - ONE plan per selected nine (whole-course
+// closure keyed once); day generation stays per plan.
+exports.create = async (req, res) => {
     try {
-        const target = await findOwnedNine(req);
-        if (target.status) return res.status(target.status).json({ message: target.message });
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
         for (const f of ['description', 'dayScope', 'dateFrom', 'dateTo']) {
             if (!(f in req.body) || req.body[f] === null || req.body[f] === '') {
@@ -150,15 +161,11 @@ exports.createPlan = async (req, res) => {
         const header = validateHeader(body, null);
         if (header.error) return res.status(400).json({ message: header.error });
 
-        // Fan-out targets: this nine plus any extra ones, deduped, all owned
-        // by the active company.
-        const extraIds = Array.isArray(req.body.alsoUnitCourseIds) ? req.body.alsoUnitCourseIds.map(String) : [];
-        const nineIds = [...new Set([target.nine.id, ...extraIds])];
-        if (nineIds.length > 1) {
-            const owned = await UnitCourse.count({ where: { id: { [Op.in]: nineIds }, companyId: target.companyId } });
-            if (owned !== nineIds.length) {
-                return res.status(400).json({ message: 'Every selected unit course must belong to the active company.' });
-            }
+        const nineIds = [...new Set((Array.isArray(req.body.unitCourseIds) ? req.body.unitCourseIds : []).map(String))];
+        if (!nineIds.length) return res.status(400).json({ message: 'Pick at least one unit course to close.' });
+        const owned = await UnitCourse.count({ where: { id: { [Op.in]: nineIds }, companyId } });
+        if (owned !== nineIds.length) {
+            return res.status(400).json({ message: 'Every selected unit course must belong to the active company.' });
         }
 
         const placement = await getCallerPlacement(req);
@@ -172,10 +179,8 @@ exports.createPlan = async (req, res) => {
                 updatedBy: callerId,
             }, { transaction: t })
         ))));
-        const plan = plans.find((p) => p.unitCourseId === target.nine.id);
         res.status(201).json({
             message: plans.length === 1 ? 'Closure plan created.' : `Closure plan created on ${plans.length} unit courses.`,
-            plan,
             plans,
         });
     } catch (error) {
@@ -184,10 +189,11 @@ exports.createPlan = async (req, res) => {
     }
 };
 
-// PATCH /api/golf/unit-courses/:id/closure-plans/:planId
+// PATCH /api/golf/closures/:planId
 // Body: any header field plus { isActive }. Changing the header does NOT
-// regenerate days - the user regenerates in the day editor.
-exports.updatePlan = async (req, res) => {
+// regenerate days - the user regenerates in the day editor. The plan's nine
+// is fixed (delete-and-rekey is create + disable).
+exports.update = async (req, res) => {
     try {
         const target = await findOwnedPlan(req);
         if (target.status) return res.status(target.status).json({ message: target.message });
@@ -208,7 +214,7 @@ exports.updatePlan = async (req, res) => {
     }
 };
 
-// POST /api/golf/unit-courses/:id/closure-plans/:planId/generate-days
+// POST /api/golf/closures/:planId/generate-days
 // Computes (does NOT save) the day rows for the plan: every date in the period
 // whose day type matches the plan's day scope, seeded with the plan's times.
 // The screen shows the result for review; saving is the PUT below.
@@ -243,7 +249,7 @@ exports.generateDays = async (req, res) => {
     }
 };
 
-// PUT /api/golf/unit-courses/:id/closure-plans/:planId/days
+// PUT /api/golf/closures/:planId/days
 // Body: { days: [{ closureDate, startTime?, endTime?, isActive? }] }
 // Replaces the plan's day list atomically (generated server-side, then
 // hand-adjusted on the screen).
