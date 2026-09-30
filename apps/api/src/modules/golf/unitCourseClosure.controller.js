@@ -1,36 +1,39 @@
-// Course Closure Plan (spec 2.2.8). A plan is a rule header on a course; the
-// user GENERATES per-day rows from it (server classifies each date in the
-// period against Company Weekend Days + Public Holidays via the calendar seam
-// - holidays count as weekend), reviews them, and saves the set atomically.
+// Unit Course Closure Plan (spec 2.2.8, re-keyed to the physical nine
+// 2026-09-30). A plan is a rule header on ONE unit course; the user GENERATES
+// per-day rows from it (server classifies each date in the period against
+// Company Weekend Days + Public Holidays via the calendar seam - holidays
+// count as weekend), reviews them, and saves the set atomically. Closing a
+// whole 18-hole course = one plan per nine; create accepts extra nines and
+// fans the header out so the operator keys it once.
 
 const { sequelize } = require('../../platform/db');
-const Course = require('./course.model');
-const CourseClosurePlan = require('./courseClosurePlan.model');
-const CourseClosureDay = require('./courseClosureDay.model');
+const { Op } = require('sequelize');
+const UnitCourse = require('./unitCourse.model');
+const UnitCourseClosurePlan = require('./unitCourseClosurePlan.model');
+const UnitCourseClosureDay = require('./unitCourseClosureDay.model');
 const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
 const { classifyDateRange } = require('../../platform/calendarGateway');
 const { DAY_SCOPE_KEYS } = require('./courseTeeTime.constants');
-const { NINE_SCOPE_KEYS } = require('./courseClosure.constants');
 
 // A plan's period (and therefore a generation run) is capped at one year.
 const MAX_RANGE_DAYS = 366;
 
-// Closure plans are children of a course; every request scopes through the
-// parent (active company + :id), never by plan id alone.
-async function findOwnedCourse(req) {
+// Closure plans are children of a unit course; every request scopes through
+// the parent (active company + :id), never by plan id alone.
+async function findOwnedNine(req) {
     const companyId = getUserContext(req).companyId || null;
     if (!companyId) return { status: 400, message: 'Select a workspace first.' };
-    const course = await Course.findOne({ where: { id: req.params.id, companyId } });
-    if (!course) return { status: 404, message: 'Course not found.' };
-    return { course };
+    const nine = await UnitCourse.findOne({ where: { id: req.params.id, companyId } });
+    if (!nine) return { status: 404, message: 'Unit course not found.' };
+    return { nine, companyId };
 }
 
 async function findOwnedPlan(req) {
-    const target = await findOwnedCourse(req);
+    const target = await findOwnedNine(req);
     if (target.status) return target;
-    const plan = await CourseClosurePlan.findOne({ where: { id: req.params.planId, courseId: target.course.id } });
+    const plan = await UnitCourseClosurePlan.findOne({ where: { id: req.params.planId, unitCourseId: target.nine.id } });
     if (!plan) return { status: 404, message: 'Closure plan not found.' };
-    return { course: target.course, plan };
+    return { nine: target.nine, companyId: target.companyId, plan };
 }
 
 // 'HH:MM' (or 'HH:MM:SS') time of day; normalized to 'HH:MM:00' for storage.
@@ -66,12 +69,6 @@ function validateHeader(body, current) {
         const dayScope = String(body.dayScope || '').trim();
         if (!DAY_SCOPE_KEYS.includes(dayScope)) return { error: 'Day scope must be All days, Weekdays or Weekends.' };
         out.dayScope = dayScope;
-    }
-
-    if ('nineScope' in body) {
-        const nineScope = String(body.nineScope || '').trim();
-        if (!NINE_SCOPE_KEYS.includes(nineScope)) return { error: 'Scope must be First nine, Second nine or Whole course.' };
-        out.nineScope = nineScope;
     }
 
     for (const [field, label] of [['dateFrom', 'Start date'], ['dateTo', 'End date']]) {
@@ -110,39 +107,42 @@ function validateHeader(body, current) {
     return { values: out };
 }
 
-function listQuery(courseId) {
-    return CourseClosurePlan.findAll({
-        where: { courseId },
-        include: [{ model: CourseClosureDay, as: 'Days' }],
+function listQuery(unitCourseId) {
+    return UnitCourseClosurePlan.findAll({
+        where: { unitCourseId },
+        include: [{ model: UnitCourseClosureDay, as: 'Days' }],
         order: [
             ['dateFrom', 'DESC'],
-            [{ model: CourseClosureDay, as: 'Days' }, 'closureDate', 'ASC'],
+            [{ model: UnitCourseClosureDay, as: 'Days' }, 'closureDate', 'ASC'],
         ],
     });
 }
 
-// GET /api/golf/courses/:id/closure-plans - the course's plans with their days.
+// GET /api/golf/unit-courses/:id/closure-plans - the nine's plans with days.
 exports.listPlans = async (req, res) => {
     try {
-        const target = await findOwnedCourse(req);
+        const target = await findOwnedNine(req);
         if (target.status) return res.status(target.status).json({ message: target.message });
-        res.status(200).json(await listQuery(target.course.id));
+        res.status(200).json(await listQuery(target.nine.id));
     } catch (error) {
         console.error('Error listing closure plans:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// POST /api/golf/courses/:id/closure-plans
-// Body: { description, dayScope, nineScope, dateFrom, dateTo, startTime?, endTime? }
+// POST /api/golf/unit-courses/:id/closure-plans
+// Body: { description, dayScope, dateFrom, dateTo, startTime?, endTime?,
+//         alsoUnitCourseIds?: [] }. The optional extra nines each get their
+// own identical plan (whole-course closure keyed once); day generation stays
+// per plan.
 exports.createPlan = async (req, res) => {
     try {
-        const target = await findOwnedCourse(req);
+        const target = await findOwnedNine(req);
         if (target.status) return res.status(target.status).json({ message: target.message });
 
-        for (const f of ['description', 'dayScope', 'nineScope', 'dateFrom', 'dateTo']) {
+        for (const f of ['description', 'dayScope', 'dateFrom', 'dateTo']) {
             if (!(f in req.body) || req.body[f] === null || req.body[f] === '') {
-                return res.status(400).json({ message: 'Description, day scope, scope and the date period are required.' });
+                return res.status(400).json({ message: 'Description, day scope and the date period are required.' });
             }
         }
         // Ensure both time fields go through validation even when omitted.
@@ -150,23 +150,41 @@ exports.createPlan = async (req, res) => {
         const header = validateHeader(body, null);
         if (header.error) return res.status(400).json({ message: header.error });
 
+        // Fan-out targets: this nine plus any extra ones, deduped, all owned
+        // by the active company.
+        const extraIds = Array.isArray(req.body.alsoUnitCourseIds) ? req.body.alsoUnitCourseIds.map(String) : [];
+        const nineIds = [...new Set([target.nine.id, ...extraIds])];
+        if (nineIds.length > 1) {
+            const owned = await UnitCourse.count({ where: { id: { [Op.in]: nineIds }, companyId: target.companyId } });
+            if (owned !== nineIds.length) {
+                return res.status(400).json({ message: 'Every selected unit course must belong to the active company.' });
+            }
+        }
+
         const placement = await getCallerPlacement(req);
         const callerId = getUserContext(req).userId;
-        const plan = await CourseClosurePlan.create({
-            ...header.values,
-            courseId: target.course.id,
-            createdBy: callerId,
-            createdByDepartmentId: placement.departmentId,
-            updatedBy: callerId,
+        const plans = await sequelize.transaction((t) => Promise.all(nineIds.map((unitCourseId) => (
+            UnitCourseClosurePlan.create({
+                ...header.values,
+                unitCourseId,
+                createdBy: callerId,
+                createdByDepartmentId: placement.departmentId,
+                updatedBy: callerId,
+            }, { transaction: t })
+        ))));
+        const plan = plans.find((p) => p.unitCourseId === target.nine.id);
+        res.status(201).json({
+            message: plans.length === 1 ? 'Closure plan created.' : `Closure plan created on ${plans.length} unit courses.`,
+            plan,
+            plans,
         });
-        res.status(201).json({ message: 'Closure plan created.', plan });
     } catch (error) {
         console.error('Error creating closure plan:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// PATCH /api/golf/courses/:id/closure-plans/:planId
+// PATCH /api/golf/unit-courses/:id/closure-plans/:planId
 // Body: any header field plus { isActive }. Changing the header does NOT
 // regenerate days - the user regenerates in the day editor.
 exports.updatePlan = async (req, res) => {
@@ -190,10 +208,10 @@ exports.updatePlan = async (req, res) => {
     }
 };
 
-// POST /api/golf/courses/:id/closure-plans/:planId/generate-days
+// POST /api/golf/unit-courses/:id/closure-plans/:planId/generate-days
 // Computes (does NOT save) the day rows for the plan: every date in the period
-// whose day type matches the plan's day scope, seeded with the plan's times and
-// nine scope. The screen shows the result for review; saving is the PUT below.
+// whose day type matches the plan's day scope, seeded with the plan's times.
+// The screen shows the result for review; saving is the PUT below.
 exports.generateDays = async (req, res) => {
     try {
         const target = await findOwnedPlan(req);
@@ -213,7 +231,6 @@ exports.generateDays = async (req, res) => {
                 closureDate: d.date,
                 dayType: d.dayType,
                 isHoliday: d.isHoliday,
-                nineScope: plan.nineScope,
                 startTime: plan.startTime,
                 endTime: plan.endTime,
                 isActive: true,
@@ -226,8 +243,8 @@ exports.generateDays = async (req, res) => {
     }
 };
 
-// PUT /api/golf/courses/:id/closure-plans/:planId/days
-// Body: { days: [{ closureDate, nineScope, startTime?, endTime?, isActive? }] }
+// PUT /api/golf/unit-courses/:id/closure-plans/:planId/days
+// Body: { days: [{ closureDate, startTime?, endTime?, isActive? }] }
 // Replaces the plan's day list atomically (generated server-side, then
 // hand-adjusted on the screen).
 exports.saveDays = async (req, res) => {
@@ -253,11 +270,6 @@ exports.saveDays = async (req, res) => {
             }
             seenDates.add(closureDate);
 
-            const nineScope = String(d.nineScope || '').trim();
-            if (!NINE_SCOPE_KEYS.includes(nineScope)) {
-                return res.status(400).json({ message: `${closureDate}: scope must be First nine, Second nine or Whole course.` });
-            }
-
             const start = normalizeTime(d.startTime);
             const end = normalizeTime(d.endTime);
             if (!start.ok || !end.ok) {
@@ -273,7 +285,6 @@ exports.saveDays = async (req, res) => {
             rows.push({
                 closurePlanId: plan.id,
                 closureDate,
-                nineScope,
                 startTime: start.value,
                 endTime: end.value,
                 isActive: d.isActive !== false,
@@ -281,11 +292,11 @@ exports.saveDays = async (req, res) => {
         }
 
         await sequelize.transaction(async (t) => {
-            await CourseClosureDay.destroy({ where: { closurePlanId: plan.id }, transaction: t });
-            if (rows.length) await CourseClosureDay.bulkCreate(rows, { transaction: t });
+            await UnitCourseClosureDay.destroy({ where: { closurePlanId: plan.id }, transaction: t });
+            if (rows.length) await UnitCourseClosureDay.bulkCreate(rows, { transaction: t });
         });
 
-        const days = await CourseClosureDay.findAll({
+        const days = await UnitCourseClosureDay.findAll({
             where: { closurePlanId: plan.id },
             order: [['closureDate', 'ASC']],
         });

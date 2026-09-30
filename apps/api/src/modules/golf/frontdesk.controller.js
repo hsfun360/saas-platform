@@ -443,7 +443,7 @@ exports.getDay = async (req, res) => {
             const day = ctx.byCourse.get(course.id) || null;
             const set = day ? day.set : null;
             const slots = day ? day.slots : [];
-            const blocks = day ? day.blocks : [];
+            const firstNineBlocks = ctx.nineBlocks.get(course.firstNineId);
 
             const flights = [];
             const onGrid = new Set();
@@ -458,7 +458,7 @@ exports.getDay = async (req, res) => {
                 const teeTime = availability.hhmm(slot.teeTime);
                 onGrid.add(teeTime);
                 const t = availability.toMinutes(slot.teeTime);
-                const closed = availability.nineBlocked(blocks, 'first', t);
+                const closed = availability.nineBlocked(firstNineBlocks, t);
                 const key = availability.nineKey(course.firstNineId, teeTime);
                 consumed.add(key);
                 const entries = entriesByCell.get(key) || [];

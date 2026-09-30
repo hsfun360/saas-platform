@@ -3,9 +3,6 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
-  CourseClosureDay,
-  CourseClosureDayPreview,
-  CourseClosurePlan,
   CourseTeeTimeSet,
   CourseTeeTimeSlot,
   GolfCourse,
@@ -69,31 +66,6 @@ export class GolfCourseService {
     return this.http.put<{ message: string; slots: CourseTeeTimeSlot[] }>(`${this.base}/${courseId}/tee-time-sets/${setId}/slots`, { slots });
   }
 
-  // --- Closure plans (per course, spec 2.2.8) ---
-  closurePlans(courseId: string): Observable<CourseClosurePlan[]> {
-    return this.http.get<CourseClosurePlan[]>(`${this.base}/${courseId}/closure-plans`);
-  }
-
-  createClosurePlan(courseId: string, payload: Partial<CourseClosurePlan>): Observable<{ message: string; plan: CourseClosurePlan }> {
-    return this.http.post<{ message: string; plan: CourseClosurePlan }>(`${this.base}/${courseId}/closure-plans`, payload);
-  }
-
-  updateClosurePlan(courseId: string, planId: string, patch: Partial<CourseClosurePlan>): Observable<{ message: string; plan: CourseClosurePlan }> {
-    return this.http.patch<{ message: string; plan: CourseClosurePlan }>(`${this.base}/${courseId}/closure-plans/${planId}`, patch);
-  }
-
-  // Server-side generation PREVIEW: classifies each date of the plan's period
-  // (weekday/weekend, holidays count as weekend) and returns the matching day
-  // rows without saving them.
-  generateClosureDays(courseId: string, planId: string): Observable<{ days: CourseClosureDayPreview[]; totalInPeriod: number }> {
-    return this.http.post<{ days: CourseClosureDayPreview[]; totalInPeriod: number }>(
-      `${this.base}/${courseId}/closure-plans/${planId}/generate-days`,
-      {},
-    );
-  }
-
-  // Replace a plan's day list atomically.
-  saveClosureDays(courseId: string, planId: string, days: CourseClosureDay[]): Observable<{ message: string; days: CourseClosureDay[] }> {
-    return this.http.put<{ message: string; days: CourseClosureDay[] }>(`${this.base}/${courseId}/closure-plans/${planId}/days`, { days });
-  }
+  // Closure plans moved to the Unit Courses screen (2026-09-30): a closure is
+  // a fact about the physical nine - see UnitCourseService.
 }

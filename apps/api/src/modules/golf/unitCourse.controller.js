@@ -1,6 +1,7 @@
 const UnitCourse = require('./unitCourse.model');
 const { getUserContext } = require('../../platform/serviceContext');
 const { COURSE_TYPES, COURSE_TYPE_KEYS, MEASUREMENT_UNITS } = require('./unitCourse.constants');
+const { DAY_SCOPES } = require('./courseTeeTime.constants');
 
 // The active company (club) whose unit courses we're maintaining. Master files
 // are per-company, so every request must carry a workspace.
@@ -19,10 +20,11 @@ function parseOptionalInt(v, min, max) {
 
 // GET /api/golf/unit-courses/meta
 // The fixed vocabularies for the screen (and the source the API validates
-// against): course types (incl. hole ranges) and distance measurement units.
+// against): course types (incl. hole ranges), distance measurement units and
+// the day scopes the closure-plan form offers.
 // Auth + entitlement already enforced by the parent router.
 exports.getMeta = async (req, res) => {
-    res.status(200).json({ types: COURSE_TYPES, measurementUnits: MEASUREMENT_UNITS });
+    res.status(200).json({ types: COURSE_TYPES, measurementUnits: MEASUREMENT_UNITS, dayScopes: DAY_SCOPES });
 };
 
 // GET /api/golf/unit-courses - every unit course for the active company.

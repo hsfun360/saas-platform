@@ -163,8 +163,8 @@ const CourseTeeTimeSlot = require('../modules/golf/courseTeeTimeSlot.model');
 const GolfTransactionType = require('../modules/golf/transactionType.model'); // billing-item master (companyId value ref; tax by code via seam)
 const GolfTransactionTypeRate = require('../modules/golf/transactionTypeRate.model');
 const GolfTransactionTypeElement = require('../modules/golf/transactionTypeElement.model');
-const CourseClosurePlan = require('../modules/golf/courseClosurePlan.model');
-const CourseClosureDay = require('../modules/golf/courseClosureDay.model');
+const UnitCourseClosurePlan = require('../modules/golf/unitCourseClosurePlan.model');
+const UnitCourseClosureDay = require('../modules/golf/unitCourseClosureDay.model');
 // Shared financial reference (Tax). Header/detail pairs are intra-service, so they
 // DO associate; accountId/countryCode/companyId stay plain UUID/value references.
 // (The template seed layer was removed in the tax refactor - no template models.)
@@ -313,11 +313,12 @@ GolfTransactionTypeRate.belongsTo(GolfTransactionType, { foreignKey: 'transactio
 // reference, like a course's nines).
 GolfTransactionType.hasMany(GolfTransactionTypeElement, { foreignKey: 'transactionTypeId', as: 'Elements', onDelete: 'CASCADE' });
 GolfTransactionTypeElement.belongsTo(GolfTransactionType, { foreignKey: 'transactionTypeId', as: 'Package' });
-// Course -> its closure plans -> generated per-day closure rows (spec 2.2.8).
-Course.hasMany(CourseClosurePlan, { foreignKey: 'courseId', as: 'ClosurePlans', onDelete: 'CASCADE' });
-CourseClosurePlan.belongsTo(Course, { foreignKey: 'courseId', as: 'Course' });
-CourseClosurePlan.hasMany(CourseClosureDay, { foreignKey: 'closurePlanId', as: 'Days', onDelete: 'CASCADE' });
-CourseClosureDay.belongsTo(CourseClosurePlan, { foreignKey: 'closurePlanId', as: 'ClosurePlan' });
+// Unit course (physical nine) -> its closure plans -> generated per-day
+// closure rows (spec 2.2.8, re-keyed to the nine 2026-09-30).
+UnitCourse.hasMany(UnitCourseClosurePlan, { foreignKey: 'unitCourseId', as: 'ClosurePlans', onDelete: 'CASCADE' });
+UnitCourseClosurePlan.belongsTo(UnitCourse, { foreignKey: 'unitCourseId', as: 'UnitCourse' });
+UnitCourseClosurePlan.hasMany(UnitCourseClosureDay, { foreignKey: 'closurePlanId', as: 'Days', onDelete: 'CASCADE' });
+UnitCourseClosureDay.belongsTo(UnitCourseClosurePlan, { foreignKey: 'closurePlanId', as: 'ClosurePlan' });
 
 // 9. Tax scheme -> rate line(s), header/detail. Both tiers are wholly inside the
 // Tax service, so these are real intra-service FKs (cascade lines with the header).
@@ -392,8 +393,8 @@ module.exports = {
     CourseTeeTimeSet,
     CourseTeeTimeSlot,
     GolfTransactionType,
-    CourseClosurePlan,
-    CourseClosureDay,
+    UnitCourseClosurePlan,
+    UnitCourseClosureDay,
     TaxScheme,
     TaxRate,
     CompanyTaxScheme,

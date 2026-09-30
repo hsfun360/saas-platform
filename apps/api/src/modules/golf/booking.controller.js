@@ -513,7 +513,7 @@ exports.create = async (req, res) => {
             }
             // Closure re-check (maintenance / tournament blocks saved while
             // the flight was locked must still stop the booking).
-            if (availability.nineBlocked(day.blocks, 'first', t)) {
+            if (availability.nineBlocked(ctx.nineBlocks.get(course.firstNineId), t)) {
                 return { fail: 'The flight is now blocked by a course closure.', status: 409 };
             }
             // Capacity re-check per NINE-cell under the merge rule.
@@ -526,7 +526,7 @@ exports.create = async (req, res) => {
                 const target = availability.crossTarget(ctx, course, t);
                 if (!target) return { fail: 'The crossover time no longer exists on the tee sheet.', status: 409 };
                 const ct = availability.toMinutes(crossTime);
-                if (availability.crossBlocked(ctx, course, target, ct)) {
+                if (availability.crossBlocked(ctx, course, ct)) {
                     return { fail: 'The crossover flight is now blocked by a course closure.', status: 409 };
                 }
                 const crossOcc = occ.get(availability.nineKey(course.secondNineId, crossTime));

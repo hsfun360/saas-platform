@@ -21,8 +21,8 @@ const GuestControlRule = require('./guestControlRule.model');
 const Course = require('./course.model');
 const CourseTeeTimeSet = require('./courseTeeTimeSet.model');
 const CourseTeeTimeSlot = require('./courseTeeTimeSlot.model');
-const CourseClosurePlan = require('./courseClosurePlan.model');
-const CourseClosureDay = require('./courseClosureDay.model');
+const UnitCourseClosurePlan = require('./unitCourseClosurePlan.model');
+const UnitCourseClosureDay = require('./unitCourseClosureDay.model');
 const BookingProfile = require('./bookingProfile.model');
 const Player = require('./player.model');
 const FlightLock = require('./flightLock.model');
@@ -112,27 +112,37 @@ async function resolveTeeTimeSet(courseId, dayType, playDate) {
     return sets.find((s) => s.dayScope === dayType) || sets.find((s) => s.dayScope === 'all') || null;
 }
 
-// Active closure blocks of a course on a date: [{ nineScope, start, end }]
-// with start/end minutes (null = whole day).
-async function closureBlocks(courseId, playDate) {
-    const plans = await CourseClosurePlan.findAll({ where: { courseId, isActive: true }, attributes: ['id'] });
-    if (!plans.length) return [];
-    const days = await CourseClosureDay.findAll({
+// Active closure blocks of the given PHYSICAL NINES on a date, in one query:
+// Map(unitCourseId -> [{ start, end }]) with start/end minutes (null = whole
+// day). Closures are keyed on the unit course (2026-09-30): closing EAST1
+// blocks every use of that nine - E1's tee-offs AND W3's crossover landings.
+async function closureBlocks(unitCourseIds, playDate) {
+    const map = new Map();
+    if (!unitCourseIds.length) return map;
+    const plans = await UnitCourseClosurePlan.findAll({
+        where: { unitCourseId: { [Op.in]: unitCourseIds }, isActive: true },
+        attributes: ['id', 'unitCourseId'],
+    });
+    if (!plans.length) return map;
+    const nineByPlan = new Map(plans.map((p) => [p.id, p.unitCourseId]));
+    const days = await UnitCourseClosureDay.findAll({
         where: { closurePlanId: { [Op.in]: plans.map((p) => p.id) }, closureDate: playDate, isActive: true },
     });
-    return days.map((d) => ({
-        nineScope: d.nineScope,
-        start: d.startTime ? toMinutes(d.startTime) : null,
-        end: d.endTime ? toMinutes(d.endTime) : null,
-    }));
+    for (const d of days) {
+        const nineId = nineByPlan.get(d.closurePlanId);
+        if (!map.has(nineId)) map.set(nineId, []);
+        map.get(nineId).push({
+            start: d.startTime ? toMinutes(d.startTime) : null,
+            end: d.endTime ? toMinutes(d.endTime) : null,
+        });
+    }
+    return map;
 }
 
-function nineBlocked(blocks, nine, timeMinutes) {
-    return blocks.some((b) => {
-        const scopeHit = b.nineScope === 'all'
-            || (nine === 'first' && b.nineScope === 'first-nine')
-            || (nine === 'second' && b.nineScope === 'second-nine');
-        if (!scopeHit) return false;
+// Is ONE nine's block list closed at the time? (blocks = closureBlocks map
+// entry for that nine; undefined/empty = open.)
+function nineBlocked(blocks, timeMinutes) {
+    return (blocks || []).some((b) => {
         if (b.start === null) return true; // whole-day closure
         return timeMinutes >= b.start && timeMinutes < b.end;
     });
@@ -140,17 +150,20 @@ function nineBlocked(blocks, nine, timeMinutes) {
 
 // ---- day context (grids + nine ownership) ----------------------------------
 
-// One shared resolve of the day's grids: per course its set/slots/closure
-// blocks, plus the nine-OWNER map (unitCourseId -> the course that STARTS on
-// that nine, whose grid is the nine's authoritative timeline/capacity). At
-// most one active course should start on a given nine; the first by display
-// sequence wins if data ever violates that.
+// One shared resolve of the day's grids: per course its set/slots, the
+// per-NINE closure blocks (nineBlocks: unitCourseId -> block list), plus the
+// nine-OWNER map (unitCourseId -> the course that STARTS on that nine, whose
+// grid is the nine's authoritative timeline/capacity). At most one active
+// course should start on a given nine; the first by display sequence wins if
+// data ever violates that.
 async function dayContext(companyId, playDate, dayType, { courses = null, transaction } = {}) {
     const list = courses || await Course.findAll({
         where: { companyId, isActive: true },
         order: [['displaySequence', 'ASC'], ['courseCode', 'ASC']],
         transaction,
     });
+    const nineIds = [...new Set(list.flatMap((c) => [c.firstNineId, c.secondNineId]).filter(Boolean))];
+    const nineBlocks = await closureBlocks(nineIds, playDate);
     const byCourse = new Map();
     const nineOwner = new Map();
     for (const course of list) {
@@ -158,21 +171,19 @@ async function dayContext(companyId, playDate, dayType, { courses = null, transa
         const slots = set
             ? await CourseTeeTimeSlot.findAll({ where: { teeTimeSetId: set.id }, order: [['teeTime', 'ASC']], transaction })
             : [];
-        const blocks = await closureBlocks(course.id, playDate);
-        byCourse.set(course.id, { course, set, slots, blocks });
+        byCourse.set(course.id, { course, set, slots });
         if (set && slots.length && !nineOwner.has(course.firstNineId)) {
-            nineOwner.set(course.firstNineId, { course, slots, blocks });
+            nineOwner.set(course.firstNineId, { course, slots });
         }
     }
-    return { courses: list, byCourse, nineOwner };
+    return { courses: list, byCourse, nineOwner, nineBlocks };
 }
 
 // The crossover LANDING slot for a start at `tMinutes` on `course`: the first
 // slot at/after start + crossOverMinutes on the landing nine's own timeline
 // (its owner course's grid; the playing course's grid when nobody starts on
 // that nine). Crossover-only slots are valid landing targets by design.
-// Returns { slot, ownerBlocks } or null when the crossover lands after the
-// last flight.
+// Returns { slot } or null when the crossover lands after the last flight.
 function crossTarget(ctx, course, tMinutes) {
     const offset = course.crossOverMinutes || 0;
     const owner = ctx.nineOwner.get(course.secondNineId) || null;
@@ -180,20 +191,14 @@ function crossTarget(ctx, course, tMinutes) {
     const slots = owner ? owner.slots : (own ? own.slots : []);
     const idx = slots.findIndex((s) => toMinutes(s.teeTime) >= tMinutes + offset);
     if (idx === -1) return null;
-    return {
-        slot: slots[idx],
-        ownerBlocks: owner && owner.course.id !== course.id ? owner.blocks : null,
-    };
+    return { slot: slots[idx] };
 }
 
-// Is the crossover landing blocked? The playing course's own 'second' scope
-// blocks apply, plus - when another course owns the landing nine - that
-// owner's 'first' scope blocks (the nine is physically closed).
-function crossBlocked(ctx, course, target, ctMinutes) {
-    const own = ctx.byCourse.get(course.id);
-    if (own && nineBlocked(own.blocks, 'second', ctMinutes)) return true;
-    if (target.ownerBlocks && nineBlocked(target.ownerBlocks, 'first', ctMinutes)) return true;
-    return false;
+// Is the crossover landing blocked? Simply: is the landing NINE closed at
+// the landing time (closures are per unit course, so one lookup covers every
+// course that uses the nine).
+function crossBlocked(ctx, course, ctMinutes) {
+    return nineBlocked(ctx.nineBlocks.get(course.secondNineId), ctMinutes);
 }
 
 // ---- occupancy + locks -----------------------------------------------------
@@ -317,7 +322,8 @@ function seatsLeft(allowMerge, occ, maxPlayers) {
 async function courseFlights({ course, ctx, playDate, dayType, holes, players, setting, minRules, occ, locks }) {
     const day = ctx.byCourse.get(course.id);
     if (!day || !day.set || !day.slots.length) return null;
-    const { slots, blocks } = day;
+    const { slots } = day;
+    const firstNineBlocks = ctx.nineBlocks.get(course.firstNineId);
     const mustPlay18 = day.set.mustPlay18Until ? toMinutes(day.set.mustPlay18Until) : null;
     const allowMerge = setting ? setting.allowBookingMerge === true : false;
 
@@ -332,7 +338,7 @@ async function courseFlights({ course, ctx, playDate, dayType, holes, players, s
         if (slot.isCrossoverOnly === true || slot.isFrontDesk === true) continue;
         // 9-hole play is not offered while 18 holes are mandatory.
         if (holes === 9 && mustPlay18 !== null && t <= mustPlay18) continue;
-        if (nineBlocked(blocks, 'first', t)) continue;
+        if (nineBlocked(firstNineBlocks, t)) continue;
         const startKey = nineKey(course.firstNineId, slot.teeTime);
         if (locks.has(startKey)) continue;
         const startOcc = occ.get(startKey);
@@ -345,7 +351,7 @@ async function courseFlights({ course, ctx, playDate, dayType, holes, players, s
             const target = crossTarget(ctx, course, t);
             if (!target) continue; // crossover lands after the last flight
             const ct = toMinutes(target.slot.teeTime);
-            if (crossBlocked(ctx, course, target, ct)) continue;
+            if (crossBlocked(ctx, course, ct)) continue;
             const crossKey = nineKey(course.secondNineId, target.slot.teeTime);
             if (locks.has(crossKey)) continue;
             crossSeats = seatsLeft(allowMerge, occ.get(crossKey), target.slot.maxPlayers);

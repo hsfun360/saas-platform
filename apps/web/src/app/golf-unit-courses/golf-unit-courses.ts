@@ -9,10 +9,13 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import {
   MembershipStatusOption,
   UnitCourse,
+  UnitCourseClosureDay,
+  UnitCourseClosurePlan,
   UnitCourseHole,
   UnitCourseTeeBox,
   UnitCourseTypeOption,
 } from '../models/auth.models';
+import { LocalDatePipe } from '../shared/local-date.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { CanDirective } from '../shared/can.directive';
@@ -56,6 +59,23 @@ interface TeeBoxRow {
 // Display-order choices for a tee box.
 const SEQ_OPTIONS = [1, 2, 3, 4, 5];
 
+// One editable closure-day row in the day editor (strings from inputs).
+interface ClosureDayRow {
+  closureDate: string; // 'YYYY-MM-DD'
+  dayType?: 'weekday' | 'weekend';
+  isHoliday?: boolean;
+  startTime: string; // 'HH:MM' or '' (whole day when both empty)
+  endTime: string;
+  isActive: boolean;
+}
+
+// Fallback day scopes if /meta hasn't loaded - must match courseTeeTime.constants.
+const FALLBACK_SCOPES: MembershipStatusOption[] = [
+  { key: 'all', label: 'All days' },
+  { key: 'weekday', label: 'Weekdays' },
+  { key: 'weekend', label: 'Weekends' },
+];
+
 // Golf Management → Master File Setup → Unit Courses.
 // Per-company master file: the 9-hole building blocks of golf setup. A full
 // 18-hole course is formed later (Course Setup) by pairing two unit courses;
@@ -69,7 +89,7 @@ const SEQ_OPTIONS = [1, 2, 3, 4, 5];
   selector: 'app-golf-unit-courses',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
-    OverflowMenuComponent, MenuItemDirective, CanDirective],
+    OverflowMenuComponent, MenuItemDirective, CanDirective, LocalDatePipe],
   templateUrl: './golf-unit-courses.html',
   styleUrls: ['../system-setup/system-setup.css', './golf-unit-courses.css'],
 })
@@ -132,6 +152,61 @@ export class GolfUnitCoursesComponent implements OnInit {
   readonly teesCourse = signal<UnitCourse | null>(null);
   readonly teeRows = signal<TeeBoxRow[]>([]);
   readonly teesTitle = computed(() => `Tee boxes — ${this.teesCourse()?.unitCourseCode || ''}`);
+
+  // --- Closures (spec 2.2.8, moved here 2026-09-30): a closure is a fact
+  // about the PHYSICAL NINE - closing EAST1 blocks every course that tees off
+  // on or crosses onto it. ONE dialog with three views (list -> plan form /
+  // day editor), the single-dialog pattern. Day rows are GENERATED
+  // server-side (dates classified against Company Weekend Days + Public
+  // Holidays - holidays count as weekend) and reviewed here before saving.
+  readonly dayScopes = signal<MembershipStatusOption[]>(FALLBACK_SCOPES);
+  readonly ccOpen = signal(false);
+  readonly ccMode = signal<'list' | 'form' | 'days'>('list');
+  readonly ccLoading = signal(false);
+  readonly ccNine = signal<UnitCourse | null>(null);
+  readonly ccPlans = signal<UnitCourseClosurePlan[]>([]);
+  readonly ccTogglingId = signal<string | null>(null);
+
+  readonly ccSaving = signal(false);
+  readonly ccEditPlanId = signal<string | null>(null);
+  readonly ccForm = this.fb.nonNullable.group({
+    description: ['', [Validators.required, Validators.maxLength(255)]],
+    dayScope: ['all', [Validators.required]],
+    dateFrom: ['', [Validators.required]],
+    dateTo: ['', [Validators.required]],
+    startTime: [''],
+    endTime: [''],
+  });
+  // "Also close" fan-out (create only): the same plan lands on these extra
+  // nines too, e.g. tick every nine for a whole-club shutdown keyed once.
+  readonly ccAlsoNines = signal<Set<string>>(new Set());
+
+  readonly ccDaysSaving = signal(false);
+  readonly ccGenerating = signal(false);
+  readonly ccDaysDirty = signal(false);
+  readonly ccDayPlan = signal<UnitCourseClosurePlan | null>(null);
+  readonly dayRows = signal<ClosureDayRow[]>([]);
+
+  readonly ccTitle = computed(() => {
+    const code = this.ccNine()?.unitCourseCode || '';
+    if (this.ccMode() === 'form') return this.ccEditPlanId() ? `Edit closure plan — ${code}` : `New closure plan — ${code}`;
+    if (this.ccMode() === 'days') {
+      const p = this.ccDayPlan();
+      return p ? `Closure days — ${p.description}` : 'Closure days';
+    }
+    return `Closures — ${code}`;
+  });
+  readonly ccBusy = computed(() => this.ccLoading() || this.ccSaving() || this.ccDaysSaving() || this.ccGenerating());
+  ccDirty(): boolean {
+    if (this.ccMode() === 'form') return this.ccForm.dirty || this.ccAlsoNines().size > 0;
+    if (this.ccMode() === 'days') return this.ccDaysDirty();
+    return false;
+  }
+  // The other active nines offered by the "Also close" fan-out.
+  readonly ccOtherNines = computed(() => {
+    const current = this.ccNine();
+    return this.courses().filter((u) => u.isActive !== false && u.id !== current?.id);
+  });
 
   readonly search = signal('');
   readonly successMessage = signal('');
@@ -198,6 +273,7 @@ export class GolfUnitCoursesComponent implements OnInit {
       next: (m) => {
         this.types.set(m.types);
         if (m.measurementUnits?.length) this.measurementUnits.set(m.measurementUnits);
+        if (m.dayScopes?.length) this.dayScopes.set(m.dayScopes);
       },
       error: () => {
         /* dropdowns fall back to raw keys / baked-in genders if meta fails */
@@ -613,6 +689,270 @@ export class GolfUnitCoursesComponent implements OnInit {
       error: (err) => {
         this.errorMessage.set(err.error?.message || 'Failed to save tee boxes.');
         this.teesSaving.set(false);
+      },
+    });
+  }
+
+  // --- Closure plans (per nine, spec 2.2.8) ---
+
+  // 'HH:MM' from a stored 'HH:MM:SS' (or '' when unset).
+  hhmm(t: string | null | undefined): string {
+    return t ? String(t).slice(0, 5) : '';
+  }
+
+  scopeLabel(key: string): string {
+    return this.dayScopes().find((s) => s.key === key)?.label || key;
+  }
+
+  // '07:00 – 12:00' for a plan or day row, 'All day' when both times unset.
+  closureWindow(startTime: string | null | undefined, endTime: string | null | undefined): string {
+    const s = this.hhmm(startTime);
+    const e = this.hhmm(endTime);
+    return s && e ? `${s} – ${e}` : 'All day';
+  }
+
+  openClosures(c: UnitCourse): void {
+    this.clearMessages();
+    this.ccNine.set(c);
+    this.ccPlans.set([]);
+    this.ccMode.set('list');
+    this.ccOpen.set(true);
+    this.reloadPlans();
+  }
+
+  closeClosures(): void {
+    this.ccOpen.set(false);
+    this.ccMode.set('list');
+    this.ccDaysDirty.set(false);
+    this.ccAlsoNines.set(new Set());
+  }
+
+  // Return to the list view inside the open dialog.
+  ccBackToList(): void {
+    this.ccMode.set('list');
+    this.ccDaysDirty.set(false);
+    this.ccAlsoNines.set(new Set());
+  }
+
+  private reloadPlans(): void {
+    const c = this.ccNine();
+    if (!c) return;
+    this.ccLoading.set(true);
+    this.service.closurePlans(c.id).subscribe({
+      next: (data) => {
+        this.ccPlans.set(data);
+        this.ccLoading.set(false);
+      },
+      error: (err) => {
+        this.ccLoading.set(false);
+        this.ccOpen.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to load closure plans.');
+      },
+    });
+  }
+
+  dayCount(p: UnitCourseClosurePlan): number {
+    return p.Days?.length || 0;
+  }
+
+  // --- Plan form (a view inside the open dialog) ---
+
+  openPlanForm(p?: UnitCourseClosurePlan): void {
+    this.clearMessages();
+    this.ccEditPlanId.set(p?.id || null);
+    this.ccAlsoNines.set(new Set());
+    this.ccForm.reset({
+      description: p?.description || '',
+      dayScope: p?.dayScope || 'all',
+      dateFrom: p?.dateFrom || '',
+      dateTo: p?.dateTo || '',
+      startTime: this.hhmm(p?.startTime),
+      endTime: this.hhmm(p?.endTime),
+    });
+    this.ccMode.set('form');
+  }
+
+  toggleAlsoNine(id: string): void {
+    this.ccAlsoNines.update((set) => {
+      const next = new Set(set);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  onSavePlan(): void {
+    this.clearMessages();
+    if (this.ccForm.invalid) {
+      this.ccForm.markAllAsTouched();
+      return;
+    }
+    const f = this.ccForm.getRawValue();
+    if (f.dateTo < f.dateFrom) {
+      this.errorMessage.set('End date must not be before the start date.');
+      return;
+    }
+    if (!f.startTime !== !f.endTime) {
+      this.errorMessage.set('Set both closure times, or leave both empty for a whole-day closure.');
+      return;
+    }
+    if (f.startTime && f.endTime && f.startTime >= f.endTime) {
+      this.errorMessage.set('Closure end time must be after the start time.');
+      return;
+    }
+    const nine = this.ccNine();
+    if (!nine) return;
+
+    const payload: Partial<UnitCourseClosurePlan> & { alsoUnitCourseIds?: string[] } = {
+      description: f.description.trim(),
+      dayScope: f.dayScope,
+      dateFrom: f.dateFrom,
+      dateTo: f.dateTo,
+      startTime: f.startTime || null,
+      endTime: f.endTime || null,
+    };
+
+    this.ccSaving.set(true);
+    const id = this.ccEditPlanId();
+    if (!id && this.ccAlsoNines().size) payload.alsoUnitCourseIds = [...this.ccAlsoNines()];
+    const request = id
+      ? this.service.updateClosurePlan(nine.id, id, payload)
+      : this.service.createClosurePlan(nine.id, payload);
+    request.subscribe({
+      next: (res) => {
+        this.successMessage.set(res.message || `Closure plan ${id ? 'updated' : 'added'}.`);
+        this.ccSaving.set(false);
+        this.ccForm.markAsPristine();
+        this.ccBackToList();
+        this.reloadPlans();
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || `Failed to ${id ? 'update' : 'add'} closure plan.`);
+        this.ccSaving.set(false);
+      },
+    });
+  }
+
+  togglePlanActive(p: UnitCourseClosurePlan): void {
+    this.clearMessages();
+    const nine = this.ccNine();
+    if (!nine) return;
+    const next = !(p.isActive !== false);
+    this.ccTogglingId.set(p.id);
+    this.service.updateClosurePlan(nine.id, p.id, { isActive: next }).subscribe({
+      next: () => {
+        this.successMessage.set(`Closure plan ${next ? 'enabled' : 'disabled'}.`);
+        this.ccTogglingId.set(null);
+        this.reloadPlans();
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to update closure plan.');
+        this.ccTogglingId.set(null);
+      },
+    });
+  }
+
+  // --- Day editor (a view inside the open dialog) ---
+
+  openDays(p: UnitCourseClosurePlan): void {
+    this.clearMessages();
+    this.ccDayPlan.set(p);
+    this.ccDaysDirty.set(false);
+    this.dayRows.set(
+      (p.Days || []).map((d) => ({
+        closureDate: d.closureDate,
+        startTime: this.hhmm(d.startTime),
+        endTime: this.hhmm(d.endTime),
+        isActive: d.isActive !== false,
+      })),
+    );
+    this.ccMode.set('days');
+  }
+
+  // Ask the server to expand the plan into day rows (classified against the
+  // company's weekend days + public holidays); fills the grid for review.
+  generateDays(): void {
+    const nine = this.ccNine();
+    const plan = this.ccDayPlan();
+    if (!nine || !plan) return;
+    this.clearMessages();
+    this.ccGenerating.set(true);
+    this.service.generateClosureDays(nine.id, plan.id).subscribe({
+      next: (res) => {
+        this.dayRows.set(
+          res.days.map((d) => ({
+            closureDate: d.closureDate,
+            dayType: d.dayType,
+            isHoliday: d.isHoliday,
+            startTime: this.hhmm(d.startTime),
+            endTime: this.hhmm(d.endTime),
+            isActive: true,
+          })),
+        );
+        this.ccGenerating.set(false);
+        this.ccDaysDirty.set(true);
+        if (!res.days.length) {
+          this.errorMessage.set('No days in the period match the plan\'s day scope.');
+        }
+      },
+      error: (err) => {
+        this.ccGenerating.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to generate closure days.');
+      },
+    });
+  }
+
+  updateDay(index: number, field: 'startTime' | 'endTime', value: string): void {
+    this.dayRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+    this.ccDaysDirty.set(true);
+  }
+
+  toggleDayActive(index: number): void {
+    this.dayRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, isActive: !r.isActive } : r)));
+    this.ccDaysDirty.set(true);
+  }
+
+  removeDay(index: number): void {
+    this.dayRows.update((rows) => rows.filter((_, i) => i !== index));
+    this.ccDaysDirty.set(true);
+  }
+
+  onSaveDays(): void {
+    this.clearMessages();
+    const nine = this.ccNine();
+    const plan = this.ccDayPlan();
+    if (!nine || !plan) return;
+
+    // Quick client-side pass for immediate feedback; the API re-validates.
+    const days: UnitCourseClosureDay[] = [];
+    for (const r of this.dayRows()) {
+      if (!r.startTime !== !r.endTime) {
+        this.errorMessage.set(`${r.closureDate}: set both closure times, or leave both empty for a whole-day closure.`);
+        return;
+      }
+      if (r.startTime && r.endTime && r.startTime >= r.endTime) {
+        this.errorMessage.set(`${r.closureDate}: closure end time must be after the start time.`);
+        return;
+      }
+      days.push({
+        closureDate: r.closureDate,
+        startTime: r.startTime || null,
+        endTime: r.endTime || null,
+        isActive: r.isActive,
+      });
+    }
+
+    this.ccDaysSaving.set(true);
+    this.service.saveClosureDays(nine.id, plan.id, days).subscribe({
+      next: (res) => {
+        this.successMessage.set(res.message);
+        this.ccDaysSaving.set(false);
+        this.ccBackToList();
+        this.reloadPlans();
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to save closure days.');
+        this.ccDaysSaving.set(false);
       },
     });
   }

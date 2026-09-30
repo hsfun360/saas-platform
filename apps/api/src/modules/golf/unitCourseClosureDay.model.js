@@ -2,12 +2,13 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const { GOLF_SCHEMA } = require('../../platform/schemas');
 
-// One concrete closure day of a CourseClosurePlan (spec 2.2.8's "具体封场计划").
-// Generated from the plan header (each date in the period matching the day
-// scope), then hand-adjusted: per-day times/nine scope, or unticked (isActive
-// false) to except a single day without deleting it. Replaced atomically via
-// PUT, like tee-time slots.
-const CourseClosureDay = sequelize.define('CourseClosureDay', {
+// One concrete closure day of a UnitCourseClosurePlan (spec 2.2.8's
+// "具体封场计划"). Generated from the plan header (each date in the period
+// matching the day scope), then hand-adjusted: per-day times, or unticked
+// (isActive false) to except a single day without deleting it. Replaced
+// atomically via PUT, like tee-time slots. The whole day row closes the
+// plan's ONE nine - there is no per-day scope any more.
+const UnitCourseClosureDay = sequelize.define('UnitCourseClosureDay', {
     id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
@@ -19,11 +20,6 @@ const CourseClosureDay = sequelize.define('CourseClosureDay', {
     },
     closureDate: {
         type: DataTypes.DATEONLY,
-        allowNull: false,
-    },
-    // Seeded from the plan, adjustable per day - courseClosure.constants NINE_SCOPES.
-    nineScope: {
-        type: DataTypes.STRING,
         allowNull: false,
     },
     // Daily closure window; BOTH NULL = closed the whole day.
@@ -42,11 +38,11 @@ const CourseClosureDay = sequelize.define('CourseClosureDay', {
     },
 }, {
     schema: GOLF_SCHEMA,
-    tableName: 'CourseClosureDay',
+    tableName: 'UnitCourseClosureDay',
     timestamps: true,
     indexes: [
-        { name: 'UX_CourseClosureDay_Plan_Date', fields: ['closurePlanId', 'closureDate'], unique: true },
+        { name: 'UX_UnitCourseClosureDay_Plan_Date', fields: ['closurePlanId', 'closureDate'], unique: true },
     ],
 });
 
-module.exports = CourseClosureDay;
+module.exports = UnitCourseClosureDay;
