@@ -52,6 +52,9 @@ export interface FrontDeskFlight {
   isFrontDesk: boolean;
   crossoverOnly: boolean;
   closed: boolean;
+  // 18 holes impossible from this tee-off: the crossover landing is
+  // closure-blocked, or no landing slot remains (late tee-offs).
+  nineHolesOnly?: boolean;
   seatsTaken: number;
   seatsLeft: number;
   crossCount: number;

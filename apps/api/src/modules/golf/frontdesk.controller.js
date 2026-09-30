@@ -477,12 +477,24 @@ exports.getDay = async (req, res) => {
                     ? crossByCell.get(availability.nineKey(course.secondNineId, teeTime)) || 0
                     : 0;
                 const crossoverOnly = slot.isCrossoverOnly === true;
+                // 18 holes impossible from here (user request 2026-09-30 -
+                // show it, don't let the desk find out at save): the
+                // crossover landing is closure-blocked, or no landing slot
+                // remains (late tee-offs). Only meaningful on rows that can
+                // still take a tee-off.
+                let nineHolesOnly = false;
+                if (!closed && !crossoverOnly) {
+                    const target = availability.crossTarget(ctx, course, t);
+                    nineHolesOnly = !target
+                        || availability.crossBlocked(ctx, course, availability.toMinutes(target.slot.teeTime));
+                }
                 flights.push({
                     teeTime,
                     maxPlayers: slot.maxPlayers,
                     isFrontDesk: slot.isFrontDesk === true,
                     crossoverOnly,
                     closed,
+                    nineHolesOnly,
                     seatsTaken: entries.length,
                     seatsLeft: closed || crossoverOnly ? 0 : Math.max(0, slot.maxPlayers - entries.length - sameNineCross),
                     crossCount: sameNineCross + borrowedCross,

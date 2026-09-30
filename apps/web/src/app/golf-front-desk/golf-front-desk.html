@@ -109,6 +109,9 @@
                         }
                       </span>
                     }
+                    @if (f.nineHolesOnly && !f.closed && !f.crossoverOnly && !f.offGrid) {
+                      <span class="fd-flight__nine" title="18 holes not available from this tee time — the second nine is closed, or the day ends before the crossover">9H only</span>
+                    }
                     @if (f.crossCount > 0) {
                       <span class="fd-cross" [title]="f.crossCount + ' player(s) crossing over onto this nine here'">↷{{ f.crossCount }}</span>
                     }
@@ -218,7 +221,7 @@
                       <label for="fdswHoles">No of Holes <span class="required">*</span></label>
                       <select id="fdswHoles" formControlName="holes">
                         <option [ngValue]="9">9 holes</option>
-                        <option [ngValue]="18">18 holes</option>
+                        <option [ngValue]="18" [disabled]="flight()?.nineHolesOnly === true">18 holes</option>
                       </select>
                     </div>
                     @if (slotWalkinForm.controls.playerType.value === 'guest') {

@@ -255,6 +255,19 @@
   letter-spacing: 0.5px;
   color: var(--text-muted);
 }
+/* "9H only" chip - the flight is open but 18 holes cannot start here
+   (crossover nine closed, or the day ends before the landing). */
+.fd-flight__nine {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--info-text);
+  background: var(--info-surface);
+  border-radius: 12px;
+  padding: 1px var(--space-sm);
+  white-space: nowrap;
+}
 .fd-seats {
   display: inline-flex;
   gap: 4px;

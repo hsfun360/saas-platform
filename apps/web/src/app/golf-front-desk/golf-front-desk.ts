@@ -329,8 +329,11 @@ export class GolfFrontDeskComponent implements OnInit {
   }
 
   private resetSlotWalkin(): void {
+    // A 9-holes-only flight (crossover closed / day ends first) seeds 9 -
+    // its 18-hole option is disabled in the select.
     this.slotWalkinForm.reset({
-      playerType: 'member', memberNo: '', guestName: '', guestIdentityNo: '', guestMobile: '', holes: 18,
+      playerType: 'member', memberNo: '', guestName: '', guestIdentityNo: '', guestMobile: '',
+      holes: this.flight()?.nineHolesOnly === true ? 9 : 18,
     });
   }
 
