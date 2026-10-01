@@ -28,6 +28,7 @@ const Player = require('./player.model');
 const FlightLock = require('./flightLock.model');
 const Course = require('./course.model');
 const Golfer = require('./golfer.model');
+const GolfSession = require('./golfSession.model');
 
 function companyIdOf(req) {
     return getUserContext(req).companyId || null;
@@ -183,6 +184,67 @@ async function dayBookingConflict(companyId, standing, playDate, { transaction }
     return `${standing.memberNo} already has a booking on ${playDate} - ${await describeDayBookings(companyId, rows, { transaction })}.`;
 }
 
+// ---- booking limit per day type (user decisions 2026-10-01) ----------------
+// 'none' | 'day' | 'session' from the setting, by the date's day type
+// (holidays = weekend, via the calendar seam). Missing/legacy values fall
+// back to 'day' - the pre-2026-10-01 behavior.
+function bookingLimitFor(setting, dayType) {
+    if (!setting) return 'day';
+    const v = dayType === 'weekend' ? setting.bookingLimitWeekend : setting.bookingLimitWeekday;
+    return v === 'none' || v === 'session' ? v : 'day';
+}
+
+// The GolfSession band containing a 'HH:MM' tee time (end exclusive), or
+// null when no band covers it (then the session limit does not constrain).
+function sessionOf(sessions, teeTime) {
+    const t = String(teeTime).slice(0, 5);
+    return sessions.find((s) => {
+        const from = String(s.startTime).slice(0, 5);
+        const until = String(s.endTime).slice(0, 5);
+        return from <= t && t < until;
+    }) || null;
+}
+
+// The session ids a member golfer already occupies on the date, from the
+// START times of their active bookings. Returns Map(sessionId -> { session,
+// profile, startTime }) for conflict messages.
+async function memberDaySessions(companyId, golferId, playDate, sessions, { transaction } = {}) {
+    const taken = new Map();
+    if (!golferId || !sessions.length) return taken;
+    const profiles = await availability.memberDayBookings(companyId, golferId, playDate, { transaction });
+    if (!profiles.length) return taken;
+    const firsts = await firstNineRecords(profiles.map((p) => p.id), { transaction });
+    const timeByProfile = new Map();
+    for (const f of firsts) {
+        if (!timeByProfile.has(f.bookingProfileId)) timeByProfile.set(f.bookingProfileId, availability.hhmm(f.teeTime));
+    }
+    for (const profile of profiles) {
+        const startTime = timeByProfile.get(profile.id);
+        if (!startTime) continue;
+        const session = sessionOf(sessions, startTime);
+        if (session && !taken.has(session.id)) taken.set(session.id, { session, profile, startTime });
+    }
+    return taken;
+}
+
+// Per-session conflict for a member standing booking a flight at `teeTime`
+// (null = no conflict). Mirrors dayBookingConflict's scope: the member's
+// golfer identity may not exist yet - no conflict.
+async function sessionBookingConflict(companyId, standing, playDate, teeTime, sessions, { transaction } = {}) {
+    const session = sessionOf(sessions, teeTime);
+    if (!session) return null;
+    const golfer = await Golfer.findOne({
+        where: { companyId, golferType: 'member', sourceId: standing.memberId },
+        transaction,
+    });
+    if (!golfer) return null;
+    const taken = await memberDaySessions(companyId, golfer.id, playDate, sessions, { transaction });
+    const clash = taken.get(session.id);
+    if (!clash) return null;
+    return `${standing.memberNo} already has a ${session.name} session booking on ${playDate} - `
+        + `${clash.startTime} (${clash.profile.bookingNo}).`;
+}
+
 // DTO from a profile + its Player records (both nines). The flight fields
 // are DERIVED from the records: start = the first-nine records' tee time,
 // crossover = the paired second-nine records' tee time, holes = 18 when a
@@ -287,13 +349,27 @@ async function parseSearch(req, body) {
     if (playDate < window.dateFrom || playDate > window.dateTo) {
         return { error: `This member can book from ${window.dateFrom} to ${window.dateTo} (advance window).`, status: 400 };
     }
-    // One booking per day (default ON): prompt at search which flight the
-    // member already holds on this date.
-    if (!window.setting || window.setting.oneBookingPerDay !== false) {
+    // Booking limit by day type (user decisions 2026-10-01). 'day' prompts at
+    // search which flight the member already holds; 'session' cannot block
+    // the whole search (it depends on the chosen time), so the member's
+    // already-taken sessions are returned for the availability FILTER, and
+    // lock/create re-check hard.
+    const dayType = await dayTypeOf(req, playDate);
+    const limitMode = bookingLimitFor(window.setting, dayType);
+    let sessions = [];
+    let takenSessionIds = new Set();
+    if (limitMode === 'day') {
         const conflict = await dayBookingConflict(companyId, standing, playDate);
         if (conflict) return { error: conflict, status: 409 };
+    } else if (limitMode === 'session') {
+        sessions = await GolfSession.findAll({ where: { companyId }, order: [['startTime', 'ASC']] });
+        const golfer = await Golfer.findOne({ where: { companyId, golferType: 'member', sourceId: standing.memberId } });
+        if (golfer) {
+            const taken = await memberDaySessions(companyId, golfer.id, playDate, sessions);
+            takenSessionIds = new Set(taken.keys());
+        }
     }
-    return { companyId, memberNo, playDate, holes, players, standing, window, timezone };
+    return { companyId, memberNo, playDate, holes, players, standing, window, timezone, dayType, limitMode, sessions, takenSessionIds };
 }
 
 // POST /api/golf/bookings/availability - the 5 nearest available flights per
@@ -307,7 +383,7 @@ exports.searchAvailability = async (req, res) => {
         const time = String(req.body.time || '');
         if (!TIME_RE.test(time)) return res.status(400).json({ message: 'Pick a preferred tee time.' });
 
-        const dayType = await dayTypeOf(req, playDate);
+        const dayType = parsed.dayType;
         const { setting, minRules } = await availability.loadRules(companyId);
         // The context spans ALL active courses even for a one-course search -
         // nine ownership (whose grid rules a crossover landing) needs them.
@@ -329,7 +405,17 @@ exports.searchAvailability = async (req, res) => {
                 course, ctx, playDate, dayType, holes, players, setting, minRules, occ, locks,
             });
             if (!result) continue;
-            const flights = availability.nearestFlights(result.flights, time, 5);
+            // Per-session limit: hide flights in sessions the member already
+            // booked (show expected results - the wizard never offers a
+            // flight the save would refuse).
+            let open = result.flights;
+            if (parsed.limitMode === 'session' && parsed.takenSessionIds.size) {
+                open = open.filter((f) => {
+                    const s = sessionOf(parsed.sessions, f.teeTime);
+                    return !s || !parsed.takenSessionIds.has(s.id);
+                });
+            }
+            const flights = availability.nearestFlights(open, time, 5);
             groups.push({
                 courseId: course.id,
                 courseCode: course.courseCode,
@@ -355,8 +441,15 @@ exports.createLock = async (req, res) => {
         if (!TIME_RE.test(teeTime)) return res.status(400).json({ message: 'Pick a flight to lock.' });
         const course = await Course.findOne({ where: { companyId, id: String(req.body.courseId || ''), isActive: true } });
         if (!course) return res.status(400).json({ message: 'Pick a course.' });
+        // Per-session limit: the clicked flight's session must be free for
+        // the BOOKER (availability already hides these; a stale client or
+        // direct call lands here). Re-checked for every member line at save.
+        if (parsed.limitMode === 'session') {
+            const conflict = await sessionBookingConflict(companyId, parsed.standing, playDate, teeTime, parsed.sessions);
+            if (conflict) return res.status(409).json({ message: conflict });
+        }
 
-        const dayType = await dayTypeOf(req, playDate);
+        const dayType = parsed.dayType;
         const { setting, minRules } = await availability.loadRules(companyId);
         const callerId = getUserContext(req).userId;
         const lockMinutes = setting ? setting.bookingLockMinutes : 5;
@@ -612,9 +705,12 @@ exports.create = async (req, res) => {
                 }
             }
 
-            // One booking per day, re-checked under the advisory lock for the
+            // Booking limit, re-checked under the advisory lock for the
             // BOOKER and every 'member' player line (member-as-guest exempt).
-            if (!setting || setting.oneBookingPerDay !== false) {
+            // 'day' = one active booking per play date; 'session' = one per
+            // GolfSession band, judged by the flight's START time.
+            const limitMode = bookingLimitFor(setting, dayType);
+            if (limitMode === 'day') {
                 const bookerRows = await availability.memberDayBookings(companyId, booker.id, playDate, { transaction });
                 if (bookerRows.length) {
                     return { fail: `${standing.memberNo} already has a booking on ${playDate} - ${await describeDayBookings(companyId, bookerRows, { transaction })}.`, status: 400 };
@@ -626,6 +722,26 @@ exports.create = async (req, res) => {
                     const rows = await availability.memberDayBookings(companyId, g.id, playDate, { transaction });
                     if (rows.length) {
                         return { fail: `Player ${line.sortOrder}: ${line.memberNo} already has a booking on ${playDate} - ${await describeDayBookings(companyId, rows, { transaction })}.`, status: 400 };
+                    }
+                }
+            } else if (limitMode === 'session') {
+                const sessions = await GolfSession.findAll({ where: { companyId }, order: [['startTime', 'ASC']], transaction });
+                const startHHMM = availability.hhmm(startRow.teeTime);
+                const session = sessionOf(sessions, startHHMM);
+                if (session) {
+                    const checks = [{ golfer: booker, label: standing.memberNo, prefix: '' }];
+                    for (const line of lines) {
+                        if (!line.standing || line.playerType !== 'member') continue;
+                        const g = golferByMemberId.get(line.standing.memberId);
+                        if (!g || g.id === booker.id) continue;
+                        checks.push({ golfer: g, label: line.memberNo, prefix: `Player ${line.sortOrder}: ` });
+                    }
+                    for (const check of checks) {
+                        const taken = await memberDaySessions(companyId, check.golfer.id, playDate, sessions, { transaction });
+                        const clash = taken.get(session.id);
+                        if (clash) {
+                            return { fail: `${check.prefix}${check.label} already has a ${session.name} session booking on ${playDate} - ${clash.startTime} (${clash.profile.bookingNo}).`, status: 400 };
+                        }
                     }
                 }
             }

@@ -86,6 +86,9 @@ const GuestControlRule = require('../modules/golf/guestControlRule.model');
 // limit + accompaniment rows, same shape - no associations.
 const HandicapLimitRule = require('../modules/golf/handicapLimitRule.model');
 const HandicapAccompanimentRule = require('../modules/golf/handicapAccompanimentRule.model');
+// Golf Sessions (2026-10-01): the club's named day parts (Morning/...), used
+// by the per-session booking limit and future session analysis - no associations.
+const GolfSession = require('../modules/golf/golfSession.model');
 // Booking + registration revamp (2026-09-29): BookingProfile header (booker
 // info only) + golf.Player records (one per golfer per NINE - an 18-hole
 // play is a linked pair) + the short-lived FlightLock claims of the DYNAMIC

@@ -69,16 +69,28 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: false,
     },
-    // One booking per day (user decisions 2026-09-20, default ON): a member
-    // may only be in ONE active booking per play date - counted when they are
-    // the BOOKER or a 'member' player line; member-as-guest lines are NOT
-    // counted, cancelled bookings free the day. Checked at search (prompt
-    // names the booked flight time) and re-checked at save for the booker AND
-    // every member player line.
-    oneBookingPerDay: {
-        type: DataTypes.BOOLEAN,
+    // Booking limit per day type (user decisions 2026-10-01; replaces the
+    // 2026-09-20 oneBookingPerDay boolean - a marker-guarded boot migration
+    // in app.js copied the old flag and dropped the column):
+    //   'none'    - no limit
+    //   'day'     - one active booking per play date (the old ON behavior)
+    //   'session' - one active booking per GolfSession band (Tropicana's
+    //               weekend/PH rule; a tee time outside every band is
+    //               unconstrained)
+    // Counted when the member is the BOOKER or a 'member' player line;
+    // member-as-guest lines are NOT counted, cancelled bookings free the
+    // slot. Day type via the calendar seam (holidays = weekend). Enforced in
+    // the BOOKING channel only (availability hides, lock/create refuse); the
+    // front desk stays seats-authoritative.
+    bookingLimitWeekday: {
+        type: DataTypes.STRING(10),
         allowNull: false,
-        defaultValue: true,
+        defaultValue: 'day',
+    },
+    bookingLimitWeekend: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+        defaultValue: 'day',
     },
     // Flight-lock duration in minutes (user decision 2026-09-20): how long a
     // clicked flight stays claimed (whole flight incl. crossover cell) while

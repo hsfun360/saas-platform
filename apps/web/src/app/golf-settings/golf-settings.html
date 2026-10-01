@@ -131,12 +131,64 @@
               <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">When off, the first confirmed booking claims the whole flight; more players can only be added to that same booking.</p>
             </div>
 
+            <div class="gs-grid" style="margin-top: var(--space-md);">
+              <div class="form-group">
+                <label for="gsLimitWd">Weekday booking limit <span class="required">*</span></label>
+                <select id="gsLimitWd" formControlName="bookingLimitWeekday">
+                  @for (l of bookingLimits; track l.key) {
+                    <option [value]="l.key">{{ l.label }}</option>
+                  }
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="gsLimitWe">Weekend &amp; holiday booking limit <span class="required">*</span></label>
+                <select id="gsLimitWe" formControlName="bookingLimitWeekend">
+                  @for (l of bookingLimits; track l.key) {
+                    <option [value]="l.key">{{ l.label }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Counted as the booking maker or a Member player line; playing as a member-guest is not counted. Per day prompts at search which flight is already booked; per session hides the already-booked sessions' flights.</p>
+
+            <!-- Golf Sessions: the named day parts the per-session limit uses
+                 (and future session analysis). Stored even while no limit uses
+                 them, so a club can stage the bands. -->
             <div class="form-row" style="margin-top: var(--space-md);">
-              <label class="gs-check">
-                <input type="checkbox" formControlName="oneBookingPerDay" />
-                <span>One booking per day — a member can only be in one booking per play date</span>
-              </label>
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Counted as the booking maker or a Member player line; playing as a member-guest is not counted. The search step prompts which flight is already booked.</p>
+              <label style="font-weight: var(--weight-semibold);">Sessions</label>
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">
+                The club's day parts — e.g. Morning, Afternoon, Evening. "One booking per session" allows one booking in each;
+                a tee time outside every session is unrestricted.
+                @if (sessionLimitOn() && sessions().length === 0) {
+                  <strong>Define at least one session for the per-session limit to constrain anything.</strong>
+                }
+              </p>
+              @if (sessions().length) {
+                <div class="gs-sess-head" aria-hidden="true">
+                  <span>Name</span><span>From</span><span>Until</span><span></span>
+                </div>
+              }
+              @for (s of sessions(); track $index; let i = $index) {
+                <div class="gs-sess-row">
+                  <input type="text" [value]="s.name" maxlength="50" placeholder="e.g. Morning"
+                         (input)="setSession(i, { name: $any($event.target).value })"
+                         [attr.aria-label]="'Session ' + (i + 1) + ' name'" />
+                  <input type="time" [value]="s.startTime"
+                         (input)="setSession(i, { startTime: $any($event.target).value })"
+                         [attr.aria-label]="'Session ' + (i + 1) + ' from'" />
+                  <input type="time" [value]="s.endTime"
+                         (input)="setSession(i, { endTime: $any($event.target).value })"
+                         [attr.aria-label]="'Session ' + (i + 1) + ' until'" />
+                  <button type="button" class="btn btn--danger btn--sm" (click)="removeSession(i)"
+                          [attr.aria-label]="'Remove session ' + (s.name || i + 1)">
+                    <span class="material-icons" aria-hidden="true">close</span>
+                  </button>
+                </div>
+              }
+              <button type="button" class="btn btn--secondary btn--sm" style="margin-top: var(--space-xs); align-self: start;" (click)="addSession()">
+                <span class="material-icons" aria-hidden="true">add</span>
+                Add session
+              </button>
             </div>
 
             <div class="form-row" style="margin-top: var(--space-md);">
@@ -534,7 +586,7 @@
       </div>
 
       <div class="gs-actions" *appCan="'edit'">
-        <button type="submit" class="btn btn--primary" [disabled]="saving() || (!form.dirty && !ovDirty() && !mpDirty() && !gcDirty() && !hlDirty() && !haDirty())">
+        <button type="submit" class="btn btn--primary" [disabled]="saving() || (!form.dirty && !ovDirty() && !mpDirty() && !gcDirty() && !hlDirty() && !haDirty() && !ssDirty())">
           {{ saving() ? 'Saving…' : 'Save' }}
         </button>
       </div>

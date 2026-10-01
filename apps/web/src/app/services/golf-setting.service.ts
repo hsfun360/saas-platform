@@ -58,6 +58,17 @@ export interface GolfHandicapAccompanimentRule {
   latestTeeOff: string | null;
 }
 
+// A named day part ('Morning' 08:00-11:59, ...) - the per-session booking
+// limit's bands, and future session analysis. End exclusive.
+export interface GolfSessionBand {
+  name: string;
+  startTime: string; // 'HH:MM'
+  endTime: string;
+}
+
+// Booking limit per day type: no limit / one per day / one per session.
+export type GolfBookingLimit = 'none' | 'day' | 'session';
+
 export interface GolfSettingDoc {
   setting: {
     advanceBookingDays: number;
@@ -67,7 +78,8 @@ export interface GolfSettingDoc {
     minPlayersWeekday: number;
     minPlayersWeekend: number;
     bookingLockMinutes: number;
-    oneBookingPerDay: boolean;
+    bookingLimitWeekday: GolfBookingLimit;
+    bookingLimitWeekend: GolfBookingLimit;
     allowSameDayBooking: boolean;
     guestControlEnabled: boolean;
     allowGuestWeekday: boolean;
@@ -86,6 +98,7 @@ export interface GolfSettingDoc {
   guestControlRules: GolfGuestControlRule[];
   handicapLimitRules: GolfHandicapLimitRule[];
   handicapAccompanimentRules: GolfHandicapAccompanimentRule[];
+  sessions: GolfSessionBand[];
 }
 
 export interface GolfMembershipTypeOption {
@@ -132,7 +145,8 @@ export class GolfSettingService {
     minPlayersWeekday: number;
     minPlayersWeekend: number;
     bookingLockMinutes: number;
-    oneBookingPerDay: boolean;
+    bookingLimitWeekday: GolfBookingLimit;
+    bookingLimitWeekend: GolfBookingLimit;
     allowSameDayBooking: boolean;
     guestControlEnabled: boolean;
     allowGuestWeekday: boolean;
@@ -149,6 +163,7 @@ export class GolfSettingService {
     guestControlRules: GolfGuestControlRule[];
     handicapLimitRules: GolfHandicapLimitRule[];
     handicapAccompanimentRules: GolfHandicapAccompanimentRule[];
+    sessions: GolfSessionBand[];
   }): Observable<{ message: string }> {
     return this.http.put<{ message: string }>(this.base, payload);
   }

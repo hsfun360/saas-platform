@@ -144,6 +144,23 @@
   align-items: center;
   margin-bottom: var(--space-sm);
 }
+/* Golf Sessions editor - name | from | until | remove. */
+.gs-sess-head,
+.gs-sess-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 120px auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.gs-sess-head {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin: var(--space-sm) 0 var(--space-xs);
+}
 .gs-ha-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 130px 64px 100px 100px 40px 40px 56px 74px 74px 100px auto;

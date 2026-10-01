@@ -14,6 +14,8 @@ import {
   GolfHandicapLimitRule,
   GolfHandicapAccompanimentRule,
   GolfCourseOption,
+  GolfSessionBand,
+  GolfBookingLimit,
 } from '../services/golf-setting.service';
 
 // Golf Management → Golf Specification (/golf/settings) - the per-company
@@ -53,7 +55,8 @@ export class GolfSettingsComponent implements OnInit {
     minPlayersWeekday: [1, [Validators.required, Validators.min(1), Validators.max(10)]],
     minPlayersWeekend: [1, [Validators.required, Validators.min(1), Validators.max(10)]],
     bookingLockMinutes: [5, [Validators.required, Validators.min(1), Validators.max(60)]],
-    oneBookingPerDay: [true],
+    bookingLimitWeekday: ['day'],
+    bookingLimitWeekend: ['day'],
     allowSameDayBooking: [false],
     guestControlEnabled: [false],
     allowGuestWeekday: [true],
@@ -85,6 +88,18 @@ export class GolfSettingsComponent implements OnInit {
   readonly hlDirty = signal(false);
   readonly accRules = signal<GolfHandicapAccompanimentRule[]>([]);
   readonly haDirty = signal(false);
+
+  // Golf Sessions (2026-10-01): the club's named day parts - the per-session
+  // booking limit's bands (same dynamic-row pattern).
+  readonly sessions = signal<GolfSessionBand[]>([]);
+  readonly ssDirty = signal(false);
+
+  // Booking-limit vocabulary (fixed enum - native selects).
+  readonly bookingLimits: { key: GolfBookingLimit; label: string }[] = [
+    { key: 'none', label: 'No limit' },
+    { key: 'day', label: 'One booking per day' },
+    { key: 'session', label: 'One booking per session' },
+  ];
 
   readonly typeOptions = computed(() =>
     this.membershipTypes().map((t) => ({
@@ -152,7 +167,8 @@ export class GolfSettingsComponent implements OnInit {
           minPlayersWeekday: doc.setting.minPlayersWeekday,
           minPlayersWeekend: doc.setting.minPlayersWeekend,
           bookingLockMinutes: doc.setting.bookingLockMinutes,
-          oneBookingPerDay: doc.setting.oneBookingPerDay,
+          bookingLimitWeekday: doc.setting.bookingLimitWeekday || 'day',
+          bookingLimitWeekend: doc.setting.bookingLimitWeekend || 'day',
           allowSameDayBooking: doc.setting.allowSameDayBooking,
           guestControlEnabled: doc.setting.guestControlEnabled,
           allowGuestWeekday: doc.setting.allowGuestWeekday,
@@ -175,6 +191,8 @@ export class GolfSettingsComponent implements OnInit {
         this.hlDirty.set(false);
         this.accRules.set(doc.handicapAccompanimentRules ?? []);
         this.haDirty.set(false);
+        this.sessions.set(doc.sessions ?? []);
+        this.ssDirty.set(false);
         this.loading.set(false);
       },
       error: (err) => {
@@ -305,6 +323,28 @@ export class GolfSettingsComponent implements OnInit {
     this.setAccRule(index, { minCompanions: n });
   }
 
+  // Whether either day type limits bookings per session (shows the bands
+  // editor emphasis). Method, not computed: control values are not signals.
+  sessionLimitOn(): boolean {
+    return this.form.controls.bookingLimitWeekday.value === 'session'
+      || this.form.controls.bookingLimitWeekend.value === 'session';
+  }
+
+  addSession(): void {
+    this.sessions.update((rows) => [...rows, { name: '', startTime: '', endTime: '' }]);
+    this.ssDirty.set(true);
+  }
+
+  removeSession(index: number): void {
+    this.sessions.update((rows) => rows.filter((_, i) => i !== index));
+    this.ssDirty.set(true);
+  }
+
+  setSession(index: number, patch: Partial<GolfSessionBand>): void {
+    this.sessions.update((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+    this.ssDirty.set(true);
+  }
+
   // Live preview of the window rule with the current numbers. Hidden while
   // either number is out of range - the field errors speak then (a 25-hour
   // value once previewed as "-1:00 am").
@@ -355,6 +395,21 @@ export class GolfSettingsComponent implements OnInit {
         return;
       }
     }
+    const sessions = this.sessions();
+    for (const s of sessions) {
+      if (!s.name.trim()) {
+        this.errorMessage.set('Every session needs a name.');
+        return;
+      }
+      if (!s.startTime || !s.endTime) {
+        this.errorMessage.set(`Session '${s.name}' needs both From and Until times.`);
+        return;
+      }
+      if (s.startTime >= s.endTime) {
+        this.errorMessage.set(`Session '${s.name}': the From time must be before the Until time.`);
+        return;
+      }
+    }
 
     const v = this.form.getRawValue();
     this.saving.set(true);
@@ -366,7 +421,8 @@ export class GolfSettingsComponent implements OnInit {
       minPlayersWeekday: v.minPlayersWeekday,
       minPlayersWeekend: v.minPlayersWeekend,
       bookingLockMinutes: v.bookingLockMinutes,
-      oneBookingPerDay: v.oneBookingPerDay,
+      bookingLimitWeekday: v.bookingLimitWeekday as GolfBookingLimit,
+      bookingLimitWeekend: v.bookingLimitWeekend as GolfBookingLimit,
       allowSameDayBooking: v.allowSameDayBooking,
       guestControlEnabled: v.guestControlEnabled,
       allowGuestWeekday: v.allowGuestWeekday,
@@ -383,6 +439,7 @@ export class GolfSettingsComponent implements OnInit {
       guestControlRules: guestRules,
       handicapLimitRules: this.limitRules(),
       handicapAccompanimentRules: accRules,
+      sessions,
     }).subscribe({
       next: (res) => {
         this.successMessage.set(res.message);

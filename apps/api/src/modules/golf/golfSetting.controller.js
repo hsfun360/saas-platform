@@ -9,6 +9,7 @@ const MinPlayerRule = require('./minPlayerRule.model');
 const GuestControlRule = require('./guestControlRule.model');
 const HandicapLimitRule = require('./handicapLimitRule.model');
 const HandicapAccompanimentRule = require('./handicapAccompanimentRule.model');
+const GolfSession = require('./golfSession.model');
 const Course = require('./course.model');
 const { sequelize } = require('../../platform/db');
 const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
@@ -21,7 +22,7 @@ function companyIdOf(req) {
 const DEFAULTS = {
     advanceBookingDays: 7, advanceBookingHours: 0, allowMembershipTypeOverride: false,
     allowBookingMerge: false, minPlayersWeekday: 1, minPlayersWeekend: 1, bookingLockMinutes: 5,
-    oneBookingPerDay: true, allowSameDayBooking: false,
+    bookingLimitWeekday: 'day', bookingLimitWeekend: 'day', allowSameDayBooking: false,
     guestControlEnabled: false, allowGuestWeekday: true, allowMemberGuestWeekday: true,
     allowGuestWeekend: true, allowMemberGuestWeekend: true,
     handicapControlEnabled: false,
@@ -39,7 +40,8 @@ function settingDto(row) {
         minPlayersWeekday: row.minPlayersWeekday,
         minPlayersWeekend: row.minPlayersWeekend,
         bookingLockMinutes: row.bookingLockMinutes,
-        oneBookingPerDay: row.oneBookingPerDay === true,
+        bookingLimitWeekday: BOOKING_LIMITS.includes(row.bookingLimitWeekday) ? row.bookingLimitWeekday : 'day',
+        bookingLimitWeekend: BOOKING_LIMITS.includes(row.bookingLimitWeekend) ? row.bookingLimitWeekend : 'day',
         allowSameDayBooking: row.allowSameDayBooking === true,
         guestControlEnabled: row.guestControlEnabled === true,
         allowGuestWeekday: row.allowGuestWeekday === true,
@@ -54,6 +56,10 @@ function settingDto(row) {
         saved: true,
     };
 }
+
+// Booking-limit vocabulary per day type (user decision 2026-10-01):
+// no limit / one booking per day / one booking per GolfSession band.
+const BOOKING_LIMITS = ['none', 'day', 'session'];
 
 // Day scopes for the exception editors: the weekday/weekend pair plus
 // SPECIFIC days of the week (user request 2026-09-28, e.g. "no guests on
@@ -89,13 +95,14 @@ exports.get = async (req, res) => {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
-        const [row, overrides, minPlayerRules, guestControlRules, handicapLimitRules, handicapAccompanimentRules] = await Promise.all([
+        const [row, overrides, minPlayerRules, guestControlRules, handicapLimitRules, handicapAccompanimentRules, sessions] = await Promise.all([
             GolfSetting.findOne({ where: { companyId } }),
             AdvanceBookingOverride.findAll({ where: { companyId } }),
             MinPlayerRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
             GuestControlRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
             HandicapLimitRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
             HandicapAccompanimentRule.findAll({ where: { companyId }, order: [['createdAt', 'ASC']] }),
+            GolfSession.findAll({ where: { companyId }, order: [['sequence', 'ASC'], ['startTime', 'ASC']] }),
         ]);
         res.status(200).json({
             setting: settingDto(row),
@@ -138,6 +145,11 @@ exports.get = async (req, res) => {
                 companionMaxHandicapMen: Number(r.companionMaxHandicapMen),
                 companionMaxHandicapWomen: Number(r.companionMaxHandicapWomen),
                 latestTeeOff: timeDto(r.latestTeeOff),
+            })),
+            sessions: sessions.map((s) => ({
+                name: s.name,
+                startTime: timeDto(s.startTime),
+                endTime: timeDto(s.endTime),
             })),
         });
     } catch (error) {
@@ -373,8 +385,41 @@ exports.save = async (req, res) => {
         if (minPlayersWeekend === undefined) return res.status(400).json({ message: 'Weekend minimum players must be a whole number between 1 and 10.' });
         const bookingLockMinutes = parseIntIn(req.body.bookingLockMinutes, 1, 60);
         if (bookingLockMinutes === undefined) return res.status(400).json({ message: 'Booking lock minutes must be a whole number between 1 and 60.' });
-        const oneBookingPerDay = req.body.oneBookingPerDay !== false;
+        const bookingLimitWeekday = BOOKING_LIMITS.includes(req.body.bookingLimitWeekday) ? req.body.bookingLimitWeekday : undefined;
+        if (!bookingLimitWeekday) return res.status(400).json({ message: 'Weekday booking limit must be No limit, One per day or One per session.' });
+        const bookingLimitWeekend = BOOKING_LIMITS.includes(req.body.bookingLimitWeekend) ? req.body.bookingLimitWeekend : undefined;
+        if (!bookingLimitWeekend) return res.status(400).json({ message: 'Weekend booking limit must be No limit, One per day or One per session.' });
         const allowSameDayBooking = req.body.allowSameDayBooking === true;
+
+        // Golf Sessions: named, non-overlapping time bands (end exclusive).
+        // Stored even while neither limit uses 'session' so a club can stage
+        // them; a 'session' limit with NO bands simply constrains nothing.
+        const rawSessions = Array.isArray(req.body.sessions) ? req.body.sessions : [];
+        if (rawSessions.length > 20) return res.status(400).json({ message: 'Too many sessions.' });
+        const sessions = [];
+        const sessionNames = new Set();
+        for (const line of rawSessions) {
+            if (!line || typeof line !== 'object') return res.status(400).json({ message: 'Invalid session line.' });
+            const name = typeof line.name === 'string' ? line.name.trim() : '';
+            if (!name || name.length > 50) return res.status(400).json({ message: 'Every session needs a name (up to 50 characters).' });
+            if (sessionNames.has(name.toLowerCase())) return res.status(400).json({ message: `Session '${name}' appears more than once.` });
+            sessionNames.add(name.toLowerCase());
+            const startTime = parseTime(line.startTime);
+            const endTime = parseTime(line.endTime);
+            if (!startTime || !endTime) return res.status(400).json({ message: `Session '${name}' needs valid From and Until times.` });
+            if (startTime >= endTime) return res.status(400).json({ message: `Session '${name}': the From time must be before the Until time.` });
+            sessions.push({ name, startTime, endTime });
+        }
+        const ordered = [...sessions].sort((a, b) => (a.startTime < b.startTime ? -1 : 1));
+        for (let i = 1; i < ordered.length; i += 1) {
+            if (ordered[i].startTime < ordered[i - 1].endTime) {
+                return res.status(400).json({ message: `Sessions '${ordered[i - 1].name}' and '${ordered[i].name}' overlap.` });
+            }
+        }
+        ordered.forEach((s, i) => { s.sequence = i + 1; });
+        if ((bookingLimitWeekday === 'session' || bookingLimitWeekend === 'session') && !sessions.length) {
+            return res.status(400).json({ message: 'Define at least one session before limiting bookings per session.' });
+        }
         const guestControlEnabled = req.body.guestControlEnabled === true;
         const allowGuestWeekday = req.body.allowGuestWeekday !== false;
         const allowMemberGuestWeekday = req.body.allowMemberGuestWeekday !== false;
@@ -427,7 +472,7 @@ exports.save = async (req, res) => {
             const existing = await GolfSetting.findOne({ where: { companyId }, transaction });
             const values = {
                 advanceBookingDays, advanceBookingHours, allowMembershipTypeOverride, allowBookingMerge,
-                minPlayersWeekday, minPlayersWeekend, bookingLockMinutes, oneBookingPerDay, allowSameDayBooking,
+                minPlayersWeekday, minPlayersWeekend, bookingLockMinutes, bookingLimitWeekday, bookingLimitWeekend, allowSameDayBooking,
                 guestControlEnabled, allowGuestWeekday, allowMemberGuestWeekday, allowGuestWeekend, allowMemberGuestWeekend,
                 handicapControlEnabled, ...colors,
             };
@@ -469,6 +514,13 @@ exports.save = async (req, res) => {
             if (handicapAccompanimentRules.length) {
                 await HandicapAccompanimentRule.bulkCreate(
                     handicapAccompanimentRules.map((r) => ({ ...r, companyId, ...stamps })),
+                    { transaction },
+                );
+            }
+            await GolfSession.destroy({ where: { companyId }, transaction });
+            if (ordered.length) {
+                await GolfSession.bulkCreate(
+                    ordered.map((s) => ({ ...s, companyId, ...stamps })),
                     { transaction },
                 );
             }

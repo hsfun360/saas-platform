@@ -271,6 +271,23 @@ async function initializeDB() {
                 }
                 console.log('Migrated golf.TransactionTypeRate to the 4-cell price matrix.');
             }
+            // Golf booking limit per day type (2026-10-01) - BEFORE the
+            // alter-sync: oneBookingPerDay (boolean) becomes
+            // bookingLimitWeekday/bookingLimitWeekend ('none'|'day'|'session').
+            // OFF carried over as 'none' on both; ON = the 'day' default.
+            // Idempotent: guarded on the OLD column's existence.
+            const [[obpd]] = await sequelize.query(`
+                SELECT 1 AS present FROM information_schema.columns
+                WHERE table_schema = 'golf' AND table_name = 'GolfSetting' AND column_name = 'oneBookingPerDay'
+            `);
+            if (obpd && obpd.present) {
+                for (const col of ['bookingLimitWeekday', 'bookingLimitWeekend']) {
+                    await sequelize.query(`ALTER TABLE golf."GolfSetting" ADD COLUMN IF NOT EXISTS "${col}" varchar(10) NOT NULL DEFAULT 'day'`);
+                    await sequelize.query(`UPDATE golf."GolfSetting" SET "${col}" = 'none' WHERE "oneBookingPerDay" = false`);
+                }
+                await sequelize.query('ALTER TABLE golf."GolfSetting" DROP COLUMN "oneBookingPerDay"');
+                console.log('Migrated golf.GolfSetting oneBookingPerDay -> per-day-type booking limits.');
+            }
             // 1b. ar.InterestGeneration -> ar.Interest and
             //     ar.InterestGenerationDetail -> ar.InterestDetail
             //     (+ interestGenerationId -> interestId, index renames -
