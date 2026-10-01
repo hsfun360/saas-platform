@@ -476,6 +476,8 @@ export class GolfFrontDeskComponent implements OnInit {
         this.busy.set(false);
         this.dlgMode.set(null);
         this.successMessage.set(res.message);
+        // Return-to-row: scroll the flight the walk-in just joined into view.
+        this.returnScroll.remember('/golf/front-desk', `${payload.courseId}|${payload.teeTime}`);
         this.load();
       },
       error: (err) => {
@@ -689,6 +691,13 @@ export class GolfFrontDeskComponent implements OnInit {
   }
 
   closeDialog(): void {
+    // Return-to-row (user request 2026-10-01): leaving the drawer scrolls the
+    // clicked flight back into view (load() swaps the sheet for a spinner, so
+    // the scroll position is lost without this). Remembered HERE, not at
+    // open, so mid-drawer reloads (register/bill refresh the sheet) cannot
+    // consume the memory early.
+    const ref = this.flightRef();
+    if (ref) this.returnScroll.remember('/golf/front-desk', `${ref.courseId}|${ref.teeTime}`);
     this.dlgMode.set(null);
     this.flightRef.set(null);
     this.fromFlight.set(false);

@@ -85,6 +85,7 @@
             <div class="fd-card__list">
               @for (f of c.flights; track f.teeTime) {
                 <button type="button" class="fd-flight" [attr.data-flight]="c.courseId + '|' + f.teeTime"
+                        [attr.data-return-id]="c.courseId + '|' + f.teeTime"
                         (click)="openFlight(c, f)"
                         [disabled]="!flightOpenable(f)"
                         [class.fd-flight--closed]="f.closed || f.crossoverOnly"
