@@ -696,14 +696,20 @@ textarea:disabled {
 /* (not background) so it works over any card surface, in all 3   */
 /* appearance modes.                                              */
 /* ============================================================== */
+/* Upgraded 2026-10-01 (user request): the returned/edited row highlights   */
+/* like a FOCUSED FIELD - brand ring + soft glow halo - held ~2s before     */
+/* fading, so the record the user just touched is unmissable. Outline +     */
+/* box-shadow only (no background), so it works over any card surface, in  */
+/* all 3 appearance modes.                                                  */
 @keyframes return-flash {
-  0%, 55% { outline-color: var(--focus-ring); }
-  100% { outline-color: transparent; }
+  0%, 70% { outline-color: var(--brand); box-shadow: 0 0 0 4px var(--focus-glow); }
+  100% { outline-color: transparent; box-shadow: 0 0 0 4px transparent; }
 }
 .return-flash {
   outline: 2px solid transparent;
   outline-offset: 2px;
-  animation: return-flash 1.4s ease-out;
+  border-radius: inherit;
+  animation: return-flash 2.8s ease-out;
 }
 
 /* ============================================================== */
