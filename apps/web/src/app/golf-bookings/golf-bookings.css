@@ -12,8 +12,21 @@
   font-weight: var(--weight-semibold);
   color: var(--text-secondary);
 }
+/* Same shared input standard as .form-group fields (base + focus) - the
+   toolbar date sits outside a form group, so it opts in explicitly. */
 .gb-filter input[type='date'] {
   min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.gb-filter input[type='date']:focus {
+  background: var(--surface-card); /* border/glow from the global field-focus rule */
 }
 
 /* Two-column form grid (collapses on mobile via the global rule). */
@@ -131,6 +144,24 @@
   gap: var(--space-sm);
   align-items: center;
   margin-bottom: var(--space-sm);
+}
+/* Player-line cells - shared input standard (base + focus); the wizard's
+   grid rows sit outside .form-group. */
+.gb-player-row input,
+.gb-player-row select {
+  min-height: 40px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.gb-player-row input:focus,
+.gb-player-row select:focus {
+  background: var(--surface-card); /* border/glow from the global field-focus rule */
 }
 .gb-player-row--head {
   margin-bottom: var(--space-xs);
