@@ -144,6 +144,45 @@
   align-items: center;
   margin-bottom: var(--space-sm);
 }
+/* Same shared input standard as the other grid editors (base + focus) -
+   covers EVERY rule-row editor on this screen. The standard field chrome is
+   scoped to .form-group in styles.css, so grid rows must opt in explicitly
+   (fixed 2026-10-04 - the rows previously rendered browser-default fields). */
+.gs-ov-row input:not([type='checkbox']),
+.gs-ov-row select,
+.gs-sess-row input,
+.gs-mp-row input:not([type='checkbox']),
+.gs-mp-row select,
+.gs-gc-row input:not([type='checkbox']),
+.gs-gc-row select,
+.gs-hl-row input:not([type='checkbox']),
+.gs-hl-row select,
+.gs-ha-row input:not([type='checkbox']),
+.gs-ha-row select {
+  min-height: 40px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.gs-ov-row input:not([type='checkbox']):focus,
+.gs-ov-row select:focus,
+.gs-sess-row input:focus,
+.gs-mp-row input:not([type='checkbox']):focus,
+.gs-mp-row select:focus,
+.gs-gc-row input:not([type='checkbox']):focus,
+.gs-gc-row select:focus,
+.gs-hl-row input:not([type='checkbox']):focus,
+.gs-hl-row select:focus,
+.gs-ha-row input:not([type='checkbox']):focus,
+.gs-ha-row select:focus {
+  background: var(--surface-card); /* border/glow from the global field-focus rule */
+}
+
 /* Golf Sessions editor - name | from | until | remove. */
 .gs-sess-head,
 .gs-sess-row {
