@@ -183,6 +183,21 @@
   background: var(--surface-card); /* border/glow from the global field-focus rule */
 }
 
+/* TRIAL 2026-10-05 (user-approved, Golf Specification ONLY before any app-wide
+   change): the shared focus glow is `box-shadow: 0 0 0 3px` - a HARD-edged ring
+   with zero blur, which at fractional display scaling (e.g. 125%) rasterizes as
+   a flat grey offset box rather than the "soft halo" the standard intends.
+   Soften it to a real blurred halo here first - SAME --focus-glow token, so no
+   colour drift; only the blur/spread change. This component's styles are Angular
+   view-encapsulated, so the [_ngcontent] attribute scopes + out-specifies the
+   global rule to this screen alone. If approved, lift into the global rule in
+   styles.css and delete this block. */
+input:not([type='checkbox']):not([type='radio']):focus,
+select:focus,
+textarea:focus {
+  box-shadow: 0 0 0 1px var(--focus-glow), 0 0 7px 2px var(--focus-glow);
+}
+
 /* Golf Sessions editor - a plain vertical block (label, hint, head, rows,
    add button), each row name | from | until | remove. Rows cap at a tidy
    width instead of stretching across the whole card. */
