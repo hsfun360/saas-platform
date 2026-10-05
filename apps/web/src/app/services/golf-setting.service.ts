@@ -87,6 +87,7 @@ export interface GolfSettingDoc {
     allowGuestWeekend: boolean;
     allowMemberGuestWeekend: boolean;
     handicapControlEnabled: boolean;
+    juniorBookingControlEnabled: boolean;
     teeSheetColorBooked: string;
     teeSheetColorRegistered: string;
     teeSheetColorBilled: string;
@@ -154,6 +155,7 @@ export class GolfSettingService {
     allowGuestWeekend: boolean;
     allowMemberGuestWeekend: boolean;
     handicapControlEnabled: boolean;
+    juniorBookingControlEnabled: boolean;
     teeSheetColorBooked: string;
     teeSheetColorRegistered: string;
     teeSheetColorBilled: string;

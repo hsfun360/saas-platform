@@ -184,6 +184,30 @@ async function dayBookingConflict(companyId, standing, playDate, { transaction }
     return `${standing.memberNo} already has a booking on ${playDate} - ${await describeDayBookings(companyId, rows, { transaction })}.`;
 }
 
+// ---- junior-booking control (Tropicana 4.3; user decision 2026-10-05) -------
+// A JUNIOR (dependent son/daughter/ward, via membership standing isJunior) may
+// not be in a booking unless their PRINCIPAL (parent, principalMemberId) is
+// also a member player; a junior with no principal on record needs at least
+// one adult (non-junior) member in the flight. `parties` = every player that
+// has a membership identity (member or member-as-guest), each
+// { memberId, isJunior, principalMemberId, label, prefix }. Returns the first
+// violation message, or null. Booking refuses on it; the desk warns.
+function juniorViolation(parties) {
+    const presentMemberIds = new Set(parties.map((p) => p.memberId).filter(Boolean));
+    const hasAdultMember = parties.some((p) => !p.isJunior);
+    for (const p of parties) {
+        if (!p.isJunior) continue;
+        if (p.principalMemberId) {
+            if (!presentMemberIds.has(p.principalMemberId)) {
+                return `${p.prefix}${p.label} is a junior member and must play with their principal (parent), who is not in this booking.`;
+            }
+        } else if (!hasAdultMember) {
+            return `${p.prefix}${p.label} is a junior member and must be accompanied by an adult member.`;
+        }
+    }
+    return null;
+}
+
 // ---- booking limit per day type (user decisions 2026-10-01) ----------------
 // 'none' | 'day' | 'session' from the setting, by the date's day type
 // (holidays = weekend, via the calendar seam). Missing/legacy values fall
@@ -744,6 +768,26 @@ exports.create = async (req, res) => {
                         }
                     }
                 }
+            }
+
+            // Junior-booking control (refuse): a junior player must be with
+            // their principal (or, lacking one, an adult member). Covers the
+            // booker and every member / member-as-guest player line.
+            if (setting && setting.juniorBookingControlEnabled === true) {
+                const parties = [{
+                    memberId: standing.memberId, isJunior: standing.isJunior === true,
+                    principalMemberId: standing.principalMemberId || null, label: standing.memberNo, prefix: '',
+                }];
+                for (const line of lines) {
+                    if (!line.standing) continue;
+                    parties.push({
+                        memberId: line.standing.memberId, isJunior: line.standing.isJunior === true,
+                        principalMemberId: line.standing.principalMemberId || null,
+                        label: line.memberNo, prefix: `Player ${line.sortOrder}: `,
+                    });
+                }
+                const violation = juniorViolation(parties);
+                if (violation) return { fail: violation, status: 400 };
             }
 
             // Booking number from the golf-booking series (gapless: the

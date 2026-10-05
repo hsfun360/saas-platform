@@ -167,6 +167,17 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: false,
     },
+    // Junior-booking control (Tropicana procedure 4.3; user decision
+    // 2026-10-05). When ON, a JUNIOR member (a dependent whose relationship is
+    // son/daughter/ward) may not be in a booking unless their PRINCIPAL (the
+    // parent, principalMemberId) is also a player; a junior with no principal
+    // on record needs at least one adult (non-junior) member in the flight.
+    // Booking REFUSES, the front desk WARNS (same split as handicap control).
+    juniorBookingControlEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     // Merge booking (club-wide, user decision 2026-09-19). OFF = exclusive
     // flights: the first confirmed booking claims the whole flight, extra
     // players join only that same booking. ON = shared flights: bookings

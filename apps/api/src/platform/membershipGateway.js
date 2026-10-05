@@ -273,7 +273,7 @@ async function getGolfMemberStanding(companyId, memberNo) {
     const MembershipStatus = require('../modules/membership/membershipStatus.model');
     const row = await Member.findOne({
         where: { companyId, memberNo: { [Op.iLike]: String(memberNo).trim() } },
-        attributes: ['id', 'memberNo', 'firstName', 'lastName', 'localName', 'email', 'gender', 'membershipId', 'membershipTypeId', 'memberStatusId'],
+        attributes: ['id', 'memberNo', 'firstName', 'lastName', 'localName', 'email', 'gender', 'membershipId', 'membershipTypeId', 'memberStatusId', 'memberKind', 'dependentType', 'principalMemberId'],
     });
     if (!row) return null;
     // EFFECTIVE type (fix 2026-09-28): Member.membershipTypeId is a nominee-
@@ -303,6 +303,12 @@ async function getGolfMemberStanding(companyId, memberNo) {
         // Guest quota per booking from the type (2026-09-28): NULL = no
         // limit, 0 = cannot bring guests; member-as-guest lines count.
         guestQuota: type && type.guestQuota != null ? Number(type.guestQuota) : null,
+        // Junior-booking control (Tropicana procedure 4.3; user decision
+        // 2026-10-05): a JUNIOR is a dependent whose relationship is son /
+        // daughter / ward (spouse dependents are NOT junior). principalMemberId
+        // is the parent the junior must play with.
+        isJunior: row.memberKind === 'dependent' && ['son', 'daughter', 'ward'].includes(row.dependentType),
+        principalMemberId: row.principalMemberId || null,
         statusLabel: status ? status.membershipStatus : null,
         // 'allow' | 'warning' | 'barred' (membershipStatus.constants); a
         // member with no status behaves as 'allow'. actionControl gates

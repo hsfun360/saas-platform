@@ -649,6 +649,51 @@ async function closureWarnings({ companyId, courseId, playDate, teeTime, crossTi
     }
 }
 
+// Non-blocking desk warning for junior-booking control (Tropicana 4.3; user
+// decision 2026-10-05 - booking REFUSES, desk WARNS). Looks at the whole
+// flight's seated MEMBER players (booked + registered) at the start nine cell;
+// warns when a junior's principal (parent) is absent, or - for a junior with
+// no principal - when no adult member is present. Never throws.
+async function juniorWarnings({ companyId, unitCourseId, playDate, teeTime, transaction }) {
+    try {
+        const setting = await GolfSetting.findOne({ where: { companyId }, transaction });
+        if (!setting || setting.juniorBookingControlEnabled !== true) return [];
+        const rows = await Player.findAll({
+            where: { companyId, unitCourseId, playDate, teeTime, secondNineFlag: 0, status: { [Op.in]: ['booked', 'registered'] } },
+            transaction,
+        });
+        if (!rows.length) return [];
+        const parties = [];
+        const standingCache = new Map();
+        for (const r of rows) {
+            if (!r.golferId) continue; // name-only guest - not a member
+            const golfer = await Golfer.findOne({ where: { companyId, id: r.golferId }, attributes: ['golferType', 'memberNo'], transaction });
+            if (!golfer || golfer.golferType !== 'member' || !golfer.memberNo) continue; // walk-in/other - not a member
+            let st = standingCache.get(golfer.memberNo);
+            if (st === undefined) { st = await getGolfMemberStanding(companyId, golfer.memberNo); standingCache.set(golfer.memberNo, st); }
+            if (!st) continue;
+            parties.push({ memberId: st.memberId, isJunior: st.isJunior === true, principalMemberId: st.principalMemberId || null, label: r.playerName });
+        }
+        const presentMemberIds = new Set(parties.map((p) => p.memberId).filter(Boolean));
+        const hasAdultMember = parties.some((p) => !p.isJunior);
+        const warnings = [];
+        for (const p of parties) {
+            if (!p.isJunior) continue;
+            if (p.principalMemberId) {
+                if (!presentMemberIds.has(p.principalMemberId)) {
+                    warnings.push(`${p.label} is a junior member whose principal (parent) is not in this flight.`);
+                }
+            } else if (!hasAdultMember) {
+                warnings.push(`${p.label} is a junior member not accompanied by an adult member.`);
+            }
+        }
+        return warnings;
+    } catch (error) {
+        console.error('Junior warning check failed (never blocks the desk):', error);
+        return [];
+    }
+}
+
 // Resolve the golfer identity + snapshots for a player being registered.
 // Returns { golfer, playerName, memberNo, standing } or { error }.
 async function resolvePlayerIdentity({ req, companyId, playerType, memberNo, guest, fallbackName, stamps, transaction }) {
@@ -748,6 +793,10 @@ exports.register = async (req, res) => {
             warnings.push(...await closureWarnings({
                 companyId, courseId: result.row.courseId, playDate: String(result.row.playDate),
                 teeTime: availability.hhmm(result.row.teeTime), crossTime: result.shape.crossTime ? availability.hhmm(result.shape.crossTime) : null,
+            }));
+            warnings.push(...await juniorWarnings({
+                companyId, unitCourseId: result.row.unitCourseId, playDate: String(result.row.playDate),
+                teeTime: result.row.teeTime,
             }));
             return res.status(201).json({
                 message: withWarnings(`Registered ${result.row.playerName} (${result.row.registrationNo}).`, warnings),
@@ -860,6 +909,10 @@ exports.register = async (req, res) => {
             playDate: String(result.row.playDate), teeTime: availability.hhmm(result.row.teeTime),
             holes: result.shape.holes, playerIds: [result.row.id],
         });
+        warnings.push(...await juniorWarnings({
+            companyId, unitCourseId: result.row.unitCourseId, playDate: String(result.row.playDate),
+            teeTime: result.row.teeTime,
+        }));
         res.status(201).json({
             message: withWarnings(`Registered ${result.row.playerName} (${result.row.registrationNo}).`, warnings),
             registration: registrationDto(result.row, result.shape),
@@ -949,6 +1002,9 @@ exports.registerFlight = async (req, res) => {
             warnings.push(...await closureWarnings({
                 companyId, courseId, playDate, teeTime,
                 crossTime: anySecond ? availability.hhmm(anySecond.teeTime) : null,
+            }));
+            warnings.push(...await juniorWarnings({
+                companyId, unitCourseId: candidates[0].unitCourseId, playDate, teeTime: candidates[0].teeTime,
             }));
         }
         const message = skipped.length
