@@ -183,7 +183,15 @@
   background: var(--surface-card); /* border/glow from the global field-focus rule */
 }
 
-/* Golf Sessions editor - name | from | until | remove. */
+/* Golf Sessions editor - a plain vertical block (label, hint, head, rows,
+   add button), each row name | from | until | remove. Rows cap at a tidy
+   width instead of stretching across the whole card. */
+.gs-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  align-items: flex-start;
+}
 .gs-sess-head,
 .gs-sess-row {
   display: grid;
@@ -191,6 +199,8 @@
   gap: var(--space-sm);
   align-items: center;
   margin-bottom: var(--space-sm);
+  width: 100%;
+  max-width: 640px;
 }
 .gs-sess-head {
   font-size: var(--font-caption);

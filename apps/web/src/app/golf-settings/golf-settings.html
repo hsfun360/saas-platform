@@ -153,8 +153,10 @@
 
             <!-- Golf Sessions: the named day parts the per-session limit uses
                  (and future session analysis). Stored even while no limit uses
-                 them, so a club can stage the bands. -->
-            <div class="form-row" style="margin-top: var(--space-md);">
+                 them, so a club can stage the bands. NOT a .form-row: that is
+                 the 2-column form grid, which scattered these rows into two
+                 interleaved columns on wide screens (user report 2026-10-05). -->
+            <div class="gs-sessions" style="margin-top: var(--space-md);">
               <label style="font-weight: var(--weight-semibold);">Sessions</label>
               <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">
                 The club's day parts — e.g. Morning, Afternoon, Evening. "One booking per session" allows one booking in each;
