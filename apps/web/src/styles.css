@@ -670,19 +670,34 @@ input[appMoney] {
 }
 
 /* ONE focus standard for form FIELDS, app-wide (docs: "Field focus
-   highlight"): the highlight sits ON the field - brand border + a soft
-   glow hugging it - never the offset :focus-visible ring floating outside
-   (text fields match :focus-visible even on mouse click, so any field this
-   rule missed would show that ring - that is the bug this rule kills).
+   highlight"). On focus a field shows TWO things together:
+     1. BRAND BORDER  - the field's own border turns --brand (blue).
+     2. SOFT HALO     - a BLURRED --focus-glow bloom hugging that border.
+   NOT the offset :focus-visible ring floating outside (text fields match
+   :focus-visible even on mouse click, so any field this rule missed would
+   show that grey ring - that is the bug this rule kills). The halo is a
+   BLURRED shadow, never a hard `0 0 0 Npx` spread ring: a hard ring has no
+   blur, so at fractional display scaling (e.g. 125%) it rasterizes into a
+   flat grey offset BOX instead of a glow (debugged 2026-10-05).
    Element-level on purpose: covers search boxes, dialog rows and inline-
    styled inputs, not only .form-group ones. The offset ring stays correct
-   for BUTTONS, links, cards and upload tiles. */
+   for BUTTONS, links, cards and upload tiles.
+
+   GOTCHA for COMPONENT-SCOPED field styling (grid-row editors etc.): a
+   component stylesheet rule like `.my-row input { border: 1px solid ... }`
+   is view-encapsulated by Angular, which appends `[_ngcontent]` to EACH
+   simple selector and raises that base rule to specificity (0,3,1) - a TIE
+   with this global :focus rule, which the component rule then wins on load
+   order, so the field keeps its grey base border on focus (no blue border).
+   Any such base rule MUST pair with a component `:focus` rule that restates
+   `border-color: var(--brand)` (its (0,4,1) beats the base). See
+   grid-row-field-chrome memory. */
 input:not([type='checkbox']):not([type='radio']):focus,
 select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--brand);
-  box-shadow: 0 0 0 3px var(--focus-glow);
+  box-shadow: 0 0 0 1px var(--focus-glow), 0 0 7px 2px var(--focus-glow);
 }
 
 /* Search fields: suppress the browser's built-in clear (the thin ×

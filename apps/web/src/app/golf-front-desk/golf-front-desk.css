@@ -27,7 +27,8 @@
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .fd-filter input[type='date']:focus {
-  background: var(--surface-card); /* border/glow from the global field-focus rule */
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
 }
 
 /* Golfer/booking search - highlights matching flights on the sheet. */
@@ -461,7 +462,8 @@
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .fd-item input:focus {
-  background: var(--surface-card); /* border/glow from the global field-focus rule */
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
 }
 .fd-item--head {
   font-size: var(--font-caption);
@@ -553,7 +555,8 @@
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .fd-pay-line input:focus {
-  background: var(--surface-card); /* border/glow from the global field-focus rule */
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
 }
 @media (max-width: 767px) {
   .fd-pay-line {

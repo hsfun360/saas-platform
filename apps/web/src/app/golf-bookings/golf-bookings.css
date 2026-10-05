@@ -26,7 +26,8 @@
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .gb-filter input[type='date']:focus {
-  background: var(--surface-card); /* border/glow from the global field-focus rule */
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
 }
 
 /* Two-column form grid (collapses on mobile via the global rule). */
@@ -161,7 +162,8 @@
 }
 .gb-player-row input:focus,
 .gb-player-row select:focus {
-  background: var(--surface-card); /* border/glow from the global field-focus rule */
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
 }
 .gb-player-row--head {
   margin-bottom: var(--space-xs);

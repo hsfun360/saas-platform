@@ -73,7 +73,8 @@ p {
 }
 
 .form-group input:focus {
-  background-color: var(--surface-card); /* border/glow from the global field-focus rule */
+  background-color: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
 }
 
 .form-group input::placeholder {

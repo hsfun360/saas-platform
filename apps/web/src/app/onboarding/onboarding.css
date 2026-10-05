@@ -75,7 +75,8 @@ h2 {
 }
 
 .form-group input[type="text"]:focus {
-  background-color: var(--surface-card); /* border/glow from the global field-focus rule */
+  background-color: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
 }
 
 .onb-hint {

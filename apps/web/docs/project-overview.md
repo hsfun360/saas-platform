@@ -800,11 +800,12 @@ References: Modules & Menus (Code in edit mode), Other Debtor ("Issued automatic
 
 #### Field focus highlight - ON the field, never a floating ring
 
-When a form field (input / select / textarea) receives focus, the highlight sits **on the field itself**: the border turns `--brand` and a soft `--focus-glow` halo hugs that border.
+When a form field (input / select / textarea) receives focus, the highlight sits **on the field itself** and is TWO things together: the **border turns `--brand`** (blue) AND a **soft `--focus-glow` halo** hugs that border.
 The offset `:focus-visible` outline (2px ring floating 2px OUTSIDE the border) is for **buttons, links, cards and upload tiles only** - on a field it reads as a misaligned box and is the inconsistency this standard kills.
 This is enforced by ONE global element-level rule in `styles.css` (`input:not([type='checkbox']):not([type='radio']):focus, select:focus, textarea:focus`), which covers every field wherever it lives - `.form-group` fields, search boxes, dialog rows, inline-styled inputs.
-Do NOT write a per-screen `:focus` rule for fields: no per-screen copies of border/glow (they drift - three different blues were found when this was unified), and never a raw rgba glow colour - the tokens are `--focus-glow` (field halo) and `--focus-ring` (offset ring for non-fields).
-A screen may add only screen-specific *extras* on focus (e.g. golf hole-grid rows set a background), with a comment pointing at the global rule.
+**The halo is a BLURRED shadow, never a hard `0 0 0 Npx` spread ring** (set 2026-10-05: `box-shadow: 0 0 0 1px var(--focus-glow), 0 0 7px 2px var(--focus-glow)`). A hard-edged ring (zero blur) rasterises into a flat grey offset BOX at fractional display scaling (e.g. 125% Windows scaling) instead of a glow - that cost a long debugging round; keep the blur.
+Do NOT write a per-screen `:focus` rule for fields that re-copies the border/glow (they drift - three different blues were found when this was unified), and never a raw rgba glow colour - the tokens are `--focus-glow` (field halo) and `--focus-ring` (offset ring for non-fields).
+**Component-scoped field styling (grid-row editors etc.) MUST restate `border-color: var(--brand)` in its `:focus` rule.** A component rule like `.my-row input { border: 1px solid var(--border-strong) }` is Angular view-encapsulated - Angular appends `[_ngcontent]` to each simple selector, raising that base rule to specificity (0,3,1), a TIE with the global `:focus` rule that the component rule then wins on load order (component CSS loads after global). Without the restated `border-color: var(--brand)` on `:focus`, the grey base border overrides the blue focus border and the field only shows the halo. A screen may also add screen-specific *extras* on focus (e.g. golf hole-grid rows set a background), with a comment pointing at the global rule.
 
 #### Screen wrapper padding - no double gutter on mobile
 
