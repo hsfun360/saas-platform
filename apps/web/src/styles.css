@@ -580,6 +580,30 @@ body {
   color: var(--danger-text);
 }
 
+/* The shared combobox's inner input: BASELINE field chrome so it reads as a
+   standard field ANYWHERE - grid-row editors, toolbars - not only inside
+   .form-group (whose rules below override this baseline there with the same
+   look and roomier padding). This cannot live in a screen's stylesheet:
+   the inner input belongs to the combobox's own template, which row-scoped
+   component rules cannot reach (style encapsulation) - that gap left the
+   Golf Spec Course pickers looking disabled (user report 2026-10-05). */
+.combo input {
+  min-height: 40px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.combo input:focus {
+  background: var(--surface-card); /* border/glow from the field-focus rule below */
+}
+.combo input::placeholder {
+  color: var(--text-muted);
+}
+
 .form-group input,
 .form-group select,
 .form-group textarea {
