@@ -19,7 +19,9 @@ function companyIdOf(req) {
 }
 
 // GET /api/golf/no-show-charges?dateFrom=&dateTo=&status= - newest play
-// date first; both dates optional (default: the last 31 days to today).
+// date first; both dates optional (no filter = every row, 500 cap; the
+// screen defaults to 31 days back and 31 days forward - late cancellations
+// sit on FUTURE play dates).
 exports.list = async (req, res) => {
     try {
         const companyId = companyIdOf(req);

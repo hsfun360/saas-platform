@@ -1127,14 +1127,16 @@ async function noShowCandidates(req, companyId, playDate) {
                 };
             }
         }
-        bookings.push({ ...entry, profile, booker, playerRows: players });
+        // Raw rows ride along for the confirm (posting needs the Golfer row);
+        // candidateDto strips them. Named apart from the display `booker`.
+        bookings.push({ ...entry, profile, bookerRow: booker, playerRows: players });
     }
     bookings.sort((a, b) => a.startTime.localeCompare(b.startTime) || a.bookingNo.localeCompare(b.bookingNo));
     return { controlled: !!cfg, basis: cfg ? cfg.basis : null, cfg, bookings };
 }
 
 function candidateDto(b) {
-    const { profile, booker, playerRows, ...dto } = b;
+    const { profile, bookerRow, playerRows, ...dto } = b;
     return dto;
 }
 
@@ -1190,7 +1192,7 @@ exports.confirmNoShows = async (req, res) => {
                 const d = decisions.get(b.bookingProfileId);
                 if (!d.charge && !d.waiveReason) return res.status(400).json({ message: `Give a reason for waiving the charge on booking ${b.bookingNo}.` });
                 if (d.charge && b.chargeError) return res.status(400).json({ message: `Booking ${b.bookingNo} cannot be charged: ${b.chargeError}` });
-                if (d.charge && !b.booker) return res.status(409).json({ message: `Booking ${b.bookingNo}: the booker's golfer identity no longer exists.` });
+                if (d.charge && !b.bookerRow) return res.status(409).json({ message: `Booking ${b.bookingNo}: the booker's golfer identity no longer exists.` });
             }
         }
 
@@ -1211,11 +1213,11 @@ exports.confirmNoShows = async (req, res) => {
                     { where: { firstNinePlayerId: { [Op.in]: playerIds }, status: 'booked' }, transaction },
                 );
                 marked += n;
-                if (result.controlled && b.booker) {
+                if (result.controlled && b.bookerRow) {
                     const priced = await noShow.quote(req, result.cfg, playDate, b.playerRows.length, { transaction });
                     if (priced.error) continue; // validated above for charged lines; waived lines need no price
                     const row = await noShow.raise({
-                        req, profile: b.profile, booker: b.booker, players: b.playerRows,
+                        req, profile: b.profile, booker: b.bookerRow, players: b.playerRows,
                         chargeReason: 'no-show', priced, waive: d.charge ? null : { reason: d.waiveReason }, stamps, transaction,
                     });
                     raised.push(row);
