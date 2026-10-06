@@ -3,6 +3,7 @@ import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { GolfTransactionTypeService } from '../services/golf-transaction-type.service';
+import { NationalityService } from '../services/nationality.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
@@ -43,6 +44,7 @@ const PACKAGE_KEY = 'package';
 })
 export class GolfTransactionTypesComponent implements OnInit {
   private readonly service = inject(GolfTransactionTypeService);
+  private readonly nationalityService = inject(NationalityService);
   private readonly fb = inject(FormBuilder);
   // After-save return-to-row (app standard): the list re-sorts on reload, so
   // the saved/toggled card is scrolled back into view and flashed.
@@ -172,6 +174,7 @@ export class GolfTransactionTypesComponent implements OnInit {
       error: () => {},
     });
     this.service.taxSchemes().subscribe({ next: (r) => this.taxSchemes.set(r.schemes), error: () => {} });
+    this.nationalityService.listActive().subscribe({ next: (list) => this.nationalities.set(list), error: () => {} });
     this.load();
   }
 
@@ -230,7 +233,7 @@ export class GolfTransactionTypesComponent implements OnInit {
   addEligRow(): void {
     this.eligRows.update((rows) => [...rows, {
       daysOfWeek: null, excludePublicHolidays: false, startTime: null, endTime: null,
-      holes: null, minAge: null, maxAge: null, gender: null, localOnly: false,
+      holes: null, minAge: null, maxAge: null, gender: null, nationalityCode: null,
     }]);
     this.pkgDirty.set(true);
   }
@@ -278,8 +281,20 @@ export class GolfTransactionTypesComponent implements OnInit {
     else if (r.minAge !== null) parts.push(`age ${r.minAge}+`);
     else if (r.maxAge !== null) parts.push(`age ≤${r.maxAge}`);
     if (r.gender) parts.push(r.gender === 'female' ? 'ladies' : 'men');
-    if (r.localOnly) parts.push('local golfers');
+    if (r.nationalityCode) parts.push(this.nationalityLabel(r.nationalityCode));
     return parts.join(' · ') || 'everyone';
+  }
+
+  // Subscriber nationality list for the "nationality" condition (the club
+  // names its local nationality, e.g. MAS - Malaysian).
+  readonly nationalities = signal<{ nationalityCode: string; description?: string | null }[]>([]);
+  readonly nationalityOptions = computed(() =>
+    this.nationalities().map((n) => ({ value: n.nationalityCode, label: `${n.nationalityCode}${n.description ? ' — ' + n.description : ''}` })),
+  );
+
+  nationalityLabel(code: string): string {
+    const n = this.nationalities().find((x) => x.nationalityCode === code);
+    return n && n.description ? `${n.description} only` : `nationality ${code}`;
   }
 
   addPkgRow(): void {

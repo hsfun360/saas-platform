@@ -237,8 +237,7 @@
   color: var(--brand-text);
   background: var(--brand-surface, var(--surface-selected));
 }
-.elig-holiday,
-.elig-local {
+.elig-holiday {
   min-height: 36px;
 }
 .elig-grid {
@@ -278,4 +277,7 @@
 }
 .elig-row__summary {
   margin: var(--space-sm) 0 0;
+}
+.elig-field--wide {
+  grid-column: span 2;
 }

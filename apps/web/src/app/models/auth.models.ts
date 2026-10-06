@@ -1303,7 +1303,7 @@ export interface GolfTransactionTypeEligibility {
   minAge: number | null;
   maxAge: number | null;
   gender: 'male' | 'female' | null;
-  localOnly: boolean;
+  nationalityCode: string | null;   // subscriber Nationality code, e.g. 'MAS' ("local golfers only")
 }
 
 // One element line of a package transaction type: an existing (non-package)

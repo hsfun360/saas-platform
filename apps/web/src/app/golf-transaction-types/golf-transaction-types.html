@@ -332,9 +332,13 @@
                         <option value="female">Ladies</option>
                       </select>
                     </label>
-                    <label class="gtt-check elig-local">
-                      <input type="checkbox" [checked]="row.localOnly" (change)="setElig(i, { localOnly: $any($event.target).checked })" />
-                      <span>Local golfers only</span>
+                    <label class="elig-field elig-field--wide">
+                      <span>Nationality</span>
+                      <app-combobox [value]="row.nationalityCode ?? ''" (valueChange)="setElig(i, { nationalityCode: $event || null })"
+                                    [options]="nationalityOptions()"
+                                    [allowEmpty]="true" emptyLabel="Any"
+                                    [ariaLabel]="'Condition ' + (i + 1) + ' nationality'"
+                                    placeholder="Any" />
                     </label>
                   </div>
                   <p class="cell-subtle elig-row__summary">{{ eligRowText(row) }}</p>
