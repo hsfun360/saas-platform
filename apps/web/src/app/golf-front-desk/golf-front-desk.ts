@@ -756,6 +756,7 @@ export class GolfFrontDeskComponent implements OnInit {
   confirmNoShows(): void {
     const review = this.noShowReview();
     if (!review) return;
+    this.clearMessages();
     const d = this.noShowDecisions();
     const lines = this.noShowIncluded().map((b) => ({
       bookingProfileId: b.bookingProfileId,
