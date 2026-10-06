@@ -44,9 +44,11 @@ export class GolfNoShowChargesComponent implements OnInit {
   readonly statuses = signal<MembershipStatusOption[]>([]);
   readonly reasons = signal<MembershipStatusOption[]>([]);
 
-  // Server-side filters: play-date range (default the last 31 days) + status.
+  // Server-side filters: play-date range + status. The default range reaches
+  // 31 days BACK (no-shows) and 31 days FORWARD - a late cancellation is
+  // raised against a FUTURE play date, so a to-date of today would hide it.
   readonly dateFrom = signal(localDate(new Date(Date.now() - 31 * 86400000)));
-  readonly dateTo = signal(localDate(new Date()));
+  readonly dateTo = signal(localDate(new Date(Date.now() + 31 * 86400000)));
   readonly status = signal('');
   // Client-side search over the loaded rows.
   readonly search = signal('');
