@@ -93,7 +93,7 @@ function eligibilityDto(r) {
         minAge: r.minAge === null || r.minAge === undefined ? null : Number(r.minAge),
         maxAge: r.maxAge === null || r.maxAge === undefined ? null : Number(r.maxAge),
         gender: r.gender || null,
-        localOnly: r.localOnly === true,
+        nationalityCode: r.nationalityCode || null,
     };
 }
 
@@ -148,11 +148,11 @@ function normalizeEligibility(body) {
         if (minAge !== null && maxAge !== null && minAge > maxAge) return { error: `${label}: the minimum age is above the maximum age.` };
         const gender = line.gender ? String(line.gender) : null;
         if (gender && !['male', 'female'].includes(gender)) return { error: `${label}: gender must be Men, Ladies or Any.` };
-        const localOnly = line.localOnly === true;
-        if (!daysOfWeek && !excludePublicHolidays && !startTime && holes === null && minAge === null && maxAge === null && !gender && !localOnly) {
+        const nationalityCode = typeof line.nationalityCode === 'string' && line.nationalityCode.trim() ? line.nationalityCode.trim().toUpperCase().slice(0, 20) : null;
+        if (!daysOfWeek && !excludePublicHolidays && !startTime && holes === null && minAge === null && maxAge === null && !gender && !nationalityCode) {
             return { error: `${label} sets no condition - remove it, or set at least one.` };
         }
-        rows.push({ sequence: n + 1, daysOfWeek, excludePublicHolidays, startTime, endTime, holes, minAge, maxAge, gender, localOnly });
+        rows.push({ sequence: n + 1, daysOfWeek, excludePublicHolidays, startTime, endTime, holes, minAge, maxAge, gender, nationalityCode });
     }
     return { rows };
 }

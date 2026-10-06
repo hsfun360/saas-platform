@@ -75,11 +75,14 @@ const GolfTransactionTypeEligibility = sequelize.define('GolfTransactionTypeElig
         type: DataTypes.STRING(10),
         allowNull: true,
     },
-    // Golfer's nationality must be the club's country ("local golfers only").
-    localOnly: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
+    // Golfer's nationality must be this subscriber Nationality code ("local
+    // golfers only" = the club's own nationality, e.g. 'MAS'); NULL = any.
+    // A value reference into the Control-Plane Nationality list - that list
+    // is subscriber-defined and deliberately NOT country-linked, so the club
+    // names the nationality rather than the system guessing from its country.
+    nationalityCode: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
     },
     // Ownership stamps (RBAC data scope + future workflow).
     createdBy: { type: DataTypes.UUID, allowNull: true },

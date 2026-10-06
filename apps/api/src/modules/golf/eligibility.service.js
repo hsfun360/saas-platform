@@ -4,9 +4,10 @@
 //
 // Facts come from the PLAY (play date -> ISO day of week + public holiday via
 // the calendar seam, tee-off time, holes) and the GOLFER (date of birth,
-// gender, nationality): members through membershipGateway.getGolfMemberStanding,
+// gender, nationality code): members through membershipGateway.getGolfMemberStanding,
 // visitors from their OtherGolfer profile. Missing golfer data FAILS the
-// condition with a message naming what is missing.
+// condition with a message naming what is missing. A nationality condition
+// compares subscriber Nationality CODES (e.g. 'MAS'), never countries.
 //
 // The result for a non-qualifying item is ONE readable reason - the first
 // failing condition of the row that came closest (fewest failures) - shown
@@ -14,7 +15,6 @@
 
 const { getGolfMemberStanding } = require('../../platform/membershipGateway');
 const { classifyDateRange, isoDayOfWeek } = require('../../platform/calendarGateway');
-const { getCompanyBasics } = require('../../platform/serviceContext');
 const Golfer = require('./golfer.model');
 const OtherGolfer = require('./otherGolfer.model');
 
@@ -55,7 +55,6 @@ function daysLabel(days) {
 async function buildFacts(req, { companyId, registration, holes }) {
     const playDate = String(registration.playDate);
     const [classified] = await classifyDateRange(req, playDate, playDate);
-    const company = await getCompanyBasics(companyId);
     const facts = {
         playDate,
         dayKey: DAY_KEYS[isoDayOfWeek(playDate) - 1],
@@ -65,7 +64,6 @@ async function buildFacts(req, { companyId, registration, holes }) {
         birthDate: null,
         gender: null,
         nationalityCode: null,
-        companyCountry: company && company.countryCode ? String(company.countryCode).toLowerCase() : null,
     };
     const golfer = registration.golferId ? await Golfer.findOne({ where: { companyId, id: registration.golferId } }) : null;
     if (golfer && golfer.golferType === 'member' && golfer.memberNo) {
@@ -109,9 +107,9 @@ function rowFailures(rule, facts) {
         if (!facts.gender) failures.push('Needs the golfer\'s gender on record');
         else if (String(facts.gender).toLowerCase() !== String(rule.gender).toLowerCase()) failures.push(rule.gender === 'female' ? 'Ladies only' : 'Men only');
     }
-    if (rule.localOnly) {
+    if (rule.nationalityCode) {
         if (!facts.nationalityCode) failures.push('Needs the golfer\'s nationality on record');
-        else if (!facts.companyCountry || String(facts.nationalityCode).toLowerCase() !== facts.companyCountry) failures.push('Local golfers only');
+        else if (String(facts.nationalityCode).toUpperCase() !== String(rule.nationalityCode).toUpperCase()) failures.push(`Nationality ${rule.nationalityCode} only`);
     }
     return failures;
 }
