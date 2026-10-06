@@ -7,6 +7,8 @@ const { Storage } = require('@google-cloud/storage');
 const { Op } = require('sequelize');
 const GolfTransactionType = require('./transactionType.model');
 const GolfTransactionTypeElement = require('./transactionTypeElement.model');
+const GolfTransactionTypeEligibility = require('./transactionTypeEligibility.model');
+const { DAY_KEYS } = require('./eligibility.service');
 const { sequelize } = require('../../platform/db');
 const {
     getUserContext,
@@ -68,8 +70,108 @@ function toDto(t, canModify = true) {
                 unitAmount: Number(i.unitAmount),
                 sortOrder: i.sortOrder,
             }));
+        dto.eligibility = (t.Eligibility || [])
+            .slice()
+            .sort((a, b) => a.sequence - b.sequence)
+            .map(eligibilityDto);
     }
     return dto;
+}
+
+function timeDto(v) {
+    return v ? String(v).slice(0, 5) : null;
+}
+
+function eligibilityDto(r) {
+    return {
+        id: r.id,
+        daysOfWeek: Array.isArray(r.daysOfWeek) ? r.daysOfWeek : null,
+        excludePublicHolidays: r.excludePublicHolidays === true,
+        startTime: timeDto(r.startTime),
+        endTime: timeDto(r.endTime),
+        holes: r.holes === null || r.holes === undefined ? null : Number(r.holes),
+        minAge: r.minAge === null || r.minAge === undefined ? null : Number(r.minAge),
+        maxAge: r.maxAge === null || r.maxAge === undefined ? null : Number(r.maxAge),
+        gender: r.gender || null,
+        localOnly: r.localOnly === true,
+    };
+}
+
+const TIME_RE = /^(\d{2}):(\d{2})(?::\d{2})?$/;
+function parseTime(v) {
+    if (typeof v !== 'string') return undefined;
+    const m = v.match(TIME_RE);
+    if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return undefined;
+    return `${m[1]}:${m[2]}`;
+}
+
+function parseOptionalInt(v, min, max) {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < min || n > max) return undefined;
+    return n;
+}
+
+// Validate + normalise the ELIGIBILITY rows of a PACKAGE payload (OR-ed
+// conditions; every column optional, an empty row is refused as meaningless).
+// Returns { rows } or { error }.
+function normalizeEligibility(body) {
+    const raw = Array.isArray(body.eligibility) ? body.eligibility : [];
+    if (raw.length > 20) return { error: 'A package can hold at most 20 eligibility conditions.' };
+    const rows = [];
+    for (let n = 0; n < raw.length; n += 1) {
+        const line = raw[n] || {};
+        const label = `Eligibility condition ${n + 1}`;
+        let daysOfWeek = null;
+        if (Array.isArray(line.daysOfWeek) && line.daysOfWeek.length) {
+            daysOfWeek = [...new Set(line.daysOfWeek.map((d) => String(d)))];
+            if (daysOfWeek.some((d) => !DAY_KEYS.includes(d))) return { error: `${label}: unknown day of week.` };
+            if (daysOfWeek.length === 7) daysOfWeek = null; // every day = no day condition
+        }
+        const excludePublicHolidays = line.excludePublicHolidays === true;
+        const hasStart = line.startTime !== null && line.startTime !== undefined && line.startTime !== '';
+        const hasEnd = line.endTime !== null && line.endTime !== undefined && line.endTime !== '';
+        if (hasStart !== hasEnd) return { error: `${label}: set both From and To times, or neither.` };
+        let startTime = null;
+        let endTime = null;
+        if (hasStart) {
+            startTime = parseTime(line.startTime);
+            endTime = parseTime(line.endTime);
+            if (!startTime || !endTime) return { error: `${label}: the times must be valid times of day.` };
+            if (startTime >= endTime) return { error: `${label}: the From time must be before the To time.` };
+        }
+        const holes = parseOptionalInt(line.holes, 9, 18);
+        if (holes === undefined || (holes !== null && holes !== 9 && holes !== 18)) return { error: `${label}: holes must be 9, 18 or Any.` };
+        const minAge = parseOptionalInt(line.minAge, 0, 120);
+        const maxAge = parseOptionalInt(line.maxAge, 0, 120);
+        if (minAge === undefined || maxAge === undefined) return { error: `${label}: ages must be whole numbers between 0 and 120.` };
+        if (minAge !== null && maxAge !== null && minAge > maxAge) return { error: `${label}: the minimum age is above the maximum age.` };
+        const gender = line.gender ? String(line.gender) : null;
+        if (gender && !['male', 'female'].includes(gender)) return { error: `${label}: gender must be Men, Ladies or Any.` };
+        const localOnly = line.localOnly === true;
+        if (!daysOfWeek && !excludePublicHolidays && !startTime && holes === null && minAge === null && maxAge === null && !gender && !localOnly) {
+            return { error: `${label} sets no condition - remove it, or set at least one.` };
+        }
+        rows.push({ sequence: n + 1, daysOfWeek, excludePublicHolidays, startTime, endTime, holes, minAge, maxAge, gender, localOnly });
+    }
+    return { rows };
+}
+
+// Replace a package's eligibility rows atomically (inside the caller's txn).
+async function writeEligibility(row, rows, callerId, departmentId, transaction) {
+    await GolfTransactionTypeEligibility.destroy({ where: { transactionTypeId: row.id }, transaction });
+    if (rows && rows.length) {
+        await GolfTransactionTypeEligibility.bulkCreate(
+            rows.map((r) => ({
+                ...r,
+                transactionTypeId: row.id,
+                createdBy: callerId,
+                createdByDepartmentId: departmentId,
+                updatedBy: callerId,
+            })),
+            { transaction },
+        );
+    }
 }
 
 // Validate + normalise a payload. Returns { value } or { error }.
@@ -266,7 +368,10 @@ exports.list = async (req, res) => {
 
         const rows = await GolfTransactionType.findAll({
             where: { companyId },
-            include: [{ model: GolfTransactionTypeElement, as: 'Elements' }],
+            include: [
+                { model: GolfTransactionTypeElement, as: 'Elements' },
+                { model: GolfTransactionTypeEligibility, as: 'Eligibility' },
+            ],
             order: [['transactionType', 'ASC']],
         });
         const flags = await annotateCanModify(req, rows);
@@ -298,12 +403,16 @@ exports.create = async (req, res) => {
 
         const isPackage = v.chargeType === PACKAGE_CHARGE_TYPE_KEY;
         let items = null;
+        let eligibility = null;
         if (isPackage) {
             const parsedItems = await normalizeElements(req.body, companyId, null);
             if (parsedItems.error) return res.status(400).json({ message: parsedItems.error });
             items = parsedItems.items;
             const autoErr = await validateAutoTransactionType(companyId, v.autoTransactionTypeId, null);
             if (autoErr) return res.status(400).json({ message: autoErr });
+            const parsedElig = normalizeEligibility(req.body);
+            if (parsedElig.error) return res.status(400).json({ message: parsedElig.error });
+            eligibility = parsedElig.rows;
         }
 
         const placement = await getCallerPlacement(req);
@@ -316,10 +425,16 @@ exports.create = async (req, res) => {
                 createdByDepartmentId: placement.departmentId,
                 updatedBy: callerId,
             }, { transaction });
-            if (isPackage) await writeElements(created, items, callerId, placement.departmentId, transaction);
+            if (isPackage) {
+                await writeElements(created, items, callerId, placement.departmentId, transaction);
+                await writeEligibility(created, eligibility, callerId, placement.departmentId, transaction);
+            }
             return created;
         });
-        if (isPackage) row.Elements = await GolfTransactionTypeElement.findAll({ where: { transactionTypeId: row.id } });
+        if (isPackage) {
+            row.Elements = await GolfTransactionTypeElement.findAll({ where: { transactionTypeId: row.id } });
+            row.Eligibility = await GolfTransactionTypeEligibility.findAll({ where: { transactionTypeId: row.id } });
+        }
         res.status(201).json({ message: `Transaction type '${row.transactionType}' created.`, transactionType: toDto(row) });
     } catch (error) {
         console.error('Error creating golf transaction type:', error);
@@ -358,12 +473,16 @@ exports.update = async (req, res) => {
 
         const isPackage = v.chargeType === PACKAGE_CHARGE_TYPE_KEY;
         let items = null;
+        let eligibility = null;
         if (isPackage) {
             const parsedItems = await normalizeElements(req.body, companyId, row.id);
             if (parsedItems.error) return res.status(400).json({ message: parsedItems.error });
             items = parsedItems.items;
             const autoErr = await validateAutoTransactionType(companyId, v.autoTransactionTypeId, row.id);
             if (autoErr) return res.status(400).json({ message: autoErr });
+            const parsedElig = normalizeEligibility(req.body);
+            if (parsedElig.error) return res.status(400).json({ message: parsedElig.error });
+            eligibility = parsedElig.rows;
         }
         // An element that other packages use cannot be turned INTO a package
         // (packages cannot nest).
@@ -378,11 +497,15 @@ exports.update = async (req, res) => {
             Object.assign(row, v);
             row.updatedBy = callerId;
             await row.save({ transaction });
-            // Replace the element set for packages; clear any leftovers when a
-            // package was changed to a plain charge type.
+            // Replace the element + eligibility sets for packages; clear any
+            // leftovers when a package was changed to a plain charge type.
             await writeElements(row, isPackage ? items : [], callerId, placement.departmentId, transaction);
+            await writeEligibility(row, isPackage ? eligibility : [], callerId, placement.departmentId, transaction);
         });
-        if (isPackage) row.Elements = await GolfTransactionTypeElement.findAll({ where: { transactionTypeId: row.id } });
+        if (isPackage) {
+            row.Elements = await GolfTransactionTypeElement.findAll({ where: { transactionTypeId: row.id } });
+            row.Eligibility = await GolfTransactionTypeEligibility.findAll({ where: { transactionTypeId: row.id } });
+        }
         res.status(200).json({ message: `Transaction type '${row.transactionType}' updated.`, transactionType: toDto(row) });
     } catch (error) {
         console.error('Error updating golf transaction type:', error);

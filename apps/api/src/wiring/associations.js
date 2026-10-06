@@ -170,6 +170,9 @@ const CourseTeeTimeSlot = require('../modules/golf/courseTeeTimeSlot.model');
 const GolfTransactionType = require('../modules/golf/transactionType.model'); // billing-item master (companyId value ref; tax by code via seam)
 const GolfTransactionTypeRate = require('../modules/golf/transactionTypeRate.model');
 const GolfTransactionTypeElement = require('../modules/golf/transactionTypeElement.model');
+// Eligibility rows of a billing item (2026-10-06, Tropicana gap 6b): who
+// may be billed a package (days/holidays/time/holes/age/gender/local), OR-ed.
+const GolfTransactionTypeEligibility = require('../modules/golf/transactionTypeEligibility.model');
 const UnitCourseClosurePlan = require('../modules/golf/unitCourseClosurePlan.model');
 const UnitCourseClosureDay = require('../modules/golf/unitCourseClosureDay.model');
 // Shared financial reference (Tax). Header/detail pairs are intra-service, so they
@@ -320,6 +323,8 @@ GolfTransactionTypeRate.belongsTo(GolfTransactionType, { foreignKey: 'transactio
 // reference, like a course's nines).
 GolfTransactionType.hasMany(GolfTransactionTypeElement, { foreignKey: 'transactionTypeId', as: 'Elements', onDelete: 'CASCADE' });
 GolfTransactionTypeElement.belongsTo(GolfTransactionType, { foreignKey: 'transactionTypeId', as: 'Package' });
+GolfTransactionType.hasMany(GolfTransactionTypeEligibility, { foreignKey: 'transactionTypeId', as: 'Eligibility', onDelete: 'CASCADE' });
+GolfTransactionTypeEligibility.belongsTo(GolfTransactionType, { foreignKey: 'transactionTypeId', as: 'Item' });
 // Unit course (physical nine) -> its closure plans -> generated per-day
 // closure rows (spec 2.2.8, re-keyed to the nine 2026-09-30).
 UnitCourse.hasMany(UnitCourseClosurePlan, { foreignKey: 'unitCourseId', as: 'ClosurePlans', onDelete: 'CASCADE' });
@@ -400,6 +405,7 @@ module.exports = {
     CourseTeeTimeSet,
     CourseTeeTimeSlot,
     GolfTransactionType,
+    GolfTransactionTypeEligibility,
     UnitCourseClosurePlan,
     UnitCourseClosureDay,
     GolfNoShowCharge,

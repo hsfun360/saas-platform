@@ -40,6 +40,8 @@ const OtherGolfer = require('./otherGolfer.model');
 const GolfTransactionType = require('./transactionType.model');
 const GolfTransactionTypeRate = require('./transactionTypeRate.model');
 const GolfTransactionTypeElement = require('./transactionTypeElement.model');
+const GolfTransactionTypeEligibility = require('./transactionTypeEligibility.model');
+const eligibility = require('./eligibility.service');
 const PaymentType = require('./paymentType.model');
 const UnitCourse = require('./unitCourse.model');
 const noShow = require('./noShowCharge.service');
@@ -349,6 +351,18 @@ function paymentDto(p) {
         reference: p.reference,
         arDocNo: p.arDocNo,
     };
+}
+
+// Which tiles the billed golfer does NOT qualify for (package eligibility,
+// 2026-10-06): { [transactionTypeId]: reason } - the screen disables those
+// tiles with the reason; addItem refuses them with the same text.
+async function ineligibleTiles(req, companyId, registration) {
+    const types = await GolfTransactionType.findAll({
+        where: { companyId, isActive: true },
+        include: [{ model: GolfTransactionTypeEligibility, as: 'Eligibility' }],
+    });
+    const shape = await playShapeOf(registration);
+    return eligibility.ineligibleMap(req, { companyId, registration, holes: shape.holes, types });
 }
 
 async function billDto(bill, { transaction } = {}) {
@@ -1262,7 +1276,7 @@ exports.openBill = async (req, res) => {
         if (registration.status !== 'registered') return res.status(400).json({ message: 'This player is not registered.' });
 
         const existing = await Bill.findOne({ where: { companyId, playerId: registration.id, status: { [Op.ne]: 'voided' } } });
-        if (existing) return res.status(200).json({ bill: await billDto(existing), warnings: [] });
+        if (existing) return res.status(200).json({ bill: await billDto(existing), warnings: [], ineligible: await ineligibleTiles(req, companyId, registration) });
 
         const stamps = await callerStamps(req);
         const dayType = await dayTypeOf(req, String(registration.playDate));
@@ -1314,7 +1328,7 @@ exports.openBill = async (req, res) => {
             return { bill };
         });
         if (result.fail) return res.status(result.status).json({ message: result.fail });
-        res.status(201).json({ bill: await billDto(result.bill), warnings });
+        res.status(201).json({ bill: await billDto(result.bill), warnings, ineligible: await ineligibleTiles(req, companyId, registration) });
     } catch (error) {
         console.error('Error opening golf bill:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -1339,7 +1353,11 @@ exports.getBill = async (req, res) => {
         const found = await findBill(req);
         if (!found.bill) return res.status(found.status).json({ message: found.message });
         const shape = found.registration ? await playShapeOf(found.registration) : null;
-        res.status(200).json({ bill: await billDto(found.bill), registration: found.registration ? registrationDto(found.registration, shape) : null });
+        res.status(200).json({
+            bill: await billDto(found.bill),
+            registration: found.registration ? registrationDto(found.registration, shape) : null,
+            ineligible: found.registration ? await ineligibleTiles(req, found.companyId, found.registration) : {},
+        });
     } catch (error) {
         console.error('Error loading golf bill:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -1353,7 +1371,10 @@ exports.addItem = async (req, res) => {
         if (!found.bill) return res.status(found.status).json({ message: found.message });
         const { bill, registration, companyId } = found;
         if (!registration) return res.status(409).json({ message: 'The bill\'s player record no longer exists.' });
-        const type = await GolfTransactionType.findOne({ where: { companyId, id: String(req.body.transactionTypeId || ''), isActive: true } });
+        const type = await GolfTransactionType.findOne({
+            where: { companyId, id: String(req.body.transactionTypeId || ''), isActive: true },
+            include: [{ model: GolfTransactionTypeEligibility, as: 'Eligibility' }],
+        });
         if (!type) return res.status(400).json({ message: 'Pick a billing item.' });
         // A golfer-typed item (green fee / buggy / caddy default) is the item
         // of ONE category - the screen hides the others, the server refuses
@@ -1370,6 +1391,13 @@ exports.addItem = async (req, res) => {
         const dayType = await dayTypeOf(req, String(registration.playDate));
         const shape = await playShapeOf(registration);
         const play = { playDate: String(registration.playDate), holes: shape.holes };
+        // Package eligibility (2026-10-06): the golfer must qualify under at
+        // least one of the item's conditions - refused with the reason.
+        if (Array.isArray(type.Eligibility) && type.Eligibility.length) {
+            const facts = await eligibility.buildFacts(req, { companyId, registration, holes: shape.holes });
+            const verdict = eligibility.evaluate(type.Eligibility, facts);
+            if (!verdict.eligible) return res.status(400).json({ message: `'${type.transactionType}' - ${verdict.reason}.` });
+        }
         const result = await sequelize.transaction(async (transaction) => {
             if (type.chargeType === PACKAGE_CHARGE_TYPE_KEY) {
                 if (quantity !== 1) return { fail: 'Packages are billed one at a time.', status: 400 };
