@@ -240,6 +240,15 @@ export class GolfFrontDeskComponent implements OnInit {
   // Billing drawer (reached from a flight row - Back returns to the flight).
   readonly bill = signal<GolfBillDoc | null>(null);
   readonly billEntryName = signal('');
+  // The billed player's category - a golfer-typed tile (green fee / buggy /
+  // caddy default) shows only to its own category; untyped tiles to everyone
+  // (2026-10-06). The server refuses a mismatched tile regardless.
+  readonly billPlayerType = signal('');
+  readonly visibleTiles = computed(() => {
+    const m = this.meta();
+    const cat = this.billPlayerType();
+    return (m ? m.tiles : []).filter((t) => !t.golferType || t.golferType === cat);
+  });
   readonly fromFlight = signal(false);
 
   // Settlement lines (dynamic rows outside the FormGroup, house pattern).
@@ -522,6 +531,7 @@ export class GolfFrontDeskComponent implements OnInit {
     this.clearMessages();
     if (!entry.registration) return;
     this.billEntryName.set(entry.playerName);
+    this.billPlayerType.set(entry.playerType);
     this.busy.set(true);
     this.service.openBill(entry.registration.id).subscribe({
       next: (res) => {

@@ -183,6 +183,17 @@ export class GolfTransactionTypesComponent implements OnInit {
     return this.chargeTypes().find((c) => c.key === key)?.label || key;
   }
 
+  // Charge types that may carry the "Default for golfer type" marker: green
+  // fee (auto-charged at registration) and buggy / caddy (the category's only
+  // tile on the bill). Mirrors GOLFER_TYPED_CHARGE_TYPE_KEYS on the API.
+  golferTyped(chargeType: string): boolean {
+    return chargeType === 'green-fee' || chargeType === 'buggy-fee' || chargeType === 'caddy-fee';
+  }
+
+  golferTypeLabel(key: string | null | undefined): string {
+    return key ? (this.golferTypes().find((g) => g.key === key)?.label || key) : '';
+  }
+
   // Whether the dialog form currently composes a package (method, not
   // computed: control values are not signals; bindings re-evaluate per CD).
   isPackageForm(): boolean {
@@ -322,7 +333,7 @@ export class GolfTransactionTypesComponent implements OnInit {
     const payload: Partial<GolfTransactionType> = {
       transactionType: v.transactionType.trim(),
       chargeType: v.chargeType,
-      golferType: v.chargeType === 'green-fee' ? (v.golferType || null) : null,
+      golferType: this.golferTyped(v.chargeType) ? (v.golferType || null) : null,
       description: v.description.trim() || null,
       taxSchemeCode: v.taxSchemeCode || null,
       allowPriceOverride: v.allowPriceOverride,

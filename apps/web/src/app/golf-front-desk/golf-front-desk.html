@@ -390,7 +390,7 @@
             @if (billOpen()) {
               <h3 class="fd-section">Add items</h3>
               <div class="fd-tiles">
-                @for (t of meta()?.tiles || []; track t.id) {
+                @for (t of visibleTiles(); track t.id) {
                   <button type="button" class="btn btn--secondary fd-tile" (click)="addTile(t.id)" [disabled]="busy()">
                     @if (t.iconUrl) {
                       <img class="fd-tile__icon" [src]="t.iconUrl" alt="" />
