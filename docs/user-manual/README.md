@@ -24,3 +24,5 @@ Each manual is also published as an in-app guide: a static copy lives at `apps/w
 - [Unit Courses](golf-management/golf-unit-courses.md) - the 9-hole building blocks: holes (par/HCP) and tee boxes (colours + per-hole distances).
 - [Golf Specification](golf-management/golf-settings.md) - the club-wide golf rules: advance window, booking limits and sessions, minimum players, guest control, handicap control, cancellation notice + no-show penalty, tee-sheet colours.
 - [No-show Charges](golf-management/golf-no-show-charges.md) - the penalties raised against bookers for no-shows and late cancellations: post pending charges to the account or waive them.
+- [Transaction Type](golf-management/golf-transaction-types.md) - the golf billing-item catalog: charge types, tax scheme, Default Price cards, golfer-type defaults, packages and their eligibility conditions.
+- [Tee Time Sheet](golf-management/golf-tee-time-sheet.md) - the Front Desk's play-day view: register booked players and walk-ins, bill from the tiles, settle, record no-shows.

@@ -5,5 +5,7 @@
   "golf-unit-courses": { "title": "Unit Courses" },
   "golf-settings": { "title": "Golf Specification" },
   "golf-no-show-charges": { "title": "No-show Charges" },
+  "golf-transaction-types": { "title": "Transaction Type" },
+  "golf-tee-time-sheet": { "title": "Tee Time Sheet" },
   "ar-analysis": { "title": "Analysis Setup" }
 }
