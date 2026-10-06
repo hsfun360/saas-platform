@@ -27,7 +27,7 @@ const numberingGateway = require('../../platform/numberingGateway');
 const availability = require('./bookingAvailability.service');
 const { PLAYER_TYPES, PLAYER_TYPE_KEYS, HOLES_OPTIONS } = require('./booking.constants');
 const { PLAYER_STATUSES, BILL_STATUSES, ACTIVE_PLAYER_STATUS_KEYS } = require('./registration.constants');
-const { PACKAGE_CHARGE_TYPE_KEY, MATRIX_CHARGE_TYPE_KEYS } = require('./transactionType.constants');
+const { PACKAGE_CHARGE_TYPE_KEY, MATRIX_CHARGE_TYPE_KEYS, GOLFER_TYPES } = require('./transactionType.constants');
 const BookingProfile = require('./bookingProfile.model');
 const Player = require('./player.model');
 const GolfSetting = require('./golfSetting.model');
@@ -1355,6 +1355,14 @@ exports.addItem = async (req, res) => {
         if (!registration) return res.status(409).json({ message: 'The bill\'s player record no longer exists.' });
         const type = await GolfTransactionType.findOne({ where: { companyId, id: String(req.body.transactionTypeId || ''), isActive: true } });
         if (!type) return res.status(400).json({ message: 'Pick a billing item.' });
+        // A golfer-typed item (green fee / buggy / caddy default) is the item
+        // of ONE category - the screen hides the others, the server refuses
+        // them (2026-10-06): a visitor-priced buggy never lands on a member.
+        if (type.golferType && type.golferType !== registration.playerType) {
+            const itemCat = (GOLFER_TYPES.find((g) => g.key === type.golferType) || {}).label || type.golferType;
+            const playerCat = (PLAYER_TYPES.find((p) => p.key === registration.playerType) || {}).label || registration.playerType;
+            return res.status(400).json({ message: `'${type.transactionType}' is the ${itemCat} item - this player is billed as ${playerCat}.` });
+        }
         const quantity = Number.isInteger(Number(req.body.quantity)) ? Number(req.body.quantity) : 1;
         if (quantity < 1 || quantity > 99) return res.status(400).json({ message: 'Quantity must be between 1 and 99.' });
 

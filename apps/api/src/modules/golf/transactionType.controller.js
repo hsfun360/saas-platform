@@ -22,6 +22,7 @@ const {
     PACKAGE_CHARGE_TYPE_KEY,
     GOLFER_TYPES,
     GOLFER_TYPE_KEYS,
+    GOLFER_TYPED_CHARGE_TYPE_KEYS,
 } = require('./transactionType.constants');
 
 function companyIdOf(req) {
@@ -80,14 +81,15 @@ function normalizeBody(body) {
     const chargeType = str(body.chargeType);
     if (!CHARGE_TYPE_KEYS.includes(chargeType)) return { error: 'Select a valid charge type.' };
 
-    // Green fees may name the golfer category they are the DEFAULT for (the
-    // registration auto-billing key; optional - NULL = a manual item such as
-    // a group-booking or tournament green fee). Other charge types stay NULL.
+    // Green fees, buggy fees and caddy fees may name the golfer category they
+    // are the DEFAULT for (green fee: the registration auto-billing key;
+    // buggy/caddy: the category's only tile on the bill). Optional - NULL = a
+    // manual item for everyone. Other charge types stay NULL.
     let golferType = null;
-    if (chargeType === 'green-fee') {
+    if (GOLFER_TYPED_CHARGE_TYPE_KEYS.includes(chargeType)) {
         const raw = str(body.golferType);
         if (raw) {
-            if (!GOLFER_TYPE_KEYS.includes(raw)) return { error: 'Select a valid golfer type for the green-fee default.' };
+            if (!GOLFER_TYPE_KEYS.includes(raw)) return { error: 'Select a valid golfer type for the default.' };
             golferType = raw;
         }
     }
@@ -111,17 +113,19 @@ function normalizeBody(body) {
     };
 }
 
-// At most one ACTIVE green-fee DEFAULT per golfer category - otherwise
-// registration auto-billing cannot resolve the item. Non-default green fees
-// (golferType NULL) are unrestricted. Returns an error string or null.
-async function activeGreenFeeConflict(companyId, golferType, selfId) {
+// At most one ACTIVE DEFAULT per (charge type, golfer category) - otherwise
+// registration auto-billing / the bill tiles cannot resolve the item.
+// Non-default types (golferType NULL) are unrestricted. Returns an error
+// string or null.
+async function activeDefaultConflict(companyId, chargeType, golferType, selfId) {
     if (!golferType) return null;
-    const where = { companyId, chargeType: 'green-fee', golferType, isActive: true };
+    const where = { companyId, chargeType, golferType, isActive: true };
     if (selfId) where.id = { [Op.ne]: selfId };
     const clash = await GolfTransactionType.findOne({ where });
     if (!clash) return null;
     const label = (GOLFER_TYPES.find((g) => g.key === golferType) || {}).label || golferType;
-    return `'${clash.transactionType}' is already the default green fee for ${label} - disable it first or clear the golfer-type default.`;
+    const kind = (CHARGE_TYPES.find((c) => c.key === chargeType) || {}).label || chargeType;
+    return `'${clash.transactionType}' is already the default ${kind.toLowerCase()} for ${label} - disable it first or clear the golfer-type default.`;
 }
 
 // The package's auto (balance-line) transaction type: required, same company,
@@ -289,7 +293,7 @@ exports.create = async (req, res) => {
         const existing = await GolfTransactionType.findOne({ where: { companyId, transactionType: v.transactionType } });
         if (existing) return res.status(409).json({ message: `Transaction type '${v.transactionType}' already exists.` });
 
-        const gfErr = await activeGreenFeeConflict(companyId, v.golferType, null);
+        const gfErr = await activeDefaultConflict(companyId, v.chargeType, v.golferType, null);
         if (gfErr) return res.status(409).json({ message: gfErr });
 
         const isPackage = v.chargeType === PACKAGE_CHARGE_TYPE_KEY;
@@ -348,7 +352,7 @@ exports.update = async (req, res) => {
         }
 
         if (row.isActive !== false) {
-            const gfErr = await activeGreenFeeConflict(companyId, v.golferType, row.id);
+            const gfErr = await activeDefaultConflict(companyId, v.chargeType, v.golferType, row.id);
             if (gfErr) return res.status(409).json({ message: gfErr });
         }
 
@@ -400,7 +404,7 @@ exports.setActive = async (req, res) => {
 
         if (typeof req.body.isActive === 'boolean') {
             if (req.body.isActive === true) {
-                const gfErr = await activeGreenFeeConflict(companyId, row.golferType, row.id);
+                const gfErr = await activeDefaultConflict(companyId, row.chargeType, row.golferType, row.id);
                 if (gfErr) return res.status(409).json({ message: gfErr });
             }
             row.isActive = req.body.isActive;

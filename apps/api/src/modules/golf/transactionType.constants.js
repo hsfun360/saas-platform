@@ -29,22 +29,31 @@ const MATRIX_CHARGE_TYPE_KEYS = ['green-fee', 'caddy-fee', 'buggy-fee'];
 // (user decisions 2026-08-27, superseding the earlier per-element-scheme idea).
 const PACKAGE_CHARGE_TYPE_KEY = 'package';
 
-// DEFAULT FOR GOLFER TYPE (user decisions 2026-09-26): an OPTIONAL marker on
-// a green-fee transaction type naming which golfer category it auto-charges
-// at registration - at most ONE ACTIVE default per category. NULL = not a
-// default: a manual billing item (e.g. a Group Booking or Tournament green
-// fee) the desk adds from the tiles. Members WITH golfing right are never
-// auto-charged a green fee; the 'member' category prices members WITHOUT the
-// right (member rate).
+// DEFAULT FOR GOLFER TYPE (user decisions 2026-09-26; extended to buggy and
+// caddy 2026-10-06, Tropicana gap 6): an OPTIONAL marker on a transaction
+// type naming the golfer category it is THE item for - at most ONE ACTIVE
+// default per (charge type, category). NULL = a manual billing item for
+// everyone (e.g. a Group Booking or Tournament green fee).
+//   green-fee: the category's fee AUTO-CHARGES at registration. Members WITH
+//              golfing right are never auto-charged; 'member' prices members
+//              WITHOUT the right (member rate).
+//   buggy-fee / caddy-fee: the category's item is the ONLY buggy/caddy tile
+//              that category sees on the bill (member 75.60 vs visitor 91.80
+//              resolve by the billed player, no clerk judgement); a tile with
+//              no category stays visible to everyone.
+// The front desk refuses a categorised tile on a player of another category.
 const GOLFER_TYPES = [
-    { key: 'member', label: 'Member (no golfing right)' },
+    { key: 'member', label: 'Member' },
     { key: 'member-guest', label: 'Member as Guest' },
     { key: 'guest', label: 'Guest / Visitor' },
 ];
 
 const GOLFER_TYPE_KEYS = GOLFER_TYPES.map((g) => g.key);
 
+// Charge types that may carry the golfer-type default.
+const GOLFER_TYPED_CHARGE_TYPE_KEYS = ['green-fee', 'buggy-fee', 'caddy-fee'];
+
 module.exports = {
     CHARGE_TYPES, CHARGE_TYPE_KEYS, MATRIX_CHARGE_TYPE_KEYS, PACKAGE_CHARGE_TYPE_KEY,
-    GOLFER_TYPES, GOLFER_TYPE_KEYS,
+    GOLFER_TYPES, GOLFER_TYPE_KEYS, GOLFER_TYPED_CHARGE_TYPE_KEYS,
 };
