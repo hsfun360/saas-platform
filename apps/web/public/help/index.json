@@ -3,5 +3,7 @@
   "admin-companies": { "title": "Companies" },
   "admin-countries": { "title": "Countries" },
   "golf-unit-courses": { "title": "Unit Courses" },
+  "golf-settings": { "title": "Golf Specification" },
+  "golf-no-show-charges": { "title": "No-show Charges" },
   "ar-analysis": { "title": "Analysis Setup" }
 }
