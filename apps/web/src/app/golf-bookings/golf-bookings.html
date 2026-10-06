@@ -60,7 +60,7 @@
               <div class="data-card__desc">{{ b.players.length }} player(s): {{ playerSummary(b) }}</div>
             </div>
             <span class="data-row__badge status-chip" [class.status-chip--on]="b.status === 'booked'" [class.status-chip--off]="b.status !== 'booked'">
-              {{ b.status === 'booked' ? 'BOOKED' : 'CANCELLED' }}
+              {{ statusLabel(b.status) }}
             </span>
             @if (b.status === 'booked' && b.canModify !== false) {
               <div class="data-row__actions" *appCan="'edit'">
@@ -304,19 +304,66 @@
 
   <!-- ============ Cancel confirmation (centred) ============ -->
   @if (cancelTarget(); as target) {
-    <app-dialog title="Cancel booking" [busy]="cancelling()" (close)="cancelTarget.set(null)">
+    <app-dialog title="Cancel booking" [busy]="cancelling() || previewLoading()" (close)="cancelTarget.set(null)">
       <p>Cancel booking <strong>{{ target.bookingNo }}</strong> — {{ target.startTime }} on {{ target.playDate | localDate }} ({{ target.courseCode }})?
         The flight is freed for other bookings.</p>
-      <div class="form-group">
-        <label for="gbCancelReason">Reason</label>
-        <textarea id="gbCancelReason" rows="2" wrap="off" [value]="cancelReason()"
-                  (input)="cancelReason.set($any($event.target).value)"></textarea>
-      </div>
+
+      <!-- Cancellation notice (show expected results before the confirm) -->
+      @if (previewLoading()) {
+        <p class="cell-subtle">Checking the cancellation notice…</p>
+      } @else if (cancelPreview(); as p) {
+        @if (p.late && p.action === 'refuse') {
+          <div class="gb-notice gb-notice--refuse" role="alert">
+            <span class="material-icons" aria-hidden="true">block</span>
+            <span>Bookings need <strong>{{ p.noticeHours }} hours'</strong> notice to cancel — the notice period ended
+              {{ p.deadline?.date | localDate }} {{ p.deadline?.time }}. This booking cannot be cancelled now; players who do not turn up are recorded as no-shows.</span>
+          </div>
+        } @else if (p.late) {
+          <div class="gb-notice gb-notice--charge" role="status">
+            <span class="material-icons" aria-hidden="true">warning</span>
+            <span>
+              Within the <strong>{{ p.noticeHours }}-hour</strong> notice (ended {{ p.deadline?.date | localDate }} {{ p.deadline?.time }}).
+              @if (p.charge) {
+                A late-cancellation charge of <strong>{{ p.charge.totalAmount.toFixed(2) }}</strong>
+                ({{ p.charge.quantity }} × {{ p.charge.unitAmount.toFixed(2) }}{{ p.charge.taxAmount > 0 ? ' + ' + p.charge.taxAmount.toFixed(2) + ' tax' : '' }})
+                will be posted to <strong>{{ p.booker?.name }}</strong>{{ p.booker?.memberNo ? ' (' + p.booker?.memberNo + ')' : '' }}.
+                @if (p.booker && !p.booker.isMember) { The booker is not a member — the charge is recorded as pending for collection at the counter. }
+              } @else {
+                The charge cannot be priced: {{ p.chargeError }}
+              }
+            </span>
+          </div>
+          @if (p.charge) {
+            <label class="gb-check">
+              <input type="checkbox" [checked]="waiveCharge()" (change)="waiveCharge.set($any($event.target).checked)" />
+              <span>Waive the late-cancellation charge</span>
+            </label>
+            @if (waiveCharge()) {
+              <div class="form-group">
+                <label for="gbWaiveReason">Waive reason <span class="required">*</span></label>
+                <textarea id="gbWaiveReason" rows="2" wrap="off" [value]="waiveReason()"
+                          (input)="waiveReason.set($any($event.target).value)"></textarea>
+              </div>
+            }
+          }
+        }
+      }
+
+      @if (!cancelRefused()) {
+        <div class="form-group">
+          <label for="gbCancelReason">Reason</label>
+          <textarea id="gbCancelReason" rows="2" wrap="off" [value]="cancelReason()"
+                    (input)="cancelReason.set($any($event.target).value)"></textarea>
+        </div>
+      }
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="cancelTarget.set(null)" [disabled]="cancelling()">Keep booking</button>
-        <button type="button" class="btn btn--danger" (click)="confirmCancel()" [disabled]="cancelling()">
-          {{ cancelling() ? 'Cancelling…' : 'Cancel booking' }}
-        </button>
+        @if (!cancelRefused()) {
+          <button type="button" class="btn btn--danger" (click)="confirmCancel()"
+                  [disabled]="cancelling() || previewLoading() || (cancelCharged() && !cancelPreview()?.charge)">
+            {{ cancelling() ? 'Cancelling…' : (cancelCharged() ? (waiveCharge() ? 'Cancel and waive charge' : 'Cancel and charge ' + (cancelPreview()?.charge?.totalAmount?.toFixed(2) || '')) : 'Cancel booking') }}
+          </button>
+        }
       </ng-container>
     </app-dialog>
   }

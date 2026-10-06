@@ -39,6 +39,12 @@
         <button type="button" class="fd-search__clear" (click)="onSearch('')" aria-label="Clear search">✕</button>
       }
     </div>
+    @if (noShowAvailable()) {
+      <button *appCan="'edit'" type="button" class="btn btn--secondary" (click)="openNoShows()" [disabled]="loading()">
+        <span class="material-icons" aria-hidden="true">person_off</span>
+        No-shows
+      </button>
+    }
   </div>
 
   <!-- SEAT-DOT LEGEND -->
@@ -440,6 +446,65 @@
           }
         }
 
+        <!-- ---- No-show review: booked-not-registered players past tee time ---- -->
+        @case ('noshows') {
+          @if (noShowReview(); as r) {
+            <div class="fd-bill-head">
+              <span>{{ r.playDate | localDate }} · <strong>{{ r.bookings.length }} booking{{ r.bookings.length === 1 ? '' : 's' }}</strong> with players who did not register</span>
+              @if (!r.controlled) { <span class="cell-subtle">No-show charges are off (Golf Specification)</span> }
+            </div>
+            @if (r.bookings.length === 0) {
+              <div class="empty-state">
+                <span class="material-icons" aria-hidden="true">how_to_reg</span>
+                <p>Nothing to record — every booked player whose tee time has passed is registered or cancelled.</p>
+              </div>
+            }
+            @for (b of r.bookings; track b.bookingProfileId) {
+              <div class="fd-noshow" [class.fd-noshow--off]="!decisionOf(b.bookingProfileId).include">
+                <label class="fd-noshow__pick">
+                  <input type="checkbox" [checked]="decisionOf(b.bookingProfileId).include"
+                         (change)="setDecision(b.bookingProfileId, { include: $any($event.target).checked })"
+                         [attr.aria-label]="'Record booking ' + b.bookingNo + ' as no-show'" />
+                  <span class="fd-noshow__title">{{ b.startTime }} · {{ b.courseCode }} · {{ b.bookingNo }}</span>
+                </label>
+                <div class="fd-noshow__players">
+                  @for (p of b.players; track p.playerId) {
+                    <span class="fd-noshow__player">{{ p.playerName }}{{ p.memberNo ? ' (' + p.memberNo + ')' : '' }}</span>
+                  }
+                </div>
+                @if (r.controlled) {
+                  <div class="fd-noshow__charge">
+                    @if (b.charge) {
+                      <span>Booker <strong>{{ b.booker?.name || '—' }}</strong>{{ b.booker?.memberNo ? ' (' + b.booker?.memberNo + ')' : '' }}
+                        — {{ b.charge.description }} {{ b.charge.quantity }} × {{ b.charge.unitAmount.toFixed(2) }}{{ b.charge.taxAmount > 0 ? ' + ' + b.charge.taxAmount.toFixed(2) + ' tax' : '' }}
+                        = <strong>{{ b.charge.totalAmount.toFixed(2) }}</strong></span>
+                      @if (b.booker && !b.booker.isMember) {
+                        <span class="cell-subtle">Not a member — recorded as pending for collection at the counter.</span>
+                      }
+                      <label class="fd-noshow__waive">
+                        <input type="checkbox" [checked]="!decisionOf(b.bookingProfileId).charge"
+                               [disabled]="!decisionOf(b.bookingProfileId).include"
+                               (change)="setDecision(b.bookingProfileId, { charge: !$any($event.target).checked })" />
+                        <span>Waive the charge</span>
+                      </label>
+                      @if (!decisionOf(b.bookingProfileId).charge && decisionOf(b.bookingProfileId).include) {
+                        <input type="text" class="fd-noshow__reason" maxlength="255" placeholder="Waive reason (required)"
+                               [value]="decisionOf(b.bookingProfileId).waiveReason"
+                               (input)="setDecision(b.bookingProfileId, { waiveReason: $any($event.target).value })"
+                               [attr.aria-label]="'Waive reason for booking ' + b.bookingNo" />
+                      }
+                    } @else {
+                      <span class="fd-noshow__error">Cannot be charged: {{ b.chargeError }} — the no-show is recorded without a charge.</span>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          } @else {
+            <div class="loading-state"><div class="spinner"></div><p>Finding players who did not register…</p></div>
+          }
+        }
+
         <!-- ---- Confirm (cancel registration / void bill) ---- -->
         @case ('confirm') {
           @if (confirmTarget(); as target) {
@@ -493,6 +558,14 @@
             <button type="button" class="btn btn--primary" (click)="settle()" [disabled]="busy() || remaining() !== 0">
               {{ busy() ? 'Settling…' : 'Settle bill' }}
             </button>
+          }
+          @case ('noshows') {
+            <button type="button" class="btn btn--secondary" (click)="fdlg.requestClose()" [disabled]="busy()">Close</button>
+            @if (noShowIncluded().length > 0) {
+              <button type="button" class="btn btn--danger" (click)="confirmNoShows()" [disabled]="busy()">
+                {{ busy() ? 'Recording…' : 'Record ' + noShowPlayerCount() + ' no-show' + (noShowPlayerCount() === 1 ? '' : 's') + (noShowReview()?.controlled && noShowChargeTotal() > 0 ? ' · charge ' + noShowChargeTotal().toFixed(2) : '') }}
+              </button>
+            }
           }
           @case ('confirm') {
             <button type="button" class="btn btn--secondary" (click)="keepConfirm()" [disabled]="busy()">Keep</button>

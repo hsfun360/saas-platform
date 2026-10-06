@@ -1,0 +1,135 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">person_off</span>
+      <div>
+        <h1>{{ 'No-show Charges' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Penalties raised against bookers for no-shows and late cancellations — post pending charges to their account or waive them.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- FILTERS: play-date range + status (server) · search (client) -->
+  <div class="nsc-filter">
+    <label for="nscFrom">Play date from</label>
+    <input id="nscFrom" type="date" [value]="dateFrom()" (change)="setDateFrom($any($event.target).value)" />
+    <label for="nscTo">to</label>
+    <input id="nscTo" type="date" [value]="dateTo()" (change)="setDateTo($any($event.target).value)" />
+    <label for="nscStatus">Status</label>
+    <select id="nscStatus" [value]="status()" (change)="setStatus($any($event.target).value)">
+      <option value="">All</option>
+      @for (s of statuses(); track s.key) {
+        <option [value]="s.key">{{ s.label }}</option>
+      }
+    </select>
+  </div>
+  <div class="nsc-search">
+    <span class="material-icons nsc-search__icon" aria-hidden="true">search</span>
+    <input type="search" [value]="search()" (input)="search.set($any($event.target).value)"
+           placeholder="Search by booking no, booker, member no, player or invoice…" aria-label="Search no-show charges" />
+    @if (search()) {
+      <button type="button" class="nsc-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+    }
+  </div>
+
+  <p class="nsc-count">{{ charges().length }} charge{{ charges().length === 1 ? '' : 's' }} · {{ pendingCount() }} pending · posted {{ postedTotal().toFixed(2) }}</p>
+
+  @if (loading()) {
+    <div class="loading-state"><div class="spinner"></div><p>Loading no-show charges…</p></div>
+  } @else if (charges().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">how_to_reg</span>
+      <p>No charges in this period. Charges are raised by the Front Desk's no-show review and by late cancellations on the Bookings screen.</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No charges match "{{ search() }}"</p>
+      <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (c of filtered(); track c.id) {
+        <div class="data-card" [attr.data-return-id]="c.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ c.bookerName }}{{ c.bookerMemberNo ? ' (' + c.bookerMemberNo + ')' : '' }} — {{ c.totalAmount.toFixed(2) }}</div>
+              <div class="data-card__subline">
+                <span class="nsc-reason" [class.nsc-reason--late]="c.chargeReason === 'late-cancel'">{{ reasonLabel(c.chargeReason) }}</span>
+                <span class="data-card__reg">{{ c.bookingNo }} · {{ c.playDate | localDate }}</span>
+                @if (c.playerNames) { <span class="data-card__reg">{{ c.playerNames }}</span> }
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Charge</dt><dd>{{ c.description }} · {{ c.quantity }} × {{ c.unitAmount.toFixed(2) }}{{ c.taxAmount > 0 ? ' + ' + c.taxAmount.toFixed(2) + ' tax' : '' }}</dd></div>
+                @if (c.status === 'posted') {
+                  <div class="meta"><dt>AR invoice</dt><dd>{{ c.arDocNo }} · {{ c.postedAt | localDate:'datetime' }}</dd></div>
+                }
+                @if (c.status === 'waived') {
+                  <div class="meta"><dt>Waived</dt><dd>{{ c.waiveReason }} · {{ c.waivedAt | localDate:'datetime' }}</dd></div>
+                }
+                @if (c.status === 'pending' && c.remarks) {
+                  <div class="meta"><dt>Pending</dt><dd class="nsc-pending">{{ c.remarks }}</dd></div>
+                }
+              </dl>
+            </div>
+            <div class="data-card__badge data-row__badge">
+              <span class="status-chip" [class.status-chip--on]="c.status === 'posted'" [class.status-chip--off]="c.status !== 'posted'" [class.nsc-chip--pending]="c.status === 'pending'">
+                {{ statusLabel(c.status) }}
+              </span>
+            </div>
+            @if (c.status === 'pending' && c.canModify !== false) {
+              <div class="data-row__actions" *appCan="'edit'">
+                <button type="button" class="btn btn--primary btn--sm" (click)="post(c)" [disabled]="postingId() === c.id">
+                  <span class="material-icons" aria-hidden="true">receipt_long</span>
+                  {{ postingId() === c.id ? 'Posting…' : 'Post to account' }}
+                </button>
+                <app-overflow-menu [label]="'More actions for charge on ' + c.bookingNo">
+                  <button type="button" appMenuItem (click)="openWaive(c)">
+                    <span class="material-icons" aria-hidden="true">money_off</span>
+                    Waive
+                  </button>
+                </app-overflow-menu>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ============ Waive confirmation (centred) ============ -->
+  @if (waiveTarget(); as target) {
+    <app-dialog title="Waive charge" [busy]="working()" (close)="waiveTarget.set(null)">
+      <p>Waive the {{ reasonLabel(target.chargeReason).toLowerCase() }} charge of <strong>{{ target.totalAmount.toFixed(2) }}</strong>
+        on booking <strong>{{ target.bookingNo }}</strong> ({{ target.bookerName }})? The no-show stays on record; nothing is posted to the account.</p>
+      <div class="form-group">
+        <label for="nscWaiveReason">Reason <span class="required">*</span></label>
+        <textarea id="nscWaiveReason" rows="2" wrap="off" [value]="waiveReason()"
+                  (input)="waiveReason.set($any($event.target).value)"></textarea>
+      </div>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="waiveTarget.set(null)" [disabled]="working()">Keep charge</button>
+        <button type="button" class="btn btn--danger" (click)="confirmWaive()" [disabled]="working()">
+          {{ working() ? 'Waiving…' : 'Waive charge' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

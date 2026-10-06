@@ -194,3 +194,44 @@
     display: none;
   }
 }
+
+/* Cancellation-notice outcome inside the cancel confirm (show expected
+   results): refused = danger band, charged = info band. Tokens only. */
+.gb-notice {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-start;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--info-border);
+  background: var(--info-surface);
+  color: var(--text-primary);
+  font-size: var(--font-body-2);
+  margin-bottom: var(--space-md);
+}
+.gb-notice .material-icons {
+  color: var(--info-text);
+  flex-shrink: 0;
+}
+.gb-notice--refuse {
+  border-color: var(--danger-border);
+  background: var(--danger-surface);
+}
+.gb-notice--refuse .material-icons {
+  color: var(--danger-text);
+}
+.gb-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  cursor: pointer;
+  margin-bottom: var(--space-sm);
+}
+.gb-check input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}

@@ -557,6 +557,70 @@
         }
       </div>
 
+      <!-- ============ Cancellation & No-show (Tropicana procedure) ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('noshow')"
+                [attr.aria-expanded]="isExpanded('noshow')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Cancellation &amp; No-show</span>
+            <span class="settings-header__sub">Minimum cancellation notice and the penalty charged to the booker for late cancellations and no-shows.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('noshow')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('noshow')) {
+          <div class="settings-body">
+            <div class="form-row">
+              <label class="gs-check">
+                <input type="checkbox" formControlName="noShowControlEnabled" />
+                <span>Enable cancellation &amp; no-show control</span>
+              </label>
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The front desk reviews and confirms the day's no-shows before anything is charged; late cancellations are priced on the Bookings screen before the cancel is confirmed. Charges post to the booker's member account.</p>
+            </div>
+
+            @if (noShowControlOn()) {
+              <div class="gs-grid" style="margin-top: var(--space-md);">
+                <div class="form-group">
+                  <label for="gsNoticeHours">Cancellation Notice (hours) <span class="required">*</span></label>
+                  <input id="gsNoticeHours" type="number" inputmode="numeric" min="0" max="720" step="1" formControlName="cancellationNoticeHours"
+                         [attr.aria-invalid]="showError(form.controls.cancellationNoticeHours)" aria-describedby="gsNoticeHoursErr" />
+                  @if (showError(form.controls.cancellationNoticeHours)) {
+                    <p id="gsNoticeHoursErr" class="field-error" role="alert">Enter a whole number between 0 and 720.</p>
+                  }
+                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">A cancel less than this many hours before the booking's first tee time is a late cancellation. 0 = no notice rule.</p>
+                </div>
+                <div class="form-group">
+                  <label for="gsLateAction">Late Cancellation</label>
+                  <select id="gsLateAction" formControlName="lateCancellationAction">
+                    @for (a of lateActions; track a.key) {
+                      <option [value]="a.key">{{ a.label }}</option>
+                    }
+                  </select>
+                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Charging frees the flight for others; refusing keeps the booking, and players who do not turn up are recorded as no-shows.</p>
+                </div>
+              </div>
+              <div class="gs-grid" style="margin-top: var(--space-md);">
+                <div class="form-group">
+                  <label for="gsNoShowType">No-show Charge <span class="required">*</span></label>
+                  <app-combobox inputId="gsNoShowType" [value]="form.controls.noShowTransactionTypeId.value" (valueChange)="setNoShowType($event)"
+                                [options]="noShowTypeOptions()" [allowEmpty]="true" emptyLabel="— Select —"
+                                placeholder="Type to search…" />
+                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">A No Show Charges transaction type — its flat price and tax scheme set the penalty (e.g. 80.00 + 5% tax). Maintained under Transaction Type.</p>
+                </div>
+                <div class="form-group">
+                  <label for="gsChargeBasis">Charge Basis</label>
+                  <select id="gsChargeBasis" formControlName="noShowChargeBasis">
+                    @for (b of chargeBases; track b.key) {
+                      <option [value]="b.key">{{ b.label }}</option>
+                    }
+                  </select>
+                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Per player multiplies the price by the number of no-show players; per booking charges it once.</p>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
       <!-- ============ Tee Sheet (seat-dot colours) ============ -->
       <div class="settings-card">
         <button type="button" class="settings-header settings-header--button" (click)="toggleSection('teesheet')"

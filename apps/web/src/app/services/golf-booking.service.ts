@@ -122,7 +122,30 @@ export class GolfBookingService {
     return this.http.get<{ bookings: GolfBookingRow[] }>(this.base, { params: { playDate } });
   }
 
-  cancel(id: string, reason: string): Observable<{ message: string }> {
-    return this.http.post<{ message: string }>(`${this.base}/${id}/cancel`, { reason });
+  // What cancelling NOW means under the cancellation-notice rule (show
+  // expected results before the confirm): inside the notice window, charged
+  // or refused, and the priced late-cancellation charge to the booker.
+  cancelPreview(id: string): Observable<GolfCancelPreview> {
+    return this.http.get<GolfCancelPreview>(`${this.base}/${id}/cancel-preview`);
   }
+
+  cancel(id: string, reason: string, waive?: { waiveReason: string }): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.base}/${id}/cancel`, {
+      reason,
+      waiveCharge: !!waive,
+      waiveReason: waive ? waive.waiveReason : undefined,
+    });
+  }
+}
+
+export interface GolfCancelPreview {
+  controlled: boolean;
+  late: boolean;
+  noticeHours?: number;
+  deadline?: { date: string; time: string } | null;
+  action?: 'charge' | 'refuse';
+  booker?: { name: string; memberNo: string | null; isMember: boolean } | null;
+  playerCount?: number;
+  chargeError?: string;
+  charge?: { description: string; quantity: number; unitAmount: number; amount: number; taxAmount: number; totalAmount: number };
 }

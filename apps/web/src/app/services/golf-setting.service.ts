@@ -69,6 +69,18 @@ export interface GolfSessionBand {
 // Booking limit per day type: no limit / one per day / one per session.
 export type GolfBookingLimit = 'none' | 'day' | 'session';
 
+// Cancellation notice + no-show penalty (Tropicana procedure; 2026-10-06):
+// what a cancel inside the notice window does, and how the penalty counts.
+export type GolfLateCancellationAction = 'charge' | 'refuse';
+export type GolfNoShowChargeBasis = 'player' | 'booking';
+
+export interface GolfNoShowTypeOption {
+  id: string;
+  transactionType: string;
+  description?: string | null;
+  isActive: boolean;
+}
+
 export interface GolfSettingDoc {
   setting: {
     advanceBookingDays: number;
@@ -88,6 +100,11 @@ export interface GolfSettingDoc {
     allowMemberGuestWeekend: boolean;
     handicapControlEnabled: boolean;
     juniorBookingControlEnabled: boolean;
+    noShowControlEnabled: boolean;
+    cancellationNoticeHours: number;
+    lateCancellationAction: GolfLateCancellationAction;
+    noShowTransactionTypeId: string | null;
+    noShowChargeBasis: GolfNoShowChargeBasis;
     teeSheetColorBooked: string;
     teeSheetColorRegistered: string;
     teeSheetColorBilled: string;
@@ -138,6 +155,13 @@ export class GolfSettingService {
     return this.http.get<{ courses: GolfCourseOption[] }>(`${this.base}/courses`);
   }
 
+  // No-show transaction types (chargeType 'no-show') for the Cancellation &
+  // No-show picker - served under the settings route, no Transaction Type
+  // menu grant needed.
+  noShowTypes(): Observable<{ types: GolfNoShowTypeOption[] }> {
+    return this.http.get<{ types: GolfNoShowTypeOption[] }>(`${this.base}/no-show-types`);
+  }
+
   save(payload: {
     advanceBookingDays: number;
     advanceBookingHours: number;
@@ -156,6 +180,11 @@ export class GolfSettingService {
     allowMemberGuestWeekend: boolean;
     handicapControlEnabled: boolean;
     juniorBookingControlEnabled: boolean;
+    noShowControlEnabled: boolean;
+    cancellationNoticeHours: number;
+    lateCancellationAction: GolfLateCancellationAction;
+    noShowTransactionTypeId: string | null;
+    noShowChargeBasis: GolfNoShowChargeBasis;
     teeSheetColorBooked: string;
     teeSheetColorRegistered: string;
     teeSheetColorBilled: string;

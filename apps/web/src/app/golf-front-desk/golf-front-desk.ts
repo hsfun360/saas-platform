@@ -18,7 +18,16 @@ import {
   FrontDeskMeta,
   GolfBillDoc,
   WalkInPayload,
+  FrontDeskNoShowReview,
 } from '../services/golf-frontdesk.service';
+
+// Per-booking decision in the no-show review: include it, charge the
+// booker (default) or waive with a reason.
+interface NoShowDecision {
+  include: boolean;
+  charge: boolean;
+  waiveReason: string;
+}
 
 // Golf Management → Front Desk (/golf/front-desk) - the day-of-play cycle.
 // Tee sheet redesign (user decisions 2026-09-29): each COURSE is its own
@@ -166,7 +175,7 @@ export class GolfFrontDeskComponent implements OnInit {
   }
 
   // ---- the one drawer dialog: mode + per-mode state ----
-  readonly dlgMode = signal<'flight' | 'walkin' | 'bill' | 'settle' | 'confirm' | null>(null);
+  readonly dlgMode = signal<'flight' | 'walkin' | 'bill' | 'settle' | 'confirm' | 'noshows' | null>(null);
   readonly busy = signal(false);
 
   // The open flight, tracked by reference so a reload refreshes it in place.
@@ -242,6 +251,25 @@ export class GolfFrontDeskComponent implements OnInit {
   readonly confirmTarget = signal<FrontDeskEntry | null>(null);
   readonly confirmReason = signal('');
 
+  // No-show review (desk-confirmed, 2026-10-06): the day's still-booked
+  // players past their tee time grouped by booking, with the charge the
+  // booker will be posted; the clerk ticks bookings and confirms.
+  readonly noShowReview = signal<FrontDeskNoShowReview | null>(null);
+  readonly noShowDecisions = signal<Record<string, NoShowDecision>>({});
+  readonly noShowDirty = signal(false);
+  readonly noShowIncluded = computed(() => {
+    const r = this.noShowReview();
+    const d = this.noShowDecisions();
+    return r ? r.bookings.filter((b) => d[b.bookingProfileId]?.include !== false) : [];
+  });
+  readonly noShowPlayerCount = computed(() => this.noShowIncluded().reduce((s, b) => s + b.players.length, 0));
+  readonly noShowChargeTotal = computed(() => {
+    const d = this.noShowDecisions();
+    return Math.round(this.noShowIncluded().reduce((s, b) => s + (b.charge && d[b.bookingProfileId]?.charge !== false ? b.charge.totalAmount : 0), 0) * 100) / 100;
+  });
+  // Today or a past date: the review only makes sense once tee times pass.
+  readonly noShowAvailable = computed(() => this.listDate() <= localToday());
+
   readonly courseOptions = computed(() => {
     const m = this.meta();
     return (m ? m.courses : []).map((c) => ({
@@ -272,6 +300,7 @@ export class GolfFrontDeskComponent implements OnInit {
         return c && ref ? `${c.courseCode} · ${ref.teeTime}` : 'Flight';
       }
       case 'walkin': return 'Walk-in registration';
+      case 'noshows': return 'No-shows';
       case 'settle': return `Settle bill ${this.bill()?.billNo || ''}`;
       case 'confirm': return this.confirmKind() === 'void-bill' ? 'Void bill' : 'Cancel registration';
       default: return `Bill ${this.bill()?.billNo || ''}`;
@@ -690,6 +719,76 @@ export class GolfFrontDeskComponent implements OnInit {
     }
   }
 
+  // ---------- no-show review ----------
+
+  openNoShows(): void {
+    this.clearMessages();
+    this.noShowReview.set(null);
+    this.noShowDecisions.set({});
+    this.noShowDirty.set(false);
+    this.flightRef.set(null);
+    this.dlgMode.set('noshows');
+    this.busy.set(true);
+    this.service.noShows(this.listDate()).subscribe({
+      next: (r) => {
+        this.noShowReview.set(r);
+        const d: Record<string, NoShowDecision> = {};
+        for (const b of r.bookings) d[b.bookingProfileId] = { include: true, charge: !b.chargeError, waiveReason: '' };
+        this.noShowDecisions.set(d);
+        this.busy.set(false);
+      },
+      error: (err) => {
+        this.busy.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to load the no-show review.');
+      },
+    });
+  }
+
+  decisionOf(bookingProfileId: string): NoShowDecision {
+    return this.noShowDecisions()[bookingProfileId] || { include: true, charge: true, waiveReason: '' };
+  }
+
+  setDecision(bookingProfileId: string, patch: Partial<NoShowDecision>): void {
+    this.noShowDecisions.update((d) => ({ ...d, [bookingProfileId]: { ...this.decisionOf(bookingProfileId), ...patch } }));
+    this.noShowDirty.set(true);
+  }
+
+  confirmNoShows(): void {
+    const review = this.noShowReview();
+    if (!review) return;
+    const d = this.noShowDecisions();
+    const lines = this.noShowIncluded().map((b) => ({
+      bookingProfileId: b.bookingProfileId,
+      charge: review.controlled && d[b.bookingProfileId]?.charge !== false,
+      waiveReason: d[b.bookingProfileId]?.waiveReason?.trim() || undefined,
+    }));
+    if (!lines.length) return;
+    if (review.controlled) {
+      for (const l of lines) {
+        if (!l.charge && !l.waiveReason) {
+          const b = review.bookings.find((x) => x.bookingProfileId === l.bookingProfileId);
+          this.errorMessage.set(`Give a reason for waiving the charge on booking ${b?.bookingNo || ''}.`);
+          return;
+        }
+      }
+    }
+    this.busy.set(true);
+    this.service.confirmNoShows(review.playDate, lines).subscribe({
+      next: (r) => {
+        this.busy.set(false);
+        this.noShowDirty.set(false);
+        this.successMessage.set(r.message);
+        this.dlgMode.set(null);
+        this.noShowReview.set(null);
+        this.load();
+      },
+      error: (err) => {
+        this.busy.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to record the no-shows.');
+      },
+    });
+  }
+
   closeDialog(): void {
     // Return-to-row (user request 2026-10-01): leaving the drawer scrolls the
     // clicked flight back into view (load() swaps the sheet for a spinner, so
@@ -708,6 +807,8 @@ export class GolfFrontDeskComponent implements OnInit {
     this.confirmTarget.set(null);
     this.slotWalkinOpen.set(false);
     this.selected.set(new Set());
+    this.noShowReview.set(null);
+    this.noShowDirty.set(false);
     this.load();
   }
 
@@ -716,6 +817,7 @@ export class GolfFrontDeskComponent implements OnInit {
       case 'flight': return this.slotWalkinOpen() && this.slotWalkinForm.dirty;
       case 'walkin': return this.walkinForm.dirty;
       case 'settle': return this.paymentsDirty();
+      case 'noshows': return this.noShowDirty();
       default: return false; // bill items save immediately
     }
   }

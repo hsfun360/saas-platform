@@ -17,6 +17,7 @@ import {
   GolfFlightGroup,
   GolfFlightLock,
   GolfBookingPlayerLine,
+  GolfCancelPreview,
 } from '../services/golf-booking.service';
 
 // Golf Management → Booking (/golf/bookings) - the make-booking flow against
@@ -96,6 +97,21 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
   readonly cancelTarget = signal<GolfBookingRow | null>(null);
   readonly cancelReason = signal('');
   readonly cancelling = signal(false);
+  // Cancellation-notice preview (show expected results): fetched when the
+  // dialog opens so the confirm states whether this cancel is late, what the
+  // booker will be charged, or that it is refused.
+  readonly cancelPreview = signal<GolfCancelPreview | null>(null);
+  readonly previewLoading = signal(false);
+  readonly waiveCharge = signal(false);
+  readonly waiveReason = signal('');
+  readonly cancelRefused = computed(() => {
+    const p = this.cancelPreview();
+    return !!p && p.late && p.action === 'refuse';
+  });
+  readonly cancelCharged = computed(() => {
+    const p = this.cancelPreview();
+    return !!p && p.late && p.action === 'charge';
+  });
 
   readonly courseOptions = computed(() => {
     const ctx = this.context();
@@ -401,13 +417,40 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     this.clearMessages();
     this.cancelTarget.set(b);
     this.cancelReason.set('');
+    this.cancelPreview.set(null);
+    this.waiveCharge.set(false);
+    this.waiveReason.set('');
+    this.previewLoading.set(true);
+    this.service.cancelPreview(b.id).subscribe({
+      next: (p) => {
+        this.cancelPreview.set(p);
+        this.previewLoading.set(false);
+      },
+      error: (err) => {
+        this.previewLoading.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to check the cancellation notice.');
+      },
+    });
+  }
+
+  statusLabel(status: string): string {
+    switch (status) {
+      case 'booked': return 'BOOKED';
+      case 'no-show': return 'NO SHOW';
+      default: return 'CANCELLED';
+    }
   }
 
   confirmCancel(): void {
     const target = this.cancelTarget();
-    if (!target) return;
+    if (!target || this.cancelRefused()) return;
+    const waive = this.cancelCharged() && this.waiveCharge();
+    if (waive && !this.waiveReason().trim()) {
+      this.errorMessage.set('Give a reason for waiving the late-cancellation charge.');
+      return;
+    }
     this.cancelling.set(true);
-    this.service.cancel(target.id, this.cancelReason().trim()).subscribe({
+    this.service.cancel(target.id, this.cancelReason().trim(), waive ? { waiveReason: this.waiveReason().trim() } : undefined).subscribe({
       next: (res) => {
         this.cancelling.set(false);
         this.cancelTarget.set(null);

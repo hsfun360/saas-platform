@@ -572,3 +572,86 @@
   border-bottom: 1px solid var(--border);
   font-size: var(--font-body-2);
 }
+
+/* No-show review (desk-confirmed): one block per booking - pick checkbox +
+   title, the players, the priced charge with a waive option. Tokens only. */
+.fd-noshow {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
+  background: var(--surface-card);
+}
+.fd-noshow--off {
+  opacity: 0.6;
+}
+.fd-noshow__pick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  cursor: pointer;
+}
+.fd-noshow__pick input[type='checkbox'],
+.fd-noshow__waive input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.fd-noshow__title {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.fd-noshow__players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin: 0 0 var(--space-xs) 26px;
+}
+.fd-noshow__player {
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  border-radius: 8px;
+  padding: 1px var(--space-sm);
+}
+.fd-noshow__charge {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-left: 26px;
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.fd-noshow__waive {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 36px;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.fd-noshow__reason {
+  min-height: 40px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.fd-noshow__reason:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
+}
+.fd-noshow__error {
+  color: var(--danger-text);
+}
+@media (max-width: 767px) {
+  .fd-noshow__players,
+  .fd-noshow__charge {
+    margin-left: 0;
+  }
+}

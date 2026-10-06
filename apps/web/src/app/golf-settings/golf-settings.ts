@@ -16,6 +16,9 @@ import {
   GolfCourseOption,
   GolfSessionBand,
   GolfBookingLimit,
+  GolfNoShowTypeOption,
+  GolfLateCancellationAction,
+  GolfNoShowChargeBasis,
 } from '../services/golf-setting.service';
 
 // Golf Management → Golf Specification (/golf/settings) - the per-company
@@ -43,9 +46,10 @@ export class GolfSettingsComponent implements OnInit {
 
   readonly membershipTypes = signal<GolfMembershipTypeOption[]>([]);
   readonly courses = signal<GolfCourseOption[]>([]);
+  readonly noShowTypes = signal<GolfNoShowTypeOption[]>([]);
 
   // Collapsible section state (section-card standard; sections start open).
-  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true, handicap: true, teesheet: true });
+  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true, handicap: true, noshow: true, teesheet: true });
 
   readonly form = this.fb.nonNullable.group({
     advanceBookingDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
@@ -65,6 +69,11 @@ export class GolfSettingsComponent implements OnInit {
     allowMemberGuestWeekend: [true],
     handicapControlEnabled: [false],
     juniorBookingControlEnabled: [false],
+    noShowControlEnabled: [false],
+    cancellationNoticeHours: [24, [Validators.required, Validators.min(0), Validators.max(720)]],
+    lateCancellationAction: ['charge'],
+    noShowTransactionTypeId: [''],
+    noShowChargeBasis: ['player'],
     teeSheetColorBooked: ['#2563eb'],
     teeSheetColorRegistered: ['#f59e0b'],
     teeSheetColorBilled: ['#8b5cf6'],
@@ -102,6 +111,23 @@ export class GolfSettingsComponent implements OnInit {
     { key: 'session', label: 'One booking per session' },
   ];
 
+  // Cancellation & no-show vocabularies (fixed enums - native selects).
+  readonly lateActions: { key: GolfLateCancellationAction; label: string }[] = [
+    { key: 'charge', label: 'Allow the cancellation and charge the no-show penalty' },
+    { key: 'refuse', label: 'Refuse the cancellation - the booking stands' },
+  ];
+  readonly chargeBases: { key: GolfNoShowChargeBasis; label: string }[] = [
+    { key: 'player', label: 'Per no-show player' },
+    { key: 'booking', label: 'Per booking' },
+  ];
+
+  readonly noShowTypeOptions = computed(() =>
+    this.noShowTypes().map((t) => ({
+      value: t.id,
+      label: `${t.transactionType}${t.description ? ' — ' + t.description : ''}${t.isActive ? '' : ' (inactive)'}`,
+    })),
+  );
+
   readonly typeOptions = computed(() =>
     this.membershipTypes().map((t) => ({
       value: t.id,
@@ -132,6 +158,17 @@ export class GolfSettingsComponent implements OnInit {
     this.load();
     this.service.membershipTypes().subscribe({ next: (r) => this.membershipTypes.set(r.membershipTypes), error: () => {} });
     this.service.courses().subscribe({ next: (r) => this.courses.set(r.courses), error: () => {} });
+    this.service.noShowTypes().subscribe({ next: (r) => this.noShowTypes.set(r.types), error: () => {} });
+  }
+
+  // Method, not computed: control values are not signals (same as overridesOn).
+  noShowControlOn(): boolean {
+    return this.form.controls.noShowControlEnabled.value === true;
+  }
+
+  setNoShowType(value: string): void {
+    this.form.controls.noShowTransactionTypeId.setValue(value || '');
+    this.form.controls.noShowTransactionTypeId.markAsDirty();
   }
 
   showError(control: AbstractControl): boolean {
@@ -178,6 +215,11 @@ export class GolfSettingsComponent implements OnInit {
           allowMemberGuestWeekend: doc.setting.allowMemberGuestWeekend,
           handicapControlEnabled: doc.setting.handicapControlEnabled,
           juniorBookingControlEnabled: doc.setting.juniorBookingControlEnabled,
+          noShowControlEnabled: doc.setting.noShowControlEnabled === true,
+          cancellationNoticeHours: doc.setting.cancellationNoticeHours ?? 24,
+          lateCancellationAction: doc.setting.lateCancellationAction || 'charge',
+          noShowTransactionTypeId: doc.setting.noShowTransactionTypeId || '',
+          noShowChargeBasis: doc.setting.noShowChargeBasis || 'player',
           teeSheetColorBooked: doc.setting.teeSheetColorBooked || '#2563eb',
           teeSheetColorRegistered: doc.setting.teeSheetColorRegistered || '#f59e0b',
           teeSheetColorBilled: doc.setting.teeSheetColorBilled || '#8b5cf6',
@@ -414,6 +456,10 @@ export class GolfSettingsComponent implements OnInit {
     }
 
     const v = this.form.getRawValue();
+    if (v.noShowControlEnabled && !v.noShowTransactionTypeId) {
+      this.errorMessage.set('Pick the no-show transaction type before switching cancellation & no-show control on.');
+      return;
+    }
     this.saving.set(true);
     this.service.save({
       advanceBookingDays: v.advanceBookingDays,
@@ -433,6 +479,11 @@ export class GolfSettingsComponent implements OnInit {
       allowMemberGuestWeekend: v.allowMemberGuestWeekend,
       handicapControlEnabled: v.handicapControlEnabled,
       juniorBookingControlEnabled: v.juniorBookingControlEnabled,
+      noShowControlEnabled: v.noShowControlEnabled,
+      cancellationNoticeHours: v.cancellationNoticeHours,
+      lateCancellationAction: v.lateCancellationAction as GolfLateCancellationAction,
+      noShowTransactionTypeId: v.noShowTransactionTypeId || null,
+      noShowChargeBasis: v.noShowChargeBasis as GolfNoShowChargeBasis,
       teeSheetColorBooked: v.teeSheetColorBooked,
       teeSheetColorRegistered: v.teeSheetColorRegistered,
       teeSheetColorBilled: v.teeSheetColorBilled,

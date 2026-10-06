@@ -1,0 +1,105 @@
+/* No-show Charges - standalone menu (2026-10-06). Composes the shared
+   listing/dialog primitives; only the screen-specific bits live here. */
+
+.nsc-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  flex-wrap: wrap;
+}
+.nsc-filter label {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+/* Same shared input standard as .form-group fields (base + focus) - the
+   toolbar controls sit outside a form group, so they opt in explicitly. */
+.nsc-filter input[type='date'],
+.nsc-filter select {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.nsc-filter input[type='date']:focus,
+.nsc-filter select:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
+}
+
+/* Search on top (listing standard). */
+.nsc-search {
+  position: relative;
+  margin-bottom: var(--space-sm);
+}
+.nsc-search input[type='search'] {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-sm) 40px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+}
+.nsc-search__icon {
+  position: absolute;
+  left: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.nsc-search__clear {
+  position: absolute;
+  right: var(--space-xs);
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 36px;
+  min-height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+}
+.nsc-search__clear:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.nsc-count {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+
+/* The reason chip on a card's subline (no-show vs late cancellation). */
+.nsc-reason {
+  font-weight: var(--weight-semibold);
+  color: var(--brand-text);
+  background: var(--brand-surface, var(--surface-sunken));
+  border-radius: 8px;
+  padding: 1px var(--space-sm);
+  font-size: var(--font-body-2);
+}
+.nsc-reason--late {
+  color: var(--info-text);
+  background: var(--info-surface);
+}
+
+/* Pending reads as attention (amber would need a new token; the info pair
+   is AA in both themes and distinct from the grey waived chip). */
+.nsc-chip--pending {
+  background: var(--info-surface);
+  color: var(--info-text);
+}
+.nsc-pending {
+  color: var(--danger-text);
+}

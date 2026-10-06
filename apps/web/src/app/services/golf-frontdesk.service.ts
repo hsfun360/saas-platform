@@ -165,6 +165,44 @@ export interface WalkInPayload {
   guest?: { name?: string; identityNo?: string; mobile?: string; email?: string };
 }
 
+export interface FrontDeskNoShowCharge {
+  description: string;
+  quantity: number;
+  unitAmount: number;
+  amount: number;
+  taxAmount: number;
+  totalAmount: number;
+}
+
+// One booking in the no-show review: its still-booked players past tee time
+// plus the charge the booker would be posted (null while the control is OFF
+// or the pricing is incomplete - chargeError says why).
+export interface FrontDeskNoShowBooking {
+  bookingProfileId: string;
+  bookingNo: string;
+  courseCode: string | null;
+  startTime: string;
+  booker: { name: string; memberNo: string | null; isMember: boolean } | null;
+  players: { playerId: string; playerName: string; memberNo: string | null; playerType: string; teeTime: string }[];
+  charge: FrontDeskNoShowCharge | null;
+  chargeError: string | null;
+}
+
+export interface FrontDeskNoShowReview {
+  playDate: string;
+  controlled: boolean;
+  basis: 'player' | 'booking' | null;
+  bookings: FrontDeskNoShowBooking[];
+}
+
+export interface FrontDeskNoShowResult {
+  message: string;
+  marked: number;
+  posted: number;
+  waived: number;
+  pending: number;
+}
+
 export interface GuestIdentityPayload {
   name?: string;
   identityNo?: string;
@@ -207,6 +245,16 @@ export class GolfFrontDeskService {
 
   cancelRegistration(id: string, reason: string): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.base}/registrations/${id}/cancel`, { reason });
+  }
+
+  // No-show review (desk-confirmed, 2026-10-06): the day's still-booked
+  // players past their tee time, grouped by booking with the priced charge.
+  noShows(playDate: string): Observable<FrontDeskNoShowReview> {
+    return this.http.get<FrontDeskNoShowReview>(`${this.base}/no-shows`, { params: { playDate } });
+  }
+
+  confirmNoShows(playDate: string, bookings: { bookingProfileId: string; charge: boolean; waiveReason?: string }[]): Observable<FrontDeskNoShowResult> {
+    return this.http.post<FrontDeskNoShowResult>(`${this.base}/no-shows`, { playDate, bookings });
   }
 
   openBill(registrationId: string): Observable<{ bill: GolfBillDoc; warnings: string[] }> {

@@ -220,6 +220,9 @@ const routes: Routes = [
       // without the Unit Course setup screen (2026-09-30).
       { path: 'golf/closures', loadComponent: () => import('./app/golf-closures/golf-closures').then((m) => m.GolfClosuresComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/bookings', loadComponent: () => import('./app/golf-bookings/golf-bookings').then((m) => m.GolfBookingsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      // No-show Charges - standalone menu so finance can post/waive the
+      // penalties without the tee-sheet or booking grants (2026-10-06).
+      { path: 'golf/no-show-charges', loadComponent: () => import('./app/golf-no-show-charges/golf-no-show-charges').then((m) => m.GolfNoShowChargesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/front-desk', loadComponent: () => import('./app/golf-front-desk/golf-front-desk').then((m) => m.GolfFrontDeskComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/settings', loadComponent: () => import('./app/golf-settings/golf-settings').then((m) => m.GolfSettingsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Shown when systemAccessGuard denies a route (no guard on this one).
