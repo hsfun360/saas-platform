@@ -502,4 +502,50 @@ module.exports = [
             <p style="font-size: 12px; color: #666; margin-top: 16px;">If this is unexpected, please contact the club's front desk.</p>
         `),
     },
+    {
+        key: 'golf.noshow.charged',
+        name: 'Golf no-show / late cancellation charge',
+        description: 'Sent to the booker when a no-show or late-cancellation charge is posted to their account (never for pending or waived charges).',
+        tenantOverridable: true,
+        variables: [
+            { name: 'bookerName', description: "The booker's name." },
+            { name: 'bookingNo', description: 'The booking number the charge relates to.' },
+            { name: 'playDateText', description: "The play date, e.g. '27 Sept 2026'." },
+            { name: 'reasonLabel', description: "'No show' or 'Late cancellation'." },
+            { name: 'isLateCancel', description: 'True for a late cancellation (drives the wording).' },
+            { name: 'playerNames', description: 'The players who did not show / were cancelled late.' },
+            { name: 'description', description: 'The charge item, e.g. NOSHOW - No-show charge.' },
+            { name: 'quantity', description: 'Number of players charged (1 when charged per booking).' },
+            { name: 'unitAmount', description: "The price per player, e.g. '80.00'." },
+            { name: 'taxAmount', description: "The tax, e.g. '6.40' ('0.00' when none)." },
+            { name: 'totalAmount', description: "The amount posted, e.g. '86.40'." },
+            { name: 'arDocNo', description: 'The invoice number on the account.' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: {
+            bookerName: 'Ahmad Faizal', bookingNo: 'B260900001', playDateText: '27 Sept 2026',
+            reasonLabel: 'No show', isLateCancel: false, playerNames: 'Ahmad Faizal, Guest One',
+            description: 'NOSHOW — No-show charge', quantity: 2, unitAmount: '80.00', taxAmount: '12.80', totalAmount: '172.80',
+            arDocNo: 'INV-000123', companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: '{{reasonLabel}} charge {{totalAmount}} — booking {{bookingNo}} ({{playDateText}})',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">{{#if isLateCancel}}Late cancellation charge{{else}}No-show charge{{/if}}</h2>
+            <p>Dear {{bookerName}},</p>
+            {{#if isLateCancel}}
+            <p>Booking <strong>{{bookingNo}}</strong> at <strong>{{companyName}}</strong> for <strong>{{playDateText}}</strong> was cancelled inside the club's cancellation notice period, so the no-show charge applies to the booker.</p>
+            {{else}}
+            <p>The following player(s) of booking <strong>{{bookingNo}}</strong> at <strong>{{companyName}}</strong> did not register for their tee time on <strong>{{playDateText}}</strong>, so the club's no-show charge applies to the booker.</p>
+            {{/if}}
+            <p>
+                <strong>Players:</strong> {{playerNames}}<br>
+                <strong>Charge:</strong> {{description}}<br>
+                <strong>Amount:</strong> {{quantity}} × {{unitAmount}}{{#if taxAmount}} + {{taxAmount}} tax{{/if}} = <strong>{{totalAmount}}</strong><br>
+                <strong>Invoice:</strong> {{arDocNo}}
+            </p>
+            <p>The amount has been posted to your account and will appear on your next statement.</p>
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">If you believe this charge was raised in error, please contact the club's front desk.</p>
+        `),
+    },
 ];

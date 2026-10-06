@@ -22,10 +22,11 @@ const GolfTransactionType = require('./transactionType.model');
 const GolfTransactionTypeRate = require('./transactionTypeRate.model');
 const Golfer = require('./golfer.model');
 const NoShowCharge = require('./noShowCharge.model');
-const { getUserContext } = require('../../platform/serviceContext');
+const { getUserContext, getCompanyProfile } = require('../../platform/serviceContext');
 const { getGolfMemberStanding, getChargeTarget } = require('../../platform/membershipGateway');
 const { quoteTax } = require('../../platform/taxGateway');
 const arGateway = require('../../platform/arGateway');
+const { enqueueEmail } = require('../notification/emailOutbox');
 const availability = require('./bookingAvailability.service');
 
 function round2(n) {
@@ -204,7 +205,49 @@ async function postPending(req, row) {
     if (error) row.remarks = String(error).slice(0, 255);
     row.updatedBy = callerId;
     await row.save();
+    if (row.status === 'posted') await queueChargedEmail(row, resolved.standing);
     return row;
+}
+
+// '27 Sept 2026' from 'YYYY-MM-DD' (UTC so the server timezone never shifts
+// the date) - the booking emails' date style.
+function playDateText(iso) {
+    return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
+// Notice to the BOOKER once a charge is actually on their ledger (user
+// decision 2026-10-06) - never for pending or waived rows. The address comes
+// from the member's standing via the membership seam; no address = no email.
+// NON-CRITICAL: an email problem never fails the posting - the charge is
+// already saved as posted; the enqueue is caught and logged.
+async function queueChargedEmail(row, standing) {
+    if (!standing || !standing.email) return;
+    try {
+        const company = await getCompanyProfile(row.companyId);
+        await enqueueEmail({
+            templateKey: 'golf.noshow.charged',
+            accountId: company ? company.accountId : null,
+            companyId: row.companyId,
+            to: standing.email,
+            data: {
+                companyName: company ? company.name : '',
+                bookerName: row.bookerName,
+                bookingNo: row.bookingNo,
+                playDateText: playDateText(String(row.playDate)),
+                reasonLabel: row.chargeReason === 'late-cancel' ? 'Late cancellation' : 'No show',
+                isLateCancel: row.chargeReason === 'late-cancel',
+                playerNames: row.playerNames || '',
+                description: row.description,
+                quantity: row.quantity,
+                unitAmount: Number(row.unitAmount).toFixed(2),
+                taxAmount: Number(row.taxAmount) > 0 ? Number(row.taxAmount).toFixed(2) : '',
+                totalAmount: Number(row.totalAmount).toFixed(2),
+                arDocNo: row.arDocNo || '',
+            },
+        });
+    } catch (e) {
+        console.error('Error queueing golf.noshow.charged email:', e);
+    }
 }
 
 function chargeDto(row) {
