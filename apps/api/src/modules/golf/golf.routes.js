@@ -47,9 +47,12 @@ router.put('/settings', requireMenuAction('/golf/settings'), golfSettingControll
 // user decisions 2026-09-20) ---
 router.use('/bookings', requireMenuAction('/golf/bookings'), require('./bookings.routes'));
 
-// --- Front Desk (registration + billing + settlement; user decisions
-// 2026-09-26) ---
-router.use('/front-desk', requireMenuAction('/golf/front-desk'), require('./frontdesk.routes'));
+// --- Front Desk operations (registration + billing + settlement; user
+// decisions 2026-09-26). The API path names the OPERATIONS; the screen that
+// drives them is the Tee Time Sheet menu (renamed from Front Desk 2026-10-06
+// - Front Desk is now the menu GROUP, the counter where golfers register and
+// pay), so the grant is '/golf/tee-time-sheet' ---
+router.use('/front-desk', requireMenuAction('/golf/tee-time-sheet'), require('./frontdesk.routes'));
 
 // --- No-show Charges (cancellation-notice / no-show penalties; user
 // decisions 2026-10-06) - a standalone menu so finance can post/waive the

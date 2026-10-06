@@ -223,7 +223,11 @@ const routes: Routes = [
       // No-show Charges - standalone menu so finance can post/waive the
       // penalties without the tee-sheet or booking grants (2026-10-06).
       { path: 'golf/no-show-charges', loadComponent: () => import('./app/golf-no-show-charges/golf-no-show-charges').then((m) => m.GolfNoShowChargesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
-      { path: 'golf/front-desk', loadComponent: () => import('./app/golf-front-desk/golf-front-desk').then((m) => m.GolfFrontDeskComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      // Front Desk → Tee Time Sheet (renamed from Front Desk 2026-10-06: Front
+      // Desk is the menu GROUP - the counter where golfers register and pay;
+      // the old path redirects so bookmarks keep working).
+      { path: 'golf/tee-time-sheet', loadComponent: () => import('./app/golf-tee-time-sheet/golf-tee-time-sheet').then((m) => m.GolfTeeTimeSheetComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      { path: 'golf/front-desk', redirectTo: 'golf/tee-time-sheet', pathMatch: 'full' },
       { path: 'golf/settings', loadComponent: () => import('./app/golf-settings/golf-settings').then((m) => m.GolfSettingsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Shown when systemAccessGuard denies a route (no guard on this one).
       { path: 'access-denied', loadComponent: () => import('./app/access-denied/access-denied').then((m) => m.AccessDeniedComponent) },

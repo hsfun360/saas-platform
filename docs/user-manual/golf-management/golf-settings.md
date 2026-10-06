@@ -92,13 +92,13 @@ The Booking screen refuses a flight that breaks a rule; the Front Desk still reg
 5. Choose the **Charge Basis**: **Per no-show player** multiplies the price by the number of players who did not show; **Per booking** charges it once.
 6. Click **Save**.
 
-The penalty is never charged silently: the Booking screen shows the exact amount before a late cancellation is confirmed, and the Front Desk's **No-shows** review lists who did not register before anything is recorded.
+The penalty is never charged silently: the Booking screen shows the exact amount before a late cancellation is confirmed, and the Tee Time Sheet's **No-shows** review lists who did not register before anything is recorded.
 Charges are posted to the booker's member account and can be followed up on the No-show Charges screen.
 
 ### Change the tee-sheet colours
 
 1. Open **Tee Sheet**.
-2. Pick a colour for each player state shown on the Front Desk sheet: **Booked** (not yet arrived), **Registered**, **Billed** (bill open) and **Settled**.
+2. Pick a colour for each player state shown on the Tee Time Sheet: **Booked** (not yet arrived), **Registered**, **Billed** (bill open) and **Settled**.
 3. Click **Save**.
 
 Each player on the tee sheet appears as one dot in the colour of their state; a blank outline is a free seat.
@@ -174,7 +174,7 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Booked / Registered / Billed / Settled** | Yes | The dot colour for each player state on the Front Desk tee sheet. | Pick from the colour control; defaults are blue, amber, violet and green. |
+| **Booked / Registered / Billed / Settled** | Yes | The dot colour for each player state on the Tee Time Sheet. | Pick from the colour control; defaults are blue, amber, violet and green. |
 
 ## Tips & troubleshooting
 
@@ -193,8 +193,8 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 ## Related options
 
 - Golf Management → Golf Booking - applies the window, limits, minimum players, guest, handicap and junior rules, and shows the late-cancellation charge before a cancel is confirmed.
-- Golf Management → Front Desk - registers with warnings, uses the tee-sheet colours, and runs the **No-shows** review.
-- Golf Management → No-show Charges - the penalties raised under the Cancellation & No-show rules.
+- Golf Management → Front Desk → Tee Time Sheet - registers with warnings, uses the tee-sheet colours, and runs the **No-shows** review.
+- Golf Management → Front Desk → No-show Charges - the penalties raised under the Cancellation & No-show rules.
 - Golf Management → Transaction Type - the No Show Charges type and its price card.
 - Golf Management → Golfers - handicap index and status read by Handicap Control.
 - Membership Management → Membership Type - the guest quota per booking.

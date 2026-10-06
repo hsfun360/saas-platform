@@ -1,13 +1,13 @@
 # No-show Charges
 
-> **Where:** Golf Management → No-show Charges
+> **Where:** Golf Management → Front Desk → No-show Charges
 >
 > **Who can use it:** users whose role includes the Golf Management module and holds this menu.
 
 ## What this option is for
 
 The No-show Charges screen lists every penalty the club has raised against a booker under its Cancellation & No-show rules: a booking's players did not register for their tee time (**No show**), or the booking was cancelled with less than the required notice (**Late cancellation**).
-Charges are raised elsewhere - by the Front Desk's **No-shows** review and by cancelling a booking late on the Golf Booking screen - never on this screen.
+Charges are raised elsewhere - by the Tee Time Sheet's **No-shows** review and by cancelling a booking late on the Golf Booking screen - never on this screen.
 Staff come here to follow up: post a charge that could not reach the booker's account at the time, waive a pending charge with a reason, and see which invoice a posted charge became.
 The menu is separate from the tee sheet and bookings so the finance desk can hold it on its own.
 
@@ -80,7 +80,7 @@ Nothing is posted to the account.
 ## Related options
 
 - Golf Management → Golf Specification - the Cancellation & No-show rules: notice hours, charge or refuse, the No-show Charge type and the per-player / per-booking basis.
-- Golf Management → Front Desk - the **No-shows** button that records who did not register and raises the charges.
+- Golf Management → Front Desk → Tee Time Sheet - the **No-shows** button that records who did not register and raises the charges.
 - Golf Management → Golf Booking - cancelling a booking inside the notice period raises a late-cancellation charge (shown before you confirm, with a waive option).
 - Golf Management → Transaction Type - the No Show Charges item, its flat price and tax scheme.
 - Account Receivable → Transaction Type - the invoice type opened to Golf that the charges post with.

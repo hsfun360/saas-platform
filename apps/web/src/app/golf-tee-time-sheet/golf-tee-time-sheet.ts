@@ -29,7 +29,10 @@ interface NoShowDecision {
   waiveReason: string;
 }
 
-// Golf Management → Front Desk (/golf/front-desk) - the day-of-play cycle.
+// Golf Management → Front Desk → Tee Time Sheet (/golf/tee-time-sheet; the
+// menu was renamed from Front Desk 2026-10-06 - Front Desk is now the GROUP,
+// the counter where golfers register and pay; this is its tee sheet) - the
+// day-of-play cycle.
 // Tee sheet redesign (user decisions 2026-09-29): each COURSE is its own
 // CARD with its own timeline (courses may run different grids), a flight
 // row shows the tee time + one status-coloured seat dot per player (colours
@@ -61,17 +64,17 @@ function localToday(): string {
 }
 
 @Component({
-  selector: 'app-golf-front-desk',
+  selector: 'app-golf-tee-time-sheet',
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent,
     CanDirective, DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective,
     MoneyInputDirective, LocalDatePipe,
   ],
-  templateUrl: './golf-front-desk.html',
-  styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css', './golf-front-desk.css'],
+  templateUrl: './golf-tee-time-sheet.html',
+  styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css', './golf-tee-time-sheet.css'],
 })
-export class GolfFrontDeskComponent implements OnInit {
+export class GolfTeeTimeSheetComponent implements OnInit {
   private readonly service = inject(GolfFrontDeskService);
   private readonly fb = inject(FormBuilder);
   private readonly returnScroll = inject(ScrollReturnService);
@@ -346,7 +349,7 @@ export class GolfFrontDeskComponent implements OnInit {
       next: (res) => {
         this.sheet.set(res.courses);
         this.loading.set(false);
-        this.returnScroll.consume('/golf/front-desk', this.injector);
+        this.returnScroll.consume('/golf/tee-time-sheet', this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -518,7 +521,7 @@ export class GolfFrontDeskComponent implements OnInit {
         this.dlgMode.set(null);
         this.successMessage.set(res.message);
         // Return-to-row: scroll the flight the walk-in just joined into view.
-        this.returnScroll.remember('/golf/front-desk', `${payload.courseId}|${payload.teeTime}`);
+        this.returnScroll.remember('/golf/tee-time-sheet', `${payload.courseId}|${payload.teeTime}`);
         this.load();
       },
       error: (err) => {
@@ -811,7 +814,7 @@ export class GolfFrontDeskComponent implements OnInit {
     // open, so mid-drawer reloads (register/bill refresh the sheet) cannot
     // consume the memory early.
     const ref = this.flightRef();
-    if (ref) this.returnScroll.remember('/golf/front-desk', `${ref.courseId}|${ref.teeTime}`);
+    if (ref) this.returnScroll.remember('/golf/tee-time-sheet', `${ref.courseId}|${ref.teeTime}`);
     this.dlgMode.set(null);
     this.flightRef.set(null);
     this.fromFlight.set(false);

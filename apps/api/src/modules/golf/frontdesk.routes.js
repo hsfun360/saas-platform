@@ -1,5 +1,6 @@
 // Golf Front Desk routes (mounted at /api/golf/front-desk behind
-// requireMenuAction('/golf/front-desk') - see golf.routes.js).
+// requireMenuAction('/golf/tee-time-sheet') - the Tee Time Sheet menu, see
+// golf.routes.js).
 const express = require('express');
 
 const router = express.Router();
