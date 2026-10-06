@@ -11,6 +11,7 @@ router.post('/locks', controller.createLock);
 router.delete('/locks/:groupId', controller.releaseLock);
 router.get('/', controller.list);
 router.post('/', controller.create);
+router.get('/:id/cancel-preview', controller.cancelPreview);
 router.post('/:id/cancel', controller.cancel);
 
 module.exports = router;

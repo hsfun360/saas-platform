@@ -29,6 +29,7 @@ const FlightLock = require('./flightLock.model');
 const Course = require('./course.model');
 const Golfer = require('./golfer.model');
 const GolfSession = require('./golfSession.model');
+const noShow = require('./noShowCharge.service');
 
 function companyIdOf(req) {
     return getUserContext(req).companyId || null;
@@ -282,6 +283,10 @@ function bookingDto(profile, records, courseByIdMap) {
     const seconds = rows.filter((r) => Number(r.secondNineFlag) === 1);
     const startTime = firsts.length ? availability.hhmm(firsts[0].teeTime) : null;
     const crossTime = seconds.length ? availability.hhmm(seconds[0].teeTime) : null;
+    // Derived display status: a booked booking whose every player was
+    // recorded as a no-show reads 'no-show' (the profile row itself stays
+    // 'booked' - the player statuses tell the story).
+    const noShowAll = profile.status === 'booked' && firsts.length > 0 && firsts.every((p) => p.status === 'no-show');
     return {
         id: profile.id,
         bookingNo: profile.bookingNo,
@@ -295,7 +300,7 @@ function bookingDto(profile, records, courseByIdMap) {
         crossTime,
         contactMobile: profile.contactMobile,
         remarks: profile.remarks,
-        status: profile.status,
+        status: noShowAll ? 'no-show' : profile.status,
         cancelReason: profile.cancelReason,
         canModify: profile.get ? profile.get('canModify') : undefined,
         players: firsts.map((p, i) => ({
@@ -922,9 +927,75 @@ exports.list = async (req, res) => {
     }
 };
 
-// POST /api/golf/bookings/:id/cancel - free the flight. Cancels the profile
-// and its still-BOOKED player records (already-registered players stay - the
-// desk record reflects who physically plays).
+// The cancellation-notice verdict for a booking (user decisions 2026-10-06):
+// is a cancel made NOW inside the notice window, and what would it cost the
+// booker? Shared by the preview (so the confirm dialog shows the expected
+// result) and the cancel itself (re-evaluated server-side at commit time).
+// `firsts` = the booking's still-BOOKED starting-nine records (the players
+// a cancel actually frees - already-registered players are never charged).
+async function lateCancelContext(req, companyId, profile, firsts) {
+    const cfg = await noShow.config(companyId);
+    if (!cfg) return { cfg: null, late: false };
+    const teeTime = firsts.length ? availability.hhmm(firsts[0].teeTime) : null;
+    const timezone = await companyTimezone(req);
+    const { late, deadline } = noShow.lateness(cfg, String(profile.playDate), teeTime, timezone);
+    if (!late) return { cfg, late: false, deadline };
+    const booker = await Golfer.findOne({ where: { companyId, id: profile.bookerGolferId } });
+    const priced = firsts.length ? await noShow.quote(req, cfg, String(profile.playDate), firsts.length) : { error: 'No booked players remain on this booking.' };
+    return { cfg, late: true, deadline, booker, priced };
+}
+
+// GET /api/golf/bookings/:id/cancel-preview - what cancelling NOW means, so
+// the confirm dialog states the outcome before the user commits (show
+// expected results): inside the notice window? charged or refused? how much?
+exports.cancelPreview = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const profile = await BookingProfile.findOne({ where: { companyId, id: req.params.id } });
+        if (!profile) return res.status(404).json({ message: 'Booking not found.' });
+        if (profile.status !== 'booked') return res.status(400).json({ message: 'Only a booked booking can be cancelled.' });
+        const firsts = await Player.findAll({
+            where: { bookingProfileId: profile.id, secondNineFlag: 0, status: 'booked' },
+            order: [['createdAt', 'ASC'], ['id', 'ASC']],
+        });
+        const ctx = await lateCancelContext(req, companyId, profile, firsts);
+        if (!ctx.cfg) return res.status(200).json({ controlled: false, late: false });
+        const out = {
+            controlled: true,
+            late: ctx.late,
+            noticeHours: ctx.cfg.noticeHours,
+            deadline: ctx.deadline,
+            action: ctx.cfg.lateAction,
+        };
+        if (ctx.late) {
+            out.booker = ctx.booker ? { name: ctx.booker.name, memberNo: ctx.booker.memberNo, isMember: ctx.booker.golferType === 'member' } : null;
+            out.playerCount = firsts.length;
+            if (ctx.priced.error) out.chargeError = ctx.priced.error;
+            else {
+                out.charge = {
+                    description: ctx.priced.description,
+                    quantity: ctx.priced.quantity,
+                    unitAmount: ctx.priced.unitAmount,
+                    amount: ctx.priced.amount,
+                    taxAmount: ctx.priced.taxAmount,
+                    totalAmount: ctx.priced.totalAmount,
+                };
+            }
+        }
+        res.status(200).json(out);
+    } catch (error) {
+        console.error('Error previewing golf booking cancel:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/golf/bookings/:id/cancel { reason, waiveCharge?, waiveReason? }
+// - free the flight. Cancels the profile and its still-BOOKED player records
+// (already-registered players stay - the desk record reflects who physically
+// plays). Inside the cancellation-notice window (control ON): 'refuse'
+// rejects the cancel; 'charge' raises the no-show charge to the booker
+// (waivable with a reason) and posts it to AR after the cancel commits.
 exports.cancel = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
@@ -948,14 +1019,35 @@ exports.cancel = async (req, res) => {
             order: [['secondNineFlag', 'ASC'], ['createdAt', 'ASC'], ['id', 'ASC']],
         });
         const firsts = records.filter((r) => Number(r.secondNineFlag) === 0);
+        const bookedFirsts = firsts.filter((r) => r.status === 'booked');
         const recipients = [];
         for (const p of firsts) {
             if (!p.memberNo) continue;
             const s = await getGolfMemberStanding(companyId, p.memberNo);
             if (s && s.email) recipients.push({ name: p.playerName, email: s.email });
         }
+
+        // Cancellation notice (re-evaluated here, never trusted from the
+        // preview): refuse, or price the late-cancel charge to raise below.
+        const ctx = await lateCancelContext(req, companyId, profile, bookedFirsts);
+        let penalty = null;
+        if (ctx.late) {
+            if (ctx.cfg.lateAction === 'refuse') {
+                return res.status(400).json({ message: `Bookings need ${ctx.cfg.noticeHours} hours' notice to cancel - the notice period for ${profile.bookingNo} ended ${ctx.deadline.date} ${ctx.deadline.time}. The booking stands; players who do not turn up are recorded as no-shows.` });
+            }
+            if (!ctx.booker) return res.status(409).json({ message: 'The booker\'s golfer identity no longer exists - the late-cancellation charge cannot be raised.' });
+            if (ctx.priced.error) return res.status(400).json({ message: `Late cancellation cannot be charged: ${ctx.priced.error}` });
+            const waive = req.body.waiveCharge === true;
+            const waiveReason = waive && req.body.waiveReason ? String(req.body.waiveReason).trim().slice(0, 255) : '';
+            if (waive && !waiveReason) return res.status(400).json({ message: 'Give a reason for waiving the late-cancellation charge.' });
+            penalty = { booker: ctx.booker, priced: ctx.priced, waive: waive ? { reason: waiveReason } : null };
+        }
+
         const course = await Course.findOne({ where: { companyId, id: profile.courseId } });
         const startTime = firsts.length ? availability.hhmm(firsts[0].teeTime) : '';
+        const placement = await getCallerPlacement(req);
+        const stamps = { createdBy: callerId, createdByDepartmentId: placement.departmentId, updatedBy: callerId };
+        let chargeRow = null;
         await sequelize.transaction(async (transaction) => {
             await profile.save({ transaction });
             await Player.update({
@@ -968,6 +1060,12 @@ exports.cancel = async (req, res) => {
                 where: { bookingProfileId: profile.id, status: 'booked' },
                 transaction,
             });
+            if (penalty) {
+                chargeRow = await noShow.raise({
+                    req, profile, booker: penalty.booker, players: bookedFirsts,
+                    chargeReason: 'late-cancel', priced: penalty.priced, waive: penalty.waive, stamps, transaction,
+                });
+            }
             await queueBookingEmail({
                 companyId,
                 templateKey: 'golf.booking.cancelled',
@@ -983,7 +1081,20 @@ exports.cancel = async (req, res) => {
                 transaction,
             });
         });
-        res.status(200).json({ message: `Booking ${profile.bookingNo} cancelled.` });
+
+        // The charge posts to AR AFTER the cancel committed (the no-show fact
+        // survives an AR hiccup; the listing retries pending rows).
+        let suffix = '';
+        if (chargeRow) {
+            if (chargeRow.status === 'waived') suffix = ` Late-cancellation charge waived (${chargeRow.waiveReason}).`;
+            else {
+                const posted = await noShow.postPending(req, chargeRow);
+                suffix = posted.status === 'posted'
+                    ? ` Late-cancellation charge ${Number(posted.totalAmount).toFixed(2)} posted to ${posted.bookerName} (${posted.arDocNo}).`
+                    : ` Late-cancellation charge ${Number(posted.totalAmount).toFixed(2)} recorded as pending - ${posted.remarks}`;
+            }
+        }
+        res.status(200).json({ message: `Booking ${profile.bookingNo} cancelled.${suffix}` });
     } catch (error) {
         console.error('Error cancelling golf booking:', error);
         res.status(500).json({ message: 'Internal server error' });

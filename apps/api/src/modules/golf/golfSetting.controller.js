@@ -11,6 +11,8 @@ const HandicapLimitRule = require('./handicapLimitRule.model');
 const HandicapAccompanimentRule = require('./handicapAccompanimentRule.model');
 const GolfSession = require('./golfSession.model');
 const Course = require('./course.model');
+const GolfTransactionType = require('./transactionType.model');
+const { LATE_CANCELLATION_ACTION_KEYS, NO_SHOW_CHARGE_BASIS_KEYS } = require('./noShowCharge.constants');
 const { sequelize } = require('../../platform/db');
 const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
 const { listMembershipTypes } = require('../../platform/membershipGateway');
@@ -26,6 +28,8 @@ const DEFAULTS = {
     guestControlEnabled: false, allowGuestWeekday: true, allowMemberGuestWeekday: true,
     allowGuestWeekend: true, allowMemberGuestWeekend: true,
     handicapControlEnabled: false, juniorBookingControlEnabled: false,
+    noShowControlEnabled: false, cancellationNoticeHours: 24, lateCancellationAction: 'charge',
+    noShowTransactionTypeId: null, noShowChargeBasis: 'player',
     teeSheetColorBooked: '#2563eb', teeSheetColorRegistered: '#f59e0b',
     teeSheetColorBilled: '#8b5cf6', teeSheetColorSettled: '#16a34a',
 };
@@ -50,6 +54,11 @@ function settingDto(row) {
         allowMemberGuestWeekend: row.allowMemberGuestWeekend === true,
         handicapControlEnabled: row.handicapControlEnabled === true,
         juniorBookingControlEnabled: row.juniorBookingControlEnabled === true,
+        noShowControlEnabled: row.noShowControlEnabled === true,
+        cancellationNoticeHours: row.cancellationNoticeHours === null || row.cancellationNoticeHours === undefined ? 24 : row.cancellationNoticeHours,
+        lateCancellationAction: LATE_CANCELLATION_ACTION_KEYS.includes(row.lateCancellationAction) ? row.lateCancellationAction : 'charge',
+        noShowTransactionTypeId: row.noShowTransactionTypeId || null,
+        noShowChargeBasis: NO_SHOW_CHARGE_BASIS_KEYS.includes(row.noShowChargeBasis) ? row.noShowChargeBasis : 'player',
         teeSheetColorBooked: row.teeSheetColorBooked || DEFAULTS.teeSheetColorBooked,
         teeSheetColorRegistered: row.teeSheetColorRegistered || DEFAULTS.teeSheetColorRegistered,
         teeSheetColorBilled: row.teeSheetColorBilled || DEFAULTS.teeSheetColorBilled,
@@ -193,6 +202,29 @@ exports.getCourses = async (req, res) => {
         });
     } catch (error) {
         console.error('Error listing courses for golf settings:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// GET /api/golf/settings/no-show-types - the no-show transaction types for
+// the Cancellation & No-show picker (same module; no Transaction Type menu
+// grant needed - mirror of the courses picker).
+exports.getNoShowTypes = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const types = await GolfTransactionType.findAll({
+            where: { companyId, chargeType: 'no-show' },
+            attributes: ['id', 'transactionType', 'description', 'isActive'],
+            order: [['transactionType', 'ASC']],
+        });
+        res.status(200).json({
+            types: types.map((t) => ({
+                id: t.id, transactionType: t.transactionType, description: t.description, isActive: t.isActive,
+            })),
+        });
+    } catch (error) {
+        console.error('Error listing no-show types for golf settings:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -452,6 +484,26 @@ exports.save = async (req, res) => {
         const guestControlRules = guestResult.rules;
         const handicapControlEnabled = req.body.handicapControlEnabled === true;
         const juniorBookingControlEnabled = req.body.juniorBookingControlEnabled === true;
+
+        // Cancellation notice + no-show penalty (user decisions 2026-10-06).
+        // The type is stored even while the control is OFF (staging), but
+        // switching ON requires a usable no-show type so the first late
+        // cancel never fails with a configuration error.
+        const noShowControlEnabled = req.body.noShowControlEnabled === true;
+        const cancellationNoticeHours = parseIntIn(req.body.cancellationNoticeHours, 0, 720);
+        if (cancellationNoticeHours === undefined) return res.status(400).json({ message: 'Cancellation notice must be a whole number of hours between 0 and 720.' });
+        const lateCancellationAction = LATE_CANCELLATION_ACTION_KEYS.includes(req.body.lateCancellationAction) ? req.body.lateCancellationAction : undefined;
+        if (!lateCancellationAction) return res.status(400).json({ message: 'Late cancellation must either charge the penalty or refuse the cancellation.' });
+        const noShowChargeBasis = NO_SHOW_CHARGE_BASIS_KEYS.includes(req.body.noShowChargeBasis) ? req.body.noShowChargeBasis : undefined;
+        if (!noShowChargeBasis) return res.status(400).json({ message: 'No-show charge basis must be per player or per booking.' });
+        const noShowTransactionTypeId = typeof req.body.noShowTransactionTypeId === 'string' && req.body.noShowTransactionTypeId ? req.body.noShowTransactionTypeId : null;
+        if (noShowTransactionTypeId) {
+            const type = await GolfTransactionType.findOne({ where: { companyId, id: noShowTransactionTypeId }, attributes: ['id', 'chargeType', 'isActive'] });
+            if (!type || type.chargeType !== 'no-show') return res.status(400).json({ message: 'The no-show charge must be one of this company\'s No Show Charges transaction types.' });
+            if (noShowControlEnabled && type.isActive !== true) return res.status(400).json({ message: 'The no-show transaction type is inactive - pick an active one before switching the control on.' });
+        } else if (noShowControlEnabled) {
+            return res.status(400).json({ message: 'Pick the no-show transaction type before switching cancellation & no-show control on.' });
+        }
         const HEX_RE = /^#[0-9a-fA-F]{6}$/;
         const colors = {};
         for (const key of ['teeSheetColorBooked', 'teeSheetColorRegistered', 'teeSheetColorBilled', 'teeSheetColorSettled']) {
@@ -476,7 +528,9 @@ exports.save = async (req, res) => {
                 advanceBookingDays, advanceBookingHours, allowMembershipTypeOverride, allowBookingMerge,
                 minPlayersWeekday, minPlayersWeekend, bookingLockMinutes, bookingLimitWeekday, bookingLimitWeekend, allowSameDayBooking,
                 guestControlEnabled, allowGuestWeekday, allowMemberGuestWeekday, allowGuestWeekend, allowMemberGuestWeekend,
-                handicapControlEnabled, juniorBookingControlEnabled, ...colors,
+                handicapControlEnabled, juniorBookingControlEnabled,
+                noShowControlEnabled, cancellationNoticeHours, lateCancellationAction, noShowTransactionTypeId, noShowChargeBasis,
+                ...colors,
             };
             if (existing) {
                 Object.assign(existing, { ...values, updatedBy: callerId });

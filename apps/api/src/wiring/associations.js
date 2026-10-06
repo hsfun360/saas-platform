@@ -109,6 +109,10 @@ GolfPlayer.hasOne(GolfPlayer, { foreignKey: 'firstNinePlayerId', as: 'secondNine
 const GolfBill = require('../modules/golf/bill.model');
 const GolfBillItem = require('../modules/golf/billItem.model');
 const GolfBillPayment = require('../modules/golf/billPayment.model');
+// Cancellation-notice / no-show penalties (2026-10-06): one row per
+// penalised booking, charged to the booker through arGateway. Booking,
+// golfer and transaction-type refs stay plain value refs - no associations.
+const GolfNoShowCharge = require('../modules/golf/noShowCharge.model');
 
 GolfBill.hasMany(GolfBillItem, { foreignKey: 'billId', as: 'items', onDelete: 'CASCADE' });
 GolfBillItem.belongsTo(GolfBill, { foreignKey: 'billId', as: 'bill' });
@@ -398,6 +402,7 @@ module.exports = {
     GolfTransactionType,
     UnitCourseClosurePlan,
     UnitCourseClosureDay,
+    GolfNoShowCharge,
     TaxScheme,
     TaxRate,
     CompanyTaxScheme,

@@ -40,6 +40,7 @@ const golfSettingController = require('./golfSetting.controller');
 router.get('/settings', requireMenuAction('/golf/settings'), golfSettingController.get);
 router.get('/settings/membership-types', requireMenuAction('/golf/settings'), golfSettingController.getMembershipTypes);
 router.get('/settings/courses', requireMenuAction('/golf/settings'), golfSettingController.getCourses);
+router.get('/settings/no-show-types', requireMenuAction('/golf/settings'), golfSettingController.getNoShowTypes);
 router.put('/settings', requireMenuAction('/golf/settings'), golfSettingController.save);
 
 // --- Booking (dynamic tee sheet: availability + flight locks + bookings;
@@ -49,6 +50,11 @@ router.use('/bookings', requireMenuAction('/golf/bookings'), require('./bookings
 // --- Front Desk (registration + billing + settlement; user decisions
 // 2026-09-26) ---
 router.use('/front-desk', requireMenuAction('/golf/front-desk'), require('./frontdesk.routes'));
+
+// --- No-show Charges (cancellation-notice / no-show penalties; user
+// decisions 2026-10-06) - a standalone menu so finance can post/waive the
+// charges without the tee-sheet grants ---
+router.use('/no-show-charges', requireMenuAction('/golf/no-show-charges'), require('./noShowCharges.routes'));
 
 // --- Numbering Control (golf-owned series: booking / registration / bill /
 // rain check; split per module 2026-08-05) ---

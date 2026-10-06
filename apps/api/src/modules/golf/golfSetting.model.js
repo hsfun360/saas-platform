@@ -178,6 +178,47 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: false,
     },
+    // Cancellation notice + no-show penalty (Tropicana procedure "24 hours
+    // minimum notice" / "No-show charge RM80.00 + 5%"; user decisions
+    // 2026-10-06) - the master switch. OFF = cancel any time, no penalties.
+    // ON = a cancel less than `cancellationNoticeHours` before the booking's
+    // FIRST tee time (club-local) is a LATE cancellation handled per
+    // `lateCancellationAction`, and the desk's no-show review posts the
+    // penalty (golf.NoShowCharge) to the BOOKER's account.
+    noShowControlEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
+    // Hours of notice a cancellation needs (0 = no notice rule).
+    cancellationNoticeHours: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 24,
+    },
+    // 'charge' - the cancel is allowed (seat freed) and the no-show charge is
+    //            posted, waivable with a reason at cancel time;
+    // 'refuse' - the booking channel refuses the cancel inside the notice
+    //            window (the booking stands and becomes a no-show if not taken).
+    lateCancellationAction: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+        defaultValue: 'charge',
+    },
+    // The golf TransactionType (chargeType 'no-show') pricing the penalty:
+    // its flat rate card + its tax scheme (RM80 + 5% = 80.00 + a 5% scheme).
+    // Same-company value ref, required while the control is ON.
+    noShowTransactionTypeId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    // 'player' - quantity = the number of no-show players (per-head penalty)
+    // 'booking' - one flat charge per booking regardless of players
+    noShowChargeBasis: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+        defaultValue: 'player',
+    },
     // Merge booking (club-wide, user decision 2026-09-19). OFF = exclusive
     // flights: the first confirmed booking claims the whole flight, extra
     // players join only that same booking. ON = shared flights: bookings

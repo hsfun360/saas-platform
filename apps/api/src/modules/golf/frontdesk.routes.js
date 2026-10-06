@@ -10,6 +10,8 @@ router.get('/meta', controller.getMeta);
 router.post('/registrations', controller.register);
 router.post('/register-flight', controller.registerFlight);
 router.post('/registrations/:id/cancel', controller.cancelRegistration);
+router.get('/no-shows', controller.getNoShows);
+router.post('/no-shows', controller.confirmNoShows);
 router.post('/registrations/:id/bills', controller.openBill);
 router.get('/bills/:billId', controller.getBill);
 router.post('/bills/:billId/items', controller.addItem);

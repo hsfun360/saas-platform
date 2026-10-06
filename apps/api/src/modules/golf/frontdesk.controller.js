@@ -42,6 +42,8 @@ const GolfTransactionTypeRate = require('./transactionTypeRate.model');
 const GolfTransactionTypeElement = require('./transactionTypeElement.model');
 const PaymentType = require('./paymentType.model');
 const UnitCourse = require('./unitCourse.model');
+const noShow = require('./noShowCharge.service');
+const { companyTimezone } = require('../../platform/calendarGateway');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^\d{2}:\d{2}$/;
@@ -1060,6 +1062,184 @@ exports.cancelRegistration = async (req, res) => {
         });
     } catch (error) {
         console.error('Error cancelling golf registration:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// ---------------------------------------------------------------------------
+// No-shows (user decisions 2026-10-06: DESK-CONFIRMED, never an unattended
+// sweep - a human decides before a member is debited)
+
+// The day's no-show CANDIDATES: still-BOOKED (never registered) players of a
+// booking whose tee time has PASSED (club-local; every flight of a past
+// date), grouped by booking with the booker and the priced charge. Returns
+// { controlled, basis, bookings: [...] }.
+async function noShowCandidates(req, companyId, playDate) {
+    const timezone = await companyTimezone(req);
+    const now = availability.clubNow(timezone);
+    if (playDate > now.date) return { controlled: false, bookings: [] };
+    const cutoff = playDate < now.date ? '24:00' : now.time;
+    const rows = await Player.findAll({
+        where: { companyId, playDate, secondNineFlag: 0, status: 'booked', bookingProfileId: { [Op.ne]: null } },
+        order: [['teeTime', 'ASC'], ['createdAt', 'ASC'], ['id', 'ASC']],
+    });
+    const due = rows.filter((r) => availability.hhmm(r.teeTime) < cutoff);
+    const cfg = await noShow.config(companyId);
+    const byBooking = new Map();
+    for (const r of due) {
+        if (!byBooking.has(r.bookingProfileId)) byBooking.set(r.bookingProfileId, []);
+        byBooking.get(r.bookingProfileId).push(r);
+    }
+    const ids = [...byBooking.keys()];
+    const [profiles, courses] = await Promise.all([
+        ids.length ? BookingProfile.findAll({ where: { companyId, id: { [Op.in]: ids } } }) : [],
+        Course.findAll({ where: { companyId }, attributes: ['id', 'courseCode'] }),
+    ]);
+    const courseById = new Map(courses.map((c) => [c.id, c.courseCode]));
+    const bookerIds = [...new Set(profiles.map((p) => p.bookerGolferId))];
+    const bookers = bookerIds.length ? await Golfer.findAll({ where: { companyId, id: { [Op.in]: bookerIds } } }) : [];
+    const bookerById = new Map(bookers.map((g) => [g.id, g]));
+
+    const bookings = [];
+    for (const profile of profiles) {
+        if (profile.status !== 'booked') continue;
+        const players = byBooking.get(profile.id) || [];
+        const booker = bookerById.get(profile.bookerGolferId) || null;
+        const entry = {
+            bookingProfileId: profile.id,
+            bookingNo: profile.bookingNo,
+            courseCode: courseById.get(profile.courseId) || null,
+            startTime: availability.hhmm(players[0].teeTime),
+            booker: booker ? { name: booker.name, memberNo: booker.memberNo, isMember: booker.golferType === 'member' } : null,
+            players: players.map((p) => ({
+                playerId: p.id, playerName: p.playerName, memberNo: p.memberNo, playerType: p.playerType, teeTime: availability.hhmm(p.teeTime),
+            })),
+            charge: null,
+            chargeError: null,
+        };
+        if (cfg) {
+            const priced = await noShow.quote(req, cfg, playDate, players.length);
+            if (priced.error) entry.chargeError = priced.error;
+            else {
+                entry.charge = {
+                    description: priced.description, quantity: priced.quantity, unitAmount: priced.unitAmount,
+                    amount: priced.amount, taxAmount: priced.taxAmount, totalAmount: priced.totalAmount,
+                };
+            }
+        }
+        bookings.push({ ...entry, profile, booker, playerRows: players });
+    }
+    bookings.sort((a, b) => a.startTime.localeCompare(b.startTime) || a.bookingNo.localeCompare(b.bookingNo));
+    return { controlled: !!cfg, basis: cfg ? cfg.basis : null, cfg, bookings };
+}
+
+function candidateDto(b) {
+    const { profile, booker, playerRows, ...dto } = b;
+    return dto;
+}
+
+// GET /front-desk/no-shows?playDate= - the review list (show expected
+// results before anything is marked or charged).
+exports.getNoShows = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const playDate = String(req.query.playDate || '');
+        if (!DATE_RE.test(playDate)) return res.status(400).json({ message: 'Pick a play date.' });
+        const result = await noShowCandidates(req, companyId, playDate);
+        res.status(200).json({
+            playDate,
+            controlled: result.controlled,
+            basis: result.basis || null,
+            bookings: result.bookings.map(candidateDto),
+        });
+    } catch (error) {
+        console.error('Error listing golf no-show candidates:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /front-desk/no-shows { playDate, bookings: [{ bookingProfileId,
+// charge, waiveReason? }] } - confirm the review: every candidate player of
+// each listed booking flips to 'no-show' (both pair records), and - control
+// ON - a NoShowCharge row is raised per booking (pending, then posted to the
+// booker's AR account after commit; or waived with the clerk's reason).
+// Candidates are RE-DERIVED server-side so a stale review never marks a
+// player who registered meanwhile.
+exports.confirmNoShows = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const playDate = String(req.body.playDate || '');
+        if (!DATE_RE.test(playDate)) return res.status(400).json({ message: 'Pick a play date.' });
+        const raw = Array.isArray(req.body.bookings) ? req.body.bookings : [];
+        if (!raw.length) return res.status(400).json({ message: 'Pick at least one booking to record as no-show.' });
+        const decisions = new Map();
+        for (const line of raw) {
+            if (!line || typeof line.bookingProfileId !== 'string') return res.status(400).json({ message: 'Invalid no-show line.' });
+            const charge = line.charge !== false;
+            const waiveReason = !charge && line.waiveReason ? String(line.waiveReason).trim().slice(0, 255) : '';
+            decisions.set(line.bookingProfileId, { charge, waiveReason });
+        }
+
+        const result = await noShowCandidates(req, companyId, playDate);
+        const picked = result.bookings.filter((b) => decisions.has(b.bookingProfileId));
+        if (!picked.length) return res.status(409).json({ message: 'None of the selected bookings still has a no-show candidate - reload the review.' });
+        if (result.controlled) {
+            for (const b of picked) {
+                const d = decisions.get(b.bookingProfileId);
+                if (!d.charge && !d.waiveReason) return res.status(400).json({ message: `Give a reason for waiving the charge on booking ${b.bookingNo}.` });
+                if (d.charge && b.chargeError) return res.status(400).json({ message: `Booking ${b.bookingNo} cannot be charged: ${b.chargeError}` });
+                if (d.charge && !b.booker) return res.status(409).json({ message: `Booking ${b.bookingNo}: the booker's golfer identity no longer exists.` });
+            }
+        }
+
+        const callerId = getUserContext(req).userId;
+        const stamps = await callerStamps(req);
+        const raised = [];
+        let marked = 0;
+        await sequelize.transaction(async (transaction) => {
+            for (const b of picked) {
+                const d = decisions.get(b.bookingProfileId);
+                const playerIds = b.playerRows.map((p) => p.id);
+                const [n] = await Player.update(
+                    { status: 'no-show', updatedBy: callerId },
+                    { where: { id: { [Op.in]: playerIds }, status: 'booked' }, transaction },
+                );
+                await Player.update(
+                    { status: 'no-show', updatedBy: callerId },
+                    { where: { firstNinePlayerId: { [Op.in]: playerIds }, status: 'booked' }, transaction },
+                );
+                marked += n;
+                if (result.controlled && b.booker) {
+                    const priced = await noShow.quote(req, result.cfg, playDate, b.playerRows.length, { transaction });
+                    if (priced.error) continue; // validated above for charged lines; waived lines need no price
+                    const row = await noShow.raise({
+                        req, profile: b.profile, booker: b.booker, players: b.playerRows,
+                        chargeReason: 'no-show', priced, waive: d.charge ? null : { reason: d.waiveReason }, stamps, transaction,
+                    });
+                    raised.push(row);
+                }
+            }
+        });
+
+        // Post AFTER commit (the marks survive an AR hiccup).
+        let posted = 0;
+        let waived = 0;
+        const pending = [];
+        for (const row of raised) {
+            if (row.status === 'waived') { waived += 1; continue; }
+            const r = await noShow.postPending(req, row);
+            if (r.status === 'posted') posted += 1;
+            else pending.push(`${r.bookingNo}: ${r.remarks}`);
+        }
+        const parts = [`${marked} player(s) recorded as no-show on ${picked.length} booking(s).`];
+        if (posted) parts.push(`${posted} charge(s) posted.`);
+        if (waived) parts.push(`${waived} charge(s) waived.`);
+        if (pending.length) parts.push(`${pending.length} charge(s) left pending - ${pending.join('; ')}`);
+        res.status(200).json({ message: parts.join(' '), marked, posted, waived, pending: pending.length });
+    } catch (error) {
+        console.error('Error confirming golf no-shows:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
