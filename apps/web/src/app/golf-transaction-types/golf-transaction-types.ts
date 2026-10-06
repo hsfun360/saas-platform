@@ -6,7 +6,7 @@ import { GolfTransactionTypeService } from '../services/golf-transaction-type.se
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
-import { GolfTransactionType, GolfTransactionTypeElement, GolfTransactionTypeRate, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
+import { GolfTransactionType, GolfTransactionTypeElement, GolfTransactionTypeEligibility, GolfTransactionTypeRate, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { MoneyInputDirective } from '../shared/money-input.directive';
@@ -219,6 +219,69 @@ export class GolfTransactionTypesComponent implements OnInit {
     return this.pkgItems().reduce((s, i) => s + i.quantity * (i.unitAmount || 0), 0);
   }
 
+  // ---- Package eligibility (who may be billed this package; rows OR-ed) ----
+
+  readonly eligRows = signal<GolfTransactionTypeEligibility[]>([]);
+  readonly dayKeys: { key: string; label: string }[] = [
+    { key: 'monday', label: 'Mon' }, { key: 'tuesday', label: 'Tue' }, { key: 'wednesday', label: 'Wed' },
+    { key: 'thursday', label: 'Thu' }, { key: 'friday', label: 'Fri' }, { key: 'saturday', label: 'Sat' }, { key: 'sunday', label: 'Sun' },
+  ];
+
+  addEligRow(): void {
+    this.eligRows.update((rows) => [...rows, {
+      daysOfWeek: null, excludePublicHolidays: false, startTime: null, endTime: null,
+      holes: null, minAge: null, maxAge: null, gender: null, localOnly: false,
+    }]);
+    this.pkgDirty.set(true);
+  }
+
+  removeEligRow(index: number): void {
+    this.eligRows.update((rows) => rows.filter((_, i) => i !== index));
+    this.pkgDirty.set(true);
+  }
+
+  setElig(index: number, patch: Partial<GolfTransactionTypeEligibility>): void {
+    this.eligRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+    this.pkgDirty.set(true);
+  }
+
+  eligDay(row: GolfTransactionTypeEligibility, day: string): boolean {
+    return !!row.daysOfWeek && row.daysOfWeek.includes(day);
+  }
+
+  toggleEligDay(index: number, day: string): void {
+    const row = this.eligRows()[index];
+    const set = new Set(row.daysOfWeek || []);
+    if (set.has(day)) set.delete(day);
+    else set.add(day);
+    this.setElig(index, { daysOfWeek: set.size ? this.dayKeys.map((d) => d.key).filter((k) => set.has(k)) : null });
+  }
+
+  setEligInt(index: number, field: 'minAge' | 'maxAge', value: string): void {
+    const n = value === '' ? null : Math.max(0, Math.min(120, Math.floor(Number(value) || 0)));
+    this.setElig(index, { [field]: n } as Partial<GolfTransactionTypeEligibility>);
+  }
+
+  // "Mon-Thu · not on holidays · 07:05-09:05 · age 55+ · local" summary for
+  // a package card.
+  eligSummary(t: GolfTransactionType): string {
+    return (t.eligibility || []).map((r) => this.eligRowText(r)).join('  |  ');
+  }
+
+  eligRowText(r: GolfTransactionTypeEligibility): string {
+    const parts: string[] = [];
+    if (r.daysOfWeek && r.daysOfWeek.length) parts.push(r.daysOfWeek.map((d) => this.dayKeys.find((k) => k.key === d)?.label || d).join('/'));
+    if (r.excludePublicHolidays) parts.push('not on holidays');
+    if (r.startTime && r.endTime) parts.push(`${r.startTime}-${r.endTime}`);
+    if (r.holes) parts.push(`${r.holes}H`);
+    if (r.minAge !== null && r.maxAge !== null) parts.push(`age ${r.minAge}-${r.maxAge}`);
+    else if (r.minAge !== null) parts.push(`age ${r.minAge}+`);
+    else if (r.maxAge !== null) parts.push(`age ≤${r.maxAge}`);
+    if (r.gender) parts.push(r.gender === 'female' ? 'ladies' : 'men');
+    if (r.localOnly) parts.push('local golfers');
+    return parts.join(' · ') || 'everyone';
+  }
+
   addPkgRow(): void {
     this.pkgItems.update((rows) => [...rows, { elementTransactionTypeId: '', quantity: 1, unitAmount: 0 }]);
     this.pkgDirty.set(true);
@@ -272,6 +335,7 @@ export class GolfTransactionTypesComponent implements OnInit {
     this.editId.set(null);
     this.form.reset({ transactionType: '', chargeType: '', golferType: '', description: '', taxSchemeCode: '', allowPriceOverride: false, iconUrl: '', autoTransactionTypeId: '' });
     this.pkgItems.set([]);
+    this.eligRows.set([]);
     this.pkgDirty.set(false);
     this.dialogOpen.set(true);
   }
@@ -294,6 +358,7 @@ export class GolfTransactionTypesComponent implements OnInit {
       quantity: i.quantity,
       unitAmount: i.unitAmount,
     })));
+    this.eligRows.set((t.eligibility || []).map((r) => ({ ...r, daysOfWeek: r.daysOfWeek ? [...r.daysOfWeek] : null })));
     this.pkgDirty.set(false);
     this.dialogOpen.set(true);
   }
@@ -342,6 +407,17 @@ export class GolfTransactionTypesComponent implements OnInit {
     };
     if (isPackage) {
       payload.packageItems = this.pkgItems().map((i, n) => ({ ...i, sortOrder: n }));
+      for (const [n, r] of this.eligRows().entries()) {
+        if (!!r.startTime !== !!r.endTime) {
+          this.errorMessage.set(`Eligibility condition ${n + 1}: set both From and To times, or neither.`);
+          return;
+        }
+        if (r.minAge !== null && r.maxAge !== null && r.minAge > r.maxAge) {
+          this.errorMessage.set(`Eligibility condition ${n + 1}: the minimum age is above the maximum age.`);
+          return;
+        }
+      }
+      payload.eligibility = this.eligRows();
     }
 
     this.saving.set(true);

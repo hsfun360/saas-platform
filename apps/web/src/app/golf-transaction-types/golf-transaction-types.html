@@ -87,6 +87,11 @@
                       <div class="meta"><dt>Tax scheme</dt><dd>{{ taxSchemeName(t.taxSchemeCode) }}</dd></div>
                     </dl>
                   }
+                  @if (isPackage(t) && t.eligibility?.length) {
+                    <dl class="data-card__meta">
+                      <div class="meta"><dt>Eligibility</dt><dd>{{ eligSummary(t) }}</dd></div>
+                    </dl>
+                  }
                   @if (isPackage(t) && t.packageItems?.length) {
                     <dl class="data-card__meta">
                       <div class="meta"><dt>Elements</dt><dd>{{ pkgSummary(t) }}</dd></div>
@@ -264,6 +269,81 @@
                 }
               </div>
               <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The package's own selling price is set under Default Price — the elements total shows how it breaks down (e.g. Twin Package 200.00 = 1 × buggy 100.00 + 2 × caddy 50.00).</p>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Eligibility</label>
+              <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Who may be billed this package. Each condition is one way to qualify — a golfer needs to meet every part of ONE condition. No conditions = everyone, any time. On the bill, a package the golfer does not qualify for shows greyed out with the reason.</p>
+              @for (row of eligRows(); track $index; let i = $index) {
+                <div class="elig-row">
+                  <div class="elig-row__head">
+                    <span class="elig-row__title">Condition {{ i + 1 }}</span>
+                    <button type="button" class="btn btn--danger btn--sm" (click)="removeEligRow(i)"
+                            [attr.aria-label]="'Remove eligibility condition ' + (i + 1)">
+                      <span class="material-icons" aria-hidden="true">close</span>
+                    </button>
+                  </div>
+                  <div class="elig-days" role="group" [attr.aria-label]="'Condition ' + (i + 1) + ' days of week'">
+                    @for (d of dayKeys; track d.key) {
+                      <label class="elig-day" [class.elig-day--on]="eligDay(row, d.key)">
+                        <input type="checkbox" [checked]="eligDay(row, d.key)" (change)="toggleEligDay(i, d.key)" />
+                        {{ d.label }}
+                      </label>
+                    }
+                    <label class="gtt-check elig-holiday">
+                      <input type="checkbox" [checked]="row.excludePublicHolidays"
+                             (change)="setElig(i, { excludePublicHolidays: $any($event.target).checked })" />
+                      <span>Not on public holidays</span>
+                    </label>
+                  </div>
+                  <div class="elig-grid">
+                    <label class="elig-field">
+                      <span>Tee-off from</span>
+                      <input type="time" [value]="row.startTime ?? ''" (change)="setElig(i, { startTime: $any($event.target).value || null })" />
+                    </label>
+                    <label class="elig-field">
+                      <span>to</span>
+                      <input type="time" [value]="row.endTime ?? ''" (change)="setElig(i, { endTime: $any($event.target).value || null })" />
+                    </label>
+                    <label class="elig-field">
+                      <span>Holes</span>
+                      <select [value]="row.holes === null ? '' : row.holes" (change)="setElig(i, { holes: $any($event.target).value === '' ? null : +$any($event.target).value })">
+                        <option value="">Any</option>
+                        <option value="9">9</option>
+                        <option value="18">18</option>
+                      </select>
+                    </label>
+                    <label class="elig-field">
+                      <span>Age from</span>
+                      <input type="number" inputmode="numeric" min="0" max="120" step="1" [value]="row.minAge ?? ''"
+                             (change)="setEligInt(i, 'minAge', $any($event.target).value)" placeholder="any" />
+                    </label>
+                    <label class="elig-field">
+                      <span>Age to</span>
+                      <input type="number" inputmode="numeric" min="0" max="120" step="1" [value]="row.maxAge ?? ''"
+                             (change)="setEligInt(i, 'maxAge', $any($event.target).value)" placeholder="any" />
+                    </label>
+                    <label class="elig-field">
+                      <span>Gender</span>
+                      <select [value]="row.gender ?? ''" (change)="setElig(i, { gender: ($any($event.target).value || null) })">
+                        <option value="">Any</option>
+                        <option value="male">Men</option>
+                        <option value="female">Ladies</option>
+                      </select>
+                    </label>
+                    <label class="gtt-check elig-local">
+                      <input type="checkbox" [checked]="row.localOnly" (change)="setElig(i, { localOnly: $any($event.target).checked })" />
+                      <span>Local golfers only</span>
+                    </label>
+                  </div>
+                  <p class="cell-subtle elig-row__summary">{{ eligRowText(row) }}</p>
+                </div>
+              }
+              <button type="button" class="btn btn--secondary btn--sm" (click)="addEligRow()">
+                <span class="material-icons" aria-hidden="true">add</span>
+                Add condition
+              </button>
             </div>
           </div>
         }

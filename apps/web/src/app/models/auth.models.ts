@@ -1286,6 +1286,24 @@ export interface GolfTransactionType extends MembershipTransactionType {
   // Packages only: the transaction type receiving the automatic balance line
   // at billing (package amount minus the element lines' sum).
   autoTransactionTypeId?: string | null;
+  // Packages only: who may be billed this item - OR-ed condition rows
+  // (empty = everyone, any time).
+  eligibility?: GolfTransactionTypeEligibility[];
+}
+
+// One way a golfer qualifies for a package (2026-10-06): every field is a
+// condition that is null/false = not required; rows are OR-ed.
+export interface GolfTransactionTypeEligibility {
+  id?: string;
+  daysOfWeek: string[] | null;      // 'monday'..'sunday'; null = any day
+  excludePublicHolidays: boolean;
+  startTime: string | null;         // 'HH:MM', both or neither
+  endTime: string | null;
+  holes: number | null;             // 9 | 18 | null
+  minAge: number | null;
+  maxAge: number | null;
+  gender: 'male' | 'female' | null;
+  localOnly: boolean;
 }
 
 // One element line of a package transaction type: an existing (non-package)

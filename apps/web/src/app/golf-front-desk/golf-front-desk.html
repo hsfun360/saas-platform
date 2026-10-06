@@ -391,14 +391,23 @@
               <h3 class="fd-section">Add items</h3>
               <div class="fd-tiles">
                 @for (t of visibleTiles(); track t.id) {
-                  <button type="button" class="btn btn--secondary fd-tile" (click)="addTile(t.id)" [disabled]="busy()">
-                    @if (t.iconUrl) {
-                      <img class="fd-tile__icon" [src]="t.iconUrl" alt="" />
-                    } @else {
-                      <span class="material-icons" aria-hidden="true">receipt_long</span>
-                    }
-                    <span class="fd-tile__text">{{ t.transactionType }}</span>
-                  </button>
+                  @if (ineligible()[t.id]; as why) {
+                    <button type="button" class="btn btn--secondary fd-tile fd-tile--off" disabled
+                            [attr.aria-label]="t.transactionType + ' - ' + why" [title]="why">
+                      <span class="material-icons" aria-hidden="true">block</span>
+                      <span class="fd-tile__text">{{ t.transactionType }}</span>
+                      <span class="fd-tile__why">{{ why }}</span>
+                    </button>
+                  } @else {
+                    <button type="button" class="btn btn--secondary fd-tile" (click)="addTile(t.id)" [disabled]="busy()">
+                      @if (t.iconUrl) {
+                        <img class="fd-tile__icon" [src]="t.iconUrl" alt="" />
+                      } @else {
+                        <span class="material-icons" aria-hidden="true">receipt_long</span>
+                      }
+                      <span class="fd-tile__text">{{ t.transactionType }}</span>
+                    </button>
+                  }
                 }
               </div>
             } @else if (b.payments.length) {

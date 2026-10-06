@@ -187,3 +187,95 @@
   gap: var(--space-sm);
   flex-wrap: wrap;
 }
+
+/* Package eligibility conditions (2026-10-06): one bordered block per
+   OR-ed condition - day chips + holiday switch, then the scalar fields. */
+.elig-row {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
+  background: var(--surface-sunken);
+}
+.elig-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+.elig-row__title {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.elig-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  align-items: center;
+  margin: var(--space-xs) 0 var(--space-sm);
+}
+.elig-day {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 36px;
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: var(--font-body-2);
+  cursor: pointer;
+}
+.elig-day input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+}
+.elig-day--on {
+  border-color: var(--brand);
+  color: var(--brand-text);
+  background: var(--brand-surface, var(--surface-selected));
+}
+.elig-holiday,
+.elig-local {
+  min-height: 36px;
+}
+.elig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-sm);
+  align-items: end;
+}
+.elig-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+/* Same shared input standard as the other grid editors (base + focus). */
+.elig-field input,
+.elig-field select {
+  min-height: 40px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  font-weight: var(--weight-regular, 400);
+  text-transform: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.elig-field input:focus,
+.elig-field select:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
+}
+.elig-row__summary {
+  margin: var(--space-sm) 0 0;
+}

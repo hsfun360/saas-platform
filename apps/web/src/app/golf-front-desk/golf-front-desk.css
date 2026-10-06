@@ -655,3 +655,16 @@
     margin-left: 0;
   }
 }
+
+/* A tile the billed golfer does not qualify for (package eligibility): stays
+   visible, greyed, with the reason under the code - the clerk sees WHY. */
+.fd-tile--off {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.fd-tile__why {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+  white-space: normal;
+  line-height: 1.2;
+}

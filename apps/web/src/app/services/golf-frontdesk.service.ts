@@ -257,12 +257,15 @@ export class GolfFrontDeskService {
     return this.http.post<FrontDeskNoShowResult>(`${this.base}/no-shows`, { playDate, bookings });
   }
 
-  openBill(registrationId: string): Observable<{ bill: GolfBillDoc; warnings: string[] }> {
-    return this.http.post<{ bill: GolfBillDoc; warnings: string[] }>(`${this.base}/registrations/${registrationId}/bills`, {});
+  // `ineligible` = the tiles this golfer does not qualify for (package
+  // eligibility): { [transactionTypeId]: reason } - shown disabled with the
+  // reason; the server refuses them too.
+  openBill(registrationId: string): Observable<{ bill: GolfBillDoc; warnings: string[]; ineligible?: Record<string, string> }> {
+    return this.http.post<{ bill: GolfBillDoc; warnings: string[]; ineligible?: Record<string, string> }>(`${this.base}/registrations/${registrationId}/bills`, {});
   }
 
-  getBill(billId: string): Observable<{ bill: GolfBillDoc; registration: FrontDeskRegistration | null }> {
-    return this.http.get<{ bill: GolfBillDoc; registration: FrontDeskRegistration | null }>(`${this.base}/bills/${billId}`);
+  getBill(billId: string): Observable<{ bill: GolfBillDoc; registration: FrontDeskRegistration | null; ineligible?: Record<string, string> }> {
+    return this.http.get<{ bill: GolfBillDoc; registration: FrontDeskRegistration | null; ineligible?: Record<string, string> }>(`${this.base}/bills/${billId}`);
   }
 
   addItem(billId: string, transactionTypeId: string, quantity: number): Observable<{ bill: GolfBillDoc }> {

@@ -244,6 +244,9 @@ export class GolfFrontDeskComponent implements OnInit {
   // caddy default) shows only to its own category; untyped tiles to everyone
   // (2026-10-06). The server refuses a mismatched tile regardless.
   readonly billPlayerType = signal('');
+  // Package eligibility (2026-10-06): tiles the billed golfer does not
+  // qualify for, with the reason - rendered disabled, never hidden.
+  readonly ineligible = signal<Record<string, string>>({});
   readonly visibleTiles = computed(() => {
     const m = this.meta();
     const cat = this.billPlayerType();
@@ -537,6 +540,7 @@ export class GolfFrontDeskComponent implements OnInit {
       next: (res) => {
         this.busy.set(false);
         this.bill.set(res.bill);
+        this.ineligible.set(res.ineligible || {});
         for (const w of res.warnings || []) this.errorMessage.set(w);
         this.payments.set([]);
         this.paymentsDirty.set(false);
