@@ -10,6 +10,8 @@ router.get('/day', controller.getDay);
 router.get('/meta', controller.getMeta);
 router.post('/registrations', controller.register);
 router.post('/register-flight', controller.registerFlight);
+// Group booking (2026-10-07): every still-booked player of a group on the date.
+router.post('/register-group', controller.registerGroup);
 router.post('/registrations/:id/cancel', controller.cancelRegistration);
 router.get('/no-shows', controller.getNoShows);
 router.post('/no-shows', controller.confirmNoShows);

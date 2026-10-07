@@ -26,6 +26,7 @@ const availability = require('./bookingAvailability.service');
 const { PLAYER_TYPES, PLAYER_TYPE_KEYS, HOLES_OPTIONS } = require('./booking.constants');
 const { PLAYER_STATUSES, BILL_STATUSES, ACTIVE_PLAYER_STATUS_KEYS } = require('./registration.constants');
 const { PACKAGE_CHARGE_TYPE_KEY, GOLFER_TYPES } = require('./transactionType.constants');
+const { GROUP_BOOKING_TYPE_KEYS, COURSE_HOLD_FORMATS } = require('./groupBooking.constants');
 const BookingProfile = require('./bookingProfile.model');
 const Player = require('./player.model');
 const GolfSetting = require('./golfSetting.model');
@@ -186,18 +187,21 @@ exports.getDay = async (req, res) => {
         if (!DATE_RE.test(playDate)) return res.status(400).json({ message: 'Pick a play date.' });
         const dayType = await dayTypeOf(req, playDate);
 
-        const [records, profiles, courses] = await Promise.all([
+        const [records, courses] = await Promise.all([
             Player.findAll({
                 where: { companyId, playDate, status: { [Op.in]: ACTIVE_PLAYER_STATUS_KEYS } },
                 order: [['createdAt', 'ASC'], ['id', 'ASC']],
             }),
-            BookingProfile.findAll({ where: { companyId, playDate } }),
             Course.findAll({
                 where: { companyId },
                 attributes: ['id', 'courseCode', 'description', 'isActive', 'firstNineId', 'secondNineId', 'crossOverMinutes', 'displaySequence'],
                 order: [['displaySequence', 'ASC'], ['courseCode', 'ASC']],
             }),
         ]);
+        // Profiles by the records' booking ids, not by play date: a group
+        // booking's header carries only its FIRST play day (2026-10-07).
+        const profileIds = [...new Set(records.map((r) => r.bookingProfileId).filter(Boolean))];
+        const profiles = profileIds.length ? await BookingProfile.findAll({ where: { companyId, id: { [Op.in]: profileIds } } }) : [];
         const profileById = new Map(profiles.map((b) => [b.id, b]));
         const firsts = records.filter((r) => Number(r.secondNineFlag) === 0);
         const seconds = records.filter((r) => Number(r.secondNineFlag) === 1);
@@ -207,20 +211,38 @@ exports.getDay = async (req, res) => {
             : [];
         const billByPlayer = new Map(bills.map((b) => [b.playerId, b]));
 
+        // The day's grids, closures and GROUP HOLDS (ctx.holds: the planned
+        // group play days + their reserved flights; shotgun-format days are
+        // merged into nineBlocks as kind 'group').
+        const ctx = await availability.dayContext(companyId, playDate, dayType, {
+            courses: courses.filter((c) => c.isActive),
+        });
+        const holdDays = ctx.holds ? ctx.holds.days : [];
+        const groupFlights = ctx.holds ? ctx.holds.flights : [];
+        const flightById = new Map(groupFlights.map((f) => [f.id, f]));
+        const dayByFlight = new Map(groupFlights.map((f) => [f.id, ctx.holds.dayById.get(f.groupPlayDayId)]));
+        const isHoldFormat = (day) => day && COURSE_HOLD_FORMATS.includes(day.startFormat);
+
         // Entries per NINE-cell (unitCourseId|HH:MM) from starting-nine
-        // records + crossover arrival counts per landing cell.
+        // records + crossover arrival counts per landing cell. Players of a
+        // SHOTGUN-format group day live in the group block, not the grid
+        // (every flight shares the wave time, so a cell would swallow them all).
         const entriesByCell = new Map();
-        for (const r of firsts) {
-            const key = availability.nineKey(r.unitCourseId, r.teeTime);
-            if (!entriesByCell.has(key)) entriesByCell.set(key, []);
+        const entriesByGroupFlight = new Map();
+        const entryOf = (r) => {
             const profile = r.bookingProfileId ? profileById.get(r.bookingProfileId) : null;
             const second = secondByFirst.get(r.id) || null;
             const bill = billByPlayer.get(r.id) || null;
             const shape = { holes: second ? 18 : 9, crossTime: second ? availability.hhmm(second.teeTime) : null };
-            entriesByCell.get(key).push({
+            const gf = r.groupFlightId ? flightById.get(r.groupFlightId) : null;
+            return {
                 kind: r.bookingProfileId ? 'booked' : 'walkin',
                 bookingProfileId: r.bookingProfileId,
                 bookingNo: profile ? profile.bookingNo : null,
+                bookingType: profile ? profile.bookingType : null,
+                groupName: profile && GROUP_BOOKING_TYPE_KEYS.includes(profile.bookingType) ? (profile.groupName || profile.bookingNo) : null,
+                flightLabel: gf ? gf.flightLabel : null,
+                startHole: r.startHole || null,
                 playerId: r.id,
                 playerType: r.playerType,
                 playerName: r.playerName,
@@ -228,17 +250,25 @@ exports.getDay = async (req, res) => {
                 holes: shape.holes,
                 registration: r.status === 'registered' ? registrationDto(r, shape) : null,
                 bill: bill ? { id: bill.id, billNo: bill.billNo, status: bill.status, totalAmount: Number(bill.totalAmount) } : null,
-            });
+            };
+        };
+        for (const r of firsts) {
+            const entry = entryOf(r);
+            if (r.groupFlightId) {
+                if (!entriesByGroupFlight.has(r.groupFlightId)) entriesByGroupFlight.set(r.groupFlightId, []);
+                entriesByGroupFlight.get(r.groupFlightId).push(entry);
+                if (isHoldFormat(dayByFlight.get(r.groupFlightId) && dayByFlight.get(r.groupFlightId).day)) continue;
+            }
+            const key = availability.nineKey(r.unitCourseId, r.teeTime);
+            if (!entriesByCell.has(key)) entriesByCell.set(key, []);
+            entriesByCell.get(key).push(entry);
         }
         const crossByCell = new Map();
         for (const r of seconds) {
+            if (r.groupFlightId && isHoldFormat(dayByFlight.get(r.groupFlightId) && dayByFlight.get(r.groupFlightId).day)) continue;
             const key = availability.nineKey(r.unitCourseId, r.teeTime);
             crossByCell.set(key, (crossByCell.get(key) || 0) + 1);
         }
-
-        const ctx = await availability.dayContext(companyId, playDate, dayType, {
-            courses: courses.filter((c) => c.isActive),
-        });
 
         // Nine codes for the DERIVED rotation suffix on each card header
         // ("E1 → E2") - so every club shows its pairing without keying it
@@ -248,6 +278,13 @@ exports.getDay = async (req, res) => {
             (await UnitCourse.findAll({ where: { id: { [Op.in]: nineIds } }, attributes: ['id', 'unitCourseCode'] }))
                 .map((u) => [u.id, u.unitCourseCode]),
         );
+
+        // The label of the group holding a nine at a time (shotgun formats),
+        // so the sheet reads "HELD · IFCA Invitational" rather than CLOSED.
+        const heldBy = (blocks, t) => {
+            const b = (blocks || []).find((x) => x.kind === 'group' && x.start !== null && t >= x.start && t < x.end);
+            return b ? b.label : null;
+        };
 
         const consumed = new Set();
         const sheets = [];
@@ -296,6 +333,7 @@ exports.getDay = async (req, res) => {
                     isFrontDesk: slot.isFrontDesk === true,
                     crossoverOnly,
                     closed,
+                    heldBy: closed ? heldBy(firstNineBlocks, t) : null,
                     nineHolesOnly,
                     seatsTaken: entries.length,
                     seatsLeft: closed || crossoverOnly ? 0 : Math.max(0, slot.maxPlayers - entries.length - sameNineCross),
@@ -311,16 +349,56 @@ exports.getDay = async (req, res) => {
                 if (nineId !== course.firstNineId || onGrid.has(teeTime) || consumed.has(key)) continue;
                 consumed.add(key);
                 flights.push({
-                    teeTime, maxPlayers: null, isFrontDesk: false, crossoverOnly: false, closed: false,
+                    teeTime, maxPlayers: null, isFrontDesk: false, crossoverOnly: false, closed: false, heldBy: null,
                     seatsTaken: entries.length, seatsLeft: 0, offGrid: true,
                     crossCount: crossByCell.get(key) || 0, entries,
                 });
             }
             flights.sort((a, b) => a.teeTime.localeCompare(b.teeTime));
 
+            // GROUP BLOCKS (2026-10-07): one per planned group play day on
+            // this course - the header the desk registers the whole group
+            // from; shotgun-format days also list their flights here (hole,
+            // wave time, nine, players), sequential days keep their players
+            // in the grid rows above (tagged with the group name).
+            const groups = holdDays.filter((h) => h.day.courseId === course.id).map(({ day: gday, profile }) => {
+                const hold = isHoldFormat(gday);
+                const dayFlights = groupFlights.filter((f) => f.groupPlayDayId === gday.id).sort((a, b) => a.sortOrder - b.sortOrder);
+                const flightDtos = dayFlights.map((f) => ({
+                    id: f.id,
+                    flightLabel: f.flightLabel,
+                    teeTime: availability.hhmm(f.teeTime),
+                    startHole: f.startHole,
+                    nineCode: nineCodeById.get(f.unitCourseId) || null,
+                    capacity: f.capacity,
+                    entries: entriesByGroupFlight.get(f.id) || [],
+                }));
+                const all = flightDtos.flatMap((f) => f.entries);
+                return {
+                    bookingProfileId: profile.id,
+                    bookingNo: profile.bookingNo,
+                    bookingType: profile.bookingType,
+                    groupName: profile.groupName || profile.bookingNo,
+                    groupPlayDayId: gday.id,
+                    startFormat: gday.startFormat,
+                    hold,
+                    holes: Number(gday.holes),
+                    startTime: availability.hhmm(gday.startTime),
+                    blockUntil: availability.hhmm(gday.blockUntil),
+                    flightCount: dayFlights.length,
+                    seatCount: dayFlights.reduce((s, f) => s + f.capacity, 0),
+                    drawn: all.length,
+                    booked: all.filter((e) => !e.registration).length,
+                    registered: all.filter((e) => e.registration).length,
+                    billed: all.filter((e) => e.bill).length,
+                    settled: all.filter((e) => e.bill && e.bill.status === 'settled').length,
+                    flights: hold ? flightDtos : [],
+                };
+            });
+
             // A course appears when it operates that day (has a tee sheet) or
             // still has something to show; silent courses stay off the sheet.
-            if (set || flights.length) {
+            if (set || flights.length || groups.length) {
                 const firstCode = nineCodeById.get(course.firstNineId);
                 const secondCode = nineCodeById.get(course.secondNineId);
                 sheets.push({
@@ -329,6 +407,7 @@ exports.getDay = async (req, res) => {
                     courseDescription: course.description,
                     rotation: firstCode && secondCode ? `${firstCode} → ${secondCode}` : null,
                     operating: !!set,
+                    groups,
                     flights,
                 });
             }
@@ -337,6 +416,57 @@ exports.getDay = async (req, res) => {
         res.status(200).json({ playDate, dayType, courses: sheets });
     } catch (error) {
         console.error('Error loading golf front-desk day:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /front-desk/register-group { bookingProfileId, playDate } - register
+// EVERY still-booked player of a group booking on the date, whichever nine or
+// flight they are drawn into (per-player transactions like register-flight,
+// so one barred member never blocks the rest; name-only guests get their
+// durable identity here). Reports registered vs skipped.
+exports.registerGroup = async (req, res) => {
+    try {
+        const companyId = companyIdOf(req);
+        if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
+        const playDate = String(req.body.playDate || '');
+        const profileId = String(req.body.bookingProfileId || '');
+        if (!DATE_RE.test(playDate) || !profileId) return res.status(400).json({ message: 'Pick the group to register.' });
+        const profile = await BookingProfile.findOne({ where: { companyId, id: profileId, bookingType: { [Op.in]: GROUP_BOOKING_TYPE_KEYS } } });
+        if (!profile) return res.status(404).json({ message: 'Group booking not found.' });
+        if (profile.status !== 'booked') return res.status(400).json({ message: 'This group booking is cancelled.' });
+        const stamps = await callerStamps(req);
+        const candidates = await Player.findAll({
+            where: { companyId, playDate, bookingProfileId: profile.id, secondNineFlag: 0, status: 'booked' },
+            order: [['teeTime', 'ASC'], ['createdAt', 'ASC'], ['id', 'ASC']],
+        });
+        if (!candidates.length) {
+            return res.status(200).json({ message: `Everyone in ${profile.groupName || profile.bookingNo} is already registered for ${playDate}.`, registered: [], skipped: [] });
+        }
+        const registered = [];
+        const skipped = [];
+        for (const candidate of candidates) {
+            try {
+                const result = await sequelize.transaction(async (transaction) => {
+                    const row = await Player.findOne({ where: { id: candidate.id }, transaction });
+                    if (!row || row.status !== 'booked') {
+                        return { fail: row && row.status === 'registered' ? `already registered (${row.registrationNo})` : 'no longer booked' };
+                    }
+                    return registerBookedRecord({ req, companyId, row, guest: null, stamps, transaction });
+                });
+                if (result.fail) skipped.push({ playerName: candidate.playerName, reason: result.fail });
+                else registered.push({ playerName: result.row.playerName, registrationNo: result.row.registrationNo });
+            } catch (e) {
+                console.error('Group registration line failed:', e);
+                skipped.push({ playerName: candidate.playerName, reason: 'registration failed' });
+            }
+        }
+        const message = skipped.length
+            ? `Registered ${registered.length} of ${candidates.length} player(s) of ${profile.groupName || profile.bookingNo}; skipped ${skipped.length} - ${skipped.map((s) => `${s.playerName}: ${s.reason}`).join('; ')}`
+            : `Registered ${registered.length} player(s) of ${profile.groupName || profile.bookingNo}.`;
+        res.status(200).json({ message, registered, skipped });
+    } catch (error) {
+        console.error('Error registering golf group:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -1087,8 +1217,10 @@ exports.openBill = async (req, res) => {
             }, { transaction });
 
             // Green fee auto-charge: skip members WITH golfing right; the
-            // category otherwise equals the player type.
-            let category = registration.playerType;
+            // category otherwise equals the player type. GROUP players
+            // (2026-10-07) get NO auto-charge - their package is billed on
+            // the group folio; this bill is for the player's own extras.
+            let category = registration.groupPlayerId ? null : registration.playerType;
             if (registration.playerType === 'member') {
                 const standing = registration.memberNo ? await getGolfMemberStanding(companyId, registration.memberNo) : null;
                 if (standing && standing.isGolfAllow) category = null; // no green fee

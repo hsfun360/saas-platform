@@ -333,6 +333,73 @@
   text-overflow: ellipsis;
 }
 
+/* Held rows read as the GROUP's hold, not a closure. */
+.fd-flight__state--held {
+  color: var(--brand-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ---- group blocks (2026-10-07): one per group play day on the course ---- */
+.fd-group {
+  border: 1px solid var(--brand);
+  border-radius: 10px;
+  background: var(--brand-surface, var(--surface-sunken));
+  padding: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.fd-group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+}
+.fd-group__head > .material-icons {
+  color: var(--brand-text);
+  font-size: 20px;
+}
+.fd-group__title {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  min-width: 0;
+}
+.fd-group__no {
+  font-weight: var(--weight-regular, 400);
+  color: var(--text-muted);
+  font-size: var(--font-body-2);
+}
+.fd-group__meta {
+  flex-basis: 100%;
+  font-size: var(--font-caption);
+  color: var(--text-secondary);
+}
+.fd-group__register {
+  margin-left: auto;
+}
+.fd-group__done {
+  margin-left: auto;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--success-text);
+}
+.fd-group__flights {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.fd-flight--group {
+  background: var(--surface-card);
+}
+.fd-group__tag {
+  color: var(--brand-text);
+  font-weight: var(--weight-semibold);
+}
+
 /* Mobile: cards stack. */
 @media (max-width: 767px) {
   .fd-cards {

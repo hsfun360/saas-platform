@@ -15,6 +15,8 @@ import {
   FrontDeskCourseSheet,
   FrontDeskFlight,
   FrontDeskEntry,
+  FrontDeskGroupBlock,
+  FrontDeskGroupFlight,
   FrontDeskMeta,
   GolfBillDoc,
   WalkInPayload,
@@ -182,15 +184,38 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   readonly busy = signal(false);
 
   // The open flight, tracked by reference so a reload refreshes it in place.
-  readonly flightRef = signal<{ courseId: string; teeTime: string } | null>(null);
+  // A GROUP flight (shotgun-format play day, 2026-10-07) is referenced by
+  // its reserved-flight id and projected onto the same flight shape, so the
+  // drawer works unchanged: register selected, bill, cancel, void.
+  readonly flightRef = signal<{ courseId: string; teeTime: string; groupFlightId?: string } | null>(null);
   readonly flightCourse = computed(() => {
     const ref = this.flightRef();
     return ref ? this.sheet().find((c) => c.courseId === ref.courseId) || null : null;
   });
-  readonly flight = computed(() => {
+  readonly groupFlight = computed<{ block: FrontDeskGroupBlock; gf: FrontDeskGroupFlight } | null>(() => {
     const ref = this.flightRef();
     const course = this.flightCourse();
-    return ref && course ? course.flights.find((f) => f.teeTime === ref.teeTime) || null : null;
+    if (!ref || !ref.groupFlightId || !course) return null;
+    for (const block of course.groups || []) {
+      const gf = block.flights.find((f) => f.id === ref.groupFlightId);
+      if (gf) return { block, gf };
+    }
+    return null;
+  });
+  readonly flight = computed<FrontDeskFlight | null>(() => {
+    const ref = this.flightRef();
+    const course = this.flightCourse();
+    if (!ref || !course) return null;
+    if (ref.groupFlightId) {
+      const g = this.groupFlight();
+      if (!g) return null;
+      // maxPlayers null: a group flight takes no walk-ins (no free slots).
+      return {
+        teeTime: g.gf.teeTime, maxPlayers: null, isFrontDesk: false, crossoverOnly: false, closed: false,
+        seatsTaken: g.gf.entries.length, seatsLeft: 0, crossCount: 0, entries: g.gf.entries,
+      };
+    }
+    return course.flights.find((f) => f.teeTime === ref.teeTime) || null;
   });
 
   // Free-seat slots of the open flight (drawer shows every seat).
@@ -312,6 +337,8 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       case 'flight': {
         const c = this.flightCourse();
         const ref = this.flightRef();
+        const g = this.groupFlight();
+        if (g) return `${g.block.groupName} · ${g.gf.flightLabel} ${g.gf.teeTime}`;
         return c && ref ? `${c.courseCode} · ${ref.teeTime}` : 'Flight';
       }
       case 'walkin': return 'Walk-in registration';
@@ -370,6 +397,52 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     this.resetSlotWalkin();
     this.fromFlight.set(false);
     this.dlgMode.set('flight');
+  }
+
+  // ---- group blocks (2026-10-07) ----
+
+  openGroupFlight(course: FrontDeskCourseSheet, gf: FrontDeskGroupFlight): void {
+    this.clearMessages();
+    this.flightRef.set({ courseId: course.courseId, teeTime: gf.teeTime, groupFlightId: gf.id });
+    this.selected.set(new Set(gf.entries.filter((e) => !e.registration).map((e) => e.playerId)));
+    this.slotWalkinOpen.set(false);
+    this.fromFlight.set(false);
+    this.dlgMode.set('flight');
+  }
+
+  readonly registeringGroup = signal<string | null>(null);
+
+  // Register every still-booked player of the group on this date in one go
+  // (the server reports registered vs skipped).
+  registerGroup(block: FrontDeskGroupBlock): void {
+    this.clearMessages();
+    this.registeringGroup.set(block.bookingProfileId);
+    this.service.registerGroup(block.bookingProfileId, this.listDate()).subscribe({
+      next: (res) => {
+        this.registeringGroup.set(null);
+        if (res.skipped.length) this.errorMessage.set(res.message);
+        else this.successMessage.set(res.message);
+        this.load();
+      },
+      error: (err) => {
+        this.registeringGroup.set(null);
+        this.errorMessage.set(err.error?.message || 'The group could not be registered.');
+      },
+    });
+  }
+
+  formatLabel(key: string): string {
+    switch (key) {
+      case 'two-tee': return 'Two-tee start';
+      case 'shotgun': return 'Shotgun';
+      case 'modified-shotgun': return 'Modified shotgun';
+      default: return 'Traditional';
+    }
+  }
+
+  groupFlightDots(gf: FrontDeskGroupFlight): (PlayerDayStatus | null)[] {
+    return Array.from({ length: Math.max(gf.capacity, gf.entries.length) }, (_, i) =>
+      i < gf.entries.length ? this.statusOf(gf.entries[i]) : null);
   }
 
   private resetSlotWalkin(): void {
@@ -814,7 +887,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     // open, so mid-drawer reloads (register/bill refresh the sheet) cannot
     // consume the memory early.
     const ref = this.flightRef();
-    if (ref) this.returnScroll.remember('/golf/tee-time-sheet', `${ref.courseId}|${ref.teeTime}`);
+    if (ref) this.returnScroll.remember('/golf/tee-time-sheet', `${ref.courseId}|${ref.groupFlightId || ref.teeTime}`);
     this.dlgMode.set(null);
     this.flightRef.set(null);
     this.fromFlight.set(false);

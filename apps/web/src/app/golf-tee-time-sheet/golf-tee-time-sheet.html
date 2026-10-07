@@ -89,6 +89,62 @@
             </button>
             @if (!cardCollapsed(c.courseId)) {
             <div class="fd-card__list">
+              <!-- Group / tournament play days on this course (2026-10-07):
+                   the header registers the whole group; shotgun-format days
+                   list their flights here (hole, wave time, nine, players). -->
+              @for (g of c.groups || []; track g.bookingProfileId) {
+                <section class="fd-group" [attr.data-return-id]="'group|' + g.bookingProfileId">
+                  <div class="fd-group__head">
+                    <span class="material-icons" aria-hidden="true">{{ g.bookingType === 'tournament' ? 'emoji_events' : 'groups' }}</span>
+                    <span class="fd-group__title">{{ g.groupName }} <span class="fd-group__no">({{ g.bookingNo }})</span></span>
+                    <span class="fd-group__meta">
+                      {{ formatLabel(g.startFormat) }} · {{ g.holes }}H ·
+                      @if (g.hold) { {{ g.startTime }}–{{ g.blockUntil }} held } @else { from {{ g.startTime }} }
+                      · {{ g.drawn }} drawn · {{ g.registered }} registered{{ g.settled ? ' · ' + g.settled + ' settled' : '' }}
+                    </span>
+                    @if (g.booked > 0) {
+                      <button *appCan="'create'" type="button" class="btn btn--primary btn--sm fd-group__register"
+                              (click)="registerGroup(g)" [disabled]="registeringGroup() === g.bookingProfileId">
+                        <span class="material-icons" aria-hidden="true">how_to_reg</span>
+                        {{ registeringGroup() === g.bookingProfileId ? 'Registering…' : 'Register group (' + g.booked + ')' }}
+                      </button>
+                    } @else if (g.drawn > 0) {
+                      <span class="fd-group__done">All registered</span>
+                    } @else {
+                      <span class="fd-group__done">No players drawn yet</span>
+                    }
+                  </div>
+                  @if (g.hold && g.flights.length) {
+                    <div class="fd-group__flights">
+                      @for (gf of g.flights; track gf.id) {
+                        <button type="button" class="fd-flight fd-flight--group" (click)="openGroupFlight(c, gf)" [disabled]="gf.entries.length === 0"
+                                [attr.data-return-id]="c.courseId + '|' + gf.id">
+                          <span class="fd-flight__top">
+                            <span class="fd-flight__time">{{ gf.flightLabel }}</span>
+                            <span class="fd-flight__state">{{ gf.teeTime }}{{ gf.nineCode ? ' · ' + gf.nineCode : '' }}</span>
+                            <span class="fd-seats" role="img" [attr.aria-label]="gf.entries.length + ' of ' + gf.capacity + ' seats taken'">
+                              @for (s of groupFlightDots(gf); track $index) {
+                                <span class="fd-seat" [class.fd-seat--taken]="s !== null"
+                                      [style.background]="s !== null ? colorFor(s) : null"
+                                      [style.border-color]="s !== null ? colorFor(s) : null"
+                                      [title]="s !== null ? statusLabel(s) : 'Available'"></span>
+                              }
+                            </span>
+                          </span>
+                          @for (e of gf.entries; track e.playerId) {
+                            <span class="fd-flight__player">
+                              <span class="fd-seat fd-seat--taken fd-seat--inline"
+                                    [style.background]="colorFor(statusOf(e))" [style.border-color]="colorFor(statusOf(e))"></span>
+                              <span class="fd-flight__pname">{{ e.playerName }}</span>
+                              <span class="fd-flight__pmeta">{{ playerTypeLabel(e.playerType) }}@if (e.memberNo) { · {{ e.memberNo }} }</span>
+                            </span>
+                          }
+                        </button>
+                      }
+                    </div>
+                  }
+                </section>
+              }
               @for (f of c.flights; track f.teeTime) {
                 <button type="button" class="fd-flight" [attr.data-flight]="c.courseId + '|' + f.teeTime"
                         [attr.data-return-id]="c.courseId + '|' + f.teeTime"
@@ -100,7 +156,9 @@
                         [class.fd-flight--hit]="isHit(c.courseId, f.teeTime)">
                   <span class="fd-flight__top">
                     <span class="fd-flight__time">{{ f.teeTime }}</span>
-                    @if (f.closed) {
+                    @if (f.closed && f.heldBy) {
+                      <span class="fd-flight__state fd-flight__state--held" [title]="'Held for ' + f.heldBy">HELD · {{ f.heldBy }}</span>
+                    } @else if (f.closed) {
                       <span class="fd-flight__state">CLOSED</span>
                     } @else if (f.crossoverOnly) {
                       <span class="fd-flight__state">X-OVER</span>
@@ -129,7 +187,7 @@
                             [style.background]="colorFor(statusOf(e))" [style.border-color]="colorFor(statusOf(e))"></span>
                       <span class="fd-flight__pname">{{ e.playerName }}</span>
                       <span class="fd-flight__pmeta">
-                        {{ playerTypeLabel(e.playerType) }}@if (e.memberNo) { · {{ e.memberNo }} } · {{ e.holes }}H
+                        {{ playerTypeLabel(e.playerType) }}@if (e.memberNo) { · {{ e.memberNo }} } · {{ e.holes }}H@if (e.groupName) { · <span class="fd-group__tag">{{ e.groupName }}</span> }
                       </span>
                     </span>
                   }
@@ -181,7 +239,8 @@
                     @if (e.memberNo) { · {{ e.memberNo }} }
                     · {{ e.holes }}H
                     @if (e.kind === 'walkin') { · walk-in }
-                    @if (e.bookingNo) { · {{ e.bookingNo }} }
+                    @if (e.groupName) { · {{ e.groupName }}{{ e.flightLabel ? ' ' + e.flightLabel : '' }} }
+                    @else if (e.bookingNo) { · {{ e.bookingNo }} }
                     @if (e.registration) { · {{ e.registration.registrationNo }} }
                     @if (e.bill) { · {{ e.bill.billNo }} ({{ e.bill.totalAmount.toFixed(2) }}) }
                   </span>

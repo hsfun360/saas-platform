@@ -34,6 +34,12 @@ export interface FrontDeskEntry {
   kind: 'booked' | 'walkin';
   bookingProfileId?: string | null;
   bookingNo?: string | null;
+  // Group booking (2026-10-07): the group / tournament this player belongs
+  // to and the reserved flight they were drawn into.
+  bookingType?: string | null;
+  groupName?: string | null;
+  flightLabel?: string | null;
+  startHole?: number | null;
   playerId: string;
   playerType: string;
   playerName: string;
@@ -52,6 +58,9 @@ export interface FrontDeskFlight {
   isFrontDesk: boolean;
   crossoverOnly: boolean;
   closed: boolean;
+  // The group holding this nine at this time (shotgun-format play day) -
+  // shown as HELD · <group> instead of CLOSED.
+  heldBy?: string | null;
   // 18 holes impossible from this tee-off: the crossover landing is
   // closure-blocked, or no landing slot remains (late tee-offs).
   nineHolesOnly?: boolean;
@@ -62,6 +71,42 @@ export interface FrontDeskFlight {
   entries: FrontDeskEntry[];
 }
 
+// A reserved flight of a group play day with the players drawn into it
+// (shotgun-format days list their flights in the group block).
+export interface FrontDeskGroupFlight {
+  id: string;
+  flightLabel: string;
+  teeTime: string;
+  startHole: number | null;
+  nineCode: string | null;
+  capacity: number;
+  entries: FrontDeskEntry[];
+}
+
+// A group / tournament play day on this course (2026-10-07): the header the
+// desk registers the whole group from, with counts; shotgun-format days
+// carry their flights here, sequential days keep players in the grid rows.
+export interface FrontDeskGroupBlock {
+  bookingProfileId: string;
+  bookingNo: string;
+  bookingType: string;
+  groupName: string;
+  groupPlayDayId: string;
+  startFormat: string;
+  hold: boolean;
+  holes: number;
+  startTime: string;
+  blockUntil: string | null;
+  flightCount: number;
+  seatCount: number;
+  drawn: number;
+  booked: number;
+  registered: number;
+  billed: number;
+  settled: number;
+  flights: FrontDeskGroupFlight[];
+}
+
 export interface FrontDeskCourseSheet {
   courseId: string;
   courseCode: string;
@@ -70,6 +115,7 @@ export interface FrontDeskCourseSheet {
   // course's nines are missing) - never keyed into the description.
   rotation: string | null;
   operating: boolean;
+  groups?: FrontDeskGroupBlock[];
   flights: FrontDeskFlight[];
 }
 
@@ -233,6 +279,16 @@ export class GolfFrontDeskService {
 
   meta(): Observable<FrontDeskMeta> {
     return this.http.get<FrontDeskMeta>(`${this.base}/meta`);
+  }
+
+  // Every still-booked player of a group booking on the date, whichever
+  // flight or nine they are drawn into.
+  registerGroup(bookingProfileId: string, playDate: string): Observable<{
+    message: string;
+    registered: { playerName: string; registrationNo: string }[];
+    skipped: { playerName: string; reason: string }[];
+  }> {
+    return this.http.post<{ message: string; registered: { playerName: string; registrationNo: string }[]; skipped: { playerName: string; reason: string }[] }>(`${this.base}/register-group`, { bookingProfileId, playDate });
   }
 
   registerBooked(playerId: string, guest?: GuestIdentityPayload): Observable<{ message: string; registration: FrontDeskRegistration }> {
