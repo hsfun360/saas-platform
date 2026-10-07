@@ -266,6 +266,21 @@ exports.getDay = async (req, res) => {
             if (!entriesByCell.has(key)) entriesByCell.set(key, []);
             entriesByCell.get(key).push(entry);
         }
+        // RESERVED seats per cell: a sequential-format group flight holds its
+        // cell at full capacity (availability already refuses them); the sheet
+        // shows the undrawn seats as reserved for the group, not as free.
+        const reservedByCell = new Map();
+        for (const f of groupFlights) {
+            const entry = dayByFlight.get(f.id);
+            if (!entry || isHoldFormat(entry.day)) continue;
+            const drawn = (entriesByGroupFlight.get(f.id) || []).length;
+            const open = Math.max(0, f.capacity - drawn);
+            if (!open) continue;
+            const key = availability.nineKey(f.unitCourseId, f.teeTime);
+            const cur = reservedByCell.get(key) || { seats: 0, label: entry.profile.groupName || entry.profile.bookingNo };
+            cur.seats += open;
+            reservedByCell.set(key, cur);
+        }
         const crossByCell = new Map();
         for (const r of seconds) {
             if (r.groupFlightId && isHoldFormat(dayByFlight.get(r.groupFlightId) && dayByFlight.get(r.groupFlightId).day)) continue;
@@ -319,6 +334,7 @@ exports.getDay = async (req, res) => {
                     ? crossByCell.get(availability.nineKey(course.secondNineId, teeTime)) || 0
                     : 0;
                 const crossoverOnly = slot.isCrossoverOnly === true;
+                const reserved = reservedByCell.get(key) || null;
                 // 18 holes impossible from here (user request 2026-09-30 -
                 // show it, don't let the desk find out at save): the
                 // crossover landing is closure-blocked, or no landing slot
@@ -337,9 +353,11 @@ exports.getDay = async (req, res) => {
                     crossoverOnly,
                     closed,
                     heldBy: closed ? heldBy(firstNineBlocks, t) : null,
+                    reserved: reserved ? reserved.seats : 0,
+                    reservedBy: reserved ? reserved.label : null,
                     nineHolesOnly,
                     seatsTaken: entries.length,
-                    seatsLeft: closed || crossoverOnly ? 0 : Math.max(0, slot.maxPlayers - entries.length - sameNineCross),
+                    seatsLeft: closed || crossoverOnly ? 0 : Math.max(0, slot.maxPlayers - entries.length - sameNineCross - (reserved ? reserved.seats : 0)),
                     crossCount: sameNineCross + borrowedCross,
                     entries,
                 });

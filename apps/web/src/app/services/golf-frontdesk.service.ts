@@ -61,6 +61,10 @@ export interface FrontDeskFlight {
   // The group holding this nine at this time (shotgun-format play day) -
   // shown as HELD · <group> instead of CLOSED.
   heldBy?: string | null;
+  // Seats a sequential-format group flight reserves in this cell but has not
+  // drawn players into yet (held by availability, shown as reserved).
+  reserved?: number;
+  reservedBy?: string | null;
   // 18 holes impossible from this tee-off: the crossover landing is
   // closure-blocked, or no landing slot remains (late tee-offs).
   nineHolesOnly?: boolean;

@@ -165,14 +165,17 @@
                     } @else if (f.offGrid) {
                       <span class="fd-flight__state">OFF GRID</span>
                     } @else {
-                      <span class="fd-seats" role="img" [attr.aria-label]="f.seatsTaken + ' of ' + f.maxPlayers + ' seats taken'">
+                      <span class="fd-seats" role="img" [attr.aria-label]="f.seatsTaken + ' of ' + f.maxPlayers + ' seats taken' + (f.reserved ? ', ' + f.reserved + ' reserved for ' + f.reservedBy : '')">
                         @for (s of dots(f); track $index) {
-                          <span class="fd-seat" [class.fd-seat--taken]="s !== null"
-                                [style.background]="s !== null ? colorFor(s) : null"
-                                [style.border-color]="s !== null ? colorFor(s) : null"
-                                [title]="s !== null ? statusLabel(s) : 'Available'"></span>
+                          <span class="fd-seat" [class.fd-seat--taken]="s !== null && s !== 'reserved'" [class.fd-seat--reserved]="s === 'reserved'"
+                                [style.background]="dotColor(s)"
+                                [style.border-color]="dotColor(s)"
+                                [title]="dotTitle(s, f)"></span>
                         }
                       </span>
+                      @if (f.reserved && f.entries.length === 0) {
+                        <span class="fd-flight__state fd-flight__state--held" [title]="'Reserved for ' + f.reservedBy">RESERVED · {{ f.reservedBy }}</span>
+                      }
                     }
                     @if (f.nineHolesOnly && !f.closed && !f.crossoverOnly && !f.offGrid) {
                       <span class="fd-flight__nine" title="18 holes not available from this tee time — the second nine is closed, or the day ends before the crossover">9H only</span>

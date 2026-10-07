@@ -166,11 +166,23 @@ export class GolfTeeTimeSheetComponent implements OnInit {
 
   readonly legend: PlayerDayStatus[] = ['booked', 'registered', 'billed', 'settled'];
 
-  // The flight's dots: a colour per player, null per free seat.
-  dots(f: FrontDeskFlight): (PlayerDayStatus | null)[] {
+  // The flight's dots: a colour per player, 'reserved' per seat a group
+  // flight holds without a drawn player yet, null per free seat.
+  dots(f: FrontDeskFlight): (PlayerDayStatus | 'reserved' | null)[] {
     const max = f.maxPlayers ?? f.entries.length;
-    return Array.from({ length: Math.max(max, f.entries.length) }, (_, i) =>
-      i < f.entries.length ? this.statusOf(f.entries[i]) : null);
+    const reserved = f.reserved || 0;
+    return Array.from({ length: Math.max(max, f.entries.length + reserved) }, (_, i) =>
+      i < f.entries.length ? this.statusOf(f.entries[i]) : i < f.entries.length + reserved ? 'reserved' : null);
+  }
+
+  dotColor(s: PlayerDayStatus | 'reserved' | null): string | null {
+    return s === null || s === 'reserved' ? null : this.colorFor(s);
+  }
+
+  dotTitle(s: PlayerDayStatus | 'reserved' | null, f: FrontDeskFlight): string {
+    if (s === null) return 'Available';
+    if (s === 'reserved') return `Reserved for ${f.reservedBy || 'a group'}`;
+    return this.statusLabel(s);
   }
 
   // A flight opens the drawer when there is anything to do there.

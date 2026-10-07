@@ -299,6 +299,12 @@
   background: var(--brand);
   border-color: var(--brand);
 }
+/* A seat a group flight reserves without a drawn player yet: hollow, in
+   the brand colour, so it never reads as free. */
+.fd-seat--reserved {
+  border-color: var(--brand);
+  border-style: dashed;
+}
 .fd-seat--inline {
   width: 8px;
   height: 8px;
