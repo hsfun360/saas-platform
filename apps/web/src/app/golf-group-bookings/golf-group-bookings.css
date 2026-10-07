@@ -217,6 +217,12 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* The muted captions after a name (member no, team) keep a gap. */
+.ggb-roster__name .data-card__reg,
+.ggb-draw__name .data-card__reg {
+  margin-left: var(--space-xs);
+  font-weight: var(--weight-regular, 400);
+}
 .ggb-roster__drawn {
   color: var(--text-secondary);
   min-width: 0;
@@ -371,10 +377,23 @@
   color: var(--text-muted);
   margin-bottom: var(--space-xs);
 }
+/* Mobile: each roster line stacks - type + remove, the identity on its own
+   row, then handicap + team (the 5-column desktop row cannot fit). */
 @media (max-width: 767px) {
   .ggb-rline {
-    grid-template-columns: minmax(0, 1fr) 48px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) 48px;
+    grid-template-areas:
+      'type type x'
+      'name name name'
+      'hcp team team';
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border);
   }
+  .ggb-rline > :nth-child(1) { grid-area: type; }
+  .ggb-rline > :nth-child(2) { grid-area: name; }
+  .ggb-rline > :nth-child(3) { grid-area: hcp; }
+  .ggb-rline > :nth-child(4) { grid-area: team; }
+  .ggb-rline > :nth-child(5) { grid-area: x; justify-self: end; }
   .ggb-rline--head {
     display: none;
   }

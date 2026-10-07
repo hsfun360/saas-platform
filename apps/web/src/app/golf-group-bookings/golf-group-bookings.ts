@@ -189,6 +189,8 @@ export class GolfGroupBookingsComponent implements OnInit {
 
   private applySelection(id: string | null): void {
     this.selectedId.set(id);
+    const flash = (history.state as { flash?: string } | null)?.flash;
+    if (flash) this.successMessage.set(flash);
     if (id) {
       this.returnScroll.remember(GolfGroupBookingsComponent.LIST_PATH, id);
       this.loadDetail(id);
@@ -432,10 +434,17 @@ export class GolfGroupBookingsComponent implements OnInit {
     this.saving.set(true);
     const done = (res: { message: string; booking: GolfGroupBooking }) => {
       this.saving.set(false);
+      if (this.headerMode() === 'create') {
+        // Navigate WITHOUT closing the drawer first: the route change recreates
+        // this component (and so the drawer) as a forward navigation, which the
+        // drawer's Back trap leaves alone. Closing it first would pop a history
+        // entry and undo the navigation. The message rides the navigation state.
+        this.router.navigate([GolfGroupBookingsComponent.LIST_PATH, res.booking.id], { state: { flash: res.message } });
+        return;
+      }
       this.headerDialogOpen.set(false);
       this.successMessage.set(res.message);
-      if (this.headerMode() === 'create') this.router.navigate([GolfGroupBookingsComponent.LIST_PATH, res.booking.id]);
-      else this.applyBooking(res.booking);
+      this.applyBooking(res.booking);
     };
     const fail = (err: { error?: { message?: string } }) => {
       this.saving.set(false);

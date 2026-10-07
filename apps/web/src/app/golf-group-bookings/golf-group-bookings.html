@@ -354,11 +354,13 @@
                           @if (isRegistered(p)) {
                             <span class="ggb-draw__fixed"><span class="material-icons" aria-hidden="true">lock</span> {{ registeredFlightLabel(p) }} · registered</span>
                           } @else {
-                            <select [value]="drawEdits()[p.id] || ''" (change)="setDraw(p.id, $any($event.target).value)"
+                            <!-- [selected] per option, not [value] on the select: the
+                                 select's value binding runs before its @for options exist. -->
+                            <select (change)="setDraw(p.id, $any($event.target).value)"
                                     [disabled]="b.status !== 'booked' || day.status !== 'planned'" [attr.aria-label]="'Flight for ' + p.playerName">
-                              <option value="">— Not drawn —</option>
+                              <option value="" [selected]="!drawEdits()[p.id]">— Not drawn —</option>
                               @for (f of day.flights; track f.id) {
-                                <option [value]="f.id">{{ flightTitle(f, day) }} ({{ drawLoad()[f.id] || 0 }}/{{ f.capacity }})</option>
+                                <option [value]="f.id" [selected]="drawEdits()[p.id] === f.id">{{ flightTitle(f, day) }} ({{ drawLoad()[f.id] || 0 }}/{{ f.capacity }})</option>
                               }
                             </select>
                           }
