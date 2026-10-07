@@ -103,6 +103,22 @@ GolfPlayer.belongsTo(GolfBookingProfile, { foreignKey: 'bookingProfileId', as: '
 // The crossover record points at its starting-nine record (one per pair).
 GolfPlayer.hasOne(GolfPlayer, { foreignKey: 'firstNinePlayerId', as: 'secondNineRecord' });
 
+// Group / tournament bookings (approved 2026-10-07): the header's play days,
+// reserved flights and roster are real intra-service FKs cascading with the
+// booking; the draw's Player rows reference the flight / roster row by
+// plain value refs (groupFlightId / groupPlayerId) so a flight re-draw never
+// cascades into registration history.
+const GolfGroupPlayDay = require('../modules/golf/groupPlayDay.model');
+const GolfGroupFlight = require('../modules/golf/groupFlight.model');
+const GolfGroupPlayer = require('../modules/golf/groupPlayer.model');
+
+GolfBookingProfile.hasMany(GolfGroupPlayDay, { foreignKey: 'bookingProfileId', as: 'playDays', onDelete: 'CASCADE' });
+GolfGroupPlayDay.belongsTo(GolfBookingProfile, { foreignKey: 'bookingProfileId', as: 'bookingProfile' });
+GolfGroupPlayDay.hasMany(GolfGroupFlight, { foreignKey: 'groupPlayDayId', as: 'flights', onDelete: 'CASCADE' });
+GolfGroupFlight.belongsTo(GolfGroupPlayDay, { foreignKey: 'groupPlayDayId', as: 'playDay' });
+GolfBookingProfile.hasMany(GolfGroupPlayer, { foreignKey: 'bookingProfileId', as: 'roster', onDelete: 'CASCADE' });
+GolfGroupPlayer.belongsTo(GolfBookingProfile, { foreignKey: 'bookingProfileId', as: 'bookingProfile' });
+
 // Front desk billing (2026-09-26): per-player Bill with its items and
 // payments as real intra-service FKs (Bill.playerId stays a plain value ref
 // to the starting-nine Player record).
@@ -409,6 +425,9 @@ module.exports = {
     UnitCourseClosurePlan,
     UnitCourseClosureDay,
     GolfNoShowCharge,
+    GolfGroupPlayDay,
+    GolfGroupFlight,
+    GolfGroupPlayer,
     TaxScheme,
     TaxRate,
     CompanyTaxScheme,

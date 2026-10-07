@@ -220,6 +220,10 @@ const routes: Routes = [
       // without the Unit Course setup screen (2026-09-30).
       { path: 'golf/closures', loadComponent: () => import('./app/golf-closures/golf-closures').then((m) => m.GolfClosuresComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/bookings', loadComponent: () => import('./app/golf-bookings/golf-bookings').then((m) => m.GolfBookingsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      // Group / Tournament Booking (2026-10-07): listing + the booking's own
+      // page at /:id (URL-driven, like the master-detail screens).
+      { path: 'golf/group-bookings', loadComponent: () => import('./app/golf-group-bookings/golf-group-bookings').then((m) => m.GolfGroupBookingsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
+      { path: 'golf/group-bookings/:id', loadComponent: () => import('./app/golf-group-bookings/golf-group-bookings').then((m) => m.GolfGroupBookingsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // No-show Charges - standalone menu so finance can post/waive the
       // penalties without the tee-sheet or booking grants (2026-10-06).
       { path: 'golf/no-show-charges', loadComponent: () => import('./app/golf-no-show-charges/golf-no-show-charges').then((m) => m.GolfNoShowChargesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },

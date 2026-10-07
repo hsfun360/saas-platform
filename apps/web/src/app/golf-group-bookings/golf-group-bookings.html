@@ -1,0 +1,710 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">groups</span>
+      <div>
+        <h1>{{ 'Group Bookings' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Group and tournament bookings: play days and start formats, reserved flights, the player roster and the flight draw.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- ===================== LISTING ===================== -->
+  @if (!selectedId()) {
+    <div class="ggb-filter">
+      <label for="ggbFrom">Play dates from</label>
+      <input id="ggbFrom" type="date" [value]="dateFrom()" (change)="setDateFrom($any($event.target).value)" />
+      <label for="ggbTo">to</label>
+      <input id="ggbTo" type="date" [value]="dateTo()" (change)="setDateTo($any($event.target).value)" />
+      <label for="ggbStatus">Status</label>
+      <select id="ggbStatus" [value]="status()" (change)="setStatus($any($event.target).value)">
+        <option value="">All</option>
+        @for (s of option(meta()?.statuses); track s.key) {
+          <option [value]="s.key">{{ s.label }}</option>
+        }
+      </select>
+    </div>
+    <div class="ggb-search">
+      <span class="material-icons ggb-search__icon" aria-hidden="true">search</span>
+      <input type="search" [value]="search()" (input)="search.set($any($event.target).value)"
+             placeholder="Search by group, booking no, organiser or course…" aria-label="Search group bookings" />
+      @if (search()) {
+        <button type="button" class="ggb-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+
+    @if (loading()) {
+      <div class="loading-state"><div class="spinner large"></div><p>Loading group bookings…</p></div>
+    } @else if (bookings().length === 0) {
+      <div class="empty-state">
+        <span class="material-icons empty-icon" aria-hidden="true">groups</span>
+        <p>No group bookings in this period. Use 'New group booking' to make the first one.</p>
+      </div>
+    } @else if (filtered().length === 0) {
+      <div class="empty-state">
+        <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+        <p>No group bookings match "{{ search() }}"</p>
+        <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+      </div>
+    } @else {
+      <div class="data-list">
+        @for (b of filtered(); track b.id) {
+          <div class="data-card" [attr.data-return-id]="b.id">
+            <div class="data-row data-row--with-badge">
+              <div class="data-row__main">
+                <div class="data-card__title">{{ b.groupName }}</div>
+                <div class="data-card__subline">
+                  <span class="ggb-type" [class.ggb-type--tournament]="b.bookingType === 'tournament'">{{ typeLabel(b.bookingType) }}</span>
+                  <span class="data-card__reg">({{ b.bookingNo }})</span>
+                  <span>{{ b.playDate | localDate }}@if (b.playDateTo && b.playDateTo !== b.playDate) { – {{ b.playDateTo | localDate }}}</span>
+                  <span class="data-card__reg">{{ b.courses.join(', ') }}</span>
+                </div>
+                <dl class="data-card__meta">
+                  <div class="meta"><dt>Organiser</dt><dd>{{ b.organiserName || '—' }}</dd></div>
+                  <div class="meta"><dt>Days</dt><dd>{{ b.dayCount }}</dd></div>
+                  <div class="meta"><dt>Roster</dt><dd>{{ b.rosterCount }}{{ b.expectedPlayers ? ' of ' + b.expectedPlayers : '' }}</dd></div>
+                </dl>
+              </div>
+              <span class="data-row__badge status-chip" [class.status-chip--on]="b.status === 'booked'" [class.status-chip--off]="b.status !== 'booked'">
+                {{ statusLabel(b.status) }}
+              </span>
+              <div class="data-row__actions">
+                <button type="button" class="btn btn--secondary btn--sm" (click)="open(b)">
+                  <span class="material-icons" aria-hidden="true">open_in_new</span>
+                  Open
+                </button>
+                @if (b.status === 'booked' && b.canModify !== false) {
+                  <app-overflow-menu [label]="'More actions for ' + b.groupName" *appCan="'edit'">
+                    <button type="button" appMenuItem (click)="openCancel(b)">
+                      <span class="material-icons" aria-hidden="true">event_busy</span>
+                      Cancel booking
+                    </button>
+                  </app-overflow-menu>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <button type="button" class="btn btn--primary fab" (click)="openCreate()" aria-label="New group booking" *appCan="'create'">
+      <span class="material-icons" aria-hidden="true">add</span>
+      New group booking
+    </button>
+  }
+
+  <!-- ===================== DETAIL ===================== -->
+  @if (selectedId()) {
+    <button type="button" class="btn btn--link ggb-back" (click)="back()">
+      <span class="material-icons" aria-hidden="true">arrow_back</span>
+      All group bookings
+    </button>
+
+    @if (detailLoading() && !booking()) {
+      <div class="loading-state"><div class="spinner large"></div><p>Loading the booking…</p></div>
+    }
+
+    @if (booking(); as b) {
+      <!-- ---- Header card ---- -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('header')" [attr.aria-expanded]="isExpanded('header')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">{{ b.groupName }} <span class="ggb-type" [class.ggb-type--tournament]="b.bookingType === 'tournament'">{{ typeLabel(b.bookingType) }}</span>
+              <span class="status-chip" [class.status-chip--on]="b.status === 'booked'" [class.status-chip--off]="b.status !== 'booked'">{{ statusLabel(b.status) }}</span>
+            </span>
+            <span class="settings-header__sub">{{ b.bookingNo }} · {{ b.playDate | localDate }}@if (b.playDateTo && b.playDateTo !== b.playDate) { – {{ b.playDateTo | localDate }}} · {{ organiserLine(b) }}</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('header')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('header')) {
+          <div class="settings-body">
+            <dl class="data-card__meta ggb-meta">
+              <div class="meta"><dt>Organiser</dt><dd>{{ b.organiserName || '—' }}</dd></div>
+              <div class="meta"><dt>Billing party</dt><dd>{{ b.debtorType === 'other' ? 'City ledger (Other Debtor)' : (b.debtorType ? 'Member account' : 'Cash only - no account') }}</dd></div>
+              <div class="meta"><dt>Contact</dt><dd>{{ b.contactPerson || '—' }}{{ b.contactMobile ? ' · ' + b.contactMobile : '' }}</dd></div>
+              <div class="meta"><dt>Expected players</dt><dd>{{ b.expectedPlayers ?? '—' }}</dd></div>
+              <div class="meta"><dt>Roster</dt><dd>{{ b.rosterCount }} listed</dd></div>
+              @if (b.remarks) { <div class="meta"><dt>Remarks</dt><dd>{{ b.remarks }}</dd></div> }
+              @if (b.status === 'cancelled') { <div class="meta"><dt>Cancelled</dt><dd>{{ b.cancelReason || '—' }}</dd></div> }
+            </dl>
+            @if (b.status === 'booked' && b.canModify !== false) {
+              <div class="ggb-actions" *appCan="'edit'">
+                <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(b)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit details
+                </button>
+                <app-overflow-menu [label]="'More actions for ' + b.groupName">
+                  <button type="button" appMenuItem (click)="openCancel(b)">
+                    <span class="material-icons" aria-hidden="true">event_busy</span>
+                    Cancel booking
+                  </button>
+                </app-overflow-menu>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- ---- Play days & flights ---- -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('days')" [attr.aria-expanded]="isExpanded('days')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Play days &amp; flights</span>
+            <span class="settings-header__sub">{{ b.days.length }} day(s). Each day has its own course and start format; reserve its flights to hold the tee sheet.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('days')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('days')) {
+          <div class="settings-body">
+            @for (d of b.days; track d.id) {
+              <div class="ggb-day" [class.ggb-day--off]="d.status !== 'planned'">
+                <div class="data-row data-row--with-badge">
+                  <div class="data-row__main">
+                    <div class="data-card__title">{{ d.playDate | localDate:'weekday' }} · {{ d.courseLabel }}</div>
+                    <div class="data-card__subline">
+                      <span class="ggb-format">{{ formatLabel(d.startFormat) }}</span>
+                      <span>{{ d.holes }} holes</span>
+                      <span class="data-card__reg">{{ dayWindow(d) }}</span>
+                      @if (d.remarks) { <span class="data-card__reg">{{ d.remarks }}</span> }
+                    </div>
+                    <div class="data-card__desc">
+                      @if (d.flights.length) {
+                        {{ d.flights.length }} flight(s) · {{ d.seatCount }} seats · {{ d.drawnCount }} drawn
+                      } @else {
+                        No flights reserved yet - the tee sheet is not held for this day.
+                      }
+                    </div>
+                  </div>
+                  <span class="data-row__badge status-chip" [class.status-chip--on]="d.status === 'planned'" [class.status-chip--off]="d.status !== 'planned'">{{ d.status }}</span>
+                  @if (b.status === 'booked' && d.status === 'planned' && b.canModify !== false) {
+                    <div class="data-row__actions" *appCan="'edit'">
+                      <button type="button" class="btn btn--primary btn--sm" (click)="openFlights(d)">
+                        <span class="material-icons" aria-hidden="true">event_seat</span>
+                        {{ d.flights.length ? 'Reserve again' : 'Reserve flights' }}
+                      </button>
+                      <app-overflow-menu [label]="'More actions for ' + d.playDate">
+                        <button type="button" appMenuItem (click)="openEditDay(d)">
+                          <span class="material-icons" aria-hidden="true">edit</span>
+                          Edit day
+                        </button>
+                        <button type="button" appMenuItem (click)="askRemoveDay(d)">
+                          <span class="material-icons" aria-hidden="true">delete</span>
+                          Remove day
+                        </button>
+                      </app-overflow-menu>
+                    </div>
+                  }
+                </div>
+                @if (d.flights.length) {
+                  <div class="ggb-flights">
+                    @for (f of d.flights; track f.id) {
+                      <div class="ggb-flight" [class.ggb-flight--full]="f.players.length >= f.capacity">
+                        <div class="ggb-flight__head">
+                          <strong>{{ f.flightLabel }}</strong>
+                          <span>{{ f.teeTime }}</span>
+                          @if (flightNine(f, d); as nine) { <span class="data-card__reg">{{ nine }}</span> }
+                          <span class="ggb-flight__seats">{{ f.players.length }}/{{ f.capacity }}</span>
+                          @if (f.players.length === 0 && b.status === 'booked' && b.canModify !== false) {
+                            <button type="button" class="ggb-flight__x" (click)="askRemoveFlight(d, f)" [attr.aria-label]="'Release flight ' + f.flightLabel" *appCan="'edit'">
+                              <span class="material-icons" aria-hidden="true">close</span>
+                            </button>
+                          }
+                        </div>
+                        @if (f.players.length) {
+                          <div class="ggb-flight__players">{{ flightPlayersText(f) }}</div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+            @if (b.status === 'booked' && b.canModify !== false) {
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openAddDay()" *appCan="'edit'">
+                <span class="material-icons" aria-hidden="true">add</span>
+                Add play day
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- ---- Roster ---- -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('roster')" [attr.aria-expanded]="isExpanded('roster')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Roster</span>
+            <span class="settings-header__sub">{{ b.rosterCount }} listed{{ b.expectedPlayers ? ' of ' + b.expectedPlayers + ' expected' : '' }}. One row per person for the whole booking; the draw places them into flights.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('roster')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('roster')) {
+          <div class="settings-body">
+            @if (!b.roster.length) {
+              <p class="cell-subtle">No players yet. Use 'Add players' to key the organiser's list.</p>
+            } @else {
+              <div class="ggb-roster">
+                <div class="ggb-roster__row ggb-roster__row--head" aria-hidden="true">
+                  <span>#</span><span>Player</span><span>Type</span><span>Hcp</span><span>Team</span><span>Drawn</span><span></span>
+                </div>
+                @for (p of b.roster; track p.id; let i = $index) {
+                  <div class="ggb-roster__row" [class.ggb-roster__row--off]="p.status === 'withdrawn'">
+                    <span class="ggb-roster__no">{{ i + 1 }}</span>
+                    <span class="ggb-roster__name">{{ p.playerName }}@if (p.memberNo) { <span class="data-card__reg">({{ p.memberNo }})</span> }</span>
+                    <span>{{ playerTypeLabel(p.playerType) }}</span>
+                    <span>{{ p.handicap ?? '—' }}</span>
+                    <span>{{ p.teamName || '—' }}</span>
+                    <span class="ggb-roster__drawn">{{ p.status === 'withdrawn' ? 'Withdrawn' : drawnSummary(p) }}</span>
+                    <span class="ggb-roster__actions">
+                      @if (b.status === 'booked' && b.canModify !== false) {
+                        <app-overflow-menu [label]="'More actions for ' + p.playerName" *appCan="'edit'">
+                          <button type="button" appMenuItem (click)="openEditPlayer(p)">
+                            <span class="material-icons" aria-hidden="true">edit</span>
+                            Edit
+                          </button>
+                          @if (p.status === 'listed') {
+                            <button type="button" appMenuItem (click)="withdraw(p, 'withdrawn')">
+                              <span class="material-icons" aria-hidden="true">block</span>
+                              Withdraw
+                            </button>
+                          } @else {
+                            <button type="button" appMenuItem (click)="withdraw(p, 'listed')">
+                              <span class="material-icons" aria-hidden="true">check_circle</span>
+                              List again
+                            </button>
+                          }
+                          <button type="button" appMenuItem (click)="askRemovePlayer(p)">
+                            <span class="material-icons" aria-hidden="true">delete</span>
+                            Remove
+                          </button>
+                        </app-overflow-menu>
+                      }
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+            @if (b.status === 'booked' && b.canModify !== false) {
+              <button type="button" class="btn btn--secondary btn--sm" (click)="openAddPlayers()" *appCan="'edit'">
+                <span class="material-icons" aria-hidden="true">person_add</span>
+                Add players
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- ---- Draw ---- -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('draw')" [attr.aria-expanded]="isExpanded('draw')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Flight draw</span>
+            <span class="settings-header__sub">Place roster players into a day's reserved flights. Saving writes the players onto the tee sheet; registered players never move.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('draw')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('draw')) {
+          <div class="settings-body">
+            @if (!b.days.length) {
+              <p class="cell-subtle">Add a play day first.</p>
+            } @else {
+              <div class="ggb-draw-bar">
+                <label for="ggbDrawDay">Play day</label>
+                <select id="ggbDrawDay" [value]="drawDay()?.id || ''" (change)="selectDrawDay($any($event.target).value)">
+                  @for (d of b.days; track d.id) {
+                    <option [value]="d.id">{{ d.playDate }} · {{ d.courseLabel }}</option>
+                  }
+                </select>
+                @if (drawDay(); as day) {
+                  <span class="ggb-draw-sum" [class.ggb-draw-sum--over]="drawSummary().over.length">
+                    {{ drawSummary().drawn }} of {{ drawSummary().listed }} drawn · {{ drawSummary().seats }} seats
+                    @if (drawSummary().over.length) { · over capacity: {{ drawSummary().over.join(', ') }} }
+                  </span>
+                }
+              </div>
+              @if (drawDay(); as day) {
+                @if (!day.flights.length) {
+                  <p class="cell-subtle">Reserve this day's flights before drawing.</p>
+                } @else if (!b.roster.length) {
+                  <p class="cell-subtle">Add players to the roster before drawing.</p>
+                } @else {
+                  <div class="ggb-draw">
+                    @for (p of b.roster; track p.id) {
+                      @if (p.status === 'listed') {
+                        <div class="ggb-draw__row">
+                          <span class="ggb-draw__name">{{ p.playerName }}@if (p.memberNo) { <span class="data-card__reg">({{ p.memberNo }})</span> }@if (p.teamName) { <span class="data-card__reg">· {{ p.teamName }}</span> }</span>
+                          @if (isRegistered(p)) {
+                            <span class="ggb-draw__fixed"><span class="material-icons" aria-hidden="true">lock</span> {{ registeredFlightLabel(p) }} · registered</span>
+                          } @else {
+                            <select [value]="drawEdits()[p.id] || ''" (change)="setDraw(p.id, $any($event.target).value)"
+                                    [disabled]="b.status !== 'booked' || day.status !== 'planned'" [attr.aria-label]="'Flight for ' + p.playerName">
+                              <option value="">— Not drawn —</option>
+                              @for (f of day.flights; track f.id) {
+                                <option [value]="f.id">{{ flightTitle(f, day) }} ({{ drawLoad()[f.id] || 0 }}/{{ f.capacity }})</option>
+                              }
+                            </select>
+                          }
+                        </div>
+                      }
+                    }
+                  </div>
+                  @if (b.status === 'booked' && day.status === 'planned' && b.canModify !== false) {
+                    <div class="ggb-actions" *appCan="'edit'">
+                      <button type="button" class="btn btn--secondary btn--sm" (click)="autoFill()">
+                        <span class="material-icons" aria-hidden="true">auto_fix_high</span>
+                        Fill in roster order
+                      </button>
+                      <button type="button" class="btn btn--secondary btn--sm" (click)="clearDraw()">
+                        <span class="material-icons" aria-hidden="true">backspace</span>
+                        Clear
+                      </button>
+                      <button type="button" class="btn btn--primary btn--sm" (click)="saveDraw()" [disabled]="saving() || !drawDirty()">
+                        {{ saving() ? 'Saving…' : 'Save draw for ' + day.playDate }}
+                      </button>
+                    </div>
+                  }
+                }
+              }
+            }
+          </div>
+        }
+      </div>
+    }
+  }
+
+  <!-- ============ Header dialog (create: header + days; edit: header) ============ -->
+  @if (headerDialogOpen()) {
+    <app-dialog #hdlg variant="drawer" [title]="headerMode() === 'create' ? 'New group booking' : 'Edit group booking'"
+                [busy]="saving()" [dirty]="headerDirty()" (close)="headerDialogOpen.set(false)">
+      <form id="ggbHeader" [formGroup]="headerForm" (ngSubmit)="saveHeader()" class="saas-form" style="padding: 0;">
+        <div class="ggb-grid">
+          <div class="form-group">
+            <label for="ggbType">Booking type <span class="required">*</span></label>
+            <select id="ggbType" formControlName="bookingType">
+              @for (t of option(meta()?.bookingTypes); track t.key) { <option [value]="t.key">{{ t.label }}</option> }
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="ggbName">Group / tournament name <span class="required">*</span></label>
+            <input id="ggbName" type="text" formControlName="groupName" maxlength="150" autocomplete="off"
+                   [attr.aria-invalid]="showError(headerForm.controls.groupName)" />
+            @if (showError(headerForm.controls.groupName)) { <p class="field-error" role="alert">Key in the name.</p> }
+          </div>
+          <div class="form-group">
+            <label for="ggbOrgKind">Organiser <span class="required">*</span></label>
+            <select id="ggbOrgKind" formControlName="organiserKind">
+              <option value="other">City ledger account (travel agent, society, corporate)</option>
+              <option value="member">Member</option>
+              <option value="none">No account (cash only)</option>
+            </select>
+          </div>
+          @switch (headerForm.controls.organiserKind.value) {
+            @case ('other') {
+              <div class="form-group">
+                <label for="ggbDebtor">Other Debtor <span class="required">*</span></label>
+                <app-combobox formControlName="otherDebtorId" [options]="debtorOptions()" [allowEmpty]="false" inputId="ggbDebtor" placeholder="Type the code or name…" />
+                <p class="cell-subtle">Finance opens the account under Account Receivable → Other Debtors.</p>
+              </div>
+            }
+            @case ('member') {
+              <div class="form-group">
+                <label for="ggbMember">Member No <span class="required">*</span></label>
+                <input id="ggbMember" type="text" formControlName="memberNo" maxlength="50" autocomplete="off" />
+              </div>
+            }
+            @default {
+              <div class="form-group">
+                <label for="ggbOrgName">Organiser name <span class="required">*</span></label>
+                <input id="ggbOrgName" type="text" formControlName="organiserName" maxlength="150" autocomplete="off" />
+              </div>
+            }
+          }
+          <div class="form-group">
+            <label for="ggbContact">Contact person</label>
+            <input id="ggbContact" type="text" formControlName="contactPerson" maxlength="100" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="ggbMobile">Contact mobile</label>
+            <input id="ggbMobile" type="tel" formControlName="contactMobile" maxlength="30" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="ggbExpected">Expected players</label>
+            <input id="ggbExpected" type="number" inputmode="numeric" min="1" max="999" formControlName="expectedPlayers" />
+          </div>
+          <div class="form-group">
+            <label for="ggbRemarks">Remarks</label>
+            <textarea id="ggbRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255"></textarea>
+          </div>
+        </div>
+
+        @if (headerMode() === 'create') {
+          <h3 class="ggb-h3">Play days</h3>
+          <p class="cell-subtle">One line per day. Each day plays its own course with its own start format; flights are reserved on the booking page afterwards.</p>
+          @for (g of dayLines.controls; track g; let i = $index) {
+            <div class="ggb-dayline" [formGroup]="g">
+              <div class="ggb-grid">
+                <div class="form-group">
+                  <label [for]="'ggbDlDate' + i">Date <span class="required">*</span></label>
+                  <input [id]="'ggbDlDate' + i" type="date" formControlName="playDate" [attr.aria-invalid]="showError(g.controls.playDate)" />
+                </div>
+                <div class="form-group">
+                  <label [for]="'ggbDlCourse' + i">Course <span class="required">*</span></label>
+                  <app-combobox formControlName="courseId" [options]="courseOptions()" [allowEmpty]="false" [inputId]="'ggbDlCourse' + i" placeholder="Pick the course…" />
+                </div>
+                <div class="form-group">
+                  <label [for]="'ggbDlHoles' + i">Holes</label>
+                  <select [id]="'ggbDlHoles' + i" formControlName="holes">
+                    <option [ngValue]="9">9 holes</option>
+                    <option [ngValue]="18">18 holes</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label [for]="'ggbDlFormat' + i">Start format</label>
+                  <select [id]="'ggbDlFormat' + i" formControlName="startFormat">
+                    @for (f of option(meta()?.startFormats); track f.key) { <option [value]="f.key">{{ f.label }}</option> }
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label [for]="'ggbDlStart' + i">{{ dayLineHold(g) ? 'Shotgun time' : 'First tee time' }} <span class="required">*</span></label>
+                  <input [id]="'ggbDlStart' + i" type="time" formControlName="startTime" />
+                </div>
+                @if (dayLineHold(g)) {
+                  <div class="form-group">
+                    <label [for]="'ggbDlUntil' + i">Course held until <span class="required">*</span></label>
+                    <input [id]="'ggbDlUntil' + i" type="time" formControlName="blockUntil" />
+                  </div>
+                  <div class="form-group">
+                    <label [for]="'ggbDlWaves' + i">Waves</label>
+                    <input [id]="'ggbDlWaves' + i" type="number" inputmode="numeric" min="1" max="4" formControlName="waves" />
+                  </div>
+                  @if (g.controls.startFormat.value === 'modified-shotgun') {
+                    <div class="form-group">
+                      <label [for]="'ggbDlHolesUsed' + i">Start holes <span class="required">*</span></label>
+                      <input [id]="'ggbDlHolesUsed' + i" type="text" formControlName="startHoles" placeholder="e.g. 1, 3, 5, 10, 12" />
+                    </div>
+                  }
+                }
+              </div>
+              @if (dayLines.length > 1) {
+                <button type="button" class="btn btn--danger btn--sm" (click)="removeDayLine(i)">
+                  <span class="material-icons" aria-hidden="true">close</span>
+                  Remove day
+                </button>
+              }
+            </div>
+          }
+          <button type="button" class="btn btn--secondary btn--sm" (click)="addDayLine()">
+            <span class="material-icons" aria-hidden="true">add</span>
+            Add another day
+          </button>
+        }
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="hdlg.requestClose()">Cancel</button>
+        <button type="submit" form="ggbHeader" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Day dialog (add / edit one play day) ============ -->
+  @if (dayDialogOpen()) {
+    <app-dialog #ddlg variant="drawer" [title]="dayEditing() ? 'Edit play day' : 'Add play day'" [busy]="saving()" [dirty]="dayForm.dirty" (close)="dayDialogOpen.set(false)">
+      <form id="ggbDay" [formGroup]="dayForm" (ngSubmit)="saveDay()" class="saas-form" style="padding: 0;">
+        @if (dayEditing()?.flights?.length) {
+          <p class="ggb-note">Changing the date, course, holes, format or times drops this day's reserved flights - reserve them again afterwards. A day with drawn players cannot change structure.</p>
+        }
+        <div class="ggb-grid">
+          <div class="form-group">
+            <label for="ggbDDate">Date <span class="required">*</span></label>
+            <input id="ggbDDate" type="date" formControlName="playDate" [attr.aria-invalid]="showError(dayForm.controls.playDate)" />
+          </div>
+          <div class="form-group">
+            <label for="ggbDCourse">Course <span class="required">*</span></label>
+            <app-combobox formControlName="courseId" [options]="courseOptions()" [allowEmpty]="false" inputId="ggbDCourse" placeholder="Pick the course…" />
+          </div>
+          <div class="form-group">
+            <label for="ggbDHoles">Holes</label>
+            <select id="ggbDHoles" formControlName="holes">
+              <option [ngValue]="9">9 holes</option>
+              <option [ngValue]="18">18 holes</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="ggbDFormat">Start format</label>
+            <select id="ggbDFormat" formControlName="startFormat">
+              @for (f of option(meta()?.startFormats); track f.key) { <option [value]="f.key">{{ f.label }}</option> }
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="ggbDStart">{{ dayFormHold ? 'Shotgun time' : 'First tee time' }} <span class="required">*</span></label>
+            <input id="ggbDStart" type="time" formControlName="startTime" />
+          </div>
+          @if (dayFormHold) {
+            <div class="form-group">
+              <label for="ggbDUntil">Course held until <span class="required">*</span></label>
+              <input id="ggbDUntil" type="time" formControlName="blockUntil" />
+            </div>
+            <div class="form-group">
+              <label for="ggbDWaves">Waves</label>
+              <input id="ggbDWaves" type="number" inputmode="numeric" min="1" max="4" formControlName="waves" />
+            </div>
+            @if (dayForm.controls.startFormat.value === 'modified-shotgun') {
+              <div class="form-group">
+                <label for="ggbDHolesUsed">Start holes <span class="required">*</span></label>
+                <input id="ggbDHolesUsed" type="text" formControlName="startHoles" placeholder="e.g. 1, 3, 5, 10, 12" />
+              </div>
+            }
+          }
+          <div class="form-group">
+            <label for="ggbDRemarks">Remarks</label>
+            <textarea id="ggbDRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255"></textarea>
+          </div>
+        </div>
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="ddlg.requestClose()">Cancel</button>
+        <button type="submit" form="ggbDay" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Reserve flights (centred - a decision with a preview) ============ -->
+  @if (flightsDay(); as d) {
+    <app-dialog [title]="'Reserve flights - ' + d.playDate" [busy]="saving()" (close)="flightsDay.set(null)">
+      <p>{{ formatLabel(d.startFormat) }} on <strong>{{ d.courseLabel }}</strong>, {{ d.holes }} holes, {{ dayWindow(d) }}.
+        @if (d.flights.length) { The {{ d.flights.length }} flight(s) already reserved are replaced. }
+      </p>
+      <form id="ggbFlights" [formGroup]="flightsForm" (ngSubmit)="reserveFlights()" class="saas-form" style="padding: 0;">
+        <div class="ggb-grid">
+          @if (!isHold(d.startFormat)) {
+            <div class="form-group">
+              <label for="ggbFCount">Number of flights <span class="required">*</span></label>
+              <input id="ggbFCount" type="number" inputmode="numeric" min="1" max="80" formControlName="count" />
+              <p class="cell-subtle">Consecutive tee times from {{ d.startTime }}{{ d.startFormat === 'two-tee' ? ', alternating both nines' : '' }}.</p>
+            </div>
+          } @else {
+            <div class="form-group">
+              <label for="ggbFDouble">Holes taking two flights (A/B)</label>
+              <input id="ggbFDouble" type="text" formControlName="doubleHoles" placeholder="e.g. 1, 9, 10, 18" />
+              <p class="cell-subtle">Usually the par 5s. Leave blank for one flight per hole.</p>
+            </div>
+            @if (d.waves > 1) {
+              <div class="form-group">
+                <label for="ggbFGap">Gap between waves (minutes) <span class="required">*</span></label>
+                <input id="ggbFGap" type="number" inputmode="numeric" min="30" max="600" formControlName="waveGapMinutes" />
+              </div>
+            }
+          }
+          <div class="form-group">
+            <label for="ggbFCap">Players per flight <span class="required">*</span></label>
+            <input id="ggbFCap" type="number" inputmode="numeric" min="1" max="6" formControlName="capacity" />
+          </div>
+        </div>
+        <p class="ggb-preview"><span class="material-icons" aria-hidden="true">event_seat</span> {{ flightsPreview() }}</p>
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="flightsDay.set(null)" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="ggbFlights" class="btn btn--primary" [disabled]="saving() || flightsForm.invalid">{{ saving() ? 'Reserving…' : 'Reserve' }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Roster dialog (add many / edit one) ============ -->
+  @if (rosterDialogOpen()) {
+    <app-dialog #rdlg variant="drawer" [title]="rosterEditing() ? 'Edit player' : 'Add players'" [busy]="saving()" [dirty]="rosterLines.dirty" (close)="rosterDialogOpen.set(false)">
+      <form id="ggbRoster" [formGroup]="rosterForm" (ngSubmit)="savePlayers()" class="saas-form" style="padding: 0;">
+        @if (!rosterEditing()) {
+          <p class="cell-subtle">Members by member number (the name comes from the membership record); guests by name. Blank rows are ignored.</p>
+        }
+        <div class="ggb-rline ggb-rline--head" aria-hidden="true">
+          <span>Type</span><span>Member No / Name</span><span>Hcp</span><span>Team</span><span></span>
+        </div>
+        @for (g of rosterLines.controls; track g; let i = $index) {
+          <div class="ggb-rline" [formGroup]="g">
+            <select formControlName="playerType" [attr.aria-label]="'Player ' + (i + 1) + ' type'">
+              @for (t of option(meta()?.playerTypes); track t.key) { <option [value]="t.key">{{ t.label }}</option> }
+            </select>
+            @if (g.controls.playerType.value === 'guest') {
+              <input type="text" formControlName="playerName" maxlength="255" placeholder="Guest name" [attr.aria-label]="'Player ' + (i + 1) + ' name'" />
+            } @else {
+              <input type="text" formControlName="memberNo" maxlength="50" placeholder="Member No" [attr.aria-label]="'Player ' + (i + 1) + ' member number'" />
+            }
+            <input type="number" inputmode="decimal" step="0.1" min="-10" max="54" formControlName="handicap" placeholder="Hcp" [attr.aria-label]="'Player ' + (i + 1) + ' handicap'" />
+            <input type="text" formControlName="teamName" maxlength="100" placeholder="Team" [attr.aria-label]="'Player ' + (i + 1) + ' team'" />
+            @if (!rosterEditing()) {
+              <button type="button" class="btn btn--danger btn--sm" (click)="removeRosterLine(i)" [attr.aria-label]="'Remove row ' + (i + 1)">
+                <span class="material-icons" aria-hidden="true">close</span>
+              </button>
+            } @else { <span></span> }
+          </div>
+        }
+        @if (!rosterEditing()) {
+          <button type="button" class="btn btn--secondary btn--sm" (click)="addRosterLine()">
+            <span class="material-icons" aria-hidden="true">add</span>
+            Add row
+          </button>
+        } @else {
+          <div class="form-group" style="margin-top: var(--space-md);">
+            <label for="ggbRStatus">Status</label>
+            <select id="ggbRStatus" [value]="rosterStatus()" (change)="rosterStatus.set($any($event.target).value)">
+              <option value="listed">Listed</option>
+              <option value="withdrawn">Withdrawn</option>
+            </select>
+          </div>
+        }
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="rdlg.requestClose()">Cancel</button>
+        <button type="submit" form="ggbRoster" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Cancel confirmation (centred) ============ -->
+  @if (cancelTarget(); as target) {
+    <app-dialog title="Cancel group booking" [busy]="working()" (close)="cancelTarget.set(null)">
+      <p>Cancel <strong>{{ target.groupName }}</strong> ({{ target.bookingNo }})? Every play day's hold is released and all booked players come off the tee sheet. Registered players stay on record.</p>
+      <div class="form-group">
+        <label for="ggbCancelReason">Reason</label>
+        <textarea id="ggbCancelReason" rows="2" wrap="off" [value]="cancelReason()" (input)="cancelReason.set($any($event.target).value)"></textarea>
+      </div>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cancelTarget.set(null)" [disabled]="working()">Keep booking</button>
+        <button type="button" class="btn btn--danger" (click)="confirmCancel()" [disabled]="working()">{{ working() ? 'Cancelling…' : 'Cancel booking' }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Remove confirmation (centred) ============ -->
+  @if (confirmTarget(); as t) {
+    <app-dialog [title]="t.kind === 'day' ? 'Remove play day' : t.kind === 'flight' ? 'Release flight' : 'Remove player'" [busy]="working()" (close)="confirmTarget.set(null)">
+      @switch (t.kind) {
+        @case ('day') { <p>Remove play day <strong>{{ t.label }}</strong> and its reserved flights? Only a day with no drawn players can be removed.</p> }
+        @case ('flight') { <p>Release flight <strong>{{ t.label }}</strong>? Its seats go back to the tee sheet.</p> }
+        @default { <p>Remove <strong>{{ t.label }}</strong> from the roster? Any flight they were drawn into frees the seat.</p> }
+      }
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="confirmTarget.set(null)" [disabled]="working()">Keep</button>
+        <button type="button" class="btn btn--danger" (click)="confirmRemove()" [disabled]="working()">{{ working() ? 'Removing…' : (t.kind === 'flight' ? 'Release' : 'Remove') }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

@@ -26,7 +26,10 @@ const UnitCourseClosureDay = require('./unitCourseClosureDay.model');
 const BookingProfile = require('./bookingProfile.model');
 const Player = require('./player.model');
 const FlightLock = require('./flightLock.model');
+const GroupPlayDay = require('./groupPlayDay.model');
+const GroupFlight = require('./groupFlight.model');
 const { ACTIVE_PLAYER_STATUS_KEYS } = require('./registration.constants');
+const { COURSE_HOLD_FORMATS } = require('./groupBooking.constants');
 
 // ---- time helpers ('HH:MM' strings throughout) ----------------------------
 
@@ -148,6 +151,59 @@ function nineBlocked(blocks, timeMinutes) {
     });
 }
 
+// ---- group booking holds (2026-10-07) ---------------------------------------
+
+// The GROUP BOOKING holds on a date: the planned play days of still-BOOKED
+// group/tournament bookings and their reserved flights. Shotgun-format days
+// HOLD the course's nines for startTime..blockUntil (merged into
+// ctx.nineBlocks as kind 'group'); sequential-format flights hold their
+// tee-time CELL at full capacity (applied in occupancy()). Returns
+// { days: [{ day, profile }], flights: [GroupFlight], dayById }.
+async function groupHolds(companyId, playDate, { transaction } = {}) {
+    const days = await GroupPlayDay.findAll({
+        where: { companyId, playDate, status: 'planned' },
+        transaction,
+    });
+    if (!days.length) return { days: [], flights: [], dayById: new Map() };
+    const profiles = await BookingProfile.findAll({
+        where: { companyId, status: 'booked', id: { [Op.in]: [...new Set(days.map((d) => d.bookingProfileId))] } },
+        attributes: ['id', 'bookingNo', 'groupName', 'bookingType'],
+        transaction,
+    });
+    const profileById = new Map(profiles.map((p) => [p.id, p]));
+    const live = days.filter((d) => profileById.has(d.bookingProfileId)).map((d) => ({ day: d, profile: profileById.get(d.bookingProfileId) }));
+    if (!live.length) return { days: [], flights: [], dayById: new Map() };
+    const flights = await GroupFlight.findAll({
+        where: { groupPlayDayId: { [Op.in]: live.map((x) => x.day.id) } },
+        order: [['sortOrder', 'ASC'], ['teeTime', 'ASC']],
+        transaction,
+    });
+    return { days: live, flights, dayById: new Map(live.map((x) => [x.day.id, x])) };
+}
+
+// Merge the shotgun-format holds into a nineBlocks map (mutates `map`):
+// both nines of the day's course are blocked for the window, labelled so
+// the tee sheet can say "GROUP" rather than "CLOSED".
+function applyGroupBlocks(map, holds, courseById) {
+    for (const { day, profile } of holds.days) {
+        if (!COURSE_HOLD_FORMATS.includes(day.startFormat)) continue;
+        const course = courseById.get(day.courseId);
+        if (!course) continue;
+        const block = {
+            start: toMinutes(day.startTime),
+            end: day.blockUntil ? toMinutes(day.blockUntil) : 24 * 60,
+            kind: 'group',
+            label: profile.groupName || profile.bookingNo,
+            bookingProfileId: profile.id,
+        };
+        for (const nineId of [course.firstNineId, course.secondNineId]) {
+            if (!nineId) continue;
+            if (!map.has(nineId)) map.set(nineId, []);
+            map.get(nineId).push({ ...block });
+        }
+    }
+}
+
 // ---- day context (grids + nine ownership) ----------------------------------
 
 // One shared resolve of the day's grids: per course its set/slots, the
@@ -176,22 +232,42 @@ async function dayContext(companyId, playDate, dayType, { courses = null, transa
             nineOwner.set(course.firstNineId, { course, slots });
         }
     }
-    return { courses: list, byCourse, nineOwner, nineBlocks };
+    // Group booking holds (2026-10-07): shotgun-format play days block their
+    // course's nines for the window, like a closure; sequential flights are
+    // applied by occupancy(). A held course that is no longer in `list`
+    // (deactivated) is resolved on its own so its hold still shows.
+    const holds = await groupHolds(companyId, playDate, { transaction });
+    const courseById = new Map(list.map((c) => [c.id, c]));
+    const missing = [...new Set(holds.days.map((x) => x.day.courseId))].filter((id) => !courseById.has(id));
+    if (missing.length) {
+        for (const c of await Course.findAll({ where: { companyId, id: { [Op.in]: missing } }, transaction })) courseById.set(c.id, c);
+    }
+    applyGroupBlocks(nineBlocks, holds, courseById);
+    return { courses: list, byCourse, nineOwner, nineBlocks, holds, courseById };
 }
 
-// The crossover LANDING slot for a start at `tMinutes` on `course`: the first
-// slot at/after start + crossOverMinutes on the landing nine's own timeline
+// The crossover LANDING slot for an 18-hole flight starting at `tMinutes`
+// on `startNineId` of `course`: it lands on the course's OTHER nine, on the
+// first slot at/after start + crossOverMinutes of that nine's own timeline
 // (its owner course's grid; the playing course's grid when nobody starts on
 // that nine). Crossover-only slots are valid landing targets by design.
-// Returns { slot } or null when the crossover lands after the last flight.
-function crossTarget(ctx, course, tMinutes) {
+// Returns { slot, unitCourseId } or null when the crossover lands after the
+// last flight. A two-tee group flight starts on the SECOND nine and lands on
+// the first - the generalisation this takes.
+function crossTargetFrom(ctx, course, startNineId, tMinutes) {
     const offset = course.crossOverMinutes || 0;
-    const owner = ctx.nineOwner.get(course.secondNineId) || null;
+    const landing = startNineId === course.secondNineId ? course.firstNineId : course.secondNineId;
+    const owner = ctx.nineOwner.get(landing) || null;
     const own = ctx.byCourse.get(course.id);
     const slots = owner ? owner.slots : (own ? own.slots : []);
     const idx = slots.findIndex((s) => toMinutes(s.teeTime) >= tMinutes + offset);
     if (idx === -1) return null;
-    return { slot: slots[idx] };
+    return { slot: slots[idx], unitCourseId: landing };
+}
+
+// The ordinary case: a tee-off on the course's first nine.
+function crossTarget(ctx, course, tMinutes) {
+    return crossTargetFrom(ctx, course, course.firstNineId, tMinutes);
 }
 
 // Is the crossover landing blocked? Simply: is the landing NINE closed at
@@ -210,14 +286,22 @@ function crossBlocked(ctx, course, ctMinutes) {
 // profiles plus one claim for the cell's walk-ins together (so an
 // exclusive-flight club never offers a flight strangers already occupy,
 // while one booking's own records never claim twice).
-async function occupancy(companyId, playDate, { transaction } = {}) {
+//
+// GROUP HOLDS (2026-10-07): a reserved sequential-format group flight counts
+// at FULL capacity from the moment it exists - its seats not yet filled by
+// the draw are added as players (and the booking as one claim). With `ctx`
+// (dayContext) an 18-hole flight's crossover landing cell is held the same
+// way until the draw's crossover records exist. Pass `ctx` wherever one is
+// at hand (availability search, lock, save, desk walk-in).
+async function occupancy(companyId, playDate, { transaction, ctx = null } = {}) {
     const map = new Map();
     const rows = await Player.findAll({
         where: { companyId, playDate, status: { [Op.in]: ACTIVE_PLAYER_STATUS_KEYS } },
-        attributes: ['bookingProfileId', 'unitCourseId', 'teeTime'],
+        attributes: ['bookingProfileId', 'unitCourseId', 'teeTime', 'groupFlightId', 'secondNineFlag'],
         transaction,
     });
     const profilesByCell = new Map();
+    const drawnByFlight = new Map(); // groupFlightId -> { start, cross }
     for (const r of rows) {
         const key = nineKey(r.unitCourseId, r.teeTime);
         const cur = map.get(key) || { claims: 0, players: 0 };
@@ -227,7 +311,35 @@ async function occupancy(companyId, playDate, { transaction } = {}) {
         const cell = profilesByCell.get(key);
         if (r.bookingProfileId) cell.profiles.add(r.bookingProfileId);
         else cell.walkIn = true;
+        if (r.groupFlightId) {
+            const d = drawnByFlight.get(r.groupFlightId) || { start: 0, cross: 0 };
+            if (Number(r.secondNineFlag) === 1) d.cross += 1; else d.start += 1;
+            drawnByFlight.set(r.groupFlightId, d);
+        }
     }
+
+    const holds = ctx && ctx.holds ? ctx.holds : await groupHolds(companyId, playDate, { transaction });
+    for (const f of holds.flights) {
+        const entry = holds.dayById.get(f.groupPlayDayId);
+        if (!entry || COURSE_HOLD_FORMATS.includes(entry.day.startFormat)) continue;
+        const drawn = drawnByFlight.get(f.id) || { start: 0, cross: 0 };
+        const reserve = (key, taken) => {
+            const open = Math.max(0, f.capacity - taken);
+            if (!open) return;
+            const cur = map.get(key) || { claims: 0, players: 0 };
+            cur.players += open;
+            map.set(key, cur);
+            if (!profilesByCell.has(key)) profilesByCell.set(key, { profiles: new Set(), walkIn: false });
+            profilesByCell.get(key).profiles.add(f.bookingProfileId);
+        };
+        reserve(nineKey(f.unitCourseId, f.teeTime), drawn.start);
+        if (ctx && Number(entry.day.holes) === 18) {
+            const course = ctx.courseById ? ctx.courseById.get(f.courseId) : null;
+            const target = course ? crossTargetFrom(ctx, course, f.unitCourseId, toMinutes(f.teeTime)) : null;
+            if (target) reserve(nineKey(target.unitCourseId, target.slot.teeTime), drawn.cross);
+        }
+    }
+
     for (const [key, cell] of profilesByCell) {
         map.get(key).claims = cell.profiles.size + (cell.walkIn ? 1 : 0);
     }
@@ -413,8 +525,10 @@ async function memberDayBookings(companyId, golferId, playDate, { transaction } 
     });
     const seen = new Set(asBooker.map((b) => b.id));
     const ids = [...new Set(lines.map((l) => l.bookingProfileId))].filter((id) => !seen.has(id));
+    // (No playDate filter on the id lookup: a group booking's header carries
+    // only its FIRST play day, and its player rows already matched the date.)
     const asPlayer = ids.length
-        ? await BookingProfile.findAll({ where: { companyId, playDate, status: 'booked', id: { [Op.in]: ids } }, transaction })
+        ? await BookingProfile.findAll({ where: { companyId, status: 'booked', id: { [Op.in]: ids } }, transaction })
         : [];
     return [...asBooker, ...asPlayer];
 }
@@ -442,7 +556,9 @@ module.exports = {
     closureBlocks,
     nineBlocked,
     dayContext,
+    groupHolds,
     crossTarget,
+    crossTargetFrom,
     crossBlocked,
     occupancy,
     activeLockCells,

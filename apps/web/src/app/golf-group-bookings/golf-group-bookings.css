@@ -1,0 +1,381 @@
+/* Golf Group Bookings (2026-10-07) - screen-specific bits; listing chrome,
+   section cards, dialogs, flash and buttons are the shared global systems.
+   All colours are theme tokens. */
+
+/* ---- listing toolbar ---- */
+.ggb-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  flex-wrap: wrap;
+}
+.ggb-filter label {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+/* Same shared input standard as .form-group fields (base + focus) - the
+   toolbar controls sit outside a form group, so they opt in explicitly. */
+.ggb-filter input[type='date'],
+.ggb-filter select,
+.ggb-draw-bar select {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ggb-filter input[type='date']:focus,
+.ggb-filter select:focus,
+.ggb-draw-bar select:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
+}
+
+.ggb-search {
+  position: relative;
+  margin-bottom: var(--space-md);
+}
+.ggb-search input[type='search'] {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-sm) 40px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+}
+.ggb-search__icon {
+  position: absolute;
+  left: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.ggb-search__clear {
+  position: absolute;
+  right: var(--space-xs);
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 36px;
+  min-height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+}
+.ggb-search__clear:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/* Group / Tournament chip on a card subline and the detail title. */
+.ggb-type {
+  font-weight: var(--weight-semibold);
+  color: var(--brand-text);
+  background: var(--brand-surface, var(--surface-sunken));
+  border-radius: 8px;
+  padding: 1px var(--space-sm);
+  font-size: var(--font-body-2);
+}
+.ggb-type--tournament {
+  color: var(--info-text);
+  background: var(--info-surface);
+}
+.ggb-format {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+/* ---- detail ---- */
+.ggb-back {
+  margin-bottom: var(--space-sm);
+}
+.ggb-meta {
+  margin-bottom: var(--space-sm);
+}
+.ggb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-top: var(--space-sm);
+}
+.settings-header__title .status-chip,
+.settings-header__title .ggb-type {
+  margin-left: var(--space-xs);
+  vertical-align: middle;
+}
+
+/* One play day = a bordered block with its flights beneath. */
+.ggb-day {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+  background: var(--surface-card);
+}
+.ggb-day--off {
+  opacity: 0.7;
+}
+.ggb-flights {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+.ggb-flight {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--surface-sunken);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+  min-width: 0;
+}
+.ggb-flight--full {
+  border-color: var(--success-border);
+  background: var(--success-surface);
+}
+.ggb-flight__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+.ggb-flight__head strong {
+  color: var(--text-primary);
+}
+.ggb-flight__seats {
+  margin-left: auto;
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.ggb-flight__x {
+  min-width: 28px;
+  min-height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ggb-flight__x:hover {
+  background: var(--surface-hover);
+  color: var(--danger-text);
+}
+.ggb-flight__x .material-icons {
+  font-size: 18px;
+}
+.ggb-flight__players {
+  margin-top: 2px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* Roster rows (a compact grid, not a table - wraps on mobile). */
+.ggb-roster {
+  margin-bottom: var(--space-sm);
+}
+.ggb-roster__row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 2fr) 120px 56px minmax(0, 1fr) minmax(0, 1.2fr) 48px;
+  gap: var(--space-sm);
+  align-items: center;
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+}
+.ggb-roster__row--head {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ggb-roster__row--off {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+.ggb-roster__no {
+  color: var(--text-muted);
+  text-align: right;
+}
+.ggb-roster__name {
+  font-weight: var(--weight-semibold);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ggb-roster__drawn {
+  color: var(--text-secondary);
+  min-width: 0;
+}
+.ggb-roster__actions {
+  justify-self: end;
+}
+@media (max-width: 767px) {
+  .ggb-roster__row {
+    grid-template-columns: 28px minmax(0, 1fr) 48px;
+    grid-template-areas:
+      'no name actions'
+      'no meta meta';
+  }
+  .ggb-roster__row--head {
+    display: none;
+  }
+  .ggb-roster__row > :nth-child(3),
+  .ggb-roster__row > :nth-child(4),
+  .ggb-roster__row > :nth-child(5) {
+    display: none;
+  }
+  .ggb-roster__no { grid-area: no; }
+  .ggb-roster__name { grid-area: name; }
+  .ggb-roster__drawn { grid-area: meta; }
+  .ggb-roster__actions { grid-area: actions; }
+}
+
+/* Draw editor: play-day picker + one row per listed player with a flight select. */
+.ggb-draw-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-sm);
+}
+.ggb-draw-bar label {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+.ggb-draw-sum {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.ggb-draw-sum--over {
+  color: var(--danger-text);
+  font-weight: var(--weight-semibold);
+}
+.ggb-draw__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: var(--space-sm);
+  align-items: center;
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--border);
+}
+.ggb-draw__name {
+  font-size: var(--font-body);
+  color: var(--text-primary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* Row-editor field chrome (grid rows sit outside .form-group). */
+.ggb-draw__row select,
+.ggb-rline input,
+.ggb-rline select {
+  min-height: 40px;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  min-width: 0;
+}
+.ggb-draw__row select:focus,
+.ggb-rline input:focus,
+.ggb-rline select:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
+}
+.ggb-draw__fixed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.ggb-draw__fixed .material-icons {
+  font-size: 18px;
+}
+@media (max-width: 767px) {
+  .ggb-draw__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- dialogs ---- */
+.ggb-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-sm) var(--space-md);
+}
+@media (max-width: 767px) {
+  .ggb-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.ggb-h3 {
+  margin: var(--space-lg) 0 var(--space-xs);
+  font-size: var(--font-h3);
+  color: var(--text-primary);
+}
+.ggb-dayline {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: var(--space-sm) var(--space-md);
+  margin: var(--space-sm) 0;
+  background: var(--surface-sunken);
+}
+.ggb-note {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--info-surface);
+  border: 1px solid var(--info-border);
+  color: var(--info-text);
+  border-radius: 8px;
+  font-size: var(--font-body-2);
+}
+.ggb-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: var(--space-md) 0 0;
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.ggb-rline {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) 80px minmax(0, 1fr) 48px;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+.ggb-rline--head {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+@media (max-width: 767px) {
+  .ggb-rline {
+    grid-template-columns: minmax(0, 1fr) 48px;
+  }
+  .ggb-rline--head {
+    display: none;
+  }
+}

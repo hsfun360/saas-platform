@@ -47,6 +47,10 @@ router.put('/settings', requireMenuAction('/golf/settings'), golfSettingControll
 // user decisions 2026-09-20) ---
 router.use('/bookings', requireMenuAction('/golf/bookings'), require('./bookings.routes'));
 
+// --- Group / Tournament Booking (user decisions 2026-10-07): header, play
+// days (start formats), reserved flights, roster and draw ---
+router.use('/group-bookings', requireMenuAction('/golf/group-bookings'), require('./groupBookings.routes'));
+
 // --- Front Desk operations (registration + billing + settlement; user
 // decisions 2026-09-26). The API path names the OPERATIONS; the screen that
 // drives them is the Tee Time Sheet menu (renamed from Front Desk 2026-10-06

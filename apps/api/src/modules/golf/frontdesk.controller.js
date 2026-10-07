@@ -860,7 +860,7 @@ exports.register = async (req, res) => {
             if (availability.nineBlocked(ctx.nineBlocks.get(course.firstNineId), availability.toMinutes(teeTime))) {
                 return { fail: 'That flight is blocked by a course closure.', status: 409 };
             }
-            const occ = await availability.occupancy(companyId, playDate, { transaction });
+            const occ = await availability.occupancy(companyId, playDate, { transaction, ctx });
             const startOcc = occ.get(availability.nineKey(course.firstNineId, teeTime));
             if ((startOcc ? startOcc.players : 0) >= slot.maxPlayers) return { fail: 'That flight is full.', status: 409 };
             let crossTime = null;

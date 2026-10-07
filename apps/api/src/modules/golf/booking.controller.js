@@ -424,7 +424,7 @@ exports.searchAvailability = async (req, res) => {
         if (!wanted.length) return res.status(400).json({ message: 'No active course to search.' });
 
         const [occ, locks] = await Promise.all([
-            availability.occupancy(companyId, playDate),
+            availability.occupancy(companyId, playDate, { ctx }),
             availability.activeLockCells(companyId, playDate),
         ]);
 
@@ -489,7 +489,7 @@ exports.createLock = async (req, res) => {
 
             const ctx = await availability.dayContext(companyId, playDate, dayType, { transaction });
             const [occ, locks] = await Promise.all([
-                availability.occupancy(companyId, playDate, { transaction }),
+                availability.occupancy(companyId, playDate, { transaction, ctx }),
                 availability.activeLockCells(companyId, playDate, { transaction }),
             ]);
             const result = await availability.courseFlights({
@@ -639,7 +639,7 @@ exports.create = async (req, res) => {
                 return { fail: 'The flight is now blocked by a course closure.', status: 409 };
             }
             // Capacity re-check per NINE-cell under the merge rule.
-            const occ = await availability.occupancy(companyId, playDate, { transaction });
+            const occ = await availability.occupancy(companyId, playDate, { transaction, ctx });
             const startOcc = occ.get(availability.nineKey(course.firstNineId, startTime));
             if (availability.seatsLeft(allowMerge, startOcc, startSlot.maxPlayers) < lines.length) {
                 return { fail: 'The flight no longer has room for these players.', status: 409 };
@@ -899,7 +899,9 @@ exports.list = async (req, res) => {
         const playDate = String(req.query.playDate || '');
         if (!DATE_RE.test(playDate)) return res.status(400).json({ message: 'Pick a play date.' });
 
-        const rows = await BookingProfile.findAll({ where: { companyId, playDate } });
+        // Ordinary flight bookings only - group / tournament bookings have
+        // their own screen (their header carries only the first play day).
+        const rows = await BookingProfile.findAll({ where: { companyId, playDate, bookingType: 'flight' } });
         await annotateCanModify(req, rows);
         const records = rows.length
             ? await Player.findAll({

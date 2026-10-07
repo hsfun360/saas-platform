@@ -8,8 +8,11 @@ const { GOLF_SCHEMA } = require('../../platform/schemas');
 // the golf.Player records, one per golfer per NINE, so availability counts
 // physical nine occupancy - the model a composite-rotation club (Tropicana)
 // needs, where one course's crossover lands on the nine another course
-// starts on. `bookingType` is the extension point for Group / Tournament
-// bookings later ('flight' today).
+// starts on. `bookingType` 'flight' is the ordinary booking; 'group' and
+// 'tournament' (2026-10-07) are the GROUP BOOKING header - the group folio:
+// its play days (golf.GroupPlayDay, each its own course and start format),
+// reserved flights (golf.GroupFlight), roster (golf.GroupPlayer), group bill,
+// deposit bills and refund requests all hang off this row.
 const BookingProfile = sequelize.define('GolfBookingProfile', {
     id: {
         type: DataTypes.UUID,
@@ -25,30 +28,68 @@ const BookingProfile = sequelize.define('GolfBookingProfile', {
         type: DataTypes.STRING(50),
         allowNull: false,
     },
-    // 'flight' today; 'group' | 'tournament' later.
+    // 'flight' | 'group' | 'tournament' (groupBooking.constants).
     bookingType: {
         type: DataTypes.STRING(20),
         allowNull: false,
         defaultValue: 'flight',
     },
-    // The rotation course being played (kept on the header - user decision
-    // 2026-09-29; relax to NULL only when multi-course booking types arrive).
+    // The rotation course being played. NULL for group types (each
+    // GroupPlayDay names its own course - the multi-course case the
+    // 2026-09-29 decision reserved the relaxation for).
     courseId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
     },
+    // Ordinary booking: the play date. Group types: the FIRST play day
+    // (listings sort on it); `playDateTo` is the last.
     playDate: {
         type: DataTypes.DATEONLY,
         allowNull: false,
     },
+    playDateTo: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+    },
     // The booking maker's golf.Golfer identity (member found-or-created
-    // lazily at first booking, like AR Debtor provisioning).
+    // lazily at first booking, like AR Debtor provisioning). NULL for a
+    // group booking organised by a non-member (travel agent, society).
     bookerGolferId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
     },
     contactMobile: {
         type: DataTypes.STRING(30),
+        allowNull: true,
+    },
+    // ---- group / tournament header (approved 2026-10-07) ----
+    groupName: {
+        type: DataTypes.STRING(150),
+        allowNull: true,
+    },
+    // Display snapshot of the organiser (the Other Debtor's name, the
+    // member's name, or a keyed name when no account is involved).
+    organiserName: {
+        type: DataTypes.STRING(150),
+        allowNull: true,
+    },
+    // The BILLING PARTY for charge-to-account tenders on the folio: an AR
+    // ledger account ('other' + OtherDebtor id, or 'membership' / 'member' +
+    // the member's charge target). Both NULL = cash-only organiser.
+    debtorType: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+    },
+    debtorSourceId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    contactPerson: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+    },
+    expectedPlayers: {
+        type: DataTypes.INTEGER,
         allowNull: true,
     },
     remarks: {

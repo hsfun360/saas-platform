@@ -108,6 +108,15 @@ const Player = sequelize.define('GolfPlayer', {
     cancelledAt: { type: DataTypes.DATE, allowNull: true },
     cancelledBy: { type: DataTypes.UUID, allowNull: true },
     cancelReason: { type: DataTypes.STRING, allowNull: true },
+    // ---- group booking draw (approved 2026-10-07) ----
+    // Set on rows the DRAW wrote: the reserved flight and the roster row this
+    // record represents (both nine records of a pair carry them). NULL on
+    // ordinary bookings and walk-ins.
+    groupFlightId: { type: DataTypes.UUID, allowNull: true },
+    groupPlayerId: { type: DataTypes.UUID, allowNull: true },
+    // Shotgun formats: the hole this record tees off from (1-18 on the
+    // course). NULL = the nine's first tee.
+    startHole: { type: DataTypes.INTEGER, allowNull: true },
     // Ownership stamps (RBAC data scope + future workflow).
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },
@@ -121,6 +130,7 @@ const Player = sequelize.define('GolfPlayer', {
         { name: 'IX_GolfPlayer_Company_Nine_Date_Time', fields: ['companyId', 'unitCourseId', 'playDate', 'teeTime'] },
         { name: 'IX_GolfPlayer_Company_Date', fields: ['companyId', 'playDate'] },
         { name: 'IX_GolfPlayer_BookingProfile', fields: ['bookingProfileId'] },
+        { name: 'IX_GolfPlayer_GroupFlight', fields: ['groupFlightId'] },
         // Registration numbers unique per company (NULLs are distinct in PG,
         // so merely-booked records don't collide).
         { name: 'UX_GolfPlayer_Company_RegNo', fields: ['companyId', 'registrationNo'], unique: true },
