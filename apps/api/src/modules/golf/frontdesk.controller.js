@@ -27,6 +27,9 @@ const { PLAYER_TYPES, PLAYER_TYPE_KEYS, HOLES_OPTIONS } = require('./booking.con
 const { PLAYER_STATUSES, BILL_STATUSES, ACTIVE_PLAYER_STATUS_KEYS } = require('./registration.constants');
 const { PACKAGE_CHARGE_TYPE_KEY, GOLFER_TYPES } = require('./transactionType.constants');
 const { GROUP_BOOKING_TYPE_KEYS, COURSE_HOLD_FORMATS } = require('./groupBooking.constants');
+// Charge types the per-player desk bill never offers: the group folio's
+// 'deposit' item and the system-raised 'no-show' penalty.
+const DESK_HIDDEN_CHARGE_TYPES = ['deposit', 'no-show'];
 const BookingProfile = require('./bookingProfile.model');
 const Player = require('./player.model');
 const GolfSetting = require('./golfSetting.model');
@@ -494,8 +497,10 @@ exports.getMeta = async (req, res) => {
             }),
             GolfSetting.findOne({ where: { companyId } }),
         ]);
+        // Desk tiles: never the group-folio DEPOSIT item nor the system-raised
+        // no-show penalty (2026-10-07) - both have their own doors.
         res.status(200).json({
-            tiles: types,
+            tiles: types.filter((t) => !DESK_HIDDEN_CHARGE_TYPES.includes(t.chargeType)),
             paymentTypes: tenders,
             courses,
             playerTypes: PLAYER_TYPES,
@@ -1294,6 +1299,7 @@ exports.addItem = async (req, res) => {
             include: [{ model: GolfTransactionTypeEligibility, as: 'Eligibility' }],
         });
         if (!type) return res.status(400).json({ message: 'Pick a billing item.' });
+        if (DESK_HIDDEN_CHARGE_TYPES.includes(type.chargeType)) return res.status(400).json({ message: `'${type.transactionType}' is not a desk billing item.` });
         // A golfer-typed item (green fee / buggy / caddy default) is the item
         // of ONE category - the screen hides the others, the server refuses
         // them (2026-10-06): a visitor-priced buggy never lands on a member.
