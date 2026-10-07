@@ -503,9 +503,13 @@
   background: var(--surface-card);
   border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
 }
+/* Mobile: the tender on its own row, then deposit / reference, amount and
+   remove on one row. */
 @media (max-width: 767px) {
   .ggb-pay-line {
-    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-columns: minmax(0, 1fr) 120px 44px;
+    padding-bottom: var(--space-sm);
+    border-bottom: 1px solid var(--border);
   }
   .ggb-pay-line > :first-child {
     grid-column: 1 / -1;
