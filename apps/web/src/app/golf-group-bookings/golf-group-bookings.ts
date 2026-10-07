@@ -12,10 +12,11 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { MembershipStatusOption } from '../models/auth.models';
+import { MoneyInputDirective } from '../shared/money-input.directive';
 import {
-  GolfGroupBooking, GolfGroupBookingMeta, GolfGroupBookingRow, GolfGroupBookingService, GolfGroupDayPayload,
-  GolfGroupFlight, GolfGroupHeaderPayload, GolfOrganiserKind as GolfGroupOrganiserKind, GolfGroupPlayDay, GolfGroupRosterLine,
-  GolfGroupRosterPlayer, GolfStartFormat,
+  GolfFolio, GolfFolioDeposit, GolfFolioTile, GolfGroupBooking, GolfGroupBookingMeta, GolfGroupBookingRow, GolfGroupBookingService,
+  GolfGroupDayPayload, GolfGroupFlight, GolfGroupHeaderPayload, GolfOrganiserKind as GolfGroupOrganiserKind, GolfGroupPlayDay,
+  GolfGroupRosterLine, GolfGroupRosterPlayer, GolfStartFormat,
 } from '../services/golf-group-booking.service';
 
 // Golf Management → Group Bookings (/golf/group-bookings; user decisions
@@ -56,7 +57,7 @@ function localDate(d: Date): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective,
-    DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective, LocalDatePipe,
+    DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective, LocalDatePipe, MoneyInputDirective,
   ],
   templateUrl: './golf-group-bookings.html',
   styleUrls: ['../system-setup/system-setup.css', './golf-group-bookings.css'],
@@ -96,8 +97,38 @@ export class GolfGroupBookingsComponent implements OnInit {
   readonly selectedId = signal<string | null>(null);
   readonly booking = signal<GolfGroupBooking | null>(null);
   readonly detailLoading = signal(false);
-  readonly expanded = signal<Record<string, boolean>>({ header: true, days: true, roster: true, draw: true });
+  readonly expanded = signal<Record<string, boolean>>({ header: true, days: true, roster: true, draw: true, bill: true, deposits: true });
   readonly working = signal(false);
+
+  // ---- folio (slice 2): group bill + proforma + deposits ----
+  readonly folio = signal<GolfFolio | null>(null);
+  readonly folioLoading = signal(false);
+  readonly folioBusy = signal(false);
+  // Add-item line: a combobox over the billing items + quantity (+ a manual
+  // price when the item allows it).
+  readonly addItemTypeId = signal('');
+  readonly addItemQty = signal(1);
+  readonly addItemPrice = signal<number | null>(null);
+  readonly tileOptions = computed(() => (this.folio()?.tiles || []).map((t) => ({
+    value: t.id,
+    label: `${t.transactionType}${t.description ? ' - ' + t.description : ''}${t.golferTypeLabel ? ' (' + t.golferTypeLabel + ')' : ''}`,
+  })));
+  readonly addItemTile = computed<GolfFolioTile | null>(() => (this.folio()?.tiles || []).find((t) => t.id === this.addItemTypeId()) || null);
+  // Proforma terms (deposit demanded + pay-by date), edited in place.
+  readonly proformaDeposit = signal<number | null>(null);
+  readonly proformaDue = signal('');
+  readonly proformaDirty = signal(false);
+  // Record-deposit dialog.
+  readonly depositDialogOpen = signal(false);
+  readonly depositForm = this.fb.nonNullable.group({
+    amount: [0, [Validators.required, Validators.min(0.01)]],
+    paymentTypeId: ['', Validators.required],
+    reference: ['', Validators.maxLength(100)],
+    remarks: ['', Validators.maxLength(255)],
+  });
+  readonly tenderOptions = computed(() => (this.folio()?.tenders || []).map((t) => ({ value: t.id, label: `${t.paymentType}${t.description ? ' - ' + t.description : ''}` })));
+  readonly depositVoidTarget = signal<GolfFolioDeposit | null>(null);
+  readonly depositVoidReason = signal('');
 
   readonly courseOptions = computed(() => (this.meta()?.courses || []).map((c) => ({ value: c.id, label: c.label })));
   readonly debtorOptions = computed(() => (this.meta()?.otherDebtors || []).map((o) => ({ value: o.id, label: `${o.code} - ${o.name}` })));
@@ -277,13 +308,255 @@ export class GolfGroupBookingsComponent implements OnInit {
   // One place every save lands: the server's full booking replaces ours and
   // the draw editor re-seeds from it (the day stays selected).
   private applyBooking(b: GolfGroupBooking): void {
+    const first = !this.booking();
     this.booking.set(b);
     const dayId = this.drawDayId();
     if (!dayId || !b.days.some((d) => d.id === dayId)) {
-      const first = b.days.find((d) => d.status === 'planned') || b.days[0] || null;
-      this.drawDayId.set(first ? first.id : null);
+      const firstDay = b.days.find((d) => d.status === 'planned') || b.days[0] || null;
+      this.drawDayId.set(firstDay ? firstDay.id : null);
     }
     this.seedDraw();
+    if (first) this.loadFolio(b.id);
+  }
+
+  // ---------- folio ----------
+
+  loadFolio(id: string): void {
+    this.folioLoading.set(true);
+    this.service.folio(id).subscribe({
+      next: (res) => {
+        this.applyFolio(res.folio);
+        this.folioLoading.set(false);
+      },
+      error: (err) => {
+        this.folioLoading.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to load the group bill.');
+      },
+    });
+  }
+
+  private applyFolio(f: GolfFolio): void {
+    this.folio.set(f);
+    if (!this.proformaDirty()) {
+      this.proformaDeposit.set(f.bill ? f.bill.depositRequired : null);
+      this.proformaDue.set(f.bill && f.bill.depositDueDate ? f.bill.depositDueDate : '');
+    }
+  }
+
+  private folioDone = (res: { message?: string; folio: GolfFolio }) => {
+    this.folioBusy.set(false);
+    if (res.message) this.successMessage.set(res.message);
+    this.applyFolio(res.folio);
+  };
+
+  private folioFail = (fallback: string) => (err: { error?: { message?: string } }) => {
+    this.folioBusy.set(false);
+    this.errorMessage.set(err.error?.message || fallback);
+  };
+
+  billOpen(): boolean {
+    const f = this.folio();
+    const b = this.booking();
+    return !!b && b.status === 'booked' && (!f?.bill || f.bill.status === 'open');
+  }
+
+  setAddItemType(id: string): void {
+    this.addItemTypeId.set(id);
+    this.addItemPrice.set(null);
+  }
+
+  addFolioItem(): void {
+    const b = this.booking();
+    const tile = this.addItemTile();
+    if (!b || !tile) { this.errorMessage.set('Pick a billing item.'); return; }
+    const qty = Math.max(1, Math.floor(Number(this.addItemQty()) || 1));
+    this.clearMessages();
+    this.folioBusy.set(true);
+    this.service.addFolioItem(b.id, {
+      transactionTypeId: tile.id,
+      quantity: qty,
+      unitAmount: tile.allowPriceOverride && this.addItemPrice() !== null ? this.addItemPrice() : undefined,
+    }).subscribe({
+      next: (res) => {
+        this.folioDone(res);
+        this.addItemTypeId.set('');
+        this.addItemQty.set(1);
+        this.addItemPrice.set(null);
+      },
+      error: this.folioFail('The item could not be added.'),
+    });
+  }
+
+  setItemQty(itemId: string, raw: string): void {
+    const b = this.booking();
+    const qty = Number(raw);
+    if (!b || !Number.isInteger(qty) || qty < 1) return;
+    this.folioBusy.set(true);
+    this.service.updateFolioItem(b.id, itemId, { quantity: qty }).subscribe({ next: this.folioDone, error: this.folioFail('The quantity could not be changed.') });
+  }
+
+  setItemPrice(itemId: string, raw: string): void {
+    const b = this.booking();
+    const price = Number(raw);
+    if (!b || !Number.isFinite(price) || price < 0) return;
+    this.folioBusy.set(true);
+    this.service.updateFolioItem(b.id, itemId, { unitAmount: price }).subscribe({ next: this.folioDone, error: this.folioFail('The price could not be changed.') });
+  }
+
+  removeFolioItem(itemId: string): void {
+    const b = this.booking();
+    if (!b) return;
+    this.clearMessages();
+    this.folioBusy.set(true);
+    this.service.removeFolioItem(b.id, itemId).subscribe({ next: this.folioDone, error: this.folioFail('The item could not be removed.') });
+  }
+
+  itemTypeAllowsPrice(item: { transactionTypeId: string; packageGroupId: string | null }): boolean {
+    if (item.packageGroupId) return false;
+    const t = (this.folio()?.tiles || []).find((x) => x.id === item.transactionTypeId);
+    return !!t && t.allowPriceOverride;
+  }
+
+  setProformaDeposit(v: number | null): void { this.proformaDeposit.set(v); this.proformaDirty.set(true); }
+  setProformaDue(v: string): void { this.proformaDue.set(v); this.proformaDirty.set(true); }
+
+  saveProformaTerms(): void {
+    const b = this.booking();
+    if (!b) return;
+    this.clearMessages();
+    this.folioBusy.set(true);
+    this.service.setProformaTerms(b.id, { depositRequired: this.proformaDeposit(), depositDueDate: this.proformaDue() || null }).subscribe({
+      next: (res) => { this.proformaDirty.set(false); this.folioDone(res); },
+      error: this.folioFail('The proforma terms could not be saved.'),
+    });
+  }
+
+  issueProforma(): void {
+    const b = this.booking();
+    if (!b) return;
+    this.clearMessages();
+    this.folioBusy.set(true);
+    this.service.issueProforma(b.id).subscribe({
+      next: (res) => { this.folioDone(res); this.openProforma(); },
+      error: this.folioFail('The proforma could not be issued.'),
+    });
+  }
+
+  // Printable documents: fetched with the session token and opened in a new
+  // tab as a blob (a plain link could not carry the Authorization header).
+  private openHtml(html: string): void {
+    const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    window.open(url, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  openProforma(): void {
+    const b = this.booking();
+    if (!b) return;
+    this.service.proformaHtml(b.id).subscribe({
+      next: (html) => this.openHtml(html),
+      error: (err) => this.errorMessage.set(err.error?.message || 'The proforma could not be opened.'),
+    });
+  }
+
+  openDepositDoc(d: GolfFolioDeposit): void {
+    const b = this.booking();
+    if (!b) return;
+    this.service.depositHtml(b.id, d.id).subscribe({
+      next: (html) => this.openHtml(html),
+      error: (err) => this.errorMessage.set(err.error?.message || 'The deposit bill could not be opened.'),
+    });
+  }
+
+  openDepositDialog(): void {
+    this.clearMessages();
+    const f = this.folio();
+    const outstanding = f && f.bill && f.bill.depositRequired !== null ? Math.max(0, f.bill.depositRequired - f.depositTotal) : 0;
+    this.depositForm.reset({ amount: outstanding > 0 ? outstanding : 0, paymentTypeId: '', reference: '', remarks: '' });
+    this.depositDialogOpen.set(true);
+  }
+
+  depositTender() {
+    const id = this.depositForm.controls.paymentTypeId.value;
+    return (this.folio()?.tenders || []).find((t) => t.id === id) || null;
+  }
+
+  // The outcome stated before the clerk commits (show expected results).
+  depositPreview(): string {
+    const f = this.folio();
+    const t = this.depositTender();
+    const amount = Number(this.depositForm.controls.amount.value) || 0;
+    if (!f || !t || amount <= 0) return '';
+    const money = amount.toFixed(2);
+    if (t.paymentClass === 'member' || t.paymentClass === 'debtor') {
+      if (!f.billingParty.hasAccount) return `${t.paymentType} charges an account, but this booking has no billing account - pick a cash-type tender or set the organiser's account first.`;
+      return `A deposit bill of ${money} is raised and charged to ${f.billingParty.organiserName}'s account as a normal AR invoice. The folio shows whether it has been paid.`;
+    }
+    return `A deposit bill of ${money} is raised and settled by ${t.paymentType} - the money is received now.`;
+  }
+
+  recordDeposit(): void {
+    const b = this.booking();
+    if (!b) return;
+    if (this.depositForm.invalid) { this.depositForm.markAllAsTouched(); return; }
+    this.clearMessages();
+    const v = this.depositForm.getRawValue();
+    this.folioBusy.set(true);
+    this.service.recordDeposit(b.id, {
+      amount: Number(v.amount), paymentTypeId: v.paymentTypeId,
+      reference: v.reference.trim() || undefined, remarks: v.remarks.trim() || undefined,
+    }).subscribe({
+      next: (res) => { this.depositDialogOpen.set(false); this.folioDone(res); },
+      error: this.folioFail('The deposit could not be recorded.'),
+    });
+  }
+
+  askVoidDeposit(d: GolfFolioDeposit): void {
+    this.clearMessages();
+    this.depositVoidTarget.set(d);
+    this.depositVoidReason.set('');
+  }
+
+  confirmVoidDeposit(): void {
+    const b = this.booking();
+    const d = this.depositVoidTarget();
+    if (!b || !d) return;
+    const reason = this.depositVoidReason().trim();
+    if (!reason) { this.errorMessage.set('Give a reason for voiding the deposit.'); return; }
+    this.folioBusy.set(true);
+    this.service.voidDeposit(b.id, d.id, reason).subscribe({
+      next: (res) => { this.depositVoidTarget.set(null); this.folioDone(res); },
+      error: this.folioFail('The deposit could not be voided.'),
+    });
+  }
+
+  standingLabel(d: GolfFolioDeposit): string {
+    if (d.status === 'voided') return 'Voided';
+    if (!d.onAccount) return `Paid · ${d.paymentType}`;
+    const s = d.arStanding;
+    if (!s) return `On account · ${d.arDocNo}`;
+    if (s.status === 'paid') {
+      const r = s.settlements.find((x) => x.docNo);
+      return `Paid${r ? ' · ' + r.docNo : ''}`;
+    }
+    if (s.status === 'partial') return `Partially paid · ${s.paidAmount.toFixed(2)} of ${s.grossAmount.toFixed(2)}`;
+    return `Outstanding · ${s.outstandingAmount.toFixed(2)} on ${s.docNo}`;
+  }
+
+  standingClass(d: GolfFolioDeposit): string {
+    if (d.status === 'voided') return 'ggb-standing--off';
+    if (!d.onAccount || (d.arStanding && d.arStanding.status === 'paid')) return 'ggb-standing--paid';
+    if (d.arStanding && d.arStanding.status === 'partial') return 'ggb-standing--partial';
+    return 'ggb-standing--due';
+  }
+
+  classLabel(key: string | null): string {
+    switch (key) {
+      case 'debtor': return 'City ledger';
+      case 'member': return 'Member account';
+      case 'creditcard': return 'Credit card';
+      default: return key ? key.charAt(0).toUpperCase() + key.slice(1) : '';
+    }
   }
 
   toggleSection(key: string): void {

@@ -29,6 +29,9 @@ const GOLF_NUMBERING_PURPOSES = [
     { key: 'golf-registration', label: 'Registration No.' },
     { key: 'golf-bill', label: 'Bill No.' },
     { key: 'golf-raincheck', label: 'Rain Check No.' },
+    // Group booking folio (2026-10-07): the proforma invoice printed from the
+    // group bill (deposit bills and the final bill use the Bill No. series).
+    { key: 'golf-proforma', label: 'Proforma No.' },
 ];
 // Ordered to mirror the AR transaction CLASS list (invoice, DN, CN, interest,
 // deposit, receipt, refund) so the two vocabularies read in step.

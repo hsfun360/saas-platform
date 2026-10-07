@@ -46,6 +46,9 @@ const BillPayment = sequelize.define('GolfBillPayment', {
     arDocNo: { type: DataTypes.STRING(50), allowNull: true },
     debtorType: { type: DataTypes.STRING(20), allowNull: true },
     debtorSourceId: { type: DataTypes.UUID, allowNull: true },
+    // 'deposit' class only (group final bill, 2026-10-07): the settled
+    // deposit bill this line draws on.
+    appliedDepositBillId: { type: DataTypes.UUID, allowNull: true },
     // Ownership stamps (RBAC data scope + future workflow).
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

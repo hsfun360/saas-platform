@@ -13,8 +13,15 @@ const PAYMENT_CLASSES = [
     { key: 'online', label: 'Online' },
     { key: 'suspend', label: 'Suspend' },
     { key: 'creditcard', label: 'Credit Card' },
+    // Group booking (2026-10-07): apply a HELD DEPOSIT (a settled deposit
+    // bill of the folio) to the final group bill - no money moves.
+    { key: 'deposit', label: 'Deposit' },
 ];
 
 const PAYMENT_CLASS_KEYS = PAYMENT_CLASSES.map((c) => c.key);
 
-module.exports = { PAYMENT_CLASSES, PAYMENT_CLASS_KEYS };
+// Tenders that charge an AR ledger account: 'member' = the billed member's
+// own account, 'debtor' = the folio's billing party (city ledger).
+const ACCOUNT_PAYMENT_CLASSES = ['member', 'debtor'];
+
+module.exports = { PAYMENT_CLASSES, PAYMENT_CLASS_KEYS, ACCOUNT_PAYMENT_CLASSES };

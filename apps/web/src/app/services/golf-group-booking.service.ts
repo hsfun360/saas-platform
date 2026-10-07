@@ -165,7 +165,112 @@ export interface GolfGroupRosterLine {
   status?: 'listed' | 'withdrawn';
 }
 
+// ---- the folio (slice 2): group bill, proforma, deposits ----
+
+export interface GolfFolioTile {
+  id: string;
+  transactionType: string;
+  description: string | null;
+  chargeType: string;
+  golferType: string | null;
+  golferTypeLabel: string | null;
+  iconUrl: string | null;
+  allowPriceOverride: boolean;
+}
+
+export interface GolfFolioTender {
+  id: string;
+  paymentType: string;
+  paymentClass: string;
+  description: string | null;
+  iconUrl: string | null;
+}
+
+export interface GolfFolioBillItem {
+  id: string;
+  sortOrder: number;
+  transactionTypeId: string;
+  description: string;
+  quantity: number;
+  unitAmount: number;
+  amount: number;
+  priceOverridden: boolean;
+  packageGroupId: string | null;
+  packageRole: string | null;
+  taxSchemeCode: string | null;
+  taxAmount: number;
+  ieFlag: string | null;
+  payable: number;
+}
+
+export interface GolfFolioBill {
+  id: string;
+  billNo: string;
+  billType: 'player' | 'group' | 'deposit';
+  billDate: string;
+  status: 'open' | 'settled' | 'voided';
+  totalAmount: number;
+  taxTotal: number;
+  remarks: string | null;
+  proformaNo: string | null;
+  proformaRevision: number;
+  proformaIssuedAt: string | null;
+  depositRequired: number | null;
+  depositDueDate: string | null;
+  items: GolfFolioBillItem[];
+  payments: { id: string; paymentTypeId: string; paymentClass: string; amount: number; reference: string | null; arDocNo: string | null; appliedDepositBillId: string | null }[];
+}
+
+// Live standing of an on-account deposit's AR invoice (read from AR each
+// time the folio opens).
+export interface GolfArStanding {
+  docNo: string;
+  docDate: string;
+  grossAmount: number;
+  outstandingAmount: number;
+  paidAmount: number;
+  status: 'paid' | 'partial' | 'outstanding';
+  settlements: { kind: string; docNo: string | null; docDate: string | null; paymentMethod: string | null; amount: number }[];
+}
+
+export interface GolfFolioDeposit {
+  id: string;
+  billNo: string;
+  billDate: string;
+  status: 'open' | 'settled' | 'voided';
+  description: string;
+  amount: number;
+  taxTotal: number;
+  remarks: string | null;
+  paymentTypeId: string | null;
+  paymentType: string | null;
+  paymentClass: string | null;
+  reference: string | null;
+  onAccount: boolean;
+  arDocNo: string | null;
+  arStanding: GolfArStanding | null;
+  appliedAmount: number;
+  refundedAmount: number;
+  unappliedAmount: number;
+  voidedAt: string | null;
+  voidReason: string | null;
+  createdAt: string;
+}
+
+export interface GolfFolio {
+  bill: GolfFolioBill | null;
+  play: { playDate: string; holes: number; dayType: string };
+  tiles: GolfFolioTile[];
+  tenders: GolfFolioTender[];
+  depositType: GolfFolioTile | null;
+  deposits: GolfFolioDeposit[];
+  depositTotal: number;
+  depositUnapplied: number;
+  billingParty: { debtorType: string | null; debtorSourceId: string | null; organiserName: string | null; hasAccount: boolean };
+}
+
 type Saved = { message: string; booking: GolfGroupBooking };
+type FolioSaved = { message?: string; folio: GolfFolio };
 
 @Injectable({ providedIn: 'root' })
 export class GolfGroupBookingService {
@@ -235,5 +340,49 @@ export class GolfGroupBookingService {
 
   removePlayer(id: string, playerId: string): Observable<Saved> {
     return this.http.delete<Saved>(`${this.base}/${id}/players/${playerId}`);
+  }
+
+  // ---- folio ----
+
+  folio(id: string): Observable<FolioSaved> {
+    return this.http.get<FolioSaved>(`${this.base}/${id}/folio`);
+  }
+
+  addFolioItem(id: string, payload: { transactionTypeId: string; quantity: number; unitAmount?: number | null }): Observable<FolioSaved> {
+    return this.http.post<FolioSaved>(`${this.base}/${id}/folio/items`, payload);
+  }
+
+  updateFolioItem(id: string, itemId: string, patch: { quantity?: number; unitAmount?: number }): Observable<FolioSaved> {
+    return this.http.put<FolioSaved>(`${this.base}/${id}/folio/items/${itemId}`, patch);
+  }
+
+  removeFolioItem(id: string, itemId: string): Observable<FolioSaved> {
+    return this.http.delete<FolioSaved>(`${this.base}/${id}/folio/items/${itemId}`);
+  }
+
+  setProformaTerms(id: string, payload: { depositRequired: number | null; depositDueDate: string | null }): Observable<FolioSaved> {
+    return this.http.put<FolioSaved>(`${this.base}/${id}/folio/proforma`, payload);
+  }
+
+  issueProforma(id: string): Observable<FolioSaved> {
+    return this.http.post<FolioSaved>(`${this.base}/${id}/folio/proforma/issue`, {});
+  }
+
+  // The printable documents come back as self-contained HTML (the API
+  // renders them with the club letterhead); the screen opens them in a tab.
+  proformaHtml(id: string): Observable<string> {
+    return this.http.get(`${this.base}/${id}/folio/proforma/html`, { responseType: 'text' });
+  }
+
+  depositHtml(id: string, billId: string): Observable<string> {
+    return this.http.get(`${this.base}/${id}/deposits/${billId}/html`, { responseType: 'text' });
+  }
+
+  recordDeposit(id: string, payload: { amount: number; paymentTypeId: string; reference?: string; remarks?: string; billDate?: string }): Observable<FolioSaved> {
+    return this.http.post<FolioSaved>(`${this.base}/${id}/deposits`, payload);
+  }
+
+  voidDeposit(id: string, billId: string, reason: string): Observable<FolioSaved> {
+    return this.http.post<FolioSaved>(`${this.base}/${id}/deposits/${billId}/void`, { reason });
   }
 }

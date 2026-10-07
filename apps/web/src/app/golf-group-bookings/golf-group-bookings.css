@@ -323,6 +323,168 @@
   }
 }
 
+/* ---- group bill (slice 2) ---- */
+.ggb-items {
+  margin-bottom: var(--space-md);
+}
+.ggb-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 110px 80px 100px 48px;
+  gap: var(--space-sm);
+  align-items: center;
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+}
+.ggb-item > span:nth-child(2),
+.ggb-item > span:nth-child(3),
+.ggb-item > span:nth-child(4),
+.ggb-item > span:nth-child(5) {
+  text-align: right;
+}
+.ggb-item--head {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: none;
+}
+.ggb-item--total {
+  font-weight: var(--weight-semibold);
+  border-bottom: none;
+  border-top: 2px solid var(--border-strong);
+}
+.ggb-item__desc {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ggb-item__payable {
+  font-weight: var(--weight-semibold);
+  text-align: right;
+}
+/* Row-editor inputs (qty / unit price) opt in to the field chrome. */
+.ggb-item input {
+  min-height: 40px;
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body-2);
+  font-family: inherit;
+  text-align: right;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ggb-item input:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
+}
+.ggb-tag {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--info-text);
+  background: var(--info-surface);
+  border-radius: 8px;
+  padding: 1px 6px;
+  margin-left: var(--space-xs);
+}
+@media (max-width: 767px) {
+  .ggb-item {
+    grid-template-columns: minmax(0, 1fr) 64px 48px;
+    grid-template-areas:
+      'desc payable x'
+      'qty unit tax';
+  }
+  .ggb-item--head {
+    display: none;
+  }
+  .ggb-item > :nth-child(1) { grid-area: desc; }
+  .ggb-item > :nth-child(2) { grid-area: qty; }
+  .ggb-item > :nth-child(3) { grid-area: unit; }
+  .ggb-item > :nth-child(4) { grid-area: tax; }
+  .ggb-item > :nth-child(5) { grid-area: payable; }
+  .ggb-item > :nth-child(6) { grid-area: x; }
+}
+.ggb-additem {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) 110px minmax(0, 1fr) auto;
+  gap: var(--space-sm) var(--space-md);
+  align-items: end;
+  margin-bottom: var(--space-md);
+}
+.ggb-additem .form-group {
+  margin-bottom: 0;
+}
+.ggb-additem .btn {
+  margin-bottom: 2px;
+}
+@media (max-width: 767px) {
+  .ggb-additem {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .ggb-additem .form-group:first-child,
+  .ggb-additem .btn {
+    grid-column: 1 / -1;
+  }
+}
+.ggb-proforma {
+  display: grid;
+  grid-template-columns: 180px 200px minmax(0, 1fr);
+  gap: var(--space-sm) var(--space-md);
+  align-items: end;
+}
+.ggb-proforma .form-group {
+  margin-bottom: 0;
+}
+.ggb-proforma__status {
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+  padding-bottom: 12px;
+}
+@media (max-width: 767px) {
+  .ggb-proforma {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .ggb-proforma__status {
+    grid-column: 1 / -1;
+    padding-bottom: 0;
+  }
+}
+
+/* Deposit cards: standing chip colours (paid / partial / due). */
+.ggb-deposit--void {
+  opacity: 0.7;
+}
+.ggb-standing {
+  font-size: var(--font-overline);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 12px;
+  padding: var(--space-xs) var(--space-sm);
+  white-space: nowrap;
+}
+.ggb-standing--paid {
+  background: var(--success-surface);
+  color: var(--success-text);
+}
+.ggb-standing--partial {
+  background: var(--info-surface);
+  color: var(--info-text);
+}
+.ggb-standing--due {
+  background: var(--danger-surface);
+  color: var(--danger-text);
+}
+.ggb-standing--off {
+  background: var(--chip-off-surface);
+  color: var(--chip-off-text);
+}
+
 /* ---- dialogs ---- */
 .ggb-grid {
   display: grid;

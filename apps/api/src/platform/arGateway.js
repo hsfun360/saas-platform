@@ -207,12 +207,59 @@ async function postCharge(req, {
     }
 }
 
+// DOCUMENT STANDING (group booking deposits, 2026-10-07): how much of a
+// posted ledger document (an invoice golf charged to an account) is still
+// outstanding and which receipts settled it. Read-only; the golf folio shows
+// "Outstanding / Partially paid / Paid (OR-000045, 3 Oct)" from it.
+// Returns null when the document does not exist for the company.
+// WHEN SPLIT: GET {internalServiceUrl('ar')}/internal/documents/:id/standing
+async function getDocumentStanding(companyId, arDocId) {
+    if (!companyId || !arDocId) return null;
+    const { Op } = require('sequelize');
+    const Ledger = require('../modules/ar/ledger.model');
+    const Allocation = require('../modules/ar/allocation.model');
+    const Receipt = require('../modules/ar/receipt.model');
+    const row = await Ledger.findOne({ where: { companyId, id: arDocId }, attributes: ['id', 'docNo', 'docDate', 'grossAmount', 'balanceAmount', 'status', 'mode'] });
+    if (!row) return null;
+    const allocs = await Allocation.findAll({
+        where: { companyId, debitDocType: 'ledger', debitDocId: row.id },
+        attributes: ['creditDocType', 'creditDocId', 'amount'],
+    });
+    const receiptIds = allocs.filter((a) => a.creditDocType === 'receipt').map((a) => a.creditDocId);
+    const receipts = receiptIds.length
+        ? await Receipt.findAll({ where: { id: { [Op.in]: receiptIds } }, attributes: ['id', 'docNo', 'docDate', 'paymentMethod'] })
+        : [];
+    const receiptById = new Map(receipts.map((r) => [r.id, r]));
+    const settlements = allocs.map((a) => {
+        const r = a.creditDocType === 'receipt' ? receiptById.get(a.creditDocId) : null;
+        return {
+            kind: a.creditDocType, // 'receipt' | 'ledger' (credit note)
+            docNo: r ? r.docNo : null,
+            docDate: r ? r.docDate : null,
+            paymentMethod: r ? r.paymentMethod : null,
+            amount: Number(a.amount),
+        };
+    });
+    const gross = Number(row.grossAmount);
+    const outstanding = Number(row.balanceAmount);
+    return {
+        docNo: row.docNo,
+        docDate: row.docDate,
+        grossAmount: gross,
+        outstandingAmount: outstanding,
+        paidAmount: Math.round((gross - outstanding) * 100) / 100,
+        status: outstanding <= 0 ? 'paid' : outstanding < gross ? 'partial' : 'outstanding',
+        settlements,
+    };
+}
+
 module.exports = {
     enqueueDebtorProvisioning,
     enqueueCreditLimitSync,
     getCreditStanding,
     authorizeCharge,
     postCharge,
+    getDocumentStanding,
     listTransactionTypes,
     getTransactionType,
     isMembershipIntegrationEnabled,

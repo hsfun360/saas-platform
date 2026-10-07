@@ -10,9 +10,14 @@ const CHARGE_TYPES = [
     { key: 'no-show', label: 'No Show Charges' },
     { key: 'miscellaneous', label: 'Miscellaneous' },
     { key: 'package', label: 'Package' },
+    // Group booking DEPOSIT (2026-10-07): the one item of a deposit bill. Its
+    // amount is keyed when the deposit is raised (no rate card needed); the
+    // club controls its tax scheme (none, normally).
+    { key: 'deposit', label: 'Deposit' },
 ];
 
 const CHARGE_TYPE_KEYS = CHARGE_TYPES.map((c) => c.key);
+const DEPOSIT_CHARGE_TYPE_KEY = 'deposit';
 
 // Charge types priced by the 4-cell matrix (9/18 holes × weekday/weekend;
 // simplified from the earlier 8-cell member/visitor matrix on 2026-09-26 -
@@ -54,6 +59,6 @@ const GOLFER_TYPE_KEYS = GOLFER_TYPES.map((g) => g.key);
 const GOLFER_TYPED_CHARGE_TYPE_KEYS = ['green-fee', 'buggy-fee', 'caddy-fee'];
 
 module.exports = {
-    CHARGE_TYPES, CHARGE_TYPE_KEYS, MATRIX_CHARGE_TYPE_KEYS, PACKAGE_CHARGE_TYPE_KEY,
+    CHARGE_TYPES, CHARGE_TYPE_KEYS, MATRIX_CHARGE_TYPE_KEYS, PACKAGE_CHARGE_TYPE_KEY, DEPOSIT_CHARGE_TYPE_KEY,
     GOLFER_TYPES, GOLFER_TYPE_KEYS, GOLFER_TYPED_CHARGE_TYPE_KEYS,
 };

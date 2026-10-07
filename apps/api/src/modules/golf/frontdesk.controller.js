@@ -13,7 +13,6 @@
 //   - SETTLEMENT takes multiple tenders; 'member' class posts to the billed
 //     member's own AR account via arGateway.postCharge({ enforceCredit }).
 
-const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
 const {
@@ -21,13 +20,12 @@ const {
 } = require('../../platform/serviceContext');
 const { getGolfMemberStanding, getChargeTarget } = require('../../platform/membershipGateway');
 const { classifyDateRange } = require('../../platform/calendarGateway');
-const { quoteTax } = require('../../platform/taxGateway');
 const arGateway = require('../../platform/arGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const availability = require('./bookingAvailability.service');
 const { PLAYER_TYPES, PLAYER_TYPE_KEYS, HOLES_OPTIONS } = require('./booking.constants');
 const { PLAYER_STATUSES, BILL_STATUSES, ACTIVE_PLAYER_STATUS_KEYS } = require('./registration.constants');
-const { PACKAGE_CHARGE_TYPE_KEY, MATRIX_CHARGE_TYPE_KEYS, GOLFER_TYPES } = require('./transactionType.constants');
+const { PACKAGE_CHARGE_TYPE_KEY, GOLFER_TYPES } = require('./transactionType.constants');
 const BookingProfile = require('./bookingProfile.model');
 const Player = require('./player.model');
 const GolfSetting = require('./golfSetting.model');
@@ -38,10 +36,13 @@ const Course = require('./course.model');
 const Golfer = require('./golfer.model');
 const OtherGolfer = require('./otherGolfer.model');
 const GolfTransactionType = require('./transactionType.model');
-const GolfTransactionTypeRate = require('./transactionTypeRate.model');
-const GolfTransactionTypeElement = require('./transactionTypeElement.model');
 const GolfTransactionTypeEligibility = require('./transactionTypeEligibility.model');
 const eligibility = require('./eligibility.service');
+// The shared billing engine (extracted 2026-10-07 for the group folio): pricing,
+// tax quotes, package explosion, totals, DTOs.
+const {
+    quoteItemTax, recomputeTotals, addOrdinaryItem, addPackageItems, itemDto, paymentDto, billDto,
+} = require('./billing.service');
 const PaymentType = require('./paymentType.model');
 const UnitCourse = require('./unitCourse.model');
 const noShow = require('./noShowCharge.service');
@@ -135,171 +136,6 @@ async function playShapeOf(row, { transaction } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Pricing + tax helpers
-
-// The active rate card in force on the play date (latest effectiveDate <=).
-async function rateFor(transactionTypeId, playDate, transaction) {
-    return GolfTransactionTypeRate.findOne({
-        where: { transactionTypeId, isActive: true, effectiveDate: { [Op.lte]: playDate } },
-        order: [['effectiveDate', 'DESC']],
-        transaction,
-    });
-}
-
-// The unit price of a type for a play (matrix cell by holes + day type, or
-// flatAmount). null = no price configured.
-function unitPriceOf(type, rate, dayType, holes) {
-    if (!rate) return null;
-    if (MATRIX_CHARGE_TYPE_KEYS.includes(type.chargeType)) {
-        const cell = `price${holes === 9 ? 9 : 18}${dayType === 'weekend' ? 'Weekend' : 'Weekday'}`;
-        return rate[cell] === null || rate[cell] === undefined ? null : Number(rate[cell]);
-    }
-    return rate.flatAmount === null || rate.flatAmount === undefined ? null : Number(rate.flatAmount);
-}
-
-// Quote the tax of one item amount. Returns { taxAmount, payable, breakdown }
-// - payable is what the golfer owes for the line (gross: amount + tax when
-// exclusive, the amount itself when inclusive); no scheme = no tax.
-async function quoteItemTax(req, taxSchemeCode, amount, onDate) {
-    if (!taxSchemeCode) return { taxAmount: 0, payable: round2(amount), breakdown: null };
-    const quote = await quoteTax(req, { taxSchemeCode, amount, onDate });
-    if (!quote) return { taxAmount: 0, payable: round2(amount), breakdown: null };
-    return {
-        taxAmount: round2(quote.taxTotal),
-        payable: round2(quote.gross),
-        breakdown: {
-            schemeCode: taxSchemeCode,
-            ieFlag: quote.ieFlag,
-            net: quote.net,
-            gross: quote.gross,
-            asOf: quote.asOf,
-            lines: quote.lines,
-        },
-    };
-}
-
-function itemPayable(item) {
-    const exclusive = item.taxBreakdown && item.taxBreakdown.ieFlag === 'EXCLUSIVE';
-    return round2(Number(item.amount) + (exclusive ? Number(item.taxAmount) : 0));
-}
-
-// Recompute + persist the bill's denormalized totals from its items.
-async function recomputeTotals(bill, transaction) {
-    const items = await BillItem.findAll({ where: { billId: bill.id }, transaction });
-    bill.totalAmount = round2(items.reduce((s, i) => s + itemPayable(i), 0));
-    bill.taxTotal = round2(items.reduce((s, i) => s + Number(i.taxAmount), 0));
-    await bill.save({ transaction });
-    return items;
-}
-
-async function nextSortOrder(billId, transaction) {
-    const max = await BillItem.max('sortOrder', { where: { billId }, transaction });
-    return (max || 0) + 1;
-}
-
-// Add ONE ordinary (non-package) item. `play` = { playDate, holes } of the
-// billed player. Returns the created BillItem.
-async function addOrdinaryItem({ req, bill, play, type, quantity, dayType, stamps, transaction, allowMissingPrice = false }) {
-    const rate = await rateFor(type.id, play.playDate, transaction);
-    const unit = unitPriceOf(type, rate, dayType, play.holes);
-    if (unit === null && !type.allowPriceOverride && !allowMissingPrice) {
-        return { error: `'${type.transactionType}' has no price in force for ${play.playDate} - set up its pricing first.` };
-    }
-    const unitAmount = unit === null ? 0 : unit;
-    const amount = round2(unitAmount * quantity);
-    const tax = await quoteItemTax(req, type.taxSchemeCode, amount, play.playDate);
-    const sortOrder = await nextSortOrder(bill.id, transaction);
-    const item = await BillItem.create({
-        billId: bill.id,
-        sortOrder,
-        transactionTypeId: type.id,
-        description: `${type.transactionType}${type.description ? ' — ' + type.description : ''}`,
-        quantity,
-        unitAmount,
-        amount,
-        taxSchemeCode: tax.breakdown ? type.taxSchemeCode : null,
-        taxAmount: tax.taxAmount,
-        taxBreakdown: tax.breakdown,
-        ...stamps,
-    }, { transaction });
-    return { item };
-}
-
-// Explode a PACKAGE into its element lines + the automatic balance line
-// (approved spec): package price from its flat rate; the PACKAGE's tax scheme
-// on every generated line; the LAST line's tax adjusted so the group's tax
-// equals the tax computed directly on the package amount.
-async function addPackageItems({ req, bill, play, type, stamps, transaction }) {
-    const rate = await rateFor(type.id, play.playDate, transaction);
-    const packagePrice = rate && rate.flatAmount !== null ? Number(rate.flatAmount) : null;
-    if (packagePrice === null) {
-        return { error: `Package '${type.transactionType}' has no price in force for ${play.playDate}.` };
-    }
-    const elements = await GolfTransactionTypeElement.findAll({
-        where: { transactionTypeId: type.id },
-        order: [['sortOrder', 'ASC']],
-        transaction,
-    });
-    if (!elements.length) return { error: `Package '${type.transactionType}' has no elements.` };
-    if (!type.autoTransactionTypeId) return { error: `Package '${type.transactionType}' has no Auto Transaction Type.` };
-
-    const companyId = bill.companyId;
-    const typeIds = [...new Set([...elements.map((e) => e.elementTransactionTypeId), type.autoTransactionTypeId])];
-    const types = await GolfTransactionType.findAll({ where: { companyId, id: { [Op.in]: typeIds } }, transaction });
-    const typeById = new Map(types.map((t) => [t.id, t]));
-
-    const lines = [];
-    let elementSum = 0;
-    for (const el of elements) {
-        const elType = typeById.get(el.elementTransactionTypeId);
-        if (!elType) return { error: 'A package element no longer exists.' };
-        const amount = round2(Number(el.unitAmount) * el.quantity);
-        elementSum = round2(elementSum + amount);
-        lines.push({ type: elType, quantity: el.quantity, unitAmount: Number(el.unitAmount), amount, role: 'element' });
-    }
-    const autoType = typeById.get(type.autoTransactionTypeId);
-    if (!autoType) return { error: 'The package\'s Auto Transaction Type no longer exists.' };
-    lines.push({ type: autoType, quantity: 1, unitAmount: round2(packagePrice - elementSum), amount: round2(packagePrice - elementSum), role: 'auto' });
-
-    // Package tax on each line + the direct tax on the package amount.
-    const taxes = [];
-    for (const line of lines) taxes.push(await quoteItemTax(req, type.taxSchemeCode, line.amount, play.playDate));
-    const target = await quoteItemTax(req, type.taxSchemeCode, packagePrice, play.playDate);
-    const lineTaxSum = round2(taxes.reduce((s, t) => s + t.taxAmount, 0));
-    const adjust = round2(target.taxAmount - lineTaxSum);
-    if (adjust !== 0 && taxes.length) {
-        const last = taxes[taxes.length - 1];
-        last.taxAmount = round2(last.taxAmount + adjust);
-        if (last.breakdown) last.breakdown.roundingAdjustment = adjust;
-    }
-
-    const groupId = crypto.randomUUID();
-    const created = [];
-    for (let i = 0; i < lines.length; i += 1) {
-        const line = lines[i];
-        const tax = taxes[i];
-        const sortOrder = await nextSortOrder(bill.id, transaction);
-        created.push(await BillItem.create({
-            billId: bill.id,
-            sortOrder,
-            transactionTypeId: line.type.id,
-            description: `${line.type.transactionType}${line.type.description ? ' — ' + line.type.description : ''}`,
-            quantity: line.quantity,
-            unitAmount: line.unitAmount,
-            amount: line.amount,
-            packageGroupId: groupId,
-            packageRole: line.role,
-            packageTransactionTypeId: type.id,
-            taxSchemeCode: type.taxSchemeCode || null,
-            taxAmount: tax.taxAmount,
-            taxBreakdown: tax.breakdown,
-            ...stamps,
-        }, { transaction }));
-    }
-    return { items: created };
-}
-
-// ---------------------------------------------------------------------------
 // DTOs
 
 // A registered player's registration view - the Player record itself plus
@@ -322,37 +158,6 @@ function registrationDto(row, shape) {
     };
 }
 
-function itemDto(i) {
-    return {
-        id: i.id,
-        sortOrder: i.sortOrder,
-        transactionTypeId: i.transactionTypeId,
-        description: i.description,
-        quantity: i.quantity,
-        unitAmount: Number(i.unitAmount),
-        amount: Number(i.amount),
-        priceOverridden: i.priceOverridden === true,
-        packageGroupId: i.packageGroupId,
-        packageRole: i.packageRole,
-        taxSchemeCode: i.taxSchemeCode,
-        taxAmount: Number(i.taxAmount),
-        ieFlag: i.taxBreakdown ? i.taxBreakdown.ieFlag : null,
-        payable: itemPayable(i),
-    };
-}
-
-function paymentDto(p) {
-    return {
-        id: p.id,
-        sortOrder: p.sortOrder,
-        paymentTypeId: p.paymentTypeId,
-        paymentClass: p.paymentClass,
-        amount: Number(p.amount),
-        reference: p.reference,
-        arDocNo: p.arDocNo,
-    };
-}
-
 // Which tiles the billed golfer does NOT qualify for (package eligibility,
 // 2026-10-06): { [transactionTypeId]: reason } - the screen disables those
 // tiles with the reason; addItem refuses them with the same text.
@@ -363,25 +168,6 @@ async function ineligibleTiles(req, companyId, registration) {
     });
     const shape = await playShapeOf(registration);
     return eligibility.ineligibleMap(req, { companyId, registration, holes: shape.holes, types });
-}
-
-async function billDto(bill, { transaction } = {}) {
-    const [items, payments] = await Promise.all([
-        BillItem.findAll({ where: { billId: bill.id }, order: [['sortOrder', 'ASC']], transaction }),
-        BillPayment.findAll({ where: { billId: bill.id }, order: [['sortOrder', 'ASC']], transaction }),
-    ]);
-    return {
-        id: bill.id,
-        billNo: bill.billNo,
-        playerId: bill.playerId,
-        billDate: bill.billDate,
-        status: bill.status,
-        totalAmount: Number(bill.totalAmount),
-        taxTotal: Number(bill.taxTotal),
-        remarks: bill.remarks,
-        items: items.map(itemDto),
-        payments: payments.map(paymentDto),
-    };
 }
 
 // ---------------------------------------------------------------------------

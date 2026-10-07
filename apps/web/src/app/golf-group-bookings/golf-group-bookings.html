@@ -389,7 +389,244 @@
           </div>
         }
       </div>
+
+      <!-- ---- Group bill & proforma (slice 2) ---- -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('bill')" [attr.aria-expanded]="isExpanded('bill')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Group bill &amp; proforma
+              @if (folio()?.bill; as gb) { <span class="data-card__reg">{{ gb.billNo }}</span> <span class="status-chip" [class.status-chip--on]="gb.status === 'settled'" [class.status-chip--off]="gb.status !== 'settled'">{{ gb.status }}</span> }
+            </span>
+            <span class="settings-header__sub">The packages and charges for the whole group, priced on {{ folio()?.play?.playDate | localDate }} ({{ folio()?.play?.holes }} holes). Print the proforma to demand the deposit; this bill becomes the final bill at settlement.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('bill')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('bill')) {
+          <div class="settings-body">
+            @if (folioLoading() && !folio()) {
+              <div class="loading-state"><div class="spinner"></div><p>Loading the group bill…</p></div>
+            } @else if (folio(); as f) {
+              @if (f.bill && f.bill.items.length) {
+                <div class="ggb-items">
+                  <div class="ggb-item ggb-item--head" aria-hidden="true">
+                    <span>Item</span><span>Qty</span><span>Unit</span><span>Tax</span><span>Payable</span><span></span>
+                  </div>
+                  @for (i of f.bill.items; track i.id) {
+                    <div class="ggb-item">
+                      <span class="ggb-item__desc">{{ i.description }}
+                        @if (i.packageRole) { <span class="ggb-tag">package</span> }
+                        @if (i.priceOverridden) { <span class="ggb-tag">amended</span> }
+                      </span>
+                      @if (billOpen() && !i.packageGroupId) {
+                        <input type="number" inputmode="numeric" min="1" max="999" [value]="i.quantity" (change)="setItemQty(i.id, $any($event.target).value)" [disabled]="folioBusy()" [attr.aria-label]="'Quantity of ' + i.description" />
+                      } @else { <span>{{ i.quantity }}</span> }
+                      @if (billOpen() && itemTypeAllowsPrice(i)) {
+                        <input type="number" inputmode="decimal" min="0" step="0.01" appMoney [moneyValue]="i.unitAmount" (change)="setItemPrice(i.id, $any($event.target).value)" [disabled]="folioBusy()" [attr.aria-label]="'Unit price of ' + i.description" />
+                      } @else { <span>{{ i.unitAmount.toFixed(2) }}</span> }
+                      <span>{{ i.taxAmount.toFixed(2) }}</span>
+                      <span class="ggb-item__payable">{{ i.payable.toFixed(2) }}</span>
+                      @if (billOpen()) {
+                        <button type="button" class="btn btn--danger btn--sm" (click)="removeFolioItem(i.id)" [disabled]="folioBusy()" [attr.aria-label]="'Remove ' + i.description" *appCan="'edit'">
+                          <span class="material-icons" aria-hidden="true">close</span>
+                        </button>
+                      } @else { <span></span> }
+                    </div>
+                  }
+                  <div class="ggb-item ggb-item--total">
+                    <span class="ggb-item__desc">Total</span><span></span><span></span>
+                    <span>{{ f.bill.taxTotal.toFixed(2) }}</span>
+                    <span class="ggb-item__payable">{{ f.bill.totalAmount.toFixed(2) }}</span><span></span>
+                  </div>
+                </div>
+              } @else {
+                <p class="cell-subtle">No packages or charges keyed yet. Add the first item below - the group bill is created with it.</p>
+              }
+
+              @if (billOpen()) {
+                <div class="ggb-additem" *appCan="'edit'">
+                  <div class="form-group">
+                    <label for="ggbAddItem">Billing item</label>
+                    <app-combobox [value]="addItemTypeId()" (valueChange)="setAddItemType($event)" [options]="tileOptions()" [allowEmpty]="false" inputId="ggbAddItem" placeholder="Type the item code or name…" />
+                  </div>
+                  <div class="form-group">
+                    <label for="ggbAddQty">Quantity</label>
+                    <input id="ggbAddQty" type="number" inputmode="numeric" min="1" max="999" [value]="addItemQty()" (input)="addItemQty.set(+$any($event.target).value)" />
+                  </div>
+                  @if (addItemTile()?.allowPriceOverride) {
+                    <div class="form-group">
+                      <label for="ggbAddPrice">Unit price (optional)</label>
+                      <input id="ggbAddPrice" type="number" inputmode="decimal" min="0" step="0.01" appMoney [moneyValue]="addItemPrice() ?? 0" (change)="addItemPrice.set(+$any($event.target).value)" />
+                    </div>
+                  }
+                  <button type="button" class="btn btn--primary" (click)="addFolioItem()" [disabled]="folioBusy() || !addItemTypeId()">
+                    <span class="material-icons" aria-hidden="true">add</span>
+                    {{ addItemTile()?.chargeType === 'package' ? 'Add package × ' + addItemQty() : 'Add item' }}
+                  </button>
+                </div>
+              }
+
+              <h3 class="ggb-h3">Proforma invoice</h3>
+              <div class="ggb-proforma">
+                <div class="form-group">
+                  <label for="ggbPfDeposit">Deposit required</label>
+                  <input id="ggbPfDeposit" type="number" inputmode="decimal" min="0" step="0.01" appMoney [moneyValue]="proformaDeposit() ?? 0" (change)="setProformaDeposit(+$any($event.target).value)" [disabled]="!billOpen()" />
+                </div>
+                <div class="form-group">
+                  <label for="ggbPfDue">Pay by</label>
+                  <input id="ggbPfDue" type="date" [value]="proformaDue()" (change)="setProformaDue($any($event.target).value)" [disabled]="!billOpen()" />
+                </div>
+                <div class="ggb-proforma__status">
+                  @if (f.bill?.proformaNo) {
+                    <span><strong>{{ f.bill?.proformaNo }}</strong>{{ (f.bill?.proformaRevision || 0) > 1 ? ' rev ' + f.bill?.proformaRevision : '' }} · issued {{ f.bill?.proformaIssuedAt | localDate:'datetime' }}</span>
+                  } @else {
+                    <span class="cell-subtle">Not issued yet.</span>
+                  }
+                </div>
+              </div>
+              <div class="ggb-actions">
+                @if (billOpen()) {
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="saveProformaTerms()" [disabled]="folioBusy() || !proformaDirty()" *appCan="'edit'">Save terms</button>
+                  <button type="button" class="btn btn--primary btn--sm" (click)="issueProforma()" [disabled]="folioBusy() || proformaDirty() || !f.bill?.items?.length" *appCan="'edit'">
+                    <span class="material-icons" aria-hidden="true">print</span>
+                    {{ f.bill?.proformaNo ? 'Re-issue and print' : 'Issue proforma' }}
+                  </button>
+                }
+                @if (f.bill?.proformaNo) {
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="openProforma()">
+                    <span class="material-icons" aria-hidden="true">open_in_new</span>
+                    Open proforma
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- ---- Deposits (slice 2) ---- -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('deposits')" [attr.aria-expanded]="isExpanded('deposits')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Deposits
+              @if (folio(); as f) { <span class="data-card__reg">{{ f.depositTotal.toFixed(2) }} received · {{ f.depositUnapplied.toFixed(2) }} held</span> }
+            </span>
+            <span class="settings-header__sub">Each deposit received is its own deposit bill, settled by the tender used. A City Ledger or Member tender charges the organiser's account as a normal AR invoice, and its standing is read back from Account Receivable.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('deposits')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('deposits')) {
+          <div class="settings-body">
+            @if (folio(); as f) {
+              @if (!f.deposits.length) {
+                <p class="cell-subtle">No deposit received yet.</p>
+              } @else {
+                <div class="data-list">
+                  @for (d of f.deposits; track d.id) {
+                    <div class="data-card ggb-deposit" [class.ggb-deposit--void]="d.status === 'voided'">
+                      <div class="data-row data-row--with-badge">
+                        <div class="data-row__main">
+                          <div class="data-card__title">{{ d.amount.toFixed(2) }} <span class="data-card__reg">({{ d.billNo }})</span></div>
+                          <div class="data-card__subline">
+                            <span>{{ d.billDate | localDate }}</span>
+                            <span>{{ d.paymentType }}{{ d.paymentClass ? ' · ' + classLabel(d.paymentClass) : '' }}</span>
+                            @if (d.reference) { <span class="data-card__reg">{{ d.reference }}</span> }
+                            @if (d.onAccount) { <span class="data-card__reg">AR invoice {{ d.arDocNo }}</span> }
+                          </div>
+                          @if (d.arStanding && d.arStanding.settlements.length) {
+                            <div class="data-card__desc">
+                              @for (s of d.arStanding.settlements; track $index) {
+                                <span>{{ s.docNo || 'Credit note' }} {{ s.docDate | localDate }} {{ s.amount.toFixed(2) }}{{ s.paymentMethod ? ' (' + s.paymentMethod + ')' : '' }}</span>
+                              }
+                            </div>
+                          }
+                          @if (d.appliedAmount > 0 || d.refundedAmount > 0) {
+                            <div class="data-card__desc">Applied {{ d.appliedAmount.toFixed(2) }} · refunded {{ d.refundedAmount.toFixed(2) }} · held {{ d.unappliedAmount.toFixed(2) }}</div>
+                          }
+                          @if (d.status === 'voided') { <div class="data-card__desc">Voided: {{ d.voidReason }}</div> }
+                        </div>
+                        <span class="data-row__badge ggb-standing" [class]="'data-row__badge ggb-standing ' + standingClass(d)">{{ standingLabel(d) }}</span>
+                        <div class="data-row__actions">
+                          <button type="button" class="btn btn--secondary btn--sm" (click)="openDepositDoc(d)">
+                            <span class="material-icons" aria-hidden="true">print</span>
+                            Print
+                          </button>
+                          @if (d.status !== 'voided' && !d.onAccount && d.appliedAmount === 0 && billOpen()) {
+                            <app-overflow-menu [label]="'More actions for deposit ' + d.billNo" *appCan="'edit'">
+                              <button type="button" appMenuItem (click)="askVoidDeposit(d)">
+                                <span class="material-icons" aria-hidden="true">block</span>
+                                Void deposit
+                              </button>
+                            </app-overflow-menu>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+              @if (billOpen()) {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="openDepositDialog()" [disabled]="!f.depositType" *appCan="'edit'">
+                  <span class="material-icons" aria-hidden="true">savings_outlined</span>
+                  Record deposit
+                </button>
+                @if (!f.depositType) {
+                  <p class="cell-subtle">Set up a transaction type with charge type Deposit first (Golf Management → Transaction Type).</p>
+                }
+              }
+            }
+          </div>
+        }
+      </div>
     }
+  }
+
+  <!-- ============ Record deposit (centred - states the outcome) ============ -->
+  @if (depositDialogOpen()) {
+    <app-dialog #depdlg title="Record deposit" [busy]="folioBusy()" [dirty]="depositForm.dirty" (close)="depositDialogOpen.set(false)">
+      <form id="ggbDeposit" [formGroup]="depositForm" (ngSubmit)="recordDeposit()" class="saas-form" style="padding: 0;">
+        <div class="ggb-grid">
+          <div class="form-group">
+            <label for="ggbDepAmount">Amount received <span class="required">*</span></label>
+            <input id="ggbDepAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount" [attr.aria-invalid]="showError(depositForm.controls.amount)" />
+            @if (showError(depositForm.controls.amount)) { <p class="field-error" role="alert">Key in the amount.</p> }
+          </div>
+          <div class="form-group">
+            <label for="ggbDepTender">Payment type <span class="required">*</span></label>
+            <app-combobox formControlName="paymentTypeId" [options]="tenderOptions()" [allowEmpty]="false" inputId="ggbDepTender" placeholder="Cash, bank transfer, city ledger…" />
+          </div>
+          <div class="form-group">
+            <label for="ggbDepRef">Reference</label>
+            <input id="ggbDepRef" type="text" formControlName="reference" maxlength="100" placeholder="Cheque no, transfer ref…" />
+          </div>
+          <div class="form-group">
+            <label for="ggbDepRemarks">Remarks</label>
+            <textarea id="ggbDepRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255"></textarea>
+          </div>
+        </div>
+        @if (depositPreview(); as preview) {
+          <p class="ggb-preview"><span class="material-icons" aria-hidden="true">info</span> {{ preview }}</p>
+        }
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="depdlg.requestClose()">Cancel</button>
+        <button type="submit" form="ggbDeposit" class="btn btn--primary" [disabled]="folioBusy() || depositForm.invalid">{{ folioBusy() ? 'Recording…' : 'Record deposit' }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Void deposit (centred) ============ -->
+  @if (depositVoidTarget(); as d) {
+    <app-dialog title="Void deposit" [busy]="folioBusy()" (close)="depositVoidTarget.set(null)">
+      <p>Void deposit bill <strong>{{ d.billNo }}</strong> of <strong>{{ d.amount.toFixed(2) }}</strong> received by {{ d.paymentType }}? Use this for a deposit keyed in error; the money is not refunded here.</p>
+      <div class="form-group">
+        <label for="ggbDepVoidReason">Reason <span class="required">*</span></label>
+        <textarea id="ggbDepVoidReason" rows="2" wrap="off" [value]="depositVoidReason()" (input)="depositVoidReason.set($any($event.target).value)"></textarea>
+      </div>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="depositVoidTarget.set(null)" [disabled]="folioBusy()">Keep</button>
+        <button type="button" class="btn btn--danger" (click)="confirmVoidDeposit()" [disabled]="folioBusy()">{{ folioBusy() ? 'Voiding…' : 'Void deposit' }}</button>
+      </ng-container>
+    </app-dialog>
   }
 
   <!-- ============ Header dialog (create: header + days; edit: header) ============ -->
