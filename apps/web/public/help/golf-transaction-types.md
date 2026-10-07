@@ -105,6 +105,38 @@ If you leave without saving, the system asks whether to discard your changes or 
 - Open the ⋮ menu and click **Disable** to retire an item you no longer bill; it disappears from the billing tiles and package pickers, and its bill history is kept.
 - Click **Enable** to bring it back - a golfer-type default can only be re-enabled while no other active item holds that default.
 
+## Worked examples
+
+### Caddy or buggy rates that differ by golfer type
+
+A club charges caddies at 64.00 (9 holes) / 128.00 (18 holes) for members and members' guests, and 69.10 / 138.25 for visitors.
+
+1. Create `CADDY-M` - Charge Type **Caddy Fee**, Default for golfer type **Member**, Tax Scheme SST; under Default Price enter 64.00 / 128.00 in the weekday cells and **Copy weekday prices** to the weekend cells.
+2. Create `CADDY-MG` the same way with Default for golfer type **Member as Guest**.
+3. Create `CADDY-V` with Default for golfer type **Guest / Visitor** and 69.10 / 138.25.
+
+On a bill, a member sees only `CADDY-M`, a member's guest only `CADDY-MG`, a visitor only `CADDY-V` - the price follows the player, and a tile of the wrong category is refused if someone tries it another way.
+Buggy rates (e.g. 75.60 / 129.60 for members, 91.80 / 167.40 for visitors) are keyed exactly the same way with Charge Type **Buggy Fee**.
+
+### A flat extra such as golf insurance
+
+1. Create `INSURANCE` - Charge Type **Miscellaneous**, no golfer type, Tax Scheme None if the premium carries no tax.
+2. Under Default Price enter the single **Amount**, e.g. 6.48.
+
+The tile is offered to every golfer; add it to a bill with one click, or include it as an element of a package.
+
+### A package quoted "nett, including tax"
+
+Clubs often publish a package price that already includes tax, e.g. a corporate tournament at 432.00 nett including 8% SST.
+Prices in this catalog are **tax-exclusive**, so key the amount before tax and let the tax scheme add it back: 432.00 ÷ 1.08 = 400.00 with Tax Scheme SST 8% bills as exactly 432.00 (756.00 → 700.00, 540.00 → 500.00).
+
+1. Create `TOURN-WD` - Charge Type **Package**, Tax Scheme SST, Auto Transaction Type the visitor green fee.
+2. Add the elements the package bundles, with their share of the price - e.g. a half share of a buggy, a caddy and the insurance item; the remainder posts to the green fee automatically.
+3. Add an eligibility condition for when it applies - e.g. Mon-Fri; a weekend-morning variant gets Sat and Sun with a tee-off window up to 11:59, a Sunday-afternoon variant gets Sun from 12:00.
+4. Under Default Price enter the tax-exclusive **Amount** (400.00).
+
+Items that are not billable lines (e.g. a food-and-beverage share) are not modelled as elements - they stay inside the balance line.
+
 ## Field reference
 
 ### New / Edit transaction type dialog
@@ -142,7 +174,8 @@ If you leave without saving, the system asks whether to discard your changes or 
 - If you see "A price effective 2026-01-01 already exists", edit that card instead of adding a second one for the same date.
 - If you see "This price is already in force - disable it instead of deleting", the card has been used - disable it to keep history intact.
 - A bill tile shows "'X' has no price in force for <date> - set up its pricing first" when the item has no active price card on or before the play date.
-- Name codes consistently (`GF-`, `BUGGY-`, `CADDY-`, `PKG-` prefixes) - the tiles show the code, and the search matches it.
+- Name codes consistently (`GF-`, `BUGGY-`, `CADDY-`, `PKG-`, `TOURN-` prefixes) - the tiles show the code, and the search matches it.
+- A published "nett" price includes tax: divide it by (1 + the tax rate) before keying it, as in the worked example above.
 
 ## Related options
 
