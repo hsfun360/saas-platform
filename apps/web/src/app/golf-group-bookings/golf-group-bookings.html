@@ -533,9 +533,9 @@
                             @if (d.onAccount) { <span class="data-card__reg">AR invoice {{ d.arDocNo }}</span> }
                           </div>
                           @if (d.arStanding && d.arStanding.settlements.length) {
-                            <div class="data-card__desc">
+                            <div class="data-card__desc ggb-settlements">
                               @for (s of d.arStanding.settlements; track $index) {
-                                <span>{{ s.docNo || 'Credit note' }} {{ s.docDate | localDate }} {{ s.amount.toFixed(2) }}{{ s.paymentMethod ? ' (' + s.paymentMethod + ')' : '' }}</span>
+                                <span>{{ s.docNo || 'Credit note' }} · {{ s.docDate | localDate }} · {{ s.amount.toFixed(2) }}{{ s.paymentMethod ? ' (' + s.paymentMethod + ')' : '' }}</span>
                               }
                             </div>
                           }

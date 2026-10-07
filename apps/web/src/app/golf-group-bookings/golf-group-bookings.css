@@ -455,7 +455,13 @@
   }
 }
 
-/* Deposit cards: standing chip colours (paid / partial / due). */
+/* Deposit cards: one settlement per line; standing chip colours (paid /
+   partial / due). */
+.ggb-settlements {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .ggb-deposit--void {
   opacity: 0.7;
 }
