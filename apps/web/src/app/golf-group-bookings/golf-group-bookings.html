@@ -498,6 +498,35 @@
                   </button>
                 }
               </div>
+
+              <h3 class="ggb-h3">Final bill</h3>
+              @if (f.bill?.status === 'settled') {
+                <p class="cell-subtle">Settled {{ f.bill?.settledAt | localDate:'datetime' }}.</p>
+                <div class="ggb-items">
+                  @for (p of f.bill?.payments || []; track p.id) {
+                    <div class="ggb-pay">
+                      <span>{{ tenderOf(p.paymentTypeId)?.paymentType || classLabel(p.paymentClass) }}{{ p.reference ? ' · ' + p.reference : '' }}{{ p.arDocNo ? ' · AR invoice ' + p.arDocNo : '' }}</span>
+                      <span class="ggb-item__payable">{{ p.amount.toFixed(2) }}</span>
+                    </div>
+                  }
+                </div>
+              } @else if (f.bill?.items?.length) {
+                <p class="cell-subtle">Settling draws the held deposits first ({{ f.depositUnapplied.toFixed(2) }} held); the balance is paid by any tender, and a City Ledger or Member tender charges the organiser's account for the balance only.</p>
+                @if (billOpen()) {
+                  <div class="ggb-actions" *appCan="'edit'">
+                    <button type="button" class="btn btn--primary btn--sm" (click)="openSettle()" [disabled]="folioBusy()">
+                      <span class="material-icons" aria-hidden="true">point_of_sale</span>
+                      Settle {{ f.bill?.totalAmount?.toFixed(2) }}
+                    </button>
+                    <button type="button" class="btn btn--secondary btn--sm" (click)="groupBillVoidOpen.set(true); groupBillVoidReason.set('')" [disabled]="folioBusy()">
+                      <span class="material-icons" aria-hidden="true">block</span>
+                      Void bill
+                    </button>
+                  </div>
+                }
+              } @else {
+                <p class="cell-subtle">The final bill is this group bill once it has items.</p>
+              }
             }
           </div>
         }
@@ -564,7 +593,7 @@
                   }
                 </div>
               }
-              @if (billOpen()) {
+              @if (canDeposit()) {
                 <button type="button" class="btn btn--secondary btn--sm" (click)="openDepositDialog()" [disabled]="!f.depositType" *appCan="'edit'">
                   <span class="material-icons" aria-hidden="true">savings_outlined</span>
                   Record deposit
@@ -577,7 +606,185 @@
           </div>
         }
       </div>
+
+      <!-- ---- Refund requests (slice 4) ---- -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('refunds')" [attr.aria-expanded]="isExpanded('refunds')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Refund requests
+              @if (folio(); as f) { <span class="data-card__reg">{{ f.refunds.length }} request(s) · {{ f.depositUnapplied.toFixed(2) }} still held</span> }
+            </span>
+            <span class="settings-header__sub">Deposit money the booking no longer needs - the surplus after the final bill, or a cancelled booking's deposit less any cancellation charge - is requested from Finance here. Finance records the payout or declines; golf never posts credit notes.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('refunds')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('refunds')) {
+          <div class="settings-body">
+            @if (folio(); as f) {
+              @if (!f.refunds.length) {
+                <p class="cell-subtle">No refund requested.</p>
+              } @else {
+                <div class="data-list">
+                  @for (r of f.refunds; track r.id) {
+                    <div class="data-card">
+                      <div class="data-row data-row--with-badge">
+                        <div class="data-row__main">
+                          <div class="data-card__title">{{ r.amount.toFixed(2) }} <span class="data-card__reg">({{ r.refundNo }})</span></div>
+                          <div class="data-card__subline">
+                            <span>{{ r.requestDate | localDate }}</span>
+                            <span>{{ r.reason }}</span>
+                          </div>
+                          @if (r.status === 'paid') { <div class="data-card__desc">Paid {{ r.paidAt | localDate:'datetime' }} by {{ r.paidMethod }}{{ r.paidReference ? ' · ' + r.paidReference : '' }}</div> }
+                          @if (r.status === 'declined') { <div class="data-card__desc">Declined {{ r.declinedAt | localDate:'datetime' }}: {{ r.declineReason }}</div> }
+                        </div>
+                        <span [class]="'data-row__badge ggb-standing ' + refundStatusClass(r)">{{ r.status }}</span>
+                        @if (r.status === 'requested') {
+                          <div class="data-row__actions" *appCan="'edit'">
+                            <button type="button" class="btn btn--primary btn--sm" (click)="openRefundAction('pay', r)" [disabled]="folioBusy()">
+                              <span class="material-icons" aria-hidden="true">payments</span>
+                              Record payout
+                            </button>
+                            <app-overflow-menu [label]="'More actions for refund ' + r.refundNo">
+                              <button type="button" appMenuItem (click)="openRefundAction('decline', r)">
+                                <span class="material-icons" aria-hidden="true">block</span>
+                                Decline
+                              </button>
+                            </app-overflow-menu>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+              @if (f.depositUnapplied > 0) {
+                <button type="button" class="btn btn--secondary btn--sm" (click)="openRefund()" [disabled]="folioBusy()" *appCan="'edit'">
+                  <span class="material-icons" aria-hidden="true">undo</span>
+                  Request refund of held deposit
+                </button>
+              }
+            }
+          </div>
+        }
+      </div>
     }
+  }
+
+  <!-- ============ Settle the group bill (centred - states the outcome) ============ -->
+  @if (settleDialogOpen()) {
+    <app-dialog #sdlg [title]="'Settle group bill ' + (folio()?.bill?.billNo || '')" [busy]="folioBusy()" [dirty]="settleDirty()" (close)="settleDialogOpen.set(false)">
+      <div class="ggb-settle-head">
+        <span>Total <strong>{{ (folio()?.bill?.totalAmount || 0).toFixed(2) }}</strong></span>
+        <span [class.ggb-remaining--due]="settleRemaining() !== 0">Remaining <strong>{{ settleRemaining().toFixed(2) }}</strong></span>
+      </div>
+      <div class="ggb-pay-lines">
+        @for (l of settleLines(); track $index; let i = $index) {
+          <div class="ggb-pay-line">
+            <app-combobox [value]="l.paymentTypeId" (valueChange)="setSettleLine(i, { paymentTypeId: $event, depositBillId: '' })" [options]="settleTenderOptions()" [allowEmpty]="false" [inputId]="'ggbPay' + i" placeholder="Payment type…" [ariaLabel]="'Payment ' + (i + 1) + ' type'" />
+            @if (isDepositTender(l.paymentTypeId)) {
+              <app-combobox [value]="l.depositBillId" (valueChange)="setSettleLine(i, { depositBillId: $event })" [options]="heldDepositOptions()" [allowEmpty]="false" [inputId]="'ggbPayDep' + i" placeholder="Which deposit…" [ariaLabel]="'Payment ' + (i + 1) + ' deposit'" />
+            } @else {
+              <input type="text" [value]="l.reference" maxlength="100" placeholder="Reference" (input)="setSettleLine(i, { reference: $any($event.target).value })" [attr.aria-label]="'Payment ' + (i + 1) + ' reference'" />
+            }
+            <input type="number" inputmode="decimal" min="0" step="0.01" appMoney [moneyValue]="l.amount" (change)="setSettleLine(i, { amount: +$any($event.target).value })" [attr.aria-label]="'Payment ' + (i + 1) + ' amount'" />
+            <button type="button" class="btn btn--danger btn--sm" (click)="removeSettleLine(i)" [attr.aria-label]="'Remove payment ' + (i + 1)">
+              <span class="material-icons" aria-hidden="true">close</span>
+            </button>
+          </div>
+        }
+      </div>
+      <div class="ggb-actions">
+        <button type="button" class="btn btn--secondary btn--sm" (click)="addSettleLine()">
+          <span class="material-icons" aria-hidden="true">add</span>
+          Add payment
+        </button>
+        <button type="button" class="btn btn--secondary btn--sm" (click)="applyDeposits()" [disabled]="!(folio()?.depositUnapplied || 0)">
+          <span class="material-icons" aria-hidden="true">savings_outlined</span>
+          Apply held deposits
+        </button>
+      </div>
+      @if (settlePreview(); as preview) {
+        <p class="ggb-preview"><span class="material-icons" aria-hidden="true">info</span> {{ preview }}</p>
+      }
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="sdlg.requestClose()" [disabled]="folioBusy()">Cancel</button>
+        <button type="button" class="btn btn--primary" (click)="settleGroupBill()" [disabled]="folioBusy() || settleRemaining() !== 0 || !settleLines().length">{{ folioBusy() ? 'Settling…' : 'Settle bill' }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Void the group bill (centred) ============ -->
+  @if (groupBillVoidOpen()) {
+    <app-dialog title="Void group bill" [busy]="folioBusy()" (close)="groupBillVoidOpen.set(false)">
+      <p>Void group bill <strong>{{ folio()?.bill?.billNo }}</strong>? Its items and proforma are discarded; the next item starts a new bill. Deposits are untouched.</p>
+      <div class="form-group">
+        <label for="ggbGbVoidReason">Reason <span class="required">*</span></label>
+        <textarea id="ggbGbVoidReason" rows="2" wrap="off" [value]="groupBillVoidReason()" (input)="groupBillVoidReason.set($any($event.target).value)"></textarea>
+      </div>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="groupBillVoidOpen.set(false)" [disabled]="folioBusy()">Keep</button>
+        <button type="button" class="btn btn--danger" (click)="confirmVoidGroupBill()" [disabled]="folioBusy()">{{ folioBusy() ? 'Voiding…' : 'Void bill' }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Request refund (centred) ============ -->
+  @if (refundDialogOpen()) {
+    <app-dialog #rfdlg title="Request refund" [busy]="folioBusy()" [dirty]="refundForm.dirty" (close)="refundDialogOpen.set(false)">
+      <p>The folio holds <strong>{{ (folio()?.depositUnapplied || 0).toFixed(2) }}</strong> in deposits not applied to the final bill. The request goes to Finance, who pay it out or decline it; the amount is reserved until then.</p>
+      <form id="ggbRefund" [formGroup]="refundForm" (ngSubmit)="requestRefund()" class="saas-form" style="padding: 0;">
+        <div class="ggb-grid">
+          <div class="form-group">
+            <label for="ggbRfAmount">Amount <span class="required">*</span></label>
+            <input id="ggbRfAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount" [attr.aria-invalid]="showError(refundForm.controls.amount)" />
+          </div>
+          <div class="form-group">
+            <label for="ggbRfReason">Reason <span class="required">*</span></label>
+            <textarea id="ggbRfReason" rows="2" wrap="off" formControlName="reason" maxlength="255" [attr.aria-invalid]="showError(refundForm.controls.reason)"></textarea>
+            @if (showError(refundForm.controls.reason)) { <p class="field-error" role="alert">Give the reason.</p> }
+          </div>
+        </div>
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="rfdlg.requestClose()">Cancel</button>
+        <button type="submit" form="ggbRefund" class="btn btn--primary" [disabled]="folioBusy() || refundForm.invalid">{{ folioBusy() ? 'Sending…' : 'Send to Finance' }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Refund payout / decline (centred) ============ -->
+  @if (refundAction(); as a) {
+    <app-dialog [title]="a.kind === 'pay' ? 'Record refund payout' : 'Decline refund'" [busy]="folioBusy()" (close)="refundAction.set(null)">
+      @if (a.kind === 'pay') {
+        <p>Refund <strong>{{ a.refund.refundNo }}</strong> of <strong>{{ a.refund.amount.toFixed(2) }}</strong> - record how Finance paid it. For a deposit that was charged to account, "Credit note" is the usual answer.</p>
+        <form id="ggbRfPay" [formGroup]="refundPayForm" (ngSubmit)="confirmRefundAction()" class="saas-form" style="padding: 0;">
+          <div class="ggb-grid">
+            <div class="form-group">
+              <label for="ggbRfMethod">Paid by <span class="required">*</span></label>
+              <input id="ggbRfMethod" type="text" formControlName="paidMethod" maxlength="100" placeholder="Bank transfer, cheque, credit note…" [attr.aria-invalid]="showError(refundPayForm.controls.paidMethod)" />
+            </div>
+            <div class="form-group">
+              <label for="ggbRfRef">Reference</label>
+              <input id="ggbRfRef" type="text" formControlName="paidReference" maxlength="100" />
+            </div>
+          </div>
+        </form>
+      } @else {
+        <p>Decline refund <strong>{{ a.refund.refundNo }}</strong> of <strong>{{ a.refund.amount.toFixed(2) }}</strong>? The reserved deposit money is held on the folio again.</p>
+        <div class="form-group">
+          <label for="ggbRfDecline">Reason <span class="required">*</span></label>
+          <textarea id="ggbRfDecline" rows="2" wrap="off" [value]="refundDeclineReason()" (input)="refundDeclineReason.set($any($event.target).value)"></textarea>
+        </div>
+      }
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="refundAction.set(null)" [disabled]="folioBusy()">Cancel</button>
+        @if (a.kind === 'pay') {
+          <button type="submit" form="ggbRfPay" class="btn btn--primary" [disabled]="folioBusy() || refundPayForm.invalid">{{ folioBusy() ? 'Saving…' : 'Record payout' }}</button>
+        } @else {
+          <button type="button" class="btn btn--danger" (click)="confirmRefundAction()" [disabled]="folioBusy()">{{ folioBusy() ? 'Declining…' : 'Decline' }}</button>
+        }
+      </ng-container>
+    </app-dialog>
   }
 
   <!-- ============ Record deposit (centred - states the outcome) ============ -->

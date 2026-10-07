@@ -217,6 +217,9 @@ export interface GolfFolioBill {
   proformaIssuedAt: string | null;
   depositRequired: number | null;
   depositDueDate: string | null;
+  settledAt: string | null;
+  voidedAt: string | null;
+  voidReason: string | null;
   items: GolfFolioBillItem[];
   payments: { id: string; paymentTypeId: string; paymentClass: string; amount: number; reference: string | null; arDocNo: string | null; appliedDepositBillId: string | null }[];
 }
@@ -257,6 +260,31 @@ export interface GolfFolioDeposit {
   createdAt: string;
 }
 
+// A refund request to Finance (slice 4): requested -> paid | declined.
+export interface GolfFolioRefund {
+  id: string;
+  refundNo: string;
+  requestDate: string;
+  amount: number;
+  reason: string;
+  status: 'requested' | 'paid' | 'declined';
+  paidAt: string | null;
+  paidMethod: string | null;
+  paidReference: string | null;
+  declinedAt: string | null;
+  declineReason: string | null;
+  remarks: string | null;
+  createdAt: string;
+  items: { depositBillId: string; amount: number }[];
+}
+
+export interface GolfFolioPaymentLine {
+  paymentTypeId: string;
+  amount: number;
+  reference?: string;
+  depositBillId?: string | null;
+}
+
 export interface GolfFolio {
   bill: GolfFolioBill | null;
   play: { playDate: string; holes: number; dayType: string };
@@ -266,6 +294,8 @@ export interface GolfFolio {
   deposits: GolfFolioDeposit[];
   depositTotal: number;
   depositUnapplied: number;
+  refunds: GolfFolioRefund[];
+  bookingStatus: string;
   billingParty: { debtorType: string | null; debtorSourceId: string | null; organiserName: string | null; hasAccount: boolean };
 }
 
@@ -384,5 +414,27 @@ export class GolfGroupBookingService {
 
   voidDeposit(id: string, billId: string, reason: string): Observable<FolioSaved> {
     return this.http.post<FolioSaved>(`${this.base}/${id}/deposits/${billId}/void`, { reason });
+  }
+
+  // ---- final settlement + refunds (slice 4) ----
+
+  settleGroupBill(id: string, payments: GolfFolioPaymentLine[]): Observable<FolioSaved> {
+    return this.http.post<FolioSaved>(`${this.base}/${id}/folio/settle`, { payments });
+  }
+
+  voidGroupBill(id: string, reason: string): Observable<FolioSaved> {
+    return this.http.post<FolioSaved>(`${this.base}/${id}/folio/void`, { reason });
+  }
+
+  requestRefund(id: string, payload: { amount: number; reason: string; remarks?: string }): Observable<FolioSaved> {
+    return this.http.post<FolioSaved>(`${this.base}/${id}/refunds`, payload);
+  }
+
+  payRefund(id: string, refundId: string, payload: { paidMethod: string; paidReference?: string }): Observable<FolioSaved> {
+    return this.http.post<FolioSaved>(`${this.base}/${id}/refunds/${refundId}/pay`, payload);
+  }
+
+  declineRefund(id: string, refundId: string, reason: string): Observable<FolioSaved> {
+    return this.http.post<FolioSaved>(`${this.base}/${id}/refunds/${refundId}/decline`, { reason });
   }
 }

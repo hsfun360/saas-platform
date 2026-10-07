@@ -14,7 +14,7 @@ import { ScrollReturnService } from '../services/scroll-return.service';
 import { MembershipStatusOption } from '../models/auth.models';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import {
-  GolfFolio, GolfFolioDeposit, GolfFolioTile, GolfGroupBooking, GolfGroupBookingMeta, GolfGroupBookingRow, GolfGroupBookingService,
+  GolfFolio, GolfFolioDeposit, GolfFolioPaymentLine, GolfFolioRefund, GolfFolioTile, GolfGroupBooking, GolfGroupBookingMeta, GolfGroupBookingRow, GolfGroupBookingService,
   GolfGroupDayPayload, GolfGroupFlight, GolfGroupHeaderPayload, GolfOrganiserKind as GolfGroupOrganiserKind, GolfGroupPlayDay,
   GolfGroupRosterLine, GolfGroupRosterPlayer, GolfStartFormat,
 } from '../services/golf-group-booking.service';
@@ -97,7 +97,7 @@ export class GolfGroupBookingsComponent implements OnInit {
   readonly selectedId = signal<string | null>(null);
   readonly booking = signal<GolfGroupBooking | null>(null);
   readonly detailLoading = signal(false);
-  readonly expanded = signal<Record<string, boolean>>({ header: true, days: true, roster: true, draw: true, bill: true, deposits: true });
+  readonly expanded = signal<Record<string, boolean>>({ header: true, days: true, roster: true, draw: true, bill: true, deposits: true, refunds: true });
   readonly working = signal(false);
 
   // ---- folio (slice 2): group bill + proforma + deposits ----
@@ -129,6 +129,35 @@ export class GolfGroupBookingsComponent implements OnInit {
   readonly tenderOptions = computed(() => (this.folio()?.tenders || []).map((t) => ({ value: t.id, label: `${t.paymentType}${t.description ? ' - ' + t.description : ''}` })));
   readonly depositVoidTarget = signal<GolfFolioDeposit | null>(null);
   readonly depositVoidReason = signal('');
+
+  // ---- final settlement (slice 4): payment lines outside a FormGroup (the
+  // house pattern for dynamic rows), Deposit-class lines pick a held deposit.
+  readonly settleDialogOpen = signal(false);
+  readonly settleLines = signal<{ paymentTypeId: string; amount: number; reference: string; depositBillId: string }[]>([]);
+  readonly settleDirty = signal(false);
+  readonly settleTenderOptions = computed(() => (this.folio()?.tenders || []).map((t) => ({ value: t.id, label: `${t.paymentType}${t.description ? ' - ' + t.description : ''}` })));
+  readonly heldDepositOptions = computed(() => (this.folio()?.deposits || []).filter((d) => d.status === 'settled' && d.unappliedAmount > 0)
+    .map((d) => ({ value: d.id, label: `${d.billNo} · holds ${d.unappliedAmount.toFixed(2)}` })));
+  readonly settlePaid = computed(() => Math.round(this.settleLines().reduce((s, l) => s + (Number(l.amount) || 0), 0) * 100) / 100);
+  readonly settleRemaining = computed(() => {
+    const total = this.folio()?.bill?.totalAmount || 0;
+    return Math.round((total - this.settlePaid()) * 100) / 100;
+  });
+  readonly groupBillVoidOpen = signal(false);
+  readonly groupBillVoidReason = signal('');
+
+  // ---- refund requests (slice 4) ----
+  readonly refundDialogOpen = signal(false);
+  readonly refundForm = this.fb.nonNullable.group({
+    amount: [0, [Validators.required, Validators.min(0.01)]],
+    reason: ['', [Validators.required, Validators.maxLength(255)]],
+  });
+  readonly refundAction = signal<{ kind: 'pay' | 'decline'; refund: GolfFolioRefund } | null>(null);
+  readonly refundPayForm = this.fb.nonNullable.group({
+    paidMethod: ['', [Validators.required, Validators.maxLength(100)]],
+    paidReference: ['', Validators.maxLength(100)],
+  });
+  readonly refundDeclineReason = signal('');
 
   readonly courseOptions = computed(() => (this.meta()?.courses || []).map((c) => ({ value: c.id, label: c.label })));
   readonly debtorOptions = computed(() => (this.meta()?.otherDebtors || []).map((o) => ({ value: o.id, label: `${o.code} - ${o.name}` })));
@@ -354,10 +383,24 @@ export class GolfGroupBookingsComponent implements OnInit {
     this.errorMessage.set(err.error?.message || fallback);
   };
 
+  // The folio stays workable on a CANCELLED booking while its group bill is
+  // open (a cancellation charge is billed and settled by the deposit); only
+  // a booked booking takes new items on an empty folio or new deposits.
   billOpen(): boolean {
     const f = this.folio();
     const b = this.booking();
-    return !!b && b.status === 'booked' && (!f?.bill || f.bill.status === 'open');
+    if (!b) return false;
+    if (f?.bill) return f.bill.status === 'open';
+    return b.status === 'booked';
+  }
+
+  canDeposit(): boolean {
+    const b = this.booking();
+    return !!b && b.status === 'booked';
+  }
+
+  billSettled(): boolean {
+    return this.folio()?.bill?.status === 'settled';
   }
 
   setAddItemType(id: string): void {
@@ -548,6 +591,165 @@ export class GolfGroupBookingsComponent implements OnInit {
     if (!d.onAccount || (d.arStanding && d.arStanding.status === 'paid')) return 'ggb-standing--paid';
     if (d.arStanding && d.arStanding.status === 'partial') return 'ggb-standing--partial';
     return 'ggb-standing--due';
+  }
+
+  // ---------- final settlement ----------
+
+  openSettle(): void {
+    this.clearMessages();
+    this.settleLines.set([]);
+    this.settleDirty.set(false);
+    this.applyDeposits();
+    this.settleDirty.set(false);
+    this.settleDialogOpen.set(true);
+  }
+
+  tenderOf(id: string) {
+    return (this.folio()?.tenders || []).find((t) => t.id === id) || null;
+  }
+
+  isDepositTender(id: string): boolean {
+    return this.tenderOf(id)?.paymentClass === 'deposit';
+  }
+
+  // Pre-fill one Deposit line per held deposit, oldest first, up to the
+  // bill total - the clerk only keys the balance.
+  applyDeposits(): void {
+    const f = this.folio();
+    if (!f || !f.bill) return;
+    const depositTender = f.tenders.find((t) => t.paymentClass === 'deposit');
+    if (!depositTender) { this.errorMessage.set('Set up a payment type of class Deposit first (Golf Management → Payment Type).'); return; }
+    const lines = this.settleLines().filter((l) => !this.isDepositTender(l.paymentTypeId));
+    let left = Math.round((f.bill.totalAmount - lines.reduce((s, l) => s + (Number(l.amount) || 0), 0)) * 100) / 100;
+    for (const d of f.deposits.filter((x) => x.status === 'settled' && x.unappliedAmount > 0)) {
+      if (left <= 0) break;
+      const take = Math.min(left, d.unappliedAmount);
+      lines.push({ paymentTypeId: depositTender.id, amount: Math.round(take * 100) / 100, reference: '', depositBillId: d.id });
+      left = Math.round((left - take) * 100) / 100;
+    }
+    this.settleLines.set(lines);
+    this.settleDirty.set(true);
+  }
+
+  addSettleLine(): void {
+    this.settleLines.update((rows) => [...rows, { paymentTypeId: '', amount: Math.max(0, this.settleRemaining()), reference: '', depositBillId: '' }]);
+    this.settleDirty.set(true);
+  }
+
+  setSettleLine(i: number, patch: Partial<{ paymentTypeId: string; amount: number; reference: string; depositBillId: string }>): void {
+    this.settleLines.update((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+    this.settleDirty.set(true);
+  }
+
+  removeSettleLine(i: number): void {
+    this.settleLines.update((rows) => rows.filter((_, idx) => idx !== i));
+    this.settleDirty.set(true);
+  }
+
+  // What settling does, before the clerk commits.
+  settlePreview(): string {
+    const parts: string[] = [];
+    const dep = this.settleLines().filter((l) => this.isDepositTender(l.paymentTypeId)).reduce((s, l) => s + (Number(l.amount) || 0), 0);
+    if (dep > 0) parts.push(`${dep.toFixed(2)} applied from held deposits`);
+    for (const l of this.settleLines()) {
+      const t = this.tenderOf(l.paymentTypeId);
+      if (!t || !l.amount) continue;
+      if (t.paymentClass === 'member' || t.paymentClass === 'debtor') parts.push(`${Number(l.amount).toFixed(2)} charged to ${this.folio()?.billingParty.organiserName || 'the organiser'}'s account as an AR invoice`);
+      else if (t.paymentClass !== 'deposit') parts.push(`${Number(l.amount).toFixed(2)} received by ${t.paymentType}`);
+    }
+    return parts.join(' · ');
+  }
+
+  settleGroupBill(): void {
+    const b = this.booking();
+    if (!b) return;
+    this.clearMessages();
+    const lines = this.settleLines();
+    for (let i = 0; i < lines.length; i += 1) {
+      const l = lines[i];
+      if (!l.paymentTypeId) { this.errorMessage.set(`Payment ${i + 1}: pick a payment type.`); return; }
+      if (!(Number(l.amount) > 0)) { this.errorMessage.set(`Payment ${i + 1}: key in the amount.`); return; }
+      if (this.isDepositTender(l.paymentTypeId) && !l.depositBillId) { this.errorMessage.set(`Payment ${i + 1}: pick the deposit this line draws on.`); return; }
+    }
+    if (this.settleRemaining() !== 0) { this.errorMessage.set(`Payments must equal the bill total - ${this.settleRemaining().toFixed(2)} remaining.`); return; }
+    const payments: GolfFolioPaymentLine[] = lines.map((l) => ({
+      paymentTypeId: l.paymentTypeId, amount: Number(l.amount), reference: l.reference.trim() || undefined,
+      depositBillId: this.isDepositTender(l.paymentTypeId) ? l.depositBillId : null,
+    }));
+    this.folioBusy.set(true);
+    this.service.settleGroupBill(b.id, payments).subscribe({
+      next: (res) => { this.settleDialogOpen.set(false); this.settleDirty.set(false); this.folioDone(res); },
+      error: this.folioFail('The group bill could not be settled.'),
+    });
+  }
+
+  confirmVoidGroupBill(): void {
+    const b = this.booking();
+    if (!b) return;
+    const reason = this.groupBillVoidReason().trim();
+    if (!reason) { this.errorMessage.set('Give a reason for voiding the group bill.'); return; }
+    this.folioBusy.set(true);
+    this.service.voidGroupBill(b.id, reason).subscribe({
+      next: (res) => { this.groupBillVoidOpen.set(false); this.proformaDirty.set(false); this.folioDone(res); },
+      error: this.folioFail('The group bill could not be voided.'),
+    });
+  }
+
+  // ---------- refund requests ----------
+
+  openRefund(): void {
+    this.clearMessages();
+    const held = this.folio()?.depositUnapplied || 0;
+    this.refundForm.reset({ amount: held, reason: '' });
+    this.refundDialogOpen.set(true);
+  }
+
+  requestRefund(): void {
+    const b = this.booking();
+    if (!b) return;
+    if (this.refundForm.invalid) { this.refundForm.markAllAsTouched(); return; }
+    this.clearMessages();
+    const v = this.refundForm.getRawValue();
+    this.folioBusy.set(true);
+    this.service.requestRefund(b.id, { amount: Number(v.amount), reason: v.reason.trim() }).subscribe({
+      next: (res) => { this.refundDialogOpen.set(false); this.folioDone(res); },
+      error: this.folioFail('The refund could not be requested.'),
+    });
+  }
+
+  openRefundAction(kind: 'pay' | 'decline', refund: GolfFolioRefund): void {
+    this.clearMessages();
+    this.refundPayForm.reset({ paidMethod: '', paidReference: '' });
+    this.refundDeclineReason.set('');
+    this.refundAction.set({ kind, refund });
+  }
+
+  confirmRefundAction(): void {
+    const b = this.booking();
+    const a = this.refundAction();
+    if (!b || !a) return;
+    this.clearMessages();
+    if (a.kind === 'pay') {
+      if (this.refundPayForm.invalid) { this.refundPayForm.markAllAsTouched(); return; }
+      const v = this.refundPayForm.getRawValue();
+      this.folioBusy.set(true);
+      this.service.payRefund(b.id, a.refund.id, { paidMethod: v.paidMethod.trim(), paidReference: v.paidReference.trim() || undefined }).subscribe({
+        next: (res) => { this.refundAction.set(null); this.folioDone(res); },
+        error: this.folioFail('The refund could not be recorded as paid.'),
+      });
+    } else {
+      const reason = this.refundDeclineReason().trim();
+      if (!reason) { this.errorMessage.set('Give the reason for declining.'); return; }
+      this.folioBusy.set(true);
+      this.service.declineRefund(b.id, a.refund.id, reason).subscribe({
+        next: (res) => { this.refundAction.set(null); this.folioDone(res); },
+        error: this.folioFail('The refund could not be declined.'),
+      });
+    }
+  }
+
+  refundStatusClass(r: GolfFolioRefund): string {
+    return r.status === 'paid' ? 'ggb-standing--paid' : r.status === 'declined' ? 'ggb-standing--off' : 'ggb-standing--partial';
   }
 
   classLabel(key: string | null): string {

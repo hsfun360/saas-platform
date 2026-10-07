@@ -19,7 +19,8 @@ Bookings are made elsewhere (Golf Booking); this screen is where the day actuall
 - **No-shows** (today and past dates only) opens the review of booked players who did not register.
 - A legend shows the four dot colours (set on Golf Specification): **Booked**, **Registered**, **Billed**, **Settled**; a blank outline is an available seat.
 - One card per course, headed by the course code, description and its nine rotation (e.g. "E1 → E2"); click the header to fold or unfold the card.
-- Each flight row shows the tee time, one dot per seat, the players (name, type, member no, holes) and tags: **CLOSED** (course closure), **X-OVER** (a crossover-only time - no new tee-offs), **OFF GRID** (players on a time no longer in the tee-time set), **9H only** (18 holes not possible from here) and **↷n** (n players crossing over onto this nine at this time).
+- Each flight row shows the tee time, one dot per seat, the players (name, type, member no, holes) and tags: **CLOSED** (course closure), **HELD · <group>** (a group's shotgun window), **RESERVED · <group>** (a group's flight with no players drawn yet; its seats show as dashed dots), **X-OVER** (a crossover-only time - no new tee-offs), **OFF GRID** (players on a time no longer in the tee-time set), **9H only** (18 holes not possible from here) and **↷n** (n players crossing over onto this nine at this time).
+- A group or tournament play day on the course shows as a block above the flight rows: the group name, booking number, start format, window and counts, with **Register group (n)**. A shotgun-format day lists its flights inside the block by hole and nine; a traditional or two-tee day keeps its players in the normal rows, tagged with the group name and flight label.
 - Clicking a flight opens the flight workspace in a drawer; closed and crossover-only rows do not open.
 - The **Walk-in** button at the bottom right registers a golfer on any free flight.
 
@@ -36,6 +37,17 @@ Bookings are made elsewhere (Golf Booking); this screen is where the day actuall
 Each player receives a Registration No. and their dot turns to the Registered colour.
 The system re-checks the member's standing (a barred member is skipped with the reason) and shows warnings - handicap rule, course closure, junior rule - without blocking the desk.
 A name-only guest on a booking is registered as a guest; their identity can be completed later.
+
+### Register a group
+
+[Screenshot: Group block with Register group]
+
+1. In the group's block, click **Register group (n)** - n is the number of drawn players not yet registered.
+2. Read the result: how many were registered and who was skipped, with the reason.
+
+Every drawn player of the group on that date is registered in one go, whichever flight or nine they are in.
+A shotgun flight in the block opens the same flight workspace as any flight: register a selection, bill a player, cancel a registration or void a bill.
+A group player's own bill opens empty - the package is billed on the group's folio under Group Bookings - so it only carries the player's extras, such as a buggy or caddy, settled with the usual tenders.
 
 ### Register a walk-in
 

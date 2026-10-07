@@ -25,4 +25,5 @@ Each manual is also published as an in-app guide: a static copy lives at `apps/w
 - [Golf Specification](golf-management/golf-settings.md) - the club-wide golf rules: advance window, booking limits and sessions, minimum players, guest control, handicap control, cancellation notice + no-show penalty, tee-sheet colours.
 - [No-show Charges](golf-management/golf-no-show-charges.md) - the penalties raised against bookers for no-shows and late cancellations: post pending charges to the account or waive them.
 - [Transaction Type](golf-management/golf-transaction-types.md) - the golf billing-item catalog: charge types, tax scheme, Default Price cards, golfer-type defaults, packages and their eligibility conditions.
-- [Tee Time Sheet](golf-management/golf-tee-time-sheet.md) - the Front Desk's play-day view: register booked players and walk-ins, bill from the tiles, settle, record no-shows.
+- [Tee Time Sheet](golf-management/golf-tee-time-sheet.md) - the Front Desk's play-day view: register booked players, groups and walk-ins, bill from the tiles, settle, record no-shows.
+- [Group Bookings](golf-management/golf-group-bookings.md) - tournaments and group outings: play days and start formats, reserved flights, roster and draw, the group bill and proforma, deposits, final settlement and refund requests.

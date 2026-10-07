@@ -7,5 +7,6 @@
   "golf-no-show-charges": { "title": "No-show Charges" },
   "golf-transaction-types": { "title": "Transaction Type" },
   "golf-tee-time-sheet": { "title": "Tee Time Sheet" },
+  "golf-group-bookings": { "title": "Group Bookings" },
   "ar-analysis": { "title": "Analysis Setup" }
 }

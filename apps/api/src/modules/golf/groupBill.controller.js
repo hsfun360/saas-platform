@@ -20,9 +20,11 @@ const numberingGateway = require('../../platform/numberingGateway');
 const billing = require('./billing.service');
 const { PACKAGE_CHARGE_TYPE_KEY, DEPOSIT_CHARGE_TYPE_KEY, GOLFER_TYPES } = require('./transactionType.constants');
 const { ACCOUNT_PAYMENT_CLASSES } = require('./paymentType.constants');
-const { GROUP_BOOKING_TYPE_KEYS } = require('./groupBooking.constants');
+const { GROUP_BOOKING_TYPE_KEYS, GROUP_REFUND_STATUS_KEYS } = require('./groupBooking.constants');
 const BookingProfile = require('./bookingProfile.model');
 const GroupPlayDay = require('./groupPlayDay.model');
+const GroupRefund = require('./groupRefund.model');
+const GroupRefundItem = require('./groupRefundItem.model');
 const Bill = require('./bill.model');
 const BillItem = require('./billItem.model');
 const BillPayment = require('./billPayment.model');
@@ -172,26 +174,53 @@ async function depositDto(companyId, bill) {
     };
 }
 
+function refundDto(r, items) {
+    return {
+        id: r.id,
+        refundNo: r.refundNo,
+        requestDate: r.requestDate,
+        amount: Number(r.amount),
+        reason: r.reason,
+        status: r.status,
+        paidAt: r.paidAt || null,
+        paidMethod: r.paidMethod || null,
+        paidReference: r.paidReference || null,
+        declinedAt: r.declinedAt || null,
+        declineReason: r.declineReason || null,
+        remarks: r.remarks || null,
+        createdAt: r.createdAt,
+        items: (items || []).map((i) => ({ depositBillId: i.depositBillId, amount: Number(i.amount) })),
+    };
+}
+
 async function folioDto(req, companyId, profile, bill) {
-    const [types, tenders, depositBills] = await Promise.all([
+    const [types, tenders, depositBills, refunds] = await Promise.all([
         GolfTransactionType.findAll({ where: { companyId, isActive: true }, order: [['transactionType', 'ASC']] }),
         PaymentType.findAll({ where: { companyId, isActive: true }, order: [['paymentType', 'ASC']] }),
         Bill.findAll({ where: { companyId, bookingProfileId: profile.id, billType: 'deposit' }, order: [['billDate', 'ASC'], ['createdAt', 'ASC']] }),
+        GroupRefund.findAll({ where: { companyId, bookingProfileId: profile.id }, order: [['createdAt', 'ASC']] }),
     ]);
     const deposits = [];
     for (const d of depositBills) deposits.push(await depositDto(companyId, d));
     const live = deposits.filter((d) => d.status !== 'voided');
+    const refundItems = refunds.length
+        ? await GroupRefundItem.findAll({ where: { groupRefundId: { [Op.in]: refunds.map((r) => r.id) } } })
+        : [];
     const facts = await playFactsOf(req, profile);
     const depositType = types.find((t) => t.chargeType === DEPOSIT_CHARGE_TYPE_KEY) || null;
     return {
         bill: bill ? await billing.billDto(bill) : null,
         play: facts,
         tiles: types.filter((t) => t.chargeType !== DEPOSIT_CHARGE_TYPE_KEY && t.chargeType !== 'no-show').map(tileDto),
-        tenders: tenders.filter((t) => t.paymentClass !== 'deposit' && t.paymentClass !== 'suspend').map(tenderDto),
+        // Every tender for the final bill (Deposit class draws on a held
+        // deposit); the Record-deposit dialog filters out the deposit class.
+        tenders: tenders.filter((t) => t.paymentClass !== 'suspend').map(tenderDto),
         depositType: depositType ? tileDto(depositType) : null,
         deposits,
         depositTotal: round2(live.reduce((s, d) => s + d.amount, 0)),
         depositUnapplied: round2(live.reduce((s, d) => s + d.unappliedAmount, 0)),
+        refunds: refunds.map((r) => refundDto(r, refundItems.filter((i) => i.groupRefundId === r.id))),
+        bookingStatus: profile.status,
         billingParty: {
             debtorType: profile.debtorType,
             debtorSourceId: profile.debtorSourceId,
@@ -219,9 +248,13 @@ exports.getFolio = async (req, res) => {
     }
 };
 
-async function guardAmend(req, found) {
+// Folio writes on a cancelled booking stay possible while its group bill is
+// still open (`allowCancelled`): a cancellation charge is billed on the folio
+// and settled by the deposit, the remainder refunded (user decision
+// 2026-10-07). New deposits on a cancelled booking are refused.
+async function guardAmend(req, found, { allowCancelled = false } = {}) {
     const { profile } = found;
-    if (profile.status !== 'booked') return { status: 400, message: 'A cancelled booking cannot be billed.' };
+    if (profile.status !== 'booked' && !allowCancelled) return { status: 400, message: 'A cancelled booking cannot be billed.' };
     if (!(await canModifyRecord(req, profile))) return { status: 403, message: 'You are not allowed to amend this booking.' };
     return null;
 }
@@ -665,6 +698,295 @@ ${bill.remarks ? `<p class="muted">${esc(bill.remarks)}</p>` : ''}
         res.status(200).send(html);
     } catch (error) {
         console.error('Error rendering deposit bill:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// ---------------------------------------------------------------------------
+// Final settlement (slice 4)
+
+// The folio's deposit bills that still hold money: id -> { bill, unapplied }.
+async function heldDeposits(companyId, profile, { transaction } = {}) {
+    const rows = await Bill.findAll({
+        where: { companyId, bookingProfileId: profile.id, billType: 'deposit', status: 'settled' },
+        order: [['billDate', 'ASC'], ['createdAt', 'ASC']],
+        transaction,
+        ...(transaction ? { lock: transaction.LOCK.UPDATE } : {}),
+    });
+    const out = new Map();
+    for (const b of rows) {
+        const unapplied = round2(Number(b.totalAmount) - Number(b.depositAppliedAmount || 0) - Number(b.depositRefundedAmount || 0));
+        out.set(b.id, { bill: b, unapplied });
+    }
+    return out;
+}
+
+// POST /api/golf/group-bookings/:id/folio/settle { payments: [{ paymentTypeId,
+// amount, reference?, depositBillId? }] } - the FINAL BILL. Σ lines = the
+// bill total. Deposit-class lines draw on a held deposit bill (in golf - no
+// AR door); account classes post a NORMAL AR invoice for their amount FIRST
+// (the credit gate) - only the balance ever reaches AR; cash-type classes
+// record the tender. Allowed on a cancelled booking too (cancellation charge
+// settled by the deposit).
+exports.settleGroupBill = async (req, res) => {
+    try {
+        const found = await findBooking(req, req.params.id);
+        if (!found.profile) return res.status(found.status).json({ message: found.message });
+        const guard = await guardAmend(req, found, { allowCancelled: true });
+        if (guard) return res.status(guard.status).json({ message: guard.message });
+        const { companyId, profile } = found;
+        const bill = await groupBillOf(companyId, profile);
+        if (!bill) return res.status(400).json({ message: 'There is no group bill to settle - key the packages and charges first.' });
+        if (bill.status !== 'open') return res.status(409).json({ message: `The group bill is ${bill.status}.` });
+        const itemCount = await BillItem.count({ where: { billId: bill.id } });
+        if (!itemCount) return res.status(400).json({ message: 'The group bill has no items.' });
+
+        const raw = Array.isArray(req.body.payments) ? req.body.payments : [];
+        if (!raw.length) return res.status(400).json({ message: 'Key in at least one payment.' });
+        if (raw.length > 20) return res.status(400).json({ message: 'Too many payment lines.' });
+        const tenders = await PaymentType.findAll({ where: { companyId, isActive: true } });
+        const tenderById = new Map(tenders.map((t) => [t.id, t]));
+        const held = await heldDeposits(companyId, profile);
+        const lines = [];
+        const drawn = new Map(); // depositBillId -> amount drawn in this settlement
+        for (let i = 0; i < raw.length; i += 1) {
+            const line = raw[i] || {};
+            const tender = tenderById.get(String(line.paymentTypeId || ''));
+            if (!tender) return res.status(400).json({ message: `Payment ${i + 1}: pick a payment type.` });
+            const amount = round2(Number(line.amount));
+            if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ message: `Payment ${i + 1}: the amount must be more than 0.00.` });
+            if (tender.paymentClass === 'suspend') return res.status(400).json({ message: `Payment ${i + 1}: a suspend-class tender cannot settle a group bill.` });
+            let depositBillId = null;
+            if (tender.paymentClass === 'deposit') {
+                depositBillId = String(line.depositBillId || '');
+                const h = held.get(depositBillId);
+                if (!h) return res.status(400).json({ message: `Payment ${i + 1}: pick the deposit bill this line draws on.` });
+                const already = drawn.get(depositBillId) || 0;
+                if (cents(already + amount) > cents(h.unapplied)) {
+                    return res.status(400).json({ message: `Payment ${i + 1}: deposit ${h.bill.billNo} holds ${h.unapplied.toFixed(2)} - ${round2(already + amount).toFixed(2)} drawn.` });
+                }
+                drawn.set(depositBillId, round2(already + amount));
+            }
+            lines.push({ sortOrder: i + 1, tender, amount, reference: str(line.reference, 100), depositBillId });
+        }
+        const paySum = round2(lines.reduce((s, l) => s + l.amount, 0));
+        const total = round2(Number(bill.totalAmount));
+        if (cents(paySum) !== cents(total)) {
+            return res.status(400).json({ message: `Payments (${paySum.toFixed(2)}) must equal the bill total (${total.toFixed(2)}).` });
+        }
+
+        // Account lines: resolve the target, then post BEFORE the settle
+        // commits (a refusal aborts the whole settlement, nothing written).
+        const stamps = await callerStamps(req);
+        const accountLines = lines.filter((l) => ACCOUNT_PAYMENT_CLASSES.includes(l.tender.paymentClass));
+        if (accountLines.length) {
+            const t = await depositTarget(companyId, profile, accountLines[0].tender);
+            if (t.error) return res.status(400).json({ message: t.error });
+            for (const line of accountLines) {
+                const posted = await billing.postChargeToAccount(req, {
+                    bill, target: t.target, amount: line.amount,
+                    description: `Group bill ${bill.billNo} — ${profile.groupName || profile.bookingNo}`,
+                    stamps, enforceCredit: true,
+                });
+                if (posted.error) return res.status(400).json({ message: `The balance could not be charged to account: ${posted.error}` });
+                line.arDocId = posted.id;
+                line.arDocNo = posted.docNo;
+                line.debtorType = t.target.debtorType;
+                line.debtorSourceId = t.target.sourceId;
+            }
+        }
+
+        await sequelize.transaction(async (transaction) => {
+            // Re-read the held deposits under lock - a refund request keyed
+            // meanwhile must not let the same money settle the bill.
+            const fresh = await heldDeposits(companyId, profile, { transaction });
+            for (const [depositBillId, amount] of drawn) {
+                const h = fresh.get(depositBillId);
+                if (!h || cents(amount) > cents(h.unapplied)) throw Object.assign(new Error(`Deposit ${h ? h.bill.billNo : ''} no longer holds enough - reload the folio.`), { httpStatus: 409 });
+                h.bill.depositAppliedAmount = round2(Number(h.bill.depositAppliedAmount || 0) + amount);
+                h.bill.updatedBy = stamps.updatedBy;
+                await h.bill.save({ transaction });
+            }
+            for (const line of lines) {
+                await BillPayment.create({
+                    billId: bill.id, sortOrder: line.sortOrder, paymentTypeId: line.tender.id, paymentClass: line.tender.paymentClass,
+                    amount: line.amount, reference: line.reference,
+                    arDocId: line.arDocId || null, arDocNo: line.arDocNo || null,
+                    debtorType: line.debtorType || null, debtorSourceId: line.debtorSourceId || null,
+                    appliedDepositBillId: line.depositBillId || null,
+                    ...stamps,
+                }, { transaction });
+            }
+            bill.status = 'settled';
+            bill.settledAt = new Date();
+            bill.updatedBy = stamps.updatedBy;
+            await bill.save({ transaction });
+        });
+        const parts = [];
+        const dep = lines.filter((l) => l.depositBillId).reduce((s, l) => s + l.amount, 0);
+        if (dep) parts.push(`${round2(dep).toFixed(2)} from deposits`);
+        for (const l of lines.filter((l) => l.arDocNo)) parts.push(`${l.amount.toFixed(2)} charged to account (${l.arDocNo})`);
+        const cash = lines.filter((l) => !l.depositBillId && !l.arDocNo).reduce((s, l) => s + l.amount, 0);
+        if (cash) parts.push(`${round2(cash).toFixed(2)} received`);
+        res.status(200).json({
+            message: `Group bill ${bill.billNo} settled - ${parts.join(', ')}.`,
+            folio: await folioDto(req, companyId, profile, bill),
+        });
+    } catch (error) {
+        if (error && error.httpStatus) return res.status(error.httpStatus).json({ message: error.message });
+        console.error('Error settling group bill:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/golf/group-bookings/:id/folio/void { reason } - an OPEN group
+// bill keyed in error (a settled one is history; its deposits stay applied).
+exports.voidGroupBill = async (req, res) => {
+    try {
+        const found = await findBooking(req, req.params.id);
+        if (!found.profile) return res.status(found.status).json({ message: found.message });
+        const guard = await guardAmend(req, found, { allowCancelled: true });
+        if (guard) return res.status(guard.status).json({ message: guard.message });
+        const { companyId, profile } = found;
+        const bill = await groupBillOf(companyId, profile);
+        if (!bill) return res.status(404).json({ message: 'No group bill yet.' });
+        if (bill.status !== 'open') return res.status(409).json({ message: `The group bill is ${bill.status} and cannot be voided.` });
+        const reason = str(req.body.reason, 255);
+        if (!reason) return res.status(400).json({ message: 'Give a reason for voiding the group bill.' });
+        const callerId = getUserContext(req).userId;
+        bill.status = 'voided';
+        bill.voidedAt = new Date();
+        bill.voidedBy = callerId;
+        bill.voidReason = reason;
+        bill.updatedBy = callerId;
+        await bill.save();
+        res.status(200).json({ message: `Group bill ${bill.billNo} voided - a new one starts with the next item.`, folio: await folioDto(req, companyId, profile, null) });
+    } catch (error) {
+        console.error('Error voiding group bill:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// ---------------------------------------------------------------------------
+// Refund requests (slice 4): golf asks Finance for deposit money the booking
+// no longer needs. The request RESERVES the amount on the deposit bills
+// (oldest first) so it can neither settle the final bill nor be requested
+// twice; a decline releases it. Finance records the payout (method +
+// reference) or declines with a reason. Golf never posts credit notes.
+
+// POST /api/golf/group-bookings/:id/refunds { amount, reason }
+exports.requestRefund = async (req, res) => {
+    try {
+        const found = await findBooking(req, req.params.id);
+        if (!found.profile) return res.status(found.status).json({ message: found.message });
+        const guard = await guardAmend(req, found, { allowCancelled: true });
+        if (guard) return res.status(guard.status).json({ message: guard.message });
+        const { companyId, profile } = found;
+        const amount = round2(Number(req.body.amount));
+        if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ message: 'The refund amount must be more than 0.00.' });
+        const reason = str(req.body.reason, 255);
+        if (!reason) return res.status(400).json({ message: 'Give the reason for the refund.' });
+        const stamps = await callerStamps(req);
+        const result = await sequelize.transaction(async (transaction) => {
+            const held = await heldDeposits(companyId, profile, { transaction });
+            const available = round2([...held.values()].reduce((s, h) => s + h.unapplied, 0));
+            if (cents(amount) > cents(available)) return { fail: `The folio holds ${available.toFixed(2)} in deposits - ${amount.toFixed(2)} cannot be refunded.` };
+            const no = await billing.issueBillNo(req, { transaction, purpose: 'golf-refund', label: 'Refund Request No.', manualNo: req.body.refundNo });
+            if (no.error) return { fail: no.error };
+            const refund = await GroupRefund.create({
+                companyId, bookingProfileId: profile.id, refundNo: no.billNo,
+                requestDate: new Date().toISOString().slice(0, 10), amount, reason, status: 'requested',
+                remarks: str(req.body.remarks, 255), ...stamps,
+            }, { transaction });
+            // Draw oldest deposit first.
+            let left = amount;
+            for (const h of held.values()) {
+                if (left <= 0) break;
+                const take = round2(Math.min(left, h.unapplied));
+                if (take <= 0) continue;
+                await GroupRefundItem.create({ groupRefundId: refund.id, depositBillId: h.bill.id, amount: take }, { transaction });
+                h.bill.depositRefundedAmount = round2(Number(h.bill.depositRefundedAmount || 0) + take);
+                h.bill.updatedBy = stamps.updatedBy;
+                await h.bill.save({ transaction });
+                left = round2(left - take);
+            }
+            return { refund };
+        });
+        if (result.fail) return res.status(400).json({ message: result.fail });
+        res.status(201).json({
+            message: `Refund request ${result.refund.refundNo} for ${amount.toFixed(2)} sent to Finance.`,
+            folio: await folioDto(req, companyId, profile, await groupBillOf(companyId, profile)),
+        });
+    } catch (error) {
+        console.error('Error requesting group refund:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+async function findRefund(req, found) {
+    return GroupRefund.findOne({ where: { companyId: found.companyId, bookingProfileId: found.profile.id, id: req.params.refundId } });
+}
+
+// POST /api/golf/group-bookings/:id/refunds/:refundId/pay { paidMethod, paidReference? }
+exports.payRefund = async (req, res) => {
+    try {
+        const found = await findBooking(req, req.params.id);
+        if (!found.profile) return res.status(found.status).json({ message: found.message });
+        const guard = await guardAmend(req, found, { allowCancelled: true });
+        if (guard) return res.status(guard.status).json({ message: guard.message });
+        const refund = await findRefund(req, found);
+        if (!refund) return res.status(404).json({ message: 'Refund request not found.' });
+        if (refund.status !== 'requested') return res.status(400).json({ message: `This refund request is already ${refund.status}.` });
+        const paidMethod = str(req.body.paidMethod, 100);
+        if (!paidMethod) return res.status(400).json({ message: 'Say how the refund was paid (bank transfer, cheque, credit note...).' });
+        const callerId = getUserContext(req).userId;
+        refund.status = 'paid';
+        refund.paidAt = new Date();
+        refund.paidBy = callerId;
+        refund.paidMethod = paidMethod;
+        refund.paidReference = str(req.body.paidReference, 100);
+        refund.updatedBy = callerId;
+        await refund.save();
+        res.status(200).json({ message: `Refund ${refund.refundNo} recorded as paid by ${paidMethod}.`, folio: await folioDto(req, found.companyId, found.profile, await groupBillOf(found.companyId, found.profile)) });
+    } catch (error) {
+        console.error('Error paying group refund:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/golf/group-bookings/:id/refunds/:refundId/decline { reason } -
+// releases the reserved deposit money back to the folio.
+exports.declineRefund = async (req, res) => {
+    try {
+        const found = await findBooking(req, req.params.id);
+        if (!found.profile) return res.status(found.status).json({ message: found.message });
+        const guard = await guardAmend(req, found, { allowCancelled: true });
+        if (guard) return res.status(guard.status).json({ message: guard.message });
+        const refund = await findRefund(req, found);
+        if (!refund) return res.status(404).json({ message: 'Refund request not found.' });
+        if (refund.status !== 'requested') return res.status(400).json({ message: `This refund request is already ${refund.status}.` });
+        const reason = str(req.body.reason, 255);
+        if (!reason) return res.status(400).json({ message: 'Give the reason for declining.' });
+        const callerId = getUserContext(req).userId;
+        await sequelize.transaction(async (transaction) => {
+            const items = await GroupRefundItem.findAll({ where: { groupRefundId: refund.id }, transaction });
+            for (const it of items) {
+                const b = await Bill.findOne({ where: { id: it.depositBillId }, transaction, lock: transaction.LOCK.UPDATE });
+                if (!b) continue;
+                b.depositRefundedAmount = round2(Math.max(0, Number(b.depositRefundedAmount || 0) - Number(it.amount)));
+                b.updatedBy = callerId;
+                await b.save({ transaction });
+            }
+            refund.status = 'declined';
+            refund.declinedAt = new Date();
+            refund.declinedBy = callerId;
+            refund.declineReason = reason;
+            refund.updatedBy = callerId;
+            await refund.save({ transaction });
+        });
+        res.status(200).json({ message: `Refund ${refund.refundNo} declined - the deposit money is held on the folio again.`, folio: await folioDto(req, found.companyId, found.profile, await groupBillOf(found.companyId, found.profile)) });
+    } catch (error) {
+        console.error('Error declining group refund:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };

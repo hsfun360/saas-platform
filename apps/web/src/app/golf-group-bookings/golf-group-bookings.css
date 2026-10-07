@@ -455,6 +455,63 @@
   }
 }
 
+/* Final bill: settled tender lines, and the settle dialog's payment rows. */
+.ggb-pay {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+}
+.ggb-settle-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  color: var(--text-secondary);
+}
+.ggb-remaining--due {
+  color: var(--danger-text);
+}
+.ggb-pay-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+.ggb-pay-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 130px 44px;
+  gap: var(--space-sm);
+  align-items: center;
+}
+.ggb-pay-line input {
+  min-height: 44px;
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ggb-pay-line input:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
+}
+@media (max-width: 767px) {
+  .ggb-pay-line {
+    grid-template-columns: minmax(0, 1fr) 44px;
+  }
+  .ggb-pay-line > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
 /* Deposit cards: one settlement per line; standing chip colours (paid /
    partial / due). */
 .ggb-settlements {

@@ -41,7 +41,15 @@ const GROUP_PLAYER_STATUSES = [
     { key: 'withdrawn', label: 'Withdrawn' },
 ];
 
+// Refund requests to Finance (slice 4): plain request-and-settle.
+const GROUP_REFUND_STATUSES = [
+    { key: 'requested', label: 'Requested' },
+    { key: 'paid', label: 'Paid' },
+    { key: 'declined', label: 'Declined' },
+];
+
 const GROUP_BOOKING_TYPE_KEYS = GROUP_BOOKING_TYPES.map((t) => t.key);
+const GROUP_REFUND_STATUS_KEYS = GROUP_REFUND_STATUSES.map((s) => s.key);
 const START_FORMAT_KEYS = START_FORMATS.map((f) => f.key);
 const PLAY_DAY_STATUS_KEYS = PLAY_DAY_STATUSES.map((s) => s.key);
 const GROUP_PLAYER_STATUS_KEYS = GROUP_PLAYER_STATUSES.map((s) => s.key);
@@ -61,6 +69,8 @@ module.exports = {
     PLAY_DAY_STATUS_KEYS,
     GROUP_PLAYER_STATUSES,
     GROUP_PLAYER_STATUS_KEYS,
+    GROUP_REFUND_STATUSES,
+    GROUP_REFUND_STATUS_KEYS,
     DEFAULT_FLIGHT_CAPACITY,
     MAX_FLIGHTS_PER_DAY,
     MAX_ROSTER,

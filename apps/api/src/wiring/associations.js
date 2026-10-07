@@ -118,6 +118,13 @@ GolfGroupPlayDay.hasMany(GolfGroupFlight, { foreignKey: 'groupPlayDayId', as: 'f
 GolfGroupFlight.belongsTo(GolfGroupPlayDay, { foreignKey: 'groupPlayDayId', as: 'playDay' });
 GolfBookingProfile.hasMany(GolfGroupPlayer, { foreignKey: 'bookingProfileId', as: 'roster', onDelete: 'CASCADE' });
 GolfGroupPlayer.belongsTo(GolfBookingProfile, { foreignKey: 'bookingProfileId', as: 'bookingProfile' });
+// Refund requests to Finance (slice 4): the request's items name the deposit
+// bills it draws on (bill refs stay plain value refs - a bill is never
+// deleted while money references it).
+const GolfGroupRefund = require('../modules/golf/groupRefund.model');
+const GolfGroupRefundItem = require('../modules/golf/groupRefundItem.model');
+GolfGroupRefund.hasMany(GolfGroupRefundItem, { foreignKey: 'groupRefundId', as: 'items', onDelete: 'CASCADE' });
+GolfGroupRefundItem.belongsTo(GolfGroupRefund, { foreignKey: 'groupRefundId', as: 'refund' });
 
 // Front desk billing (2026-09-26): per-player Bill with its items and
 // payments as real intra-service FKs (Bill.playerId stays a plain value ref
@@ -428,6 +435,8 @@ module.exports = {
     GolfGroupPlayDay,
     GolfGroupFlight,
     GolfGroupPlayer,
+    GolfGroupRefund,
+    GolfGroupRefundItem,
     TaxScheme,
     TaxRate,
     CompanyTaxScheme,
