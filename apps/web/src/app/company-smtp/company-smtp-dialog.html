@@ -30,8 +30,9 @@
       </div>
     }
     @if (configured() && lastError() && !errorMessage()) {
-      <div class="smtp-status" style="background:var(--danger-surface); color:var(--danger-text);" role="alert">
-        <span class="material-icons inline-icon" aria-hidden="true">warning</span> Last delivery error: {{ lastError() }}
+      <div class="flash flash-error flash--static" role="alert">
+        <span class="flash-icon">❌</span>
+        <span>Last delivery error: {{ lastError() }}</span>
       </div>
     }
     @if (configured() && lastVerifiedAt() && !lastError()) {

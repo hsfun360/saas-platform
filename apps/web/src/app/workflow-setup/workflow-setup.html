@@ -202,11 +202,8 @@
         <!-- ================= STEP VIEW ================= -->
         @case ('step') {
           <form id="workflowStepForm" [formGroup]="stepForm" (ngSubmit)="saveStep()" class="saas-form" style="padding: 0;">
-            @if (stepError()) {
-              <div class="flash flash-error" role="alert">
-                <span class="flash-icon">❌</span><span>{{ stepError() }}</span>
-              </div>
-            }
+            <!-- Step validation errors use the screen's global .flash snackbar
+                 (it floats above the dialog) - never an in-dialog error bar. -->
             <div class="form-row">
               <div class="form-group">
                 <label for="wsName">Step name <span class="required">*</span></label>

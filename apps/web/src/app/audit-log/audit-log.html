@@ -26,7 +26,11 @@
   </form>
 
   @if (errorMessage()) {
-    <div role="alert" style="margin: var(--space-md) 0; padding: var(--space-sm) var(--space-md); border: 1px solid var(--danger-border); border-radius: 8px; background: var(--danger-surface); color: var(--danger-text);">{{ errorMessage() }}</div>
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
   }
 
   @if (loading()) {

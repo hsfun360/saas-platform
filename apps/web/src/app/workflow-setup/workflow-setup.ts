@@ -100,7 +100,6 @@ export class WorkflowSetupComponent implements OnInit {
 
   // --- Step editor (the 'step' view) ----------------------------------------
   readonly editingStepIndex = signal<number | null>(null); // null = adding
-  readonly stepError = signal('');
   readonly stepForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(255)]],
     approverType: ['role'],
@@ -324,7 +323,7 @@ export class WorkflowSetupComponent implements OnInit {
   // --- Step view ------------------------------------------------------------
   openAddStep(): void {
     this.editingStepIndex.set(null);
-    this.stepError.set('');
+    this.errorMessage.set('');
     this.stepForm.reset({
       name: '', approverType: 'role', approverRoleId: '', approverDepartmentId: '',
       approverPositionId: '', approverUserId: '', approvalMode: 'any', requiredApprovals: 2,
@@ -337,7 +336,7 @@ export class WorkflowSetupComponent implements OnInit {
   openEditStep(index: number): void {
     const s = this.steps()[index];
     this.editingStepIndex.set(index);
-    this.stepError.set('');
+    this.errorMessage.set('');
     this.stepForm.reset({
       name: s.name,
       approverType: s.approverType,
@@ -363,7 +362,7 @@ export class WorkflowSetupComponent implements OnInit {
   }
 
   saveStep(): void {
-    this.stepError.set('');
+    this.errorMessage.set('');
     if (this.stepForm.controls.name.invalid) {
       this.stepForm.markAllAsTouched();
       return;
@@ -386,34 +385,34 @@ export class WorkflowSetupComponent implements OnInit {
     };
 
     if (v.approverType === 'role') {
-      if (!v.approverRoleId) { this.stepError.set('Pick the approving role.'); return; }
+      if (!v.approverRoleId) { this.errorMessage.set('Pick the approving role.'); return; }
       step.approverRoleId = v.approverRoleId;
     } else if (v.approverType === 'department-position') {
-      if (!v.approverDepartmentId) { this.stepError.set('Pick the approving department.'); return; }
+      if (!v.approverDepartmentId) { this.errorMessage.set('Pick the approving department.'); return; }
       step.approverDepartmentId = v.approverDepartmentId;
       step.approverPositionId = v.approverPositionId || null;
     } else {
-      if (!v.approverUserId) { this.stepError.set('Pick the approving user.'); return; }
+      if (!v.approverUserId) { this.errorMessage.set('Pick the approving user.'); return; }
       step.approverUserId = v.approverUserId;
     }
 
     if (v.approvalMode === 'count') {
       const n = Number(v.requiredApprovals);
-      if (!Number.isInteger(n) || n < 1) { this.stepError.set('Enter how many approvals are needed (1 or more).'); return; }
+      if (!Number.isInteger(n) || n < 1) { this.errorMessage.set('Enter how many approvals are needed (1 or more).'); return; }
       step.requiredApprovals = n;
     }
 
     if (v.hasCondition) {
       const raw = String(v.conditionValue).trim();
-      if (!v.conditionField) { this.stepError.set('Pick the condition field.'); return; }
-      if (!raw) { this.stepError.set('Enter the condition value.'); return; }
+      if (!v.conditionField) { this.errorMessage.set('Pick the condition field.'); return; }
+      if (!raw) { this.errorMessage.set('Enter the condition value.'); return; }
       const fieldType = this.selectedPurpose()?.contextFields.find((f) => f.name === v.conditionField)?.type;
       let value: unknown = raw;
       if (v.conditionOp === 'in') {
         value = raw.split(',').map((x) => x.trim()).filter((x) => x !== '');
       } else if (fieldType === 'number') {
         const n = Number(raw);
-        if (Number.isNaN(n)) { this.stepError.set('The condition value must be a number.'); return; }
+        if (Number.isNaN(n)) { this.errorMessage.set('The condition value must be a number.'); return; }
         value = n;
       }
       step.condition = { field: v.conditionField, op: v.conditionOp, value };
@@ -422,12 +421,12 @@ export class WorkflowSetupComponent implements OnInit {
     const slaRaw = String(v.slaHours).trim();
     if (slaRaw !== '') {
       const sla = Number(slaRaw);
-      if (!Number.isInteger(sla) || sla < 1) { this.stepError.set('Reminder must be a whole number of hours (1 or more).'); return; }
+      if (!Number.isInteger(sla) || sla < 1) { this.errorMessage.set('Reminder must be a whole number of hours (1 or more).'); return; }
       step.slaHours = sla;
     }
     step.escalateOnSla = v.escalateOnSla === true;
     if (step.escalateOnSla && !step.slaHours) {
-      this.stepError.set('Escalation needs the hours-pending deadline set.');
+      this.errorMessage.set('Escalation needs the hours-pending deadline set.');
       return;
     }
 

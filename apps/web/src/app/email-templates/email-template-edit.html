@@ -131,8 +131,10 @@
           Live preview <span class="et-hint">(sample data)</span>
         </div>
         @if (previewError()) {
-          <div class="flash flash-error" role="alert">
-            <span class="flash-icon">❌</span><span>{{ previewError() }}</span>
+          <div class="flash flash-error" role="alert" aria-live="assertive">
+            <span class="flash-icon">❌</span>
+            <span>{{ previewError() }}</span>
+            <button class="flash-close" (click)="previewError.set('')" aria-label="Dismiss">✕</button>
           </div>
         }
         <div class="et-preview__subject"><span class="et-hint">Subject:</span> {{ previewSubject() }}</div>

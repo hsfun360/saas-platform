@@ -8,10 +8,18 @@
   </div>
 
   @if (successMessage()) {
-    <div class="flash flash-success" role="status" aria-live="polite">{{ successMessage() }}</div>
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
   }
   @if (errorMessage()) {
-    <div class="flash flash-error" role="alert" aria-live="assertive">{{ errorMessage() }}</div>
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
   }
 
   <!-- People (person-centric). No outer card — the search + list sit directly on
