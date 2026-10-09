@@ -81,6 +81,9 @@ Template-driven forms have no reliable central dirty/validity signal, which is e
   It wraps `Intl.DateTimeFormat` with the locale left to the browser/OS (no locale data in the bundle), follows the device's 12/24-hour clock, and parses date-only `YYYY-MM-DD` strings as LOCAL dates (avoiding the UTC off-by-one-day trap).
   Never use Angular's `| date` (it formats en-US for everyone via the compile-time `LOCALE_ID`) and never render a raw ISO string.
   `<input type="date">` fields already localize natively - keep the model value ISO.
+  The same formatting is available to TypeScript for dialog titles, confirm messages, aria-labels and flash text: `formatLocalDate(value, style)` (styles add `'dayMonth'` → "14 Nov" and `'monthYear'` → "Nov 2026"), `monthYearLabel('2026-11')`, and `localDateOnly()` for "today" as `YYYY-MM-DD` - never `new Date().toISOString().slice(0, 10)`, which is the UTC date (yesterday in Malaysia until 8am) and never a hard-coded English month table.
+- **Money displays through the shared `money` pipe** (`shared/money.pipe.ts`): `{{ row.amount | money }}` renders the app-wide plain two-decimal string ("1234.50", no thousands separator - what the API returns), `| money:'—'` for an empty placeholder.
+  Never Angular's `| number:'1.2-2'` (locale-bound like `| date`) and never `toLocaleString` (groups digits differently per device); `toFixed(2)` in TypeScript is the same convention and stays acceptable.
 - **Accessibility:** render each control's error in a `role="alert"` element linked via `aria-describedby`, set `[attr.aria-invalid]` once the control is touched, and reveal errors only after touch or submit (a small `showError(control)` helper).
 
 **Canonical reference:** `platform-users` (`platform-users.ts` / `platform-users.html`) - two typed `FormGroup`s, control validators, `<app-phone-input>` via `formControlName`, inline `role="alert"` errors, correct HTML5 types, and the dialog `[dirty]` guard.

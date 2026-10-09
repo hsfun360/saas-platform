@@ -536,18 +536,20 @@ that scrolls horizontally**, with the active tab in the **URL**.
   native `<button>`.
 
 ```css
-.tab-bar { display: flex; gap: var(--space-sm); border-bottom: 1px solid #e2e8f0;
+.tab-bar { display: flex; gap: var(--space-sm); border-bottom: 1px solid var(--border);
            overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; }
 .tab-bar::-webkit-scrollbar { display: none; }
 .tab-btn { flex: 0 0 auto; scroll-snap-align: start; min-height: 44px; white-space: nowrap;
            border: none; background: transparent; border-bottom: 2px solid transparent;
            margin-bottom: -1px; }                /* sit the underline over the strip border */
-.tab-btn.active { border-bottom-color: #2563eb; }
+.tab-btn.active { border-bottom-color: var(--brand); }
 ```
 
-Reference implementation: `system-setup.ts` (`activeTab` signal + `TAB_IDS`, param-driven)
-and `system-setup.css` (`.tab-bar`, `.tab-btn`), routed as `system-setup` and
-`system-setup/:tab`.
+No screen carries a tab strip today (the System Setup tabs were split into their own
+screens; it is now the single-purpose Assign Role screen with no `:tab` route). The
+pattern above stays the standard for the next multi-section screen; `.tab-bar` /
+`.tab-btn` still live in `system-setup.css` ready to be promoted to `styles.css` when a
+screen first needs them.
 
 #### Data listings - card-per-record, never a raw `<table>`
 
