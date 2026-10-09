@@ -47,8 +47,8 @@
 }
 
 .gcl-nine-pick input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--brand);
 }
 
@@ -141,8 +141,8 @@
 }
 
 .gcl-day-on input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--brand);
 }
 

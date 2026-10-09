@@ -45,7 +45,7 @@ input[type='number'] {
 }
 
 .arsp-base .material-icons {
-  font-size: 20px;
+  font-size: var(--icon-md);
   color: var(--brand-text);
 }
 
@@ -74,8 +74,8 @@ input[type='number'] {
 }
 
 .arsp-check input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--brand);
   flex-shrink: 0;
 }
@@ -137,7 +137,7 @@ input[type='number'] {
 .arsp-cols__grip {
   color: var(--text-muted);
   cursor: grab;
-  font-size: 20px;
+  font-size: var(--icon-md);
 }
 
 .arsp-cols__check {
@@ -151,8 +151,8 @@ input[type='number'] {
 }
 
 .arsp-cols__check input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--brand);
   flex-shrink: 0;
 }
@@ -175,7 +175,7 @@ input[type='number'] {
 .arsp-brand-pick input[type='color'] {
   width: 56px;
   height: 36px;
-  padding: 2px;
+  padding: var(--space-2xs);
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface-input);

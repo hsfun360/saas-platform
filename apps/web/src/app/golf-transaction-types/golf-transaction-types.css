@@ -13,8 +13,8 @@
   min-height: 44px;
 }
 .gtt-check input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   flex-shrink: 0;
 }
 
@@ -228,8 +228,8 @@
   cursor: pointer;
 }
 .elig-day input[type='checkbox'] {
-  width: 16px;
-  height: 16px;
+  width: var(--icon-xs);
+  height: var(--icon-xs);
   accent-color: var(--brand);
 }
 .elig-day--on {
@@ -249,7 +249,7 @@
 .elig-field {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2xs);
   font-size: var(--font-caption);
   font-weight: var(--weight-bold);
   text-transform: uppercase;

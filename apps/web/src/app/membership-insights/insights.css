@@ -47,7 +47,7 @@
   border-radius: 8px;
   background: var(--surface-input);
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: var(--font-body);
 }
 
 .md-range-label {
@@ -70,7 +70,7 @@
   border-radius: 8px;
   background: var(--surface-input);
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: var(--font-body);
 }
 
 /* --- KPI row --- */
@@ -85,7 +85,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: var(--space-2xs);
   padding: var(--space-md);
   border: 1px solid var(--border);
   border-radius: 12px;

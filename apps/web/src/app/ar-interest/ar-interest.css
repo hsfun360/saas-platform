@@ -10,7 +10,7 @@
 .ai-run__go {
   display: flex;
   align-items: end;
-  padding-bottom: 2px;
+  padding-bottom: var(--space-2xs);
   /* Pinned to the first row's action column so the run-level dimension
      pickers (2026-09-04) flow onto their own rows below the run fields. */
   grid-row: 1;
@@ -61,8 +61,8 @@
 }
 
 .ard-check input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--brand);
 }
 
@@ -78,8 +78,8 @@
 }
 
 .ai-pick input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--brand);
 }
 
@@ -159,12 +159,12 @@
 
 .ai-act-btn:disabled { opacity: 0.5; cursor: default; }
 
-.ai-act-btn .material-icons { font-size: 18px; }
+.ai-act-btn .material-icons { font-size: var(--icon-sm); }
 
 /* Multicurrency (step 5): the header currency chip on foreign-account rows. */
 .ai-ccy-chip {
   display: inline-block;
-  padding: 2px var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
   border-radius: 12px;
   font-size: var(--font-overline);
   font-weight: var(--weight-bold);

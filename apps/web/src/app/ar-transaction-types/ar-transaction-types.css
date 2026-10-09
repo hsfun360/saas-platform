@@ -13,8 +13,8 @@
 
 .att-copy__all input[type='checkbox'],
 .att-copy__row input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--brand);
   flex-shrink: 0;
 }
@@ -47,7 +47,7 @@
 .att-copy__text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2xs);
   min-width: 0;
   font-size: var(--font-body-2);
   color: var(--text-primary);

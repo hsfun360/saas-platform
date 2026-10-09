@@ -5,7 +5,7 @@
 .uc-type {
   display: inline-block;
   margin-left: var(--space-xs);
-  padding: 2px var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
   border-radius: 12px;
   background: var(--surface-sunken);
   color: var(--text-secondary);
@@ -25,8 +25,8 @@
 }
 
 .uc-check input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   flex-shrink: 0;
   accent-color: var(--brand);
 }

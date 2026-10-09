@@ -22,7 +22,7 @@
 /* Category chip on cards */
 .as-cat-chip {
   display: inline-block;
-  padding: 2px var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
   border-radius: 12px;
   font-size: var(--font-overline);
   font-weight: var(--weight-bold);
@@ -123,7 +123,7 @@
 /* Multicurrency (step 5): the statement currency chip on foreign accounts. */
 .as-ccy-chip {
   display: inline-block;
-  padding: 2px var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
   border-radius: 12px;
   font-size: var(--font-overline);
   font-weight: var(--weight-bold);

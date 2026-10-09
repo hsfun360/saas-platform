@@ -16,7 +16,7 @@
   left: var(--space-sm);
   top: 50%;
   transform: translateY(-50%);
-  font-size: 20px;
+  font-size: var(--icon-md);
   color: var(--text-muted);
   pointer-events: none;
 }
@@ -106,8 +106,8 @@
 }
 
 .perm-check {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   flex-shrink: 0;
   cursor: pointer;
   accent-color: var(--brand);
@@ -153,7 +153,7 @@
 /* Keep checkbox and icon aligned with the name's first line. */
 .perm-leaf__view .perm-check,
 .perm-leaf__view .perm-row__icon {
-  margin-top: 2px;
+  margin-top: var(--space-2xs);
 }
 
 /* The per-menu action toggles (only rendered while View is granted). */
@@ -184,7 +184,7 @@
 }
 
 .perm-row__icon {
-  font-size: 18px;
+  font-size: var(--icon-sm);
   color: var(--text-muted);
   flex-shrink: 0;
 }
@@ -192,7 +192,7 @@
 .perm-leaf__text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2xs);
   min-width: 0;
 }
 

@@ -10,7 +10,7 @@
 .mb-run__go {
   display: flex;
   align-items: end;
-  padding-bottom: 2px;
+  padding-bottom: var(--space-2xs);
 }
 
 @media (max-width: 767px) {

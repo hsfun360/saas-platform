@@ -236,7 +236,7 @@
   background: var(--info-surface);
   border-radius: 6px;
   padding: 1px 6px;
-  margin-left: 2px;
+  margin-left: var(--space-2xs);
 }
 .pick-chip__x {
   display: inline-flex;

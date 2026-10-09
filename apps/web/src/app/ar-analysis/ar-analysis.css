@@ -65,7 +65,7 @@
 /* Same look as membership-types' .mt-chip (kept local - see header note). */
 .mt-chip {
   display: inline-block;
-  padding: 2px var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
   border-radius: 12px;
   font-size: var(--font-overline);
   font-weight: var(--weight-bold);
@@ -127,8 +127,8 @@
 }
 
 .ana-mod input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--brand);
   flex-shrink: 0;
 }

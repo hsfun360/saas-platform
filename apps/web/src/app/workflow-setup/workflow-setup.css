@@ -81,7 +81,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2xs);
 }
 
 .wf-step__name {
@@ -132,8 +132,8 @@
   cursor: pointer;
 }
 .wf-check__label input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--brand);
 }
 
@@ -167,7 +167,7 @@
 .wf-chip {
   display: inline-flex;
   align-items: center;
-  padding: 2px var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
   border-radius: 12px;
   background: var(--surface-selected);
   color: var(--text-primary);

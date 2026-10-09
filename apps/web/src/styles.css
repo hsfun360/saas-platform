@@ -65,7 +65,10 @@ textarea[aria-invalid='true'] {
   --weight-semibold: 600;
   --weight-bold: 700;
 
-  /* Spacing scale (8pt grid) */
+  /* Spacing scale (8pt grid). --space-2xs is the ONE sub-grid step: an optical
+     nudge that sits an inline glyph, chip or count badge on the text baseline
+     (4px visibly drops it). Never use it for layout rhythm. */
+  --space-2xs: 0.125rem; /* 2px - hairline nudge */
   --space-xs: 0.25rem;  /* 4px  */
   --space-sm: 0.5rem;   /* 8px  */
   --space-md: 1rem;     /* 16px — default */
@@ -73,6 +76,13 @@ textarea[aria-invalid='true'] {
   --space-xl: 2rem;     /* 32px */
   --space-2xl: 3rem;    /* 48px */
   --space-3xl: 4rem;    /* 64px */
+
+  /* Icon size scale (Material Icons glyphs and glyph-sized boxes). Glyphs are
+     intrinsic sizes, not spacing - never size them with --space-*. */
+  --icon-xs: 1rem;      /* 16px - caption-level glyph, dense rows */
+  --icon-sm: 1.125rem;  /* 18px - inline glyph beside body-2 text, row icons */
+  --icon-md: 1.25rem;   /* 20px - inline glyph beside body text, search icon */
+  --icon-lg: 1.5rem;    /* 24px - Material default, standalone buttons */
 }
 
 /* ============================================================== */

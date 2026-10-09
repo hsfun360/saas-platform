@@ -16,7 +16,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  padding: 2px 8px;
+  padding: var(--space-2xs) var(--space-sm);
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface-card);
@@ -52,8 +52,8 @@
   min-height: 44px;
 }
 .ct-check input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   flex-shrink: 0;
 }
 

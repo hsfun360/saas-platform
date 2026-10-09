@@ -59,7 +59,7 @@
 /* Debtor-type chip on cards */
 .ard-type-chip {
   display: inline-block;
-  padding: 2px var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
   border-radius: 12px;
   font-size: var(--font-overline);
   font-weight: var(--weight-bold);
@@ -78,7 +78,7 @@
    currency, brand-tinted for a foreign-currency account so it stands out. */
 .ard-ccy-chip {
   display: inline-block;
-  padding: 2px var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
   border-radius: 12px;
   font-size: var(--font-overline);
   font-weight: var(--weight-bold);
@@ -146,7 +146,7 @@
 }
 
 .ard-check input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--brand);
 }

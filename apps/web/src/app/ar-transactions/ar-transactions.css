@@ -45,7 +45,7 @@
 /* Producer chip for system-generated documents (fee runs, interest, …) */
 .art-source-chip {
   display: inline-block;
-  padding: 2px var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
   border-radius: 12px;
   font-size: var(--font-overline);
   font-weight: var(--weight-bold);
@@ -73,7 +73,7 @@
    same look as the Debtor Listing's foreign chip. */
 .art-ccy-chip {
   display: inline-block;
-  padding: 2px var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
   border-radius: 12px;
   font-size: var(--font-overline);
   font-weight: var(--weight-bold);
@@ -92,7 +92,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas: "who amt" "fx fx";
-  gap: 2px var(--space-md);
+  gap: var(--space-2xs) var(--space-md);
   padding: var(--space-sm) 0;
   border-bottom: 1px solid var(--border);
   font-size: var(--font-body-2);
@@ -115,7 +115,7 @@
   border-left: 2px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2xs);
 }
 .art-alloc__sub {
   display: flex;

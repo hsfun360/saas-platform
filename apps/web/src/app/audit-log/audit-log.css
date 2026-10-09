@@ -89,7 +89,7 @@
 }
 
 .al-diff-arrow {
-  font-size: 16px;
+  font-size: var(--icon-xs);
   color: var(--text-muted);
 }
 

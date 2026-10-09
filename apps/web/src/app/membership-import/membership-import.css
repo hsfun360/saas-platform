@@ -58,8 +58,8 @@
 
 .mi-selectall input,
 .mi-group__head input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--brand);
   flex-shrink: 0;
 }
@@ -81,7 +81,7 @@
 .mi-group__title {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2xs);
   min-width: 0;
   flex: 1;
 }
@@ -97,7 +97,7 @@
 
 .mi-done {
   color: var(--success-text);
-  font-size: 20px;
+  font-size: var(--icon-md);
 }
 
 .mi-issue {
@@ -110,7 +110,7 @@
 }
 
 .mi-issue .material-icons {
-  font-size: 16px;
+  font-size: var(--icon-xs);
 }
 
 .mi-issue--warn {
@@ -151,7 +151,7 @@
   color: var(--brand-text);
   background: var(--surface-selected);
   border-radius: 12px;
-  padding: 2px var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
 }
 
 .mi-member__no {

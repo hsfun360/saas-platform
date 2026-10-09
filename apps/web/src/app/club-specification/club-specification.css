@@ -55,8 +55,8 @@
 .cs-option input[type='radio'],
 .cs-option input[type='checkbox'] {
   margin-top: 3px;
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--brand);
   flex-shrink: 0;
 }
@@ -64,7 +64,7 @@
 .cs-option__text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2xs);
   min-width: 0;
 }
 

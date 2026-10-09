@@ -26,8 +26,8 @@
   cursor: default;
 }
 .tx-load-item input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   flex-shrink: 0;
 }
 .tx-load-item__flag {
@@ -38,7 +38,7 @@
 
 /* Service-charge marker on a scheme card (any rate line of taxType 'Service Charge'). */
 .tx-row__sc {
-  font-size: 16px;
+  font-size: var(--icon-xs);
   line-height: 1;
   vertical-align: -3px;
   margin-left: var(--space-xs);
@@ -353,7 +353,7 @@
 }
 .tx-tag {
   display: inline-block;
-  padding: 2px 8px;
+  padding: var(--space-2xs) var(--space-sm);
   border-radius: 999px;
   background: var(--surface-sunken);
   color: var(--text-secondary);
@@ -397,8 +397,8 @@
   color: var(--text-primary);
 }
 .tx-check input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   flex-shrink: 0;
 }
 .tx-check--inline {

@@ -11,7 +11,7 @@
   background: var(--surface-sunken);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 2px 8px;
+  padding: var(--space-2xs) var(--space-sm);
 }
 
 .et-grid {
@@ -118,7 +118,7 @@
   color: var(--text-secondary);
   margin-bottom: var(--space-sm);
 }
-.et-brand__head .material-icons { font-size: 18px; }
+.et-brand__head .material-icons { font-size: var(--icon-sm); }
 .et-brand__grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -143,7 +143,7 @@
 }
 .et-brand__logobox img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .et-brand__check { display: flex; align-items: center; gap: var(--space-xs); font-size: var(--font-body-2); color: var(--text-secondary); cursor: pointer; }
-.et-brand__check input { width: 18px; height: 18px; flex-shrink: 0; }
+.et-brand__check input { width: var(--icon-sm); height: var(--icon-sm); flex-shrink: 0; }
 
 .et-toggles {
   display: flex;
@@ -159,9 +159,9 @@
   cursor: pointer;
 }
 .et-check input {
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  margin-top: var(--space-2xs);
   flex-shrink: 0;
 }
 

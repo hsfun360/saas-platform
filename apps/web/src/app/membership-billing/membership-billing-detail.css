@@ -16,7 +16,7 @@
 .mbd-chip {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2xs);
   padding: var(--space-sm) var(--space-md);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -115,8 +115,8 @@
 
 .mbd-pick { display: inline-flex; margin-right: var(--space-xs); }
 .mbd-pick input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--brand);
 }
 
@@ -131,8 +131,8 @@
   cursor: pointer;
 }
 .ard-check input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   accent-color: var(--brand);
 }
 .mb-status--pending {

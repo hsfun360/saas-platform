@@ -163,7 +163,7 @@
   color: var(--chip-off-text);
   background: var(--chip-off-surface);
   border-radius: 12px;
-  padding: 2px var(--space-sm);
+  padding: var(--space-2xs) var(--space-sm);
   white-space: nowrap;
 }
 .fd-card__list {
@@ -178,7 +178,7 @@
 .fd-flight {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2xs);
   width: 100%;
   min-height: 44px;
   text-align: left;
@@ -223,7 +223,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  min-height: 20px;
+  min-height: var(--icon-md);
 }
 .fd-flight__time {
   font-weight: var(--weight-semibold);
@@ -336,7 +336,7 @@
 }
 .fd-group__head > .material-icons {
   color: var(--brand-text);
-  font-size: 20px;
+  font-size: var(--icon-md);
 }
 .fd-group__title {
   font-weight: var(--weight-semibold);
@@ -395,8 +395,8 @@
   background: var(--surface-card);
 }
 .fd-slot__check {
-  width: 20px;
-  height: 20px;
+  width: var(--icon-md);
+  height: var(--icon-md);
   flex-shrink: 0;
 }
 .fd-slot__dot {
@@ -637,8 +637,8 @@
 }
 .fd-noshow__pick input[type='checkbox'],
 .fd-noshow__waive input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   flex-shrink: 0;
 }
 .fd-noshow__title {
