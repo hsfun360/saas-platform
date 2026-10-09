@@ -42,7 +42,7 @@
   }
 
   @if (companiesLoading()) {
-    <p style="color: var(--text-muted); font-size: var(--font-body-2);">Loading companies…</p>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading companies…</p></div>
   } @else if (companies().length === 0) {
     <p style="color: var(--text-muted); font-size: var(--font-body-2);">No companies yet. Use the “New company” button to create your first one.</p>
   } @else if (filteredCompanies().length === 0) {
@@ -153,7 +153,7 @@
           </div>
           <div class="form-group">
             <label for="cc-email">Email</label>
-            <input id="cc-email" type="email" formControlName="email" autocomplete="email"
+            <input id="cc-email" type="email" inputmode="email" formControlName="email" autocomplete="email"
                    [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid" aria-describedby="cc-email-err" />
             @if (form.controls.email.touched && form.controls.email.invalid) {
               <p id="cc-email-err" class="field-error" role="alert">Enter a valid email.</p>
@@ -167,7 +167,7 @@
           </div>
           <div class="form-group">
             <label for="cc-web">Website</label>
-            <input id="cc-web" type="url" formControlName="website" placeholder="https://…" />
+            <input id="cc-web" type="url" inputmode="url" formControlName="website" placeholder="https://…" />
           </div>
         </div>
         <div class="form-row">
@@ -352,7 +352,7 @@
           </div>
           <div class="form-group">
             <label for="cd-email">Email</label>
-            <input id="cd-email" type="email" formControlName="email" autocomplete="email"
+            <input id="cd-email" type="email" inputmode="email" formControlName="email" autocomplete="email"
                    [attr.aria-invalid]="profileForm.controls.email.touched && profileForm.controls.email.invalid" aria-describedby="cd-email-err" />
             @if (profileForm.controls.email.touched && profileForm.controls.email.invalid) {
               <p id="cd-email-err" class="field-error" role="alert">Enter a valid email.</p>
@@ -366,7 +366,7 @@
           </div>
           <div class="form-group">
             <label for="cd-web">Website</label>
-            <input id="cd-web" type="url" formControlName="website" placeholder="https://…" />
+            <input id="cd-web" type="url" inputmode="url" formControlName="website" placeholder="https://…" />
           </div>
         </div>
         <div class="form-row">

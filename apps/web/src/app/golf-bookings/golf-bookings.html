@@ -241,7 +241,7 @@
                            [attr.aria-label]="'Player ' + (i + 1) + ' guest name'" />
                   } @else {
                     <input type="text" [value]="line.memberNo" maxlength="50" placeholder="Member No"
-                           [readOnly]="i === 0"
+                           [disabled]="i === 0"
                            (input)="setLine(i, { memberNo: $any($event.target).value })"
                            [attr.aria-label]="'Player ' + (i + 1) + ' member number'" />
                   }

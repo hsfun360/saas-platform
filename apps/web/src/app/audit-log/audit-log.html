@@ -34,7 +34,7 @@
   }
 
   @if (loading()) {
-    <p style="color: var(--text-muted);">Loading audit entries…</p>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading audit entries…</p></div>
   } @else if (rows().length === 0) {
     <p style="color: var(--text-muted); margin-top: var(--space-lg);">No audit entries match the current filters.</p>
   } @else {

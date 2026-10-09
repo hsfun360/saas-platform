@@ -73,7 +73,7 @@
       <div class="smtp-grid">
         <div class="smtp-field">
           <label for="smtp-from">From email *</label>
-          <input id="smtp-from" type="email" formControlName="fromEmail" placeholder="noreply@yourcompany.com" autocomplete="off">
+          <input id="smtp-from" type="email" inputmode="email" formControlName="fromEmail" placeholder="noreply@yourcompany.com" autocomplete="off">
           @if (form.controls.fromEmail.touched && form.controls.fromEmail.invalid) {
             <span class="smtp-hint" style="color: var(--danger-text);">Enter a valid email your server can send from.</span>
           }
@@ -94,7 +94,7 @@
           <label for="smtp-test-to">Send a test</label>
         </div>
         <div class="smtp-test__row">
-          <input id="smtp-test-to" type="email" [formControl]="testEmail" placeholder="you@example.com" autocomplete="off">
+          <input id="smtp-test-to" type="email" inputmode="email" [formControl]="testEmail" placeholder="you@example.com" autocomplete="off">
           <button type="button" class="btn btn--secondary" (click)="sendTest()" [disabled]="testing()">
             <span class="material-icons" aria-hidden="true">send</span>
             {{ testing() ? 'Testing…' : 'Verify & send test' }}

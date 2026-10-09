@@ -41,7 +41,7 @@
   }
 
   @if (rolesLoading()) {
-    <p style="color: var(--text-muted);">Loading roles…</p>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading roles…</p></div>
   } @else if (roles().length === 0) {
     <p style="color: var(--text-muted);">No roles yet. Use “New role” to create one.</p>
   } @else if (filteredRoles().length === 0) {

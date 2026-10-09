@@ -34,15 +34,15 @@ import { EmailTemplateVariable } from '../../models/auth.models';
   styles: [`
     .vm { position: relative; display: inline-block; }
     .vm__backdrop { position: fixed; inset: 0; z-index: 40; background: transparent; border: 0; cursor: default; }
-    .vm__menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 50; min-width: 260px; max-width: 340px;
-      max-height: 320px; overflow-y: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.12); padding: var(--space-xs); }
-    .vm__item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%;
+    .vm__menu { position: absolute; top: calc(100% + var(--space-xs)); right: 0; z-index: 50; min-width: 260px; max-width: 340px;
+      max-height: 320px; overflow-y: auto; background: var(--surface-card); border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: var(--shadow); padding: var(--space-xs); }
+    .vm__item { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2xs); width: 100%;
       text-align: left; background: transparent; border: 0; border-radius: 6px; padding: var(--space-xs) var(--space-sm);
       cursor: pointer; min-height: 44px; }
-    .vm__item:hover, .vm__item:focus-visible { background: #eef2ff; }
-    .vm__item code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; color: #3730a3; }
-    .vm__desc { font-size: var(--font-caption); color: #64748b; }
+    .vm__item:hover, .vm__item:focus-visible { background: var(--surface-hover); }
+    .vm__item code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--font-caption); color: var(--brand-text); }
+    .vm__desc { font-size: var(--font-caption); color: var(--text-muted); }
   `],
 })
 export class VariableMenuComponent {

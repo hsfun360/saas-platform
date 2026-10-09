@@ -57,7 +57,7 @@
 
       <!-- Module list -->
       @if (modulesLoading()) {
-        <p style="color: var(--text-muted);">Loading modules…</p>
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading modules…</p></div>
       } @else if (modules().length === 0) {
         <p style="color: var(--text-muted);">No modules yet. Use “Add module” to create your first one.</p>
       } @else if (filteredModules().length === 0) {

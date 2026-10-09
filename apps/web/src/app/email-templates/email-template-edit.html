@@ -114,7 +114,7 @@
         <div class="et-test">
           <label for="et-test-to">Send a test</label>
           <div class="et-test__row">
-            <input id="et-test-to" type="email" [formControl]="testEmail" placeholder="you@example.com" autocomplete="off">
+            <input id="et-test-to" type="email" inputmode="email" [formControl]="testEmail" placeholder="you@example.com" autocomplete="off">
             <button type="button" class="btn btn--secondary" (click)="sendTest()" [disabled]="testing()">
               <span class="material-icons" aria-hidden="true">send</span>
               {{ testing() ? 'Queuing…' : 'Send test' }}

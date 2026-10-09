@@ -17,16 +17,16 @@ import { CompanyEntity, CompanySmtp } from '../models/auth.models';
   templateUrl: './company-smtp-dialog.html',
   styles: [`
     .smtp-field { display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md); }
-    .smtp-field label { font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: #334155; }
-    .smtp-field input { padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); min-height: 44px; box-sizing: border-box; }
+    .smtp-field label { font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary); }
+    .smtp-field input { padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); min-height: 44px; box-sizing: border-box; }
     .smtp-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm); }
-    .smtp-hint { font-weight: var(--weight-regular); color: #64748b; font-size: var(--font-caption); }
-    .smtp-check { display: flex; align-items: flex-start; gap: var(--space-sm); font-size: var(--font-body-2); color: #334155; cursor: pointer; margin-bottom: var(--space-md); }
-    .smtp-check input { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; }
+    .smtp-hint { font-weight: var(--weight-regular); color: var(--text-muted); font-size: var(--font-caption); }
+    .smtp-check { display: flex; align-items: flex-start; gap: var(--space-sm); font-size: var(--font-body-2); color: var(--text-secondary); cursor: pointer; margin-bottom: var(--space-md); }
+    .smtp-check input { width: var(--icon-sm); height: var(--icon-sm); margin-top: var(--space-2xs); flex-shrink: 0; }
     .smtp-status { border-radius: 8px; padding: var(--space-sm); font-size: var(--font-body-2); margin-bottom: var(--space-md); }
-    .smtp-test { border-top: 1px solid #e2e8f0; padding-top: var(--space-md); }
+    .smtp-test { border-top: 1px solid var(--border); padding-top: var(--space-md); }
     .smtp-test__row { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
-    .smtp-test__row input { flex: 1; min-width: 200px; padding: var(--space-sm); border: 1px solid #cbd5e1; border-radius: 8px; font-size: var(--font-body); min-height: 44px; box-sizing: border-box; }
+    .smtp-test__row input { flex: 1; min-width: 200px; padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; font-size: var(--font-body); min-height: 44px; box-sizing: border-box; }
   `],
 })
 export class CompanySmtpDialogComponent implements OnInit {

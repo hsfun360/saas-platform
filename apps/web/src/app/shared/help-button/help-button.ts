@@ -89,7 +89,7 @@ import { HelpService } from '../../services/help.service';
         animation: hp-slide-in 0.2s ease-out;
       }
       /* Mobile: stop above the bottom nav so its tabs stay reachable. */
-      @media (max-width: 768px) {
+      @media (max-width: 767px) {
         .hp-panel, .hp-backdrop { bottom: var(--bottom-nav-height, 0px); }
       }
       @keyframes hp-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }

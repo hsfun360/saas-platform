@@ -142,7 +142,10 @@
 
     <!-- ================= DETAIL: selected scheme ================= -->
     <section class="tx-pane tx-pane--detail">
-      <button type="button" class="btn btn--secondary btn--sm tx-back" (click)="back()">← Back to schemes</button>
+      <button type="button" class="btn btn--link tx-back" (click)="back()">
+        <span class="material-icons" aria-hidden="true">arrow_back</span>
+        Back to schemes
+      </button>
 
       @if (!selectedScheme()) {
         <div class="empty-state tx-detail-empty">

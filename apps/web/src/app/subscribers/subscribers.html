@@ -312,8 +312,8 @@
         <div class="form-row">
           <div class="form-group">
             <label for="eTz">Timezone</label>
-            <input id="eTz" type="text" autocomplete="off" formControlName="timezone"
-                   placeholder="Asia/Kuala_Lumpur (optional)" maxlength="100" />
+            <app-combobox inputId="eTz" formControlName="timezone" [options]="timezoneComboOptions()"
+                          [allowEmpty]="true" emptyLabel="— Not set —" placeholder="Type to search…" />
           </div>
         </div>
       </form>

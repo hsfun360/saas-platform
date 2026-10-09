@@ -22,7 +22,7 @@
   </div>
 
   @if (loading()) {
-    <p class="cell-subtle">Loading golfers…</p>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading golfers…</p></div>
   } @else if (golfers().length === 0) {
     <p class="cell-subtle">No golfers yet. Identities appear here automatically after a member's first booking or a visitor's first registration.</p>
   } @else if (filtered().length === 0) {

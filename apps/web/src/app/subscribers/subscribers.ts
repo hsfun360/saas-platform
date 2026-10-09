@@ -1,4 +1,7 @@
 import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { COUNTRY_TIMEZONES } from '../shared/countries';
+import { timezoneWithOffset } from '../shared/timezone';
+import { ComboboxComponent } from '../shared/combobox/combobox';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { LocalDatePipe } from '../shared/local-date.pipe';
@@ -40,13 +43,17 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
 @Component({
   selector: 'app-subscribers',
   standalone: true,
-  imports: [ConfirmDialogComponent, CanDirective, FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [ComboboxComponent, ConfirmDialogComponent, CanDirective, FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './subscribers.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
 export class SubscribersComponent implements OnInit {
   // Destructive-action confirmation (shared centred dialog; replaces window.confirm).
   readonly confirmAction = signal<ConfirmRequest | null>(null);
+  // Timezone is a catalog, so the constrained combobox (house standard) - every
+  // IANA zone we know of, labelled with the standard '(UTC +08:00)' offset.
+  readonly timezoneComboOptions = computed(() =>
+    [...new Set(Object.values(COUNTRY_TIMEZONES).flat())].sort().map((tz) => ({ value: tz, label: timezoneWithOffset(tz) })));
   private readonly fb = inject(FormBuilder);
   // After-save return-to-row (app-wide listing standard).
   private readonly returnScroll = inject(ScrollReturnService);

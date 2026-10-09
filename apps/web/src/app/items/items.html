@@ -50,7 +50,7 @@
       </div>
 
       @if (loading()) {
-        <p style="color: var(--text-muted);">Loading items…</p>
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading items…</p></div>
       } @else if (items().length === 0) {
         <p style="color: var(--text-muted);">No items yet. Use “New item” to create your first one.</p>
       } @else if (filteredItems().length === 0) {
