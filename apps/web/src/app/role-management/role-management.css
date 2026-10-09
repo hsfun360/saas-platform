@@ -79,8 +79,8 @@
 }
 
 .scope-option input {
-  width: 18px;
-  height: 18px;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
   margin-top: var(--space-2xs);
   flex-shrink: 0;
   cursor: pointer;

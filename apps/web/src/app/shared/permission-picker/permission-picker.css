@@ -177,8 +177,8 @@
 }
 
 .perm-action input {
-  width: 16px;
-  height: 16px;
+  width: var(--icon-xs);
+  height: var(--icon-xs);
   cursor: pointer;
   accent-color: var(--brand);
 }
