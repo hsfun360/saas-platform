@@ -415,6 +415,7 @@ Fold the rest into the shared **`<app-overflow-menu>`** (`shared/overflow-menu`)
 Project each action as `<button type="button" appMenuItem (click)="…">` (icon span + label; Enable uses `check_circle`, Disable uses `block` - menu items carry intent by icon, not button colour); the component owns the a11y (aria-haspopup/expanded, role=menu, arrow-key focus, Esc-close-and-refocus, outside-click close) and its styles are global in `styles.css` (`.overflow-menu*`).
 Pass a per-row accessible label, e.g. `[label]="'More actions for ' + row.name"`.
 **Rolled out app-wide 2026-08-19**: every listing row now shows one visible primary + kebab (Edit on masters; Review/View/Details/Resume on the billing/import/statement screens).
+A 2026-10-09 sweep folded the stragglers (Role Management, Modules & Menus, Tax Setup, Golf Courses tee-time sets, Golf Transaction Type prices, AR deposits); Golf Courses keeps **Flight times** as its visible primary because that is what staff reach for on a tee-time set.
 The ONE deliberate exemption is the Approvals task row, whose visible Approve/Reject pair is a decision UI, not record CRUD - don't fold it.
 The Enable/Disable **colour pair rule** above now applies only to non-row contexts (e.g. a detail pane's single state button); row toggles live in the kebab with `check_circle`/`block` icons.
 Reference: `companies.html` (Edit details visible; Edit modules / Email (SMTP) / Weekend days in the kebab) and `ar-transaction-types.html` (Edit visible; Enable/Disable in the kebab).
@@ -493,8 +494,12 @@ recreation case. Wire the same `ScrollReturnService`: tag each card with
 `[attr.data-return-id]="row.id"`, call `remember(listPath, savedId)` in the save/toggle
 success handler BEFORE `load()`, and `consume(listPath, injector)` after the reloaded list
 data lands - the saved card scrolls back into view and flashes (`.return-flash`).
-Reference implementation: `ar-transaction-types`. Older dialog CRUD screens (the
-membership masters, companies, ...) are being migrated as they are touched.
+Reference implementation: `ar-transaction-types`. **Wired on every listing 2026-10-09** - the
+remaining dialog-CRUD masters, the paged lists (Memberships, AR Transactions) and the import
+batches remember the row when its Edit / toggle / Open starts and consume after the first page
+lands (a row on a later page is simply not found - a harmless no-op). Membership Billing's
+Review is a `routerLink` with a `(click)="rememberRow(s.id)"` beside it. Read-only lists
+(Members, Statements, Approvals, Audit Log) have nothing to return to and stay unwired.
 
 #### Section tabs (responsive strip + URL-driven)
 
@@ -723,6 +728,21 @@ For any non-trivial listing (more than a handful of rows), the **add** action an
       run), the viewers (Statement view, Interest detail, the Memberships "Members"
       list), and the preview/selection pickers (Load defaults/Copy dialogs,
       Reconciliation) - when adding a dialog, pick by that same split.
+      Five Group Bookings dialogs (Settle group bill, Request refund, Record refund payout,
+      Record deposit, Reserve flights) contain a few fields but stay **centred on purpose**:
+      each is a show-expected-results decision whose preview line IS the point, not a record
+      form - they are the documented exception, not a precedent for other forms.
+    - **Destructive confirmations use the shared `<app-confirm-dialog>`** (`shared/confirm-dialog`,
+      standardized 2026-10-09): the screen holds `confirmAction = signal<ConfirmRequest | null>`,
+      the row action sets `{ title, message, confirmLabel, run }` (message states the concrete
+      outcome; `danger: false` for a non-destructive but consequential action such as a
+      transfer), and the template renders
+      `@if (confirmAction(); as c) { <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" /> }`.
+      `run` closes the dialog and starts the call; the row's own busy state shows progress.
+      **Never `window.confirm()`.** A destructive action launched from INSIDE an open drawer
+      (Company SMTP "Remove server", User Management "Remove from company") confirms as a VIEW
+      of that same drawer (mode signal, swapped body + footer) - the single-dialog standard
+      forbids a second `<app-dialog>` on top.
   - or a **routed screen** (`/section/new`) that the mobile sliding-pane covers the list
     with - for master–detail screens this falls out of the existing URL-state pattern.
     Reference: `items.ts` (`/items/new`); for a tabbed screen, jump to the create tab
@@ -796,6 +816,16 @@ This matters most on mobile, where a multi-section screen is a long single colum
 The screen's content column follows the app-wide **1140px** cap (see "Content width" above) - a grouped-sections screen is NOT a narrow-column exception.
 Do NOT hand-roll per-screen fieldset/legend section chrome - compose these classes so every screen's section headers read the same.
 Reference implementation: `club-specification.html` (`toggleSection`/`isExpanded` signal record) and `dashboard/settings`.
+A single run card (the "Generate a month" cards on AR Interest, Statement Generation, Membership Billing) folds the same way with one `runOpen` signal.
+
+#### Dialog sections (long form drawers) - THE standard
+
+A long create/edit drawer groups its fields into **collapsible sections** with the global **`.dlg-sec`** primitive (`styles.css`, promoted from Memberships on 2026-10-09):
+`<details class="dlg-sec" open><summary><h3 class="dlg-section">Addresses</h3></summary> …fields… </details>`.
+Native `details`/`summary` gives keyboard operation and a 44px summary row for free; the chevron is drawn by the primitive (collapsed points right, open points down - the app-wide convention) and the heading keeps the `.dlg-section` divider look.
+Sections start `open`; folding never loses form state (the reactive `FormGroup` keeps every control value).
+Never hand-roll `fieldset`/`legend` groups or a per-screen `.my-section` copy - Membership Types shipped seven fieldsets and Memberships a private `.dlg-sec` copy; both now compose the global primitive.
+`fieldset` remains correct for a **radio group** (Platform Roles / Role Management data scope), which is semantics, not section chrome.
 
 #### Dialog class-picker step (create flows) - THE standard
 
