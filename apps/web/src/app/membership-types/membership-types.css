@@ -8,20 +8,7 @@
   color: var(--text-muted);
 }
 
-/* Grouped sections inside the dialog. */
-.mt-fieldset {
-  margin: var(--space-md) 0 0;
-  padding: var(--space-md);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-
-.mt-fieldset legend {
-  padding: 0 var(--space-xs);
-  font-size: var(--font-body-2);
-  font-weight: var(--weight-semibold);
-  color: var(--text-secondary);
-}
+/* Grouped sections inside the dialog use the global .dlg-sec (styles.css). */
 
 /* Rights + conversion checkbox grids. */
 .mt-rights {

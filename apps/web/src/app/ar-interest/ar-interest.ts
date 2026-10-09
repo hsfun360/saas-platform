@@ -40,6 +40,8 @@ export class ArInterestComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
 
   readonly rows = signal<ArInterest[]>([]);
+  // The "Generate a month" run card folds like every section card (header is a button).
+  readonly runOpen = signal(true);
   readonly loading = signal(false);
   readonly generating = signal(false);
   readonly confirming = signal(false);

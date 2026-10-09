@@ -175,8 +175,8 @@
         </div>
 
         <!-- Rights. Golf settings show only when golfing access is granted. -->
-        <fieldset class="mt-fieldset">
-          <legend>Default rights</legend>
+        <details class="dlg-sec" open>
+          <summary><h3 class="dlg-section">Default rights</h3></summary>
           <div class="mt-rights">
             @if (showGolf()) {
               <label class="mt-check"><input type="checkbox" formControlName="isGolfAllow" /><span>Golfing access</span></label>
@@ -194,11 +194,11 @@
               <p class="mt-hint">Guests a member of this type may bring on one booking — members playing as guests count. Blank = no limit, 0 = cannot bring guests.</p>
             </div>
           }
-        </fieldset>
+        </details>
 
         <!-- Term: lifetime by default; a fixed period in months when enabled. -->
-        <fieldset class="mt-fieldset">
-          <legend>Term</legend>
+        <details class="dlg-sec" open>
+          <summary><h3 class="dlg-section">Term</h3></summary>
           <div class="mt-rights">
             <label class="mt-check"><input type="checkbox" formControlName="isTermMembership" /><span>Term membership (fixed period)</span></label>
             @if (isTerm()) {
@@ -215,7 +215,7 @@
               <p class="mt-hint" style="margin: 0;">Lifetime — no fixed period.</p>
             }
           </div>
-        </fieldset>
+        </details>
 
         <!-- Defaults -->
         <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
@@ -249,8 +249,8 @@
         </div>
 
         <!-- Type conversion -->
-        <fieldset class="mt-fieldset">
-          <legend>Type conversion — can convert to</legend>
+        <details class="dlg-sec" open>
+          <summary><h3 class="dlg-section">Type conversion — can convert to</h3></summary>
           @if (otherTypes().length === 0) {
             <p class="mt-hint">No other membership types yet to convert into.</p>
           } @else {
@@ -263,12 +263,12 @@
               }
             </div>
           }
-        </fieldset>
+        </details>
 
         <!-- Personal-only -->
         @if (isPersonal()) {
-          <fieldset class="mt-fieldset">
-            <legend>Individual</legend>
+          <details class="dlg-sec" open>
+            <summary><h3 class="dlg-section">Individual</h3></summary>
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
               <div class="form-group">
                 <label for="tAgeFrom">Child age from</label>
@@ -285,13 +285,13 @@
                 </div>
               }
             </div>
-          </fieldset>
+          </details>
         }
 
         <!-- Corporate-only -->
         @if (!isPersonal()) {
-          <fieldset class="mt-fieldset">
-            <legend>Corporate</legend>
+          <details class="dlg-sec" open>
+            <summary><h3 class="dlg-section">Corporate</h3></summary>
             <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
               <div class="form-group">
                 <label for="tNoNom">No. of nominee</label>
@@ -305,7 +305,7 @@
                               placeholder="Type to search…" />
               </div>
             </div>
-          </fieldset>
+          </details>
         }
       </form>
 
@@ -330,8 +330,8 @@
           <p class="mt-hint" style="margin: 0 0 var(--space-sm);"><span class="material-icons inline-icon" aria-hidden="true">warning</span> No usable transaction types yet — set them up in the Transaction Type master first (Membership Fee and Absentee Fee types are not offered here).</p>
         }
         <!-- Additional fees (Category Details - Fee) -->
-        <fieldset class="mt-fieldset">
-          <legend>Joining fees</legend>
+        <details class="dlg-sec" open>
+          <summary><h3 class="dlg-section">Joining fees</h3></summary>
           @if (feeLines().length === 0) {
             <p class="mt-hint">No joining fees yet. Use "Add fee" to attach one (e.g. processing or entrance fees).</p>
           }
@@ -382,7 +382,7 @@
             <span class="material-icons" aria-hidden="true">add</span>
             <span>Add fee</span>
           </button>
-        </fieldset>
+        </details>
       </div>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="feesDlg.requestClose()" [disabled]="feesSaving()">Cancel</button>
@@ -403,8 +403,8 @@
           <p class="mt-hint" style="margin: 0 0 var(--space-sm);"><span class="material-icons inline-icon" aria-hidden="true">warning</span> No transaction types with charge type "Standing Charges" yet — set them up in the Transaction Type master first.</p>
         }
         <!-- Standing charges: explicit rows, added like joining fees -->
-        <fieldset class="mt-fieldset">
-          <legend>Standing charges</legend>
+        <details class="dlg-sec" open>
+          <summary><h3 class="dlg-section">Standing charges</h3></summary>
           @if (standingRows().length === 0) {
             <p class="mt-hint">No standing charges yet. Use "Add charge" to attach one (e.g. monthly subscription while Active).</p>
           }
@@ -489,7 +489,7 @@
             <span class="material-icons" aria-hidden="true">add</span>
             <span>Add charge</span>
           </button>
-        </fieldset>
+        </details>
       </div>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="chargesDlg.requestClose()" [disabled]="chargesSaving()">Cancel</button>

@@ -29,12 +29,14 @@
 
   <!-- Run card (cutoff day + aging boundaries live on AR Specification) -->
   <div class="settings-card" *appCan="'create'">
-    <div class="settings-header">
+    <button type="button" class="settings-header settings-header--button" (click)="runOpen.set(!runOpen())" [attr.aria-expanded]="runOpen()">
       <span class="settings-header__text">
         <span class="settings-header__title">Generate a month</span>
         <span class="settings-header__sub">Runs in the background after submit - you can continue with other work and will be notified (in-app + email) when it finishes. A debtor already covered for the month is REPLACED.</span>
       </span>
-    </div>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="runOpen()" aria-hidden="true">chevron_right</span>
+    </button>
+    @if (runOpen()) {
     <div class="settings-body">
       <form [formGroup]="runForm" (ngSubmit)="onGenerate()" class="saas-form" style="padding: 0;">
         <div class="asg-run">
@@ -98,6 +100,7 @@
         </div>
       }
     </div>
+    }
   </div>
 
   <!-- Run history -->

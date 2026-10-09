@@ -40,6 +40,8 @@ export class ArStatementGenerationComponent implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
 
   readonly successMessage = signal('');
+  // The "Generate a month" run card folds like every section card (header is a button).
+  readonly runOpen = signal(true);
   readonly errorMessage = signal('');
 
   // Cutoff day (maintained on AR Specification; read here for the date
