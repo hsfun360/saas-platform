@@ -124,24 +124,7 @@
   background: var(--surface-sunken);
 }
 
-/* Floating action button — pinned bottom-right, pill-shaped, above content but
-   below the shell drawer (1000) / backdrop (999) / header (1100). Composes the
-   shared .btn .btn--primary, so it keeps the ≥44px target, colour and focus. */
-.it-fab {
-  position: fixed;
-  right: var(--space-lg);
-  bottom: var(--space-lg);
-  z-index: 900;
-  border-radius: 28px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-}
-
-/* Lift the FAB clear of the fixed mobile bottom nav so it isn't hidden. */
-@media (max-width: 767px) {
-  .it-fab {
-    bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md));
-  }
-}
+/* The "New item" FAB composes the global .saas-fab (styles.css). */
 
 /* Status chip on the list rows. */
 .it-status {

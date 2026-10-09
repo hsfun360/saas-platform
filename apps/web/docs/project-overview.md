@@ -663,17 +663,24 @@ For any non-trivial listing (more than a handful of rows), the **add** action an
   a long, scrolled list a top button drifts off-screen. Use a **floating action button**
   pinned `position: fixed` bottom-right that stays reachable at any scroll position. This
   is the one place the bottom is for an **action** (the bottom *nav bar* stays
-  destinations-only). Compose the shared `.btn .btn--primary` so it keeps the ≥ 44px
-  target, colour and focus ring; round it to a pill and add a soft shadow. Give it an
-  `aria-label` and leave it **in DOM order after the list** so keyboard/screen-reader
-  users still reach it.
-  - **z-index:** the FAB sits above content but **below** the shell drawer (`1000`),
-    backdrop (`999`) and header (`1100`) - use `z-index: 900`.
-  - **Clear the mobile bottom nav.** The shell shows a fixed bottom nav (height
-    `--bottom-nav-height`, defined on the shell `:host`) on mobile (≤ 767px). A FAB at a
-    plain `bottom: var(--space-lg)` hides **behind** that bar. Offset it on mobile:
-    `bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md))`. Don't hard-code the
-    bar's pixel height - reference the var so the two never drift.
+  destinations-only). Give it an `aria-label` and leave it **in DOM order after the
+  list** so keyboard/screen-reader users still reach it.
+  - **ONE class, global: `class="btn btn--primary saas-fab"`** (standardized 2026-10-09).
+    `.saas-fab` lives in `styles.css` next to the `.btn` system, so every screen has it
+    with no import and no per-screen CSS. It composes `.btn .btn--primary` (≥ 44px
+    target, colour, focus ring), rounds to a 28px pill with a soft shadow, pins to the
+    bottom-right **of the content column** (viewport minus the shell-published
+    `--content-sidebar`, centred on the 1140px cap, falling back to the corner gutter on
+    narrow screens), sits at `z-index: 900` (above content, below the shell drawer
+    `1000` / backdrop `999` / header `1100`), and on mobile (≤ 767px) lifts clear of the
+    fixed bottom nav via `calc(var(--bottom-nav-height, 60px) + var(--space-md))`.
+    **Never write a per-screen FAB rule** (`.my-fab`) and never a bare `fab` class: this
+    section once showed a `.fab { … }` snippet to copy per screen, and four golf screens
+    shipped with `class="… fab"` and no rule at all - an inline button at the end of the
+    list instead of a FAB. The snippet is gone; the class is the standard. The only
+    screens with their own rule are the two-FAB clusters (`modules-menus` `.mm-fab-group`,
+    `tenant-users` `.user-fab-group`), which position a pair.
+  - **Permission-gate it** with `*appCan="'create'"` (see "Permission-gated actions").
   - **Master–detail screens:** place the FAB **inside the master pane**. On mobile the
     detail pane sets the master to `display:none`, which hides the FAB's fixed descendant
     automatically - so no "New" button floats over an edit form. No extra logic needed.
@@ -735,15 +742,12 @@ For any non-trivial listing (more than a handful of rows), the **add** action an
     "{{ query }}"** + a **Clear search** button (a native `<button>`, not just clearing
     the field), so the user has an obvious way back to the full list.
 
-```css
-.fab {                              /* compose: class="btn btn--primary fab" */
-  position: fixed; right: var(--space-lg); bottom: var(--space-lg);
-  z-index: 900;                     /* under drawer(1000)/backdrop(999)/header(1100) */
-  border-radius: 28px; box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-}
-@media (max-width: 767px) {         /* lift clear of the fixed mobile bottom nav */
-  .fab { bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md)); }
-}
+```html
+<!-- after the list, inside the master pane on master-detail screens -->
+<button type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="New company" *appCan="'create'">
+  <span class="material-icons" aria-hidden="true">add</span>
+  New company
+</button>
 ```
 
 ```ts
@@ -756,9 +760,9 @@ readonly filtered = computed(() => {
 clearSearch() { this.search.set(''); }
 ```
 
-Reference implementation: `items.ts` / `items.html` / `items.css` (`.it-search*`,
-`.it-fab`, `filteredItems` computed, the `search_off` empty state), routed as `items`
-and `items/:id`.
+Reference implementation: `companies.html` (search + `saas-fab`), and `items.ts` /
+`items.html` / `items.css` (`.it-search*`, `filteredItems` computed, the `search_off`
+empty state), routed as `items` and `items/:id`.
 
 #### Content width - ONE cap for every listing screen (1140px)
 

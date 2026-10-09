@@ -205,21 +205,9 @@
   color: var(--chip-off-text);
 }
 
-/* New-scheme FAB — pinned bottom-right, below shell drawer(1000)/backdrop(999)/header(1100). */
-.tx-fab {
-  position: fixed;
-  right: var(--space-lg);
-  bottom: var(--space-lg);
-  z-index: 900;
-  border-radius: 28px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-}
+/* The "New scheme" FAB composes the global .saas-fab (styles.css). */
 
 @media (max-width: 767px) {
-  .tx-fab {
-    bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md));
-  }
-
   /* Card reflow: badge stays top-right, actions drop to a full-width row below. */
   .tx-row {
     grid-template-columns: minmax(0, 1fr) auto;

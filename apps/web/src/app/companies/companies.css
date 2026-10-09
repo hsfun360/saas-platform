@@ -46,30 +46,8 @@
   background: var(--surface-sunken);
 }
 
-/* Floating "New company" action — always visible, pinned to the bottom-right
-   of the CONTENT COLUMN (same formula as .saas-fab: viewport minus the
-   shell-published --content-sidebar, centered on the 1140px cap; max() falls
-   back to the corner gutter on narrow screens). Above content but below the
-   shell drawer (1000) / backdrop (999) / header (1100). Composes the shared
-   .btn .btn--primary, keeping the ≥44px target, colour and focus ring. */
-.company-fab {
-  position: fixed;
-  right: max(var(--space-lg), (100vw - var(--content-sidebar, 0px) - 1140px) / 2 + var(--space-lg));
-  bottom: var(--space-lg);
-  z-index: 900;
-  border-radius: 28px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-}
-
-/* On mobile the fixed bottom nav (var(--bottom-nav-height)) occupies the bottom
-   edge — lift the FAB clear of it so it isn't hidden behind the bar. */
-@media (max-width: 767px) {
-  .company-fab {
-    bottom: calc(var(--bottom-nav-height, 60px) + var(--space-md));
-  }
-}
-
-/* The listing cards use the shared, theme-aware .data-card / .data-row--with-badge
+/* The "New company" FAB composes the global .saas-fab (styles.css).
+   The listing cards use the shared, theme-aware .data-card / .data-row--with-badge
    / .status-chip standard in styles.css — no screen-specific card CSS here.
    The create / edit dialogs use the shared <app-dialog> component. */
 
