@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { MoneyPipe } from '../shared/money.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -25,7 +26,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 @Component({
   selector: 'app-platform-profile',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, PhoneInputComponent, MoneyInputDirective, ComboboxComponent],
+  imports: [MoneyPipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, PhoneInputComponent, MoneyInputDirective, ComboboxComponent],
   templateUrl: './platform-profile.html',
   styleUrls: ['../system-setup/system-setup.css', './platform-profile.css'],
 })

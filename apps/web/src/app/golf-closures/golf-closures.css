@@ -133,6 +133,7 @@
 }
 
 .gcl-day-on {
+  min-height: 44px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -147,7 +148,8 @@
 }
 
 .gcl-day-remove {
-  min-height: 40px;
+  min-height: 44px;
+  min-width: 44px;
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -162,6 +164,6 @@
 }
 
 .gcl-day-remove:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--focus-ring);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }

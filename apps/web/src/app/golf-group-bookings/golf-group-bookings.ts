@@ -9,7 +9,7 @@ import { CanDirective } from '../shared/can.directive';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
-import { LocalDatePipe } from '../shared/local-date.pipe';
+import { LocalDatePipe, formatLocalDate } from '../shared/local-date.pipe';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { MembershipStatusOption } from '../models/auth.models';
@@ -1011,7 +1011,7 @@ export class GolfGroupBookingsComponent implements OnInit {
   }
 
   askRemoveDay(d: GolfGroupPlayDay): void {
-    this.confirmTarget.set({ kind: 'day', id: d.id, label: d.playDate });
+    this.confirmTarget.set({ kind: 'day', id: d.id, label: formatLocalDate(d.playDate) });
   }
 
   askRemoveFlight(d: GolfGroupPlayDay, f: GolfGroupFlight): void {
@@ -1199,7 +1199,7 @@ export class GolfGroupBookingsComponent implements OnInit {
   drawnSummary(p: GolfGroupRosterPlayer): string {
     const entries = Object.entries(p.drawn || {});
     if (!entries.length) return 'Not drawn';
-    return entries.map(([date, label]) => `${date.slice(5)} ${label}`).join(' · ');
+    return entries.map(([date, label]) => `${formatLocalDate(date, 'dayMonth')} ${label}`).join(' · ');
   }
 
   // ---------- draw ----------

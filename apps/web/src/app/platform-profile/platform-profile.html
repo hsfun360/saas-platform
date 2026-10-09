@@ -28,7 +28,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading platform profile…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading platform profile…</p></div>
   } @else {
     <form [formGroup]="form" (ngSubmit)="onSave()" class="saas-form pp-form">
 
@@ -255,14 +255,14 @@
             <span class="pp-quote-ie">{{ q.ieFlag }}</span>
           </div>
           <dl class="pp-quote-figures">
-            <div><dt>Net</dt><dd>{{ q.net | number:'1.2-2' }}</dd></div>
-            <div><dt>Tax</dt><dd>{{ q.taxTotal | number:'1.2-2' }}</dd></div>
-            <div><dt>Gross</dt><dd>{{ q.gross | number:'1.2-2' }}</dd></div>
+            <div><dt>Net</dt><dd>{{ q.net | money }}</dd></div>
+            <div><dt>Tax</dt><dd>{{ q.taxTotal | money }}</dd></div>
+            <div><dt>Gross</dt><dd>{{ q.gross | money }}</dd></div>
           </dl>
           @if (q.lines.length) {
             <ul class="pp-quote-lines">
               @for (l of q.lines; track l.taxCode) {
-                <li>{{ l.taxCode }} @ {{ l.taxRate }}% = {{ l.taxAmount | number:'1.2-2' }}</li>
+                <li>{{ l.taxCode }} @ {{ l.taxRate }}% = {{ l.taxAmount | money }}</li>
               }
             </ul>
           }

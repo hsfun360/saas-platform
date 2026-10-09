@@ -102,7 +102,7 @@ export class ArRefundDialogComponent implements OnInit {
   readonly bankFacing = computed(() => this.refundKind() !== 'offset');
   readonly needsDeposit = computed(() => this.refundKind() === 'deposit' || this.refundKind() === 'offset');
   readonly kindLabel = computed(() => REFUND_KINDS.find((k) => k.key === this.refundKind())?.label || '');
-  readonly submitLabel = computed(() => (this.effMeta()?.refundApproval ? 'Submit for Approval' : 'Submit'));
+  readonly submitLabel = computed(() => (this.effMeta()?.refundApproval ? 'Submit for Approval' : 'Post refund'));
 
   readonly form = this.fb.nonNullable.group({
     docNo: [''],

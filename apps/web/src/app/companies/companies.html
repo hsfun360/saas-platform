@@ -18,7 +18,7 @@
   }
   @if (errorMessage()) {
     <div class="flash flash-error" role="alert" aria-live="assertive">
-      <span class="flash-icon">⚠️</span><span>{{ errorMessage() }}</span>
+      <span class="flash-icon">❌</span><span>{{ errorMessage() }}</span>
       <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }

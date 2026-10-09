@@ -39,7 +39,7 @@
   </div>
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner"></div><p>Loading closure plans…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading closure plans…</p></div>
   } @else if (plans().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">construction</span>
@@ -188,6 +188,8 @@
           }
 
           @case ('days') {
+            <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="gclDays". -->
+            <form id="gclDays" (submit)="$event.preventDefault(); onSaveDays()">
             @if (dayRows().length === 0) {
               <div class="empty-state">
                 <span class="material-icons empty-icon" aria-hidden="true">construction</span>
@@ -210,24 +212,25 @@
                     </span>
                     <input type="time" [value]="row.startTime"
                            (input)="updateDay(i, 'startTime', $any($event.target).value)"
-                           [attr.aria-label]="row.closureDate + ' closed from'" />
+                           [attr.aria-label]="(row.closureDate | localDate) + ' closed from'" />
                     <input type="time" [value]="row.endTime"
                            (input)="updateDay(i, 'endTime', $any($event.target).value)"
-                           [attr.aria-label]="row.closureDate + ' closed until'" />
+                           [attr.aria-label]="(row.closureDate | localDate) + ' closed until'" />
                     <label class="gcl-day-on">
                       <input type="checkbox" [checked]="row.isActive" (change)="toggleDayActive(i)"
-                             [attr.aria-label]="row.closureDate + ' closure applies'" />
+                             [attr.aria-label]="(row.closureDate | localDate) + ' closure applies'" />
                     </label>
                     <button type="button" class="gcl-day-remove" (click)="removeDay(i)"
-                            [attr.aria-label]="'Remove ' + row.closureDate">✕</button>
+                            [attr.aria-label]="'Remove ' + (row.closureDate | localDate)">✕</button>
                   </div>
                 }
               </div>
             }
             <button type="button" class="btn btn--secondary" (click)="generateDays()" [disabled]="generating()">
               <span class="material-icons" aria-hidden="true">event_busy</span>
-              <span>{{ generating() ? 'Generating…' : (dayRows().length ? 'Regenerate days' : 'Generate days') + ' (' + scopeLabel(dayPlan()?.dayScope || 'all') + ', ' + (dayPlan()?.dateFrom || '') + ' → ' + (dayPlan()?.dateTo || '') + ')' }}</span>
+              <span>{{ generating() ? 'Generating…' : (dayRows().length ? 'Regenerate days' : 'Generate days') + ' (' + scopeLabel(dayPlan()?.dayScope || 'all') + ', ' + ((dayPlan()?.dateFrom | localDate) || '') + ' → ' + ((dayPlan()?.dateTo | localDate) || '') + ')' }}</span>
             </button>
+            </form>
           }
         }
       </div>
@@ -242,7 +245,7 @@
           }
           @case ('days') {
             <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="daysSaving()">Cancel</button>
-            <button type="button" class="btn btn--primary" (click)="onSaveDays()" [disabled]="daysSaving()">
+            <button type="submit" form="gclDays" class="btn btn--primary" [disabled]="daysSaving()">
               {{ daysSaving() ? 'Saving…' : 'Save ' + dayRows().length + ' days' }}
             </button>
           }

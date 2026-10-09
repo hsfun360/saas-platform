@@ -12,7 +12,7 @@ import { TaxScheme, TaxRate, TaxOption, Country, TaxTemplateOption } from '../mo
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { CanDirective } from '../shared/can.directive';
-import { LocalDatePipe } from '../shared/local-date.pipe';
+import { LocalDatePipe, localDateOnly } from '../shared/local-date.pipe';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
 // System Setup → Tax Setup (subscriber-owned catalog).
@@ -264,7 +264,7 @@ export class TaxSchemesComponent implements OnInit {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return localDateOnly();
   }
 
   // Show a control's validation message once the user has interacted with it (or after

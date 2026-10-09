@@ -54,7 +54,7 @@ export class ArDepositDialogComponent implements OnInit {
 
   readonly activeDebtor = computed(() => this.debtor() || this.pickedDebtor());
   readonly effMeta = computed(() => this.meta() || this.selfMeta());
-  readonly submitLabel = computed(() => (this.effMeta()?.depositApproval ? 'Submit for Approval' : 'Submit'));
+  readonly submitLabel = computed(() => (this.effMeta()?.depositApproval ? 'Submit for Approval' : 'Post deposit'));
 
   readonly form = this.fb.nonNullable.group({
     docNo: [''],

@@ -215,6 +215,7 @@
   margin: var(--space-xs) 0 var(--space-sm);
 }
 .elig-day {
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
@@ -238,7 +239,7 @@
   background: var(--brand-surface, var(--surface-selected));
 }
 .elig-holiday {
-  min-height: 36px;
+  min-height: 44px;
 }
 .elig-grid {
   display: grid;

@@ -68,7 +68,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading memberships…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading memberships…</p></div>
   } @else if (totalKnown() === 0) {
     <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No memberships yet. Use "New membership" — an individual membership creates its member automatically; a corporate membership takes nominees.</p></div>
   } @else if (rows().length === 0) {
@@ -695,7 +695,7 @@
         <!-- ============ Members list view (the people under one membership) ============ -->
         @case (null) {
           @if (membersLoading()) {
-            <div class="loading-state"><div class="spinner large"></div><p>Loading members…</p></div>
+            <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading members…</p></div>
           } @else {
             @if (activeMembership()?.membershipClass === 'corporate') {
               <div class="mem-toolbar">

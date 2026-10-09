@@ -5,7 +5,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { GolfClosureService, ClosureNineOption } from '../services/golf-closure.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
-import { LocalDatePipe } from '../shared/local-date.pipe';
+import { LocalDatePipe, formatLocalDate } from '../shared/local-date.pipe';
 import { MembershipStatusOption, UnitCourseClosureDay, UnitCourseClosurePlan } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
@@ -361,11 +361,11 @@ export class GolfClosuresComponent implements OnInit {
     const days: UnitCourseClosureDay[] = [];
     for (const r of this.dayRows()) {
       if (!r.startTime !== !r.endTime) {
-        this.errorMessage.set(`${r.closureDate}: set both closure times, or leave both empty for a whole-day closure.`);
+        this.errorMessage.set(`${formatLocalDate(r.closureDate)}: set both closure times, or leave both empty for a whole-day closure.`);
         return;
       }
       if (r.startTime && r.endTime && r.startTime >= r.endTime) {
-        this.errorMessage.set(`${r.closureDate}: closure end time must be after the start time.`);
+        this.errorMessage.set(`${formatLocalDate(r.closureDate)}: closure end time must be after the start time.`);
         return;
       }
       days.push({

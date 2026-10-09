@@ -30,7 +30,7 @@
   <!-- Prerequisite / gate notes (permanent contextual notes, not transient) -->
   @if (meta() && !baseCurrency()) {
     <div class="flash flash-error flash--static" role="status">
-      <span class="flash-icon">⚠️</span>
+      <span class="flash-icon">❌</span>
       <span>Set the company default currency on the Companies screen first - rates are expressed against it, so none can be keyed until then.</span>
     </div>
   } @else if (meta() && !multiCurrencyEnabled()) {
@@ -64,7 +64,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading exchange rates…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading exchange rates…</p></div>
   } @else if (rows().length === 0) {
     <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No exchange rates yet. Use "New exchange rate" to add one (e.g. USD effective 1 Aug = 4.71 {{ baseCurrency() || 'base' }}).</p></div>
   } @else if (filtered().length === 0) {
@@ -95,7 +95,7 @@
             <div class="data-row__actions">
               @if (r.canModify !== false) {
                 <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(r)">Edit</button>
-                <app-overflow-menu *appCan="'delete'" [label]="'More actions for ' + r.currencyCode + ' rate effective ' + r.effectiveDate">
+                <app-overflow-menu *appCan="'delete'" [label]="'More actions for ' + r.currencyCode + ' rate effective ' + (r.effectiveDate | localDate)">
                   <button type="button" appMenuItem (click)="askDelete(r)">
                     <span class="material-icons" aria-hidden="true">delete</span>
                     Delete

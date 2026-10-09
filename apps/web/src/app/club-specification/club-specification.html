@@ -28,7 +28,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading club specification…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading club specification…</p></div>
   } @else {
     <form [formGroup]="form" (ngSubmit)="save()" class="saas-form cs-form">
 

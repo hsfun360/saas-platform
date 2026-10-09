@@ -51,7 +51,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading membership fees…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading membership fees…</p></div>
   } @else if (fees().length === 0) {
     <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No membership fees yet. Use "New fee" to add one.</p></div>
   } @else if (filtered().length === 0) {
@@ -69,7 +69,7 @@
               <div class="data-card__title">{{ f.membershipFeeCode }}</div>
               <div class="data-card__subline">
                 <span class="data-card__reg">
-                  {{ f.amount | number:'1.2-2' }}@if (f.description) { · {{ f.description }} }@if (f.taxSchemeCode) { · Tax: {{ f.taxSchemeCode }} }
+                  {{ f.amount | money }}@if (f.description) { · {{ f.description }} }@if (f.taxSchemeCode) { · Tax: {{ f.taxSchemeCode }} }
                   ·
                   @if (f.allowInstallment) {
                     {{ f.noOfInstallment }} × {{ intervalLabel(f.installmentInterval) }}
@@ -245,7 +245,7 @@
                 }
               </div>
               <div class="mf-total" [class.mf-total--bad]="!scheduleBalanced()">
-                <span>Stages total: {{ stageTotal() | number:'1.2-2' }} / {{ amountValue() | number:'1.2-2' }}</span>
+                <span>Stages total: {{ stageTotal() | money }} / {{ amountValue() | money }}</span>
                 @if (scheduleBalanced()) {
                   <span class="mf-total__ok">✓ balanced</span>
                 } @else {

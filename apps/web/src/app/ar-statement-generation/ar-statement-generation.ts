@@ -5,7 +5,7 @@ import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
-import { LocalDatePipe } from '../shared/local-date.pipe';
+import { LocalDatePipe, monthYearLabel } from '../shared/local-date.pipe';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { monthComboOptions } from '../shared/month-options';
@@ -288,10 +288,7 @@ export class ArStatementGenerationComponent implements OnInit, OnDestroy {
   monthLabel(iso: string): string {
     // '2026-08-01' -> 'Aug 2026' (device-locale month name via localDate pipe
     // would render the full date; statements are month-labelled).
-    const [y, m] = iso.split('-').map(Number);
-    if (!y || !m) return iso;
-    const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${names[m - 1]} ${y}`;
+    return monthYearLabel(iso);
   }
 
   scopeLabel(scope: ArStatementCategory[]): string {

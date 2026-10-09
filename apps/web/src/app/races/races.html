@@ -51,7 +51,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading races…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading races…</p></div>
   } @else if (races().length === 0) {
     <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No races yet. Use "New race" to add one (e.g. MAL — Malay, CHN — Chinese).</p></div>
   } @else if (filtered().length === 0) {

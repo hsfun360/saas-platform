@@ -43,7 +43,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading transaction types…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading transaction types…</p></div>
   } @else if (rows().length === 0) {
     <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No catalog entries are opened to Membership yet — tick "Membership" on the entries under Account Receivable → Transaction Type.</p></div>
   } @else if (filtered().length === 0) {

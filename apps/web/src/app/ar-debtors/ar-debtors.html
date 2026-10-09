@@ -77,7 +77,7 @@
   </div>
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading debtors…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading debtors…</p></div>
   } @else if (rows().length === 0 && !hasFilter()) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
@@ -258,7 +258,7 @@
                 [discardMessage]="otherMode() === 'create' ? 'You have started entering a new Other Debtor. Leaving now will discard it.' : 'You have unsaved changes. Leaving now will discard them.'"
                 (close)="closeOther()">
       @if (otherLoading()) {
-        <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
       } @else {
         <form id="otherDebtorForm" [formGroup]="otherForm" (ngSubmit)="onSaveOther()" class="saas-form" style="padding: 0;">
           <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">

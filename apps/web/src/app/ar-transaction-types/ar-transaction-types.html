@@ -55,7 +55,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading transaction types…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading transaction types…</p></div>
   } @else if (rows().length === 0) {
     <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No transaction types yet. Use "New transaction type" to add one (e.g. OTH — Miscellaneous Fee under Invoice, CASH — Cash under Receipt).</p></div>
   } @else if (filtered().length === 0) {
@@ -250,7 +250,7 @@
     <app-dialog #copyDlg [title]="copyView() === 'company' ? 'Copy transaction types — select company' : 'Copy from ' + (copySource()?.name || '')"
                 [busy]="copyBusy()" (close)="closeCopy()">
       @if (copyLoading()) {
-        <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
       } @else if (copyView() === 'company') {
         <p class="cell-subtle" style="margin-top: 0;">Only companies you have access to are listed. You pick exactly which entries to copy in the next step.</p>
         <div style="display: flex; flex-direction: column; gap: var(--space-sm);">

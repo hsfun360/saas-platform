@@ -27,8 +27,8 @@
     </div>
   }
   @if (warnings().length > 0) {
-    <div class="flash flash-error" role="status">
-      <span class="flash-icon">⚠️</span>
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
       <span>
         Generation warnings:
         @for (w of warnings(); track $index) { <span class="mb-warning">{{ w }}</span> }
@@ -89,7 +89,7 @@
   </div>
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
   } @else if (rows().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">inbox</span>

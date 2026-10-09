@@ -40,7 +40,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading workflows…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading workflows…</p></div>
   } @else if (definitions().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">undo</span>
@@ -338,7 +338,7 @@
         <!-- ================= PREVIEW VIEW ================= -->
         @case ('preview') {
           @if (previewLoading()) {
-            <div class="loading-state"><div class="spinner large"></div><p>Resolving approvers…</p></div>
+            <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Resolving approvers…</p></div>
           } @else if (preview(); as p) {
             <p class="wf-hint">Who would receive each step if a document were submitted in your active company today (v{{ p.version }}).</p>
             @if (p.steps.length === 0) {

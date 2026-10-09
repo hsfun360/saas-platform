@@ -1,5 +1,5 @@
 import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
-import { LocalDatePipe } from '../shared/local-date.pipe';
+import { LocalDatePipe, formatLocalDate } from '../shared/local-date.pipe';
 import { ScreenTitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -190,7 +190,7 @@ export class PublicHolidaysComponent implements OnInit {
     const req$ = id ? this.service.update(id, payload) : this.service.create(payload);
     req$.subscribe({
       next: (res) => {
-        this.successMessage.set(`${payload.description} (${payload.holidayDate}) ${id ? 'updated' : 'added'}.`);
+        this.successMessage.set(`${payload.description} (${formatLocalDate(payload.holidayDate)}) ${id ? 'updated' : 'added'}.`);
         this.saving.set(false);
         this.dialogOpen.set(false);
         this.returnScroll.remember(PublicHolidaysComponent.LIST_PATH, res.publicHoliday.id);

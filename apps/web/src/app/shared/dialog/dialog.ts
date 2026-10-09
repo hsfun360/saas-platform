@@ -253,7 +253,13 @@ export class DialogComponent implements OnDestroy {
   // the first non-✕ focusable, then the ✕.
   private firstFocusable(): HTMLElement | null {
     const all = this.focusables().filter((el) => !el.classList.contains('dlg__close'));
+    // A visually-hidden file input (logo upload) is a field too, but typing
+    // into it is meaningless - start on the first TYPEABLE field instead.
+    const typeable = (el: HTMLElement) =>
+      ['SELECT', 'TEXTAREA'].includes(el.tagName) ||
+      (el.tagName === 'INPUT' && !['file', 'checkbox', 'radio', 'hidden'].includes((el as HTMLInputElement).type));
     return (
+      all.find(typeable) ??
       all.find((el) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) ??
       all[0] ??
       this.focusables()[0] ??

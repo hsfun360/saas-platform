@@ -54,7 +54,7 @@
   font-size: var(--font-body-2);
   color: var(--text-primary);
   cursor: pointer;
-  min-height: 40px;
+  min-height: 44px;
 }
 
 .combo__option--highlight {

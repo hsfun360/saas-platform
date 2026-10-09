@@ -15,7 +15,7 @@
                  placeholder="Search by number, name or code…" aria-label="Search debtors" />
         </div>
         @if (pickLoading()) {
-          <div class="loading-state"><div class="spinner"></div><p>Searching…</p></div>
+          <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Searching…</p></div>
         } @else if (pickRows().length === 0) {
           <p class="cell-subtle">No active debtors match. Refine the search.</p>
         } @else {
@@ -48,7 +48,7 @@
         </div>
       }
       @if (metaLoading()) {
-        <div class="loading-state"><div class="spinner"></div><p>Loading entry options…</p></div>
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading entry options…</p></div>
       } @else {
         <form id="arLedgerForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
           <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">

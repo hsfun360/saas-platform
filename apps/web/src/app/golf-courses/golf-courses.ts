@@ -17,7 +17,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { CanDirective } from '../shared/can.directive';
-import { LocalDatePipe } from '../shared/local-date.pipe';
+import { LocalDatePipe, formatLocalDate } from '../shared/local-date.pipe';
 
 // Combobox row for a nine picker: code — description (both filterable).
 const toNineOption = (u: UnitCourse): { value: string; label: string } => ({
@@ -143,7 +143,7 @@ export class GolfCoursesComponent implements OnInit {
     if (this.ttMode() === 'form') return this.ttEditSetId() ? `Edit tee-time set — ${code}` : `New tee-time set — ${code}`;
     if (this.ttMode() === 'slots') {
       const s = this.ttSlotSet();
-      return s ? `Flight times — ${this.scopeLabel(s.dayScope)} from ${s.effectiveDate}` : 'Flight times';
+      return s ? `Flight times — ${this.scopeLabel(s.dayScope)} from ${formatLocalDate(s.effectiveDate)}` : 'Flight times';
     }
     return `Tee times — ${code}`;
   });

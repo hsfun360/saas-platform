@@ -6,7 +6,7 @@
   </a>
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading template…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading template…</p></div>
   } @else {
     <div class="et-head">
       <h1 style="margin: 0; font-size: var(--font-h1); color: var(--text-primary);">{{ name() }}</h1>

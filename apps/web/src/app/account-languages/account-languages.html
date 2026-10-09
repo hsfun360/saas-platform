@@ -28,7 +28,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>{{ 'common.loading' | t }}</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>{{ 'common.loading' | t }}</p></div>
   } @else if (available().length === 0) {
     <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>{{ 'accountLanguages.none' | t }}</p></div>
   } @else {

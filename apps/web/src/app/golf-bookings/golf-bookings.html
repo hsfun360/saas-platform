@@ -34,7 +34,7 @@
   </div>
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading bookings…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading bookings…</p></div>
   } @else if (bookings().length === 0) {
     <div class="empty-state">
       <span class="material-icons" aria-hidden="true">event_busy</span>
@@ -204,6 +204,8 @@
 
         <!-- ---- STEP 3: Players + confirm ---- -->
         @case ('players') {
+          <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="gbPlayers". -->
+          <form id="gbPlayers" (submit)="$event.preventDefault(); confirm()">
           @if (lock(); as lk) {
             <div class="gb-lock-banner" role="status" aria-live="polite">
               <span class="material-icons" aria-hidden="true">lock_clock</span>
@@ -263,7 +265,7 @@
             <div class="gb-grid" style="margin-top: var(--space-md);">
               <div class="form-group">
                 <label for="gbMobile">Contact Mobile</label>
-                <app-phone-input inputId="gbMobile" [ngModel]="contactMobile()" (ngModelChange)="contactMobile.set($event)" placeholder="Optional"></app-phone-input>
+                <app-phone-input inputId="gbMobile" [ngModel]="contactMobile()" [ngModelOptions]="{ standalone: true }" (ngModelChange)="contactMobile.set($event)" placeholder="Optional"></app-phone-input>
               </div>
               <div class="form-group">
                 <label for="gbRemarks">Remarks</label>
@@ -272,6 +274,7 @@
               </div>
             </div>
           }
+          </form>
         }
       }
 
@@ -292,7 +295,7 @@
           }
           @case ('players') {
             <button type="button" class="btn btn--secondary" (click)="backToFlights()" [disabled]="saving()">« Back</button>
-            <button type="button" class="btn btn--primary" (click)="confirm()" [disabled]="saving() || !lock()">
+            <button type="submit" form="gbPlayers" class="btn btn--primary" [disabled]="saving() || !lock()">
               {{ saving() ? 'Confirming…' : 'Confirm booking' }}
             </button>
           }

@@ -76,7 +76,7 @@
       }
 
       @if (loading()) {
-        <div class="loading-state"><div class="spinner large"></div><p>Loading tax schemes…</p></div>
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading tax schemes…</p></div>
       } @else if (schemes().length === 0) {
         <div class="empty-state">
           <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
@@ -436,7 +436,7 @@
 
         <!-- Preview + select the schemes -->
         @if (loadTemplatesLoading()) {
-          <div class="loading-state"><div class="spinner"></div><p>Loading available schemes…</p></div>
+          <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading available schemes…</p></div>
         } @else if (loadTemplates().length === 0) {
           <div class="empty-state">
             <span class="material-icons empty-icon" aria-hidden="true">inbox</span>

@@ -106,7 +106,7 @@
   <!-- Run history -->
   <h2 class="asg-history-title">Recent runs</h2>
   @if (runsLoading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
   } @else if (runs().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
@@ -160,7 +160,7 @@
   @if (previewOpen()) {
     <app-dialog #previewDlg title="Confirm statement run" [busy]="previewLoading()" (close)="closePreview()">
       @if (previewLoading()) {
-        <div class="loading-state"><div class="spinner large"></div><p>Checking the scope…</p></div>
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Checking the scope…</p></div>
       } @else if (preview(); as p) {
         <div class="asg-preview">
           <p><strong>{{ monthLabel(p.statementMonth) }}</strong> — documents dated

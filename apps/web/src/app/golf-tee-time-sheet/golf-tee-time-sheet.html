@@ -59,7 +59,7 @@
   </div>
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading the tee sheet…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading the tee sheet…</p></div>
   } @else if (sheet().length === 0) {
     <div class="empty-state">
       <span class="material-icons" aria-hidden="true">golf_course</span>
@@ -487,6 +487,8 @@
 
         <!-- ---- Settle ---- -->
         @case ('settle') {
+          <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="fdSettle". -->
+          <form id="fdSettle" (submit)="$event.preventDefault(); settle()">
           @if (bill(); as b) {
             <div class="fd-bill-head">
               <span><strong>{{ billEntryName() }}</strong> · Total <strong>{{ b.totalAmount.toFixed(2) }}</strong></span>
@@ -515,6 +517,7 @@
             </button>
             <p class="cell-subtle" style="margin: var(--space-md) 0 0;">Member class charges the bill to the member's own account (credit checked); cash-like tenders just record the payment.</p>
           }
+          </form>
         }
 
         <!-- ---- No-show review: booked-not-registered players past tee time ---- -->
@@ -572,7 +575,7 @@
               </div>
             }
           } @else {
-            <div class="loading-state"><div class="spinner"></div><p>Finding players who did not register…</p></div>
+            <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Finding players who did not register…</p></div>
           }
         }
 
@@ -626,7 +629,7 @@
           }
           @case ('settle') {
             <button type="button" class="btn btn--secondary" (click)="backToBill()" [disabled]="busy()">« Back</button>
-            <button type="button" class="btn btn--primary" (click)="settle()" [disabled]="busy() || remaining() !== 0">
+            <button type="submit" form="fdSettle" class="btn btn--primary" [disabled]="busy() || remaining() !== 0">
               {{ busy() ? 'Settling…' : 'Settle bill' }}
             </button>
           }

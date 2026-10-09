@@ -17,12 +17,14 @@ import { Pipe, PipeTransform } from '@angular/core';
 // `YYYY-MM-DD` string. Date-only strings are parsed as LOCAL dates on purpose:
 // `new Date('2026-12-31')` is UTC midnight, which renders as Dec 30 on a
 // device west of Greenwich - the classic off-by-one-day trap.
-type LocalDateStyle = 'date' | 'datetime' | 'weekday';
+export type LocalDateStyle = 'date' | 'datetime' | 'weekday' | 'dayMonth' | 'monthYear';
 
 const STYLES: Record<LocalDateStyle, Intl.DateTimeFormatOptions> = {
   date: { dateStyle: 'medium' },
   datetime: { dateStyle: 'medium', timeStyle: 'short' },
   weekday: { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' },
+  dayMonth: { day: 'numeric', month: 'short' },
+  monthYear: { month: 'short', year: 'numeric' },
 };
 
 // Intl.DateTimeFormat construction is expensive; cache one per style.
@@ -39,20 +41,38 @@ function formatterFor(style: LocalDateStyle): Intl.DateTimeFormat {
 
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+// The same formatting for TS-built strings (dialog titles, messages, labels)
+// so no screen renders a raw ISO date anywhere.
+export function formatLocalDate(value: string | number | Date | null | undefined, style: LocalDateStyle = 'date'): string {
+  if (value === null || value === undefined || value === '') return '';
+  let d: Date;
+  if (value instanceof Date) {
+    d = value;
+  } else if (typeof value === 'string') {
+    const m = DATE_ONLY.exec(value);
+    d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(value);
+  } else {
+    d = new Date(value);
+  }
+  if (isNaN(d.getTime())) return String(value); // unparseable -> show as-is
+  return formatterFor(style).format(d);
+}
+
+// 'YYYY-MM' (or any date in that month) -> device-locale 'Nov 2026'.
+export function monthYearLabel(ym: string): string {
+  const m = /^(\d{4})-(\d{2})/.exec(ym);
+  return m ? formatLocalDate(new Date(+m[1], +m[2] - 1, 1), 'monthYear') : ym;
+}
+
+// The DEVICE-local calendar date as 'YYYY-MM-DD'. toISOString() would give the
+// UTC date - in Malaysia that is yesterday until 8am.
+export function localDateOnly(d: Date = new Date()): string {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
 @Pipe({ name: 'localDate', standalone: true })
 export class LocalDatePipe implements PipeTransform {
   transform(value: string | number | Date | null | undefined, style: LocalDateStyle = 'date'): string {
-    if (value === null || value === undefined || value === '') return '';
-    let d: Date;
-    if (value instanceof Date) {
-      d = value;
-    } else if (typeof value === 'string') {
-      const m = DATE_ONLY.exec(value);
-      d = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(value);
-    } else {
-      d = new Date(value);
-    }
-    if (isNaN(d.getTime())) return String(value); // unparseable -> show as-is
-    return formatterFor(style).format(d);
+    return formatLocalDate(value, style);
   }
 }

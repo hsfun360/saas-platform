@@ -60,7 +60,7 @@
   </div>
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
   } @else if (rows().length === 0) {
     @if (search() || status()) {
       <div class="empty-state">
@@ -226,7 +226,7 @@
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="submitDlg.requestClose()" [disabled]="submitBusy()">Cancel</button>
         <button type="button" class="btn btn--primary" (click)="confirmSubmit()" [disabled]="submitBusy()">
-          {{ submitBusy() ? 'Working…' : (submitApproval() ? 'Submit for Approval' : 'Submit') }}
+          {{ submitBusy() ? 'Working…' : (submitApproval() ? 'Submit for Approval' : 'Post ' + cfg().label.toLowerCase()) }}
         </button>
       </ng-container>
     </app-dialog>
@@ -237,7 +237,7 @@
   @if (breakdownOpen()) {
     <app-dialog #breakdownDlg [title]="'Interest breakdown — ' + docRef(breakdownDoc()!)" [busy]="breakdownLoading()" (close)="closeBreakdown()">
       @if (breakdownLoading()) {
-        <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
       } @else {
         <p class="cell-subtle" style="margin-top: 0;">
           Rate {{ breakdownGen()?.interestRate }}% flat, cutoff {{ breakdownGen()?.cutoffDate | localDate }}.
@@ -273,7 +273,7 @@
   @if (allocOpen()) {
     <app-dialog #allocDlg [title]="'Allocations — ' + docRef(allocDoc()!)" [busy]="allocLoading()" (close)="closeAllocations()">
       @if (allocLoading()) {
-        <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
       } @else if (allocRows().length === 0 && allocConversions().length === 0) {
         <p class="cell-subtle" style="margin: 0;">No allocations yet — nothing has been applied to or settled by this document.</p>
       } @else {

@@ -246,7 +246,7 @@
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  min-width: 40px;
+  min-width: 44px;
   min-height: 44px;
   font-size: var(--font-body-2);
 }

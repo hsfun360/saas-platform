@@ -141,6 +141,7 @@ input[type='number'] {
 }
 
 .arsp-cols__check {
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   gap: var(--space-sm);

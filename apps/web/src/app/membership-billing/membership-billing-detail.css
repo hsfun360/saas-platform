@@ -67,7 +67,7 @@
 
 .mbd-item:last-child { border-bottom: none; }
 
-.mbd-item--skipped { opacity: 0.55; }
+.mbd-item--skipped { opacity: 0.6; }
 
 .mbd-item__main { grid-area: main; min-width: 0; }
 .mbd-item__amounts {

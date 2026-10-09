@@ -90,7 +90,7 @@ export class ArLedgerDialogComponent implements OnInit {
     const m = this.effMeta();
     const approval = this.kind() === 'credit-note' ? m?.creditNoteApproval
       : this.kind() === 'debit-note' ? m?.debitNoteApproval : m?.invoiceApproval;
-    return approval ? 'Submit for Approval' : 'Submit';
+    return approval ? 'Submit for Approval' : 'Post ' + this.kind().replace('-', ' ');
   });
   // "Apply against" choices: the account screen's live ledger when provided,
   // else the open debits shipped on the self-loaded meta.

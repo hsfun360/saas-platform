@@ -42,6 +42,9 @@
 }
 
 .md-drill__chip button {
+  /* 24px glyph, 44px hit area (padding extends the target without growing the chip). */
+  padding: 10px;
+  margin: -10px;
   border: none;
   background: transparent;
   color: inherit;

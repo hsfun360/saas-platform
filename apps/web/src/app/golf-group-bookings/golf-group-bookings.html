@@ -51,7 +51,7 @@
     </div>
 
     @if (loading()) {
-      <div class="loading-state"><div class="spinner large"></div><p>Loading group bookings…</p></div>
+      <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading group bookings…</p></div>
     } @else if (bookings().length === 0) {
       <div class="empty-state">
         <span class="material-icons empty-icon" aria-hidden="true">groups</span>
@@ -119,7 +119,7 @@
     </button>
 
     @if (detailLoading() && !booking()) {
-      <div class="loading-state"><div class="spinner large"></div><p>Loading the booking…</p></div>
+      <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading the booking…</p></div>
     }
 
     @if (booking(); as b) {
@@ -200,7 +200,7 @@
                         <span class="material-icons" aria-hidden="true">event_seat</span>
                         {{ d.flights.length ? 'Reserve again' : 'Reserve flights' }}
                       </button>
-                      <app-overflow-menu [label]="'More actions for ' + d.playDate">
+                      <app-overflow-menu [label]="'More actions for ' + (d.playDate | localDate)">
                         <button type="button" appMenuItem (click)="openEditDay(d)">
                           <span class="material-icons" aria-hidden="true">edit</span>
                           Edit day
@@ -404,7 +404,7 @@
         @if (isExpanded('bill')) {
           <div class="settings-body">
             @if (folioLoading() && !folio()) {
-              <div class="loading-state"><div class="spinner"></div><p>Loading the group bill…</p></div>
+              <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading the group bill…</p></div>
             } @else if (folio(); as f) {
               @if (f.bill && f.bill.items.length) {
                 <div class="ggb-items">
@@ -465,7 +465,7 @@
                 </div>
               }
 
-              <h3 class="ggb-h3">Proforma invoice</h3>
+              <h2 class="ggb-h3">Proforma invoice</h2>
               <div class="ggb-proforma">
                 <div class="form-group">
                   <label for="ggbPfDeposit">Deposit required</label>
@@ -499,7 +499,7 @@
                 }
               </div>
 
-              <h3 class="ggb-h3">Final bill</h3>
+              <h2 class="ggb-h3">Final bill</h2>
               @if (f.bill?.status === 'settled') {
                 <p class="cell-subtle">Settled {{ f.bill?.settledAt | localDate:'datetime' }}.</p>
                 <div class="ggb-items">
@@ -673,6 +673,8 @@
   <!-- ============ Settle the group bill (centred - states the outcome) ============ -->
   @if (settleDialogOpen()) {
     <app-dialog #sdlg [title]="'Settle group bill ' + (folio()?.bill?.billNo || '')" [busy]="folioBusy()" [dirty]="settleDirty()" (close)="settleDialogOpen.set(false)">
+      <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="ggbSettle". -->
+      <form id="ggbSettle" (submit)="$event.preventDefault(); settleGroupBill()">
       <div class="ggb-settle-head">
         <span>Total <strong>{{ (folio()?.bill?.totalAmount || 0).toFixed(2) }}</strong></span>
         <span [class.ggb-remaining--due]="settleRemaining() !== 0">Remaining <strong>{{ settleRemaining().toFixed(2) }}</strong></span>
@@ -706,9 +708,10 @@
       @if (settlePreview(); as preview) {
         <p class="ggb-preview"><span class="material-icons" aria-hidden="true">info</span> {{ preview }}</p>
       }
+      </form>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="sdlg.requestClose()" [disabled]="folioBusy()">Cancel</button>
-        <button type="button" class="btn btn--primary" (click)="settleGroupBill()" [disabled]="folioBusy() || settleRemaining() !== 0 || !settleLines().length">{{ folioBusy() ? 'Settling…' : 'Settle bill' }}</button>
+        <button type="submit" form="ggbSettle" class="btn btn--primary" [disabled]="folioBusy() || settleRemaining() !== 0 || !settleLines().length">{{ folioBusy() ? 'Settling…' : 'Settle bill' }}</button>
       </ng-container>
     </app-dialog>
   }

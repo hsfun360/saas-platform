@@ -28,7 +28,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading analysis setup…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading analysis setup…</p></div>
   } @else {
     <div class="ana-layout" [class.ana-layout--detail]="selectedId()">
 
@@ -324,7 +324,7 @@
     <app-dialog #copyDlg [title]="copyView() === 'company' ? 'Copy dimensions — select company' : 'Copy from ' + (copySource()?.name || '')"
                 [busy]="copyBusy()" (close)="closeCopy()">
       @if (copyLoading()) {
-        <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
       } @else if (copyView() === 'company') {
         <p class="cell-subtle" style="margin-top: 0;">Only companies you have access to are listed. You pick exactly which dimensions to copy in the next step.</p>
         <div style="display: flex; flex-direction: column; gap: var(--space-sm);">

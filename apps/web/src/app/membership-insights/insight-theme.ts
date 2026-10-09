@@ -1,3 +1,5 @@
+import { localDateOnly, monthYearLabel } from '../shared/local-date.pipe';
+
 // Shared chart theming + date helpers for the Business Insights screens.
 //
 // Chart ink & series colors: ECharts paints to <canvas>, which cannot resolve
@@ -49,15 +51,14 @@ export function axisCommon(ink: ChartInk) {
   };
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
+// Device-locale month label ('Nov 2026') and the LOCAL calendar date - never a
+// hard-coded English month table or the UTC date (see shared/local-date.pipe).
 export function monthLabel(ym: string): string {
-  const m = parseInt(ym.slice(5, 7), 10);
-  return `${MONTHS[m - 1]} ${ym.slice(2, 4)}`;
+  return monthYearLabel(ym);
 }
 
 export function dateOnly(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return localDateOnly(d);
 }
 
 export function monthBounds(ym: string): { from: string; to: string } {

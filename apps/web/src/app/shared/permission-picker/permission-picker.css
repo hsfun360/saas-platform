@@ -32,6 +32,8 @@
   color: var(--text-primary);
 }
 .perm-search__clear {
+  min-width: 44px;
+  min-height: 44px;
   position: absolute;
   right: var(--space-xs);
   top: 50%;

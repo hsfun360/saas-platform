@@ -1,6 +1,6 @@
 import { Component, ElementRef, OnInit, computed, inject, signal, viewChild, Injector } from '@angular/core';
 import { ScrollReturnService } from '../services/scroll-return.service';
-import { LocalDatePipe } from '../shared/local-date.pipe';
+import { LocalDatePipe, localDateOnly } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { Subject, debounceTime } from 'rxjs';
@@ -613,7 +613,7 @@ export class MembershipsComponent implements OnInit {
   arCreditText(standing: ArCreditStanding | null): string {
     if (!standing) return '';
     if (!standing.exists) return 'No AR ledger account yet - the limit applies when the account opens on activation.';
-    const fmt = (n: number | undefined) => (n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmt = (n: number | undefined) => (n ?? 0).toFixed(2);
     return `AR account in force: limit ${fmt(standing.creditLimit)} · outstanding ${fmt(standing.outstanding)}. Saving a new limit updates the AR account.`;
   }
 
@@ -984,7 +984,7 @@ export class MembershipsComponent implements OnInit {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    return localDateOnly();
   }
 
   private clearMessages(): void {

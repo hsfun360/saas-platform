@@ -64,10 +64,10 @@ import { COUNTRY_CODES } from '../country-codes';
       border: 1px solid var(--border-strong);
       border-radius: 8px;
     }
+    /* Focus comes from the global field rule (brand border + blurred glow);
+       the scoped rule only restates the border colour (specificity tie). */
     .phone-field__code:focus, .phone-field__number:focus {
-      outline: none;
       border-color: var(--brand);
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
     }
     .phone-field__code:disabled, .phone-field__number:disabled {
       background: var(--surface-sunken);

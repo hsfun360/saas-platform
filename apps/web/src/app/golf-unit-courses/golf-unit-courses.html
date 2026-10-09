@@ -51,7 +51,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading unit courses…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading unit courses…</p></div>
   } @else if (courses().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">golf_course</span>
@@ -239,9 +239,11 @@
                 discardTitle="Discard hole changes?"
                 discardMessage="You have unsaved hole changes. Leaving now will discard them."
                 (close)="closeHoles()">
+      <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="ucHoles". -->
+      <form id="ucHoles" (submit)="$event.preventDefault(); onSaveHoles()">
       <div class="saas-form" style="padding: 0;">
         @if (holesLoading()) {
-          <div class="loading-state"><div class="spinner"></div><p>Loading holes…</p></div>
+          <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading holes…</p></div>
         } @else {
           <p class="uc-hint" style="margin-bottom: var(--space-sm);">{{ holesHint(holesCourse()) }}</p>
           <div class="uc-hole-head" aria-hidden="true">
@@ -273,10 +275,11 @@
         }
       </div>
 
+      </form>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="holesDlg.requestClose()" [disabled]="holesSaving()">Cancel</button>
         @if (!holesLoading()) {
-          <button type="button" class="btn btn--primary" (click)="onSaveHoles()" [disabled]="holesSaving()">
+          <button type="submit" form="ucHoles" class="btn btn--primary" [disabled]="holesSaving()">
             {{ holesSaving() ? 'Saving…' : 'Save ' + holeRows().length + ' holes' }}
           </button>
         }
@@ -290,9 +293,11 @@
                 discardTitle="Discard tee box changes?"
                 discardMessage="You have unsaved tee box changes. Leaving now will discard them."
                 (close)="closeTees()">
+      <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="ucTees". -->
+      <form id="ucTees" (submit)="$event.preventDefault(); onSaveTees()">
       <div class="saas-form" style="padding: 0;">
         @if (teesLoading()) {
-          <div class="loading-state"><div class="spinner"></div><p>Loading tee boxes…</p></div>
+          <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading tee boxes…</p></div>
         } @else {
           @if (teeRows().length === 0) {
             <div class="empty-state">
@@ -372,10 +377,11 @@
         }
       </div>
 
+      </form>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="teesDlg.requestClose()" [disabled]="teesSaving()">Cancel</button>
         @if (!teesLoading()) {
-          <button type="button" class="btn btn--primary" (click)="onSaveTees()" [disabled]="teesSaving()">
+          <button type="submit" form="ucTees" class="btn btn--primary" [disabled]="teesSaving()">
             {{ teesSaving() ? 'Saving…' : 'Save ' + teeRows().length + ' tee ' + (teeRows().length === 1 ? 'box' : 'boxes') }}
           </button>
         }

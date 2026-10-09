@@ -1,4 +1,5 @@
 import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { MoneyPipe } from '../shared/money.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -48,7 +49,7 @@ const MONTH_NAMES = [
 @Component({
   selector: 'app-membership-types',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
+  imports: [MoneyPipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './membership-types.html',
   styleUrls: ['../system-setup/system-setup.css', './membership-types.css'],
 })

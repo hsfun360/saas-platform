@@ -102,7 +102,7 @@
   </div>
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
   } @else if (rows().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
@@ -158,7 +158,7 @@
   @if (detailOpen()) {
     <app-dialog #detailDlg [title]="'Interest — ' + (detailGen()?.debtor?.no || '')" [busy]="detailLoading()" (close)="closeDetail()">
       @if (detailLoading()) {
-        <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
       } @else {
         <p class="cell-subtle" style="margin-top: 0;">
           {{ detailGen()?.debtor?.name }} — rate {{ detailGen()?.interestRate }}% flat, cutoff {{ detailGen()?.cutoffDate | localDate }}.

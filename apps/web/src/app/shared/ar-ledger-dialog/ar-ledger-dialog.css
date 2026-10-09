@@ -24,7 +24,12 @@
   color: var(--text-primary);
 }
 
-.ald-pick__search input:focus { outline: none; box-shadow: none; }
+/* Focus: the global field rule (styles.css) draws the brand border + blurred
+   glow on the input itself; the wrapper carries the border, so the input only
+   restates the colour. Never `outline: none` here - it removed every focus
+   indication on the first field of all four AR entry dialogs. */
+.ald-pick__search:focus-within { border-color: var(--brand); box-shadow: 0 0 0 1px var(--focus-glow), 0 0 7px 2px var(--focus-glow); }
+.ald-pick__search input:focus { box-shadow: none; }
 
 .ald-pick__list {
   display: flex;

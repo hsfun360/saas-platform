@@ -51,7 +51,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading payment types…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading payment types…</p></div>
   } @else if (rows().length === 0) {
     <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No payment types yet. Use "New payment type" to add one (e.g. CASH — Cash, VISA — Visa Card).</p></div>
   } @else if (filtered().length === 0) {

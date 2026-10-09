@@ -51,7 +51,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading courses…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading courses…</p></div>
   } @else if (courses().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">sports_golf</span>
@@ -261,7 +261,7 @@
 
           @case ('list') {
             @if (ttLoading()) {
-              <div class="loading-state"><div class="spinner"></div><p>Loading tee-time sets…</p></div>
+              <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading tee-time sets…</p></div>
             } @else if (ttSets().length === 0) {
               <div class="empty-state">
                 <span class="material-icons empty-icon" aria-hidden="true">schedule</span>
@@ -396,6 +396,8 @@
           }
 
           @case ('slots') {
+            <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="ttSlots". -->
+            <form id="ttSlots" (submit)="$event.preventDefault(); onSaveSlots()">
             @if (slotRows().length === 0) {
               <div class="empty-state">
                 <span class="material-icons empty-icon" aria-hidden="true">schedule</span>
@@ -430,6 +432,7 @@
               <span class="material-icons" aria-hidden="true">schedule</span>
               <span>{{ slotRows().length ? 'Regenerate' : 'Generate' }} {{ generateCount() }} flights ({{ hhmm(ttSlotSet()?.firstTeeTime) }}–{{ hhmm(ttSlotSet()?.lastTeeTime) }} every {{ ttSlotSet()?.intervalMinutes }} min)</span>
             </button>
+            </form>
           }
         }
       </div>
@@ -447,7 +450,7 @@
           }
           @case ('slots') {
             <button type="button" class="btn btn--secondary" (click)="backToList()" [disabled]="ttSlotsSaving()">Back to list</button>
-            <button type="button" class="btn btn--primary" (click)="onSaveSlots()" [disabled]="ttSlotsSaving()">
+            <button type="submit" form="ttSlots" class="btn btn--primary" [disabled]="ttSlotsSaving()">
               {{ ttSlotsSaving() ? 'Saving…' : 'Save ' + slotRows().length + ' flights' }}
             </button>
           }

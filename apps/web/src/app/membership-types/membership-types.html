@@ -51,7 +51,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading membership types…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading membership types…</p></div>
   } @else if (types().length === 0) {
     <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No membership types yet. Use "New type" to add one.</p></div>
   } @else if (filtered().length === 0) {
@@ -80,7 +80,7 @@
                   <div class="meta"><dt>Default fee</dt><dd>{{ feeLabel(t.defaultMembershipFeeId) }}</dd></div>
                 }
                 @if (showCredit() && t.creditLimit != null) {
-                  <div class="meta"><dt>Credit limit</dt><dd>{{ t.creditLimit | number:'1.2-2' }}</dd></div>
+                  <div class="meta"><dt>Credit limit</dt><dd>{{ t.creditLimit | money }}</dd></div>
                 }
                 @if (t.additionalFees.length > 0) {
                   <div class="meta"><dt>Joining fees</dt><dd>{{ t.additionalFees.length }}</dd></div>
@@ -324,6 +324,8 @@
                 discardTitle="Discard joining-fee changes?"
                 discardMessage="You have unsaved changes to these joining fees. Leaving now will discard them."
                 (close)="closeFees()">
+      <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="mtFees". -->
+      <form id="mtFees" (submit)="$event.preventDefault(); saveFees()">
       <div class="saas-form" style="padding: 0;">
         <p class="mt-hint" style="margin: 0 0 var(--space-sm);">One-time charges billed when someone joins as a new member under this type. A type can carry more than one (e.g. processing fee + entrance fee).</p>
         @if (joiningFeeTxTypes().length === 0) {
@@ -384,9 +386,10 @@
           </button>
         </details>
       </div>
+      </form>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="feesDlg.requestClose()" [disabled]="feesSaving()">Cancel</button>
-        <button type="button" class="btn btn--primary" (click)="saveFees()" [disabled]="feesSaving()">{{ feesSaving() ? 'Saving…' : 'Save' }}</button>
+        <button type="submit" form="mtFees" class="btn btn--primary" [disabled]="feesSaving()">{{ feesSaving() ? 'Saving…' : 'Save' }}</button>
       </ng-container>
     </app-dialog>
   }
@@ -397,6 +400,8 @@
                 discardTitle="Discard standing-charge changes?"
                 discardMessage="You have unsaved changes to these standing charges. Leaving now will discard them."
                 (close)="closeCharges()">
+      <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="mtCharges". -->
+      <form id="mtCharges" (submit)="$event.preventDefault(); saveCharges()">
       <div class="saas-form" style="padding: 0;">
         <p class="mt-hint" style="margin: 0 0 var(--space-sm);">Recurring charges raised from the member's status at the point the charge is billed. Use "Add charge" per charge — a status can carry more than one, and statuses you never charge (deceased, terminated, resigned, …) simply have no rows.</p>
         @if (standingTxTypes().length === 0) {
@@ -491,9 +496,10 @@
           </button>
         </details>
       </div>
+      </form>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="chargesDlg.requestClose()" [disabled]="chargesSaving()">Cancel</button>
-        <button type="button" class="btn btn--primary" (click)="saveCharges()" [disabled]="chargesSaving()">{{ chargesSaving() ? 'Saving…' : 'Save' }}</button>
+        <button type="submit" form="mtCharges" class="btn btn--primary" [disabled]="chargesSaving()">{{ chargesSaving() ? 'Saving…' : 'Save' }}</button>
       </ng-container>
     </app-dialog>
   }

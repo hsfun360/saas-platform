@@ -51,7 +51,7 @@
   }
 
   @if (loading()) {
-    <div class="loading-state"><div class="spinner large"></div><p>Loading membership statuses…</p></div>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading membership statuses…</p></div>
   } @else if (statuses().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
@@ -286,9 +286,11 @@
   <!-- ============ Copy from another company dialog ============ -->
   @if (copyOpen()) {
     <app-dialog [title]="'Copy membership statuses'" [busy]="copySaving()" (close)="closeCopy()">
+      <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="msCopy". -->
+      <form id="msCopy" (submit)="$event.preventDefault(); onCopy()">
       <div class="saas-form" style="padding: 0;">
         @if (copyLoading()) {
-          <div class="loading-state"><div class="spinner"></div><p>Loading companies…</p></div>
+          <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading companies…</p></div>
         } @else if (copySources().length === 0) {
           <div class="empty-state">
             <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
@@ -317,10 +319,11 @@
         }
       </div>
 
+      </form>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="closeCopy()" [disabled]="copySaving()">Cancel</button>
         @if (copySources().length > 0) {
-          <button type="button" class="btn btn--primary" (click)="onCopy()" [disabled]="copySaving()">
+          <button type="submit" form="msCopy" class="btn btn--primary" [disabled]="copySaving()">
             {{ copySaving() ? 'Copying…' : 'Copy selected' }}
           </button>
         }
