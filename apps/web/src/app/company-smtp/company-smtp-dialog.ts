@@ -40,6 +40,8 @@ export class CompanySmtpDialogComponent implements OnInit {
   readonly saving = signal(false);
   readonly testing = signal(false);
   readonly removing = signal(false);
+  // Remove confirmation is a VIEW inside this one dialog (single-dialog standard).
+  readonly confirmingRemove = signal(false);
   readonly configured = signal(false);
   readonly hasPassword = signal(false);
   readonly lastVerifiedAt = signal<string | null>(null);
@@ -118,7 +120,11 @@ export class CompanySmtpDialogComponent implements OnInit {
 
   remove(): void {
     this.clear();
-    if (!confirm('Remove this SMTP server? Emails for this company will use the platform default.')) return;
+    this.confirmingRemove.set(true);
+  }
+
+  performRemove(): void {
+    this.clear();
     this.removing.set(true);
     this.service.remove(this.company().id).subscribe({
       next: (res) => {

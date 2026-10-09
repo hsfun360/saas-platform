@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -21,11 +22,13 @@ import { ScrollReturnService } from '../services/scroll-return.service';
   selector: 'app-items',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [LocalDatePipe, ReactiveFormsModule],
+  imports: [ConfirmDialogComponent, LocalDatePipe, ReactiveFormsModule],
   templateUrl: './items.html',
   styleUrls: ['./items.css'],
 })
 export class ItemsComponent implements OnInit {
+  // Destructive-action confirmation (shared centred dialog; replaces window.confirm).
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   private readonly itemsService = inject(ItemsService);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
@@ -182,8 +185,15 @@ export class ItemsComponent implements OnInit {
   // --- Delete ---
   deleteItem(item: Item): void {
     this.clearMessages();
-    if (!confirm(`Delete "${item.name}"? This can't be undone.`)) return;
+    this.confirmAction.set({
+      title: 'Delete item',
+      message: `Delete "${item.name}"? This can't be undone.`,
+      confirmLabel: 'Delete',
+      run: () => { this.confirmAction.set(null); this.performDelete(item); },
+    });
+  }
 
+  private performDelete(item: Item): void {
     this.deletingId.set(item.id);
     this.itemsService.remove(item.id).subscribe({
       next: (res) => {

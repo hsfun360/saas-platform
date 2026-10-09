@@ -343,6 +343,10 @@
                 discardTitle="Discard placement changes?"
                 discardMessage="You have changed a role or placement without clicking Update. Leaving now will discard it."
                 (close)="closePlacement()">
+      @if (confirmRemove(); as r) {
+        <!-- Confirm view inside the ONE drawer (single-dialog standard): states the outcome. -->
+        <p style="margin: 0;">Remove <strong>{{ r.person.email }}</strong> from <strong>{{ r.companyName || 'this company' }}</strong>? They keep their account and their access to other companies.</p>
+      } @else {
       <p class="subtle" style="margin-top: 0;">Role controls what they may do; department and position control whose records they may amend (seniority within the same department).</p>
 
       @for (m of person.memberships; track m.companyId) {
@@ -417,9 +421,15 @@
           </div>
         </div>
       }
+      }
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="placeDlg.requestClose()">Close</button>
+        @if (confirmRemove(); as r) {
+          <button type="button" class="btn btn--secondary" (click)="confirmRemove.set(null)">Keep access</button>
+          <button type="button" class="btn btn--danger" (click)="performRemove()" [disabled]="isPending('rm:' + r.person.id + ':' + r.companyId)">Remove from company</button>
+        } @else {
+          <button type="button" class="btn btn--secondary" (click)="placeDlg.requestClose()">Close</button>
+        }
       </ng-container>
     </app-dialog>
   }

@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -38,11 +39,13 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
 @Component({
   selector: 'app-subscribers',
   standalone: true,
-  imports: [CanDirective, FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [ConfirmDialogComponent, CanDirective, FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './subscribers.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
 export class SubscribersComponent implements OnInit {
+  // Destructive-action confirmation (shared centred dialog; replaces window.confirm).
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   private readonly fb = inject(FormBuilder);
   // ── Subscriber list ──────────────────────────────────────────
   readonly subscriptions = signal<SubscriptionInfo[]>([]);
@@ -318,9 +321,16 @@ export class SubscribersComponent implements OnInit {
     this.clearMessages();
     const target = this.companyUsers.find((u) => u.id === userId);
     const email = target?.email || 'this user';
-    if (!window.confirm(`Transfer Tenant Admin to ${email}? This removes admin rights from the current Tenant Admin.`)) {
-      return;
-    }
+    this.confirmAction.set({
+      title: 'Transfer Tenant Admin',
+      message: `Transfer Tenant Admin to ${email}? This removes admin rights from the current Tenant Admin.`,
+      confirmLabel: 'Transfer',
+      danger: false,
+      run: () => { this.confirmAction.set(null); this.performSetTenantAdmin(companyId, userId); },
+    });
+  }
+
+  private performSetTenantAdmin(companyId: string, userId: string): void {
     this.settingAdminUserId = userId;
     this.adminService.setTenantAdmin(companyId, userId).subscribe({
       next: (res) => {

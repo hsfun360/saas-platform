@@ -1,4 +1,5 @@
 import { Component, Injector, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -24,11 +25,13 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 @Component({
   selector: 'app-role-management',
   standalone: true,
-  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PermissionPickerComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [ConfirmDialogComponent, CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PermissionPickerComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './role-management.html',
   styleUrls: ['./role-management.css'],
 })
 export class RoleManagementComponent implements OnInit {
+  // Destructive-action confirmation (shared centred dialog; replaces window.confirm).
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   private readonly authService = inject(AuthService);
   private readonly fb = inject(FormBuilder);
   // After-save return-to-row (app standard): the reload can move the role the
@@ -227,14 +230,17 @@ export class RoleManagementComponent implements OnInit {
     });
   }
 
-  onDelete(role: Role) {
+  onDelete(role: Role): void {
     this.clearMessages();
+    this.confirmAction.set({
+      title: 'Delete role',
+      message: `Delete the role "${role.name}"? This removes the role and its permissions. Users must be reassigned first.`,
+      confirmLabel: 'Delete',
+      run: () => { this.confirmAction.set(null); this.performDelete(role); },
+    });
+  }
 
-    const confirmed = confirm(
-      `Delete the role "${role.name}"? This removes the role and its permissions. Users must be reassigned first.`,
-    );
-    if (!confirmed) return;
-
+  private performDelete(role: Role): void {
     this.deletingRoleId.set(role.id);
     this.authService.deleteRole(role.id).subscribe({
       next: () => {

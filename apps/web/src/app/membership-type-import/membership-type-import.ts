@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -21,11 +22,13 @@ import { TypeImportBatchDetail, TypeImportBatchSummary, TypeImportMigrateResult,
 @Component({
   selector: 'app-membership-type-import',
   standalone: true,
-  imports: [CommonModule, CanDirective, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [ConfirmDialogComponent, CommonModule, CanDirective, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './membership-type-import.html',
   styleUrls: ['../system-setup/system-setup.css', '../membership-import/membership-import.css'],
 })
 export class MembershipTypeImportComponent {
+  // Destructive-action confirmation (shared centred dialog; replaces window.confirm).
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   private readonly service = inject(MembershipTypeImportService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -186,8 +189,16 @@ export class MembershipTypeImportComponent {
   }
 
   deleteBatch(b: TypeImportBatchSummary): void {
-    if (!window.confirm(`Delete the staged batch '${b.fileName}'? Migrated types stay - this only clears the staging rows.`)) return;
     this.clearMessages();
+    this.confirmAction.set({
+      title: 'Delete staged batch',
+      message: `Delete the staged batch '${b.fileName}'? Migrated types stay - this only clears the staging rows.`,
+      confirmLabel: 'Delete',
+      run: () => { this.confirmAction.set(null); this.performDeleteBatch(b); },
+    });
+  }
+
+  private performDeleteBatch(b: TypeImportBatchSummary): void {
     this.deletingId.set(b.id);
     this.service.delete(b.id).subscribe({
       next: (res) => {

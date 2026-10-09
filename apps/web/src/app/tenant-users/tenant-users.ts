@@ -107,6 +107,10 @@ export class TenantUsersComponent implements OnInit {
   // Key of the action in flight (e.g. `role:<userId>:<companyId>`) — disables that button.
   readonly pendingKey = signal<string | null>(null);
 
+  // "Remove from company" confirmation is a VIEW inside the placement drawer
+  // (single-dialog standard) - never a second dialog or window.confirm.
+  readonly confirmRemove = signal<{ person: AccountPerson; companyId: string; companyName?: string } | null>(null);
+
   // Subscriber org masters for the assignment dropdowns (active only).
   readonly departments = signal<Department[]>([]);
   readonly positions = signal<Position[]>([]);
@@ -338,9 +342,14 @@ export class TenantUsersComponent implements OnInit {
 
   onRemove(person: AccountPerson, companyId: string, companyName?: string): void {
     this.clearMessages();
-    if (!window.confirm(`Remove ${person.email} from ${companyName || 'this company'}? They keep their account and access to other companies.`)) {
-      return;
-    }
+    this.confirmRemove.set({ person, companyId, companyName });
+  }
+
+  performRemove(): void {
+    const r = this.confirmRemove();
+    if (!r) return;
+    this.confirmRemove.set(null);
+    const { person, companyId } = r;
     this.pendingKey.set(`rm:${person.id}:${companyId}`);
     this.authService.revokeCompanyUser(person.id, companyId).subscribe({
       next: (res) => {

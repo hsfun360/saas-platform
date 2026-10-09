@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -18,11 +19,13 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
   selector: 'app-account-email-template-edit',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule, EmailHtmlEditorComponent, VariableMenuComponent, ComboboxComponent],
+  imports: [ConfirmDialogComponent, CommonModule, ReactiveFormsModule, RouterModule, EmailHtmlEditorComponent, VariableMenuComponent, ComboboxComponent],
   templateUrl: './account-email-template-edit.html',
   styleUrls: ['../email-templates/email-template-edit.css'],
 })
 export class AccountEmailTemplateEditComponent implements OnInit {
+  // Destructive-action confirmation (shared centred dialog; replaces window.confirm).
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   private readonly service = inject(AccountEmailTemplateService);
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
@@ -201,7 +204,15 @@ export class AccountEmailTemplateEditComponent implements OnInit {
     const msg = this.scopeCompanyId()
       ? `Remove ${this.scopeName()}'s own version? It will then use the shared "All companies" version.`
       : 'Remove the shared version? All companies without their own version will use the platform default.';
-    if (!confirm(msg)) return;
+    this.confirmAction.set({
+      title: 'Remove this version',
+      message: msg,
+      confirmLabel: 'Remove',
+      run: () => { this.confirmAction.set(null); this.performRevert(); },
+    });
+  }
+
+  private performRevert(): void {
     this.reverting.set(true);
     this.service.revert(this.key(), this.scopeCompanyId()).subscribe({
       next: (res) => {

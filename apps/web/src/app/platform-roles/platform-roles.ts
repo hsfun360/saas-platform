@@ -1,4 +1,5 @@
 import { Component, Injector, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -23,13 +24,15 @@ import { CanDirective } from '../shared/can.directive';
 @Component({
   selector: 'app-platform-roles',
   standalone: true,
-  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PermissionPickerComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [ConfirmDialogComponent, CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PermissionPickerComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './platform-roles.html',
   // system-setup.css = the screen chrome; role-management.css = the shared
   // data-scope fieldset styles (.scope-*).
   styleUrls: ['../system-setup/system-setup.css', '../role-management/role-management.css'],
 })
 export class PlatformRolesComponent implements OnInit {
+  // Destructive-action confirmation (shared centred dialog; replaces window.confirm).
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   private readonly fb = inject(FormBuilder);
   // After-save return-to-row (app standard): the reload can move the role the
   // user just touched, so its card is scrolled back into view and flashed.
@@ -222,10 +225,15 @@ export class PlatformRolesComponent implements OnInit {
 
   onDelete(role: Role): void {
     this.clearMessages();
-    if (!confirm(`Delete the role "${role.name}"? This removes the role and its menu permissions. This can't be undone.`)) {
-      return;
-    }
+    this.confirmAction.set({
+      title: 'Delete role',
+      message: `Delete the role "${role.name}"? This removes the role and its menu permissions. This can't be undone.`,
+      confirmLabel: 'Delete',
+      run: () => { this.confirmAction.set(null); this.performDelete(role); },
+    });
+  }
 
+  private performDelete(role: Role): void {
     this.deletingId.set(role.id);
     this.adminService.deleteRole(role.id).subscribe({
       next: () => {

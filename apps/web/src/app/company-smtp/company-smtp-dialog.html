@@ -1,6 +1,9 @@
 <app-dialog #smtpDlg variant="drawer" [title]="'Email delivery (SMTP) — ' + company().name" [busy]="saving() || removing()" [dirty]="form.dirty"
             discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="onClose()">
-  @if (loading()) {
+  @if (confirmingRemove()) {
+    <!-- Confirm view inside the ONE dialog (single-dialog standard): states the outcome. -->
+    <p style="margin: 0;">Remove this SMTP server? Emails for <strong>{{ company().name }}</strong> will use the platform default sender from now on.</p>
+  } @else if (loading()) {
     <p style="color: var(--text-muted);">Loading…</p>
   } @else {
     <p class="smtp-hint" style="margin: 0 0 var(--space-md);">
@@ -102,14 +105,19 @@
   }
 
   <ng-container dialogFooter>
-    <button type="button" class="btn btn--secondary" (click)="smtpDlg.requestClose()" [disabled]="saving()">Cancel</button>
-    @if (configured()) {
-      <button type="button" class="btn btn--danger" (click)="remove()" [disabled]="removing()">
-        {{ removing() ? 'Removing…' : 'Remove' }}
+    @if (confirmingRemove()) {
+      <button type="button" class="btn btn--secondary" (click)="confirmingRemove.set(false)" [disabled]="removing()">Keep server</button>
+      <button type="button" class="btn btn--danger" (click)="performRemove()" [disabled]="removing()">
+        {{ removing() ? 'Removing…' : 'Remove server' }}
+      </button>
+    } @else {
+      <button type="button" class="btn btn--secondary" (click)="smtpDlg.requestClose()" [disabled]="saving()">Cancel</button>
+      @if (configured()) {
+        <button type="button" class="btn btn--danger" (click)="remove()" [disabled]="removing()">Remove</button>
+      }
+      <button type="submit" form="smtpForm" class="btn btn--primary" [disabled]="saving() || loading()">
+        {{ saving() ? 'Saving…' : 'Save' }}
       </button>
     }
-    <button type="submit" form="smtpForm" class="btn btn--primary" [disabled]="saving() || loading()">
-      {{ saving() ? 'Saving…' : 'Save' }}
-    </button>
   </ng-container>
 </app-dialog>

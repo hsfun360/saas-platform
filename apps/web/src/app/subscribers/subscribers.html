@@ -332,3 +332,7 @@
        the control plane manages the contract (plan, status, admin recovery),
        never tenant preference data. -->
 </div>
+
+@if (confirmAction(); as c) {
+  <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+}

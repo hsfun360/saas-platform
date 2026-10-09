@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScreenTitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -62,11 +63,13 @@ type TranslationGroup = FormGroup<{
   selector: 'app-modules-menus',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle, ComboboxComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [ConfirmDialogComponent, CanDirective, FavStarComponent, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle, ComboboxComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './modules-menus.html',
   styleUrls: ['./modules-menus.css'],
 })
 export class ModulesMenusComponent implements OnInit {
+  // Destructive-action confirmation (shared centred dialog; replaces window.confirm).
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   private readonly admin = inject(AdminService);
   private readonly languageService = inject(LanguageService);
   private readonly fb = inject(FormBuilder);
@@ -390,8 +393,15 @@ export class ModulesMenusComponent implements OnInit {
 
   deleteModule(m: AdminModule): void {
     this.clearMessages();
-    if (!confirm(`Delete the module "${m.name}"? This removes the module and all its menus.`)) return;
+    this.confirmAction.set({
+      title: 'Delete module',
+      message: `Delete the module "${m.name}"? This removes the module and all its menus.`,
+      confirmLabel: 'Delete',
+      run: () => { this.confirmAction.set(null); this.performDeleteModule(m); },
+    });
+  }
 
+  private performDeleteModule(m: AdminModule): void {
     this.deletingModuleId.set(m.id);
     this.admin.deleteModule(m.id).subscribe({
       next: (res) => {
@@ -583,8 +593,15 @@ export class ModulesMenusComponent implements OnInit {
 
   deleteMenu(menu: AdminMenu): void {
     this.clearMessages();
-    if (!confirm(`Delete the menu "${menu.name}"? Any role permissions to it are also removed.`)) return;
+    this.confirmAction.set({
+      title: 'Delete menu',
+      message: `Delete the menu "${menu.name}"? Any role permissions to it are also removed.`,
+      confirmLabel: 'Delete',
+      run: () => { this.confirmAction.set(null); this.performDeleteMenu(menu); },
+    });
+  }
 
+  private performDeleteMenu(menu: AdminMenu): void {
     const moduleId = this.selectedModuleId();
     this.deletingMenuId.set(menu.id);
     this.admin.deleteMenu(menu.id).subscribe({
