@@ -114,8 +114,8 @@
               }
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(h)">Edit</button>
-              <app-overflow-menu [label]="'More actions for ' + h.description">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(h)">Edit</button>
+              <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + h.description">
                 <button type="button" appMenuItem (click)="toggleActive(h)" [disabled]="togglingId() === h.id">
                   <span class="material-icons" aria-hidden="true">{{ h.isActive === false ? 'check_circle' : 'block' }}</span>
                   {{ togglingId() === h.id ? 'Saving…' : (h.isActive === false ? 'Enable' : 'Disable') }}
@@ -130,7 +130,7 @@
 
   <!-- New holiday FAB (needs at least one company country to scope to) -->
   @if (countries().length > 0) {
-    <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New public holiday">
+    <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New public holiday">
       <span class="material-icons" aria-hidden="true">add</span>
       <span>New holiday</span>
     </button>

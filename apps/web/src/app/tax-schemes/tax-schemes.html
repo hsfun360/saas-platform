@@ -47,7 +47,7 @@
           }
         </span>
         @if (!isPlatform()) {
-          <button type="button" class="btn btn--secondary btn--sm" (click)="openLoadDefaults()">
+          <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="openLoadDefaults()">
             <span class="material-icons" aria-hidden="true">cloud_download</span>
             <span>Load defaults</span>
           </button>
@@ -84,7 +84,7 @@
             <p>No platform tax schemes yet. Use "New scheme" to add one for a country.</p>
           } @else {
             <p>No tax schemes yet. Load the platform's starter schemes for a country, or use "New scheme" to add your own.</p>
-            <button type="button" class="btn btn--secondary" (click)="openLoadDefaults()">Load platform defaults</button>
+            <button *appCan="'create'" type="button" class="btn btn--secondary" (click)="openLoadDefaults()">Load platform defaults</button>
           }
         </div>
       } @else if (filtered().length === 0) {
@@ -120,7 +120,7 @@
                 <span class="tx-status tx-status--on tx-row__badge">Active</span>
               }
               <div class="tx-row__actions">
-                <button type="button" class="btn btn--secondary btn--sm" (click)="openEditScheme(s)">Edit</button>
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditScheme(s)">Edit</button>
                 <button type="button" class="btn btn--sm"
                         [class.btn--success]="s.isActive === false" [class.btn--danger]="s.isActive !== false"
                         (click)="toggleSchemeActive(s)"
@@ -134,7 +134,7 @@
       }
 
       <!-- New scheme FAB — inside the master pane, so it hides with the master on mobile detail view -->
-      <button type="button" class="btn btn--primary saas-fab" (click)="openAddScheme()" aria-label="New scheme">
+      <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAddScheme()" aria-label="New scheme">
         <span class="material-icons" aria-hidden="true">add</span>
         <span>New scheme</span>
       </button>
@@ -215,8 +215,8 @@
                     <span class="tx-rate-eff">Effective {{ r.effectiveFrom }}</span>
                   </div>
                   <div class="tx-rate-actions">
-                    <button type="button" class="btn btn--secondary btn--sm" (click)="openEditRate(r)">Edit</button>
-                    <button type="button" class="btn btn--danger btn--sm" (click)="deleteRate(r)"
+                    <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditRate(r)">Edit</button>
+                    <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" (click)="deleteRate(r)"
                             [disabled]="deletingRateId() === r.id">
                       {{ deletingRateId() === r.id ? 'Removing…' : 'Delete' }}
                     </button>

@@ -8,6 +8,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { Language } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { CanDirective } from '../shared/can.directive';
 
 // System Admin: maintain the language reference table - load a bundled default
 // set, add languages manually, rename them, and enable/disable or delete them.
@@ -20,7 +21,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 @Component({
   selector: 'app-languages',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './languages.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

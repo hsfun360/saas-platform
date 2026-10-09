@@ -9,6 +9,7 @@ import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { UserSummary } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { CanDirective } from '../shared/can.directive';
 
 // Platform Users — split out of the old System Setup tab strip into its own
 // screen. Lists local platform users with search and creates them (FAB →
@@ -22,7 +23,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 @Component({
   selector: 'app-platform-users',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './platform-users.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

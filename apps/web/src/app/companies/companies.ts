@@ -16,6 +16,7 @@ import { COUNTRY_TIMEZONES, FALLBACK_COUNTRIES } from '../shared/countries';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { CanDirective } from '../shared/can.directive';
 
 // Tenant Admin view: create and list companies (business entities) under the
 // subscriber's account, choosing which modules each company needs.
@@ -23,7 +24,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
   selector: 'app-companies',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, ReactiveFormsModule, DialogComponent, PhoneInputComponent, CompanySmtpDialogComponent, CompanyWeekendDialogComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
+  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, ReactiveFormsModule, DialogComponent, PhoneInputComponent, CompanySmtpDialogComponent, CompanyWeekendDialogComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './companies.html',
   styleUrls: ['./companies.css'],
 })

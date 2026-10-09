@@ -26,6 +26,7 @@ import { AdminMenu, AdminModule, Language } from '../models/auth.models';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ComboboxComponent } from '../shared/combobox/combobox';
+import { CanDirective } from '../shared/can.directive';
 
 // A node in the module's menu tree (adjacency list). `children` are the menus
 // whose parentId is this menu, ordered by sequence. Held as plain objects whose
@@ -60,7 +61,7 @@ type TranslationGroup = FormGroup<{
   selector: 'app-modules-menus',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FavStarComponent, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle, ComboboxComponent],
+  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle, ComboboxComponent],
   templateUrl: './modules-menus.html',
   styleUrls: ['./modules-menus.css'],
 })

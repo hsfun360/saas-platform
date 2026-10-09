@@ -86,8 +86,8 @@
               }
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(u)">Edit</button>
-              <app-overflow-menu [label]="'More actions for ' + u.email">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(u)">Edit</button>
+              <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + u.email">
                 <button type="button" appMenuItem (click)="toggleStatus(u)" [disabled]="togglingId() === u.id">
                   <span class="material-icons" aria-hidden="true">{{ u.isActive === false ? 'check_circle' : 'block' }}</span>
                   {{ togglingId() === u.id ? 'Saving…' : (u.isActive === false ? 'Activate' : 'Deactivate') }}
@@ -101,7 +101,7 @@
   }
 
   <!-- Floating "Create user" action — opens the dialog. -->
-  <button type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="Create user">
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="Create user">
     <span aria-hidden="true">➕</span>
     Create user
   </button>

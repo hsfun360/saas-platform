@@ -9,6 +9,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { Nationality } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { CanDirective } from '../shared/can.directive';
 
 // System Setup → Nationalities. Subscriber-owned reference data: one nationality
 // list per Account (e.g. MAS - Malaysian), shared by every company and consumed
@@ -18,7 +19,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 @Component({
   selector: 'app-nationalities',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './nationalities.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

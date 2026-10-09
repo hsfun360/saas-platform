@@ -81,8 +81,8 @@
               }
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(d)">Edit</button>
-              <app-overflow-menu [label]="'More actions for ' + d.departmentCode">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(d)">Edit</button>
+              <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + d.departmentCode">
                 <button type="button" appMenuItem (click)="toggleActive(d)" [disabled]="togglingId() === d.id">
                   <span class="material-icons" aria-hidden="true">{{ d.isActive === false ? 'check_circle' : 'block' }}</span>
                   {{ togglingId() === d.id ? 'Saving…' : (d.isActive === false ? 'Enable' : 'Disable') }}
@@ -96,7 +96,7 @@
   }
 
   <!-- New department FAB -->
-  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New department">
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New department">
     <span class="material-icons" aria-hidden="true">add</span>
     <span>New department</span>
   </button>

@@ -81,8 +81,8 @@
               }
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">Edit</button>
-              <app-overflow-menu [label]="'More actions for ' + t.industryTypeCode">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">Edit</button>
+              <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + t.industryTypeCode">
                 <button type="button" appMenuItem (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
                   <span class="material-icons" aria-hidden="true">{{ t.isActive === false ? 'check_circle' : 'block' }}</span>
                   {{ togglingId() === t.id ? 'Saving…' : (t.isActive === false ? 'Enable' : 'Disable') }}
@@ -96,7 +96,7 @@
   }
 
   <!-- New industry type FAB -->
-  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New industry type">
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New industry type">
     <span class="material-icons" aria-hidden="true">add</span>
     <span>New industry type</span>
   </button>

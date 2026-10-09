@@ -11,6 +11,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { TaxScheme, TaxRate, TaxOption, Country, TaxTemplateOption } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ComboboxComponent } from '../shared/combobox/combobox';
+import { CanDirective } from '../shared/can.directive';
 
 // System Setup → Tax Setup (subscriber-owned catalog).
 // Master–detail: the scheme list is the master; the selected scheme (its header +
@@ -20,7 +21,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 @Component({
   selector: 'app-tax-schemes',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, ComboboxComponent],
+  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, ComboboxComponent],
   templateUrl: './tax-schemes.html',
   styleUrls: ['../system-setup/system-setup.css', './tax-schemes.css'],
 })

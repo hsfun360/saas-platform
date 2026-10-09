@@ -77,8 +77,8 @@
               @if (isSystemManaged(role)) {
                 <span class="badge">System-managed</span>
               } @else {
-                <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(role)">Edit</button>
-                <app-overflow-menu [label]="'More actions for ' + role.name">
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(role)">Edit</button>
+                <app-overflow-menu *appCan="'delete'" [label]="'More actions for ' + role.name">
                   <button type="button" appMenuItem (click)="onDelete(role)" [disabled]="deletingId() === role.id">
                     <span class="material-icons" aria-hidden="true">delete</span>
                     {{ deletingId() === role.id ? 'Deleting…' : 'Delete' }}
@@ -93,7 +93,7 @@
   }
 
   <!-- Floating "Create role" action — opens the dialog. -->
-  <button type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="Create role">
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="Create role">
     <span aria-hidden="true">➕</span>
     Create role
   </button>

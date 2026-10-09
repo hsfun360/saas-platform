@@ -83,7 +83,7 @@
               <span class="badge" [class.badge-active]="sub.status === 'ACTIVE'" [class.badge-inactive]="sub.status !== 'ACTIVE'">{{ sub.status }}</span>
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="startEdit(sub)"
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="startEdit(sub)"
                       [attr.aria-label]="'Edit ' + sub.subscriberName">
                 Edit
               </button>
@@ -141,7 +141,7 @@
   }
 
   <!-- Floating "New subscriber" action — opens the dialog. -->
-  <button type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="New subscriber">
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="New subscriber">
     <span aria-hidden="true">➕</span>
     New subscriber
   </button>

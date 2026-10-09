@@ -11,6 +11,7 @@ import { Country, Title } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ComboboxComponent } from '../shared/combobox/combobox';
+import { CanDirective } from '../shared/can.directive';
 
 // System Setup → Titles. Subscriber-owned reference data: honorifics (Datuk, Tan
 // Sri, Sir, Prof...), one list per Account, shared by every company and consumed
@@ -19,7 +20,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 @Component({
   selector: 'app-titles',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
+  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './titles.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

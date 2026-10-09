@@ -36,7 +36,7 @@
         Not synced yet — click "Sync now" to load countries from world_countries.
       }
     </span>
-    <button type="button" class="btn btn--primary btn--sm" (click)="onSync()" [disabled]="syncing()">
+    <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="onSync()" [disabled]="syncing()">
       {{ syncing() ? 'Syncing…' : 'Sync now' }}
     </button>
   </div>
@@ -88,8 +88,8 @@
               }
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">Edit</button>
-              <app-overflow-menu [label]="'More actions for ' + c.name">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">Edit</button>
+              <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + c.name">
                 <button type="button" appMenuItem (click)="toggleActive(c)" [disabled]="togglingCode() === c.alpha2">
                   <span class="material-icons" aria-hidden="true">{{ c.isActive === false ? 'check_circle' : 'block' }}</span>
                   {{ togglingCode() === c.alpha2 ? 'Saving…' : (c.isActive === false ? 'Enable' : 'Disable') }}

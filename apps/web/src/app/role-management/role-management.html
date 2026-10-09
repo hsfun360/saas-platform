@@ -75,12 +75,12 @@
                mobile. The system-managed Tenant Admin role is read-only. -->
           @if (role.name !== protectedRoleName) {
             <span class="role-actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="startEdit(role)"
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="startEdit(role)"
                       [disabled]="!!deletingRoleId()" [attr.aria-label]="'Edit role ' + role.name">
                 <span class="material-icons" aria-hidden="true">edit</span>
                 Edit
               </button>
-              <button type="button" class="btn btn--danger btn--sm" (click)="onDelete(role)"
+              <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" (click)="onDelete(role)"
                       [disabled]="deletingRoleId() === role.id" [attr.aria-label]="'Delete role ' + role.name">
                 <span class="material-icons" aria-hidden="true">delete</span>
                 {{ deletingRoleId() === role.id ? 'Deleting…' : 'Delete' }}
@@ -95,7 +95,7 @@
   }
 
   <!-- Floating "New role" action -->
-  <button type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="New role">
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="New role">
     <span class="material-icons" aria-hidden="true">add</span>
     New role
   </button>

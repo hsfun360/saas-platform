@@ -36,7 +36,7 @@
         No positions yet — use "New position" or load the standard ladder.
       }
     </span>
-    <button type="button" class="btn btn--secondary btn--sm" (click)="openDefaults()">
+    <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="openDefaults()">
       <span class="material-icons" aria-hidden="true">playlist_add</span>
       Load defaults
     </button>
@@ -60,7 +60,7 @@
     <div class="empty-state">
       <span class="empty-icon">📭</span>
       <p>No positions yet. Load the standard ladder or use "New position".</p>
-      <button type="button" class="btn btn--secondary" (click)="openDefaults()">Load defaults</button>
+      <button *appCan="'create'" type="button" class="btn btn--secondary" (click)="openDefaults()">Load defaults</button>
     </div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
@@ -90,8 +90,8 @@
               }
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(p)">Edit</button>
-              <app-overflow-menu [label]="'More actions for ' + p.positionCode">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(p)">Edit</button>
+              <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + p.positionCode">
                 <button type="button" appMenuItem (click)="toggleActive(p)" [disabled]="togglingId() === p.id">
                   <span class="material-icons" aria-hidden="true">{{ p.isActive === false ? 'check_circle' : 'block' }}</span>
                   {{ togglingId() === p.id ? 'Saving…' : (p.isActive === false ? 'Enable' : 'Disable') }}
@@ -105,7 +105,7 @@
   }
 
   <!-- New position FAB -->
-  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New position">
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New position">
     <span class="material-icons" aria-hidden="true">add</span>
     <span>New position</span>
   </button>

@@ -77,7 +77,7 @@
             </div>
             <div class="data-row__actions">
               <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(d)">Edit</button>
-              <app-overflow-menu [label]="'More actions for ' + d.name">
+              <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + d.name">
                 <button type="button" appMenuItem (click)="openPreview(d)">
                   <span class="material-icons" aria-hidden="true">visibility</span>
                   Preview
@@ -96,7 +96,7 @@
 
   <!-- New workflow FAB -->
   <ng-container *appCan="'create'">
-    <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New approval workflow">
+    <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New approval workflow">
       <span class="material-icons" aria-hidden="true">add</span>
       <span>New workflow</span>
     </button>

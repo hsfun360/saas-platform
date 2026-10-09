@@ -81,7 +81,7 @@
                 </span>
               </button>
               <span class="mm-row__actions">
-                <button type="button" class="btn btn--secondary btn--sm" (click)="startEditModule(m)"
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="startEditModule(m)"
                         [disabled]="!!deletingModuleId()" [attr.aria-label]="'Edit module ' + m.name">
                   <span class="material-icons" aria-hidden="true">edit</span>
                   Edit
@@ -94,7 +94,7 @@
                        platform modules stay deletable like any module. -->
                   <span style="color: var(--text-muted); font-size: var(--font-caption); align-self: center;">System module</span>
                 } @else {
-                  <button type="button" class="btn btn--danger btn--sm" (click)="deleteModule(m)"
+                  <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" (click)="deleteModule(m)"
                           [disabled]="deletingModuleId() === m.id" [attr.aria-label]="'Delete module ' + m.name">
                     <span class="material-icons" aria-hidden="true">delete</span>
                     {{ deletingModuleId() === m.id ? 'Deleting…' : 'Delete' }}
@@ -168,12 +168,12 @@
                     <span style="color: var(--text-muted); font-size: var(--font-body-2);">{{ menu.route }}</span>
                   </span>
                   <span class="mm-row__actions">
-                    <button type="button" class="btn btn--secondary btn--sm" (click)="startEditMenu(menu)"
+                    <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="startEditMenu(menu)"
                             [disabled]="!!deletingMenuId()" [attr.aria-label]="'Edit menu ' + menu.name">
                       <span class="material-icons" aria-hidden="true">edit</span>
                       Edit
                     </button>
-                    <button type="button" class="btn btn--danger btn--sm" (click)="deleteMenu(menu)"
+                    <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" (click)="deleteMenu(menu)"
                             [disabled]="deletingMenuId() === menu.id" [attr.aria-label]="'Delete menu ' + menu.name">
                       <span class="material-icons" aria-hidden="true">delete</span>
                       {{ deletingMenuId() === menu.id ? 'Deleting…' : 'Delete' }}
@@ -222,11 +222,11 @@
                               [disabled]="!!deletingMenuId()" [attr.aria-label]="'Add sub-menu under ' + node.menu.name">
                         <span class="material-icons" aria-hidden="true">add</span>
                       </button>
-                      <button type="button" class="btn btn--secondary btn--sm" (click)="startEditMenu(node.menu)"
+                      <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="startEditMenu(node.menu)"
                               [disabled]="!!deletingMenuId()" [attr.aria-label]="'Edit menu ' + node.menu.name">
                         <span class="material-icons" aria-hidden="true">edit</span>
                       </button>
-                      <button type="button" class="btn btn--danger btn--sm" (click)="deleteMenu(node.menu)"
+                      <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" (click)="deleteMenu(node.menu)"
                               [disabled]="deletingMenuId() === node.menu.id" [attr.aria-label]="'Delete menu ' + node.menu.name">
                         <span class="material-icons" aria-hidden="true">delete</span>
                       </button>
@@ -258,12 +258,12 @@
          mobile only the visible pane's FAB shows (driven by .mm-layout--detail).
          "Add menu" only exists once a module is selected. -->
     <div class="mm-fab-group">
-      <button type="button" class="btn btn--primary mm-fab mm-fab--module" (click)="startCreateModule()" aria-label="Add module">
+      <button *appCan="'create'" type="button" class="btn btn--primary mm-fab mm-fab--module" (click)="startCreateModule()" aria-label="Add module">
         <span class="material-icons" aria-hidden="true">add</span>
         Add module
       </button>
       @if (selectedModuleId()) {
-        <button type="button" class="btn btn--primary mm-fab mm-fab--menu" (click)="startCreateMenu()" aria-label="Add menu">
+        <button *appCan="'create'" type="button" class="btn btn--primary mm-fab mm-fab--menu" (click)="startCreateMenu()" aria-label="Add menu">
           <span class="material-icons" aria-hidden="true">add</span>
           Add menu
         </button>

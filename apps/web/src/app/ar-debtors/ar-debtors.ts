@@ -338,6 +338,14 @@ export class ArDebtorsComponent implements OnInit {
     this.service.getOtherDebtor(row.sourceId).subscribe({
       next: (res) => {
         const o = res.otherDebtor;
+        // Data scope (own / department / all) is computed server-side per
+        // record; never open a form whose Save would 403.
+        if (o.canModify === false) {
+          this.otherLoading.set(false);
+          this.otherOpen.set(false);
+          this.errorMessage.set(`${o.code} is outside your data scope and cannot be amended.`);
+          return;
+        }
         this.otherCode = o.code;
         this.otherForm.reset({
           code: o.code,

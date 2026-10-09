@@ -81,8 +81,8 @@
                 }
               </div>
               <div class="data-row__actions">
-                <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(a)">Edit</button>
-                <app-overflow-menu [label]="'More actions for ' + a.taxSchemeCode">
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(a)">Edit</button>
+                <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + a.taxSchemeCode">
                   <button type="button" appMenuItem (click)="toggleEnabled(a)" [disabled]="togglingId() === a.id">
                     <span class="material-icons" aria-hidden="true">{{ a.isEnabled ? 'block' : 'check_circle' }}</span>
                     {{ togglingId() === a.id ? 'Saving…' : (a.isEnabled ? 'Disable' : 'Enable') }}

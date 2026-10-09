@@ -64,8 +64,8 @@
               }
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(s)">Edit</button>
-              <app-overflow-menu [label]="'More actions for ' + purposeLabel(s.purpose)">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(s)">Edit</button>
+              <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + purposeLabel(s.purpose)">
                 <button type="button" appMenuItem (click)="toggleActive(s)" [disabled]="togglingId() === s.id">
                   <span class="material-icons" aria-hidden="true">{{ s.isActive === false ? 'check_circle' : 'block' }}</span>
                   {{ togglingId() === s.id ? 'Saving…' : (s.isActive === false ? 'Enable' : 'Disable') }}
@@ -80,7 +80,7 @@
 
   <!-- New scheme FAB (only while a purpose is still unconfigured) -->
   @if (!loading() && availablePurposes().length > 0) {
-    <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New numbering scheme">
+    <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New numbering scheme">
       <span class="material-icons" aria-hidden="true">add</span>
       <span>New numbering scheme</span>
     </button>

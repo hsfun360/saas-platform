@@ -13,6 +13,7 @@ import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ComboboxComponent, ComboOption } from '../shared/combobox/combobox';
+import { CanDirective } from '../shared/can.directive';
 
 // Per-membership placement form: role + org placement within one company.
 type PlacementForm = FormGroup<{
@@ -34,7 +35,7 @@ type PlacementForm = FormGroup<{
 @Component({
   selector: 'app-tenant-users',
   standalone: true,
-  imports: [
+  imports: [CanDirective, 
     FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule,
     ReactiveFormsModule, DialogComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective,
     ComboboxComponent,

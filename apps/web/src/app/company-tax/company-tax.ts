@@ -7,6 +7,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { CompanyTaxAdoption } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { CanDirective } from '../shared/can.directive';
 
 // System Setup → Company Tax (per active company / workspace).
 // The subscriber defines the tax catalog once (Tax Setup); here a Tenant Admin, in a
@@ -21,7 +22,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 @Component({
   selector: 'app-company-tax',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './company-tax.html',
   styleUrls: ['../system-setup/system-setup.css', './company-tax.css'],
 })

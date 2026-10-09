@@ -83,11 +83,11 @@
             <!-- Actions: ONE visible primary (Edit details) + the kebab with the
                  occasional configuration actions. Each opens a dialog (below). -->
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="startEditProfile(company)">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="startEditProfile(company)">
                 <span class="material-icons" aria-hidden="true">edit</span>
                 Edit details
               </button>
-              <app-overflow-menu [label]="'More actions for ' + company.name">
+              <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + company.name">
                 <button type="button" appMenuItem (click)="startEditModules(company)">
                   <span class="material-icons" aria-hidden="true">tune</span>
                   Edit modules
@@ -109,7 +109,7 @@
   }
 
   <!-- Floating "New company" action — pinned bottom-right, opens the dialog. -->
-  <button type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="New company">
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="New company">
     <span class="material-icons" aria-hidden="true">add</span>
     New company
   </button>

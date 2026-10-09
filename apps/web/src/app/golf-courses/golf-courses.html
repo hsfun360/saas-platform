@@ -104,16 +104,16 @@
               }
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">
                 <span class="material-icons" aria-hidden="true">edit</span>
                 Edit
               </button>
               <app-overflow-menu [label]="'More actions for ' + c.courseCode">
-                <button type="button" appMenuItem (click)="openTeeTimes(c)">
+                <button *appCan="'edit'" type="button" appMenuItem (click)="openTeeTimes(c)">
                   <span class="material-icons" aria-hidden="true">schedule</span>
                   Tee times
                 </button>
-                <button type="button" appMenuItem (click)="toggleActive(c)" [disabled]="togglingId() === c.id">
+                <button *appCan="'edit'" type="button" appMenuItem (click)="toggleActive(c)" [disabled]="togglingId() === c.id">
                   <span class="material-icons" aria-hidden="true">{{ c.isActive === false ? 'toggle_on' : 'toggle_off' }}</span>
                   {{ c.isActive === false ? 'Enable' : 'Disable' }}
                 </button>
@@ -130,7 +130,7 @@
   }
 
   <!-- New course FAB -->
-  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New course">
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New course">
     <span class="material-icons" aria-hidden="true">add</span>
     <span>New course</span>
   </button>
@@ -290,7 +290,7 @@
                   </div>
                   <div class="tt-set__actions">
                     <button type="button" class="btn btn--secondary btn--sm" (click)="openSlots(s)">Flight times ({{ slotCount(s) }})</button>
-                    <button type="button" class="btn btn--secondary btn--sm" (click)="openSetForm(s)">Edit</button>
+                    <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openSetForm(s)">Edit</button>
                     @if (s.isActive === false) {
                       <button type="button" class="btn btn--success btn--sm" (click)="toggleSetActive(s)" [disabled]="ttTogglingId() === s.id">
                         {{ ttTogglingId() === s.id ? 'Saving…' : 'Enable' }}

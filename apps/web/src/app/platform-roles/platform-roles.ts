@@ -9,6 +9,7 @@ import { Role, RoleDataScope, RoleMenuPermission, AdminMenu } from '../models/au
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { FULL_ACCESS, GrantFlags, PermissionPickerComponent } from '../shared/permission-picker/permission-picker';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { CanDirective } from '../shared/can.directive';
 
 // Platform (system-level) Roles — split out of the old System Setup tab strip
 // into its own screen. Lists system roles with search and creates/edits them
@@ -22,7 +23,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 @Component({
   selector: 'app-platform-roles',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PermissionPickerComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PermissionPickerComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './platform-roles.html',
   // system-setup.css = the screen chrome; role-management.css = the shared
   // data-scope fieldset styles (.scope-*).

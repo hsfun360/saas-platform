@@ -18,6 +18,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { Country, Language } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { CanDirective } from '../shared/can.directive';
 
 // One translation row = a small typed FormGroup. `languageCode` and `label` are
 // carried alongside the editable `name` so we can render the row's label and read
@@ -39,7 +40,7 @@ type TranslationGroup = FormGroup<{
 @Component({
   selector: 'app-countries',
   standalone: true,
-  imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [CanDirective, FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './countries.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

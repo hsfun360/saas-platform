@@ -102,20 +102,20 @@
               }
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">
+              <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(c)">
                 <span class="material-icons" aria-hidden="true">edit</span>
                 Edit
               </button>
               <app-overflow-menu [label]="'More actions for ' + c.unitCourseCode">
-                <button type="button" appMenuItem (click)="openHoles(c)">
+                <button *appCan="'edit'" type="button" appMenuItem (click)="openHoles(c)">
                   <span class="material-icons" aria-hidden="true">golf_course</span>
                   Holes
                 </button>
-                <button type="button" appMenuItem (click)="openTees(c)">
+                <button *appCan="'edit'" type="button" appMenuItem (click)="openTees(c)">
                   <span class="material-icons" aria-hidden="true">sports_golf</span>
                   Tees
                 </button>
-                <button type="button" appMenuItem (click)="toggleActive(c)" [disabled]="togglingId() === c.id">
+                <button *appCan="'edit'" type="button" appMenuItem (click)="toggleActive(c)" [disabled]="togglingId() === c.id">
                   <span class="material-icons" aria-hidden="true">{{ c.isActive === false ? 'toggle_on' : 'toggle_off' }}</span>
                   {{ c.isActive === false ? 'Enable' : 'Disable' }}
                 </button>
@@ -132,7 +132,7 @@
   }
 
   <!-- New unit course FAB -->
-  <button type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New unit course">
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New unit course">
     <span class="material-icons" aria-hidden="true">add</span>
     <span>New unit course</span>
   </button>

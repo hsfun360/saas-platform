@@ -63,7 +63,7 @@
                 </div>
               </div>
               <div class="data-row__actions">
-                <button type="button" class="btn btn--secondary btn--sm" (click)="openProfile(person)"
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openProfile(person)"
                         [attr.aria-label]="'Edit ' + person.email">Edit</button>
                 <app-overflow-menu [label]="'More actions for ' + person.email">
                   <button type="button" appMenuItem (click)="openPlacement(person)">
@@ -94,7 +94,7 @@
               <td>{{ inv.roleName || '—' }}</td>
               <td>{{ inv.expiresAt ? (inv.expiresAt | localDate) : '—' }}</td>
               <td class="actions-cell">
-                <button type="button" class="btn btn--danger btn--sm" [disabled]="isPending('inv:' + inv.id)" (click)="onRevokeInvite(inv.id)">Revoke</button>
+                <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" [disabled]="isPending('inv:' + inv.id)" (click)="onRevokeInvite(inv.id)">Revoke</button>
               </td>
             </tr>
           }
@@ -107,11 +107,11 @@
        hide on mobile so both fit in-line as round icon FABs (aria-label keeps the
        accessible name). -->
   <div class="user-fab-group">
-    <button type="button" class="btn btn--secondary user-fab" (click)="openInvite()" aria-label="Invite collaborator">
+    <button *appCan="'create'" type="button" class="btn btn--secondary user-fab" (click)="openInvite()" aria-label="Invite collaborator">
       <span class="material-icons" aria-hidden="true">mail</span>
       <span class="user-fab__label">Invite collaborator</span>
     </button>
-    <button type="button" class="btn btn--primary user-fab" (click)="openCreate()" aria-label="Create user">
+    <button *appCan="'create'" type="button" class="btn btn--primary user-fab" (click)="openCreate()" aria-label="Create user">
       <span class="material-icons" aria-hidden="true">person_add</span>
       <span class="user-fab__label">Create user</span>
     </button>
