@@ -272,7 +272,7 @@
                 <div class="tt-set">
                   <div class="tt-set__head">
                     <div class="tt-set__title">
-                      {{ scopeLabel(s.dayScope) }} · from {{ s.effectiveDate }}
+                      {{ scopeLabel(s.dayScope) }} · from {{ s.effectiveDate | localDate }}
                       @if (s.isActive === false) {
                         <span class="status-chip status-chip--off">Disabled</span>
                       } @else {

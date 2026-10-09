@@ -263,13 +263,12 @@
             <div class="gb-grid" style="margin-top: var(--space-md);">
               <div class="form-group">
                 <label for="gbMobile">Contact Mobile</label>
-                <input id="gbMobile" type="tel" [value]="contactMobile()" maxlength="30" autocomplete="off"
-                       (input)="contactMobile.set($any($event.target).value)" />
+                <app-phone-input inputId="gbMobile" [ngModel]="contactMobile()" (ngModelChange)="contactMobile.set($event)" placeholder="Optional"></app-phone-input>
               </div>
               <div class="form-group">
                 <label for="gbRemarks">Remarks</label>
-                <input id="gbRemarks" type="text" [value]="remarks()" maxlength="255"
-                       (input)="remarks.set($any($event.target).value)" />
+                <textarea id="gbRemarks" rows="2" wrap="off" [value]="remarks()" maxlength="255"
+                       (input)="remarks.set($any($event.target).value)"></textarea>
               </div>
             </div>
           }

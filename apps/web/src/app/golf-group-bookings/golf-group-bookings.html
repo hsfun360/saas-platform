@@ -330,7 +330,7 @@
                 <label for="ggbDrawDay">Play day</label>
                 <select id="ggbDrawDay" [value]="drawDay()?.id || ''" (change)="selectDrawDay($any($event.target).value)">
                   @for (d of b.days; track d.id) {
-                    <option [value]="d.id">{{ d.playDate }} · {{ d.courseLabel }}</option>
+                    <option [value]="d.id">{{ d.playDate | localDate }} · {{ d.courseLabel }}</option>
                   }
                 </select>
                 @if (drawDay(); as day) {
@@ -379,7 +379,7 @@
                         Clear
                       </button>
                       <button type="button" class="btn btn--primary btn--sm" (click)="saveDraw()" [disabled]="saving() || !drawDirty()">
-                        {{ saving() ? 'Saving…' : 'Save draw for ' + day.playDate }}
+                        {{ saving() ? 'Saving…' : 'Save draw for ' + (day.playDate | localDate) }}
                       </button>
                     </div>
                   }
@@ -754,7 +754,7 @@
 
   <!-- ============ Refund payout / decline (centred) ============ -->
   @if (refundAction(); as a) {
-    <app-dialog [title]="a.kind === 'pay' ? 'Record refund payout' : 'Decline refund'" [busy]="folioBusy()" (close)="refundAction.set(null)">
+    <app-dialog #rfDlg [title]="a.kind === 'pay' ? 'Record refund payout' : 'Decline refund'" [busy]="folioBusy()" [dirty]="a.kind === 'pay' ? refundPayForm.dirty : !!refundDeclineReason()" (close)="refundAction.set(null)">
       @if (a.kind === 'pay') {
         <p>Refund <strong>{{ a.refund.refundNo }}</strong> of <strong>{{ a.refund.amount.toFixed(2) }}</strong> - record how Finance paid it. For a deposit that was charged to account, "Credit note" is the usual answer.</p>
         <form id="ggbRfPay" [formGroup]="refundPayForm" (ngSubmit)="confirmRefundAction()" class="saas-form" style="padding: 0;">
@@ -777,7 +777,7 @@
         </div>
       }
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="refundAction.set(null)" [disabled]="folioBusy()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="rfDlg.requestClose()" [disabled]="folioBusy()">Cancel</button>
         @if (a.kind === 'pay') {
           <button type="submit" form="ggbRfPay" class="btn btn--primary" [disabled]="folioBusy() || refundPayForm.invalid">{{ folioBusy() ? 'Saving…' : 'Record payout' }}</button>
         } @else {
@@ -889,7 +889,7 @@
           </div>
           <div class="form-group">
             <label for="ggbMobile">Contact mobile</label>
-            <input id="ggbMobile" type="tel" formControlName="contactMobile" maxlength="30" autocomplete="off" />
+            <app-phone-input formControlName="contactMobile" inputId="ggbMobile" placeholder="Optional"></app-phone-input>
           </div>
           <div class="form-group">
             <label for="ggbExpected">Expected players</label>
@@ -1034,7 +1034,7 @@
 
   <!-- ============ Reserve flights (centred - a decision with a preview) ============ -->
   @if (flightsDay(); as d) {
-    <app-dialog [title]="'Reserve flights - ' + d.playDate" [busy]="saving()" (close)="flightsDay.set(null)">
+    <app-dialog #flDlg [title]="'Reserve flights - ' + (d.playDate | localDate)" [busy]="saving()" [dirty]="flightsForm.dirty" (close)="flightsDay.set(null)">
       <p>{{ formatLabel(d.startFormat) }} on <strong>{{ d.courseLabel }}</strong>, {{ d.holes }} holes, {{ dayWindow(d) }}.
         @if (d.flights.length) { The {{ d.flights.length }} flight(s) already reserved are replaced. }
       </p>
@@ -1067,7 +1067,7 @@
         <p class="ggb-preview"><span class="material-icons" aria-hidden="true">event_seat</span> {{ flightsPreview() }}</p>
       </form>
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="flightsDay.set(null)" [disabled]="saving()">Cancel</button>
+        <button type="button" class="btn btn--secondary" (click)="flDlg.requestClose()" [disabled]="saving()">Cancel</button>
         <button type="submit" form="ggbFlights" class="btn btn--primary" [disabled]="saving() || flightsForm.invalid">{{ saving() ? 'Reserving…' : 'Reserve' }}</button>
       </ng-container>
     </app-dialog>

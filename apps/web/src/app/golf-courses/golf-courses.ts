@@ -17,6 +17,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { CanDirective } from '../shared/can.directive';
+import { LocalDatePipe } from '../shared/local-date.pipe';
 
 // Combobox row for a nine picker: code — description (both filterable).
 const toNineOption = (u: UnitCourse): { value: string; label: string } => ({
@@ -61,7 +62,7 @@ function toHHMM(minutes: number): string {
 @Component({
   selector: 'app-golf-courses',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
+  imports: [LocalDatePipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
     OverflowMenuComponent, MenuItemDirective, ComboboxComponent, CanDirective],
   templateUrl: './golf-courses.html',
   styleUrls: ['../system-setup/system-setup.css', './golf-courses.css'],

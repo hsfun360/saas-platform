@@ -119,6 +119,8 @@ export class CompaniesComponent implements OnInit {
   );
   readonly savingModules = signal(false);
   private readonly editModuleIds = signal<ReadonlySet<string>>(new Set());
+  // Unsaved-changes guard for the modules drawer (checkbox grid, no FormGroup).
+  readonly editModulesDirty = signal(false);
   readonly editCount = computed(() => this.withSystemModules(this.editModuleIds()).size);
 
   // Editing the profile / billing details of an EXISTING company.
@@ -362,6 +364,7 @@ export class CompaniesComponent implements OnInit {
     this.errorMessage.set('');
     this.editingProfileCompanyId.set(null); // close the details editor if open
     this.editModuleIds.set(new Set((company.SubscribedModules || []).map((m) => m.id)));
+    this.editModulesDirty.set(false);
     this.editingCompanyId.set(company.id);
   }
 
@@ -382,6 +385,7 @@ export class CompaniesComponent implements OnInit {
       next.add(id);
     }
     this.editModuleIds.set(next);
+    this.editModulesDirty.set(true);
   }
 
   saveModules(companyId: string): void {

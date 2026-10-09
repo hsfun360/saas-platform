@@ -34,7 +34,9 @@
   min-width: 0;
 }
 
-.art-search input:focus { outline: none; box-shadow: none; }
+/* Field focus is the global rule in styles.css (brand border + blurred glow);
+   a per-screen `outline: none; box-shadow: none` once removed every focus
+   indication from this search box. */
 
 .art-search__clear {
   border: none;

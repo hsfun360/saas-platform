@@ -212,7 +212,7 @@
                       @if (r.glAccountCode) { <span class="tx-tag">GL {{ r.glAccountCode }}</span> }
                       @if (r.isActive === false) { <span class="tx-tag tx-tag--off">Inactive</span> }
                     </span>
-                    <span class="tx-rate-eff">Effective {{ r.effectiveFrom }}</span>
+                    <span class="tx-rate-eff">Effective {{ r.effectiveFrom | localDate }}</span>
                   </div>
                   <div class="tx-rate-actions">
                     <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditRate(r)">Edit</button>

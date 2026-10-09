@@ -6,6 +6,7 @@ import {
   DrillResult,
   MembershipDashboardService,
 } from '../services/membership-dashboard.service';
+import { LocalDatePipe } from '../shared/local-date.pipe';
 
 // One active drill filter (a chip). `params` go straight onto the /drill query;
 // chips with the same key replace each other (re-clicking a segment of the same
@@ -24,6 +25,7 @@ export interface DrillChip {
   selector: 'app-insight-drill',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [LocalDatePipe],
   templateUrl: './insight-drill.html',
   // system-setup.css supplies the .flash primitives; insights.css the shared
   // md-card/md-seg/md-status/md-empty primitives (component-scoped, so the

@@ -10,6 +10,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { LocalDatePipe } from '../shared/local-date.pipe';
+import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { MembershipStatusOption } from '../models/auth.models';
 import { MoneyInputDirective } from '../shared/money-input.directive';
@@ -58,6 +59,7 @@ function localDate(d: Date): string {
   imports: [
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective,
     DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective, LocalDatePipe, MoneyInputDirective,
+    PhoneInputComponent,
   ],
   templateUrl: './golf-group-bookings.html',
   styleUrls: ['../system-setup/system-setup.css', './golf-group-bookings.css'],

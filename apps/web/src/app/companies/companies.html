@@ -279,7 +279,7 @@
 
   <!-- ============ Edit modules dialog ============ -->
   @if (editingCompanyId(); as cid) {
-    <app-dialog variant="drawer" [title]="'Edit modules — ' + (editingCompany()?.name || '')" [busy]="savingModules()" (close)="cancelEditModules()">
+    <app-dialog #modDlg variant="drawer" [title]="'Edit modules — ' + (editingCompany()?.name || '')" [busy]="savingModules()" [dirty]="editModulesDirty()" (close)="cancelEditModules()">
       <div style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary); margin-bottom: var(--space-sm);">
         Modules ({{ editCount() }} selected)
       </div>
@@ -303,7 +303,7 @@
       }
 
       <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="cancelEditModules()" [disabled]="savingModules()">
+        <button type="button" class="btn btn--secondary" (click)="modDlg.requestClose()" [disabled]="savingModules()">
           Cancel
         </button>
         <button type="button" class="btn btn--primary" (click)="saveModules(cid)" [disabled]="savingModules()">

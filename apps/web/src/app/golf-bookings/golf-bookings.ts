@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
@@ -8,6 +8,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { LocalDatePipe } from '../shared/local-date.pipe';
+import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { Injector } from '@angular/core';
 import {
@@ -46,6 +47,7 @@ function localToday(): string {
   imports: [
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent,
     CanDirective, DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective, LocalDatePipe,
+    FormsModule, PhoneInputComponent,
   ],
   templateUrl: './golf-bookings.html',
   styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css', './golf-bookings.css'],

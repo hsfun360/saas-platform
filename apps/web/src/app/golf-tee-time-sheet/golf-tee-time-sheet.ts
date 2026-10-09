@@ -9,6 +9,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
+import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import {
   GolfFrontDeskService,
@@ -71,7 +72,7 @@ function localToday(): string {
   imports: [
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent,
     CanDirective, DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective,
-    MoneyInputDirective, LocalDatePipe,
+    MoneyInputDirective, LocalDatePipe, PhoneInputComponent,
   ],
   templateUrl: './golf-tee-time-sheet.html',
   styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css', './golf-tee-time-sheet.css'],

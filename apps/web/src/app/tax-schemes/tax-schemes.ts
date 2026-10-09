@@ -12,6 +12,7 @@ import { TaxScheme, TaxRate, TaxOption, Country, TaxTemplateOption } from '../mo
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { CanDirective } from '../shared/can.directive';
+import { LocalDatePipe } from '../shared/local-date.pipe';
 
 // System Setup → Tax Setup (subscriber-owned catalog).
 // Master–detail: the scheme list is the master; the selected scheme (its header +
@@ -21,7 +22,7 @@ import { CanDirective } from '../shared/can.directive';
 @Component({
   selector: 'app-tax-schemes',
   standalone: true,
-  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, ComboboxComponent],
+  imports: [CanDirective, LocalDatePipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, ComboboxComponent],
   templateUrl: './tax-schemes.html',
   styleUrls: ['../system-setup/system-setup.css', './tax-schemes.css'],
 })
