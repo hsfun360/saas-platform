@@ -38,7 +38,7 @@
   font-weight: var(--weight-semibold);
 }
 .ct-chip__gl--none {
-  color: #94a3b8; /* muted "no GL" placeholder — not a token light value, left as-is */
+  color: var(--text-muted); /* muted "no GL" placeholder (AA on both themes) */
 }
 
 /* Enable checkbox in the editor. */

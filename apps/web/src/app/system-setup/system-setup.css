@@ -233,7 +233,7 @@
 .pick-chip__tag {
   font-size: var(--font-caption);
   color: var(--info-text);
-  background: #dbeafe;
+  background: var(--info-surface);
   border-radius: 6px;
   padding: 1px 6px;
   margin-left: 2px;

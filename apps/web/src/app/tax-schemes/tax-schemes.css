@@ -206,7 +206,7 @@
   background: var(--surface-card);
   padding: var(--space-lg);
   border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
   border: 1px solid var(--border);
   min-width: 0;
 }

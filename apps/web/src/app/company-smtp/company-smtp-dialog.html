@@ -75,7 +75,7 @@
           <label for="smtp-from">From email *</label>
           <input id="smtp-from" type="email" formControlName="fromEmail" placeholder="noreply@yourcompany.com" autocomplete="off">
           @if (form.controls.fromEmail.touched && form.controls.fromEmail.invalid) {
-            <span class="smtp-hint" style="color:#b91c1c;">Enter a valid email your server can send from.</span>
+            <span class="smtp-hint" style="color: var(--danger-text);">Enter a valid email your server can send from.</span>
           }
         </div>
         <div class="smtp-field">

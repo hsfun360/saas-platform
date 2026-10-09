@@ -71,7 +71,7 @@
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <div class="data-card__title">
-                <span class="ms-swatch" [style.background]="s.statusColor || '#94a3b8'" aria-hidden="true"></span>
+                <span class="ms-swatch" [style.background]="s.statusColor || 'var(--chip-off-text)'" aria-hidden="true"></span>
                 {{ s.membershipStatus }}
               </div>
               <div class="data-card__subline">
@@ -309,7 +309,7 @@
             @for (st of (copySelectedSource()?.statuses ?? []); track st.id) {
               <label class="ms-copy-item">
                 <input type="checkbox" [checked]="isCopySelected(st.id)" (change)="toggleCopyStatus(st.id)" />
-                <span class="ms-swatch" [style.background]="st.statusColor || '#94a3b8'" aria-hidden="true"></span>
+                <span class="ms-swatch" [style.background]="st.statusColor || 'var(--chip-off-text)'" aria-hidden="true"></span>
                 <span class="ms-copy-item__text">{{ st.membershipStatus }} — {{ classLabel(st.statusClass) }} · Action: {{ actionLabel(st.actionControl) }} · Charge: {{ chargeLabel(st.chargeControl) }}</span>
               </label>
             }
