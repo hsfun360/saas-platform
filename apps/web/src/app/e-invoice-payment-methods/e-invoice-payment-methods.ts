@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -24,6 +25,10 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 })
 export class EInvoicePaymentMethodsComponent implements OnInit {
   private readonly eInvoicePaymentMethodService = inject(EInvoicePaymentMethodService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/e-invoice-payment-methods';
   private readonly fb = inject(FormBuilder);
 
   readonly paymentMethods = signal<EInvoicePaymentMethod[]>([]);
@@ -81,6 +86,7 @@ export class EInvoicePaymentMethodsComponent implements OnInit {
       next: (data) => {
         this.paymentMethods.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(EInvoicePaymentMethodsComponent.LIST_PATH, this.injector);
       },
       error: () => this.loading.set(false),
     });
@@ -103,6 +109,7 @@ export class EInvoicePaymentMethodsComponent implements OnInit {
   }
 
   toggleActive(paymentMethod: EInvoicePaymentMethod): void {
+    this.returnScroll.remember(EInvoicePaymentMethodsComponent.LIST_PATH, paymentMethod.code);
     this.clearMessages();
     const next = !(paymentMethod.isActive !== false);
     this.togglingCode.set(paymentMethod.code);
@@ -176,6 +183,7 @@ export class EInvoicePaymentMethodsComponent implements OnInit {
   }
 
   openEdit(paymentMethod: EInvoicePaymentMethod): void {
+    this.returnScroll.remember(EInvoicePaymentMethodsComponent.LIST_PATH, paymentMethod.code);
     this.clearMessages();
     this.editingCode.set(paymentMethod.code);
     this.editForm.reset({ description: paymentMethod.description });

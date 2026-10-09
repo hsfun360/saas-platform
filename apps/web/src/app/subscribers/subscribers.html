@@ -61,7 +61,7 @@
     <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
       @for (sub of filteredSubscriptions(); track sub.id) {
         @let firstCompany = sub.Companies?.[0];
-        <div class="data-card">
+        <div class="data-card" [attr.data-return-id]="sub.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <!-- Line 1: name (+ status badge, top-right). -->

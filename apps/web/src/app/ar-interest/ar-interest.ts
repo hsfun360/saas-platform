@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
@@ -32,6 +33,10 @@ export class ArInterestComponent implements OnInit {
   // Month picker options (shared combobox - Firefox has no native month input).
   readonly monthOptions = monthComboOptions();
   private readonly service = inject(ArService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/ar/interests';
   private readonly fb = inject(FormBuilder);
 
   readonly rows = signal<ArInterest[]>([]);
@@ -138,6 +143,7 @@ export class ArInterestComponent implements OnInit {
         this.rows.set(res.generations);
         this.selected.set(new Set());
         this.loading.set(false);
+        this.returnScroll.consume(ArInterestComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -228,6 +234,7 @@ export class ArInterestComponent implements OnInit {
   }
 
   openDetail(row: ArInterest): void {
+    this.returnScroll.remember(ArInterestComponent.LIST_PATH, row.id);
     this.clearMessages();
     this.detailGen.set(row);
     this.details.set([]);

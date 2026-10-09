@@ -65,7 +65,7 @@
     } @else {
       <div class="data-list">
         @for (a of filtered(); track a.id) {
-          <div class="data-card" [class.ct-card--off]="!a.isEnabled">
+          <div class="data-card" [attr.data-return-id]="a.id" [class.ct-card--off]="!a.isEnabled">
             <div class="data-row data-row--with-badge">
               <div class="data-row__main">
                 <div class="data-card__title">{{ a.taxSchemeCode }} — {{ a.name }}</div>

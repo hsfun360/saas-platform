@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -30,6 +31,10 @@ export class MembershipBillingComponent implements OnInit {
   // Month picker options (shared combobox - Firefox has no native month input).
   readonly monthOptions = monthComboOptions();
   private readonly service = inject(BillingService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/membership/billing';
   private readonly fb = inject(FormBuilder);
 
   readonly rows = signal<BillingSchedule[]>([]);
@@ -84,10 +89,15 @@ export class MembershipBillingComponent implements OnInit {
     return key === 'membership-fee' ? 'Membership Fee' : 'Subscription Fee';
   }
 
+  rememberRow(id: string): void {
+    this.returnScroll.remember(MembershipBillingComponent.LIST_PATH, id);
+  }
+
   load(): void {
     this.loading.set(true);
     this.service.list(this.month()).subscribe({
-      next: (res) => { this.rows.set(res.schedules); this.loading.set(false); },
+      next: (res) => { this.rows.set(res.schedules); this.loading.set(false);
+        this.returnScroll.consume(MembershipBillingComponent.LIST_PATH, this.injector); },
       error: (err) => {
         this.loading.set(false);
         this.errorMessage.set(err.error?.message || 'Failed to load billing schedules.');
@@ -121,6 +131,7 @@ export class MembershipBillingComponent implements OnInit {
   }
 
   onCancel(row: BillingSchedule): void {
+    this.returnScroll.remember(MembershipBillingComponent.LIST_PATH, row.id);
     this.clearMessages();
     this.service.cancel(row.id).subscribe({
       next: (res) => { this.successMessage.set(res.message); this.load(); },

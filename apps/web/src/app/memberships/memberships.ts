@@ -1,4 +1,5 @@
-import { Component, ElementRef, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, OnInit, computed, inject, signal, viewChild, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -46,6 +47,10 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 })
 export class MembershipsComponent implements OnInit {
   private readonly service = inject(MembershipService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/membership/memberships';
   private readonly salutationService = inject(SalutationService);
   private readonly titleService = inject(TitleService);
   private readonly nationalityService = inject(NationalityService);
@@ -466,6 +471,7 @@ export class MembershipsComponent implements OnInit {
         this.total.set(res.total);
         this.counts.set(res.counts);
         this.loading.set(false);
+        this.returnScroll.consume(MembershipsComponent.LIST_PATH, this.injector);
         this.loadingMore.set(false);
       },
       error: (err) => {
@@ -621,6 +627,7 @@ export class MembershipsComponent implements OnInit {
 
   // The list row is slim - fetch the full contract before opening the dialog.
   openEdit(row: MembershipListRow): void {
+    this.returnScroll.remember(MembershipsComponent.LIST_PATH, row.id);
     this.clearMessages();
     this.editLoadingId.set(row.id);
     this.service.get(row.id).subscribe({

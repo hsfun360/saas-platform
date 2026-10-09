@@ -71,7 +71,7 @@
   } @else {
     <div class="data-list">
       @for (p of filtered(); track p.id) {
-        <div class="data-card">
+        <div class="data-card" [attr.data-return-id]="p.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <div class="data-card__title">{{ p.positionCode }}</div>

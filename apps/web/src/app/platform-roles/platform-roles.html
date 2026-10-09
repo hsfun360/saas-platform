@@ -54,7 +54,7 @@
     <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
       @for (role of filteredRoles(); track role.id) {
         <div class="data-card" [attr.data-return-id]="role.id">
-          <div class="data-row">
+          <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <div class="data-card__title">{{ role.name }}</div>
               @if (role.description) {
@@ -73,10 +73,11 @@
                 }
               </dl>
             </div>
+            @if (isSystemManaged(role)) {
+              <span class="data-row__badge badge">System-managed</span>
+            }
             <div class="data-row__actions">
-              @if (isSystemManaged(role)) {
-                <span class="badge">System-managed</span>
-              } @else {
+              @if (!isSystemManaged(role)) {
                 <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(role)">Edit</button>
                 <app-overflow-menu *appCan="'delete'" [label]="'More actions for ' + role.name">
                   <button type="button" appMenuItem (click)="onDelete(role)" [disabled]="deletingId() === role.id">

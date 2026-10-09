@@ -40,12 +40,12 @@
       }
     </select>
   </div>
-  <div class="nsc-search">
-    <span class="material-icons nsc-search__icon" aria-hidden="true">search</span>
-    <input type="search" [value]="search()" (input)="search.set($any($event.target).value)"
+  <div class="saas-search">
+    <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
+    <input class="saas-search__input" type="search" [value]="search()" (input)="search.set($any($event.target).value)"
            placeholder="Search by booking no, booker, member no, player or invoice…" aria-label="Search no-show charges" />
     @if (search()) {
-      <button type="button" class="nsc-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
     }
   </div>
 

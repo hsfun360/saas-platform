@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -24,6 +25,10 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 })
 export class SalesAgenciesComponent implements OnInit {
   private readonly service = inject(SalesService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/membership/sales-agencies';
   private readonly countryService = inject(CountryService);
   private readonly fb = inject(FormBuilder);
 
@@ -80,6 +85,7 @@ export class SalesAgenciesComponent implements OnInit {
       next: (rows) => {
         this.rows.set(rows);
         this.loading.set(false);
+        this.returnScroll.consume(SalesAgenciesComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -104,6 +110,7 @@ export class SalesAgenciesComponent implements OnInit {
   }
 
   openEdit(row: SalesAgency): void {
+    this.returnScroll.remember(SalesAgenciesComponent.LIST_PATH, row.id);
     this.clearMessages();
     this.editRow.set(row);
     this.form.reset({
@@ -155,6 +162,7 @@ export class SalesAgenciesComponent implements OnInit {
   }
 
   toggleActive(row: SalesAgency): void {
+    this.returnScroll.remember(SalesAgenciesComponent.LIST_PATH, row.id);
     this.clearMessages();
     this.service.setAgencyActive(row.id, !row.isActive).subscribe({
       next: (res) => {

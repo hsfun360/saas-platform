@@ -80,7 +80,7 @@
   } @else {
     <div class="data-list">
       @for (ms of rows(); track ms.id) {
-        <div class="data-card">
+        <div class="data-card" [attr.data-return-id]="ms.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <div class="data-card__title">{{ ms.membershipNo }}@if (ms.displayName) { — {{ ms.displayName }}}</div>

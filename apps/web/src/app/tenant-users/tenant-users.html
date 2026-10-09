@@ -28,12 +28,12 @@
 
     <!-- Live filter over the loaded people (email / name / company / role). -->
     @if (!loading() && people().length > 0) {
-      <div class="user-search">
-        <span class="material-icons user-search__icon" aria-hidden="true">search</span>
+      <div class="saas-search">
+        <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
         <input #userSearchBox type="search" [value]="search()" (input)="search.set(userSearchBox.value)"
-               placeholder="Search people…" aria-label="Search people" class="user-search__input">
+               placeholder="Search people…" aria-label="Search people" class="saas-search__input">
         @if (search()) {
-          <button type="button" class="user-search__clear" (click)="clearSearch()" aria-label="Clear search">
+          <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">
             <span class="material-icons" aria-hidden="true">close</span>
           </button>
         }
@@ -88,26 +88,28 @@
 
   <!-- Pending invitations -->
   @if (invitations().length > 0) {
-    <div class="card" style="margin-top: var(--space-lg);">
-      <h2>Pending Invitations ({{ invitations().length }})</h2>
-      <table class="user-table">
-        <thead>
-          <tr><th>Email</th><th>Company</th><th>Role</th><th>Expires</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-          @for (inv of invitations(); track inv.id) {
-            <tr>
-              <td>{{ inv.email }}</td>
-              <td>{{ inv.companyName }}</td>
-              <td>{{ inv.roleName || '—' }}</td>
-              <td>{{ inv.expiresAt ? (inv.expiresAt | localDate) : '—' }}</td>
-              <td class="actions-cell">
-                <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" [disabled]="isPending('inv:' + inv.id)" (click)="onRevokeInvite(inv.id)">Revoke</button>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
+    <!-- Card-per-record like every listing (no table, no outer card). -->
+    <h2 class="section-heading" style="margin-top: var(--space-lg);">Pending Invitations ({{ invitations().length }})</h2>
+    <div class="data-list">
+      @for (inv of invitations(); track inv.id) {
+        <div class="data-card">
+          <div class="data-row">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ inv.email }}</div>
+              <div class="data-card__subline">
+                <span>{{ inv.companyName }}</span>
+                <span class="data-card__reg">{{ inv.roleName || 'No role' }}</span>
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Expires</dt><dd>{{ inv.expiresAt ? (inv.expiresAt | localDate) : '—' }}</dd></div>
+              </dl>
+            </div>
+            <div class="data-row__actions">
+              <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" [disabled]="isPending('inv:' + inv.id)" (click)="onRevokeInvite(inv.id)">Revoke</button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   }
 

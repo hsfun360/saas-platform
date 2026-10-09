@@ -2,6 +2,13 @@
    Cards come from the global data-list standard; this file owns the filter
    toolbar, the source chip and the load-more row. */
 
+/* The search box is the global .saas-search; inside the toolbar it flexes and drops its bottom margin. */
+.art-toolbar .saas-search {
+  flex: 1 1 260px;
+  min-width: 220px;
+  margin-bottom: 0;
+}
+
 .art-toolbar {
   display: flex;
   align-items: center;
@@ -10,42 +17,13 @@
   flex-wrap: wrap;
 }
 
-.art-search {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  flex: 1 1 260px;
-  min-width: 220px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-input);
-  padding: 0 var(--space-sm);
-}
 
-.art-search .material-icons { color: var(--text-muted); }
 
-.art-search input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  min-height: 44px;
-  font-size: var(--font-body);
-  color: var(--text-primary);
-  min-width: 0;
-}
 
 /* Field focus is the global rule in styles.css (brand border + blurred glow);
    a per-screen `outline: none; box-shadow: none` once removed every focus
    indication from this search box. */
 
-.art-search__clear {
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  min-width: 44px;
-  min-height: 44px;
-}
 
 .art-toolbar input[type='date'],
 .art-toolbar select {

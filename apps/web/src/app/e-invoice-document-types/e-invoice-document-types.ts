@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -24,6 +25,10 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 })
 export class EInvoiceDocumentTypesComponent implements OnInit {
   private readonly eInvoiceDocumentTypeService = inject(EInvoiceDocumentTypeService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/e-invoice-document-types';
   private readonly fb = inject(FormBuilder);
 
   readonly documentTypes = signal<EInvoiceDocumentType[]>([]);
@@ -81,6 +86,7 @@ export class EInvoiceDocumentTypesComponent implements OnInit {
       next: (data) => {
         this.documentTypes.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(EInvoiceDocumentTypesComponent.LIST_PATH, this.injector);
       },
       error: () => this.loading.set(false),
     });
@@ -103,6 +109,7 @@ export class EInvoiceDocumentTypesComponent implements OnInit {
   }
 
   toggleActive(documentType: EInvoiceDocumentType): void {
+    this.returnScroll.remember(EInvoiceDocumentTypesComponent.LIST_PATH, documentType.code);
     this.clearMessages();
     const next = !(documentType.isActive !== false);
     this.togglingCode.set(documentType.code);
@@ -176,6 +183,7 @@ export class EInvoiceDocumentTypesComponent implements OnInit {
   }
 
   openEdit(documentType: EInvoiceDocumentType): void {
+    this.returnScroll.remember(EInvoiceDocumentTypesComponent.LIST_PATH, documentType.code);
     this.clearMessages();
     this.editingCode.set(documentType.code);
     this.editForm.reset({ description: documentType.description });

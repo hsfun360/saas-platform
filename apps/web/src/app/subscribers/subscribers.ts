@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
@@ -47,6 +48,10 @@ export class SubscribersComponent implements OnInit {
   // Destructive-action confirmation (shared centred dialog; replaces window.confirm).
   readonly confirmAction = signal<ConfirmRequest | null>(null);
   private readonly fb = inject(FormBuilder);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/subscribers';
   // ── Subscriber list ──────────────────────────────────────────
   readonly subscriptions = signal<SubscriptionInfo[]>([]);
   readonly listLoading = signal(false);
@@ -134,6 +139,7 @@ export class SubscribersComponent implements OnInit {
       next: (data) => {
         this.subscriptions.set(data);
         this.listLoading.set(false);
+        this.returnScroll.consume(SubscribersComponent.LIST_PATH, this.injector);
       },
       error: () => this.listLoading.set(false),
     });
@@ -223,6 +229,7 @@ export class SubscribersComponent implements OnInit {
 
   // ── Edit (amend) ─────────────────────────────────────────────
   startEdit(sub: SubscriptionInfo): void {
+    this.returnScroll.remember(SubscribersComponent.LIST_PATH, sub.id);
     this.clearMessages();
     const company = sub.Companies?.[0];
     this.editingId.set(sub.id);

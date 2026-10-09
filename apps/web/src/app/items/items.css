@@ -76,53 +76,9 @@
 }
 
 /* Search field — icon on the left, optional clear (✕) on the right. */
-.it-search {
-  position: relative;
-  margin-bottom: var(--space-md);
-}
 
-.it-search__icon {
-  position: absolute;
-  left: var(--space-sm);
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 20px;
-  color: var(--text-muted);
-  pointer-events: none;
-}
 
-.it-search__input {
-  width: 100%;
-  box-sizing: border-box;
-  /* ≥16px so iOS doesn't zoom on focus; left/right padding clears icon + clear. */
-  min-height: 44px;
-  padding: var(--space-sm) 40px var(--space-sm) 38px;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  font-size: var(--font-body);
-  background: var(--surface-card);
-  color: var(--text-primary);
-}
 
-.it-search__clear {
-  position: absolute;
-  right: var(--space-xs);
-  top: 50%;
-  transform: translateY(-50%);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: transparent;
-  border-radius: 50%;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-.it-search__clear:hover {
-  background: var(--surface-sunken);
-}
 
 /* The "New item" FAB composes the global .saas-fab and the row status pill the
    global .status-chip (both in styles.css). */

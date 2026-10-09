@@ -29,13 +29,13 @@
 
   <!-- Filters: search + month + status -->
   <div class="art-toolbar">
-    <div class="art-search">
-      <span class="material-icons" aria-hidden="true">search</span>
-      <input type="search" [value]="search()" #q (input)="onSearch(q.value)"
+    <div class="saas-search">
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+      <input class="saas-search__input" type="search" [value]="search()" #q (input)="onSearch(q.value)"
              [attr.aria-label]="'Search ' + cfg().plural.toLowerCase()"
              placeholder="Search by number or description…" />
       @if (search()) {
-        <button type="button" class="art-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
       }
     </div>
     <!-- Optional docDate window: From pick snaps To to that month's last day
@@ -81,7 +81,7 @@
   } @else {
     <div class="data-list">
       @for (doc of rows(); track doc.id) {
-        <div class="data-card">
+        <div class="data-card" [attr.data-return-id]="doc.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <div class="data-card__title">{{ docRef(doc) }} — {{ doc.debtor.name || 'Unknown debtor' }}</div>

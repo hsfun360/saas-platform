@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, FormControl, FormRecord, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -28,6 +29,10 @@ import { CanDirective } from '../shared/can.directive';
 })
 export class CompanyTaxComponent implements OnInit {
   private readonly service = inject(TaxSchemeService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/company-tax';
   private readonly fb = inject(FormBuilder);
 
   readonly adoptions = signal<CompanyTaxAdoption[]>([]);
@@ -79,6 +84,7 @@ export class CompanyTaxComponent implements OnInit {
       next: (data) => {
         this.adoptions.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(CompanyTaxComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -103,6 +109,7 @@ export class CompanyTaxComponent implements OnInit {
   // Quick enable/disable without opening the editor. Preserves existing GL overrides
   // (the PUT replaces them wholesale, so we resend the current ones).
   toggleEnabled(a: CompanyTaxAdoption): void {
+    this.returnScroll.remember(CompanyTaxComponent.LIST_PATH, a.id);
     this.clearMessages();
     this.togglingId.set(a.id);
     this.service.setCompanyAdoption(a.id, { isEnabled: !a.isEnabled, glOverrides: this.overridesOf(a) }).subscribe({
@@ -125,6 +132,7 @@ export class CompanyTaxComponent implements OnInit {
   }
 
   openEdit(a: CompanyTaxAdoption): void {
+    this.returnScroll.remember(CompanyTaxComponent.LIST_PATH, a.id);
     this.clearMessages();
     // Rebuild the gl record for this scheme's components, then seed it pristine.
     const gl = this.glRecord;

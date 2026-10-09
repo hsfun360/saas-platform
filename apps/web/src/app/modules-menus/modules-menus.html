@@ -43,12 +43,12 @@
     <section class="mm-card mm-pane mm-pane--master" aria-label="Modules">
       <!-- Live filter over the loaded modules (name / description). -->
       @if (!modulesLoading() && modules().length > 0) {
-        <div class="mm-search">
-          <span class="material-icons mm-search__icon" aria-hidden="true">search</span>
+        <div class="saas-search">
+          <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
           <input #moduleSearchBox type="search" [value]="moduleSearch()" (input)="moduleSearch.set(moduleSearchBox.value)"
-                 placeholder="Search modules…" aria-label="Search modules" class="mm-search__input">
+                 placeholder="Search modules…" aria-label="Search modules" class="saas-search__input">
           @if (moduleSearch()) {
-            <button type="button" class="mm-search__clear" (click)="clearModuleSearch()" aria-label="Clear search">
+            <button type="button" class="saas-search__clear" (click)="clearModuleSearch()" aria-label="Clear search">
               <span class="material-icons" aria-hidden="true">close</span>
             </button>
           }
@@ -135,12 +135,12 @@
 
         <!-- Live filter over the loaded menus (name / route). -->
         @if (!menusLoading() && menus().length > 0) {
-          <div class="mm-search">
-            <span class="material-icons mm-search__icon" aria-hidden="true">search</span>
+          <div class="saas-search">
+            <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
             <input #menuSearchBox type="search" [value]="menuSearch()" (input)="menuSearch.set(menuSearchBox.value)"
-                   placeholder="Search menus…" aria-label="Search menus" class="mm-search__input">
+                   placeholder="Search menus…" aria-label="Search menus" class="saas-search__input">
             @if (menuSearch()) {
-              <button type="button" class="mm-search__clear" (click)="clearMenuSearch()" aria-label="Clear search">
+              <button type="button" class="saas-search__clear" (click)="clearMenuSearch()" aria-label="Clear search">
                 <span class="material-icons" aria-hidden="true">close</span>
               </button>
             }

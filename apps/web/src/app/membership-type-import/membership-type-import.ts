@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -30,6 +31,10 @@ export class MembershipTypeImportComponent {
   // Destructive-action confirmation (shared centred dialog; replaces window.confirm).
   readonly confirmAction = signal<ConfirmRequest | null>(null);
   private readonly service = inject(MembershipTypeImportService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/membership/type-import';
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -78,7 +83,8 @@ export class MembershipTypeImportComponent {
   load(): void {
     this.loading.set(true);
     this.service.list().subscribe({
-      next: (rows) => { this.batches.set(rows); this.loading.set(false); },
+      next: (rows) => { this.batches.set(rows); this.loading.set(false);
+        this.returnScroll.consume(MembershipTypeImportComponent.LIST_PATH, this.injector); },
       error: (err) => { this.loading.set(false); this.errorMessage.set(err.error?.message || 'Failed to load import batches.'); },
     });
   }
@@ -107,6 +113,7 @@ export class MembershipTypeImportComponent {
   }
 
   open(b: TypeImportBatchSummary): void {
+    this.returnScroll.remember(MembershipTypeImportComponent.LIST_PATH, b.id);
     this.clearMessages();
     this.router.navigate(['/membership/type-import', b.id]);
   }

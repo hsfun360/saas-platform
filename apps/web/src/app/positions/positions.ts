@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -26,6 +27,10 @@ import { CanDirective } from '../shared/can.directive';
 })
 export class PositionsComponent implements OnInit {
   private readonly service = inject(PositionService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/positions';
   private readonly fb = inject(FormBuilder);
 
   readonly positions = signal<Position[]>([]);
@@ -94,6 +99,7 @@ export class PositionsComponent implements OnInit {
       next: (data) => {
         this.positions.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(PositionsComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -110,6 +116,7 @@ export class PositionsComponent implements OnInit {
   }
 
   openEdit(p: Position): void {
+    this.returnScroll.remember(PositionsComponent.LIST_PATH, p.id);
     this.clearMessages();
     this.editId.set(p.id);
     this.form.reset({ positionCode: p.positionCode, description: p.description || '', rank: p.rank });
@@ -151,6 +158,7 @@ export class PositionsComponent implements OnInit {
   }
 
   toggleActive(p: Position): void {
+    this.returnScroll.remember(PositionsComponent.LIST_PATH, p.id);
     this.clearMessages();
     const next = !(p.isActive !== false);
     this.togglingId.set(p.id);

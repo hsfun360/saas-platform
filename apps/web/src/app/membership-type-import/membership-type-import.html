@@ -66,7 +66,7 @@
     } @else {
       <div class="data-list">
         @for (b of batches(); track b.id) {
-          <div class="data-card">
+          <div class="data-card" [attr.data-return-id]="b.id">
             <div class="data-row data-row--with-badge">
               <div class="data-row__main">
                 <div class="data-card__title">{{ b.fileName || 'import.xlsx' }}</div>

@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -24,6 +25,10 @@ import { CanDirective } from '../shared/can.directive';
 })
 export class DepartmentsComponent implements OnInit {
   private readonly service = inject(DepartmentService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/departments';
   private readonly fb = inject(FormBuilder);
 
   readonly departments = signal<Department[]>([]);
@@ -80,6 +85,7 @@ export class DepartmentsComponent implements OnInit {
       next: (data) => {
         this.departments.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(DepartmentsComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -96,6 +102,7 @@ export class DepartmentsComponent implements OnInit {
   }
 
   openEdit(d: Department): void {
+    this.returnScroll.remember(DepartmentsComponent.LIST_PATH, d.id);
     this.clearMessages();
     this.editId.set(d.id);
     this.form.reset({ departmentCode: d.departmentCode, description: d.description || '' });
@@ -136,6 +143,7 @@ export class DepartmentsComponent implements OnInit {
   }
 
   toggleActive(d: Department): void {
+    this.returnScroll.remember(DepartmentsComponent.LIST_PATH, d.id);
     this.clearMessages();
     const next = !(d.isActive !== false);
     this.togglingId.set(d.id);

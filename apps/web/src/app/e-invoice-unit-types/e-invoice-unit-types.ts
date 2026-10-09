@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -24,6 +25,10 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 })
 export class EInvoiceUnitTypesComponent implements OnInit {
   private readonly eInvoiceUnitTypeService = inject(EInvoiceUnitTypeService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/e-invoice-unit-types';
   private readonly fb = inject(FormBuilder);
 
   readonly unitTypes = signal<EInvoiceUnitType[]>([]);
@@ -81,6 +86,7 @@ export class EInvoiceUnitTypesComponent implements OnInit {
       next: (data) => {
         this.unitTypes.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(EInvoiceUnitTypesComponent.LIST_PATH, this.injector);
       },
       error: () => this.loading.set(false),
     });
@@ -103,6 +109,7 @@ export class EInvoiceUnitTypesComponent implements OnInit {
   }
 
   toggleActive(unitType: EInvoiceUnitType): void {
+    this.returnScroll.remember(EInvoiceUnitTypesComponent.LIST_PATH, unitType.code);
     this.clearMessages();
     const next = !(unitType.isActive !== false);
     this.togglingCode.set(unitType.code);
@@ -176,6 +183,7 @@ export class EInvoiceUnitTypesComponent implements OnInit {
   }
 
   openEdit(unitType: EInvoiceUnitType): void {
+    this.returnScroll.remember(EInvoiceUnitTypesComponent.LIST_PATH, unitType.code);
     this.clearMessages();
     this.editingCode.set(unitType.code);
     this.editForm.reset({ description: unitType.description });

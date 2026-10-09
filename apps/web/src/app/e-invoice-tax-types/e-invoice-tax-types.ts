@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -24,6 +25,10 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 })
 export class EInvoiceTaxTypesComponent implements OnInit {
   private readonly eInvoiceTaxTypeService = inject(EInvoiceTaxTypeService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/e-invoice-tax-types';
   private readonly fb = inject(FormBuilder);
 
   readonly taxTypes = signal<EInvoiceTaxType[]>([]);
@@ -81,6 +86,7 @@ export class EInvoiceTaxTypesComponent implements OnInit {
       next: (data) => {
         this.taxTypes.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(EInvoiceTaxTypesComponent.LIST_PATH, this.injector);
       },
       error: () => this.loading.set(false),
     });
@@ -103,6 +109,7 @@ export class EInvoiceTaxTypesComponent implements OnInit {
   }
 
   toggleActive(taxType: EInvoiceTaxType): void {
+    this.returnScroll.remember(EInvoiceTaxTypesComponent.LIST_PATH, taxType.code);
     this.clearMessages();
     const next = !(taxType.isActive !== false);
     this.togglingCode.set(taxType.code);
@@ -176,6 +183,7 @@ export class EInvoiceTaxTypesComponent implements OnInit {
   }
 
   openEdit(taxType: EInvoiceTaxType): void {
+    this.returnScroll.remember(EInvoiceTaxTypesComponent.LIST_PATH, taxType.code);
     this.clearMessages();
     this.editingCode.set(taxType.code);
     this.editForm.reset({ description: taxType.description });

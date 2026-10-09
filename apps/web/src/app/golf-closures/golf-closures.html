@@ -29,12 +29,12 @@
   <p class="gcl-count">{{ plans().length }} closure plan{{ plans().length === 1 ? '' : 's' }}, {{ activeCount() }} active</p>
 
   <!-- SEARCH -->
-  <div class="gcl-search">
-    <span class="material-icons gcl-search__icon" aria-hidden="true">search</span>
-    <input type="search" [value]="search()" (input)="search.set($any($event.target).value)"
+  <div class="saas-search">
+    <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
+    <input class="saas-search__input" type="search" [value]="search()" (input)="search.set($any($event.target).value)"
            placeholder="Search by description, nine or date…" aria-label="Search closure plans" />
     @if (search()) {
-      <button type="button" class="gcl-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
     }
   </div>
 

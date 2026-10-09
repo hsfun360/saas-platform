@@ -28,13 +28,13 @@
 
   <!-- Live filter over the loaded list (name / reg no. / timezone / module). -->
   @if (!companiesLoading() && companies().length > 0) {
-    <div class="company-search">
-      <span class="material-icons company-search__icon" aria-hidden="true">search</span>
+    <div class="saas-search">
+      <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
       <input #companySearch type="search" [value]="search()" (input)="search.set(companySearch.value)"
              placeholder="Search companies…" aria-label="Search companies"
-             class="company-search__input">
+             class="saas-search__input">
       @if (search()) {
-        <button type="button" class="company-search__clear" (click)="clearSearch()" aria-label="Clear search">
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">
           <span class="material-icons" aria-hidden="true">close</span>
         </button>
       }

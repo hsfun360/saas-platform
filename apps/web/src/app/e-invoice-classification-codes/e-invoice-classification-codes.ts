@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -27,6 +28,10 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 })
 export class EInvoiceClassificationCodesComponent implements OnInit {
   private readonly eInvoiceClassificationCodeService = inject(EInvoiceClassificationCodeService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/e-invoice-classification-codes';
   private readonly fb = inject(FormBuilder);
 
   readonly codes = signal<EInvoiceClassificationCode[]>([]);
@@ -83,6 +88,7 @@ export class EInvoiceClassificationCodesComponent implements OnInit {
       next: (data) => {
         this.codes.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(EInvoiceClassificationCodesComponent.LIST_PATH, this.injector);
       },
       error: () => this.loading.set(false),
     });
@@ -105,6 +111,7 @@ export class EInvoiceClassificationCodesComponent implements OnInit {
   }
 
   toggleActive(code: EInvoiceClassificationCode): void {
+    this.returnScroll.remember(EInvoiceClassificationCodesComponent.LIST_PATH, code.code);
     this.clearMessages();
     const next = !(code.isActive !== false);
     this.togglingCode.set(code.code);
@@ -178,6 +185,7 @@ export class EInvoiceClassificationCodesComponent implements OnInit {
   }
 
   openEdit(code: EInvoiceClassificationCode): void {
+    this.returnScroll.remember(EInvoiceClassificationCodesComponent.LIST_PATH, code.code);
     this.clearMessages();
     this.editingCode.set(code.code);
     this.editForm.reset({ description: code.description });

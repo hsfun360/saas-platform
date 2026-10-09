@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -24,6 +25,10 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 })
 export class EInvoiceStateCodesComponent implements OnInit {
   private readonly eInvoiceStateCodeService = inject(EInvoiceStateCodeService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/e-invoice-state-codes';
   private readonly fb = inject(FormBuilder);
 
   readonly stateCodes = signal<EInvoiceStateCode[]>([]);
@@ -81,6 +86,7 @@ export class EInvoiceStateCodesComponent implements OnInit {
       next: (data) => {
         this.stateCodes.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(EInvoiceStateCodesComponent.LIST_PATH, this.injector);
       },
       error: () => this.loading.set(false),
     });
@@ -103,6 +109,7 @@ export class EInvoiceStateCodesComponent implements OnInit {
   }
 
   toggleActive(stateCode: EInvoiceStateCode): void {
+    this.returnScroll.remember(EInvoiceStateCodesComponent.LIST_PATH, stateCode.code);
     this.clearMessages();
     const next = !(stateCode.isActive !== false);
     this.togglingCode.set(stateCode.code);
@@ -176,6 +183,7 @@ export class EInvoiceStateCodesComponent implements OnInit {
   }
 
   openEdit(stateCode: EInvoiceStateCode): void {
+    this.returnScroll.remember(EInvoiceStateCodesComponent.LIST_PATH, stateCode.code);
     this.clearMessages();
     this.editingCode.set(stateCode.code);
     this.editForm.reset({ description: stateCode.description });

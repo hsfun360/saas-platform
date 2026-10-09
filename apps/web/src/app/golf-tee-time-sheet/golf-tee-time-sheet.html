@@ -31,12 +31,12 @@
   <div class="fd-filter">
     <label for="fdDate">Play date</label>
     <input id="fdDate" type="date" [value]="listDate()" (change)="setListDate($any($event.target).value)" />
-    <div class="fd-search">
-      <span class="material-icons" aria-hidden="true">search</span>
-      <input id="fdSearch" type="search" [value]="search()" (input)="onSearch($any($event.target).value)"
+    <div class="saas-search">
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+      <input id="fdSearch" class="saas-search__input" type="search" [value]="search()" (input)="onSearch($any($event.target).value)"
              placeholder="Find by name, member no or booking no…" aria-label="Find a golfer or booking" />
       @if (search()) {
-        <button type="button" class="fd-search__clear" (click)="onSearch('')" aria-label="Clear search">✕</button>
+        <button type="button" class="saas-search__clear" (click)="onSearch('')" aria-label="Clear search">✕</button>
       }
     </div>
     @if (noShowAvailable()) {

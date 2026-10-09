@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -51,6 +52,10 @@ const MSIC_SECTION_NAMES: Record<string, string> = {
 })
 export class EInvoiceMsicCodesComponent implements OnInit {
   private readonly eInvoiceMsicCodeService = inject(EInvoiceMsicCodeService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/e-invoice-msic-codes';
   private readonly fb = inject(FormBuilder);
 
   readonly codes = signal<EInvoiceMsicCode[]>([]);
@@ -121,6 +126,7 @@ export class EInvoiceMsicCodesComponent implements OnInit {
       next: (data) => {
         this.codes.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(EInvoiceMsicCodesComponent.LIST_PATH, this.injector);
       },
       error: () => this.loading.set(false),
     });
@@ -143,6 +149,7 @@ export class EInvoiceMsicCodesComponent implements OnInit {
   }
 
   toggleActive(code: EInvoiceMsicCode): void {
+    this.returnScroll.remember(EInvoiceMsicCodesComponent.LIST_PATH, code.code);
     this.clearMessages();
     const next = !(code.isActive !== false);
     this.togglingCode.set(code.code);
@@ -217,6 +224,7 @@ export class EInvoiceMsicCodesComponent implements OnInit {
   }
 
   openEdit(code: EInvoiceMsicCode): void {
+    this.returnScroll.remember(EInvoiceMsicCodesComponent.LIST_PATH, code.code);
     this.clearMessages();
     this.editingCode.set(code.code);
     this.editForm.reset({

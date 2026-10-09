@@ -28,12 +28,12 @@
 
   <!-- Live filter over the loaded roles (name / description). -->
   @if (!rolesLoading() && roles().length > 0) {
-    <div class="role-search">
-      <span class="material-icons role-search__icon" aria-hidden="true">search</span>
+    <div class="saas-search">
+      <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
       <input #roleSearchBox type="search" [value]="roleSearch()" (input)="roleSearch.set(roleSearchBox.value)"
-             placeholder="Search roles…" aria-label="Search roles" class="role-search__input">
+             placeholder="Search roles…" aria-label="Search roles" class="saas-search__input">
       @if (roleSearch()) {
-        <button type="button" class="role-search__clear" (click)="clearSearch()" aria-label="Clear search">
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">
           <span class="material-icons" aria-hidden="true">close</span>
         </button>
       }

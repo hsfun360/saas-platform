@@ -1,6 +1,12 @@
 /* Golf Tee Time Sheet (the Front Desk group's tee sheet) - screen-specific bits; listing chrome, dialog, flash and
    buttons are the shared global systems. All colours are theme tokens. */
 
+/* The search box is the global .saas-search; inside the toolbar it flexes and drops its bottom margin. */
+.fd-filter .saas-search {
+  flex: 1 1 260px;
+  margin-bottom: 0;
+}
+
 .fd-filter {
   display: flex;
   align-items: center;
@@ -32,42 +38,6 @@
 }
 
 /* Golfer/booking search - highlights matching flights on the sheet. */
-.fd-search {
-  position: relative;
-  flex: 1 1 260px;
-  display: flex;
-  align-items: center;
-}
-.fd-search .material-icons {
-  position: absolute;
-  left: 10px;
-  color: var(--text-muted);
-  pointer-events: none;
-}
-.fd-search input {
-  width: 100%;
-  min-height: 44px;
-  padding: 0 40px;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  background: var(--surface-input);
-  color: var(--text-primary);
-  font-size: var(--font-body);
-}
-.fd-search__clear {
-  position: absolute;
-  right: 4px;
-  min-width: 36px;
-  min-height: 36px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-radius: 50%;
-}
-.fd-search__clear:hover {
-  background: var(--surface-hover);
-}
 .fd-nomatch {
   display: flex;
   align-items: center;

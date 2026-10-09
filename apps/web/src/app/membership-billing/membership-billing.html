@@ -95,7 +95,7 @@
   } @else {
     <div class="data-list">
       @for (s of rows(); track s.id) {
-        <div class="data-card">
+        <div class="data-card" [attr.data-return-id]="s.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <div class="data-card__title">{{ typeLabel(s.billingType) }}</div>
@@ -112,7 +112,7 @@
                     [class.mb-status--pending]="s.status === 'pending' || s.status === 'partially-posted'">{{ s.status }}</span>
             </div>
             <div class="data-row__actions">
-              <button type="button" class="btn btn--secondary btn--sm" [routerLink]="['/membership/billing', s.id]">Review</button>
+              <button type="button" class="btn btn--secondary btn--sm" [routerLink]="['/membership/billing', s.id]" (click)="rememberRow(s.id)">Review</button>
               @if (s.status === 'pending') {
                 <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + typeLabel(s.billingType)">
                   <button type="button" appMenuItem (click)="onCancel(s)">

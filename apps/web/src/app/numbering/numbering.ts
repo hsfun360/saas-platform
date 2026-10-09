@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { ActivatedRoute } from '@angular/router';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -27,6 +28,10 @@ import { CanDirective } from '../shared/can.directive';
 })
 export class NumberingComponent implements OnInit {
   private readonly service = inject(NumberingService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/membership/numbering';
   private readonly fb = inject(FormBuilder);
   // 'membership' | 'ar' from the route definition.
   readonly module: NumberingModule =
@@ -159,6 +164,7 @@ export class NumberingComponent implements OnInit {
       next: (data) => {
         this.schemes.set(data);
         this.loading.set(false);
+        this.returnScroll.consume(NumberingComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -186,6 +192,7 @@ export class NumberingComponent implements OnInit {
   }
 
   openEdit(s: NumberingScheme): void {
+    this.returnScroll.remember(NumberingComponent.LIST_PATH, s.id);
     this.clearMessages();
     this.editId.set(s.id);
     this.editCurrentNumber.set(s.currentNumber ?? 0);
@@ -245,6 +252,7 @@ export class NumberingComponent implements OnInit {
   }
 
   toggleActive(s: NumberingScheme): void {
+    this.returnScroll.remember(NumberingComponent.LIST_PATH, s.id);
     this.clearMessages();
     const next = !(s.isActive !== false);
     this.togglingId.set(s.id);

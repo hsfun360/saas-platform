@@ -41,12 +41,12 @@
         }
       </select>
     </div>
-    <div class="ggb-search">
-      <span class="material-icons ggb-search__icon" aria-hidden="true">search</span>
-      <input type="search" [value]="search()" (input)="search.set($any($event.target).value)"
+    <div class="saas-search">
+      <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
+      <input class="saas-search__input" type="search" [value]="search()" (input)="search.set($any($event.target).value)"
              placeholder="Search by group, booking no, organiser or course…" aria-label="Search group bookings" />
       @if (search()) {
-        <button type="button" class="ggb-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
       }
     </div>
 

@@ -75,49 +75,6 @@
 }
 
 /* Listing search — icon left, optional clear (✕) right. */
-.mm-search {
-  position: relative;
-  margin-bottom: var(--space-md);
-}
-.mm-search__icon {
-  position: absolute;
-  left: var(--space-sm);
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 20px;
-  color: var(--text-muted);
-  pointer-events: none;
-}
-.mm-search__input {
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 44px; /* ≥16px font below avoids iOS zoom on focus */
-  padding: var(--space-sm) 40px var(--space-sm) 38px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface-card);
-  color: var(--text-primary);
-  border-radius: 8px;
-  font-size: var(--font-body);
-}
-.mm-search__clear {
-  position: absolute;
-  right: var(--space-xs);
-  top: 50%;
-  transform: translateY(-50%);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: transparent;
-  border-radius: 50%;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-.mm-search__clear:hover {
-  background: var(--surface-sunken);
-}
 
 /* Mobile "back to master" button — hidden on desktop where both panes show. */
 .mm-back {

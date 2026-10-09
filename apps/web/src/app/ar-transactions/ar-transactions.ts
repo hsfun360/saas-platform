@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
@@ -164,6 +165,10 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
 })
 export class ArTransactionsComponent implements OnInit {
   private readonly service = inject(ArService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/ar/transactions';
   private readonly route = inject(ActivatedRoute);
   private readonly permissions = inject(PermissionsService);
 
@@ -232,6 +237,7 @@ export class ArTransactionsComponent implements OnInit {
         this.total.set(res.total);
         this.baseCurrencyCode.set(res.baseCurrencyCode || null);
         this.loading.set(false);
+        this.returnScroll.consume(ArTransactionsComponent.LIST_PATH, this.injector);
         this.loadingMore.set(false);
       },
       error: (err) => {
@@ -334,6 +340,7 @@ export class ArTransactionsComponent implements OnInit {
     this.entryOpen.set(true);
   }
   openEdit(row: ArDocListRow): void {
+    this.returnScroll.remember(ArTransactionsComponent.LIST_PATH, row.id);
     this.clearMessages();
     this.editRow.set(row);
     this.entryOpen.set(true);

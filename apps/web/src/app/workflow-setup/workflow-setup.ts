@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ScrollReturnService } from '../services/scroll-return.service';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -52,6 +53,10 @@ type DialogMode = 'definition' | 'step' | 'preview';
 })
 export class WorkflowSetupComponent implements OnInit {
   private readonly service = inject(WorkflowService);
+  // After-save return-to-row (app-wide listing standard).
+  private readonly returnScroll = inject(ScrollReturnService);
+  private readonly injector = inject(Injector);
+  private static readonly LIST_PATH = '/admin/workflows';
   private readonly fb = inject(FormBuilder);
 
   readonly meta = signal<WorkflowMeta | null>(null);
@@ -167,7 +172,8 @@ export class WorkflowSetupComponent implements OnInit {
       error: (err) => this.errorMessage.set(err.error?.message || 'Failed to load workflow options.'),
     });
     this.service.listDefinitions().subscribe({
-      next: (data) => { this.definitions.set(data); this.loading.set(false); },
+      next: (data) => { this.definitions.set(data); this.loading.set(false);
+        this.returnScroll.consume(WorkflowSetupComponent.LIST_PATH, this.injector); },
       error: (err) => { this.loading.set(false); this.errorMessage.set(err.error?.message || 'Failed to load workflows.'); },
     });
   }
@@ -227,6 +233,7 @@ export class WorkflowSetupComponent implements OnInit {
   }
 
   openEdit(d: WorkflowDefinition): void {
+    this.returnScroll.remember(WorkflowSetupComponent.LIST_PATH, d.id);
     this.clearMessages();
     this.editId.set(d.id);
     this.form.reset({
@@ -304,6 +311,7 @@ export class WorkflowSetupComponent implements OnInit {
   }
 
   toggleActive(d: WorkflowDefinition): void {
+    this.returnScroll.remember(WorkflowSetupComponent.LIST_PATH, d.id);
     this.clearMessages();
     const next = !(d.isActive !== false);
     this.togglingId.set(d.id);

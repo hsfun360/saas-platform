@@ -37,45 +37,6 @@
   border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
 }
 
-.ggb-search {
-  position: relative;
-  margin-bottom: var(--space-md);
-}
-.ggb-search input[type='search'] {
-  width: 100%;
-  min-height: 44px;
-  padding: var(--space-sm) 40px;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  background: var(--surface-input);
-  color: var(--text-primary);
-  font-size: var(--font-body);
-}
-.ggb-search__icon {
-  position: absolute;
-  left: var(--space-sm);
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  pointer-events: none;
-}
-.ggb-search__clear {
-  position: absolute;
-  right: var(--space-xs);
-  top: 50%;
-  transform: translateY(-50%);
-  min-width: 36px;
-  min-height: 36px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-radius: 8px;
-}
-.ggb-search__clear:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
 
 /* Group / Tournament chip on a card subline and the detail title. */
 .ggb-type {
