@@ -384,9 +384,10 @@ Notes:
   button's preferred width back into track sizing - let it fill via the default `stretch`).
 - Keep expanding panels / edit forms as **full-width siblings below** the grid row, not
   inside it, so they span the whole card.
-- Reference implementations: `companies.css` (`.company-*`, with a status badge),
-  `role-management.css` (`.role-*`), `tenant-users.css` (`.assign-row*`),
-  `modules-menus.css` (`.mm-row*`, with a `<button>` main cell).
+- Reference implementations: `companies.html` (the global `.data-row--with-badge`, with a
+  status chip), `tenant-users.css` (`.assign-row*`), and `modules-menus.css` (`.mm-row*`,
+  with a `<button>` main cell). `role-management.css` (`.role-*`) and `tax-schemes.css`
+  (`.tx-row*`) still carry hand-rolled rows and are legacy, not references to copy.
 
 **Status chip (active/inactive etc.) is always TOP-RIGHT.** When a record card carries a
 status badge, it is **right-justified** in its own grid area, not inline after the title -
@@ -403,9 +404,9 @@ grid-template-areas:
 ```
 
 The shared implementation is **`.data-row--with-badge`** (compose as
-`class="data-row data-row--with-badge"`, with a `.data-row__badge` cell) in
-`system-setup.css`. Reference implementations: `platform-users.html` (Active/Inactive
-chip + SSO brand icon next to the email) and `companies.css` (`.company-summary`).
+`class="data-row data-row--with-badge"`, with a `.data-row__badge` cell), global in
+`styles.css`. Reference implementations: `platform-users.html` (Active/Inactive
+chip + SSO brand icon next to the email) and `companies.html`.
 
 **Rows never show more than TWO action controls: one visible primary + an overflow ("kebab") menu.**
 The visible one is the action users reach for most (usually **Edit**, `.btn--secondary .btn--sm`); **every other action goes in the kebab - even when there is only ONE more** (a lone Enable/Disable still folds in; clarified 2026-08-19 on `ar-transaction-types`).
@@ -464,7 +465,7 @@ For any screen with a **list (master) → item detail (detail)** relationship (e
 .mm-layout { display: grid; grid-template-columns: minmax(0, 420px) 1fr; gap: var(--space-lg); align-items: start; }
 .mm-back   { display: none; }                      /* mobile-only back button */
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {                        /* the mobile tier boundary - never 768 */
   .mm-layout { grid-template-columns: 1fr; }
   .mm-pane--detail { display: none; }              /* default: master visible */
   .mm-layout--detail .mm-pane--master { display: none; }
@@ -585,8 +586,12 @@ left the Companies screen unthemed until it was migrated).
 Reference implementation: **`companies.html`** - the canonical listing, which composes these
 shared global classes directly (`.data-list` → `.data-card` → `.data-row--with-badge` →
 `.status-chip`). `system-setup.html` is a second example. Copy this for new listings.
-(The same primitives still exist scoped inside `system-setup.css` for the admin screens that
-import it; that duplicate copy is being removed now that the canonical definition is global.)
+**Every listing primitive is global in `styles.css` (2026-10-09):** `.saas-container`,
+`.saas-header*` / `.saas-subtitle`, `.saas-search*`, `.saas-fab`, `.spinner`,
+`.loading-state` / `.empty-state` / `.empty-icon`, `.cell-*`, `.badge` (plan/category tag
+only) and the `.data-*` / `.status-chip` family. `system-setup.css` keeps only the System
+Setup screen's own tab bar, cards and admin panels - a new screen does NOT need to import
+it, and must never copy one of these primitives into its own stylesheet.
 
 **Keep cards compact - roughly three lines of info.** A record card reads best as a
 short stack, not a wall of label/value pairs. The standard shape:
@@ -620,11 +625,12 @@ The shared `.data-card__*` classes implement them - use those, don't hand-roll a
 
 **Status chip - the compact overline pill.**
 A record's Active / Inactive / Disabled status is a small pill pinned **top-right**, **inline with the title's first line** - the row grid is `align-items: start` so the chip aligns with the headline, never floating above a vertically-centred title, and never inline after the title text.
-Use these exact values - NOT the larger shared `.badge` (which is `--font-caption`, radius 20px, and red for inactive):
+It is the global **`.status-chip`** with ONE state modifier - never a per-screen pill and never the `.badge` tag (which is `--font-caption`, radius 20px, and reserved for plan/category tags such as PRO):
 
-- `--font-overline` (10px), `--weight-bold`, `text-transform: uppercase`, `letter-spacing: 0.5px`, `border-radius: 12px`, padding `--space-xs --space-sm`.
-- On / active: background `#dcfce7`, colour `#166534`. Off / inactive / disabled: background `#f1f5f9`, colour `#64748b` (grey, not red).
-- Reference: Companies (`.company-badge`) and Tax Setup (`.tx-status`).
+- `status-chip--on` (green) for active / posted / paid; `status-chip--off` (grey, never red) for inactive / disabled / voided.
+- `status-chip--info` (blue) for a pending or partial standing and `status-chip--danger` (red) for an outstanding / overdue one, so multi-state documents compose the same chip (reference: the Group Bookings deposit standing).
+- The look is `--font-overline` (10px), `--weight-bold`, uppercase, `letter-spacing: 0.5px`, `border-radius: 12px`, padding `--space-xs --space-sm`, colours from the `--success-*` / `--chip-off-*` / `--info-*` / `--danger-*` tokens.
+- The legacy `.badge-active` / `.badge-inactive` rules and the private `.it-status` / `.tx-status` / `.ggb-standing` copies were deleted on 2026-10-09 (25 listings migrated). Reference: `companies.html`, `platform-users.html`.
 
 **Master-detail: the record's actions live on the MASTER card, not in the detail.**
 For a list → children master-detail (Modules & Menus, Tax Setup), the record's own actions - **Edit**, and for soft-lifecycle records **Enable/Disable** (never a hard **Delete** where posted data may reference the record) - sit on the master card via the action-row-with-badge grid.
@@ -643,9 +649,12 @@ For any non-trivial listing (more than a handful of rows), the **add** action an
   the primary way users locate a record once scanning fails. Filter the **already-loaded
   list client-side** (a `computed()` over the data signal) for instant results; don't
   round-trip the server per keystroke. Match across the visible fields (title + the
-  meta values). The field is a native `<input type="search">` with an `aria-label`, a
-  leading search icon, and a clear (✕) button shown only when there's text. Keep it
-  ≥ 44px tall and ≥ 16px font (so iOS doesn't zoom on focus).
+  meta values). Compose the global **`.saas-search`** block (`styles.css`): a native
+  `<input type="search" class="saas-search__input">` with an `aria-label`, a leading
+  `<span class="saas-search__icon material-icons" aria-hidden="true">search</span>` (a
+  Material glyph - the 🔍 emoji was swept out of 41 screens on 2026-10-09), and a
+  `.saas-search__clear` (✕) button shown only when there's text. It is ≥ 44px tall with a
+  ≥ 16px font (so iOS doesn't zoom on focus). Never write a per-screen `.my-search*` copy.
 - **Sort beside the search (order).** Card lists have no column headers to click, so a
   listing that needs ordering places the shared **`<app-sort-menu>`** (`shared/sort-menu`)
   to the RIGHT of the search field (one flex row: search flexes, sort keeps its size).
@@ -761,8 +770,10 @@ clearSearch() { this.search.set(''); }
 ```
 
 Reference implementation: `companies.html` (search + `saas-fab`), and `items.ts` /
-`items.html` / `items.css` (`.it-search*`, `filteredItems` computed, the `search_off`
-empty state), routed as `items` and `items/:id`.
+`items.html` (`filteredItems` computed, the `search_off` empty state), routed as `items`
+and `items/:id`. Empty-state icons are Material glyphs too
+(`<span class="material-icons empty-icon" aria-hidden="true">inbox</span>` for "nothing yet",
+`search_off` for "no match"); emoji there were swept out on 2026-10-09.
 
 #### Content width - ONE cap for every listing screen (1140px)
 
