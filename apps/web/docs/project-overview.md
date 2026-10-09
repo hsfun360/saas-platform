@@ -132,6 +132,7 @@ All UI components you generate MUST follow these patterns:
 
 | Token | Size | CSS var | Used for |
 | --- | --- | --- | --- |
+| 2xs | 2px (0.125rem) | `--space-2xs` | The ONE sub-grid step: an optical nudge that sits an inline glyph, chip or count badge on the text baseline. Never for layout rhythm. |
 | xs | 4px (0.25rem) | `--space-xs` | Tiny gaps, icon-to-text spacing |
 | sm | 8px (0.5rem) | `--space-sm` | Compact items, list item padding |
 | md | 16px (1rem) - **default** | `--space-md` | Standard / card padding, list item spacing |
@@ -139,6 +140,21 @@ All UI components you generate MUST follow these patterns:
 | xl | 32px (2rem) | `--space-xl` | Screen padding, major sections |
 | 2xl | 48px (3rem) | `--space-2xl` | Hero sections |
 | 3xl | 64px (4rem) | `--space-3xl` | Page top/bottom breathing room |
+
+Raw `px` in a screen stylesheet is reserved for what no token can express: a 1px border or the `-1px` tab-underline overlap, the 44px touch target, fixed column widths, and the visually-hidden recipe.
+Everything else composes a token (standardized 2026-10-09; the 2px nudges and glyph sizes were migrated then).
+
+#### Icon size scale (Material glyphs)
+
+| Token | Size | CSS var | Used for |
+| --- | --- | --- | --- |
+| xs | 16px (1rem) | `--icon-xs` | Caption-level glyph in a dense row, checkbox-sized boxes |
+| sm | 18px (1.125rem) | `--icon-sm` | Inline glyph beside body-2 text, listing-row and menu-item icons |
+| md | 20px (1.25rem) | `--icon-md` | Inline glyph beside body text, the search-box and chevron glyphs |
+| lg | 24px (1.5rem) | `--icon-lg` | Material's default, standalone icon buttons |
+
+Glyphs are intrinsic sizes, not spacing - size a `.material-icons` span with `--icon-*`, never with `--space-*` or a raw `18px`.
+The header tile (`.saas-icon`, 52px/28px glyph) and the 48px empty-state glyph are the two fixed exceptions, defined once globally.
 
 #### Colour tokens & appearance (3 modes: System / Light / Dark)
 
