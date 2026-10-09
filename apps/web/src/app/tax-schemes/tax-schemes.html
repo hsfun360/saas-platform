@@ -9,8 +9,8 @@
           <h1>{{ 'Platform Tax' | screenTitle }}<app-fav-star /></h1>
           <p class="saas-subtitle">{{ 'Platform-owned tax schemes (e.g. tax on Subscription Fee), defined per country.' | screenSubtitle }}</p>
         } @else {
-          <h1>Tax Setup</h1>
-          <p class="saas-subtitle">Tax schemes for your subscription — defined per country, consumed by each company in that country.</p>
+          <h1>{{ 'Tax Setup' | screenTitle }}<app-fav-star /></h1>
+          <p class="saas-subtitle">{{ 'Tax schemes for your subscription - defined per country, consumed by each company in that country.' | screenSubtitle }}</p>
         }
       </div>
     </div>
@@ -66,7 +66,7 @@
           </div>
         }
         <div class="saas-search">
-          <span class="saas-search__icon" aria-hidden="true">🔍</span>
+          <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
           <input #txSearchBox type="search" [value]="search()" (input)="search.set(txSearchBox.value)"
                  placeholder="Search schemes…" aria-label="Search tax schemes" class="saas-search__input">
           @if (search()) {
@@ -79,7 +79,7 @@
         <div class="loading-state"><div class="spinner large"></div><p>Loading tax schemes…</p></div>
       } @else if (schemes().length === 0) {
         <div class="empty-state">
-          <span class="empty-icon">📭</span>
+          <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
           @if (isPlatform()) {
             <p>No platform tax schemes yet. Use "New scheme" to add one for a country.</p>
           } @else {
@@ -89,7 +89,7 @@
         </div>
       } @else if (filtered().length === 0) {
         <div class="empty-state">
-          <span class="empty-icon">🔍</span>
+          <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
           <p>No schemes match “{{ search() }}”.</p>
           <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
         </div>
@@ -121,12 +121,12 @@
               }
               <div class="tx-row__actions">
                 <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditScheme(s)">Edit</button>
-                <button type="button" class="btn btn--sm"
-                        [class.btn--success]="s.isActive === false" [class.btn--danger]="s.isActive !== false"
-                        (click)="toggleSchemeActive(s)"
-                        [disabled]="togglingSchemeId() === s.id">
-                  {{ togglingSchemeId() === s.id ? 'Saving…' : (s.isActive === false ? 'Enable' : 'Disable') }}
-                </button>
+                <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + s.taxSchemeCode">
+                  <button type="button" appMenuItem (click)="toggleSchemeActive(s)" [disabled]="togglingSchemeId() === s.id">
+                    <span class="material-icons" aria-hidden="true">{{ s.isActive === false ? 'check_circle' : 'block' }}</span>
+                    {{ togglingSchemeId() === s.id ? 'Saving…' : (s.isActive === false ? 'Enable' : 'Disable') }}
+                  </button>
+                </app-overflow-menu>
               </div>
             </div>
           }
@@ -146,7 +146,7 @@
 
       @if (!selectedScheme()) {
         <div class="empty-state tx-detail-empty">
-          <span class="empty-icon">👈</span>
+          <span class="material-icons empty-icon" aria-hidden="true">arrow_back</span>
           <p>Select a scheme to view its rate lines, or create a new one.</p>
         </div>
       } @else {
@@ -189,7 +189,7 @@
 
           @if (selectedRates().length === 0) {
             <div class="empty-state tx-rates-empty">
-              <span class="empty-icon">📄</span>
+              <span class="material-icons empty-icon" aria-hidden="true">description</span>
               <p>No rate lines yet. Use "Add rate" to define this scheme's rate.</p>
             </div>
           } @else {
@@ -216,10 +216,12 @@
                   </div>
                   <div class="tx-rate-actions">
                     <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditRate(r)">Edit</button>
-                    <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" (click)="deleteRate(r)"
-                            [disabled]="deletingRateId() === r.id">
-                      {{ deletingRateId() === r.id ? 'Removing…' : 'Delete' }}
-                    </button>
+                    <app-overflow-menu *appCan="'delete'" [label]="'More actions for the rate effective ' + (r.effectiveFrom | localDate)">
+                      <button type="button" appMenuItem (click)="deleteRate(r)" [disabled]="deletingRateId() === r.id">
+                        <span class="material-icons" aria-hidden="true">delete</span>
+                        {{ deletingRateId() === r.id ? 'Removing…' : 'Delete' }}
+                      </button>
+                    </app-overflow-menu>
                   </div>
                 </div>
               }
@@ -437,13 +439,13 @@
           <div class="loading-state"><div class="spinner"></div><p>Loading available schemes…</p></div>
         } @else if (loadTemplates().length === 0) {
           <div class="empty-state">
-            <span class="empty-icon">📭</span>
+            <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
             <p>No platform defaults are available for your companies' countries.</p>
           </div>
         } @else {
           <!-- Search across code / name / country -->
           <div class="saas-search">
-            <span class="saas-search__icon" aria-hidden="true">🔍</span>
+            <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
             <input #loadSearchBox type="search" [value]="loadSearch()" (input)="loadSearch.set(loadSearchBox.value)"
                    placeholder="Search schemes…" aria-label="Search available schemes" class="saas-search__input">
             @if (loadSearch()) {
@@ -457,7 +459,7 @@
 
           @if (filteredLoadTemplates().length === 0) {
             <div class="empty-state">
-              <span class="empty-icon">🔍</span>
+              <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
               <p>No schemes match “{{ loadSearch() }}”.</p>
               <button type="button" class="btn btn--secondary btn--sm" (click)="clearLoadSearch()">Clear search</button>
             </div>

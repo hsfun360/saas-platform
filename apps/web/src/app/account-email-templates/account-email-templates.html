@@ -22,7 +22,7 @@
   @if (loading()) {
     <div class="loading-state"><div class="spinner large"></div><p>Loading templates…</p></div>
   } @else if (templates().length === 0) {
-    <div class="empty-state"><span class="empty-icon">📭</span><p>There are no customisable email templates for your organisation yet.</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>There are no customisable email templates for your organisation yet.</p></div>
   } @else {
     <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
       @for (t of templates(); track t.key) {

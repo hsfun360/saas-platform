@@ -41,7 +41,7 @@
   <!-- Live filter (code / description / type). -->
   @if (!loading() && courses().length > 0) {
     <div class="saas-search">
-      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
       <input #ucSearchBox type="search" [value]="search()" (input)="search.set(ucSearchBox.value)"
              placeholder="Search unit courses…" aria-label="Search unit courses" class="saas-search__input">
       @if (search()) {
@@ -54,12 +54,12 @@
     <div class="loading-state"><div class="spinner large"></div><p>Loading unit courses…</p></div>
   } @else if (courses().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">⛳</span>
+      <span class="material-icons empty-icon" aria-hidden="true">golf_course</span>
       <p>No unit courses yet. A unit course is one nine — set them up first, then pair two (OUT + IN) into an 18-hole course.</p>
     </div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🔍</span>
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
       <p>No unit courses match “{{ search() }}”.</p>
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>
@@ -296,7 +296,7 @@
         } @else {
           @if (teeRows().length === 0) {
             <div class="empty-state">
-              <span class="empty-icon">🏌️</span>
+              <span class="material-icons empty-icon" aria-hidden="true">sports_golf</span>
               <p>No tee boxes yet. Use "Add tee box" to define this nine's tees (e.g. BLUE, WHITE, RED).</p>
             </div>
           }

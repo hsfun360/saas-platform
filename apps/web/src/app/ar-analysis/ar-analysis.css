@@ -12,7 +12,7 @@
 
 .ana-back { display: none; }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .ana-layout { grid-template-columns: 1fr; }
   .ana-pane--detail { display: none; }
   .ana-layout--detail .ana-pane--master { display: none; }

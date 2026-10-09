@@ -13,6 +13,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
 // System Setup → Tax Setup (subscriber-owned catalog).
 // Master–detail: the scheme list is the master; the selected scheme (its header +
@@ -22,7 +23,7 @@ import { LocalDatePipe } from '../shared/local-date.pipe';
 @Component({
   selector: 'app-tax-schemes',
   standalone: true,
-  imports: [CanDirective, LocalDatePipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, ComboboxComponent],
+  imports: [CanDirective, LocalDatePipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './tax-schemes.html',
   styleUrls: ['../system-setup/system-setup.css', './tax-schemes.css'],
 })

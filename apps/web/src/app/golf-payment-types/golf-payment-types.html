@@ -41,7 +41,7 @@
   <!-- Live filter -->
   @if (!loading() && rows().length > 0) {
     <div class="saas-search">
-      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
       <input #gptSearchBox type="search" [value]="search()" (input)="search.set(gptSearchBox.value)"
              placeholder="Search payment types…" aria-label="Search payment types" class="saas-search__input">
       @if (search()) {
@@ -53,10 +53,10 @@
   @if (loading()) {
     <div class="loading-state"><div class="spinner large"></div><p>Loading payment types…</p></div>
   } @else if (rows().length === 0) {
-    <div class="empty-state"><span class="empty-icon">📭</span><p>No payment types yet. Use "New payment type" to add one (e.g. CASH — Cash, VISA — Visa Card).</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No payment types yet. Use "New payment type" to add one (e.g. CASH — Cash, VISA — Visa Card).</p></div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🔍</span>
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
       <p>No payment types match “{{ search() }}”.</p>
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>

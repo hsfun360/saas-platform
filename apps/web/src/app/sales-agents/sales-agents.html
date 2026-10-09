@@ -35,7 +35,7 @@
   </div>
 
   <div class="saas-search">
-    <span class="saas-search__icon" aria-hidden="true">🔍</span>
+    <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
     <input #agentSearch type="search" [value]="search()" (input)="search.set(agentSearch.value)"
            placeholder="Search by code, name, email…" aria-label="Search agents" class="saas-search__input">
     @if (search()) {
@@ -47,7 +47,7 @@
     <div class="loading-state"><div class="spinner large"></div><p>Loading agents…</p></div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">{{ search() || kindFilter() ? '🔎' : '📭' }}</span>
+      <span class="material-icons empty-icon" aria-hidden="true">{{ search() || kindFilter() ? 'search_off' : 'inbox' }}</span>
       @if (search() || kindFilter()) {
         <p>No agents match your search.</p>
         <button type="button" class="btn btn--secondary btn--sm" (click)="kindFilter.set(''); search.set(''); load()">Clear search</button>

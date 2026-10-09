@@ -5,6 +5,8 @@ import { AdminService } from '../services/admin.service';
 import { AuthService } from '../auth.service';
 import { AuditLogEntry } from '../models/auth.models';
 import { LocalDatePipe } from '../shared/local-date.pipe';
+import { ScreenTitlePipe } from '../i18n/screen-title.pipe';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Read-only viewer over the append-only audit trail (audit."AuditLog").
 // Filters -> paged list -> expandable field-by-field from/to diff per entry.
@@ -15,7 +17,7 @@ import { LocalDatePipe } from '../shared/local-date.pipe';
 @Component({
   selector: 'app-audit-log',
   standalone: true,
-  imports: [ReactiveFormsModule, LocalDatePipe],
+  imports: [ReactiveFormsModule, LocalDatePipe, ScreenTitlePipe, FavStarComponent],
   templateUrl: './audit-log.html',
   styleUrls: ['./audit-log.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -106,7 +106,7 @@
     <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
   } @else if (runs().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">📭</span>
+      <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
       <p>No statement runs yet. Use "Preview &amp; generate" above.</p>
     </div>
   } @else {
@@ -165,7 +165,7 @@
             for {{ scopeLabel(p.categories) }}.</p>
           <p><strong>{{ p.total }}</strong> debtor(s) are in scope. Debtors with no balance and no activity are skipped automatically.</p>
           @if (p.replaced > 0) {
-            <p class="asg-preview__warn">⚠️ {{ p.replaced }} debtor(s) already have a statement for this month —
+            <p class="asg-preview__warn"><span class="material-icons inline-icon" aria-hidden="true">warning</span> {{ p.replaced }} debtor(s) already have a statement for this month —
               their existing statements will be <strong>deleted and regenerated</strong>.</p>
           } @else {
             <p class="cell-subtle">No existing statements for this month will be replaced.</p>

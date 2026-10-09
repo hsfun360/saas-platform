@@ -41,7 +41,7 @@
   <!-- Live filter (code / description / nines). -->
   @if (!loading() && courses().length > 0) {
     <div class="saas-search">
-      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
       <input #gcSearchBox type="search" [value]="search()" (input)="search.set(gcSearchBox.value)"
              placeholder="Search courses…" aria-label="Search courses" class="saas-search__input">
       @if (search()) {
@@ -54,12 +54,12 @@
     <div class="loading-state"><div class="spinner large"></div><p>Loading courses…</p></div>
   } @else if (courses().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🏌️</span>
+      <span class="material-icons empty-icon" aria-hidden="true">sports_golf</span>
       <p>No courses yet. A course pairs two unit courses — any nine may sit in either seat. Set up your unit courses first, then pair them here.</p>
     </div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🔍</span>
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
       <p>No courses match “{{ search() }}”.</p>
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>
@@ -264,7 +264,7 @@
               <div class="loading-state"><div class="spinner"></div><p>Loading tee-time sets…</p></div>
             } @else if (ttSets().length === 0) {
               <div class="empty-state">
-                <span class="empty-icon">🕐</span>
+                <span class="material-icons empty-icon" aria-hidden="true">schedule</span>
                 <p>No tee-time sets yet. Each course keeps its own flight times — add one set per day scope, and a new set with a later effective date when daylight changes.</p>
               </div>
             } @else {
@@ -290,16 +290,16 @@
                   </div>
                   <div class="tt-set__actions">
                     <button type="button" class="btn btn--secondary btn--sm" (click)="openSlots(s)">Flight times ({{ slotCount(s) }})</button>
-                    <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openSetForm(s)">Edit</button>
-                    @if (s.isActive === false) {
-                      <button type="button" class="btn btn--success btn--sm" (click)="toggleSetActive(s)" [disabled]="ttTogglingId() === s.id">
-                        {{ ttTogglingId() === s.id ? 'Saving…' : 'Enable' }}
+                    <app-overflow-menu *appCan="'edit'" [label]="'More actions for the tee-time set from ' + hhmm(s.firstTeeTime)">
+                      <button type="button" appMenuItem (click)="openSetForm(s)">
+                        <span class="material-icons" aria-hidden="true">edit</span>
+                        Edit
                       </button>
-                    } @else {
-                      <button type="button" class="btn btn--danger btn--sm" (click)="toggleSetActive(s)" [disabled]="ttTogglingId() === s.id">
-                        {{ ttTogglingId() === s.id ? 'Saving…' : 'Disable' }}
+                      <button type="button" appMenuItem (click)="toggleSetActive(s)" [disabled]="ttTogglingId() === s.id">
+                        <span class="material-icons" aria-hidden="true">{{ s.isActive === false ? 'check_circle' : 'block' }}</span>
+                        {{ ttTogglingId() === s.id ? 'Saving…' : (s.isActive === false ? 'Enable' : 'Disable') }}
                       </button>
-                    }
+                    </app-overflow-menu>
                   </div>
                 </div>
               }
@@ -398,7 +398,7 @@
           @case ('slots') {
             @if (slotRows().length === 0) {
               <div class="empty-state">
-                <span class="empty-icon">🕐</span>
+                <span class="material-icons empty-icon" aria-hidden="true">schedule</span>
                 <p>No flight times yet — generate them from this set's schedule, then adjust individual flights as needed.</p>
               </div>
             } @else {

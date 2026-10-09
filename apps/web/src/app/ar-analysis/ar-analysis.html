@@ -41,7 +41,7 @@
           </button>
         </div>
         @if (categories().length === 0) {
-          <div class="empty-state"><span class="empty-icon">📭</span><p>No dimensions yet. Use "New dimension" to define one (e.g. Department on Dimension 1, Project on Dimension 2).</p></div>
+          <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No dimensions yet. Use "New dimension" to define one (e.g. Department on Dimension 1, Project on Dimension 2).</p></div>
         } @else {
           <div class="data-list">
             @for (c of sortedCategories(); track c.id) {
@@ -110,7 +110,7 @@
             </button>
           </div>
           @if (selectedOptions().length === 0) {
-            <div class="empty-state"><span class="empty-icon">📭</span><p>No options yet. Use "New option" (e.g. FNB — Food &amp; Beverage).</p></div>
+            <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No options yet. Use "New option" (e.g. FNB — Food &amp; Beverage).</p></div>
           } @else {
             @for (g of optionGroups(); track g.key) {
             @if (g.label) {
@@ -337,7 +337,7 @@
         </div>
       } @else {
         @if (copyCandidates().length === 0) {
-          <div class="empty-state"><span class="empty-icon">📭</span><p>{{ copySource()?.name }} has no active dimensions to copy.</p></div>
+          <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>{{ copySource()?.name }} has no active dimensions to copy.</p></div>
         } @else {
           <p class="cell-subtle" style="margin-top: 0;">Each dimension copies with its active options and module assignments, adapted to this company.</p>
           <label class="att-copy__all">

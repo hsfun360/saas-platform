@@ -2,6 +2,8 @@ import { Component, OnInit, ChangeDetectionStrategy, inject, signal, computed } 
 import { AdminService } from '../services/admin.service';
 import { UnverifiedUser } from '../models/auth.models';
 import { LocalDatePipe } from '../shared/local-date.pipe';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 const STALE_DAYS = 7;
 
@@ -13,7 +15,7 @@ const STALE_DAYS = 7;
 @Component({
   selector: 'app-unverified-users',
   standalone: true,
-  imports: [LocalDatePipe],
+  imports: [LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent],
   templateUrl: './unverified-users.html',
   styleUrls: ['./unverified-users.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,

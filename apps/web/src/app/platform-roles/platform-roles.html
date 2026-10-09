@@ -31,7 +31,7 @@
        search + per-record cards sit directly on the page (the Companies standard). -->
   @if (!rolesLoading() && roles().length > 0) {
     <div class="saas-search">
-      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
       <input #roleSearchBox type="search" [value]="roleSearch()" (input)="roleSearch.set(roleSearchBox.value)"
              placeholder="Search roles…" aria-label="Search roles" class="saas-search__input">
       @if (roleSearch()) {
@@ -43,10 +43,10 @@
   @if (rolesLoading()) {
     <div class="loading-state"><div class="spinner large"></div><p>Loading roles…</p></div>
   } @else if (roles().length === 0) {
-    <div class="empty-state"><span class="empty-icon">📭</span><p>No system roles yet. Use the “Create role” button to add one.</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No system roles yet. Use the “Create role” button to add one.</p></div>
   } @else if (filteredRoles().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🔍</span>
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
       <p>No roles match “{{ roleSearch() }}”.</p>
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>
@@ -94,7 +94,7 @@
 
   <!-- Floating "Create role" action — opens the dialog. -->
   <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="Create role">
-    <span aria-hidden="true">➕</span>
+    <span class="material-icons" aria-hidden="true">add</span>
     Create role
   </button>
 

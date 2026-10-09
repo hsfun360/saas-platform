@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { LanguageService } from '../services/language.service';
 import { TranslatePipe } from '../i18n/translate.pipe';
 import { Language } from '../models/auth.models';
+import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Tenant Admin self-service: choose which of the platform's languages the
 // subscriber (account) offers, and set the default among them. Users in the
@@ -11,7 +12,7 @@ import { Language } from '../models/auth.models';
 @Component({
   selector: 'app-account-languages',
   standalone: true,
-  imports: [CommonModule, TranslatePipe],
+  imports: [CommonModule, TranslatePipe, FavStarComponent],
   templateUrl: './account-languages.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })

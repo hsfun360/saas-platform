@@ -31,7 +31,7 @@
        card — search + per-record cards sit directly on the page (Companies standard). -->
   @if (!usersLoading() && users().length > 0) {
     <div class="saas-search">
-      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
       <input #userSearchBox type="search" [value]="userSearch()" (input)="userSearch.set(userSearchBox.value)"
              placeholder="Search users…" aria-label="Search users" class="saas-search__input">
       @if (userSearch()) {
@@ -43,10 +43,10 @@
   @if (usersLoading()) {
     <div class="loading-state"><div class="spinner large"></div><p>Loading users…</p></div>
   } @else if (users().length === 0) {
-    <div class="empty-state"><span class="empty-icon">📭</span><p>No users yet. Use the “Create user” button to add one.</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No users yet. Use the “Create user” button to add one.</p></div>
   } @else if (filteredUsers().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🔍</span>
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
       <p>No users match “{{ userSearch() }}”.</p>
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>
@@ -102,7 +102,7 @@
 
   <!-- Floating "Create user" action — opens the dialog. -->
   <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="Create user">
-    <span aria-hidden="true">➕</span>
+    <span class="material-icons" aria-hidden="true">add</span>
     Create user
   </button>
 

@@ -41,7 +41,7 @@
   <!-- Live filter -->
   @if (!loading() && titles().length > 0) {
     <div class="saas-search">
-      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
       <input #titleSearchBox type="search" [value]="search()" (input)="search.set(titleSearchBox.value)"
              placeholder="Search titles…" aria-label="Search titles" class="saas-search__input">
       @if (search()) {
@@ -53,10 +53,10 @@
   @if (loading()) {
     <div class="loading-state"><div class="spinner large"></div><p>Loading titles…</p></div>
   } @else if (titles().length === 0) {
-    <div class="empty-state"><span class="empty-icon">📭</span><p>No titles yet. Use "New title" to add one (e.g. DATUK — Datuk → Malaysia, or SIR — Sir → any country).</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No titles yet. Use "New title" to add one (e.g. DATUK — Datuk → Malaysia, or SIR — Sir → any country).</p></div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🔍</span>
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
       <p>No titles match “{{ search() }}”.</p>
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>

@@ -5,7 +5,7 @@
     <div class="saas-header-left">
       <span class="saas-icon material-icons" aria-hidden="true">translate</span>
       <div>
-        <h1>{{ 'accountLanguages.title' | t }}</h1>
+        <h1>{{ 'accountLanguages.title' | t }}<app-fav-star /></h1>
         <p class="saas-subtitle">{{ 'accountLanguages.subtitle' | t }}</p>
       </div>
     </div>
@@ -30,7 +30,7 @@
   @if (loading()) {
     <div class="loading-state"><div class="spinner large"></div><p>{{ 'common.loading' | t }}</p></div>
   } @else if (available().length === 0) {
-    <div class="empty-state"><span class="empty-icon">📭</span><p>{{ 'accountLanguages.none' | t }}</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>{{ 'accountLanguages.none' | t }}</p></div>
   } @else {
     <!-- YOUR LANGUAGES: the current selection at a glance, with the default (★). -->
     <div class="data-card" style="margin-bottom: var(--space-md);">

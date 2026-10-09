@@ -70,7 +70,7 @@
       </div>
     } @else {
       <div class="empty-state">
-        <span class="empty-icon">📄</span>
+        <span class="material-icons empty-icon" aria-hidden="true">description</span>
         @if (cfg().readOnly) {
           <p>No {{ cfg().plural.toLowerCase() }} for this month yet. The Interest Generation run posts them.</p>
         } @else {

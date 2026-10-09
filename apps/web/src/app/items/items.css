@@ -138,7 +138,7 @@
    Mobile (≤ 768px): one pane at a time. By default the list (master) shows;
    once an item is open or being created (.it-layout--detail, driven by the URL
    param) the detail pane covers the master. */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .it-layout {
     grid-template-columns: 1fr;
   }

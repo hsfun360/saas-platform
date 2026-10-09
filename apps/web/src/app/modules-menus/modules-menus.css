@@ -165,7 +165,7 @@
    Mobile (≤ 768px): one pane at a time. By default the master (modules) list
    shows; once a module is open (.mm-layout--detail, driven by the URL param)
    the detail pane covers the master. */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .mm-layout {
     grid-template-columns: 1fr;
   }

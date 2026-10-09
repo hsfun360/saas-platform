@@ -40,7 +40,7 @@
     <div class="loading-state"><div class="spinner large"></div><p>Loading numbering control…</p></div>
   } @else if (schemes().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">📭</span>
+      <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
       <p>No numbering configured yet. Use "New numbering scheme" to set up how Membership numbers are issued.</p>
     </div>
   } @else {
@@ -195,7 +195,7 @@
         </div>
       } @else {
         @if (copyCandidates().length === 0) {
-          <div class="empty-state"><span class="empty-icon">📭</span><p>{{ copySource()?.name }} has no active numbering schemes to copy.</p></div>
+          <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>{{ copySource()?.name }} has no active numbering schemes to copy.</p></div>
         } @else {
           <p class="cell-subtle" style="margin-top: 0;">The copy brings the configuration only — numbering here always starts fresh from the starting number.</p>
           <label class="att-copy__all">

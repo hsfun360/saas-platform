@@ -46,7 +46,7 @@
   <!-- Live filter (code / description). -->
   @if (!loading() && documentTypes().length > 0) {
     <div class="saas-search">
-      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
       <input #documentTypeSearchBox type="search" [value]="search()" (input)="search.set(documentTypeSearchBox.value)"
              placeholder="Search document types…" aria-label="Search document types" class="saas-search__input">
       @if (search()) {
@@ -58,10 +58,10 @@
   @if (loading()) {
     <div class="loading-state"><div class="spinner large"></div><p>Loading document types…</p></div>
   } @else if (documentTypes().length === 0) {
-    <div class="empty-state"><span class="empty-icon">📭</span><p>No document types yet. Use "Sync now" to load the LHDN list, or "New document type" to add one.</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No document types yet. Use "Sync now" to load the LHDN list, or "New document type" to add one.</p></div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🔍</span>
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
       <p>No document types match “{{ search() }}”.</p>
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>

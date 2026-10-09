@@ -28,12 +28,12 @@
     }
     @if (configured() && lastError() && !errorMessage()) {
       <div class="smtp-status" style="background:var(--danger-surface); color:var(--danger-text);" role="alert">
-        ⚠️ Last delivery error: {{ lastError() }}
+        <span class="material-icons inline-icon" aria-hidden="true">warning</span> Last delivery error: {{ lastError() }}
       </div>
     }
     @if (configured() && lastVerifiedAt() && !lastError()) {
       <div class="smtp-status" style="background:var(--info-surface); color:var(--info-text);">
-        ✅ Last verified {{ lastVerifiedAt() | localDate:'datetime' }}
+        <span class="material-icons inline-icon" aria-hidden="true">check_circle</span> Last verified {{ lastVerifiedAt() | localDate:'datetime' }}
       </div>
     }
 

@@ -31,12 +31,12 @@
     <div class="loading-state"><div class="spinner large"></div><p>Loading company tax schemes…</p></div>
   } @else if (noCountry()) {
     <div class="empty-state">
-      <span class="empty-icon">🌏</span>
+      <span class="material-icons empty-icon" aria-hidden="true">public</span>
       <p>This company has no country set yet. Set the company country (System Setup → Companies) to manage its tax schemes.</p>
     </div>
   } @else if (adoptions().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">📭</span>
+      <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
       <p>No tax schemes exist for this company's country yet. Add them in Tax Setup (or Load defaults) first.</p>
     </div>
   } @else {
@@ -48,7 +48,7 @@
 
     <!-- Live filter -->
     <div class="saas-search">
-      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
       <input #ctSearch type="search" [value]="search()" (input)="search.set(ctSearch.value)"
              placeholder="Search schemes…" aria-label="Search tax schemes" class="saas-search__input">
       @if (search()) {
@@ -58,7 +58,7 @@
 
     @if (filtered().length === 0) {
       <div class="empty-state">
-        <span class="empty-icon">🔍</span>
+        <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
         <p>No schemes match “{{ search() }}”.</p>
         <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
       </div>

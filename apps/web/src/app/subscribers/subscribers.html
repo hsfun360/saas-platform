@@ -32,7 +32,7 @@
        Companies standard). -->
   @if (!listLoading() && subscriptions().length > 0) {
     <div class="saas-search">
-      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
       <input #subSearch type="search" [value]="subscriberSearch()" (input)="subscriberSearch.set(subSearch.value)"
              placeholder="Search subscribers…" aria-label="Search subscribers" class="saas-search__input">
       @if (subscriberSearch()) {
@@ -48,12 +48,12 @@
     </div>
   } @else if (subscriptions().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">📭</span>
+      <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
       <p>No subscribers yet. Use the “New subscriber” button to create your first one.</p>
     </div>
   } @else if (filteredSubscriptions().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🔍</span>
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
       <p>No subscribers match “{{ subscriberSearch() }}”.</p>
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>
@@ -122,7 +122,7 @@
                       @if (cu.roleName) { <span class="role-pill">{{ cu.roleName }}</span> }
                     </span>
                     @if (cu.roleName === 'Tenant Admin') {
-                      <span class="admin-current">✔ Tenant Admin</span>
+                      <span class="admin-current"><span class="material-icons inline-icon" aria-hidden="true">check</span> Tenant Admin</span>
                     } @else {
                       <button type="button" class="btn btn--primary btn--sm"
                               [disabled]="settingAdminUserId === cu.id"
@@ -142,7 +142,7 @@
 
   <!-- Floating "New subscriber" action — opens the dialog. -->
   <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="New subscriber">
-    <span aria-hidden="true">➕</span>
+    <span class="material-icons" aria-hidden="true">add</span>
     New subscriber
   </button>
 

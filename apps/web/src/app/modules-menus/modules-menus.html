@@ -2,7 +2,7 @@
   <header style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-md);">
     <span class="saas-icon material-icons" aria-hidden="true">widgets</span>
     <div>
-      <h2 style="color: var(--text-primary); margin: 0; font-size: var(--font-h1);">{{ titleFallback | screenTitle }}<app-fav-star /></h2>
+      <h1 style="color: var(--text-primary); margin: 0; font-size: var(--font-h1);">{{ titleFallback | screenTitle }}<app-fav-star /></h1>
       <p style="color: var(--text-muted); font-size: var(--font-body-2); margin: 2px 0 0;">
         @if (audience === 'platform') {
           Manage the platform's own staff catalogue. <strong>Modules</strong> group the screens platform users work in
@@ -94,11 +94,12 @@
                        platform modules stay deletable like any module. -->
                   <span style="color: var(--text-muted); font-size: var(--font-caption); align-self: center;">System module</span>
                 } @else {
-                  <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" (click)="deleteModule(m)"
-                          [disabled]="deletingModuleId() === m.id" [attr.aria-label]="'Delete module ' + m.name">
-                    <span class="material-icons" aria-hidden="true">delete</span>
-                    {{ deletingModuleId() === m.id ? 'Deleting…' : 'Delete' }}
-                  </button>
+                  <app-overflow-menu *appCan="'delete'" [label]="'More actions for ' + m.name">
+                    <button type="button" appMenuItem (click)="deleteModule(m)" [disabled]="deletingModuleId() === m.id">
+                      <span class="material-icons" aria-hidden="true">delete</span>
+                      {{ deletingModuleId() === m.id ? 'Deleting…' : 'Delete' }}
+                    </button>
+                  </app-overflow-menu>
                 }
               </span>
             </li>
@@ -173,11 +174,12 @@
                       <span class="material-icons" aria-hidden="true">edit</span>
                       Edit
                     </button>
-                    <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" (click)="deleteMenu(menu)"
-                            [disabled]="deletingMenuId() === menu.id" [attr.aria-label]="'Delete menu ' + menu.name">
-                      <span class="material-icons" aria-hidden="true">delete</span>
-                      {{ deletingMenuId() === menu.id ? 'Deleting…' : 'Delete' }}
-                    </button>
+                    <app-overflow-menu *appCan="'delete'" [label]="'More actions for ' + menu.name">
+                      <button type="button" appMenuItem (click)="deleteMenu(menu)" [disabled]="deletingMenuId() === menu.id">
+                        <span class="material-icons" aria-hidden="true">delete</span>
+                        {{ deletingMenuId() === menu.id ? 'Deleting…' : 'Delete' }}
+                      </button>
+                    </app-overflow-menu>
                   </span>
                 </li>
               }
@@ -218,18 +220,20 @@
                       <span class="mm-menu-row__route">{{ node.menu.route }}</span>
                     </span>
                     <span class="mm-menu-row__actions">
-                      <button type="button" class="btn btn--secondary btn--sm" (click)="startCreateMenu(node.menu.id)"
-                              [disabled]="!!deletingMenuId()" [attr.aria-label]="'Add sub-menu under ' + node.menu.name">
-                        <span class="material-icons" aria-hidden="true">add</span>
-                      </button>
                       <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="startEditMenu(node.menu)"
                               [disabled]="!!deletingMenuId()" [attr.aria-label]="'Edit menu ' + node.menu.name">
                         <span class="material-icons" aria-hidden="true">edit</span>
                       </button>
-                      <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" (click)="deleteMenu(node.menu)"
-                              [disabled]="deletingMenuId() === node.menu.id" [attr.aria-label]="'Delete menu ' + node.menu.name">
-                        <span class="material-icons" aria-hidden="true">delete</span>
-                      </button>
+                      <app-overflow-menu [label]="'More actions for ' + node.menu.name">
+                        <button *appCan="'create'" type="button" appMenuItem (click)="startCreateMenu(node.menu.id)" [disabled]="!!deletingMenuId()">
+                          <span class="material-icons" aria-hidden="true">add</span>
+                          Add sub-menu
+                        </button>
+                        <button *appCan="'delete'" type="button" appMenuItem (click)="deleteMenu(node.menu)" [disabled]="deletingMenuId() === node.menu.id">
+                          <span class="material-icons" aria-hidden="true">delete</span>
+                          Delete
+                        </button>
+                      </app-overflow-menu>
                     </span>
                   </div>
                   @if (node.children.length && !isMenuCollapsed(node.menu.id)) {

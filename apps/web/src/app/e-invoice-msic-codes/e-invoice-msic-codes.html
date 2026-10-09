@@ -46,7 +46,7 @@
   <!-- Live filter (code / description / section). -->
   @if (!loading() && codes().length > 0) {
     <div class="saas-search">
-      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
       <input #msicSearchBox type="search" [value]="search()" (input)="search.set(msicSearchBox.value)"
              placeholder="Search e-Invoice MSIC codes…" aria-label="Search e-Invoice MSIC codes" class="saas-search__input">
       @if (search()) {
@@ -58,10 +58,10 @@
   @if (loading()) {
     <div class="loading-state"><div class="spinner large"></div><p>Loading e-Invoice MSIC codes…</p></div>
   } @else if (codes().length === 0) {
-    <div class="empty-state"><span class="empty-icon">📭</span><p>No e-Invoice MSIC codes yet. Use "Sync now" to load the LHDN list, or "New code" to add one.</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No e-Invoice MSIC codes yet. Use "Sync now" to load the LHDN list, or "New code" to add one.</p></div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🔍</span>
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
       <p>No e-Invoice MSIC codes match “{{ search() }}”.</p>
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>

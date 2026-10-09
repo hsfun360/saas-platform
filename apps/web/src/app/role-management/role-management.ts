@@ -9,6 +9,7 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { FULL_ACCESS, GrantFlags, PermissionPickerComponent } from '../shared/permission-picker/permission-picker';
 import { CanDirective } from '../shared/can.directive';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 
 // Account-level Role Management. A Role is just a named set of menu permissions
 // (RBAC) — NOT tied to a company. Company enters only at entitlement (module
@@ -23,7 +24,7 @@ import { CanDirective } from '../shared/can.directive';
 @Component({
   selector: 'app-role-management',
   standalone: true,
-  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PermissionPickerComponent],
+  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PermissionPickerComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './role-management.html',
   styleUrls: ['./role-management.css'],
 })

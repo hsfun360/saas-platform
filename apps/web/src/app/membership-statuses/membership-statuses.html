@@ -41,7 +41,7 @@
   <!-- Live filter (code / class / description). -->
   @if (!loading() && statuses().length > 0) {
     <div class="saas-search">
-      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
       <input #msSearchBox type="search" [value]="search()" (input)="search.set(msSearchBox.value)"
              placeholder="Search statuses…" aria-label="Search statuses" class="saas-search__input">
       @if (search()) {
@@ -54,13 +54,13 @@
     <div class="loading-state"><div class="spinner large"></div><p>Loading membership statuses…</p></div>
   } @else if (statuses().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">📭</span>
+      <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
       <p>No membership statuses yet. Use "New status" to add one, or copy from another company in your subscription.</p>
       <button *appCan="'create'" type="button" class="btn btn--secondary" (click)="openCopy()">Copy from another company</button>
     </div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🔍</span>
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
       <p>No statuses match “{{ search() }}”.</p>
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>
@@ -291,7 +291,7 @@
           <div class="loading-state"><div class="spinner"></div><p>Loading companies…</p></div>
         } @else if (copySources().length === 0) {
           <div class="empty-state">
-            <span class="empty-icon">📭</span>
+            <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
             <p>No other company in your subscription has statuses to copy.</p>
           </div>
         } @else {

@@ -231,7 +231,12 @@
                       <button type="button" class="btn btn--secondary btn--sm" (click)="openReceipt(d.id)">Collect</button>
                     }
                     @if (d.status === 'open' && depositUntouched(d)) {
-                      <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="askVoidDeposit(d)">Void</button>
+                      <app-overflow-menu *appCan="'edit'" [label]="'More actions for the deposit of ' + (d.docDate | localDate)">
+                        <button type="button" appMenuItem (click)="askVoidDeposit(d)">
+                          <span class="material-icons" aria-hidden="true">block</span>
+                          Void
+                        </button>
+                      </app-overflow-menu>
                     }
                   </div>
                 </div>

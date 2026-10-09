@@ -42,7 +42,7 @@
     <div class="loading-state"><div class="spinner"></div><p>Loading closure plans…</p></div>
   } @else if (plans().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🚧</span>
+      <span class="material-icons empty-icon" aria-hidden="true">construction</span>
       <p>No closure plans yet. Use 'New closure plan' to close a nine over a date period — e.g. greens maintenance every weekday morning, or a tournament weekend.</p>
     </div>
   } @else if (filtered().length === 0) {
@@ -190,7 +190,7 @@
           @case ('days') {
             @if (dayRows().length === 0) {
               <div class="empty-state">
-                <span class="empty-icon">🚧</span>
+                <span class="material-icons empty-icon" aria-hidden="true">construction</span>
                 <p>No closure days yet — generate them from this plan's period and day scope, then adjust or except individual days as needed.</p>
               </div>
             } @else {

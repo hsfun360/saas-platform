@@ -5,6 +5,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ArLedgerDialogComponent, ArLedgerDialogDebtor } from '../shared/ar-ledger-dialog/ar-ledger-dialog';
 import { ArReceiptDialogComponent } from '../shared/ar-receipt-dialog/ar-receipt-dialog';
 import { ArRefundDialogComponent } from '../shared/ar-refund-dialog/ar-refund-dialog';
@@ -29,7 +30,7 @@ import { ArAccount, ArAccountMeta, ArDepositDoc, ArLedgerDoc, ArReceiptDoc } fro
   imports: [
     CommonModule, RouterLink, DialogComponent, CanDirective,
     LocalDatePipe, ArLedgerDialogComponent, ArReceiptDialogComponent,
-    ArRefundDialogComponent, ArDepositDialogComponent,
+    ArRefundDialogComponent, ArDepositDialogComponent, OverflowMenuComponent, MenuItemDirective,
   ],
   templateUrl: './ar-debtor-account.html',
   styleUrls: ['../system-setup/system-setup.css', './ar-debtor-account.css'],

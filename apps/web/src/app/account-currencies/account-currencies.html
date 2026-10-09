@@ -30,7 +30,7 @@
   @if (loading()) {
     <div class="loading-state"><div class="spinner large"></div><p>Loading…</p></div>
   } @else if (available().length === 0) {
-    <div class="empty-state"><span class="empty-icon">📭</span><p>No currencies available. Ask your platform administrator to add currencies.</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No currencies available. Ask your platform administrator to add currencies.</p></div>
   } @else {
     <!-- YOUR CURRENCIES: the current selection at a glance, with the default (★). -->
     <div class="data-card" style="margin-bottom: var(--space-md);">
@@ -62,7 +62,7 @@
 
       <!-- Live filter (name / code). -->
       <div class="saas-search" style="margin-bottom: var(--space-sm);">
-        <span class="saas-search__icon" aria-hidden="true">🔍</span>
+        <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
         <input #curBox type="search" [value]="search()" (input)="search.set(curBox.value)"
                placeholder="Search currencies…" aria-label="Search currencies" class="saas-search__input">
         @if (search()) {

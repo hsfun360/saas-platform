@@ -33,7 +33,7 @@
   <!-- Live filter -->
   @if (!loading() && rows().length > 0) {
     <div class="saas-search">
-      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
       <input #ttSearchBox type="search" [value]="search()" (input)="search.set(ttSearchBox.value)"
              placeholder="Search transaction types…" aria-label="Search transaction types" class="saas-search__input">
       @if (search()) {
@@ -45,10 +45,10 @@
   @if (loading()) {
     <div class="loading-state"><div class="spinner large"></div><p>Loading transaction types…</p></div>
   } @else if (rows().length === 0) {
-    <div class="empty-state"><span class="empty-icon">📭</span><p>No catalog entries are opened to Membership yet — tick "Membership" on the entries under Account Receivable → Transaction Type.</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No catalog entries are opened to Membership yet — tick "Membership" on the entries under Account Receivable → Transaction Type.</p></div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🔍</span>
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
       <p>No transaction types match “{{ search() }}”.</p>
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>

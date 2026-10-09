@@ -41,7 +41,7 @@
   <!-- Live filter -->
   @if (!loading() && races().length > 0) {
     <div class="saas-search">
-      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
       <input #raceSearchBox type="search" [value]="search()" (input)="search.set(raceSearchBox.value)"
              placeholder="Search races…" aria-label="Search races" class="saas-search__input">
       @if (search()) {
@@ -53,10 +53,10 @@
   @if (loading()) {
     <div class="loading-state"><div class="spinner large"></div><p>Loading races…</p></div>
   } @else if (races().length === 0) {
-    <div class="empty-state"><span class="empty-icon">📭</span><p>No races yet. Use "New race" to add one (e.g. MAL — Malay, CHN — Chinese).</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No races yet. Use "New race" to add one (e.g. MAL — Malay, CHN — Chinese).</p></div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🔍</span>
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
       <p>No races match “{{ search() }}”.</p>
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>

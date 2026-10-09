@@ -63,7 +63,7 @@
   <!-- Live filter -->
   @if (!loading() && holidays().length > 0) {
     <div class="saas-search">
-      <span class="saas-search__icon" aria-hidden="true">🔍</span>
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
       <input #holSearchBox type="search" [value]="search()" (input)="search.set(holSearchBox.value)"
              placeholder="Search holidays…" aria-label="Search public holidays" class="saas-search__input">
       @if (search()) {
@@ -76,14 +76,14 @@
     <div class="loading-state"><div class="spinner large"></div><p>Loading public holidays…</p></div>
   } @else if (countries().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🌍</span>
+      <span class="material-icons empty-icon" aria-hidden="true">public</span>
       <p>None of your companies has an address country set yet. Set each company's country in Companies first — holidays are set up per country.</p>
     </div>
   } @else if (holidays().length === 0) {
-    <div class="empty-state"><span class="empty-icon">📭</span><p>No public holidays yet. Use "New holiday" to add one (e.g. Hari Merdeka — 31 Aug).</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No public holidays yet. Use "New holiday" to add one (e.g. Hari Merdeka — 31 Aug).</p></div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
-      <span class="empty-icon">🔍</span>
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
       <p>No holidays match your filter.</p>
       @if (search()) {
         <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>

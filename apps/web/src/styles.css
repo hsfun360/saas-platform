@@ -1085,6 +1085,11 @@ textarea:disabled {
   font-size: 48px;
   margin-bottom: var(--space-sm);
 }
+/* A Material glyph inline with body text (replaces ⚠️ / ✅ emoji in copy). */
+.inline-icon {
+  font-size: 1.125em;
+  vertical-align: -0.2em;
+}
 
 /* Secondary cell text and the SSO brand mark beside an email. */
 .cell-mono {

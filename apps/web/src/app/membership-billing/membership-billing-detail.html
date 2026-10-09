@@ -62,7 +62,7 @@
 
     <!-- Items -->
     @if (items().length === 0) {
-      <div class="empty-state"><span class="empty-icon">📭</span><p>This schedule generated no items.</p></div>
+      <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>This schedule generated no items.</p></div>
     } @else {
       <div class="mbd-items">
         @for (i of items(); track i.id) {
