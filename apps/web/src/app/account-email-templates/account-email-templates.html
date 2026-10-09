@@ -37,12 +37,12 @@
             <div class="data-row__badge">
               @if (t.hasOverride) {
                 @if (t.isActive === false) {
-                  <span class="badge badge-inactive">Custom · Disabled</span>
+                  <span class="status-chip status-chip--off">Custom · Disabled</span>
                 } @else {
-                  <span class="badge" style="background:var(--success-surface); color:var(--success-text);">Custom</span>
+                  <span class="status-chip status-chip--on">Custom</span>
                 }
               } @else {
-                <span class="badge" style="background:var(--chip-off-surface); color:var(--text-secondary);">Platform default</span>
+                <span class="status-chip status-chip--off">Platform default</span>
               }
             </div>
             <div class="data-row__actions">

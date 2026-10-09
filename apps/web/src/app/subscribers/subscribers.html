@@ -80,7 +80,7 @@
               </dl>
             </div>
             <div class="data-row__badge">
-              <span class="badge" [class.badge-active]="sub.status === 'ACTIVE'" [class.badge-inactive]="sub.status !== 'ACTIVE'">{{ sub.status }}</span>
+              <span class="status-chip" [class.status-chip--on]="sub.status === 'ACTIVE'" [class.status-chip--off]="sub.status !== 'ACTIVE'">{{ sub.status }}</span>
             </div>
             <div class="data-row__actions">
               <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="startEdit(sub)"

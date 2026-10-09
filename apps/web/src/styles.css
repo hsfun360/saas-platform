@@ -375,6 +375,17 @@ body {
   background: var(--chip-off-surface);
   color: var(--chip-off-text);
 }
+/* Two more states for documents that are not simply on/off: a pending or
+   partial standing (info) and an overdue / outstanding one (danger). Compose
+   these on the global chip instead of writing a per-screen pill. */
+.status-chip--info {
+  background: var(--info-surface);
+  color: var(--info-text);
+}
+.status-chip--danger {
+  background: var(--danger-surface);
+  color: var(--danger-text);
+}
 
 /* Overflow ("kebab") menu — the standard home for a card's SECONDARY actions
    (shared/overflow-menu). The action row keeps ONE visible primary button +

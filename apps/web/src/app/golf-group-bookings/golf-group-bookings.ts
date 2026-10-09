@@ -587,10 +587,10 @@ export class GolfGroupBookingsComponent implements OnInit {
   }
 
   standingClass(d: GolfFolioDeposit): string {
-    if (d.status === 'voided') return 'ggb-standing--off';
-    if (!d.onAccount || (d.arStanding && d.arStanding.status === 'paid')) return 'ggb-standing--paid';
-    if (d.arStanding && d.arStanding.status === 'partial') return 'ggb-standing--partial';
-    return 'ggb-standing--due';
+    if (d.status === 'voided') return 'status-chip--off';
+    if (!d.onAccount || (d.arStanding && d.arStanding.status === 'paid')) return 'status-chip--on';
+    if (d.arStanding && d.arStanding.status === 'partial') return 'status-chip--info';
+    return 'status-chip--danger';
   }
 
   // ---------- final settlement ----------
@@ -749,7 +749,7 @@ export class GolfGroupBookingsComponent implements OnInit {
   }
 
   refundStatusClass(r: GolfFolioRefund): string {
-    return r.status === 'paid' ? 'ggb-standing--paid' : r.status === 'declined' ? 'ggb-standing--off' : 'ggb-standing--partial';
+    return r.status === 'paid' ? 'status-chip--on' : r.status === 'declined' ? 'status-chip--off' : 'status-chip--info';
   }
 
   classLabel(key: string | null): string {

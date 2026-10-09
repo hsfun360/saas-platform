@@ -75,9 +75,9 @@
                   @if (item.description) {
                     <span style="color: var(--text-muted); font-size: var(--font-body-2);">{{ item.description }}</span>
                   }
-                  <span class="it-status"
-                        [class.it-status--active]="item.status === 'active'"
-                        [class.it-status--inactive]="item.status === 'inactive'"
+                  <span class="status-chip"
+                        [class.status-chip--on]="item.status === 'active'"
+                        [class.status-chip--off]="item.status === 'inactive'"
                         style="margin-top: var(--space-xs); align-self: flex-start;">
                     {{ item.status }}
                   </span>

@@ -516,8 +516,8 @@
   }
 }
 
-/* Deposit cards: one settlement per line; standing chip colours (paid /
-   partial / due). */
+/* Deposit cards: one settlement per line. The standing pill is the global
+   .status-chip (--on paid, --info partial, --danger due, --off voided). */
 .ggb-settlements {
   display: flex;
   flex-direction: column;
@@ -525,31 +525,6 @@
 }
 .ggb-deposit--void {
   opacity: 0.7;
-}
-.ggb-standing {
-  font-size: var(--font-overline);
-  font-weight: var(--weight-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-radius: 12px;
-  padding: var(--space-xs) var(--space-sm);
-  white-space: nowrap;
-}
-.ggb-standing--paid {
-  background: var(--success-surface);
-  color: var(--success-text);
-}
-.ggb-standing--partial {
-  background: var(--info-surface);
-  color: var(--info-text);
-}
-.ggb-standing--due {
-  background: var(--danger-surface);
-  color: var(--danger-text);
-}
-.ggb-standing--off {
-  background: var(--chip-off-surface);
-  color: var(--chip-off-text);
 }
 
 /* ---- dialogs ---- */

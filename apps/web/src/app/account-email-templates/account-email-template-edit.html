@@ -11,9 +11,9 @@
     <div class="et-head">
       <h1 style="margin: 0; font-size: var(--font-h1); color: var(--text-primary);">{{ name() }}</h1>
       @if (hasOverride()) {
-        <span class="badge" style="background:var(--success-surface); color:var(--success-text);">Custom</span>
+        <span class="status-chip status-chip--on">Custom</span>
       } @else {
-        <span class="badge" style="background:var(--chip-off-surface); color:var(--text-secondary);">Inherited</span>
+        <span class="status-chip status-chip--off">Inherited</span>
       }
     </div>
     @if (description()) {

@@ -573,7 +573,7 @@
                           }
                           @if (d.status === 'voided') { <div class="data-card__desc">Voided: {{ d.voidReason }}</div> }
                         </div>
-                        <span class="data-row__badge ggb-standing" [class]="'data-row__badge ggb-standing ' + standingClass(d)">{{ standingLabel(d) }}</span>
+                        <span class="data-row__badge status-chip" [class]="'data-row__badge status-chip ' + standingClass(d)">{{ standingLabel(d) }}</span>
                         <div class="data-row__actions">
                           <button type="button" class="btn btn--secondary btn--sm" (click)="openDepositDoc(d)">
                             <span class="material-icons" aria-hidden="true">print</span>
@@ -637,7 +637,7 @@
                           @if (r.status === 'paid') { <div class="data-card__desc">Paid {{ r.paidAt | localDate:'datetime' }} by {{ r.paidMethod }}{{ r.paidReference ? ' · ' + r.paidReference : '' }}</div> }
                           @if (r.status === 'declined') { <div class="data-card__desc">Declined {{ r.declinedAt | localDate:'datetime' }}: {{ r.declineReason }}</div> }
                         </div>
-                        <span [class]="'data-row__badge ggb-standing ' + refundStatusClass(r)">{{ r.status }}</span>
+                        <span [class]="'data-row__badge status-chip ' + refundStatusClass(r)">{{ r.status }}</span>
                         @if (r.status === 'requested') {
                           <div class="data-row__actions" *appCan="'edit'">
                             <button type="button" class="btn btn--primary btn--sm" (click)="openRefundAction('pay', r)" [disabled]="folioBusy()">

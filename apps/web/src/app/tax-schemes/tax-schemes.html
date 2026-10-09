@@ -115,9 +115,9 @@
                 </span>
               </button>
               @if (s.isActive === false) {
-                <span class="tx-status tx-status--off tx-row__badge">Disabled</span>
+                <span class="status-chip status-chip--off tx-row__badge">Disabled</span>
               } @else {
-                <span class="tx-status tx-status--on tx-row__badge">Active</span>
+                <span class="status-chip status-chip--on tx-row__badge">Active</span>
               }
               <div class="tx-row__actions">
                 <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditScheme(s)">Edit</button>
@@ -159,9 +159,9 @@
               }
               <h2>{{ selectedScheme()!.taxSchemeCode }} — {{ selectedScheme()!.name }}</h2>
               @if (selectedScheme()!.isActive === false) {
-                <span class="tx-status tx-status--off">Disabled</span>
+                <span class="status-chip status-chip--off">Disabled</span>
               } @else {
-                <span class="tx-status tx-status--on">Active</span>
+                <span class="status-chip status-chip--on">Active</span>
               }
             </div>
           </div>

@@ -124,26 +124,8 @@
   background: var(--surface-sunken);
 }
 
-/* The "New item" FAB composes the global .saas-fab (styles.css). */
-
-/* Status chip on the list rows. */
-.it-status {
-  display: inline-block;
-  font-size: var(--font-overline);
-  font-weight: var(--weight-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 2px var(--space-sm);
-  border-radius: 12px;
-}
-.it-status--active {
-  background: var(--success-surface);
-  color: var(--success-text);
-}
-.it-status--inactive {
-  background: var(--chip-off-surface);
-  color: var(--chip-off-text);
-}
+/* The "New item" FAB composes the global .saas-fab and the row status pill the
+   global .status-chip (both in styles.css). */
 
 /* Mobile "back to list" button — hidden on desktop where both panes show. */
 .it-back {

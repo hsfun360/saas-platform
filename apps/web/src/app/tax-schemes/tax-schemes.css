@@ -184,28 +184,8 @@
   white-space: nowrap;
 }
 
-/* Status chip — matches the Companies card badge exactly (compact overline pill),
-   rather than the larger shared `.badge`. On = green, off = grey (as Companies). */
-.tx-status {
-  display: inline-block;
-  font-size: var(--font-overline);
-  font-weight: var(--weight-bold);
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-}
-.tx-status--on {
-  background: var(--success-surface);
-  color: var(--success-text);
-}
-.tx-status--off {
-  background: var(--chip-off-surface);
-  color: var(--chip-off-text);
-}
-
-/* The "New scheme" FAB composes the global .saas-fab (styles.css). */
+/* The row status pill is the global .status-chip and the "New scheme" FAB the
+   global .saas-fab (both in styles.css). */
 
 @media (max-width: 767px) {
   /* Card reflow: badge stays top-right, actions drop to a full-width row below. */

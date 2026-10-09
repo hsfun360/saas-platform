@@ -100,17 +100,6 @@
    src/styles.css. The legacy .btn-primary/.btn-secondary copies and the unused
    .status-dot were removed (the .btn system is the one button component). */
 
-/* LEGACY record-status badge: being replaced by the global .status-chip
-   (grey for off, never red). Delete once no listing uses it. */
-.badge.badge-active {
-  background: var(--success-surface);
-  color: var(--success-text);
-}
-
-.badge.badge-inactive {
-  background: var(--danger-surface);
-  color: var(--danger-text);
-}
 
 /* ── MENU PERMISSIONS ────────────────────────── */
 .perm-module {

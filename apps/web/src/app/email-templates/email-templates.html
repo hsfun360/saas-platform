@@ -31,7 +31,7 @@
               <div class="data-card__subline">
                 <span class="data-card__reg">{{ t.key }}</span>
                 @if (t.tenantOverridable) {
-                  <span class="badge" style="background:#eef2ff; color:#3730a3;">Tenant-overridable</span>
+                  <span class="badge badge-pro">Tenant-overridable</span>
                 }
               </div>
               @if (t.description) {
@@ -40,9 +40,9 @@
             </div>
             <div class="data-row__badge">
               @if (t.isActive === false) {
-                <span class="badge badge-inactive">Disabled</span>
+                <span class="status-chip status-chip--off">Disabled</span>
               } @else {
-                <span class="badge badge-active">Active</span>
+                <span class="status-chip status-chip--on">Active</span>
               }
             </div>
             <div class="data-row__actions">
