@@ -57,10 +57,6 @@
 
 /* Pending reads as attention (amber would need a new token; the info pair
    is AA in both themes and distinct from the grey waived chip). */
-.nsc-chip--pending {
-  background: var(--info-surface);
-  color: var(--info-text);
-}
 .nsc-pending {
   color: var(--danger-text);
 }

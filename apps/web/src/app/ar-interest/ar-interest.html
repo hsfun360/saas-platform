@@ -135,7 +135,7 @@
               <span class="status-chip"
                     [class.status-chip--on]="g.status === 'confirmed'"
                     [class.status-chip--off]="g.status === 'cancelled'"
-                    [class.ai-status--pending]="g.status === 'pending'">{{ g.status }}</span>
+                    [class.status-chip--info]="g.status === 'pending'">{{ g.status }}</span>
             </div>
             <div class="data-row__actions">
               <button type="button" class="btn btn--secondary btn--sm" (click)="openDetail(g)">Details</button>

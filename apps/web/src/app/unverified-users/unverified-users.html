@@ -71,10 +71,14 @@
     </div>
 
     <div style="margin-top: var(--space-lg);">
-      <button type="button" class="btn btn--danger" (click)="deleteSelected()" [disabled]="deleting() || selectedCount() === 0">
+      <button *appCan="'delete'" type="button" class="btn btn--danger" (click)="deleteSelected()" [disabled]="deleting() || selectedCount() === 0">
         <span class="material-icons" aria-hidden="true">delete_forever</span>
         {{ deleting() ? 'Deleting…' : 'Delete ' + selectedCount() + ' registration(s)' }}
       </button>
     </div>
   }
 </section>
+
+@if (confirmAction(); as c) {
+  <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+}

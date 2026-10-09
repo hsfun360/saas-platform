@@ -36,7 +36,7 @@
         No languages yet — click "Load defaults" to add the common set, or use "New language".
       }
     </span>
-    <button type="button" class="btn btn--secondary btn--sm" (click)="onSeed()" [disabled]="seeding()">
+    <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="onSeed()" [disabled]="seeding()">
       {{ seeding() ? 'Loading…' : 'Load defaults' }}
     </button>
   </div>
@@ -64,7 +64,7 @@
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>
   } @else {
-    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+    <div class="data-list">
       @for (l of filtered(); track l.languageCode) {
         <div class="data-card" [attr.data-return-id]="l.languageCode">
           <div class="data-row data-row--with-badge">
@@ -175,3 +175,7 @@
     </app-dialog>
   }
 </div>
+
+@if (confirmAction(); as c) {
+  <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+}

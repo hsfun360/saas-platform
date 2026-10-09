@@ -51,7 +51,7 @@
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>
   } @else {
-    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+    <div class="data-list">
       @for (u of filteredUsers(); track u.id) {
         <div class="data-card" [attr.data-return-id]="u.id">
           <div class="data-row data-row--with-badge">

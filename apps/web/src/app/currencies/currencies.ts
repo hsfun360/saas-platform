@@ -1,4 +1,5 @@
 import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -20,11 +21,13 @@ import { CanDirective } from '../shared/can.directive';
 @Component({
   selector: 'app-currencies',
   standalone: true,
-  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [ConfirmDialogComponent, CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './currencies.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
 export class CurrenciesComponent implements OnInit {
+  // Destructive-action confirmation (shared centred dialog; replaces window.confirm).
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   private readonly currencyService = inject(CurrencyService);
   private readonly fb = inject(FormBuilder);
   // After-save return-to-row (app standard): the list re-sorts on reload, so
@@ -100,6 +103,15 @@ export class CurrenciesComponent implements OnInit {
 
   onSeed(): void {
     this.clearMessages();
+    this.confirmAction.set({
+      title: 'Load default currencies',
+      message: 'Load the bundled ISO 4217 currency set? Currencies you already have are kept as they are; only the missing ones are added.',
+      confirmLabel: 'Load defaults',
+      run: () => { this.confirmAction.set(null); this.performSeed(); },
+    });
+  }
+
+  private performSeed(): void {
     this.seeding.set(true);
     this.currencyService.seed().subscribe({
       next: (res) => {

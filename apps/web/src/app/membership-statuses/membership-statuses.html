@@ -65,7 +65,7 @@
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>
   } @else {
-    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+    <div class="data-list">
       @for (s of filtered(); track s.id) {
         <div class="data-card" [attr.data-return-id]="s.id">
           <div class="data-row data-row--with-badge">
@@ -324,7 +324,7 @@
         <button type="button" class="btn btn--secondary" (click)="closeCopy()" [disabled]="copySaving()">Cancel</button>
         @if (copySources().length > 0) {
           <button type="submit" form="msCopy" class="btn btn--primary" [disabled]="copySaving()">
-            {{ copySaving() ? 'Copying…' : 'Copy selected' }}
+            {{ copySaving() ? 'Copying…' : 'Copy ' + copySelectedIds().size + (copySelectedIds().size === 1 ? ' status' : ' statuses') }}
           </button>
         }
       </ng-container>

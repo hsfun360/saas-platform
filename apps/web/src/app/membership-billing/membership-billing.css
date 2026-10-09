@@ -36,10 +36,6 @@
 }
 
 /* Pending / partially-posted chip: info tint. */
-.mb-status--pending {
-  background: var(--info-surface);
-  color: var(--info-text);
-}
 
 .mb-warning {
   display: block;

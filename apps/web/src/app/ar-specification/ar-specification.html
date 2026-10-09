@@ -74,9 +74,9 @@
             <div class="arsp-aging__grid">
               <div class="form-group">
                 <label for="arspA1">Aging 1 <span class="required">*</span></label>
-                <input id="arspA1" type="number" inputmode="numeric" min="1" step="1" formControlName="aging1" />
+                <input id="arspA1" type="number" inputmode="numeric" min="1" step="1" formControlName="aging1" [attr.aria-invalid]="showError(form.controls.aging1)" aria-describedby="arspA1Err" />
                 @if (showError(form.controls.aging1)) {
-                  <div class="field-error" role="alert">The first boundary is required.</div>
+                  <div class="field-error" role="alert" id="arspA1Err">The first boundary is required.</div>
                 }
               </div>
               <div class="form-group"><label for="arspA2">Aging 2</label><input id="arspA2" type="number" inputmode="numeric" min="1" step="1" formControlName="aging2" /></div>

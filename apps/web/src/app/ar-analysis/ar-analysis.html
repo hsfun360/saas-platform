@@ -327,7 +327,7 @@
         <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
       } @else if (copyView() === 'company') {
         <p class="cell-subtle" style="margin-top: 0;">Only companies you have access to are listed. You pick exactly which dimensions to copy in the next step.</p>
-        <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+        <div class="data-list">
           @for (c of copySources(); track c.id) {
             <button type="button" class="btn btn--secondary dlg-pick" (click)="pickCopySource(c)">
               <span class="material-icons" aria-hidden="true">business</span>

@@ -88,7 +88,7 @@
               <span class="status-chip"
                     [class.status-chip--on]="i.status === 'posted'"
                     [class.status-chip--off]="i.status === 'skipped' || i.status === 'failed'"
-                    [class.mb-status--pending]="i.status === 'pending'">{{ i.status }}</span>
+                    [class.status-chip--info]="i.status === 'pending'">{{ i.status }}</span>
             </div>
             @if (i.status === 'pending' || i.status === 'skipped') {
               <div class="mbd-item__actions">

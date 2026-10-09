@@ -1,4 +1,5 @@
 import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -21,11 +22,13 @@ import { CanDirective } from '../shared/can.directive';
 @Component({
   selector: 'app-languages',
   standalone: true,
-  imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
+  imports: [ConfirmDialogComponent, CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './languages.html',
   styleUrls: ['../system-setup/system-setup.css'],
 })
 export class LanguagesComponent implements OnInit {
+  // Destructive-action confirmation (shared centred dialog; replaces window.confirm).
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   private readonly languageService = inject(LanguageService);
   private readonly fb = inject(FormBuilder);
   // After-save return-to-row (app standard): the list re-sorts on reload, so
@@ -95,6 +98,15 @@ export class LanguagesComponent implements OnInit {
 
   onSeed(): void {
     this.clearMessages();
+    this.confirmAction.set({
+      title: 'Load default languages',
+      message: 'Load the bundled language set? Languages you already have are kept as they are; only the missing ones are added.',
+      confirmLabel: 'Load defaults',
+      run: () => { this.confirmAction.set(null); this.performSeed(); },
+    });
+  }
+
+  private performSeed(): void {
     this.seeding.set(true);
     this.languageService.seed().subscribe({
       next: (res) => {

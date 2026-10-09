@@ -327,7 +327,7 @@ export class TenantUsersComponent implements OnInit {
       positionId: value.positionId || null,
     }).subscribe({
       next: (res) => {
-        this.successMessage.set(res.message || '✅ Role updated.');
+        this.successMessage.set(res.message || 'Role updated.');
         this.pendingKey.set(null);
         form.markAsPristine(); // committed - the reload re-seeds it with fresh data
         this.returnScroll.remember(TenantUsersComponent.LIST_PATH, person.id);
@@ -353,7 +353,7 @@ export class TenantUsersComponent implements OnInit {
     this.pendingKey.set(`rm:${person.id}:${companyId}`);
     this.authService.revokeCompanyUser(person.id, companyId).subscribe({
       next: (res) => {
-        this.successMessage.set(res.message || '✅ Removed from company.');
+        this.successMessage.set(res.message || 'Removed from company.');
         this.pendingKey.set(null);
         this.placementForms.delete(companyId);
         this.returnScroll.remember(TenantUsersComponent.LIST_PATH, person.id);
@@ -376,7 +376,7 @@ export class TenantUsersComponent implements OnInit {
     this.pendingKey.set(`add:${person.id}`);
     this.authService.addCollaborator(person.email, value.roleId || undefined, value.companyId).subscribe({
       next: (res) => {
-        this.successMessage.set(res.message || '✅ Added to company.');
+        this.successMessage.set(res.message || 'Added to company.');
         this.placeAddForm.reset({ companyId: '', roleId: '' });
         this.pendingKey.set(null);
         this.returnScroll.remember(TenantUsersComponent.LIST_PATH, person.id);
@@ -453,7 +453,7 @@ export class TenantUsersComponent implements OnInit {
       )
       .subscribe({
         next: (res) => {
-          this.successMessage.set(res.message || '✅ User created.');
+          this.successMessage.set(res.message || 'User created.');
           this.creating.set(false);
           this.createDialogOpen.set(false);
           this.load();
@@ -475,7 +475,7 @@ export class TenantUsersComponent implements OnInit {
     this.inviting.set(true);
     this.authService.createInvitation(value.email.trim(), value.roleId || undefined, value.companyId).subscribe({
       next: (res) => {
-        this.successMessage.set(res.message || '✅ Invitation sent.');
+        this.successMessage.set(res.message || 'Invitation sent.');
         this.inviting.set(false);
         this.inviteDialogOpen.set(false);
         this.load();
@@ -492,7 +492,7 @@ export class TenantUsersComponent implements OnInit {
     this.pendingKey.set(`inv:${id}`);
     this.authService.revokeInvitation(id).subscribe({
       next: (res) => {
-        this.successMessage.set(res.message || '✅ Invitation revoked.');
+        this.successMessage.set(res.message || 'Invitation revoked.');
         this.pendingKey.set(null);
         this.load();
       },

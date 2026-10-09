@@ -62,7 +62,7 @@
   <!-- Current assignments — platform users who already hold a system role. -->
   @if (assignedUsers().length > 0) {
     <h2 class="section-heading">Current assignments</h2>
-    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+    <div class="data-list">
       @for (u of assignedUsers(); track u.id) {
         <div class="data-card">
           <div class="data-row data-row--with-badge">

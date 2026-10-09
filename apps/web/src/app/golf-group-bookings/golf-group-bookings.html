@@ -205,7 +205,7 @@
                           <span class="material-icons" aria-hidden="true">edit</span>
                           Edit day
                         </button>
-                        <button type="button" appMenuItem (click)="askRemoveDay(d)">
+                        <button *appCan="'delete'" type="button" appMenuItem (click)="askRemoveDay(d)">
                           <span class="material-icons" aria-hidden="true">delete</span>
                           Remove day
                         </button>
@@ -291,7 +291,7 @@
                               List again
                             </button>
                           }
-                          <button type="button" appMenuItem (click)="askRemovePlayer(p)">
+                          <button *appCan="'delete'" type="button" appMenuItem (click)="askRemovePlayer(p)">
                             <span class="material-icons" aria-hidden="true">delete</span>
                             Remove
                           </button>
@@ -739,12 +739,12 @@
         <div class="ggb-grid">
           <div class="form-group">
             <label for="ggbRfAmount">Amount <span class="required">*</span></label>
-            <input id="ggbRfAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount" [attr.aria-invalid]="showError(refundForm.controls.amount)" />
+            <input id="ggbRfAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount" [attr.aria-invalid]="showError(refundForm.controls.amount)" aria-describedby="ggbRfAmountErr" />
           </div>
           <div class="form-group">
             <label for="ggbRfReason">Reason <span class="required">*</span></label>
-            <textarea id="ggbRfReason" rows="2" wrap="off" formControlName="reason" maxlength="255" [attr.aria-invalid]="showError(refundForm.controls.reason)"></textarea>
-            @if (showError(refundForm.controls.reason)) { <p class="field-error" role="alert">Give the reason.</p> }
+            <textarea id="ggbRfReason" rows="2" wrap="off" formControlName="reason" maxlength="255" [attr.aria-invalid]="showError(refundForm.controls.reason)" aria-describedby="ggbRfReasonErr"></textarea>
+            @if (showError(refundForm.controls.reason)) { <p class="field-error" role="alert" id="ggbRfReasonErr" id="ggbRfAmountErr">Give the reason.</p> }
           </div>
         </div>
       </form>
@@ -797,8 +797,8 @@
         <div class="ggb-grid">
           <div class="form-group">
             <label for="ggbDepAmount">Amount received <span class="required">*</span></label>
-            <input id="ggbDepAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount" [attr.aria-invalid]="showError(depositForm.controls.amount)" />
-            @if (showError(depositForm.controls.amount)) { <p class="field-error" role="alert">Key in the amount.</p> }
+            <input id="ggbDepAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount" [attr.aria-invalid]="showError(depositForm.controls.amount)" aria-describedby="ggbDepAmountErr" />
+            @if (showError(depositForm.controls.amount)) { <p class="field-error" role="alert" id="ggbDepAmountErr">Key in the amount.</p> }
           </div>
           <div class="form-group">
             <label for="ggbDepTender">Payment type <span class="required">*</span></label>
@@ -854,8 +854,8 @@
           <div class="form-group">
             <label for="ggbName">Group / tournament name <span class="required">*</span></label>
             <input id="ggbName" type="text" formControlName="groupName" maxlength="150" autocomplete="off"
-                   [attr.aria-invalid]="showError(headerForm.controls.groupName)" />
-            @if (showError(headerForm.controls.groupName)) { <p class="field-error" role="alert">Key in the name.</p> }
+                   [attr.aria-invalid]="showError(headerForm.controls.groupName)" aria-describedby="ggbNameErr" />
+            @if (showError(headerForm.controls.groupName)) { <p class="field-error" role="alert" id="ggbNameErr">Key in the name.</p> }
           </div>
           <div class="form-group">
             <label for="ggbOrgKind">Organiser <span class="required">*</span></label>

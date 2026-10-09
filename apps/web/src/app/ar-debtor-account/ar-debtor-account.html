@@ -123,7 +123,7 @@
                     <span class="status-chip"
                           [class.status-chip--on]="doc.status === 'open' || doc.status === 'settled'"
                           [class.status-chip--off]="doc.status === 'void'"
-                          [class.ara-chip--pre]="doc.status === 'draft' || doc.status === 'pending-approval'">{{ ledgerStatusLabel(doc) }}</span>
+                          [class.status-chip--info]="doc.status === 'draft' || doc.status === 'pending-approval'">{{ ledgerStatusLabel(doc) }}</span>
                   </div>
                   @if (canVoidLedgerDoc(doc)) {
                     <div class="ara-doc__actions">

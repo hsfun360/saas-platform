@@ -157,7 +157,7 @@
                 @if (r.migrateStatus === 'migrated') {
                   <span class="status-chip status-chip--on">Migrated</span>
                 } @else if (!r.isValid) {
-                  <span class="status-chip mi-chip-error">{{ errorCount(r) }} error(s)</span>
+                  <span class="status-chip status-chip--danger">{{ errorCount(r) }} error(s)</span>
                 } @else {
                   <span class="status-chip status-chip--off">Ready</span>
                 }

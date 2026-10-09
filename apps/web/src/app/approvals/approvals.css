@@ -2,10 +2,6 @@
    All colours from the theme tokens (3 appearance modes). */
 
 /* Overdue chip: same shape as .status-chip, danger colouring from tokens. */
-.ap-chip--overdue {
-  background: var(--danger-surface);
-  color: var(--danger-text);
-}
 
 .ap-dlg-summary {
   display: flex;

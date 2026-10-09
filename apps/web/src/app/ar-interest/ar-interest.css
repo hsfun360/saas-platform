@@ -67,10 +67,6 @@
 }
 
 /* Pending chip: info tint (distinct from confirmed green / cancelled grey). */
-.ai-status--pending {
-  background: var(--info-surface);
-  color: var(--info-text);
-}
 
 .ai-pick {
   display: inline-flex;

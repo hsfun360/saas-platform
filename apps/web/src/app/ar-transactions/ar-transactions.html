@@ -116,8 +116,8 @@
               <span class="status-chip"
                     [class.status-chip--on]="isPosted(doc)"
                     [class.status-chip--off]="doc.status === 'void'"
-                    [class.art-chip--draft]="doc.status === 'draft'"
-                    [class.art-chip--pending]="doc.status === 'pending-approval'">{{ statusLabel(doc.status) }}</span>
+                    [class.status-chip--off]="doc.status === 'draft'"
+                    [class.status-chip--info]="doc.status === 'pending-approval'">{{ statusLabel(doc.status) }}</span>
             </div>
             @if (isEditableDraft(doc)) {
               <div class="data-row__actions">

@@ -302,9 +302,9 @@
         <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
           <div class="form-group">
             <label for="mod-name">Name <span class="required">*</span></label>
-            <input id="mod-name" type="text" formControlName="name" placeholder="e.g. Golf Management" autocomplete="off">
+            <input id="mod-name" type="text" formControlName="name" placeholder="e.g. Golf Management" autocomplete="off" [attr.aria-invalid]="moduleForm.controls.name.touched && moduleForm.controls.name.invalid" aria-describedby="mod-nameErr">
             @if (moduleForm.controls.name.touched && moduleForm.controls.name.invalid) {
-              <p class="field-error" role="alert">A module name is required.</p>
+              <p class="field-error" role="alert" id="mod-nameErr">A module name is required.</p>
             }
           </div>
         </div>
@@ -378,9 +378,9 @@
         <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
           <div class="form-group">
             <label for="menu-name">Name <span class="required">*</span></label>
-            <input id="menu-name" type="text" formControlName="name" placeholder="e.g. Tee Time Setup" autocomplete="off">
+            <input id="menu-name" type="text" formControlName="name" placeholder="e.g. Tee Time Setup" autocomplete="off" [attr.aria-invalid]="menuForm.controls.name.touched && menuForm.controls.name.invalid" aria-describedby="menu-nameErr">
             @if (menuForm.controls.name.touched && menuForm.controls.name.invalid) {
-              <p class="field-error" role="alert">A menu name is required.</p>
+              <p class="field-error" role="alert" id="menu-nameErr">A menu name is required.</p>
             }
           </div>
         </div>
@@ -388,9 +388,9 @@
         <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
           <div class="form-group">
             <label for="menu-route">Route <span class="required">*</span></label>
-            <input id="menu-route" type="text" formControlName="route" placeholder="e.g. /golf/tee-times" autocomplete="off">
+            <input id="menu-route" type="text" formControlName="route" placeholder="e.g. /golf/tee-times" autocomplete="off" [attr.aria-invalid]="menuForm.controls.route.touched && menuForm.controls.route.invalid" aria-describedby="menu-routeErr">
             @if (menuForm.controls.route.touched && menuForm.controls.route.invalid) {
-              <p class="field-error" role="alert">A route is required.</p>
+              <p class="field-error" role="alert" id="menu-routeErr">A route is required.</p>
             }
           </div>
         </div>

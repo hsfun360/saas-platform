@@ -158,7 +158,7 @@
                 @if (g.membership.migrateStatus === 'migrated') {
                   <span class="status-chip status-chip--on">Migrated</span>
                 } @else if (!g.membership.isValid) {
-                  <span class="status-chip mi-chip-error">{{ groupIssueCount(g) }} error(s)</span>
+                  <span class="status-chip status-chip--danger">{{ groupIssueCount(g) }} error(s)</span>
                 } @else {
                   <span class="status-chip status-chip--off">Ready</span>
                 }

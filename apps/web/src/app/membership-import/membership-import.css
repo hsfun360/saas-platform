@@ -90,10 +90,6 @@
   flex-shrink: 0;
 }
 
-.mi-chip-error {
-  background: var(--danger-surface);
-  color: var(--danger-text);
-}
 
 .mi-done {
   color: var(--success-text);

@@ -1,4 +1,6 @@
 import { Component, OnInit, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
+import { CanDirective } from '../shared/can.directive';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { AdminService } from '../services/admin.service';
 import { UnverifiedUser } from '../models/auth.models';
 import { LocalDatePipe } from '../shared/local-date.pipe';
@@ -15,12 +17,14 @@ const STALE_DAYS = 7;
 @Component({
   selector: 'app-unverified-users',
   standalone: true,
-  imports: [LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent],
+  imports: [CanDirective, ConfirmDialogComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent],
   templateUrl: './unverified-users.html',
   styleUrls: ['./unverified-users.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UnverifiedUsersComponent implements OnInit {
+  // Destructive-action confirmation (shared centred dialog; replaces window.confirm).
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   private readonly admin = inject(AdminService);
 
   readonly rows = signal<UnverifiedUser[]>([]);
@@ -78,6 +82,17 @@ export class UnverifiedUsersComponent implements OnInit {
   }
 
   deleteSelected(): void {
+    const ids = [...this.selected()];
+    if (ids.length === 0) return;
+    this.confirmAction.set({
+      title: 'Delete unverified registrations',
+      message: `Permanently delete ${ids.length} unverified registration${ids.length === 1 ? '' : 's'}? Their email addresses are freed for a genuine registration. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      run: () => { this.confirmAction.set(null); this.performDelete(); },
+    });
+  }
+
+  private performDelete(): void {
     const ids = [...this.selected()];
     if (ids.length === 0) return;
     this.deleting.set(true);

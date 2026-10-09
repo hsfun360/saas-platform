@@ -90,7 +90,7 @@
               </dl>
             </div>
             <div class="data-card__badge data-row__badge">
-              <span class="status-chip" [class.status-chip--on]="c.status === 'posted'" [class.status-chip--off]="c.status !== 'posted'" [class.nsc-chip--pending]="c.status === 'pending'">
+              <span class="status-chip" [class.status-chip--on]="c.status === 'posted'" [class.status-chip--off]="c.status !== 'posted'" [class.status-chip--info]="c.status === 'pending'">
                 {{ statusLabel(c.status) }}
               </span>
             </div>

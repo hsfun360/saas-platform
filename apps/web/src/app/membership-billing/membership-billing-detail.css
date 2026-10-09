@@ -135,7 +135,3 @@
   height: var(--icon-sm);
   accent-color: var(--brand);
 }
-.mb-status--pending {
-  background: var(--info-surface);
-  color: var(--info-text);
-}

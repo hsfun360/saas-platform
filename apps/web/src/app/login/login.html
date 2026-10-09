@@ -3,7 +3,7 @@
     <h3 style="margin-bottom: var(--space-lg);">Select Workspace</h3>
     <p style="color: var(--text-muted); margin-bottom: var(--space-lg);">Which account are you logging into today?</p>
 
-    <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
+    <div class="data-list">
       @for (club of availableWorkspaces; track club.companyId) {
         <button (click)="selectWorkspace(club.companyId)" [disabled]="loading"
                 style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface-card); cursor: pointer; font-weight: var(--weight-bold); color: var(--text-primary); display: flex; align-items: center; justify-content: center; transition: background 0.2s;">

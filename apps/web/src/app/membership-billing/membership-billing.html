@@ -112,7 +112,7 @@
               <span class="status-chip"
                     [class.status-chip--on]="s.status === 'posted'"
                     [class.status-chip--off]="s.status === 'cancelled'"
-                    [class.mb-status--pending]="s.status === 'pending' || s.status === 'partially-posted'">{{ s.status }}</span>
+                    [class.status-chip--info]="s.status === 'pending' || s.status === 'partially-posted'">{{ s.status }}</span>
             </div>
             <div class="data-row__actions">
               <button type="button" class="btn btn--secondary btn--sm" [routerLink]="['/membership/billing', s.id]" (click)="rememberRow(s.id)">Review</button>
