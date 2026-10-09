@@ -2,106 +2,11 @@
    SaaS Administration – Platform Admin Portal
    ─────────────────────────────────────────────── */
 
-.saas-container {
-  /* Content-width cap: keeps each row's text and actions in one glance and
-     line lengths readable. 1140px balances that against big desktop monitors
-     (960px left excessive side voids). */
-  max-width: 1140px;
-  margin: 0 auto;
-  padding: var(--space-xl) var(--space-lg);
-  font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
-  color: var(--text-primary);
-}
-
-/* Mobile: drop horizontal padding so cards use the full width — the shell's
-   content-area already supplies a ~16px gutter (mirrors mobile Gmail). */
-@media (max-width: 767px) {
-  .saas-container {
-    padding: var(--space-md) 0;
-  }
-}
-
-/* ── HEADER ──────────────────────────────────── */
-.saas-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: var(--space-md);
-  margin-bottom: var(--space-lg);
-}
-
-.saas-header-left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-}
-
-/* .saas-icon (the header icon tile) is defined globally in styles.css -
-   do not redefine it here, a component copy would override the shared one. */
-
-.saas-header h1 {
-  margin: 0;
-  font-size: var(--font-h1);
-  font-weight: var(--weight-bold);
-  color: var(--text-primary);
-}
-
-.saas-subtitle {
-  margin: 2px 0 0;
-  font-size: var(--font-body-2);
-  color: var(--text-muted);
-}
-
-/* ── LISTING SEARCH ──────────────────────────── */
-/* Search field above a data list — icon left, optional clear (✕) right. */
-.saas-search {
-  position: relative;
-  margin-bottom: var(--space-md);
-}
-
-.saas-search__icon {
-  position: absolute;
-  left: var(--space-sm);
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 16px;
-  pointer-events: none;
-}
-
-.saas-search__input {
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 44px; /* ≥16px font below avoids iOS zoom on focus */
-  padding: var(--space-sm) 40px var(--space-sm) 36px;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  font-size: var(--font-body);
-  background: var(--surface-card);
-  color: var(--text-primary);
-}
-
-.saas-search__clear {
-  position: absolute;
-  right: var(--space-xs);
-  top: 50%;
-  transform: translateY(-50%);
-  width: 36px;
-  height: 36px;
-  border: none;
-  background: transparent;
-  border-radius: 50%;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 14px;
-}
-.saas-search__clear:hover {
-  background: var(--surface-sunken);
-}
-
-/* ── FLOATING ACTION BUTTON ──────────────────── */
-/* `.saas-fab` is GLOBAL in styles.css (next to the .btn system) - every
-   screen gets it without importing this file. Nothing to define here. */
+/* The shared screen primitives (.saas-container, .saas-header*, .saas-subtitle,
+   .saas-search*, .saas-fab, .spinner, .loading-state, .empty-state, .empty-icon,
+   .cell-*, .sso-icon, .badge) are GLOBAL in src/styles.css - every screen gets
+   them without importing this file. Only the System Setup screen's own tab bar,
+   cards and admin panels remain here. */
 
 /* ── TAB BAR ─────────────────────────────────── */
 /* Underline tab strip: one row, scrolls horizontally on narrow screens. */
@@ -191,132 +96,12 @@
   border-top: 1px solid var(--border);
 }
 
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-lg);
-  background: var(--brand);
-  color: var(--text-on-brand);
-  border: none;
-  border-radius: 8px;
-  font-size: var(--font-body);
-  font-weight: var(--weight-semibold);
-  cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
-}
+/* Spinner, loading/empty states, .cell-*, .sso-icon and .badge are global in
+   src/styles.css. The legacy .btn-primary/.btn-secondary copies and the unused
+   .status-dot were removed (the .btn system is the one button component). */
 
-.btn-primary:hover:not(:disabled) {
-  background: var(--brand-hover);
-}
-
-.btn-primary:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.btn-primary:disabled {
-  background: var(--brand-disabled);
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  padding: var(--space-sm) var(--space-lg);
-  background: var(--surface-sunken);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: var(--font-body-2);
-  font-weight: var(--weight-semibold);
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-secondary:hover {
-  background: var(--border);
-}
-
-/* ── SPINNER ─────────────────────────────────── */
-.spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: #ffffff;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-.spinner.large {
-  width: 32px;
-  height: 32px;
-  border-width: 3px;
-  border-color: rgba(59,130,246,0.2);
-  border-top-color: #3b82f6;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ── LOADING / EMPTY STATE ───────────────────── */
-.loading-state,
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: var(--space-3xl) var(--space-lg);
-  color: var(--text-muted);
-}
-
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: var(--space-sm);
-}
-
-/* Listing-card + status-chip primitives (.data-list / .data-card* / .data-row* /
-   .section-heading / .status-chip) now live as GLOBAL, theme-aware definitions in
-   src/styles.css — the single source of truth. The scoped duplicate was removed here. */
-
-/* Brand mark shown next to an SSO user's email (Google / Microsoft login). */
-.sso-icon {
-  width: 1.05rem;
-  height: 1.05rem;
-  vertical-align: -0.18em;
-  margin-right: var(--space-xs);
-}
-
-.cell-mono {
-  font-family: 'Cascadia Code', 'Fira Code', monospace;
-  font-size: var(--font-body-2);
-  color: var(--text-secondary);
-}
-
-.cell-subtle {
-  font-size: var(--font-caption);
-  color: var(--text-muted);
-}
-
-/* ── BADGES ──────────────────────────────────── */
-.badge {
-  display: inline-block;
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: 20px;
-  font-size: var(--font-caption);
-  font-weight: var(--weight-bold);
-  background: var(--surface-sunken);
-  color: var(--text-secondary);
-}
-
-.badge.badge-pro {
-  background: #eef2ff;
-  color: #4338ca;
-}
-
-.badge.badge-enterprise {
-  background: #fef3c7;
-  color: #92400e;
-}
-
+/* LEGACY record-status badge: being replaced by the global .status-chip
+   (grey for off, never red). Delete once no listing uses it. */
 .badge.badge-active {
   background: var(--success-surface);
   color: var(--success-text);
@@ -325,22 +110,6 @@
 .badge.badge-inactive {
   background: var(--danger-surface);
   color: var(--danger-text);
-}
-
-/* ── STATUS DOT ──────────────────────────────── */
-.status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--border-strong);
-  margin-right: var(--space-xs);
-  vertical-align: middle;
-}
-
-.status-dot.active {
-  background: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34,197,94,0.2);
 }
 
 /* ── MENU PERMISSIONS ────────────────────────── */

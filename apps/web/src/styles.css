@@ -942,6 +942,175 @@ textarea:disabled {
   line-height: 1;
 }
 
+/* ============================================================== */
+/* SHARED SCREEN PRIMITIVES - container, header, search, states    */
+/* ============================================================== */
+/* These used to live in system-setup/system-setup.css, which every
+   screen had to import by path. A screen that forgot the import got an
+   unstyled subtitle, an invisible spinner or no 1140px cap (Audit Log,
+   Unverified Registrations and the email-template editors all did), and
+   the same mechanism once left four golf screens with no FAB. Everything
+   a listing screen composes is GLOBAL here; screens never re-import or
+   copy these. */
+
+/* Content column: ONE 1140px cap for every listing/CRUD screen; on mobile
+   the horizontal padding drops to 0 because the shell's content-area already
+   supplies the gutter. */
+.saas-container {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-lg);
+  font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+  color: var(--text-primary);
+}
+@media (max-width: 767px) {
+  .saas-container {
+    padding: var(--space-md) 0;
+  }
+}
+
+/* Screen header: icon tile + stacked title/subtitle on the left. */
+.saas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+.saas-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+.saas-header h1 {
+  margin: 0;
+  font-size: var(--font-h1);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+}
+.saas-subtitle {
+  margin: 2px 0 0;
+  font-size: var(--font-body-2);
+  color: var(--text-muted);
+}
+
+/* Listing search above a data list: Material search icon left, optional
+   clear (✕) right. Compose the markup exactly - do not write .my-search. */
+.saas-search {
+  position: relative;
+  margin-bottom: var(--space-md);
+}
+.saas-search__icon {
+  position: absolute;
+  left: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.saas-search__input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px; /* ≥16px font below avoids iOS zoom on focus */
+  padding: var(--space-sm) 40px var(--space-sm) 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font-size: var(--font-body);
+  background: var(--surface-card);
+  color: var(--text-primary);
+}
+.saas-search__clear {
+  position: absolute;
+  right: var(--space-xs);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--font-body-2);
+}
+.saas-search__clear:hover {
+  background: var(--surface-sunken);
+}
+
+/* Spinner: the small one inherits currentColor (white inside a primary
+   button, text colour elsewhere); the large one is the page loader. */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+.spinner.large {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+  border-color: var(--border);
+  border-top-color: var(--brand);
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Loading / empty states (the empty icon is a Material Icons glyph). */
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-3xl) var(--space-lg);
+  color: var(--text-muted);
+}
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: var(--space-sm);
+}
+
+/* Secondary cell text and the SSO brand mark beside an email. */
+.cell-mono {
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.cell-subtle {
+  font-size: var(--font-caption);
+  color: var(--text-muted);
+}
+.sso-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+  vertical-align: -0.18em;
+  margin-right: var(--space-xs);
+}
+
+/* Plan / category tag (NOT a record status - status is .status-chip). */
+.badge {
+  display: inline-block;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 20px;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+.badge.badge-pro {
+  background: var(--info-surface);
+  color: var(--info-text);
+}
+.badge.badge-enterprise {
+  background: var(--brand-surface);
+  color: var(--brand-text);
+}
+
 /* Dialog class-picker step — THE standard for the first view of a create
    dialog where the user declares the record's class before the form shows
    (AR Transaction Type, New membership). One option per row, composed as
