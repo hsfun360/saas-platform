@@ -1,7 +1,7 @@
 import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { GolfClosureService, ClosureNineOption } from '../services/golf-closure.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
@@ -11,15 +11,17 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { CanDirective } from '../shared/can.directive';
 
-// One editable closure-day row in the day editor (strings from inputs).
-interface ClosureDayRow {
-  closureDate: string; // 'YYYY-MM-DD'
-  dayType?: 'weekday' | 'weekend';
-  isHoliday?: boolean;
-  startTime: string; // 'HH:MM' or '' (whole day when both empty)
-  endTime: string;
-  isActive: boolean;
-}
+// One closure-day row in the day editor: a typed FormGroup inside the
+// `dayLines` FormArray (house standard - the array's own dirty/pristine state
+// feeds the dialog's unsaved-changes guard, no hand-kept flag).
+type ClosureDayGroup = FormGroup<{
+  closureDate: FormControl<string>; // 'YYYY-MM-DD'
+  dayType: FormControl<'weekday' | 'weekend' | ''>;
+  isHoliday: FormControl<boolean>;
+  startTime: FormControl<string>; // 'HH:MM' or '' (whole day when both empty)
+  endTime: FormControl<string>;
+  isActive: FormControl<boolean>;
+}>;
 
 // Day scopes are a short FIXED vocabulary (courseTeeTime.constants).
 const DAY_SCOPES: MembershipStatusOption[] = [
@@ -101,9 +103,11 @@ export class GolfClosuresComponent implements OnInit {
 
   readonly daysSaving = signal(false);
   readonly generating = signal(false);
-  readonly daysDirty = signal(false);
   readonly dayPlan = signal<UnitCourseClosurePlan | null>(null);
-  readonly dayRows = signal<ClosureDayRow[]>([]);
+  // The day editor's rows (see ClosureDayGroup); wrapped in a FormGroup so the
+  // template can bind formArrayName / formGroupName.
+  readonly dayLines: FormArray<ClosureDayGroup> = this.fb.array<ClosureDayGroup>([]);
+  readonly daysForm = this.fb.group({ days: this.dayLines });
 
   readonly dialogTitle = computed(() => {
     if (this.dlgMode() === 'days') {
@@ -116,7 +120,7 @@ export class GolfClosuresComponent implements OnInit {
   readonly busy = computed(() => this.saving() || this.daysSaving() || this.generating());
   isDirty(): boolean {
     if (this.dlgMode() === 'form') return this.form.dirty || this.pickedNines().size > 0;
-    if (this.dlgMode() === 'days') return this.daysDirty();
+    if (this.dlgMode() === 'days') return this.dayLines.dirty;
     return false;
   }
 
@@ -210,7 +214,8 @@ export class GolfClosuresComponent implements OnInit {
 
   closeDialog(): void {
     this.dlgMode.set(null);
-    this.daysDirty.set(false);
+    this.dayLines.clear();
+    this.dayLines.markAsPristine();
     this.pickedNines.set(new Set());
   }
 
@@ -290,17 +295,35 @@ export class GolfClosuresComponent implements OnInit {
 
   // --- Day editor ---
 
+  private newDayGroup(d: { closureDate: string; dayType?: 'weekday' | 'weekend'; isHoliday?: boolean; startTime: string; endTime: string; isActive: boolean }): ClosureDayGroup {
+    return this.fb.nonNullable.group({
+      closureDate: [d.closureDate],
+      dayType: [d.dayType ?? ('' as const)],
+      isHoliday: [d.isHoliday === true],
+      startTime: [d.startTime],
+      endTime: [d.endTime],
+      isActive: [d.isActive],
+    });
+  }
+
+  private setDayLines(rows: Parameters<GolfClosuresComponent['newDayGroup']>[0][], dirty: boolean): void {
+    this.dayLines.clear();
+    for (const r of rows) this.dayLines.push(this.newDayGroup(r));
+    if (dirty) this.dayLines.markAsDirty();
+    else this.dayLines.markAsPristine();
+  }
+
   openDays(p: UnitCourseClosurePlan): void {
     this.clearMessages();
     this.dayPlan.set(p);
-    this.daysDirty.set(false);
-    this.dayRows.set(
+    this.setDayLines(
       (p.Days || []).map((d) => ({
         closureDate: d.closureDate,
         startTime: this.hhmm(d.startTime),
         endTime: this.hhmm(d.endTime),
         isActive: d.isActive !== false,
       })),
+      false,
     );
     this.dlgMode.set('days');
   }
@@ -314,7 +337,7 @@ export class GolfClosuresComponent implements OnInit {
     this.generating.set(true);
     this.service.generateDays(plan.id).subscribe({
       next: (res) => {
-        this.dayRows.set(
+        this.setDayLines(
           res.days.map((d) => ({
             closureDate: d.closureDate,
             dayType: d.dayType,
@@ -323,9 +346,9 @@ export class GolfClosuresComponent implements OnInit {
             endTime: this.hhmm(d.endTime),
             isActive: true,
           })),
+          true,
         );
         this.generating.set(false);
-        this.daysDirty.set(true);
         if (!res.days.length) {
           this.errorMessage.set('No days in the period match the plan\'s day scope.');
         }
@@ -337,19 +360,9 @@ export class GolfClosuresComponent implements OnInit {
     });
   }
 
-  updateDay(index: number, field: 'startTime' | 'endTime', value: string): void {
-    this.dayRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
-    this.daysDirty.set(true);
-  }
-
-  toggleDayActive(index: number): void {
-    this.dayRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, isActive: !r.isActive } : r)));
-    this.daysDirty.set(true);
-  }
-
   removeDay(index: number): void {
-    this.dayRows.update((rows) => rows.filter((_, i) => i !== index));
-    this.daysDirty.set(true);
+    this.dayLines.removeAt(index);
+    this.dayLines.markAsDirty();
   }
 
   onSaveDays(): void {
@@ -359,7 +372,7 @@ export class GolfClosuresComponent implements OnInit {
 
     // Quick client-side pass for immediate feedback; the API re-validates.
     const days: UnitCourseClosureDay[] = [];
-    for (const r of this.dayRows()) {
+    for (const r of this.dayLines.controls.map((g) => g.getRawValue())) {
       if (!r.startTime !== !r.endTime) {
         this.errorMessage.set(`${formatLocalDate(r.closureDate)}: set both closure times, or leave both empty for a whole-day closure.`);
         return;

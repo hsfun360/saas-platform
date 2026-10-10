@@ -188,47 +188,46 @@
           }
 
           @case ('days') {
-            <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="gclDays". -->
-            <form id="gclDays" (submit)="$event.preventDefault(); onSaveDays()">
-            @if (dayRows().length === 0) {
+            <!-- Reactive FormArray editor (house standard): the rows live in `dayLines`,
+                 its dirty state feeds the unsaved-changes guard, Enter submits. -->
+            <form id="gclDays" [formGroup]="daysForm" (ngSubmit)="onSaveDays()">
+            @if (dayLines.length === 0) {
               <div class="empty-state">
                 <span class="material-icons empty-icon" aria-hidden="true">construction</span>
                 <p>No closure days yet — generate them from this plan's period and day scope, then adjust or except individual days as needed.</p>
               </div>
             } @else {
-              <div class="gcl-day-scroll">
+              <div class="gcl-day-scroll" formArrayName="days">
                 <div class="gcl-day-head" aria-hidden="true">
                   <span>Date</span><span>From</span><span>Until</span><span>On</span><span></span>
                 </div>
-                @for (row of dayRows(); track row.closureDate; let i = $index) {
-                  <div class="gcl-day-row" [class.gcl-day-row--off]="!row.isActive">
+                @for (g of dayLines.controls; track g.controls.closureDate.value; let i = $index) {
+                  <div class="gcl-day-row" [formGroupName]="i" [class.gcl-day-row--off]="!g.controls.isActive.value">
                     <span class="gcl-day-date">
-                      {{ row.closureDate | localDate }}
-                      @if (row.isHoliday) {
+                      {{ g.controls.closureDate.value | localDate }}
+                      @if (g.controls.isHoliday.value) {
                         <span class="gcl-day-tag">Holiday</span>
-                      } @else if (row.dayType === 'weekend') {
+                      } @else if (g.controls.dayType.value === 'weekend') {
                         <span class="gcl-day-tag">Weekend</span>
                       }
                     </span>
-                    <input type="time" [value]="row.startTime"
-                           (input)="updateDay(i, 'startTime', $any($event.target).value)"
-                           [attr.aria-label]="(row.closureDate | localDate) + ' closed from'" />
-                    <input type="time" [value]="row.endTime"
-                           (input)="updateDay(i, 'endTime', $any($event.target).value)"
-                           [attr.aria-label]="(row.closureDate | localDate) + ' closed until'" />
+                    <input type="time" formControlName="startTime"
+                           [attr.aria-label]="(g.controls.closureDate.value | localDate) + ' closed from'" />
+                    <input type="time" formControlName="endTime"
+                           [attr.aria-label]="(g.controls.closureDate.value | localDate) + ' closed until'" />
                     <label class="gcl-day-on">
-                      <input type="checkbox" [checked]="row.isActive" (change)="toggleDayActive(i)"
-                             [attr.aria-label]="(row.closureDate | localDate) + ' closure applies'" />
+                      <input type="checkbox" formControlName="isActive"
+                             [attr.aria-label]="(g.controls.closureDate.value | localDate) + ' closure applies'" />
                     </label>
                     <button type="button" class="gcl-day-remove" (click)="removeDay(i)"
-                            [attr.aria-label]="'Remove ' + (row.closureDate | localDate)">✕</button>
+                            [attr.aria-label]="'Remove ' + (g.controls.closureDate.value | localDate)">✕</button>
                   </div>
                 }
               </div>
             }
             <button type="button" class="btn btn--secondary" (click)="generateDays()" [disabled]="generating()">
               <span class="material-icons" aria-hidden="true">event_busy</span>
-              <span>{{ generating() ? 'Generating…' : (dayRows().length ? 'Regenerate days' : 'Generate days') + ' (' + scopeLabel(dayPlan()?.dayScope || 'all') + ', ' + ((dayPlan()?.dateFrom | localDate) || '') + ' → ' + ((dayPlan()?.dateTo | localDate) || '') + ')' }}</span>
+              <span>{{ generating() ? 'Generating…' : (dayLines.length ? 'Regenerate days' : 'Generate days') + ' (' + scopeLabel(dayPlan()?.dayScope || 'all') + ', ' + ((dayPlan()?.dateFrom | localDate) || '') + ' → ' + ((dayPlan()?.dateTo | localDate) || '') + ')' }}</span>
             </button>
             </form>
           }
@@ -246,7 +245,7 @@
           @case ('days') {
             <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="daysSaving()">Cancel</button>
             <button type="submit" form="gclDays" class="btn btn--primary" [disabled]="daysSaving()">
-              {{ daysSaving() ? 'Saving…' : 'Save ' + dayRows().length + ' days' }}
+              {{ daysSaving() ? 'Saving…' : 'Save ' + dayLines.length + ' days' }}
             </button>
           }
         }
