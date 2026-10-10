@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, Injector, OnInit, compu
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, FormRecord, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
@@ -125,10 +125,13 @@ export class GolfGroupBookingsComponent implements OnInit {
     label: `${t.transactionType}${t.description ? ' - ' + t.description : ''}${t.golferTypeLabel ? ' (' + t.golferTypeLabel + ')' : ''}`,
   })));
   readonly addItemTile = computed<GolfFolioTile | null>(() => (this.folio()?.tiles || []).find((t) => t.id === this.addItemTypeId()) || null);
-  // Proforma terms (deposit demanded + pay-by date), edited in place.
-  readonly proformaDeposit = signal<number | null>(null);
-  readonly proformaDue = signal('');
-  readonly proformaDirty = signal(false);
+  // Proforma terms (deposit demanded + pay-by date), edited in place - a
+  // reactive group (house standard): its dirty state gates Save terms and
+  // Issue, and a folio refresh only re-seeds it while it is pristine.
+  readonly proformaForm = this.fb.nonNullable.group({
+    depositRequired: [0],
+    depositDueDate: [''],
+  });
   // Record-deposit dialog.
   readonly depositDialogOpen = signal(false);
   readonly depositForm = this.fb.nonNullable.group({
@@ -219,9 +222,10 @@ export class GolfGroupBookingsComponent implements OnInit {
 
   // ---- draw ----
   readonly drawDayId = signal<string | null>(null);
-  // groupPlayerId -> groupFlightId ('' = not drawn), the EDITED state.
-  readonly drawEdits = signal<Record<string, string>>({});
-  readonly drawDirty = signal(false);
+  // groupPlayerId -> groupFlightId ('' = not drawn), the EDITED state - a
+  // reactive group keyed by roster player (house standard); its dirty state
+  // gates Save, and it is disabled unless the day can still be drawn.
+  readonly drawForm = new FormRecord<FormControl<string>>({});
   readonly drawDay = computed(() => {
     const b = this.booking();
     const id = this.drawDayId();
@@ -231,22 +235,23 @@ export class GolfGroupBookingsComponent implements OnInit {
     const day = this.drawDay();
     return (day ? day.flights : []).map((f) => ({ value: f.id, label: this.flightTitle(f, day) }));
   });
-  // Seats taken per flight in the EDITED draw.
-  readonly drawLoad = computed(() => {
+  // Seats taken per flight in the EDITED draw. Methods, not computeds: they
+  // read form controls, which signals cannot track.
+  drawLoad(): Record<string, number> {
     const load: Record<string, number> = {};
-    for (const fid of Object.values(this.drawEdits())) if (fid) load[fid] = (load[fid] || 0) + 1;
+    for (const fid of Object.values(this.drawForm.getRawValue())) if (fid) load[fid] = (load[fid] || 0) + 1;
     return load;
-  });
-  readonly drawSummary = computed(() => {
+  }
+  drawSummary(): { drawn: number; listed: number; seats: number; over: string[] } {
     const day = this.drawDay();
     const b = this.booking();
-    if (!day || !b) return { drawn: 0, listed: 0, seats: 0, over: [] as string[] };
+    if (!day || !b) return { drawn: 0, listed: 0, seats: 0, over: [] };
     const listed = b.roster.filter((p) => p.status === 'listed').length;
-    const drawn = Object.values(this.drawEdits()).filter(Boolean).length;
+    const drawn = Object.values(this.drawForm.getRawValue()).filter(Boolean).length;
     const load = this.drawLoad();
     const over = day.flights.filter((f) => (load[f.id] || 0) > f.capacity).map((f) => f.flightLabel);
     return { drawn, listed, seats: day.seatCount, over };
-  });
+  }
 
   // ---- cancel dialog ----
   readonly cancelTarget = signal<GolfGroupBookingRow | GolfGroupBooking | null>(null);
@@ -382,10 +387,16 @@ export class GolfGroupBookingsComponent implements OnInit {
 
   private applyFolio(f: GolfFolio): void {
     this.folio.set(f);
-    if (!this.proformaDirty()) {
-      this.proformaDeposit.set(f.bill ? f.bill.depositRequired : null);
-      this.proformaDue.set(f.bill && f.bill.depositDueDate ? f.bill.depositDueDate : '');
+    if (!this.proformaForm.dirty) {
+      this.proformaForm.reset({
+        depositRequired: f.bill?.depositRequired ?? 0,
+        depositDueDate: f.bill && f.bill.depositDueDate ? f.bill.depositDueDate : '',
+      });
     }
+    // Terms are editable only while the group bill is open (reactive-forms
+    // way: disable the controls, never the DOM attribute).
+    if (this.billOpen()) this.proformaForm.enable({ emitEvent: false });
+    else this.proformaForm.disable({ emitEvent: false });
   }
 
   private folioDone = (res: { message?: string; folio: GolfFolio }) => {
@@ -476,16 +487,15 @@ export class GolfGroupBookingsComponent implements OnInit {
     return !!t && t.allowPriceOverride;
   }
 
-  setProformaDeposit(v: number | null): void { this.proformaDeposit.set(v); this.proformaDirty.set(true); }
-  setProformaDue(v: string): void { this.proformaDue.set(v); this.proformaDirty.set(true); }
-
   saveProformaTerms(): void {
     const b = this.booking();
     if (!b) return;
     this.clearMessages();
     this.folioBusy.set(true);
-    this.service.setProformaTerms(b.id, { depositRequired: this.proformaDeposit(), depositDueDate: this.proformaDue() || null }).subscribe({
-      next: (res) => { this.proformaDirty.set(false); this.folioDone(res); },
+    // 0.00 = no deposit demanded (the API stores null for "none").
+    const v = this.proformaForm.getRawValue();
+    this.service.setProformaTerms(b.id, { depositRequired: v.depositRequired > 0 ? v.depositRequired : null, depositDueDate: v.depositDueDate || null }).subscribe({
+      next: (res) => { this.proformaForm.markAsPristine(); this.folioDone(res); },
       error: this.folioFail('The proforma terms could not be saved.'),
     });
   }
@@ -719,7 +729,7 @@ export class GolfGroupBookingsComponent implements OnInit {
     if (!reason) { this.errorMessage.set('Give a reason for voiding the group bill.'); return; }
     this.folioBusy.set(true);
     this.service.voidGroupBill(b.id, reason).subscribe({
-      next: (res) => { this.groupBillVoidOpen.set(false); this.proformaDirty.set(false); this.folioDone(res); },
+      next: (res) => { this.groupBillVoidOpen.set(false); this.proformaForm.markAsPristine(); this.folioDone(res); },
       error: this.folioFail('The group bill could not be voided.'),
     });
   }
@@ -1243,13 +1253,13 @@ export class GolfGroupBookingsComponent implements OnInit {
     if (b && day) {
       for (const f of day.flights) for (const p of f.players) if (p.groupPlayerId) edits[p.groupPlayerId] = f.id;
     }
-    this.drawEdits.set(edits);
-    this.drawDirty.set(false);
-  }
-
-  setDraw(groupPlayerId: string, flightId: string): void {
-    this.drawEdits.update((m) => ({ ...m, [groupPlayerId]: flightId }));
-    this.drawDirty.set(true);
+    // Rebuild the group: one control per roster player (registered players
+    // keep their flight so Save sends the whole picture).
+    for (const k of Object.keys(this.drawForm.controls)) this.drawForm.removeControl(k, { emitEvent: false });
+    if (b) for (const p of b.roster) this.drawForm.addControl(p.id, new FormControl(edits[p.id] || '', { nonNullable: true }), { emitEvent: false });
+    if (b && day && b.status === 'booked' && day.status === 'planned') this.drawForm.enable({ emitEvent: false });
+    else this.drawForm.disable({ emitEvent: false });
+    this.drawForm.markAsPristine();
   }
 
   isRegistered(p: GolfGroupRosterPlayer): boolean {
@@ -1268,7 +1278,7 @@ export class GolfGroupBookingsComponent implements OnInit {
     const b = this.booking();
     const day = this.drawDay();
     if (!b || !day) return;
-    const edits = { ...this.drawEdits() };
+    const edits = { ...this.drawForm.getRawValue() };
     const left: Record<string, number> = {};
     for (const f of day.flights) left[f.id] = f.capacity;
     for (const fid of Object.values(edits)) if (fid && left[fid] !== undefined) left[fid] -= 1;
@@ -1280,17 +1290,18 @@ export class GolfGroupBookingsComponent implements OnInit {
       edits[p.id] = day.flights[fi].id;
       left[day.flights[fi].id] -= 1;
     }
-    this.drawEdits.set(edits);
-    this.drawDirty.set(true);
+    this.drawForm.patchValue(edits);
+    this.drawForm.markAsDirty();
   }
 
   clearDraw(): void {
     const b = this.booking();
     if (!b) return;
+    const current = this.drawForm.getRawValue();
     const edits: Record<string, string> = {};
-    for (const p of b.roster) if (this.isRegistered(p)) edits[p.id] = this.drawEdits()[p.id] || '';
-    this.drawEdits.set(edits);
-    this.drawDirty.set(true);
+    for (const p of b.roster) edits[p.id] = this.isRegistered(p) ? current[p.id] || '' : '';
+    this.drawForm.patchValue(edits);
+    this.drawForm.markAsDirty();
   }
 
   saveDraw(): void {
@@ -1299,7 +1310,8 @@ export class GolfGroupBookingsComponent implements OnInit {
     const day = this.drawDay();
     if (!b || !day) return;
     if (this.drawSummary().over.length) { this.errorMessage.set(`Over capacity: ${this.drawSummary().over.join(', ')}.`); return; }
-    const assignments = b.roster.map((p) => ({ groupPlayerId: p.id, groupFlightId: this.drawEdits()[p.id] || null }));
+    const raw = this.drawForm.getRawValue();
+    const assignments = b.roster.map((p) => ({ groupPlayerId: p.id, groupFlightId: raw[p.id] || null }));
     this.saving.set(true);
     this.service.draw(b.id, day.id, { assignments }).subscribe({
       next: (res) => {

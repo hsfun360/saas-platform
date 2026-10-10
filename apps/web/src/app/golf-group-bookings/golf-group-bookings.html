@@ -346,7 +346,8 @@
                 } @else if (!b.roster.length) {
                   <p class="cell-subtle">Add players to the roster before drawing.</p>
                 } @else {
-                  <div class="ggb-draw">
+                  <!-- Reactive group keyed by roster player (house standard); form.dirty gates Save. -->
+                  <div class="ggb-draw" [formGroup]="drawForm">
                     @for (p of b.roster; track p.id) {
                       @if (p.status === 'listed') {
                         <div class="ggb-draw__row">
@@ -354,13 +355,10 @@
                           @if (isRegistered(p)) {
                             <span class="ggb-draw__fixed"><span class="material-icons" aria-hidden="true">lock</span> {{ registeredFlightLabel(p) }} · registered</span>
                           } @else {
-                            <!-- [selected] per option, not [value] on the select: the
-                                 select's value binding runs before its @for options exist. -->
-                            <select (change)="setDraw(p.id, $any($event.target).value)"
-                                    [disabled]="b.status !== 'booked' || day.status !== 'planned'" [attr.aria-label]="'Flight for ' + p.playerName">
-                              <option value="" [selected]="!drawEdits()[p.id]">— Not drawn —</option>
+                            <select [formControlName]="p.id" [attr.aria-label]="'Flight for ' + p.playerName">
+                              <option value="">— Not drawn —</option>
                               @for (f of day.flights; track f.id) {
-                                <option [value]="f.id" [selected]="drawEdits()[p.id] === f.id">{{ flightTitle(f, day) }} ({{ drawLoad()[f.id] || 0 }}/{{ f.capacity }})</option>
+                                <option [value]="f.id">{{ flightTitle(f, day) }} ({{ drawLoad()[f.id] || 0 }}/{{ f.capacity }})</option>
                               }
                             </select>
                           }
@@ -378,7 +376,7 @@
                         <span class="material-icons" aria-hidden="true">backspace</span>
                         Clear
                       </button>
-                      <button type="button" class="btn btn--primary btn--sm" (click)="saveDraw()" [disabled]="saving() || !drawDirty()">
+                      <button type="button" class="btn btn--primary btn--sm" (click)="saveDraw()" [disabled]="saving() || !drawForm.dirty">
                         {{ saving() ? 'Saving…' : 'Save draw for ' + (day.playDate | localDate) }}
                       </button>
                     </div>
@@ -466,14 +464,15 @@
               }
 
               <h2 class="ggb-h3">Proforma invoice</h2>
-              <div class="ggb-proforma">
+              <!-- Reactive form (house standard): Enter saves the terms, its dirty state gates the buttons. -->
+              <form id="ggbProforma" class="ggb-proforma" [formGroup]="proformaForm" (ngSubmit)="saveProformaTerms()">
                 <div class="form-group">
                   <label for="ggbPfDeposit">Deposit required</label>
-                  <input id="ggbPfDeposit" type="number" inputmode="decimal" min="0" step="0.01" appMoney [moneyValue]="proformaDeposit() ?? 0" (change)="setProformaDeposit(+$any($event.target).value)" [disabled]="!billOpen()" />
+                  <input id="ggbPfDeposit" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="depositRequired" />
                 </div>
                 <div class="form-group">
                   <label for="ggbPfDue">Pay by</label>
-                  <input id="ggbPfDue" type="date" [value]="proformaDue()" (change)="setProformaDue($any($event.target).value)" [disabled]="!billOpen()" />
+                  <input id="ggbPfDue" type="date" formControlName="depositDueDate" />
                 </div>
                 <div class="ggb-proforma__status">
                   @if (f.bill?.proformaNo) {
@@ -482,11 +481,11 @@
                     <span class="cell-subtle">Not issued yet.</span>
                   }
                 </div>
-              </div>
+              </form>
               <div class="ggb-actions">
                 @if (billOpen()) {
-                  <button type="button" class="btn btn--secondary btn--sm" (click)="saveProformaTerms()" [disabled]="folioBusy() || !proformaDirty()" *appCan="'edit'">Save terms</button>
-                  <button type="button" class="btn btn--primary btn--sm" (click)="issueProforma()" [disabled]="folioBusy() || proformaDirty() || !f.bill?.items?.length" *appCan="'edit'">
+                  <button type="submit" form="ggbProforma" class="btn btn--secondary btn--sm" [disabled]="folioBusy() || !proformaForm.dirty" *appCan="'edit'">Save terms</button>
+                  <button type="button" class="btn btn--primary btn--sm" (click)="issueProforma()" [disabled]="folioBusy() || proformaForm.dirty || !f.bill?.items?.length" *appCan="'edit'">
                     <span class="material-icons" aria-hidden="true">print</span>
                     {{ f.bill?.proformaNo ? 'Re-issue and print' : 'Issue proforma' }}
                   </button>
