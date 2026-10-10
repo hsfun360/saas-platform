@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { CommonModule } from '@angular/common';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -38,7 +39,7 @@ const VIEW_COL_ORDER: ArStatementColumnKey[] = ['date', 'docNo', 'details', 'deb
 @Component({
   selector: 'app-ar-statements',
   standalone: true,
-  imports: [
+  imports: [ConfirmDialogComponent, 
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule,
     DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective,
     ComboboxComponent,
@@ -56,6 +57,8 @@ export class ArStatementsComponent implements OnInit {
   readonly month = signal('');
   readonly category = signal('');
   readonly successMessage = signal('');
+  // Destructive actions confirm through the shared <app-confirm-dialog>.
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   readonly errorMessage = signal('');
 
   readonly categoryLabels: Record<string, string> = {
@@ -207,6 +210,15 @@ export class ArStatementsComponent implements OnInit {
 
   onVoid(row: ArStatementSummary): void {
     this.clearMessages();
+    this.confirmAction.set({
+      title: 'Void statement',
+      message: `Void statement ${row.statementNo}? It stays on file as voided and no longer counts as issued; regenerate the month to replace it.`,
+      confirmLabel: 'Void statement',
+      run: () => { this.confirmAction.set(null); this.performVoid(row); },
+    });
+  }
+
+  private performVoid(row: ArStatementSummary): void {
     this.service.voidStatement(row.id).subscribe({
       next: (res) => { this.successMessage.set(res.message); this.load(); },
       error: (err) => this.errorMessage.set(err.error?.message || 'Failed to void the statement.'),

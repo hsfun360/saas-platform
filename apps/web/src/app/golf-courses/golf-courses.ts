@@ -1,4 +1,5 @@
 import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -71,7 +72,7 @@ function toHHMM(minutes: number): string {
 @Component({
   selector: 'app-golf-courses',
   standalone: true,
-  imports: [LocalDatePipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
+  imports: [ConfirmDialogComponent, LocalDatePipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
     OverflowMenuComponent, MenuItemDirective, ComboboxComponent, CanDirective],
   templateUrl: './golf-courses.html',
   styleUrls: ['../system-setup/system-setup.css', './golf-courses.css'],
@@ -178,6 +179,8 @@ export class GolfCoursesComponent implements OnInit {
 
   readonly search = signal('');
   readonly successMessage = signal('');
+  // Destructive actions confirm through the shared <app-confirm-dialog>.
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   readonly errorMessage = signal('');
 
   // Picker option lists (mirrors the API). ANY active nine may sit in either
@@ -388,29 +391,23 @@ export class GolfCoursesComponent implements OnInit {
 
   // --- Delete (mis-keyed course; refused server-side once bookings or
   // registrations reference it) ---
-  readonly deleteTarget = signal<GolfCourse | null>(null);
-  readonly deleting = signal(false);
-
   askDelete(c: GolfCourse): void {
     this.clearMessages();
-    this.deleteTarget.set(c);
+    this.confirmAction.set({
+      title: 'Delete course',
+      message: `Delete ${c.courseCode}${c.description ? ' - ' + c.description : ''}? Its tee-time sets are removed with it. A course with bookings or registrations cannot be deleted - disable it instead. This cannot be undone.`,
+      confirmLabel: 'Delete course',
+      run: () => { this.confirmAction.set(null); this.performDelete(c); },
+    });
   }
 
-  confirmDelete(): void {
-    const c = this.deleteTarget();
-    if (!c) return;
-    this.deleting.set(true);
+  private performDelete(c: GolfCourse): void {
     this.service.delete(c.id).subscribe({
       next: (res) => {
-        this.deleting.set(false);
-        this.deleteTarget.set(null);
         this.successMessage.set(res.message);
         this.load();
       },
-      error: (err) => {
-        this.deleting.set(false);
-        this.errorMessage.set(err.error?.message || 'Failed to delete course.');
-      },
+      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to delete the course.'),
     });
   }
 

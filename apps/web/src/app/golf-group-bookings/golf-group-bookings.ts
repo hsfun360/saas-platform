@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Observable } from 'rxjs';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -65,7 +67,7 @@ function localDate(d: Date): string {
   selector: 'app-golf-group-bookings',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [ConfirmDialogComponent, 
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective,
     DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective, LocalDatePipe, MoneyInputDirective,
     PhoneInputComponent,
@@ -85,6 +87,8 @@ export class GolfGroupBookingsComponent implements OnInit {
 
   readonly loading = signal(false);
   readonly successMessage = signal('');
+  // Destructive actions confirm through the shared <app-confirm-dialog>.
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   readonly errorMessage = signal('');
   readonly meta = signal<GolfGroupBookingMeta | null>(null);
 
@@ -258,7 +262,6 @@ export class GolfGroupBookingsComponent implements OnInit {
   readonly cancelReason = signal('');
 
   // ---- remove confirms (day / flight / player) ----
-  readonly confirmTarget = signal<{ kind: 'day' | 'flight' | 'player'; id: string; label: string; dayId?: string } | null>(null);
 
   ngOnInit(): void {
     this.service.meta().subscribe({
@@ -1048,29 +1051,39 @@ export class GolfGroupBookingsComponent implements OnInit {
   }
 
   askRemoveDay(d: GolfGroupPlayDay): void {
-    this.confirmTarget.set({ kind: 'day', id: d.id, label: formatLocalDate(d.playDate) });
+    const label = formatLocalDate(d.playDate);
+    this.confirmAction.set({
+      title: 'Remove play day',
+      message: `Remove play day ${label} and its reserved flights? Only a day with no drawn players can be removed.`,
+      confirmLabel: 'Remove play day',
+      run: () => { this.confirmAction.set(null); this.performRemove(this.service.removeDay(this.booking()!.id, d.id)); },
+    });
   }
 
   askRemoveFlight(d: GolfGroupPlayDay, f: GolfGroupFlight): void {
-    this.confirmTarget.set({ kind: 'flight', id: f.id, dayId: d.id, label: `${f.flightLabel} (${f.teeTime})` });
+    this.confirmAction.set({
+      title: 'Release flight',
+      message: `Release flight ${f.flightLabel} (${f.teeTime})? Its seats go back to the tee sheet.`,
+      confirmLabel: 'Release flight',
+      run: () => { this.confirmAction.set(null); this.performRemove(this.service.removeFlight(this.booking()!.id, d.id, f.id)); },
+    });
   }
 
   askRemovePlayer(p: GolfGroupRosterPlayer): void {
-    this.confirmTarget.set({ kind: 'player', id: p.id, label: p.playerName });
+    this.confirmAction.set({
+      title: 'Remove player',
+      message: `Remove ${p.playerName} from the roster? Any flight they were drawn into frees the seat.`,
+      confirmLabel: 'Remove player',
+      run: () => { this.confirmAction.set(null); this.performRemove(this.service.removePlayer(this.booking()!.id, p.id)); },
+    });
   }
 
-  confirmRemove(): void {
-    const t = this.confirmTarget();
-    const b = this.booking();
-    if (!t || !b) return;
+  private performRemove(req: Observable<{ message: string; booking: GolfGroupBooking }>): void {
+    if (!this.booking()) return;
     this.working.set(true);
-    const req = t.kind === 'day' ? this.service.removeDay(b.id, t.id)
-      : t.kind === 'flight' ? this.service.removeFlight(b.id, t.dayId!, t.id)
-        : this.service.removePlayer(b.id, t.id);
     req.subscribe({
       next: (res) => {
         this.working.set(false);
-        this.confirmTarget.set(null);
         this.successMessage.set(res.message);
         this.applyBooking(res.booking);
       },

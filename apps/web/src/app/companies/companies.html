@@ -138,7 +138,7 @@
               <input type="file" accept="image/*" (change)="onLogoSelected($event, 'create')" [disabled]="uploadingLogo()">
             </label>
             @if (form.controls.logo.value) {
-              <button type="button" class="btn btn--secondary btn--sm" (click)="removeLogo('create')">Remove</button>
+              <button type="button" class="btn btn--danger btn--sm" (click)="removeLogo('create')">Remove</button>
             }
           </div>
           <span style="font-size: var(--font-caption); color: var(--text-muted);">PNG or JPG, under 1MB.</span>
@@ -337,7 +337,7 @@
               <input type="file" accept="image/*" (change)="onLogoSelected($event, 'edit')" [disabled]="uploadingEditLogo()">
             </label>
             @if (profileForm.controls.logo.value) {
-              <button type="button" class="btn btn--secondary btn--sm" (click)="removeLogo('edit')">Remove</button>
+              <button type="button" class="btn btn--danger btn--sm" (click)="removeLogo('edit')">Remove</button>
             }
           </div>
           <span style="font-size: var(--font-caption); color: var(--text-muted);">PNG or JPG, under 1MB.</span>

@@ -1,4 +1,5 @@
 import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -72,7 +73,7 @@ const SEQ_OPTIONS = [1, 2, 3, 4, 5];
 @Component({
   selector: 'app-golf-unit-courses',
   standalone: true,
-  imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
+  imports: [ConfirmDialogComponent, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
     OverflowMenuComponent, MenuItemDirective, CanDirective],
   templateUrl: './golf-unit-courses.html',
   styleUrls: ['../system-setup/system-setup.css', './golf-unit-courses.css'],
@@ -144,6 +145,8 @@ export class GolfUnitCoursesComponent implements OnInit {
 
   readonly search = signal('');
   readonly successMessage = signal('');
+  // Destructive actions confirm through the shared <app-confirm-dialog>.
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   readonly errorMessage = signal('');
 
   readonly filtered = computed(() => {
@@ -322,29 +325,23 @@ export class GolfUnitCoursesComponent implements OnInit {
   }
 
   // --- Delete (mis-keyed nine; refused server-side while a course uses it) ---
-  readonly deleteTarget = signal<UnitCourse | null>(null);
-  readonly deleting = signal(false);
-
   askDelete(c: UnitCourse): void {
     this.clearMessages();
-    this.deleteTarget.set(c);
+    this.confirmAction.set({
+      title: 'Delete unit course',
+      message: `Delete ${c.unitCourseCode}${c.description ? ' - ' + c.description : ''}? Its holes, tee boxes and closure plans are removed with it. A nine still used by a course cannot be deleted. This cannot be undone.`,
+      confirmLabel: 'Delete unit course',
+      run: () => { this.confirmAction.set(null); this.performDelete(c); },
+    });
   }
 
-  confirmDelete(): void {
-    const c = this.deleteTarget();
-    if (!c) return;
-    this.deleting.set(true);
+  private performDelete(c: UnitCourse): void {
     this.service.delete(c.id).subscribe({
       next: (res) => {
-        this.deleting.set(false);
-        this.deleteTarget.set(null);
         this.successMessage.set(res.message);
         this.load();
       },
-      error: (err) => {
-        this.deleting.set(false);
-        this.errorMessage.set(err.error?.message || 'Failed to delete unit course.');
-      },
+      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to delete the unit course.'),
     });
   }
 

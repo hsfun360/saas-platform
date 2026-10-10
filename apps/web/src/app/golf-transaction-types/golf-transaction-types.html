@@ -398,6 +398,12 @@
       <div class="saas-form" style="padding: 0;">
         @switch (prMode()) {
 
+          @case ('delete') {
+            @if (prDeleteTarget(); as r) {
+              <p style="margin: 0 0 var(--space-sm);">Delete the price effective <strong>{{ r.effectiveDate | localDate }}</strong>? Bills already raised keep their amounts. This cannot be undone.</p>
+            }
+          }
+
           @case ('list') {
             @if (prLoading()) {
               <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading pricing…</p></div>
@@ -546,6 +552,9 @@
         @if (prMode() === 'list') {
           <button *appCan="'create'" type="button" class="btn btn--primary" (click)="openRateForm()" [disabled]="prLoading()">New price</button>
           <button type="button" class="btn btn--secondary" (click)="prDlg.requestClose()">Close</button>
+        } @else if (prMode() === 'delete') {
+          <button type="button" class="btn btn--secondary" (click)="backToRates()">Keep</button>
+          <button type="button" class="btn btn--danger" (click)="performDeleteRate()">Delete price</button>
         } @else {
           <button type="button" class="btn btn--secondary" (click)="backToRates()" [disabled]="prSaving()">Back</button>
           <button type="submit" form="gttRateForm" class="btn btn--primary" [disabled]="prSaving()">

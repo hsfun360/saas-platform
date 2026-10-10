@@ -118,7 +118,8 @@ export class GolfTransactionTypesComponent implements OnInit {
 
   // ---- Pricing dialog (single instance, 'list' ↔ 'form' views) ----
   readonly prOpen = signal(false);
-  readonly prMode = signal<'list' | 'form'>('list');
+  readonly prMode = signal<'list' | 'form' | 'delete'>('list');
+  readonly prDeleteTarget = signal<GolfTransactionTypeRate | null>(null);
   readonly prType = signal<GolfTransactionType | null>(null);
   readonly prRates = signal<GolfTransactionTypeRate[]>([]);
   readonly prLoading = signal(false);
@@ -168,6 +169,7 @@ export class GolfTransactionTypesComponent implements OnInit {
   readonly prTitle = computed(() => {
     const code = this.prType()?.transactionType || '';
     if (this.prMode() === 'form') return this.prEditId() ? `Edit price — ${code}` : `New price — ${code}`;
+    if (this.prMode() === 'delete') return `Delete price — ${code}`;
     return `Default Price — ${code}`;
   });
   readonly prBusy = computed(() => this.prLoading() || this.prSaving());
@@ -641,10 +643,20 @@ export class GolfTransactionTypesComponent implements OnInit {
     return r.effectiveDate > this.todayStr();
   }
 
+  // Confirm as a VIEW of the open pricing drawer (single-dialog standard).
   deleteRate(r: GolfTransactionTypeRate): void {
-    const t = this.prType();
-    if (!t) return;
     this.clearMessages();
+    this.prDeleteTarget.set(r);
+    this.prMode.set('delete');
+  }
+
+  performDeleteRate(): void {
+    const t = this.prType();
+    const r = this.prDeleteTarget();
+    if (!t || !r) return;
+    this.clearMessages();
+    this.prMode.set('list');
+    this.prDeleteTarget.set(null);
     this.prTogglingId.set(r.id);
     this.service.deleteRate(t.id, r.id).subscribe({
       next: (res) => {

@@ -238,19 +238,17 @@
   padding: 1px 6px;
   margin-left: var(--space-2xs);
 }
+/* The chip remove composes .btn .btn--link .btn--sm (button system); only the
+   glyph size and the danger hover are chip-specific. */
 .pick-chip__x {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
   min-width: 44px;
-  min-height: 44px;
-  font-size: var(--font-body-2);
+  padding: 0;
+  color: var(--text-muted);
 }
-.pick-chip__x:hover {
+.pick-chip__x .material-icons {
+  font-size: var(--icon-sm);
+}
+.pick-chip__x:hover:not(:disabled) {
   color: var(--danger-text);
   background: var(--danger-surface);
 }

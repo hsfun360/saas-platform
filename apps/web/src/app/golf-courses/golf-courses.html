@@ -460,17 +460,7 @@
     </app-dialog>
   }
 
-  <!-- ============ Delete confirm (centred) ============ -->
-  @if (deleteTarget(); as target) {
-    <app-dialog title="Delete course" [busy]="deleting()" (close)="deleteTarget.set(null)">
-      <p>Delete <strong>{{ target.courseCode }}</strong>{{ target.description ? ' — ' + target.description : '' }}? Its tee-time sets are removed with it. This cannot be undone.</p>
-      <p class="cell-subtle">A course with bookings or registrations cannot be deleted — the server will refuse; disable it instead.</p>
-      <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="deleteTarget.set(null)" [disabled]="deleting()">Keep</button>
-        <button type="button" class="btn btn--danger" (click)="confirmDelete()" [disabled]="deleting()">
-          {{ deleting() ? 'Deleting…' : 'Delete' }}
-        </button>
-      </ng-container>
-    </app-dialog>
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
   }
 </div>

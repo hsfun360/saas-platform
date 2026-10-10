@@ -1,8 +1,9 @@
 import { Component, Injector, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
-import { LocalDatePipe } from '../shared/local-date.pipe';
+import { LocalDatePipe, formatLocalDate } from '../shared/local-date.pipe';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ArService } from '../services/ar.service';
 import { DialogComponent } from '../shared/dialog/dialog';
@@ -20,7 +21,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 @Component({
   selector: 'app-ar-exchange-rates',
   standalone: true,
-  imports: [
+  imports: [ConfirmDialogComponent, 
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, LocalDatePipe, CommonModule, ReactiveFormsModule,
     DialogComponent, OverflowMenuComponent, MenuItemDirective, CanDirective, ComboboxComponent,
   ],
@@ -47,8 +48,6 @@ export class ArExchangeRatesComponent implements OnInit {
   readonly saving = signal(false);
   readonly editId = signal<string | null>(null);
   // Single-dialog rule: the delete confirmation is a VIEW of the one dialog.
-  readonly dialogView = signal<'form' | 'delete'>('form');
-  readonly deleteTarget = signal<ArExchangeRate | null>(null);
 
   readonly form = this.fb.nonNullable.group({
     currencyCode: ['', [Validators.required]],
@@ -60,6 +59,8 @@ export class ArExchangeRatesComponent implements OnInit {
 
   readonly search = signal('');
   readonly successMessage = signal('');
+  // Destructive actions confirm through the shared <app-confirm-dialog>.
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   readonly errorMessage = signal('');
 
   readonly baseCurrency = computed(() => this.meta()?.baseCurrencyCode || null);
@@ -171,7 +172,6 @@ export class ArExchangeRatesComponent implements OnInit {
   openAdd(): void {
     this.clearMessages();
     this.editId.set(null);
-    this.dialogView.set('form');
     this.form.reset({ currencyCode: this.currencies()[0]?.code || '', effectiveDate: this.today, rate: '' });
     this.form.controls.currencyCode.enable();
     this.syncPreview();
@@ -181,7 +181,6 @@ export class ArExchangeRatesComponent implements OnInit {
   openEdit(r: ArExchangeRate): void {
     this.clearMessages();
     this.editId.set(r.id);
-    this.dialogView.set('form');
     this.form.reset({ currencyCode: r.currencyCode, effectiveDate: r.effectiveDate, rate: this.trimStored(r.rate) });
     // The currency is immutable on edit (a rate belongs to its currency).
     this.form.controls.currencyCode.disable();
@@ -191,14 +190,16 @@ export class ArExchangeRatesComponent implements OnInit {
 
   askDelete(r: ArExchangeRate): void {
     this.clearMessages();
-    this.deleteTarget.set(r);
-    this.dialogView.set('delete');
-    this.dialogOpen.set(true);
+    this.confirmAction.set({
+      title: 'Delete exchange rate',
+      message: `Delete the ${r.currencyCode} rate effective ${formatLocalDate(r.effectiveDate)} (1 ${r.currencyCode} = ${this.fmtRate(r.rate)} ${this.baseCurrency() || ''})? Documents keep the rate they were posted with; deleting only changes what new documents default to.`,
+      confirmLabel: 'Delete rate',
+      run: () => { this.confirmAction.set(null); this.performDelete(r); },
+    });
   }
 
   closeDialog(): void {
     this.dialogOpen.set(false);
-    this.deleteTarget.set(null);
   }
 
   onSave(): void {
@@ -233,15 +234,12 @@ export class ArExchangeRatesComponent implements OnInit {
     });
   }
 
-  confirmDelete(): void {
-    const r = this.deleteTarget();
-    if (!r) return;
+  private performDelete(r: ArExchangeRate): void {
     this.saving.set(true);
     this.service.deleteExchangeRate(r.id).subscribe({
       next: (res) => {
         this.successMessage.set(res.message);
         this.saving.set(false);
-        this.closeDialog();
         this.load();
       },
       error: (err) => {

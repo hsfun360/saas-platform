@@ -131,4 +131,7 @@
     </div>
   }
 
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
 </div>

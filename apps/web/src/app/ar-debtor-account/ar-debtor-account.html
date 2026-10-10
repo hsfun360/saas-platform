@@ -127,7 +127,12 @@
                   </div>
                   @if (canVoidLedgerDoc(doc)) {
                     <div class="ara-doc__actions">
-                      <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="askVoidLedger(doc)">Void</button>
+                      <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + doc.docNo">
+                        <button type="button" appMenuItem (click)="askVoidLedger(doc)">
+                          <span class="material-icons" aria-hidden="true">block</span>
+                          Void
+                        </button>
+                      </app-overflow-menu>
                     </div>
                   }
                 </div>
@@ -178,7 +183,12 @@
                   </div>
                   @if (doc.docType === 'receipt' && (doc.status === 'draft' || (doc.status === 'open' && receiptUntouched(doc)))) {
                     <div class="ara-doc__actions">
-                      <button *appCan="'edit'" type="button" class="btn btn--danger btn--sm" (click)="askVoidReceipt(doc)">Void</button>
+                      <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + doc.docNo">
+                        <button type="button" appMenuItem (click)="askVoidReceipt(doc)">
+                          <span class="material-icons" aria-hidden="true">block</span>
+                          Void
+                        </button>
+                      </app-overflow-menu>
                     </div>
                   }
                 </div>

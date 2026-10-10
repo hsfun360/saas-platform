@@ -90,7 +90,7 @@
               <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + u.email">
                 <button type="button" appMenuItem (click)="toggleStatus(u)" [disabled]="togglingId() === u.id">
                   <span class="material-icons" aria-hidden="true">{{ u.isActive === false ? 'check_circle' : 'block' }}</span>
-                  {{ togglingId() === u.id ? 'Saving…' : (u.isActive === false ? 'Activate' : 'Deactivate') }}
+                  {{ togglingId() === u.id ? 'Saving…' : (u.isActive === false ? 'Enable' : 'Disable') }}
                 </button>
               </app-overflow-menu>
             </div>

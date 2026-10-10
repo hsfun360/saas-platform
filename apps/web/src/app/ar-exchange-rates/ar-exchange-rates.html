@@ -119,21 +119,6 @@
 
   <!-- ============ Add / edit / delete dialog (one instance, view-switched) ============ -->
   @if (dialogOpen()) {
-    @if (dialogView() === 'delete') {
-      <app-dialog #dlg title="Delete exchange rate" [busy]="saving()" (close)="closeDialog()">
-        <p style="margin: 0 0 var(--space-sm);">
-          Delete the <strong>{{ deleteTarget()?.currencyCode }}</strong> rate effective <strong>{{ deleteTarget()?.effectiveDate | localDate }}</strong>
-          ({{ '1 ' + deleteTarget()?.currencyCode + ' = ' + fmtRate(deleteTarget()?.rate || '0') + ' ' + (baseCurrency() || '') }})?
-        </p>
-        <p class="cell-subtle" style="margin: 0;">Documents keep the rate they were posted with - deleting only changes what new documents default to.</p>
-        <ng-container dialogFooter>
-          <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
-          <button type="button" class="btn btn--danger" (click)="confirmDelete()" [disabled]="saving()">
-            {{ saving() ? 'Deleting…' : 'Delete rate' }}
-          </button>
-        </ng-container>
-      </app-dialog>
-    } @else {
       <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
                   discardTitle="Discard your changes?"
                   discardMessage="You have unsaved changes to this exchange rate. Leaving now will discard them."
@@ -191,6 +176,8 @@
           </button>
         </ng-container>
       </app-dialog>
-    }
+  }
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
   }
 </div>

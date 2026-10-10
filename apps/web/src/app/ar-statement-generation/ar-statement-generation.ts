@@ -1,4 +1,5 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
@@ -25,7 +26,7 @@ import { ArStatementCategory, ArStatementRun, ArStatementRunPreview } from '../m
 @Component({
   selector: 'app-ar-statement-generation',
   standalone: true,
-  imports: [
+  imports: [ConfirmDialogComponent, 
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
     DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective,
     ComboboxComponent,
@@ -40,6 +41,10 @@ export class ArStatementGenerationComponent implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
 
   readonly successMessage = signal('');
+
+  // Destructive actions confirm through the shared <app-confirm-dialog>.
+
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   // The "Generate a month" run card folds like every section card (header is a button).
   readonly runOpen = signal(true);
   readonly errorMessage = signal('');
@@ -271,6 +276,15 @@ export class ArStatementGenerationComponent implements OnInit, OnDestroy {
 
   onCancelRun(run: ArStatementRun): void {
     this.clearMessages();
+    this.confirmAction.set({
+      title: 'Cancel statement run',
+      message: `Cancel the ${this.monthLabel(run.statementMonth)} run? Statements already produced stay; the rest can be resumed later.`,
+      confirmLabel: 'Cancel run',
+      run: () => { this.confirmAction.set(null); this.performCancelRun(run); },
+    });
+  }
+
+  private performCancelRun(run: ArStatementRun): void {
     this.service.cancelStatementRun(run.id).subscribe({
       next: (res) => {
         this.successMessage.set(res.message);

@@ -147,21 +147,7 @@
   accent-color: var(--brand);
 }
 
-.gcl-day-remove {
-  min-height: 44px;
-  min-width: 44px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: var(--font-body);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.gcl-day-remove:hover {
-  color: var(--danger-text);
-  background: var(--surface-hover);
-}
+/* The row remove is a .btn .btn--danger .btn--sm (button system). */
 
 .gcl-day-remove:focus-visible {
   outline: 2px solid var(--focus-ring);

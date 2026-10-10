@@ -48,7 +48,7 @@
                 {{ l.name }}
                 @if (isDefault(l.languageCode)) { <span class="pick-chip__tag">{{ 'accountLanguages.defaultTag' | t }}</span> }
               </button>
-              <button type="button" class="pick-chip__x" (click)="remove(l.languageCode)" [attr.aria-label]="'Remove ' + l.name">✕</button>
+              <button type="button" class="btn btn--link btn--sm pick-chip__x" (click)="remove(l.languageCode)" [attr.aria-label]="'Remove ' + l.name"><span class="material-icons" aria-hidden="true">close</span></button>
             </span>
           }
         </div>

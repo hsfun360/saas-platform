@@ -48,7 +48,7 @@
                 {{ c.code }}
                 @if (isDefault(c.code)) { <span class="pick-chip__tag">Default</span> }
               </button>
-              <button type="button" class="pick-chip__x" (click)="remove(c.code)" [attr.aria-label]="'Remove ' + c.code">✕</button>
+              <button type="button" class="btn btn--link btn--sm pick-chip__x" (click)="remove(c.code)" [attr.aria-label]="'Remove ' + c.code"><span class="material-icons" aria-hidden="true">close</span></button>
             </span>
           }
         </div>

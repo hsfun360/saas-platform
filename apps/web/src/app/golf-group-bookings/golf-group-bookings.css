@@ -120,22 +120,7 @@
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
 }
-.ggb-flight__x {
-  min-width: 28px;
-  min-height: 28px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.ggb-flight__x:hover {
-  background: var(--surface-hover);
-  color: var(--danger-text);
-}
+/* Release flight is a .btn .btn--danger .btn--sm (button system). */
 .ggb-flight__x .material-icons {
   font-size: var(--icon-sm);
 }

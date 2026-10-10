@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -21,7 +22,7 @@ import { ArAnalysisEntryMeta, ArInterestDetail, ArInterest } from '../models/ar.
 @Component({
   selector: 'app-ar-interest',
   standalone: true,
-  imports: [
+  imports: [ConfirmDialogComponent, 
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
     DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective,
     ComboboxComponent,
@@ -48,6 +49,8 @@ export class ArInterestComponent implements OnInit {
   readonly month = signal('');
   readonly selected = signal<Set<string>>(new Set());
   readonly successMessage = signal('');
+  // Destructive actions confirm through the shared <app-confirm-dialog>.
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   readonly errorMessage = signal('');
 
   readonly runForm = this.fb.nonNullable.group({
@@ -229,6 +232,15 @@ export class ArInterestComponent implements OnInit {
 
   onCancel(row: ArInterest): void {
     this.clearMessages();
+    this.confirmAction.set({
+      title: 'Cancel interest generation',
+      message: `Cancel the pending interest for ${row.debtor?.no || 'this debtor'}? Nothing has been posted; the month can be generated again.`,
+      confirmLabel: 'Cancel generation',
+      run: () => { this.confirmAction.set(null); this.performCancel(row); },
+    });
+  }
+
+  private performCancel(row: ArInterest): void {
     this.service.cancelInterest(row.id).subscribe({
       next: (res) => { this.successMessage.set(res.message); this.load(); },
       error: (err) => this.errorMessage.set(err.error?.message || 'Failed to cancel.'),

@@ -368,4 +368,7 @@
       <span class="bottom-nav-label">{{ 'nav.more' | t }}</span>
     </button>
   </nav>
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
 </div>

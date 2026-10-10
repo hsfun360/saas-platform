@@ -223,7 +223,7 @@
                           @if (flightNine(f, d); as nine) { <span class="data-card__reg">{{ nine }}</span> }
                           <span class="ggb-flight__seats">{{ f.players.length }}/{{ f.capacity }}</span>
                           @if (f.players.length === 0 && b.status === 'booked' && b.canModify !== false) {
-                            <button type="button" class="ggb-flight__x" (click)="askRemoveFlight(d, f)" [attr.aria-label]="'Release flight ' + f.flightLabel" *appCan="'edit'">
+                            <button type="button" class="btn btn--danger btn--sm" (click)="askRemoveFlight(d, f)" [attr.aria-label]="'Release flight ' + f.flightLabel" *appCan="'edit'">
                               <span class="material-icons" aria-hidden="true">close</span>
                             </button>
                           }
@@ -517,7 +517,7 @@
                       <span class="material-icons" aria-hidden="true">point_of_sale</span>
                       Settle {{ f.bill?.totalAmount?.toFixed(2) }}
                     </button>
-                    <button type="button" class="btn btn--secondary btn--sm" (click)="groupBillVoidOpen.set(true); groupBillVoidReason.set('')" [disabled]="folioBusy()">
+                    <button type="button" class="btn btn--danger btn--sm" (click)="groupBillVoidOpen.set(true); groupBillVoidReason.set('')" [disabled]="folioBusy()">
                       <span class="material-icons" aria-hidden="true">block</span>
                       Void bill
                     </button>
@@ -1142,18 +1142,7 @@
     </app-dialog>
   }
 
-  <!-- ============ Remove confirmation (centred) ============ -->
-  @if (confirmTarget(); as t) {
-    <app-dialog [title]="t.kind === 'day' ? 'Remove play day' : t.kind === 'flight' ? 'Release flight' : 'Remove player'" [busy]="working()" (close)="confirmTarget.set(null)">
-      @switch (t.kind) {
-        @case ('day') { <p>Remove play day <strong>{{ t.label }}</strong> and its reserved flights? Only a day with no drawn players can be removed.</p> }
-        @case ('flight') { <p>Release flight <strong>{{ t.label }}</strong>? Its seats go back to the tee sheet.</p> }
-        @default { <p>Remove <strong>{{ t.label }}</strong> from the roster? Any flight they were drawn into frees the seat.</p> }
-      }
-      <ng-container dialogFooter>
-        <button type="button" class="btn btn--secondary" (click)="confirmTarget.set(null)" [disabled]="working()">Keep</button>
-        <button type="button" class="btn btn--danger" (click)="confirmRemove()" [disabled]="working()">{{ working() ? 'Removing…' : (t.kind === 'flight' ? 'Release' : 'Remove') }}</button>
-      </ng-container>
-    </app-dialog>
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
   }
 </div>

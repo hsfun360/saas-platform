@@ -219,8 +219,10 @@
                       <input type="checkbox" formControlName="isActive"
                              [attr.aria-label]="(g.controls.closureDate.value | localDate) + ' closure applies'" />
                     </label>
-                    <button type="button" class="gcl-day-remove" (click)="removeDay(i)"
-                            [attr.aria-label]="'Remove ' + (g.controls.closureDate.value | localDate)">✕</button>
+                    <button type="button" class="btn btn--danger btn--sm" (click)="removeDay(i)"
+                            [attr.aria-label]="'Remove ' + (g.controls.closureDate.value | localDate)">
+                      <span class="material-icons" aria-hidden="true">close</span>
+                    </button>
                   </div>
                 }
               </div>

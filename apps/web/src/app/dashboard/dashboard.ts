@@ -1,4 +1,5 @@
 import { Component, OnDestroy, OnInit, computed, signal, DestroyRef, inject } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -63,7 +64,7 @@ interface NavNode {
     selector: 'app-dashboard',
     templateUrl: './dashboard.html',
     styleUrl: './dashboard.css',
-    imports: [CommonModule, RouterModule, TranslatePipe, HelpButtonComponent],
+    imports: [CommonModule, RouterModule, TranslatePipe, HelpButtonComponent, ConfirmDialogComponent],
     host: {
       '(document:click)': 'closeDropdown()',
       '(document:keydown.escape)': 'onEscape()'
@@ -81,6 +82,7 @@ export class Dashboard implements OnInit, OnDestroy {
   profilePictureUrl = signal<string | null>(null);
   // Shell-level error (switch workspace / invitations) shown by the global flash snackbar.
   readonly shellError = signal('');
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   private readonly destroyRef = inject(DestroyRef);
   activeCompanyName = 'Loading...';
   allowedMenus: MenuItem[] = [];
@@ -393,7 +395,13 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   clearAllNotifications(): void {
-    this.notifications.dismissAll();
+    const n = this.notifications.items().length;
+    this.confirmAction.set({
+      title: 'Clear notifications',
+      message: `Clear all ${n} notification${n === 1 ? '' : 's'}? They cannot be recovered.`,
+      confirmLabel: `Clear ${n} notification${n === 1 ? '' : 's'}`,
+      run: () => { this.confirmAction.set(null); this.notifications.dismissAll(); },
+    });
   }
 
   // --- Header language quick-switch ---

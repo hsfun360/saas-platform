@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal, Injector } from '@angular/core';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -6,7 +7,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
-import { LocalDatePipe } from '../shared/local-date.pipe';
+import { LocalDatePipe, monthYearLabel } from '../shared/local-date.pipe';
 import { BillingService } from '../services/billing.service';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ComboboxComponent } from '../shared/combobox/combobox';
@@ -19,7 +20,7 @@ import { BillingSchedule } from '../models/billing.models';
 @Component({
   selector: 'app-membership-billing',
   standalone: true,
-  imports: [
+  imports: [ConfirmDialogComponent, 
     FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule,
     RouterLink, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective,
     ComboboxComponent,
@@ -44,6 +45,8 @@ export class MembershipBillingComponent implements OnInit {
   readonly generating = signal(false);
   readonly month = signal('');
   readonly successMessage = signal('');
+  // Destructive actions confirm through the shared <app-confirm-dialog>.
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
   readonly errorMessage = signal('');
   readonly warnings = signal<string[]>([]);
 
@@ -133,8 +136,17 @@ export class MembershipBillingComponent implements OnInit {
   }
 
   onCancel(row: BillingSchedule): void {
-    this.returnScroll.remember(MembershipBillingComponent.LIST_PATH, row.id);
     this.clearMessages();
+    this.confirmAction.set({
+      title: 'Cancel billing schedule',
+      message: `Cancel the pending ${this.typeLabel(row.billingType)} schedule for ${monthYearLabel(row.periodMonth)} (${row.itemCount} item${row.itemCount === 1 ? '' : 's'})? No invoices are posted and the month can be generated again.`,
+      confirmLabel: 'Cancel schedule',
+      run: () => { this.confirmAction.set(null); this.performCancel(row); },
+    });
+  }
+
+  private performCancel(row: BillingSchedule): void {
+    this.returnScroll.remember(MembershipBillingComponent.LIST_PATH, row.id);
     this.service.cancel(row.id).subscribe({
       next: (res) => { this.successMessage.set(res.message); this.load(); },
       error: (err) => this.errorMessage.set(err.error?.message || 'Failed to cancel the schedule.'),
