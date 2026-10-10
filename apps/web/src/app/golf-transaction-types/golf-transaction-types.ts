@@ -1,7 +1,7 @@
 import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { GolfTransactionTypeService } from '../services/golf-transaction-type.service';
 import { NationalityService } from '../services/nationality.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
@@ -23,6 +23,27 @@ const MATRIX_CELLS = [
 // The charge-type key whose transaction types bundle OTHER transaction types
 // (fixed vocabulary key, mirrored from transactionType.constants.js).
 const PACKAGE_KEY = 'package';
+
+// Package composition rows live INSIDE the type form as FormArrays (house
+// standard): one element line per group, one eligibility condition per group
+// (days as a nested group of seven booleans). form.dirty therefore covers
+// them - no hand-kept dirty flag.
+type PkgGroup = FormGroup<{
+  elementTransactionTypeId: FormControl<string>;
+  quantity: FormControl<number>;
+  unitAmount: FormControl<number>;
+}>;
+type EligGroup = FormGroup<{
+  days: FormGroup<Record<string, FormControl<boolean>>>;
+  excludePublicHolidays: FormControl<boolean>;
+  startTime: FormControl<string>;
+  endTime: FormControl<string>;
+  holes: FormControl<string>;      // '' | '9' | '18'
+  minAge: FormControl<number | null>;
+  maxAge: FormControl<number | null>;
+  gender: FormControl<string>;     // '' | 'male' | 'female'
+  nationalityCode: FormControl<string>;
+}>;
 
 // Golf Management → Master File Setup → Transaction Type.
 // Per-company billing-item catalog: code + charge type (fixed vocabulary:
@@ -78,13 +99,12 @@ export class GolfTransactionTypesComponent implements OnInit {
     allowPriceOverride: [false],
     iconUrl: [''],
     autoTransactionTypeId: [''],
+    // PACKAGE composition (see PkgGroup / EligGroup).
+    packageItems: this.fb.array<PkgGroup>([]),
+    eligibility: this.fb.array<EligGroup>([]),
   });
-
-  // Element lines while composing a PACKAGE in the dialog (kept outside the
-  // FormGroup - dynamic rows, like the membership-fee stage rows). pkgDirty
-  // feeds the dialog's unsaved-changes guard alongside form.dirty.
-  readonly pkgItems = signal<GolfTransactionTypeElement[]>([]);
-  readonly pkgDirty = signal(false);
+  get pkgLines(): FormArray<PkgGroup> { return this.form.controls.packageItems; }
+  get eligLines(): FormArray<EligGroup> { return this.form.controls.eligibility; }
   // The pickable elements: active, not a package, not the record being edited.
   readonly elementOptions = computed(() => {
     const selfId = this.editId();
@@ -219,50 +239,59 @@ export class GolfTransactionTypesComponent implements OnInit {
 
   // Sum of the element allocations in the editor (qty × unit amount).
   pkgSum(): number {
-    return this.pkgItems().reduce((s, i) => s + i.quantity * (i.unitAmount || 0), 0);
+    return this.pkgLines.controls.reduce((s, g) => s + (Number(g.controls.quantity.value) || 0) * (Number(g.controls.unitAmount.value) || 0), 0);
   }
 
   // ---- Package eligibility (who may be billed this package; rows OR-ed) ----
 
-  readonly eligRows = signal<GolfTransactionTypeEligibility[]>([]);
   readonly dayKeys: { key: string; label: string }[] = [
     { key: 'monday', label: 'Mon' }, { key: 'tuesday', label: 'Tue' }, { key: 'wednesday', label: 'Wed' },
     { key: 'thursday', label: 'Thu' }, { key: 'friday', label: 'Fri' }, { key: 'saturday', label: 'Sat' }, { key: 'sunday', label: 'Sun' },
   ];
 
+  private newEligGroup(r?: GolfTransactionTypeEligibility): EligGroup {
+    const days: Record<string, FormControl<boolean>> = {};
+    for (const d of this.dayKeys) days[d.key] = this.fb.nonNullable.control(!!r?.daysOfWeek?.includes(d.key));
+    return this.fb.group({
+      days: this.fb.group(days),
+      excludePublicHolidays: this.fb.nonNullable.control(r?.excludePublicHolidays === true),
+      startTime: this.fb.nonNullable.control(r?.startTime || ''),
+      endTime: this.fb.nonNullable.control(r?.endTime || ''),
+      holes: this.fb.nonNullable.control(r?.holes ? String(r.holes) : ''),
+      minAge: this.fb.control<number | null>(r?.minAge ?? null),
+      maxAge: this.fb.control<number | null>(r?.maxAge ?? null),
+      gender: this.fb.nonNullable.control(r?.gender || ''),
+      nationalityCode: this.fb.nonNullable.control(r?.nationalityCode || ''),
+    });
+  }
+
+  // The model shape of one condition group (null = no restriction), used by
+  // the row summary and the save payload.
+  eligModel(g: EligGroup): GolfTransactionTypeEligibility {
+    const v = g.getRawValue();
+    const days = this.dayKeys.map((d) => d.key).filter((k) => v.days[k]);
+    const clampAge = (n: number | null) => (n === null || n === undefined || Number.isNaN(n) ? null : Math.max(0, Math.min(120, Math.floor(n))));
+    return {
+      daysOfWeek: days.length ? days : null,
+      excludePublicHolidays: v.excludePublicHolidays,
+      startTime: v.startTime || null,
+      endTime: v.endTime || null,
+      holes: v.holes ? Number(v.holes) : null,
+      minAge: clampAge(v.minAge),
+      maxAge: clampAge(v.maxAge),
+      gender: v.gender === 'male' || v.gender === 'female' ? v.gender : null,
+      nationalityCode: v.nationalityCode || null,
+    };
+  }
+
   addEligRow(): void {
-    this.eligRows.update((rows) => [...rows, {
-      daysOfWeek: null, excludePublicHolidays: false, startTime: null, endTime: null,
-      holes: null, minAge: null, maxAge: null, gender: null, nationalityCode: null,
-    }]);
-    this.pkgDirty.set(true);
+    this.eligLines.push(this.newEligGroup());
+    this.eligLines.markAsDirty();
   }
 
   removeEligRow(index: number): void {
-    this.eligRows.update((rows) => rows.filter((_, i) => i !== index));
-    this.pkgDirty.set(true);
-  }
-
-  setElig(index: number, patch: Partial<GolfTransactionTypeEligibility>): void {
-    this.eligRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
-    this.pkgDirty.set(true);
-  }
-
-  eligDay(row: GolfTransactionTypeEligibility, day: string): boolean {
-    return !!row.daysOfWeek && row.daysOfWeek.includes(day);
-  }
-
-  toggleEligDay(index: number, day: string): void {
-    const row = this.eligRows()[index];
-    const set = new Set(row.daysOfWeek || []);
-    if (set.has(day)) set.delete(day);
-    else set.add(day);
-    this.setElig(index, { daysOfWeek: set.size ? this.dayKeys.map((d) => d.key).filter((k) => set.has(k)) : null });
-  }
-
-  setEligInt(index: number, field: 'minAge' | 'maxAge', value: string): void {
-    const n = value === '' ? null : Math.max(0, Math.min(120, Math.floor(Number(value) || 0)));
-    this.setElig(index, { [field]: n } as Partial<GolfTransactionTypeEligibility>);
+    this.eligLines.removeAt(index);
+    this.eligLines.markAsDirty();
   }
 
   // "Mon-Thu · not on holidays · 07:05-09:05 · age 55+ · local" summary for
@@ -297,31 +326,30 @@ export class GolfTransactionTypesComponent implements OnInit {
     return n && n.description ? `${n.description} only` : `nationality ${code}`;
   }
 
+  private newPkgGroup(i?: GolfTransactionTypeElement): PkgGroup {
+    return this.fb.nonNullable.group({
+      elementTransactionTypeId: [i?.elementTransactionTypeId || ''],
+      quantity: [i?.quantity ?? 1, [Validators.min(1), Validators.max(99)]],
+      unitAmount: [i?.unitAmount ?? 0, [Validators.min(0)]],
+    });
+  }
+
   addPkgRow(): void {
-    this.pkgItems.update((rows) => [...rows, { elementTransactionTypeId: '', quantity: 1, unitAmount: 0 }]);
-    this.pkgDirty.set(true);
+    this.pkgLines.push(this.newPkgGroup());
+    this.pkgLines.markAsDirty();
   }
 
   removePkgRow(index: number): void {
-    this.pkgItems.update((rows) => rows.filter((_, i) => i !== index));
-    this.pkgDirty.set(true);
+    this.pkgLines.removeAt(index);
+    this.pkgLines.markAsDirty();
   }
 
-  setPkgElement(index: number, value: string): void {
-    this.pkgItems.update((rows) => rows.map((r, i) => (i === index ? { ...r, elementTransactionTypeId: value } : r)));
-    this.pkgDirty.set(true);
-  }
-
-  setPkgQuantity(index: number, value: string): void {
-    const quantity = Math.max(1, Math.floor(Number(value) || 1));
-    this.pkgItems.update((rows) => rows.map((r, i) => (i === index ? { ...r, quantity } : r)));
-    this.pkgDirty.set(true);
-  }
-
-  setPkgAmount(index: number, value: string): void {
-    const unitAmount = Math.max(0, Number(value) || 0);
-    this.pkgItems.update((rows) => rows.map((r, i) => (i === index ? { ...r, unitAmount } : r)));
-    this.pkgDirty.set(true);
+  // Replace both composition arrays (reset() alone keeps the old row count).
+  private setComposition(items: GolfTransactionTypeElement[], elig: GolfTransactionTypeEligibility[]): void {
+    this.pkgLines.clear();
+    for (const i of items) this.pkgLines.push(this.newPkgGroup(i));
+    this.eligLines.clear();
+    for (const r of elig) this.eligLines.push(this.newEligGroup(r));
   }
 
   taxSchemeName(code: string | null | undefined): string {
@@ -348,16 +376,19 @@ export class GolfTransactionTypesComponent implements OnInit {
   openAdd(): void {
     this.clearMessages();
     this.editId.set(null);
+    this.setComposition([], []);
     this.form.reset({ transactionType: '', chargeType: '', golferType: '', description: '', taxSchemeCode: '', allowPriceOverride: false, iconUrl: '', autoTransactionTypeId: '' });
-    this.pkgItems.set([]);
-    this.eligRows.set([]);
-    this.pkgDirty.set(false);
+    this.form.markAsPristine();
     this.dialogOpen.set(true);
   }
 
   openEdit(t: GolfTransactionType): void {
     this.clearMessages();
     this.editId.set(t.id);
+    this.setComposition(
+      (t.packageItems || []).map((i) => ({ elementTransactionTypeId: i.elementTransactionTypeId, quantity: i.quantity, unitAmount: i.unitAmount })),
+      t.eligibility || [],
+    );
     this.form.reset({
       transactionType: t.transactionType,
       chargeType: t.chargeType,
@@ -368,13 +399,7 @@ export class GolfTransactionTypesComponent implements OnInit {
       iconUrl: t.iconUrl || '',
       autoTransactionTypeId: t.autoTransactionTypeId || '',
     });
-    this.pkgItems.set((t.packageItems || []).map((i) => ({
-      elementTransactionTypeId: i.elementTransactionTypeId,
-      quantity: i.quantity,
-      unitAmount: i.unitAmount,
-    })));
-    this.eligRows.set((t.eligibility || []).map((r) => ({ ...r, daysOfWeek: r.daysOfWeek ? [...r.daysOfWeek] : null })));
-    this.pkgDirty.set(false);
+    this.form.markAsPristine();
     this.dialogOpen.set(true);
   }
 
@@ -390,8 +415,12 @@ export class GolfTransactionTypesComponent implements OnInit {
     }
     const v = this.form.getRawValue();
     const isPackage = v.chargeType === PACKAGE_KEY;
+    const items: GolfTransactionTypeElement[] = v.packageItems.map((i) => ({
+      elementTransactionTypeId: i.elementTransactionTypeId,
+      quantity: Math.max(1, Math.floor(Number(i.quantity) || 1)),
+      unitAmount: Math.max(0, Number(i.unitAmount) || 0),
+    }));
     if (isPackage) {
-      const items = this.pkgItems();
       if (items.length === 0) {
         this.errorMessage.set('A package needs at least one element - use "Add element".');
         return;
@@ -421,8 +450,9 @@ export class GolfTransactionTypesComponent implements OnInit {
       autoTransactionTypeId: isPackage ? v.autoTransactionTypeId : null,
     };
     if (isPackage) {
-      payload.packageItems = this.pkgItems().map((i, n) => ({ ...i, sortOrder: n }));
-      for (const [n, r] of this.eligRows().entries()) {
+      payload.packageItems = items.map((i, n) => ({ ...i, sortOrder: n }));
+      const eligibility = this.eligLines.controls.map((g) => this.eligModel(g));
+      for (const [n, r] of eligibility.entries()) {
         if (!!r.startTime !== !!r.endTime) {
           this.errorMessage.set(`Eligibility condition ${n + 1}: set both From and To times, or neither.`);
           return;
@@ -432,7 +462,7 @@ export class GolfTransactionTypesComponent implements OnInit {
           return;
         }
       }
-      payload.eligibility = this.eligRows();
+      payload.eligibility = eligibility;
     }
 
     this.saving.set(true);
