@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList } from '@angular/cdk/drag-drop';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
@@ -16,12 +16,13 @@ const toTypeChoice = (t: ArDesignatedTypeOption): { value: string; label: string
 });
 
 // The lines-table column catalogue (mirrors the PDF renderer's BASE_COLS).
-interface ColumnRow {
-  key: ArStatementColumnKey;
-  name: string;      // default label, shown as the row identity
-  visible: boolean;
-  label: string;     // override; '' = default
-}
+type ColumnGroup = FormGroup<{
+  key: FormControl<ArStatementColumnKey>;
+  name: FormControl<string>;      // default label, shown as the row identity
+  visible: FormControl<boolean>;
+  label: FormControl<string>;     // override; '' = default
+}>;
+type ColumnValue = ReturnType<ColumnGroup['getRawValue']>;
 
 const COLUMN_CATALOG: { key: ArStatementColumnKey; name: string }[] = [
   { key: 'date', name: 'DATE' },
@@ -102,6 +103,8 @@ export class ArSpecificationComponent implements OnInit {
     // Multi-currency.
     multiCurrencyEnabled: [false],
     fxTransactionTypeId: [''],
+    // Statement table columns - see "Column layout" below.
+    columns: this.fb.array<ColumnGroup>([]),
   });
 
   ngOnInit(): void {
@@ -126,36 +129,52 @@ export class ArSpecificationComponent implements OnInit {
   }
 
   // Column layout: draggable rows (order = print order; unticked = hidden;
-  // label overrides the printed heading). Kept OUTSIDE the reactive form -
-  // it's a dynamic list; Save reads it alongside the form value.
-  readonly columnRows = signal<ColumnRow[]>([]);
+  // label overrides the printed heading). A FormArray inside the form (house
+  // standard), so form.dirty covers a reorder, a tick and a rename alike and
+  // Save reads it with the rest of the form.
+  get columns(): FormArray<ColumnGroup> {
+    return this.form.controls.columns;
+  }
 
-  onColumnDrop(event: CdkDragDrop<ColumnRow[]>): void {
-    this.columnRows.update((rows) => {
-      const next = [...rows];
-      moveItemInArray(next, event.previousIndex, event.currentIndex);
-      return next;
+  private newColumnGroup(row: ColumnValue): ColumnGroup {
+    return this.fb.nonNullable.group({
+      key: [row.key],
+      name: [row.name],
+      visible: [row.visible],
+      label: [row.label],
     });
   }
 
-  toggleColumnVisible(key: ArStatementColumnKey): void {
-    this.columnRows.update((rows) => rows.map((r) => (r.key === key ? { ...r, visible: !r.visible } : r)));
+  private setColumns(rows: ColumnValue[], dirty: boolean): void {
+    this.columns.clear({ emitEvent: false });
+    for (const r of rows) this.columns.push(this.newColumnGroup(r), { emitEvent: false });
+    if (dirty) this.columns.markAsDirty(); else this.columns.markAsPristine();
   }
 
-  setColumnLabel(key: ArStatementColumnKey, label: string): void {
-    this.columnRows.update((rows) => rows.map((r) => (r.key === key ? { ...r, label } : r)));
+  // A drag moves the GROUP inside the array; the rows bind their controls by
+  // instance (track by key + [formControl]), so they travel with it.
+  onColumnDrop(event: CdkDragDrop<ColumnGroup[]>): void {
+    if (event.previousIndex === event.currentIndex) return;
+    const g = this.columns.at(event.previousIndex);
+    this.columns.removeAt(event.previousIndex, { emitEvent: false });
+    this.columns.insert(event.currentIndex, g);
+    this.columns.markAsDirty();
+  }
+
+  private standardColumns(): ColumnValue[] {
+    return COLUMN_CATALOG.map((c) => ({ ...c, visible: true, label: '' }));
   }
 
   resetColumns(): void {
-    this.columnRows.set(COLUMN_CATALOG.map((c) => ({ ...c, visible: true, label: '' })));
+    this.setColumns(this.standardColumns(), true);
   }
 
   private applyColumns(cols: ArStatementColumn[] | null): void {
     if (!cols || !cols.length) {
-      this.resetColumns();
+      this.setColumns(this.standardColumns(), false);
       return;
     }
-    const rows: ColumnRow[] = [];
+    const rows: ColumnValue[] = [];
     for (const c of cols) {
       const cat = COLUMN_CATALOG.find((x) => x.key === c.key);
       if (cat) rows.push({ key: cat.key, name: cat.name, visible: true, label: c.label || '' });
@@ -164,12 +183,12 @@ export class ArSpecificationComponent implements OnInit {
     for (const cat of COLUMN_CATALOG) {
       if (!rows.some((r) => r.key === cat.key)) rows.push({ ...cat, visible: false, label: '' });
     }
-    this.columnRows.set(rows);
+    this.setColumns(rows, false);
   }
 
   // null when the arrangement IS the standard (order, all visible, no labels).
   private columnsPayload(): ArStatementColumn[] | null {
-    const rows = this.columnRows();
+    const rows = this.columns.controls.map((g) => g.getRawValue());
     const visible = rows.filter((r) => r.visible);
     const isStandard = visible.length === COLUMN_CATALOG.length
       && visible.every((r, i) => r.key === COLUMN_CATALOG[i].key && !r.label.trim());
@@ -219,7 +238,7 @@ export class ArSpecificationComponent implements OnInit {
     this.successMessage.set('');
     this.errorMessage.set('');
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
-    if (!this.columnRows().some((r) => r.visible)) {
+    if (!this.columns.controls.some((g) => g.controls.visible.value)) {
       this.errorMessage.set('The statement needs at least one visible column.');
       return;
     }

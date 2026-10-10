@@ -125,18 +125,20 @@
                 <button type="button" class="btn btn--link btn--sm" (click)="resetColumns()">Reset to standard</button>
               </div>
               <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Drag to set the printed order, untick to hide a column (the rest stretch to fill the page), and type a heading to rename it.</p>
+              <!-- Reactive FormArray rows (house standard). Controls bind by INSTANCE
+                   ([formControl], not an index path): a drag moves the group inside the
+                   array and the key-tracked row moves with it. -->
               <div cdkDropList (cdkDropListDropped)="onColumnDrop($event)" class="arsp-cols__list">
-                @for (col of columnRows(); track col.key) {
+                @for (g of columns.controls; track g.controls.key.value) {
                   <div class="arsp-cols__row" cdkDrag cdkDragLockAxis="y">
                     <span class="material-icons arsp-cols__grip" cdkDragHandle aria-hidden="true">drag_indicator</span>
                     <label class="arsp-cols__check">
-                      <input type="checkbox" [checked]="col.visible" (change)="toggleColumnVisible(col.key)"
-                             [attr.aria-label]="'Print the ' + col.name + ' column'" />
-                      <span [class.arsp-cols__name--off]="!col.visible">{{ col.name }}</span>
+                      <input type="checkbox" [formControl]="g.controls.visible"
+                             [attr.aria-label]="'Print the ' + g.controls.name.value + ' column'" />
+                      <span [class.arsp-cols__name--off]="!g.controls.visible.value">{{ g.controls.name.value }}</span>
                     </label>
-                    <input type="text" class="arsp-cols__label" maxlength="30"
-                           [value]="col.label" #colLabel (input)="setColumnLabel(col.key, colLabel.value)"
-                           [placeholder]="col.name" [attr.aria-label]="'Printed heading for ' + col.name" />
+                    <input type="text" class="arsp-cols__label" maxlength="30" [formControl]="g.controls.label"
+                           [placeholder]="g.controls.name.value" [attr.aria-label]="'Printed heading for ' + g.controls.name.value" />
                   </div>
                 }
               </div>
