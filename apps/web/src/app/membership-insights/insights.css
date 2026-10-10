@@ -190,22 +190,7 @@
   color: var(--text-on-brand);
 }
 
-/* Status dot + text (same idiom as the Memberships screen). */
-.md-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-size: var(--font-caption);
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.md-status__dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex: 0 0 auto;
-}
+/* Status dot + text is the global .status-dot (styles.css). */
 
 /* --- Tablet (2 columns) --- */
 @media (min-width: 768px) {

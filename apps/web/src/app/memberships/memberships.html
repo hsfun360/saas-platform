@@ -100,8 +100,8 @@
               </dl>
             </div>
             <div class="data-row__badge">
-              <span class="ms-status">
-                <span class="ms-status__dot" [style.background]="statusColor(ms.membershipStatusId)" aria-hidden="true"></span>
+              <span class="status-dot">
+                <span class="status-dot__swatch" [style.background]="statusColor(ms.membershipStatusId)" aria-hidden="true"></span>
                 {{ statusName(ms.membershipStatusId) }}
               </span>
             </div>
@@ -726,8 +726,8 @@
                     </div>
                     <div class="mem-row__sub">
                       {{ group.principal.memberNo }}
-                      <span class="ms-status">
-                        <span class="ms-status__dot" [style.background]="statusColor(group.principal.memberStatusId)" aria-hidden="true"></span>
+                      <span class="status-dot">
+                        <span class="status-dot__swatch" [style.background]="statusColor(group.principal.memberStatusId)" aria-hidden="true"></span>
                         {{ statusName(group.principal.memberStatusId) }}
                       </span>
                     </div>
@@ -755,8 +755,8 @@
                       </div>
                       <div class="mem-row__sub">
                         {{ d.memberNo }}
-                        <span class="ms-status">
-                          <span class="ms-status__dot" [style.background]="statusColor(d.memberStatusId)" aria-hidden="true"></span>
+                        <span class="status-dot">
+                          <span class="status-dot__swatch" [style.background]="statusColor(d.memberStatusId)" aria-hidden="true"></span>
                           {{ statusName(d.memberStatusId) }}
                         </span>
                         @if (d.expiryDate) { <span class="cell-subtle">expires {{ d.expiryDate | localDate }}</span> }

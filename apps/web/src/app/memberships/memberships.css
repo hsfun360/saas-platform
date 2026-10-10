@@ -87,21 +87,7 @@
   color: var(--chip-off-text);
 }
 
-/* Status: coloured dot (the status master's colour) + name */
-.ms-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-size: var(--font-caption);
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-.ms-status__dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
+/* Status dot + name is the global .status-dot (styles.css). */
 
 /* Billing checkboxes */
 .ms-flags {

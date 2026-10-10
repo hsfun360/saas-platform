@@ -28,7 +28,7 @@ export interface DrillChip {
   imports: [LocalDatePipe],
   templateUrl: './insight-drill.html',
   // system-setup.css supplies the .flash primitives; insights.css the shared
-  // md-card/md-seg/md-status/md-empty primitives (component-scoped, so the
+  // md-card/md-seg/md-empty primitives (component-scoped, so the
   // panel must include them itself - parent styles don't reach child templates).
   styleUrls: ['../system-setup/system-setup.css', './insights.css', './insight-drill.css'],
 })

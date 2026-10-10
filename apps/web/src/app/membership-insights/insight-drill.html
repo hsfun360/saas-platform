@@ -54,8 +54,8 @@
                     }
                   </dl>
                 </div>
-                <span class="data-row__badge md-status">
-                  <span class="md-status__dot" [style.background]="statusColor(m.membershipStatusId) || 'var(--text-muted)'" aria-hidden="true"></span>
+                <span class="data-row__badge status-dot">
+                  <span class="status-dot__swatch" [style.background]="statusColor(m.membershipStatusId) || 'var(--text-muted)'" aria-hidden="true"></span>
                   {{ statusName(m.membershipStatusId) }}
                 </span>
               </div>
@@ -78,8 +78,8 @@
                     <div class="meta"><dt>Joined</dt><dd>{{ m.joinDate ? (m.joinDate | localDate) : '—' }}</dd></div>
                   </dl>
                 </div>
-                <span class="data-row__badge md-status">
-                  <span class="md-status__dot" [style.background]="statusColor(m.memberStatusId) || 'var(--text-muted)'" aria-hidden="true"></span>
+                <span class="data-row__badge status-dot">
+                  <span class="status-dot__swatch" [style.background]="statusColor(m.memberStatusId) || 'var(--text-muted)'" aria-hidden="true"></span>
                   {{ statusName(m.memberStatusId) }}
                 </span>
               </div>

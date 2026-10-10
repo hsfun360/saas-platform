@@ -239,6 +239,25 @@ body {
   background: var(--surface-selected);
 }
 
+/* Configured-colour status: a swatch in the status master's OWN colour + the
+   status name (Membership / Member statuses). The one deliberate exemption from
+   .status-chip - the colour is user data, not a fixed on/off/info/danger state.
+   Bind the swatch: <span class="status-dot__swatch" [style.background]="colour">. */
+.status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-caption);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.status-dot__swatch {
+  width: 10px; /* fixed swatch size, not spacing */
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
 .data-card__title {
   font-size: var(--font-body);
   font-weight: var(--weight-semibold);
