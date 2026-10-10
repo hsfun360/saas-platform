@@ -127,7 +127,7 @@
                 @if (t.canModify !== false) {
                   <ng-container *appCan="'edit'">
                     <button type="button" appMenuItem (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
-                      <span class="material-icons" aria-hidden="true">{{ t.isActive === false ? 'toggle_on' : 'toggle_off' }}</span>
+                      <span class="material-icons" aria-hidden="true">{{ t.isActive === false ? 'check_circle' : 'block' }}</span>
                       {{ t.isActive === false ? 'Enable' : 'Disable' }}
                     </button>
                   </ng-container>

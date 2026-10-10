@@ -116,7 +116,7 @@
                   Tees
                 </button>
                 <button *appCan="'edit'" type="button" appMenuItem (click)="toggleActive(c)" [disabled]="togglingId() === c.id">
-                  <span class="material-icons" aria-hidden="true">{{ c.isActive === false ? 'toggle_on' : 'toggle_off' }}</span>
+                  <span class="material-icons" aria-hidden="true">{{ c.isActive === false ? 'check_circle' : 'block' }}</span>
                   {{ c.isActive === false ? 'Enable' : 'Disable' }}
                 </button>
                 <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(c)">

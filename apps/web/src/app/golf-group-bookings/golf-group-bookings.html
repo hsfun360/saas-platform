@@ -595,7 +595,7 @@
               }
               @if (canDeposit()) {
                 <button type="button" class="btn btn--secondary btn--sm" (click)="openDepositDialog()" [disabled]="!f.depositType" *appCan="'edit'">
-                  <span class="material-icons" aria-hidden="true">savings_outlined</span>
+                  <span class="material-icons" aria-hidden="true">payments</span>
                   Record deposit
                 </button>
                 @if (!f.depositType) {
@@ -702,7 +702,7 @@
           Add payment
         </button>
         <button type="button" class="btn btn--secondary btn--sm" (click)="applyDeposits()" [disabled]="!(folio()?.depositUnapplied || 0)">
-          <span class="material-icons" aria-hidden="true">savings_outlined</span>
+          <span class="material-icons" aria-hidden="true">payments</span>
           Apply held deposits
         </button>
       </div>

@@ -245,7 +245,7 @@
           @case ('days') {
             <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="daysSaving()">Cancel</button>
             <button type="submit" form="gclDays" class="btn btn--primary" [disabled]="daysSaving()">
-              {{ daysSaving() ? 'Saving…' : 'Save ' + dayLines.length + ' days' }}
+              {{ daysSaving() ? 'Saving…' : 'Save ' + dayLines.length + (dayLines.length === 1 ? ' day' : ' days') }}
             </button>
           }
         }
