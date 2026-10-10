@@ -204,8 +204,9 @@
 
         <!-- ---- STEP 3: Players + confirm ---- -->
         @case ('players') {
-          <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="gbPlayers". -->
-          <form id="gbPlayers" (submit)="$event.preventDefault(); confirm()">
+          <!-- Reactive form (house standard): player lines are a FormArray, contact + remarks
+               sit beside it; the form's dirty state feeds the guard and Enter submits. -->
+          <form id="gbPlayers" [formGroup]="playersForm" (ngSubmit)="confirm()">
           @if (lock(); as lk) {
             <div class="gb-lock-banner" role="status" aria-live="polite">
               <span class="material-icons" aria-hidden="true">lock_clock</span>
@@ -219,30 +220,26 @@
               }
             </div>
 
-            <div class="gb-players">
+            <div class="gb-players" formArrayName="lines">
               <div class="gb-player-row gb-player-row--head" aria-hidden="true">
                 <span></span>
                 <span>Type</span>
                 <span>Member ID / Guest Name</span>
                 <span></span>
               </div>
-              @for (line of playerLines(); track $index; let i = $index) {
-                <div class="gb-player-row">
+              @for (g of playerLines.controls; track g; let i = $index) {
+                <div class="gb-player-row" [formGroupName]="i">
                   <span class="gb-player-no">{{ i + 1 }}</span>
-                  <select [value]="line.playerType" (change)="setLine(i, { playerType: $any($event.target).value })"
-                          [disabled]="i === 0" [attr.aria-label]="'Player ' + (i + 1) + ' type'">
+                  <select formControlName="playerType" [attr.aria-label]="'Player ' + (i + 1) + ' type'">
                     <option value="member">Member</option>
                     <option value="member-guest">Member as Guest</option>
                     <option value="guest">Guest</option>
                   </select>
-                  @if (line.playerType === 'guest') {
-                    <input type="text" [value]="line.guestName" maxlength="100" placeholder="Guest name (or 'Guest')"
-                           (input)="setLine(i, { guestName: $any($event.target).value })"
+                  @if (g.controls.playerType.value === 'guest') {
+                    <input type="text" formControlName="guestName" maxlength="100" placeholder="Guest name (or 'Guest')"
                            [attr.aria-label]="'Player ' + (i + 1) + ' guest name'" />
                   } @else {
-                    <input type="text" [value]="line.memberNo" maxlength="50" placeholder="Member No"
-                           [disabled]="i === 0"
-                           (input)="setLine(i, { memberNo: $any($event.target).value })"
+                    <input type="text" formControlName="memberNo" maxlength="50" placeholder="Member No"
                            [attr.aria-label]="'Player ' + (i + 1) + ' member number'" />
                   }
                   @if (i > 0) {
@@ -254,7 +251,7 @@
                   }
                 </div>
               }
-              @if (playerLines().length < lk.seatsLeft) {
+              @if (playerLines.length < lk.seatsLeft) {
                 <button type="button" class="btn btn--secondary btn--sm" (click)="addLine()">
                   <span class="material-icons" aria-hidden="true">add</span>
                   Add player
@@ -265,12 +262,11 @@
             <div class="gb-grid" style="margin-top: var(--space-md);">
               <div class="form-group">
                 <label for="gbMobile">Contact Mobile</label>
-                <app-phone-input inputId="gbMobile" [ngModel]="contactMobile()" [ngModelOptions]="{ standalone: true }" (ngModelChange)="contactMobile.set($event)" placeholder="Optional"></app-phone-input>
+                <app-phone-input inputId="gbMobile" formControlName="contactMobile" placeholder="Optional"></app-phone-input>
               </div>
               <div class="form-group">
                 <label for="gbRemarks">Remarks</label>
-                <textarea id="gbRemarks" rows="2" wrap="off" [value]="remarks()" maxlength="255"
-                       (input)="remarks.set($any($event.target).value)"></textarea>
+                <textarea id="gbRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255"></textarea>
               </div>
             </div>
           }

@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AbstractControl, FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
@@ -28,11 +28,14 @@ import {
 // Available flights (5 nearest per course) → Players (flight LOCKED with a
 // live countdown; Member vs Guest / Member-as-Guest lines) → confirm. Every
 // rule is re-validated server-side at save; the screen only mirrors them.
-interface PlayerLine {
-  playerType: 'member' | 'member-guest' | 'guest';
-  memberNo: string;
-  guestName: string;
-}
+// One player line: a typed FormGroup inside the players form's FormArray (house
+// standard - the form's own dirty state feeds the unsaved-changes guard).
+type PlayerType = 'member' | 'member-guest' | 'guest';
+type PlayerLineGroup = FormGroup<{
+  playerType: FormControl<PlayerType>;
+  memberNo: FormControl<string>;
+  guestName: FormControl<string>;
+}>;
 
 // The DEVICE-local calendar date as 'YYYY-MM-DD'. toISOString() would give
 // the UTC date - in Malaysia that is yesterday until 8am.
@@ -47,7 +50,7 @@ function localToday(): string {
   imports: [
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent,
     CanDirective, DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective, LocalDatePipe,
-    FormsModule, PhoneInputComponent,
+    PhoneInputComponent,
   ],
   templateUrl: './golf-bookings.html',
   styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css', './golf-bookings.css'],
@@ -90,10 +93,14 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
   readonly countdown = signal('');
   private countdownTimer: ReturnType<typeof setInterval> | null = null;
 
-  readonly playerLines = signal<PlayerLine[]>([]);
-  readonly linesDirty = signal(false);
-  readonly contactMobile = signal('');
-  readonly remarks = signal('');
+  // Step 3 form: the player lines (row 0 = the booker, its type and member no
+  // are DISABLED controls - getRawValue still carries them) + contact + remarks.
+  readonly playerLines: FormArray<PlayerLineGroup> = this.fb.array<PlayerLineGroup>([]);
+  readonly playersForm = this.fb.nonNullable.group({
+    lines: this.playerLines,
+    contactMobile: ['', [Validators.maxLength(30)]],
+    remarks: ['', [Validators.maxLength(255)]],
+  });
 
   // ---- cancel dialog ----
   readonly cancelTarget = signal<GolfBookingRow | null>(null);
@@ -180,10 +187,8 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     this.memberWarning.set('');
     this.groups.set([]);
     this.lock.set(null);
-    this.playerLines.set([]);
-    this.linesDirty.set(false);
-    this.contactMobile.set('');
-    this.remarks.set('');
+    this.playerLines.clear();
+    this.playersForm.reset({ lines: [], contactMobile: '', remarks: '' });
     this.step.set('search');
     this.dialogOpen.set(true);
   }
@@ -196,7 +201,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
   }
 
   isDirty(): boolean {
-    return this.searchForm.dirty || this.linesDirty();
+    return this.searchForm.dirty || this.playersForm.dirty;
   }
 
   // Member No keyed → resolve standing + window; the Date and Course fields
@@ -287,14 +292,11 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
         this.lockedGroup.set(group);
         const count = Math.min(Number(this.searchForm.controls.players.value) || 1, lock.seatsLeft);
         const booker = this.context();
-        const lines: PlayerLine[] = [];
+        this.playerLines.clear();
         for (let i = 0; i < count; i += 1) {
-          lines.push(i === 0
-            ? { playerType: 'member', memberNo: booker ? booker.member.memberNo : '', guestName: '' }
-            : { playerType: 'member', memberNo: '', guestName: '' });
+          this.playerLines.push(this.newLineGroup(i === 0 ? (booker ? booker.member.memberNo : '') : '', i === 0));
         }
-        this.playerLines.set(lines);
-        this.linesDirty.set(false);
+        this.playersForm.markAsPristine();
         this.startCountdown(lock);
         this.step.set('players');
       },
@@ -343,29 +345,38 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     this.search();
   }
 
-  setLine(index: number, patch: Partial<PlayerLine>): void {
-    this.playerLines.update((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
-    this.linesDirty.set(true);
+  private newLineGroup(memberNo: string, booker: boolean): PlayerLineGroup {
+    const g: PlayerLineGroup = this.fb.nonNullable.group({
+      playerType: ['member' as PlayerType],
+      memberNo: [memberNo],
+      guestName: [''],
+    });
+    if (booker) {
+      // Player 1 is the booker: identity fixed by the search step.
+      g.controls.playerType.disable();
+      g.controls.memberNo.disable();
+    }
+    return g;
   }
 
   addLine(): void {
     const lock = this.lock();
-    if (lock && this.playerLines().length >= lock.seatsLeft) return;
-    this.playerLines.update((rows) => [...rows, { playerType: 'member', memberNo: '', guestName: '' }]);
-    this.linesDirty.set(true);
+    if (lock && this.playerLines.length >= lock.seatsLeft) return;
+    this.playerLines.push(this.newLineGroup('', false));
+    this.playerLines.markAsDirty();
   }
 
   removeLine(index: number): void {
     if (index === 0) return; // player 1 is the booker
-    this.playerLines.update((rows) => rows.filter((_, i) => i !== index));
-    this.linesDirty.set(true);
+    this.playerLines.removeAt(index);
+    this.playerLines.markAsDirty();
   }
 
   confirm(): void {
     this.clearMessages();
     const lock = this.lock();
     if (!lock) return;
-    const lines = this.playerLines();
+    const lines = this.playerLines.controls.map((g) => g.getRawValue());
     for (let i = 0; i < lines.length; i += 1) {
       const l = lines[i];
       if (l.playerType === 'guest') {
@@ -387,8 +398,8 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
       memberNo: this.searchForm.controls.memberNo.value.trim(),
       holes: Number(this.searchForm.controls.holes.value),
       players,
-      contactMobile: this.contactMobile().trim() || undefined,
-      remarks: this.remarks().trim() || undefined,
+      contactMobile: this.playersForm.controls.contactMobile.value.trim() || undefined,
+      remarks: this.playersForm.controls.remarks.value.trim() || undefined,
     }).subscribe({
       next: (res) => {
         this.saving.set(false);
