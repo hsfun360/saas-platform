@@ -672,23 +672,24 @@
 
   <!-- ============ Settle the group bill (centred - states the outcome) ============ -->
   @if (settleDialogOpen()) {
-    <app-dialog #sdlg [title]="'Settle group bill ' + (folio()?.bill?.billNo || '')" [busy]="folioBusy()" [dirty]="settleDirty()" (close)="settleDialogOpen.set(false)">
-      <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="ggbSettle". -->
-      <form id="ggbSettle" (submit)="$event.preventDefault(); settleGroupBill()">
+    <app-dialog #sdlg [title]="'Settle group bill ' + (folio()?.bill?.billNo || '')" [busy]="folioBusy()" [dirty]="settleLines.dirty" (close)="settleDialogOpen.set(false)">
+      <!-- Reactive FormArray editor (house standard): the payment lines live in `settleLines`,
+           its dirty state feeds the guard, Enter submits. -->
+      <form id="ggbSettle" [formGroup]="settleForm" (ngSubmit)="settleGroupBill()">
       <div class="ggb-settle-head">
         <span>Total <strong>{{ (folio()?.bill?.totalAmount || 0).toFixed(2) }}</strong></span>
         <span [class.ggb-remaining--due]="settleRemaining() !== 0">Remaining <strong>{{ settleRemaining().toFixed(2) }}</strong></span>
       </div>
-      <div class="ggb-pay-lines">
-        @for (l of settleLines(); track $index; let i = $index) {
-          <div class="ggb-pay-line">
-            <app-combobox [value]="l.paymentTypeId" (valueChange)="setSettleLine(i, { paymentTypeId: $event, depositBillId: '' })" [options]="settleTenderOptions()" [allowEmpty]="false" [inputId]="'ggbPay' + i" placeholder="Payment type…" [ariaLabel]="'Payment ' + (i + 1) + ' type'" />
-            @if (isDepositTender(l.paymentTypeId)) {
-              <app-combobox [value]="l.depositBillId" (valueChange)="setSettleLine(i, { depositBillId: $event })" [options]="heldDepositOptions()" [allowEmpty]="false" [inputId]="'ggbPayDep' + i" placeholder="Which deposit…" [ariaLabel]="'Payment ' + (i + 1) + ' deposit'" />
+      <div class="ggb-pay-lines" formArrayName="lines">
+        @for (g of settleLines.controls; track g; let i = $index) {
+          <div class="ggb-pay-line" [formGroupName]="i">
+            <app-combobox formControlName="paymentTypeId" [options]="settleTenderOptions()" [allowEmpty]="false" [inputId]="'ggbPay' + i" placeholder="Payment type…" [ariaLabel]="'Payment ' + (i + 1) + ' type'" />
+            @if (isDepositTender(g.controls.paymentTypeId.value)) {
+              <app-combobox formControlName="depositBillId" [options]="heldDepositOptions()" [allowEmpty]="false" [inputId]="'ggbPayDep' + i" placeholder="Which deposit…" [ariaLabel]="'Payment ' + (i + 1) + ' deposit'" />
             } @else {
-              <input type="text" [value]="l.reference" maxlength="100" placeholder="Reference" (input)="setSettleLine(i, { reference: $any($event.target).value })" [attr.aria-label]="'Payment ' + (i + 1) + ' reference'" />
+              <input type="text" formControlName="reference" maxlength="100" placeholder="Reference" [attr.aria-label]="'Payment ' + (i + 1) + ' reference'" />
             }
-            <input type="number" inputmode="decimal" min="0" step="0.01" appMoney [moneyValue]="l.amount" (change)="setSettleLine(i, { amount: +$any($event.target).value })" [attr.aria-label]="'Payment ' + (i + 1) + ' amount'" />
+            <input type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount" [attr.aria-label]="'Payment ' + (i + 1) + ' amount'" />
             <button type="button" class="btn btn--danger btn--sm" (click)="removeSettleLine(i)" [attr.aria-label]="'Remove payment ' + (i + 1)">
               <span class="material-icons" aria-hidden="true">close</span>
             </button>
@@ -711,7 +712,7 @@
       </form>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="sdlg.requestClose()" [disabled]="folioBusy()">Cancel</button>
-        <button type="submit" form="ggbSettle" class="btn btn--primary" [disabled]="folioBusy() || settleRemaining() !== 0 || !settleLines().length">{{ folioBusy() ? 'Settling…' : 'Settle bill' }}</button>
+        <button type="submit" form="ggbSettle" class="btn btn--primary" [disabled]="folioBusy() || settleRemaining() !== 0 || !settleLines.length">{{ folioBusy() ? 'Settling…' : 'Settle bill' }}</button>
       </ng-container>
     </app-dialog>
   }

@@ -40,6 +40,15 @@ type DayGroup = FormGroup<{
   remarks: FormControl<string>;
 }>;
 
+// One payment line in the final-settlement dialog.
+interface SettleLineValue { paymentTypeId: string; amount: number; reference: string; depositBillId: string }
+type SettleLineGroup = FormGroup<{
+  paymentTypeId: FormControl<string>;
+  amount: FormControl<number>;
+  reference: FormControl<string>;
+  depositBillId: FormControl<string>;
+}>;
+
 type RosterGroup = FormGroup<{
   playerType: FormControl<'member' | 'member-guest' | 'guest'>;
   memberNo: FormControl<string>;
@@ -132,19 +141,24 @@ export class GolfGroupBookingsComponent implements OnInit {
   readonly depositVoidTarget = signal<GolfFolioDeposit | null>(null);
   readonly depositVoidReason = signal('');
 
-  // ---- final settlement (slice 4): payment lines outside a FormGroup (the
-  // house pattern for dynamic rows), Deposit-class lines pick a held deposit.
+  // ---- final settlement (slice 4): payment lines as a reactive FormArray
+  // (house standard - its dirty state feeds the guard); a Deposit-class line
+  // picks a held deposit instead of carrying a reference.
   readonly settleDialogOpen = signal(false);
-  readonly settleLines = signal<{ paymentTypeId: string; amount: number; reference: string; depositBillId: string }[]>([]);
-  readonly settleDirty = signal(false);
+  readonly settleLines: FormArray<SettleLineGroup> = this.fb.array<SettleLineGroup>([]);
+  readonly settleForm = this.fb.group({ lines: this.settleLines });
   readonly settleTenderOptions = computed(() => (this.folio()?.tenders || []).map((t) => ({ value: t.id, label: `${t.paymentType}${t.description ? ' - ' + t.description : ''}` })));
   readonly heldDepositOptions = computed(() => (this.folio()?.deposits || []).filter((d) => d.status === 'settled' && d.unappliedAmount > 0)
     .map((d) => ({ value: d.id, label: `${d.billNo} · holds ${d.unappliedAmount.toFixed(2)}` })));
-  readonly settlePaid = computed(() => Math.round(this.settleLines().reduce((s, l) => s + (Number(l.amount) || 0), 0) * 100) / 100);
-  readonly settleRemaining = computed(() => {
+  // Methods, not computed: form values are not signals; templates re-evaluate
+  // them every CD pass (the same way the dialogs bind form.dirty).
+  settlePaid(): number {
+    return Math.round(this.settleLines.controls.reduce((s, g) => s + (Number(g.controls.amount.value) || 0), 0) * 100) / 100;
+  }
+  settleRemaining(): number {
     const total = this.folio()?.bill?.totalAmount || 0;
     return Math.round((total - this.settlePaid()) * 100) / 100;
-  });
+  }
   readonly groupBillVoidOpen = signal(false);
   readonly groupBillVoidReason = signal('');
 
@@ -599,11 +613,27 @@ export class GolfGroupBookingsComponent implements OnInit {
 
   openSettle(): void {
     this.clearMessages();
-    this.settleLines.set([]);
-    this.settleDirty.set(false);
+    this.settleLines.clear();
     this.applyDeposits();
-    this.settleDirty.set(false);
+    this.settleLines.markAsPristine();
     this.settleDialogOpen.set(true);
+  }
+
+  private newSettleGroup(l: SettleLineValue): SettleLineGroup {
+    const g: SettleLineGroup = this.fb.nonNullable.group({
+      paymentTypeId: [l.paymentTypeId],
+      amount: [l.amount],
+      reference: [l.reference],
+      depositBillId: [l.depositBillId],
+    });
+    // Switching the tender clears the deposit pick (a Deposit-class line
+    // chooses which held deposit it draws on; any other tender carries none).
+    g.controls.paymentTypeId.valueChanges.subscribe(() => g.controls.depositBillId.setValue('', { emitEvent: false }));
+    return g;
+  }
+
+  private settleRows(): SettleLineValue[] {
+    return this.settleLines.controls.map((g) => g.getRawValue());
   }
 
   tenderOf(id: string) {
@@ -621,7 +651,7 @@ export class GolfGroupBookingsComponent implements OnInit {
     if (!f || !f.bill) return;
     const depositTender = f.tenders.find((t) => t.paymentClass === 'deposit');
     if (!depositTender) { this.errorMessage.set('Set up a payment type of class Deposit first (Golf Management → Payment Type).'); return; }
-    const lines = this.settleLines().filter((l) => !this.isDepositTender(l.paymentTypeId));
+    const lines = this.settleRows().filter((l) => !this.isDepositTender(l.paymentTypeId));
     let left = Math.round((f.bill.totalAmount - lines.reduce((s, l) => s + (Number(l.amount) || 0), 0)) * 100) / 100;
     for (const d of f.deposits.filter((x) => x.status === 'settled' && x.unappliedAmount > 0)) {
       if (left <= 0) break;
@@ -629,31 +659,28 @@ export class GolfGroupBookingsComponent implements OnInit {
       lines.push({ paymentTypeId: depositTender.id, amount: Math.round(take * 100) / 100, reference: '', depositBillId: d.id });
       left = Math.round((left - take) * 100) / 100;
     }
-    this.settleLines.set(lines);
-    this.settleDirty.set(true);
+    this.settleLines.clear();
+    for (const l of lines) this.settleLines.push(this.newSettleGroup(l));
+    this.settleLines.markAsDirty();
   }
 
   addSettleLine(): void {
-    this.settleLines.update((rows) => [...rows, { paymentTypeId: '', amount: Math.max(0, this.settleRemaining()), reference: '', depositBillId: '' }]);
-    this.settleDirty.set(true);
-  }
-
-  setSettleLine(i: number, patch: Partial<{ paymentTypeId: string; amount: number; reference: string; depositBillId: string }>): void {
-    this.settleLines.update((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-    this.settleDirty.set(true);
+    this.settleLines.push(this.newSettleGroup({ paymentTypeId: '', amount: Math.max(0, this.settleRemaining()), reference: '', depositBillId: '' }));
+    this.settleLines.markAsDirty();
   }
 
   removeSettleLine(i: number): void {
-    this.settleLines.update((rows) => rows.filter((_, idx) => idx !== i));
-    this.settleDirty.set(true);
+    this.settleLines.removeAt(i);
+    this.settleLines.markAsDirty();
   }
 
   // What settling does, before the clerk commits.
   settlePreview(): string {
     const parts: string[] = [];
-    const dep = this.settleLines().filter((l) => this.isDepositTender(l.paymentTypeId)).reduce((s, l) => s + (Number(l.amount) || 0), 0);
+    const rows = this.settleRows();
+    const dep = rows.filter((l) => this.isDepositTender(l.paymentTypeId)).reduce((s, l) => s + (Number(l.amount) || 0), 0);
     if (dep > 0) parts.push(`${dep.toFixed(2)} applied from held deposits`);
-    for (const l of this.settleLines()) {
+    for (const l of rows) {
       const t = this.tenderOf(l.paymentTypeId);
       if (!t || !l.amount) continue;
       if (t.paymentClass === 'member' || t.paymentClass === 'debtor') parts.push(`${Number(l.amount).toFixed(2)} charged to ${this.folio()?.billingParty.organiserName || 'the organiser'}'s account as an AR invoice`);
@@ -666,7 +693,7 @@ export class GolfGroupBookingsComponent implements OnInit {
     const b = this.booking();
     if (!b) return;
     this.clearMessages();
-    const lines = this.settleLines();
+    const lines = this.settleRows();
     for (let i = 0; i < lines.length; i += 1) {
       const l = lines[i];
       if (!l.paymentTypeId) { this.errorMessage.set(`Payment ${i + 1}: pick a payment type.`); return; }
@@ -680,7 +707,7 @@ export class GolfGroupBookingsComponent implements OnInit {
     }));
     this.folioBusy.set(true);
     this.service.settleGroupBill(b.id, payments).subscribe({
-      next: (res) => { this.settleDialogOpen.set(false); this.settleDirty.set(false); this.folioDone(res); },
+      next: (res) => { this.settleDialogOpen.set(false); this.settleLines.markAsPristine(); this.folioDone(res); },
       error: this.folioFail('The group bill could not be settled.'),
     });
   }
