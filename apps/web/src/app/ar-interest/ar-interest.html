@@ -76,7 +76,7 @@
         }
         <div class="ai-run__go">
           <button type="submit" class="btn btn--primary" [disabled]="generating()">
-            {{ generating() ? 'Generating…' : 'Generate' }}
+            {{ generating() ? 'Generating…' : (runMonthLabel() ? 'Generate for ' + runMonthLabel() : 'Generate') }}
           </button>
         </div>
       </form>

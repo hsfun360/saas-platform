@@ -314,7 +314,7 @@
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="voidDlg.requestClose()" [disabled]="voidBusy()">Cancel</button>
         <button type="button" class="btn btn--danger" (click)="confirmVoid()" [disabled]="voidBusy()">
-          {{ voidBusy() ? 'Voiding…' : 'Void' }}
+          {{ voidBusy() ? 'Voiding…' : 'Void document' }}
         </button>
       </ng-container>
     </app-dialog>

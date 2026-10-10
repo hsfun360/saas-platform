@@ -138,7 +138,7 @@
   <!-- ============ Add / edit dialog ============ -->
   @if (dialogOpen()) {
     <app-dialog #gcDlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
-                discardTitle="Discard this course?"
+                [discardTitle]="editId() ? 'Discard your changes?' : 'Discard this new course?'"
                 discardMessage="You have unsaved changes on this course. Leaving now will discard them."
                 (close)="closeDialog()">
       <form id="golfCourseForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">

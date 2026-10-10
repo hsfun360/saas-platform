@@ -384,7 +384,7 @@
   @if (membershipOpen()) {
     <app-dialog #msDlg variant="drawer" [title]="membershipDialogTitle()" [busy]="membershipSaving()"
                 [dirty]="membershipForm.dirty || memberForm.dirty"
-                discardTitle="Discard this membership?"
+                [discardTitle]="editMembership() ? 'Discard your changes?' : 'Discard this new membership?'"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
                 (close)="closeMembership()">
       @if (!editMembership() && !pickedClass()) {
@@ -687,7 +687,7 @@
     <app-dialog #memDlg [variant]="memberDialogMode() ? 'drawer' : 'center'"
                 [title]="membersDialogTitle()" [busy]="membersLoading() || memberSaving()"
                 [dirty]="membersDialogDirty()"
-                discardTitle="Discard this member?"
+                [discardTitle]="editMember() ? 'Discard your changes?' : 'Discard this new member?'"
                 discardMessage="You have unsaved changes to this member. Leaving now will discard them."
                 (close)="closeMembers()">
       @switch (memberDialogMode()) {

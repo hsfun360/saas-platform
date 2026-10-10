@@ -7,7 +7,7 @@ import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
-import { LocalDatePipe } from '../shared/local-date.pipe';
+import { LocalDatePipe, monthYearLabel } from '../shared/local-date.pipe';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { monthComboOptions } from '../shared/month-options';
@@ -52,6 +52,12 @@ export class ArInterestComponent implements OnInit {
   // Destructive actions confirm through the shared <app-confirm-dialog>.
   readonly confirmAction = signal<ConfirmRequest | null>(null);
   readonly errorMessage = signal('');
+
+  // The run button names the month it will generate (show-expected-results).
+  runMonthLabel(): string {
+    const m = this.runForm.controls.month.value;
+    return m ? monthYearLabel(m) : '';
+  }
 
   readonly runForm = this.fb.nonNullable.group({
     month: ['', [Validators.required]],

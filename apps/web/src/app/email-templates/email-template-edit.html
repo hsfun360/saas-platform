@@ -8,13 +8,17 @@
   @if (loading()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading template…</p></div>
   } @else {
-    <div class="et-head">
-      <h1 style="margin: 0; font-size: var(--font-h1); color: var(--text-primary);">{{ name() }}</h1>
-      <code class="et-key">{{ key() }}</code>
+    <div class="saas-header">
+      <div class="saas-header-left">
+        <span class="saas-icon material-icons" aria-hidden="true">mail</span>
+        <div>
+          <h1>{{ name() }} <code class="et-key">{{ key() }}</code></h1>
+          @if (description()) {
+            <p class="saas-subtitle">{{ description() }}</p>
+          }
+        </div>
+      </div>
     </div>
-    @if (description()) {
-      <p style="color: var(--text-muted); font-size: var(--font-body-2); margin: var(--space-xs) 0 var(--space-md);">{{ description() }}</p>
-    }
 
     @if (successMessage()) {
       <div class="flash flash-success" role="status" aria-live="polite">

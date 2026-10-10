@@ -54,18 +54,13 @@
       @if (loading()) {
         <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading items…</p></div>
       } @else if (items().length === 0) {
-        <p style="color: var(--text-muted);">No items yet. Use “New item” to create your first one.</p>
+        <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No items yet. Use “New item” to create your first one.</p></div>
       } @else if (filteredItems().length === 0) {
-        <!-- Empty state for a search that matches nothing. -->
-        <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: var(--text-muted);">
-          <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: var(--border-strong);">search_off</span>
-          <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">
-            No items match “{{ search() }}”.
-          </p>
-          <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">
-            Clear search
-          </button>
-        </div>
+        <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No items match “{{ search() }}”.</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
       } @else {
         <ul class="data-list">
           @for (item of filteredItems(); track item.id) {

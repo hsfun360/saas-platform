@@ -45,11 +45,11 @@
   @if (rolesLoading()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading roles…</p></div>
   } @else if (roles().length === 0) {
-    <p style="color: var(--text-muted);">No roles yet. Use “New role” to create one.</p>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No roles yet. Use “New role” to create one.</p></div>
   } @else if (filteredRoles().length === 0) {
-    <div style="text-align: center; padding: var(--space-xl) var(--space-md); color: var(--text-muted);">
-      <span class="material-icons" aria-hidden="true" style="font-size: 40px; color: var(--border-strong);">search_off</span>
-      <p style="margin: var(--space-sm) 0 var(--space-md); font-size: var(--font-body-2);">No roles match “{{ roleSearch() }}”.</p>
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No roles match “{{ roleSearch() }}”.</p>
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>
   } @else {
@@ -111,7 +111,7 @@
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."
                 (close)="cancelEdit()">
       @if (editLoading()) {
-        <p style="color: var(--text-muted);">Loading role…</p>
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading role…</p></div>
       }
 
       <form id="rmRoleForm" [formGroup]="roleForm" (ngSubmit)="onSubmit()">

@@ -1,7 +1,7 @@
 <app-dialog #wkDlg variant="drawer" [title]="'Weekend days — ' + company().name" [busy]="saving()" [dirty]="form.dirty"
             discardTitle="Discard your changes?" discardMessage="You have unsaved weekend-day changes. Leaving now will discard them." (close)="onClose()">
   @if (loading()) {
-    <p style="color: var(--text-muted);">Loading…</p>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading…</p></div>
   } @else {
     <p class="wk-hint">
       Tick the day(s) that count as this company's weekend / rest days — e.g. Friday &amp; Saturday in Johor or Kedah,

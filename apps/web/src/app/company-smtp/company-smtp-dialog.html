@@ -4,7 +4,7 @@
     <!-- Confirm view inside the ONE dialog (single-dialog standard): states the outcome. -->
     <p style="margin: 0;">Remove this SMTP server? Emails for <strong>{{ company().name }}</strong> will use the platform default sender from now on.</p>
   } @else if (loading()) {
-    <p style="color: var(--text-muted);">Loading…</p>
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading…</p></div>
   } @else {
     <p class="smtp-hint" style="margin: 0 0 var(--space-md);">
       Send this company's emails (e.g. collaborator invitations) through its own mail server, from your own address.

@@ -37,6 +37,7 @@
       }
     </span>
     <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="onSync()" [disabled]="syncing()">
+      <span class="material-icons" aria-hidden="true">sync</span>
       {{ syncing() ? 'Syncing…' : 'Sync now' }}
     </button>
   </div>

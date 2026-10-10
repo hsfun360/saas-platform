@@ -61,7 +61,7 @@
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Searching members…</p></div>
   } @else if (rows().length === 0) {
     <div class="empty-state">
-      <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
+      <span class="material-icons empty-icon" aria-hidden="true">{{ (search() || kindFilter() || statusFilter()) ? 'search_off' : 'inbox' }}</span>
       @if (search() || kindFilter() || statusFilter()) {
         <p>No members match your search.</p>
         <button type="button" class="btn btn--secondary btn--sm" (click)="statusFilter.set(''); kindFilter.set(''); clearSearch()">Clear search</button>

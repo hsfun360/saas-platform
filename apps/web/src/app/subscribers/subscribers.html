@@ -111,7 +111,7 @@
                 </div>
               }
               @if (companyUsersLoading()) {
-                <p class="cell-subtle">Loading users…</p>
+                <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading users…</p></div>
               } @else if (companyUsers.length === 0) {
                 <p class="cell-subtle">No users in this company yet. Users join a company via the tenant's own User Management; once someone is in it, you can make them its Tenant Admin here.</p>
               } @else {
@@ -240,7 +240,7 @@
         <div class="form-group">
           <label>Subscribed Modules</label>
           @if (modulesLoading()) {
-            <p class="cell-subtle">Loading modules…</p>
+            <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading modules…</p></div>
           } @else if (modules.length === 0) {
             <p class="cell-subtle">No modules available.</p>
           } @else {

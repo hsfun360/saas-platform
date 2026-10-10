@@ -169,7 +169,7 @@
   @if (defaultsOpen()) {
     <app-dialog [title]="'Load default positions'" [busy]="seeding()" (close)="closeDefaults()">
       @if (defaultsLoading()) {
-        <p style="color: var(--text-muted);">Loading defaults…</p>
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading defaults…</p></div>
       } @else {
         <p style="color: var(--text-muted); font-size: var(--font-body-2); margin-top: 0;">
           The standard three-level ladder. Already-added positions are marked and won't be changed.

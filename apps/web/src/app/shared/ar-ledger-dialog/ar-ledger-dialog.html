@@ -199,7 +199,7 @@
         </button>
       } @else {
         <button type="submit" form="arLedgerForm" class="btn btn--primary" [disabled]="saving() || metaLoading()">
-          {{ saving() ? 'Posting…' : 'Post' }}
+          {{ saving() ? 'Posting…' : 'Post ' + kindLabel().toLowerCase() }}
         </button>
       }
     }

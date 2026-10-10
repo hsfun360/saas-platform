@@ -1,5 +1,5 @@
 @if (loading()) {
-  <p style="color: var(--text-muted);">Loading menus…</p>
+  <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading menus…</p></div>
 } @else if (permModules().length === 0) {
   <p style="color: var(--text-muted);">{{ emptyMessage() }}</p>
 } @else {

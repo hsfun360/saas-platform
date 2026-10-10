@@ -5,7 +5,7 @@ import { AdminService } from '../services/admin.service';
 import { AuthService } from '../auth.service';
 import { AuditLogEntry } from '../models/auth.models';
 import { LocalDatePipe } from '../shared/local-date.pipe';
-import { ScreenTitlePipe } from '../i18n/screen-title.pipe';
+import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // Read-only viewer over the append-only audit trail (audit."AuditLog").
@@ -17,7 +17,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 @Component({
   selector: 'app-audit-log',
   standalone: true,
-  imports: [ReactiveFormsModule, LocalDatePipe, ScreenTitlePipe, FavStarComponent],
+  imports: [ReactiveFormsModule, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent],
   templateUrl: './audit-log.html',
   styleUrls: ['./audit-log.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,

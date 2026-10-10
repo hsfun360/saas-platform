@@ -107,7 +107,7 @@
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."
                 (close)="closeDialog()">
       @if (editLoading()) {
-        <p class="cell-subtle">Loading role…</p>
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading role…</p></div>
       }
 
       <form id="roleDialogForm" [formGroup]="roleForm" (ngSubmit)="onSubmit()" class="saas-form" style="padding: 0;">

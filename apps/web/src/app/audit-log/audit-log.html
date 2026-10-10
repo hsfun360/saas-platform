@@ -6,9 +6,9 @@
         <h1>{{ 'Audit Log' | screenTitle }}<app-fav-star /></h1>
         <p class="saas-subtitle">
           @if (isAccountScope) {
-            What your staff changed, when, across your companies - every create, update and delete. Read-only and append-only.
+            {{ 'What your staff changed, when, across your companies - every create, update and delete. Read-only and append-only.' | screenSubtitle }}
           } @else {
-            Who changed what, when - every create, update and delete across the platform. Read-only and append-only.
+            {{ 'Who changed what, when - every create, update and delete across the platform. Read-only and append-only.' | screenSubtitle }}
           }
         </p>
       </div>

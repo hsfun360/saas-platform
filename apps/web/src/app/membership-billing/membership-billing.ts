@@ -50,6 +50,12 @@ export class MembershipBillingComponent implements OnInit {
   readonly errorMessage = signal('');
   readonly warnings = signal<string[]>([]);
 
+  // The run button names the month it will generate (show-expected-results).
+  runMonthLabel(): string {
+    const m = this.runForm.controls.month.value;
+    return m ? monthYearLabel(m) : '';
+  }
+
   readonly runForm = this.fb.nonNullable.group({
     billingType: ['membership-fee', [Validators.required]],
     month: ['', [Validators.required]],

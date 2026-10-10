@@ -35,7 +35,7 @@ const REFUND_KINDS: RefundKindDef[] = [
     caption: 'pays a deposit’s held balance back to the debtor (money out via bank/cash).',
   },
   {
-    key: 'credit', label: 'Excess payment refund', icon: 'undo',
+    key: 'credit', label: 'Excess payment refund', icon: 'assignment_return',
     caption: 'pays back unallocated receipt credit, oldest first (money out via bank/cash).',
   },
   {

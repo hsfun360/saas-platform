@@ -90,7 +90,7 @@
     </div>
 
     @if (loading()) {
-      <p class="md-empty">Loading…</p>
+      <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading…</p></div>
     } @else if (rows().length < total()) {
       <button type="button" class="btn btn--secondary" (click)="loadMore()">
         Load {{ total() - rows().length > 50 ? 50 : total() - rows().length }} more

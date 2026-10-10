@@ -37,6 +37,7 @@
       }
     </span>
     <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="onSeed()" [disabled]="seeding()">
+      <span class="material-icons" aria-hidden="true">playlist_add</span>
       {{ seeding() ? 'Loading…' : 'Load defaults' }}
     </button>
   </div>

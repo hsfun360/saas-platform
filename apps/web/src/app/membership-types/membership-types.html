@@ -342,7 +342,9 @@
               <div class="mt-feeline__head">
                 <span class="mt-feeline__no">Fee {{ i + 1 }}</span>
                 <button type="button" class="btn btn--danger btn--sm" (click)="removeFeeLine(i)"
-                        [attr.aria-label]="'Remove fee ' + (i + 1)">Remove</button>
+                        [attr.aria-label]="'Remove fee ' + (i + 1)">
+                  <span class="material-icons" aria-hidden="true">close</span>
+                </button>
               </div>
               <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                 <div class="form-group">
@@ -414,7 +416,9 @@
               <div class="mt-feeline__head">
                 <span class="mt-feeline__no">Charge {{ i + 1 }}</span>
                 <button type="button" class="btn btn--danger btn--sm" (click)="removeStandingRow(i)"
-                        [attr.aria-label]="'Remove charge ' + (i + 1)">Remove</button>
+                        [attr.aria-label]="'Remove charge ' + (i + 1)">
+                  <span class="material-icons" aria-hidden="true">close</span>
+                </button>
               </div>
               <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                 <div class="form-group">
