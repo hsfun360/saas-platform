@@ -41,7 +41,7 @@
   } @else if (schemes().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
-      <p>No numbering configured yet. Use "New numbering scheme" to set up how Membership numbers are issued.</p>
+      <p>No numbering configured yet. Use "New numbering scheme" to set up how each document series is numbered.</p>
     </div>
   } @else {
     <div class="data-list">
@@ -113,7 +113,7 @@
         </div>
 
         @if (form.controls.mode.value === 'manual') {
-          <p class="nb-hint">Staff key the number in on the member screen (e.g. from a pre-printed card). The system only checks it isn't already used.</p>
+          <p class="nb-hint">Staff key the number in on the document's own screen (e.g. from a pre-printed card). The system only checks it isn't already used.</p>
         } @else {
           <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
             <div class="form-group">

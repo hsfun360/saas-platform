@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">percent</span>
       <div>
         <h1>{{ 'Interest Generation' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Generate late-payment interest into a holding list, review each debtor, then confirm to post the Debit Notes.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Generate late-payment interest into a holding list, review each debtor, then confirm to post the interest documents.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -96,7 +96,7 @@
       </label>
       <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="onConfirmSelected()"
               [disabled]="confirming() || selectedCount() === 0">
-        {{ confirming() ? 'Posting…' : 'Post ' + selectedCount() + ' Debit Note(s) — ' + totalSelected() }}
+        {{ confirming() ? 'Posting…' : 'Post ' + selectedCount() + (selectedCount() === 1 ? ' interest document' : ' interest documents') + ' — ' + totalSelected() }}
       </button>
     }
   </div>
