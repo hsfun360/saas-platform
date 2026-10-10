@@ -3,7 +3,7 @@ import { MoneyPipe } from '../shared/money.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MembershipTypeService } from '../services/membership-type.service';
 import { MembershipStatusService } from '../services/membership-status.service';
 import { MembershipFeeService } from '../services/membership-fee.service';
@@ -18,24 +18,27 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // Editable joining-fee row (amounts kept as strings for the inputs). The
 // transaction type comes from the Transaction Type master and carries the tax.
-interface FeeLineRow {
-  transactionType: string;
-  description: string;
-  currencyCode: string;
-  amount: string;
-}
+// Both row editors are reactive FormArrays of typed groups (house standard):
+// the array's own dirty state feeds the dialog's unsaved-changes guard and
+// the amount control is the appMoney ControlValueAccessor (a number).
+type FeeLineGroup = FormGroup<{
+  transactionType: FormControl<string>;
+  description: FormControl<string>;
+  currencyCode: FormControl<string>;
+  amount: FormControl<number>;
+}>;
 
-// Editable standing-charge row - added explicitly like a joining fee (no
-// auto-seeded per-status grid); a status can carry MORE than one charge.
-interface StandingRow {
-  membershipStatusId: string; // picked from the Status master
-  description: string;
-  transactionType: string;  // Transaction Type master code (carries tax + line description)
-  currencyCode: string;
-  amount: string;
-  frequency: string;
-  fixedMonth: string;       // '1'..'12' when frequency is 'fixed-month'
-}
+// Standing-charge row - added explicitly like a joining fee (no auto-seeded
+// per-status grid); a status can carry MORE than one charge.
+type StandingGroup = FormGroup<{
+  membershipStatusId: FormControl<string>; // picked from the Status master
+  description: FormControl<string>;
+  transactionType: FormControl<string>;  // Transaction Type master code (carries tax + line description)
+  currencyCode: FormControl<string>;
+  amount: FormControl<number>;
+  frequency: FormControl<string>;
+  fixedMonth: FormControl<string>;       // '1'..'12' when frequency is 'fixed-month'
+}>
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -83,9 +86,7 @@ export class MembershipTypesComponent implements OnInit {
   readonly standingTxTypes = computed(() => this.txTypes());
   // Additional-fee lines (Category Details - Fee) - generated/edited in place,
   // saved atomically with the type. Row edits mark the form dirty by hand.
-  readonly feeLines = signal<FeeLineRow[]>([]);
   // Standing charges - auto-seeded one row per active Membership Status.
-  readonly standingRows = signal<StandingRow[]>([]);
   readonly frequencies = signal<MembershipStatusOption[]>([]);
   // Club Specification (SRS 2.1.1): only a golf club deals in golfing rights.
   readonly clubSettings = signal<ClubSettings | null>(null);
@@ -101,15 +102,17 @@ export class MembershipTypesComponent implements OnInit {
   // under the type. Its own dialog on the listing, separate from the type form.
   readonly feesOpen = signal(false);
   readonly feesSaving = signal(false);
-  readonly feesDirty = signal(false);
   readonly feesType = signal<MembershipType | null>(null);
+  readonly feeLines: FormArray<FeeLineGroup> = this.fb.array<FeeLineGroup>([]);
+  readonly feesForm = this.fb.group({ fees: this.feeLines });
 
   // Standing-charges dialog (B): per-status recurring charges. Only statuses the
   // club charges get a row filled in.
   readonly chargesOpen = signal(false);
   readonly chargesSaving = signal(false);
-  readonly chargesDirty = signal(false);
   readonly chargesType = signal<MembershipType | null>(null);
+  readonly standingRows: FormArray<StandingGroup> = this.fb.array<StandingGroup>([]);
+  readonly chargesForm = this.fb.group({ charges: this.standingRows });
 
   readonly form = this.fb.nonNullable.group({
     category: ['', [Validators.required, Validators.maxLength(30)]],
@@ -293,25 +296,29 @@ export class MembershipTypesComponent implements OnInit {
   readonly activeStatusOptions = computed(() =>
     this.activeStatuses().map((s) => ({ value: s.id, label: `${s.membershipStatus} (${s.statusClass})` })));
 
+  private newStandingGroup(r: { membershipStatusId: string; description: string; transactionType: string; currencyCode: string; amount: number; frequency: string; fixedMonth: string }): StandingGroup {
+    return this.fb.nonNullable.group({
+      membershipStatusId: [r.membershipStatusId],
+      description: [r.description],
+      transactionType: [r.transactionType],
+      currencyCode: [r.currencyCode],
+      amount: [r.amount],
+      frequency: [r.frequency],
+      fixedMonth: [r.fixedMonth],
+    });
+  }
+
   addStandingRow(): void {
-    this.standingRows.update((rows) => [
-      ...rows,
-      {
-        membershipStatusId: '', description: '', transactionType: '',
-        currencyCode: this.defaultCurrencyCode(), amount: '0', frequency: '', fixedMonth: '',
-      },
-    ]);
-    this.chargesDirty.set(true);
+    this.standingRows.push(this.newStandingGroup({
+      membershipStatusId: '', description: '', transactionType: '',
+      currencyCode: this.defaultCurrencyCode(), amount: 0, frequency: '', fixedMonth: '',
+    }));
+    this.standingRows.markAsDirty();
   }
 
   removeStandingRow(index: number): void {
-    this.standingRows.update((rows) => rows.filter((_, i) => i !== index));
-    this.chargesDirty.set(true);
-  }
-
-  updateStandingRow(index: number, field: keyof StandingRow, value: string): void {
-    this.standingRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
-    this.chargesDirty.set(true);
+    this.standingRows.removeAt(index);
+    this.standingRows.markAsDirty();
   }
 
   loadRefs(): void {
@@ -404,21 +411,33 @@ export class MembershipTypesComponent implements OnInit {
   openFees(t: MembershipType): void {
     this.clearMessages();
     this.feesType.set(t);
-    this.feeLines.set(
-      (t.additionalFees || []).map((f) => ({
+    this.feeLines.clear();
+    for (const f of t.additionalFees || []) {
+      this.feeLines.push(this.newFeeGroup({
         transactionType: f.transactionType,
         description: f.description || '',
         currencyCode: f.currencyCode,
-        amount: String(f.amount),
-      })),
-    );
-    this.feesDirty.set(false);
+        amount: Number(f.amount) || 0,
+      }));
+    }
+    this.feeLines.markAsPristine();
     this.feesOpen.set(true);
+  }
+
+  private newFeeGroup(r: { transactionType: string; description: string; currencyCode: string; amount: number }): FeeLineGroup {
+    return this.fb.nonNullable.group({
+      transactionType: [r.transactionType],
+      description: [r.description],
+      currencyCode: [r.currencyCode],
+      amount: [r.amount],
+    });
   }
 
   closeFees(): void {
     this.feesOpen.set(false);
     this.feesType.set(null);
+    this.feeLines.clear();
+    this.feeLines.markAsPristine();
   }
 
   saveFees(): void {
@@ -427,7 +446,8 @@ export class MembershipTypesComponent implements OnInit {
     if (!type) return;
 
     // Client-side check of the fee lines (server re-validates).
-    for (const [i, row] of this.feeLines().entries()) {
+    const feeRows = this.feeLines.controls.map((g) => g.getRawValue());
+    for (const [i, row] of feeRows.entries()) {
       if (!row.transactionType.trim()) {
         this.errorMessage.set(`Joining fee #${i + 1}: transaction type is required.`);
         return;
@@ -444,7 +464,7 @@ export class MembershipTypesComponent implements OnInit {
     }
 
     this.feesSaving.set(true);
-    this.service.updateAdditionalFees(type.id, this.feeLines().map((r) => ({
+    this.service.updateAdditionalFees(type.id, feeRows.map((r) => ({
       transactionType: r.transactionType.trim(),
       description: r.description.trim() || null,
       currencyCode: r.currencyCode,
@@ -465,46 +485,40 @@ export class MembershipTypesComponent implements OnInit {
   }
 
   addFeeLine(): void {
-    const defaultCurrency = this.defaultCurrencyCode();
-    this.feeLines.update((rows) => [
-      ...rows,
-      { transactionType: '', description: '', currencyCode: defaultCurrency, amount: '0' },
-    ]);
-    this.feesDirty.set(true);
+    this.feeLines.push(this.newFeeGroup({ transactionType: '', description: '', currencyCode: this.defaultCurrencyCode(), amount: 0 }));
+    this.feeLines.markAsDirty();
   }
 
   removeFeeLine(index: number): void {
-    this.feeLines.update((rows) => rows.filter((_, i) => i !== index));
-    this.feesDirty.set(true);
-  }
-
-  updateFeeLine(index: number, field: keyof FeeLineRow, value: string): void {
-    this.feeLines.update((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
-    this.feesDirty.set(true);
+    this.feeLines.removeAt(index);
+    this.feeLines.markAsDirty();
   }
 
   // --- Standing charges dialog (B) ---
   openCharges(t: MembershipType): void {
     this.clearMessages();
     this.chargesType.set(t);
-    this.standingRows.set(
-      (t.standingCharges || []).map((c) => ({
+    this.standingRows.clear();
+    for (const c of t.standingCharges || []) {
+      this.standingRows.push(this.newStandingGroup({
         membershipStatusId: c.membershipStatusId,
         description: c.description || '',
         transactionType: c.transactionType,
         currencyCode: c.currencyCode,
-        amount: String(c.amount),
+        amount: Number(c.amount) || 0,
         frequency: c.frequency,
         fixedMonth: c.fixedMonth ? String(c.fixedMonth) : '',
-      })),
-    );
-    this.chargesDirty.set(false);
+      }));
+    }
+    this.standingRows.markAsPristine();
     this.chargesOpen.set(true);
   }
 
   closeCharges(): void {
     this.chargesOpen.set(false);
     this.chargesType.set(null);
+    this.standingRows.clear();
+    this.standingRows.markAsPristine();
   }
 
   saveCharges(): void {
@@ -514,7 +528,8 @@ export class MembershipTypesComponent implements OnInit {
 
     // Every row is an explicit charge (added via "Add charge") - all persisted,
     // all validated. A status may appear on more than one row.
-    for (const [i, row] of this.standingRows().entries()) {
+    const chargeRows = this.standingRows.controls.map((g) => g.getRawValue());
+    for (const [i, row] of chargeRows.entries()) {
       const label = `Charge #${i + 1}`;
       if (!row.membershipStatusId) {
         this.errorMessage.set(`${label}: select the membership status.`);
@@ -544,7 +559,7 @@ export class MembershipTypesComponent implements OnInit {
     }
 
     this.chargesSaving.set(true);
-    this.service.updateStandingCharges(type.id, this.standingRows().map((r) => ({
+    this.service.updateStandingCharges(type.id, chargeRows.map((r) => ({
       membershipStatusId: r.membershipStatusId,
       description: r.description.trim() || null,
       transactionType: r.transactionType.trim(),

@@ -320,13 +320,13 @@
 
   <!-- ============ Joining fees dialog (A) ============ -->
   @if (feesOpen()) {
-    <app-dialog #feesDlg variant="drawer" [title]="'Joining fees — ' + (feesType()?.category || '')" [busy]="feesSaving()" [dirty]="feesDirty()"
+    <app-dialog #feesDlg variant="drawer" [title]="'Joining fees — ' + (feesType()?.category || '')" [busy]="feesSaving()" [dirty]="feeLines.dirty"
                 discardTitle="Discard joining-fee changes?"
                 discardMessage="You have unsaved changes to these joining fees. Leaving now will discard them."
                 (close)="closeFees()">
-      <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="mtFees". -->
-      <form id="mtFees" (submit)="$event.preventDefault(); saveFees()">
-      <div class="saas-form" style="padding: 0;">
+      <!-- Reactive FormArray editor (house standard): rows live in `feeLines`, its dirty state feeds the guard, Enter submits. -->
+      <form id="mtFees" [formGroup]="feesForm" (ngSubmit)="saveFees()">
+      <div class="saas-form" style="padding: 0;" formArrayName="fees">
         <p class="mt-hint" style="margin: 0 0 var(--space-sm);">One-time charges billed when someone joins as a new member under this type. A type can carry more than one (e.g. processing fee + entrance fee).</p>
         @if (joiningFeeTxTypes().length === 0) {
           <p class="mt-hint" style="margin: 0 0 var(--space-sm);"><span class="material-icons inline-icon" aria-hidden="true">warning</span> No usable transaction types yet — set them up in the Transaction Type master first (Membership Fee and Absentee Fee types are not offered here).</p>
@@ -334,11 +334,11 @@
         <!-- Additional fees (Category Details - Fee) -->
         <details class="dlg-sec" open>
           <summary><h3 class="dlg-section">Joining fees</h3></summary>
-          @if (feeLines().length === 0) {
+          @if (feeLines.length === 0) {
             <p class="mt-hint">No joining fees yet. Use "Add fee" to attach one (e.g. processing or entrance fees).</p>
           }
-          @for (row of feeLines(); track $index; let i = $index) {
-            <div class="mt-feeline">
+          @for (g of feeLines.controls; track g; let i = $index) {
+            <div class="mt-feeline" [formGroupName]="i">
               <div class="mt-feeline__head">
                 <span class="mt-feeline__no">Fee {{ i + 1 }}</span>
                 <button type="button" class="btn btn--danger btn--sm" (click)="removeFeeLine(i)"
@@ -347,35 +347,31 @@
               <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                 <div class="form-group">
                   <label [for]="'flType' + i">Transaction type <span class="required">*</span></label>
-                  <app-combobox [inputId]="'flType' + i" [value]="row.transactionType"
-                                (valueChange)="updateFeeLine(i, 'transactionType', $event)"
+                  <app-combobox [inputId]="'flType' + i" formControlName="transactionType"
                                 [options]="joiningFeeTxOptions()"
                                 [allowEmpty]="false"
                                 placeholder="Select a transaction type…" />
-                  @if (row.transactionType) {
-                    <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Tax: {{ txTaxLabel(row.transactionType) }}</p>
+                  @if (g.controls.transactionType.value) {
+                    <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Tax: {{ txTaxLabel(g.controls.transactionType.value) }}</p>
                   }
                 </div>
                 <div class="form-group">
                   <label [for]="'flDesc' + i">Description</label>
-                  <input [id]="'flDesc' + i" type="text" [value]="row.description"
-                         (input)="updateFeeLine(i, 'description', $any($event.target).value)"
+                  <input [id]="'flDesc' + i" type="text" formControlName="description"
                          placeholder="Optional summary" maxlength="200" />
                 </div>
               </div>
               <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                 <div class="form-group">
                   <label [for]="'flCur' + i">Currency <span class="required">*</span></label>
-                  <app-combobox [inputId]="'flCur' + i" [value]="row.currencyCode"
-                                (valueChange)="updateFeeLine(i, 'currencyCode', $event)"
+                  <app-combobox [inputId]="'flCur' + i" formControlName="currencyCode"
                                 [options]="currencyOptions()"
                                 [allowEmpty]="false"
                                 placeholder="Type to search…" />
                 </div>
                 <div class="form-group">
                   <label [for]="'flAmt' + i">Amount <span class="required">*</span></label>
-                  <input [id]="'flAmt' + i" type="number" inputmode="decimal" appMoney [moneyValue]="row.amount"
-                         (input)="updateFeeLine(i, 'amount', $any($event.target).value)" min="0" step="0.01" />
+                  <input [id]="'flAmt' + i" type="number" inputmode="decimal" appMoney formControlName="amount" min="0" step="0.01" />
                 </div>
               </div>
             </div>
@@ -396,13 +392,13 @@
 
   <!-- ============ Standing charges dialog (B) ============ -->
   @if (chargesOpen()) {
-    <app-dialog #chargesDlg variant="drawer" [title]="'Standing charges — ' + (chargesType()?.category || '')" [busy]="chargesSaving()" [dirty]="chargesDirty()"
+    <app-dialog #chargesDlg variant="drawer" [title]="'Standing charges — ' + (chargesType()?.category || '')" [busy]="chargesSaving()" [dirty]="standingRows.dirty"
                 discardTitle="Discard standing-charge changes?"
                 discardMessage="You have unsaved changes to these standing charges. Leaving now will discard them."
                 (close)="closeCharges()">
-      <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="mtCharges". -->
-      <form id="mtCharges" (submit)="$event.preventDefault(); saveCharges()">
-      <div class="saas-form" style="padding: 0;">
+      <!-- Reactive FormArray editor (house standard): rows live in `standingRows`, its dirty state feeds the guard, Enter submits. -->
+      <form id="mtCharges" [formGroup]="chargesForm" (ngSubmit)="saveCharges()">
+      <div class="saas-form" style="padding: 0;" formArrayName="charges">
         <p class="mt-hint" style="margin: 0 0 var(--space-sm);">Recurring charges raised from the member's status at the point the charge is billed. Use "Add charge" per charge — a status can carry more than one, and statuses you never charge (deceased, terminated, resigned, …) simply have no rows.</p>
         @if (standingTxTypes().length === 0) {
           <p class="mt-hint" style="margin: 0 0 var(--space-sm);"><span class="material-icons inline-icon" aria-hidden="true">warning</span> No transaction types with charge type "Standing Charges" yet — set them up in the Transaction Type master first.</p>
@@ -410,11 +406,11 @@
         <!-- Standing charges: explicit rows, added like joining fees -->
         <details class="dlg-sec" open>
           <summary><h3 class="dlg-section">Standing charges</h3></summary>
-          @if (standingRows().length === 0) {
+          @if (standingRows.length === 0) {
             <p class="mt-hint">No standing charges yet. Use "Add charge" to attach one (e.g. monthly subscription while Active).</p>
           }
-          @for (row of standingRows(); track $index; let i = $index) {
-            <div class="mt-feeline">
+          @for (g of standingRows.controls; track g; let i = $index) {
+            <div class="mt-feeline" [formGroupName]="i">
               <div class="mt-feeline__head">
                 <span class="mt-feeline__no">Charge {{ i + 1 }}</span>
                 <button type="button" class="btn btn--danger btn--sm" (click)="removeStandingRow(i)"
@@ -423,35 +419,31 @@
               <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                 <div class="form-group">
                   <label [for]="'scStatus' + i">Membership status <span class="required">*</span></label>
-                  <app-combobox [inputId]="'scStatus' + i" [value]="row.membershipStatusId"
-                                (valueChange)="updateStandingRow(i, 'membershipStatusId', $event)"
+                  <app-combobox [inputId]="'scStatus' + i" formControlName="membershipStatusId"
                                 [options]="activeStatusOptions()"
                                 [allowEmpty]="false"
                                 placeholder="Select a status…" />
                 </div>
                 <div class="form-group">
                   <label [for]="'scType' + i">Transaction type <span class="required">*</span></label>
-                  <app-combobox [inputId]="'scType' + i" [value]="row.transactionType"
-                                (valueChange)="updateStandingRow(i, 'transactionType', $event)"
+                  <app-combobox [inputId]="'scType' + i" formControlName="transactionType"
                                 [options]="standingTxOptions()"
                                 [allowEmpty]="false"
                                 placeholder="Select a transaction type…" />
-                  @if (row.transactionType) {
-                    <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Tax: {{ txTaxLabel(row.transactionType) }}</p>
+                  @if (g.controls.transactionType.value) {
+                    <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Tax: {{ txTaxLabel(g.controls.transactionType.value) }}</p>
                   }
                 </div>
               </div>
               <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                 <div class="form-group">
                   <label [for]="'scDesc' + i">Description</label>
-                  <input [id]="'scDesc' + i" type="text" [value]="row.description"
-                         (input)="updateStandingRow(i, 'description', $any($event.target).value)"
+                  <input [id]="'scDesc' + i" type="text" formControlName="description"
                          placeholder="Standing-charge summary" maxlength="200" />
                 </div>
                 <div class="form-group">
                   <label [for]="'scCur' + i">Currency <span class="required">*</span></label>
-                  <app-combobox [inputId]="'scCur' + i" [value]="row.currencyCode"
-                                (valueChange)="updateStandingRow(i, 'currencyCode', $event)"
+                  <app-combobox [inputId]="'scCur' + i" formControlName="currencyCode"
                                 [options]="currencyOptions()"
                                 [allowEmpty]="false"
                                 placeholder="Type to search…" />
@@ -460,29 +452,26 @@
               <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                 <div class="form-group">
                   <label [for]="'scAmt' + i">Amount <span class="required">*</span></label>
-                  <input [id]="'scAmt' + i" type="number" inputmode="decimal" appMoney [moneyValue]="row.amount"
-                         (input)="updateStandingRow(i, 'amount', $any($event.target).value)" min="0" step="0.01" />
+                  <input [id]="'scAmt' + i" type="number" inputmode="decimal" appMoney formControlName="amount" min="0" step="0.01" />
                 </div>
                 <div class="form-group">
                   <label [for]="'scFreq' + i">Frequency <span class="required">*</span></label>
-                  <select [id]="'scFreq' + i" [value]="row.frequency"
-                          (change)="updateStandingRow(i, 'frequency', $any($event.target).value)">
-                    <option value="" disabled [selected]="!row.frequency">Select a frequency…</option>
+                  <select [id]="'scFreq' + i" formControlName="frequency">
+                    <option value="" disabled>Select a frequency…</option>
                     @for (f of frequencies(); track f.key) {
-                      <option [value]="f.key" [selected]="f.key === row.frequency">{{ f.label }}</option>
+                      <option [value]="f.key">{{ f.label }}</option>
                     }
                   </select>
                 </div>
               </div>
-              @if (row.frequency === 'fixed-month') {
+              @if (g.controls.frequency.value === 'fixed-month') {
                 <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
                   <div class="form-group">
                     <label [for]="'scMonth' + i">Month <span class="required">*</span></label>
-                    <select [id]="'scMonth' + i" [value]="row.fixedMonth"
-                            (change)="updateStandingRow(i, 'fixedMonth', $any($event.target).value)">
-                      <option value="" disabled [selected]="!row.fixedMonth">Select a month…</option>
+                    <select [id]="'scMonth' + i" formControlName="fixedMonth">
+                      <option value="" disabled>Select a month…</option>
                       @for (m of monthNames; track m; let mi = $index) {
-                        <option [value]="mi + 1" [selected]="(mi + 1) + '' === row.fixedMonth">{{ m }}</option>
+                        <option [value]="mi + 1">{{ m }}</option>
                       }
                     </select>
                   </div>
