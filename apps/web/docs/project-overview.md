@@ -27,7 +27,8 @@
 - **Forms:** Use **Reactive Forms** (`FormGroup` / `FormBuilder`) for all data-entry, each field carrying its correct HTML5 input type. See coding-standards.md → "Forms" for the full standard (canonical reference: `platform-users`). Angular Signal Forms is experimental and not approved for production yet.
 - **Change Detection:** Strictly Zoneless. No dependency on `zone.js`.
 - **Component Design:** Every component must be `standalone: true`.
-- **Naming Conventions:** Follow standard Angular style (`*.component.ts`, `*.service.ts`, `*.guard.ts`).
+- **Naming Conventions:** Angular 20 file style - a component is `name.ts` / `name.html` / `name.css` inside its own folder (`golf-courses/golf-courses.ts`), services are `*.service.ts`, guards `*.guard.ts`, directives `*.directive.ts`, pipes `*.pipe.ts`; no `.component.` infix.
+- **Change detection + DI:** every component declares `changeDetection: ChangeDetectionStrategy.OnPush` and `standalone: true` explicitly, and takes its dependencies with `inject()` (a constructor exists only when it has real body logic; convert the remaining ones when you touch them).
 
 ## 🛑 Project Constraints & Anti-Patterns
 - **Do NOT:** Implement any hardcoded API fallback keys locally.
@@ -574,6 +575,8 @@ screen first needs them.
 
 #### Data listings - card-per-record, never a raw `<table>`
 
+(The one `<table>` in the app is the golf Transaction Type price MATRIX - 9/18 holes by weekday/weekend - which is genuinely tabular data with column and row headers, not a listing; it stays a table with `scope` attributes.)
+
 **Canonical reference: the Companies screen** (`companies.html` / `companies.css`). Every
 listing/CRUD screen should match its shape - copy it rather than inventing a variant.
 
@@ -784,13 +787,23 @@ For any non-trivial listing (more than a handful of rows), the **add** action an
       **Never `window.confirm()`.** A destructive action launched from INSIDE an open drawer
       (Company SMTP "Remove server", User Management "Remove from company") confirms as a VIEW
       of that same drawer (mode signal, swapped body + footer) - the single-dialog standard
-      forbids a second `<app-dialog>` on top.
+      forbids a second `<app-dialog>` on top (Golf Transaction Type's "Delete price" is the
+      third such view, 2026-10-10).
+      **What needs no confirm:** removing a FormArray row (nothing is saved until Save), and
+      removing a line from an OPEN bill (tee-sheet / group-bill items are re-addable from the
+      tiles while the bill is open) - the confirm is for actions that cannot be undone.
+      Every other delete / void / cancel / revoke / clear confirms (third sweep, 2026-10-10:
+      void statement, cancel interest or billing runs, cancel a statement run, delete a rate,
+      course or nine, release flights, remove roster players, clear notifications).
   - or a **routed screen** (`/section/new`) that the mobile sliding-pane covers the list
     with - for master–detail screens this falls out of the existing URL-state pattern.
     Reference: `items.ts` (`/items/new`); for a tabbed screen, jump to the create tab
     (`system-setup.ts`, FAB → `switchTab('create')`).
   - **Footer buttons stay on one line.** Title already names the action ("New company"), so
-    the primary button is a plain **"Save"** (not "Create company") next to **"Cancel"**,
+    the primary button is a plain **"Save"** (not "Create company") next to **"Cancel"**
+    (a dialog with no typeable field - Companies "Edit modules" tick grid, My Dashboard
+    "Manage quick access" drag list - keeps a plain button, since Enter-to-submit has no
+    field to fire from),
     right-aligned. The global mobile rule forces `button[type="submit"]` to full width -
     `<app-dialog>` opts out via `.dlg__footer .btn { width: auto }` (in `styles.css`) so
     they never wrap. The Save button sits in the footer but targets the body `<form>` via

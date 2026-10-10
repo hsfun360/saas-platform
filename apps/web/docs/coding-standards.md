@@ -71,6 +71,8 @@ Template-driven forms have no reliable central dirty/validity signal, which is e
   The field is two lines tall and scrolls vertically beyond that; `wrap="off"` means a line only breaks where the user presses Enter (long lines scroll horizontally instead of soft-wrapping), and `resize: vertical` lets the user drag it taller.
   The global `.form-group textarea` styling handles the look (font inheritance, tokens).
   Exception: fields where "Description" is really the record's display NAME (code+description reference masters like Salutation, Race, Title, the Course Closure plan's Description) and compact grid cells (per-hole remarks, per-language translation rows) stay single-line.
+  Genuinely long free text (a profile bio, the statement footer / remittance advice) is `rows="3"` with soft wrap - that is prose, not a Remarks line.
+- **Rates with more than two decimals** (exchange rates, interest rates) stay `type="text" inputmode="decimal"`: `type="number"` rounds and re-formats a six-decimal rate on blur in several browsers, so the decimal keyboard plus server-side validation is the deliberate choice (documented 2026-10-10).
 - **Money/amount fields are masked to two decimals** with the shared `appMoney` directive (`shared/money-input.directive.ts`), on top of `type="number" inputmode="decimal" min="0" step="0.01"`.
   The field always displays `0.00`-style values (seeded, and re-formatted on blur - never while typing) while the form value stays a plain number.
   With `formControlName` the directive is the ControlValueAccessor; for row inputs kept outside a FormGroup, bind `appMoney [moneyValue]="row.amount"` and keep the existing `(input)` handler.
