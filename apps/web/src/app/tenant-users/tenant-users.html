@@ -105,7 +105,7 @@
               </dl>
             </div>
             <div class="data-row__actions">
-              <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" [disabled]="isPending('inv:' + inv.id)" (click)="onRevokeInvite(inv.id)">Revoke</button>
+              <button *appCan="'delete'" type="button" class="btn btn--danger btn--sm" [disabled]="isPending('inv:' + inv.id)" (click)="onRevokeInvite(inv)">Revoke</button>
             </div>
           </div>
         </div>
@@ -364,13 +364,19 @@
           <div class="place-row" [formGroup]="fg">
             <div class="place-row__head">
               <span class="place-row__company">{{ m.companyName }}</span>
+              <!-- One visible primary + kebab (row-actions standard): Update stays, Remove folds in. -->
               <span class="place-row__actions">
                 <button type="button" class="btn btn--primary btn--sm"
                         [disabled]="isPending('role:' + person.id + ':' + m.companyId)"
                         (click)="onUpdatePlacement(person, m.companyId)">Update</button>
-                <button type="button" class="btn btn--danger btn--sm"
-                        [disabled]="isPending('rm:' + person.id + ':' + m.companyId)"
-                        (click)="onRemove(person, m.companyId, m.companyName)">Remove</button>
+                <app-overflow-menu *appCan="'delete'" [label]="'More actions for ' + m.companyName">
+                  <button type="button" appMenuItem
+                          [disabled]="isPending('rm:' + person.id + ':' + m.companyId)"
+                          (click)="onRemove(person, m.companyId, m.companyName)">
+                    <span class="material-icons" aria-hidden="true">person_remove</span>
+                    Remove from company
+                  </button>
+                </app-overflow-menu>
               </span>
             </div>
             <div class="row">
@@ -442,5 +448,9 @@
         }
       </ng-container>
     </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
   }
 </div>

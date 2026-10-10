@@ -14,6 +14,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { ComboboxComponent, ComboOption } from '../shared/combobox/combobox';
 import { CanDirective } from '../shared/can.directive';
+import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 
 // Per-membership placement form: role + org placement within one company.
 type PlacementForm = FormGroup<{
@@ -37,7 +38,7 @@ type PlacementForm = FormGroup<{
   standalone: true,
   imports: [CanDirective, 
     FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule,
-    ReactiveFormsModule, DialogComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective,
+    ReactiveFormsModule, DialogComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective, ConfirmDialogComponent,
     ComboboxComponent,
   ],
   templateUrl: './tenant-users.html',
@@ -110,6 +111,8 @@ export class TenantUsersComponent implements OnInit {
   // "Remove from company" confirmation is a VIEW inside the placement drawer
   // (single-dialog standard) - never a second dialog or window.confirm.
   readonly confirmRemove = signal<{ person: AccountPerson; companyId: string; companyName?: string } | null>(null);
+  // Page-level destructive confirm (shared <app-confirm-dialog>): revoking a pending invitation.
+  readonly confirmAction = signal<ConfirmRequest | null>(null);
 
   // Subscriber org masters for the assignment dropdowns (active only).
   readonly departments = signal<Department[]>([]);
@@ -487,8 +490,20 @@ export class TenantUsersComponent implements OnInit {
     });
   }
 
-  onRevokeInvite(id: string): void {
+  onRevokeInvite(inv: AccountPendingInvite): void {
     this.clearMessages();
+    this.confirmAction.set({
+      title: 'Revoke invitation',
+      message: `Revoke the invitation sent to ${inv.email} for ${inv.companyName}? The link in their email stops working and they will not be able to join.`,
+      confirmLabel: 'Revoke invitation',
+      run: () => {
+        this.confirmAction.set(null);
+        this.revokeInvite(inv.id);
+      },
+    });
+  }
+
+  private revokeInvite(id: string): void {
     this.pendingKey.set(`inv:${id}`);
     this.authService.revokeInvitation(id).subscribe({
       next: (res) => {
