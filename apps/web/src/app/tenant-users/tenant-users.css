@@ -1,35 +1,4 @@
-.tenant-container {
-  max-width: 1140px; /* the app-wide listing-screen content cap - match .saas-container */
-  margin: 0 auto;
-  padding: var(--space-lg);
-}
-
-/* Mobile: drop horizontal padding so cards use the full width — the shell's
-   content-area already supplies a ~16px gutter (mirrors mobile Gmail). */
-@media (max-width: 767px) {
-  .tenant-container {
-    padding: var(--space-md) 0;
-  }
-}
-
-.tenant-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  margin-bottom: var(--space-lg);
-}
-
-.tenant-header h1 {
-  margin: 0;
-  font-size: var(--font-h1);
-  color: var(--text-primary);
-}
-
-.tenant-header p {
-  margin: var(--space-2xs) 0 0;
-  color: var(--text-muted);
-  font-size: var(--font-body-2);
-}
+/* Container + header are the globals (.saas-container / .saas-header in styles.css). */
 
 .card {
   background: var(--surface-card);

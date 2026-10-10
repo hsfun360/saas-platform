@@ -272,6 +272,8 @@ Subscribers maintain the per-language texts in Modules & Menus (the Translations
 - The service also keeps **`document.title`** (the browser tab) in step with the resolved menu name.
 - Dynamic subtitles (e.g. Public Holidays' per-country line) and dictionary-translated screens (Account Languages' `| t` keys) stay as they are - don't double-translate.
 - New screens MUST use the pipes in their header; every existing listing screen already does.
+- The header's chrome is the global **`.saas-header`** block (`styles.css`): `<div class="saas-header"><div class="saas-header-left"><span class="saas-icon material-icons">…</span><div><h1>…<app-fav-star /></h1><p class="saas-subtitle">…</p></div></div></div>`.
+  Never inline-style the `<h1>`/`<p>` or hand-roll a `.my-header` - the last nine inline copies (Companies, Audit Log, Items, Modules & Menus, Role Management, Unverified Registrations, User Management) were migrated on 2026-10-10.
 
 #### Screen header bookmark star (My Dashboard Quick access)
 
@@ -815,7 +817,7 @@ and `items/:id`. Empty-state icons are Material glyphs too
 
 #### Content width - ONE cap for every listing screen (1140px)
 
-Every listing/CRUD screen caps its content column at **`max-width: 1140px; margin: 0 auto`** - on the wrapper (`class="screen-pad" style="max-width: 1140px; margin: 0 auto;"`) or baked into the screen's container class (`.saas-container`, `.tenant-container`).
+Every listing/CRUD screen caps its content column at **`max-width: 1140px; margin: 0 auto`** - on the wrapper (`class="screen-pad" style="max-width: 1140px; margin: 0 auto;"`) or baked into the global `.saas-container` class (the one bespoke copy, User Management's `.tenant-container`, was folded into it on 2026-10-10).
 One number, no per-screen taste: cards on User Management must be exactly as wide as cards on Positions or Departments, or the app reads as inconsistent when hopping between screens.
 Do NOT invent another cap (800/900/1100/1200px listing wrappers have all been migrated to 1140).
 Deliberate exceptions - and the only ones: dedicated single-form/settings screens where long text lines hurt readability (Profile 600, Settings 650), the auth screens' centred cards, and the member/agent portals (their own surface).
@@ -890,8 +892,8 @@ Use the shared **`.screen-pad`** utility (in `styles.css`) on the wrapper, and k
 @media (max-width: 767px) { .screen-pad { padding: var(--space-md) 0; } }
 ```
 
-Screens with a bespoke container class (`.saas-container`, `.tenant-container`) bake the
-same `@media (max-width: 767px) { padding: var(--space-md) 0 }` into that class instead.
+Screens on the global `.saas-container` get the same
+`@media (max-width: 767px) { padding: var(--space-md) 0 }` from that class instead.
 Don't re-add horizontal padding on the wrapper for mobile - card/list internal padding
 already keeps text off the edge.
 
