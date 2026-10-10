@@ -1,6 +1,6 @@
 import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
@@ -26,11 +26,14 @@ import {
 
 // Per-booking decision in the no-show review: include it, charge the
 // booker (default) or waive with a reason.
-interface NoShowDecision {
-  include: boolean;
-  charge: boolean;
-  waiveReason: string;
-}
+// One review row per booking: ticked = recorded as a no-show; waive = the
+// booker is NOT charged (reason required).
+type NoShowGroup = FormGroup<{
+  bookingProfileId: FormControl<string>;
+  include: FormControl<boolean>;
+  waive: FormControl<boolean>;
+  waiveReason: FormControl<string>;
+}>;
 
 // Golf Management → Front Desk → Tee Time Sheet (/golf/tee-time-sheet; the
 // menu was renamed from Front Desk 2026-10-06 - Front Desk is now the GROUP,
@@ -51,6 +54,11 @@ interface PaymentLine {
   amount: number;
   reference: string;
 }
+type PayGroup = FormGroup<{
+  paymentTypeId: FormControl<string>;
+  amount: FormControl<number>;
+  reference: FormControl<string>;
+}>;
 
 type PlayerDayStatus = 'booked' | 'registered' | 'billed' | 'settled';
 
@@ -295,9 +303,10 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   });
   readonly fromFlight = signal(false);
 
-  // Settlement lines (dynamic rows outside the FormGroup, house pattern).
-  readonly payments = signal<PaymentLine[]>([]);
-  readonly paymentsDirty = signal(false);
+  // Settlement lines - a reactive FormArray (house standard): its dirty state
+  // feeds the unsaved-changes guard and Enter submits the settle form.
+  readonly payLines = this.fb.array<PayGroup>([]);
+  readonly settleForm = this.fb.group({ lines: this.payLines });
 
   // In-dialog confirm view: cancel a registration or void a bill.
   readonly confirmKind = signal<'cancel-registration' | 'void-bill' | null>(null);
@@ -308,18 +317,26 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   // players past their tee time grouped by booking, with the charge the
   // booker will be posted; the clerk ticks bookings and confirms.
   readonly noShowReview = signal<FrontDeskNoShowReview | null>(null);
-  readonly noShowDecisions = signal<Record<string, NoShowDecision>>({});
-  readonly noShowDirty = signal(false);
-  readonly noShowIncluded = computed(() => {
+  // One group per booking, index-aligned with the review's bookings - a
+  // reactive FormArray (house standard); its dirty state feeds the guard.
+  readonly noShowLines = this.fb.array<NoShowGroup>([]);
+  readonly noShowForm = this.fb.group({ lines: this.noShowLines });
+  // Methods, not computeds: they read form controls, which signals cannot track.
+  noShowIncluded(): FrontDeskNoShowReview['bookings'] {
     const r = this.noShowReview();
-    const d = this.noShowDecisions();
-    return r ? r.bookings.filter((b) => d[b.bookingProfileId]?.include !== false) : [];
-  });
-  readonly noShowPlayerCount = computed(() => this.noShowIncluded().reduce((s, b) => s + b.players.length, 0));
-  readonly noShowChargeTotal = computed(() => {
-    const d = this.noShowDecisions();
-    return Math.round(this.noShowIncluded().reduce((s, b) => s + (b.charge && d[b.bookingProfileId]?.charge !== false ? b.charge.totalAmount : 0), 0) * 100) / 100;
-  });
+    return r ? r.bookings.filter((_, i) => this.noShowLines.at(i)?.controls.include.value !== false) : [];
+  }
+  noShowPlayerCount(): number {
+    return this.noShowIncluded().reduce((s, b) => s + b.players.length, 0);
+  }
+  noShowChargeTotal(): number {
+    const r = this.noShowReview();
+    if (!r) return 0;
+    return Math.round(r.bookings.reduce((s, b, i) => {
+      const g = this.noShowLines.at(i);
+      return s + (b.charge && g && g.controls.include.value && !g.controls.waive.value ? b.charge.totalAmount : 0);
+    }, 0) * 100) / 100;
+  }
   // Today or a past date: the review only makes sense once tee times pass.
   readonly noShowAvailable = computed(() => this.listDate() <= localToday());
 
@@ -339,11 +356,14 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     }));
   });
 
-  readonly paidTotal = computed(() => Math.round(this.payments().reduce((s, p) => s + (Number(p.amount) || 0), 0) * 100) / 100);
-  readonly remaining = computed(() => {
+  // Methods, not computeds: they read form controls, which signals cannot track.
+  paidTotal(): number {
+    return Math.round(this.payLines.controls.reduce((s, g) => s + (Number(g.controls.amount.value) || 0), 0) * 100) / 100;
+  }
+  remaining(): number {
     const b = this.bill();
     return Math.round(((b ? b.totalAmount : 0) - this.paidTotal()) * 100) / 100;
-  });
+  }
 
   readonly dialogTitle = computed(() => {
     switch (this.dlgMode()) {
@@ -631,8 +651,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
         this.bill.set(res.bill);
         this.ineligible.set(res.ineligible || {});
         for (const w of res.warnings || []) this.errorMessage.set(w);
-        this.payments.set([]);
-        this.paymentsDirty.set(false);
+        this.resetPayLines();
         this.fromFlight.set(this.dlgMode() === 'flight');
         this.dlgMode.set('bill');
       },
@@ -645,8 +664,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
 
   backToFlight(): void {
     this.bill.set(null);
-    this.payments.set([]);
-    this.paymentsDirty.set(false);
+    this.resetPayLines();
     this.dlgMode.set('flight');
     this.load();
   }
@@ -712,8 +730,10 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   toSettle(): void {
     const b = this.bill();
     if (!b || !this.billOpen() || b.items.length === 0) return;
-    if (this.payments().length === 0) {
-      this.payments.set([{ paymentTypeId: '', amount: b.totalAmount, reference: '' }]);
+    // Seed one line for the whole total (pristine: the guard only engages once the clerk edits).
+    if (this.payLines.length === 0) {
+      this.payLines.push(this.newPayGroup({ paymentTypeId: '', amount: b.totalAmount, reference: '' }), { emitEvent: false });
+      this.payLines.markAsPristine();
     }
     this.dlgMode.set('settle');
   }
@@ -722,26 +742,34 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     this.dlgMode.set('bill');
   }
 
+  private newPayGroup(l: PaymentLine): PayGroup {
+    return this.fb.nonNullable.group({
+      paymentTypeId: [l.paymentTypeId],
+      amount: [l.amount],
+      reference: [l.reference],
+    });
+  }
+
+  private resetPayLines(): void {
+    this.payLines.clear({ emitEvent: false });
+    this.payLines.markAsPristine();
+  }
+
   addPayment(): void {
-    this.payments.update((rows) => [...rows, { paymentTypeId: '', amount: Math.max(this.remaining(), 0), reference: '' }]);
-    this.paymentsDirty.set(true);
+    this.payLines.push(this.newPayGroup({ paymentTypeId: '', amount: Math.max(this.remaining(), 0), reference: '' }));
+    this.payLines.markAsDirty();
   }
 
   removePayment(index: number): void {
-    this.payments.update((rows) => rows.filter((_, i) => i !== index));
-    this.paymentsDirty.set(true);
-  }
-
-  setPayment(index: number, patch: Partial<PaymentLine>): void {
-    this.payments.update((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
-    this.paymentsDirty.set(true);
+    this.payLines.removeAt(index);
+    this.payLines.markAsDirty();
   }
 
   settle(): void {
     this.clearMessages();
     const b = this.bill();
     if (!b) return;
-    const rows = this.payments();
+    const rows: PaymentLine[] = this.payLines.controls.map((g) => g.getRawValue());
     if (rows.some((r) => !r.paymentTypeId)) {
       this.errorMessage.set('Every payment line needs a payment type.');
       return;
@@ -759,7 +787,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       next: (res) => {
         this.busy.set(false);
         this.successMessage.set(res.message);
-        this.paymentsDirty.set(false);
+        this.payLines.markAsPristine();
         if (this.fromFlight()) {
           this.backToFlight();
         } else {
@@ -827,17 +855,16 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   openNoShows(): void {
     this.clearMessages();
     this.noShowReview.set(null);
-    this.noShowDecisions.set({});
-    this.noShowDirty.set(false);
+    this.resetNoShowLines();
     this.flightRef.set(null);
     this.dlgMode.set('noshows');
     this.busy.set(true);
     this.service.noShows(this.listDate()).subscribe({
       next: (r) => {
         this.noShowReview.set(r);
-        const d: Record<string, NoShowDecision> = {};
-        for (const b of r.bookings) d[b.bookingProfileId] = { include: true, charge: !b.chargeError, waiveReason: '' };
-        this.noShowDecisions.set(d);
+        this.resetNoShowLines();
+        for (const b of r.bookings) this.noShowLines.push(this.newNoShowGroup(b.bookingProfileId, !!b.chargeError), { emitEvent: false });
+        this.noShowLines.markAsPristine();
         this.busy.set(false);
       },
       error: (err) => {
@@ -847,25 +874,40 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     });
   }
 
-  decisionOf(bookingProfileId: string): NoShowDecision {
-    return this.noShowDecisions()[bookingProfileId] || { include: true, charge: true, waiveReason: '' };
+  private newNoShowGroup(bookingProfileId: string, waive: boolean): NoShowGroup {
+    const g: NoShowGroup = this.fb.nonNullable.group({
+      bookingProfileId: [bookingProfileId],
+      include: [true],
+      waive: [waive],
+      waiveReason: [''],
+    });
+    // Waiving only applies to an included booking (reactive-forms way: the
+    // control is disabled, never the DOM attribute).
+    g.controls.include.valueChanges.subscribe((inc) => {
+      if (inc) g.controls.waive.enable({ emitEvent: false });
+      else g.controls.waive.disable({ emitEvent: false });
+    });
+    return g;
   }
 
-  setDecision(bookingProfileId: string, patch: Partial<NoShowDecision>): void {
-    this.noShowDecisions.update((d) => ({ ...d, [bookingProfileId]: { ...this.decisionOf(bookingProfileId), ...patch } }));
-    this.noShowDirty.set(true);
+  private resetNoShowLines(): void {
+    this.noShowLines.clear({ emitEvent: false });
+    this.noShowLines.markAsPristine();
   }
 
   confirmNoShows(): void {
     const review = this.noShowReview();
     if (!review) return;
     this.clearMessages();
-    const d = this.noShowDecisions();
-    const lines = this.noShowIncluded().map((b) => ({
-      bookingProfileId: b.bookingProfileId,
-      charge: review.controlled && d[b.bookingProfileId]?.charge !== false,
-      waiveReason: d[b.bookingProfileId]?.waiveReason?.trim() || undefined,
-    }));
+    const lines = review.bookings.flatMap((b, i) => {
+      const g = this.noShowLines.at(i);
+      if (!g || !g.controls.include.value) return [];
+      return [{
+        bookingProfileId: b.bookingProfileId,
+        charge: review.controlled && !g.controls.waive.value,
+        waiveReason: g.controls.waiveReason.value.trim() || undefined,
+      }];
+    });
     if (!lines.length) return;
     if (review.controlled) {
       for (const l of lines) {
@@ -880,7 +922,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     this.service.confirmNoShows(review.playDate, lines).subscribe({
       next: (r) => {
         this.busy.set(false);
-        this.noShowDirty.set(false);
+        this.noShowLines.markAsPristine();
         this.successMessage.set(r.message);
         this.dlgMode.set(null);
         this.noShowReview.set(null);
@@ -905,14 +947,13 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     this.flightRef.set(null);
     this.fromFlight.set(false);
     this.bill.set(null);
-    this.payments.set([]);
-    this.paymentsDirty.set(false);
+    this.resetPayLines();
     this.confirmKind.set(null);
     this.confirmTarget.set(null);
     this.slotWalkinOpen.set(false);
     this.selected.set(new Set());
     this.noShowReview.set(null);
-    this.noShowDirty.set(false);
+    this.resetNoShowLines();
     this.load();
   }
 
@@ -920,8 +961,8 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     switch (this.dlgMode()) {
       case 'flight': return this.slotWalkinOpen() && this.slotWalkinForm.dirty;
       case 'walkin': return this.walkinForm.dirty;
-      case 'settle': return this.paymentsDirty();
-      case 'noshows': return this.noShowDirty();
+      case 'settle': return this.payLines.dirty;
+      case 'noshows': return this.noShowLines.dirty;
       default: return false; // bill items save immediately
     }
   }

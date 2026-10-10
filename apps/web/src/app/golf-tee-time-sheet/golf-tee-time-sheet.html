@@ -487,30 +487,31 @@
 
         <!-- ---- Settle ---- -->
         @case ('settle') {
-          <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="fdSettle". -->
-          <form id="fdSettle" (submit)="$event.preventDefault(); settle()">
+          <!-- Reactive FormArray editor (house standard): the lines live in `payLines`, its dirty
+               state feeds the unsaved-changes guard, Enter submits; the footer button targets form="fdSettle". -->
+          <form id="fdSettle" [formGroup]="settleForm" (ngSubmit)="settle()">
           @if (bill(); as b) {
             <div class="fd-bill-head">
               <span><strong>{{ billEntryName() }}</strong> · Total <strong>{{ b.totalAmount.toFixed(2) }}</strong></span>
               <span [class.fd-remaining--due]="remaining() !== 0">Remaining: <strong>{{ remaining().toFixed(2) }}</strong></span>
             </div>
-            @for (p of payments(); track $index; let i = $index) {
-              <div class="fd-pay-line">
-                <app-combobox [value]="p.paymentTypeId" (valueChange)="setPayment(i, { paymentTypeId: $event })"
-                              [options]="tenderOptions()" [allowEmpty]="false"
-                              [ariaLabel]="'Payment ' + (i + 1) + ' type'" placeholder="Type to search…" />
-                <input type="number" inputmode="decimal" min="0.01" step="0.01" appMoney [moneyValue]="p.amount"
-                       (change)="setPayment(i, { amount: +$any($event.target).value })"
-                       [attr.aria-label]="'Payment ' + (i + 1) + ' amount'" />
-                <input type="text" [value]="p.reference" maxlength="100" placeholder="Reference"
-                       (input)="setPayment(i, { reference: $any($event.target).value })"
-                       [attr.aria-label]="'Payment ' + (i + 1) + ' reference'" />
-                <button type="button" class="btn btn--danger btn--sm" (click)="removePayment(i)"
-                        [attr.aria-label]="'Remove payment ' + (i + 1)">
-                  <span class="material-icons" aria-hidden="true">close</span>
-                </button>
-              </div>
-            }
+            <div formArrayName="lines">
+              @for (g of payLines.controls; track g; let i = $index) {
+                <div class="fd-pay-line" [formGroupName]="i">
+                  <app-combobox formControlName="paymentTypeId"
+                                [options]="tenderOptions()" [allowEmpty]="false"
+                                [ariaLabel]="'Payment ' + (i + 1) + ' type'" placeholder="Type to search…" />
+                  <input type="number" inputmode="decimal" min="0.01" step="0.01" appMoney formControlName="amount"
+                         [attr.aria-label]="'Payment ' + (i + 1) + ' amount'" />
+                  <input type="text" formControlName="reference" maxlength="100" placeholder="Reference"
+                         [attr.aria-label]="'Payment ' + (i + 1) + ' reference'" />
+                  <button type="button" class="btn btn--danger btn--sm" (click)="removePayment(i)"
+                          [attr.aria-label]="'Remove payment ' + (i + 1)">
+                    <span class="material-icons" aria-hidden="true">close</span>
+                  </button>
+                </div>
+              }
+            </div>
             <button type="button" class="btn btn--secondary btn--sm" (click)="addPayment()">
               <span class="material-icons" aria-hidden="true">add</span>
               Add payment
@@ -533,11 +534,15 @@
                 <p>Nothing to record — every booked player whose tee time has passed is registered or cancelled.</p>
               </div>
             }
-            @for (b of r.bookings; track b.bookingProfileId) {
-              <div class="fd-noshow" [class.fd-noshow--off]="!decisionOf(b.bookingProfileId).include">
+            <!-- Reactive FormArray (house standard): one group per booking, index-aligned with
+                 the review; its dirty state feeds the guard and the footer button submits form="fdNoShows". -->
+            <form id="fdNoShows" [formGroup]="noShowForm" (ngSubmit)="confirmNoShows()">
+            <div formArrayName="lines">
+            @for (b of r.bookings; track b.bookingProfileId; let i = $index) {
+              @let d = noShowLines.at(i);
+              <div class="fd-noshow" [class.fd-noshow--off]="!d.controls.include.value" [formGroupName]="i">
                 <label class="fd-noshow__pick">
-                  <input type="checkbox" [checked]="decisionOf(b.bookingProfileId).include"
-                         (change)="setDecision(b.bookingProfileId, { include: $any($event.target).checked })"
+                  <input type="checkbox" formControlName="include"
                          [attr.aria-label]="'Record booking ' + b.bookingNo + ' as no-show'" />
                   <span class="fd-noshow__title">{{ b.startTime }} · {{ b.courseCode }} · {{ b.bookingNo }}</span>
                 </label>
@@ -556,15 +561,12 @@
                         <span class="cell-subtle">Not a member — recorded as pending for collection at the counter.</span>
                       }
                       <label class="fd-noshow__waive">
-                        <input type="checkbox" [checked]="!decisionOf(b.bookingProfileId).charge"
-                               [disabled]="!decisionOf(b.bookingProfileId).include"
-                               (change)="setDecision(b.bookingProfileId, { charge: !$any($event.target).checked })" />
+                        <input type="checkbox" formControlName="waive" />
                         <span>Waive the charge</span>
                       </label>
-                      @if (!decisionOf(b.bookingProfileId).charge && decisionOf(b.bookingProfileId).include) {
+                      @if (d.controls.waive.value && d.controls.include.value) {
                         <input type="text" class="fd-noshow__reason" maxlength="255" placeholder="Waive reason (required)"
-                               [value]="decisionOf(b.bookingProfileId).waiveReason"
-                               (input)="setDecision(b.bookingProfileId, { waiveReason: $any($event.target).value })"
+                               formControlName="waiveReason"
                                [attr.aria-label]="'Waive reason for booking ' + b.bookingNo" />
                       }
                     } @else {
@@ -574,6 +576,8 @@
                 }
               </div>
             }
+            </div>
+            </form>
           } @else {
             <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Finding players who did not register…</p></div>
           }
@@ -636,7 +640,7 @@
           @case ('noshows') {
             <button type="button" class="btn btn--secondary" (click)="fdlg.requestClose()" [disabled]="busy()">Close</button>
             @if (noShowIncluded().length > 0) {
-              <button type="button" class="btn btn--danger" (click)="confirmNoShows()" [disabled]="busy()">
+              <button type="submit" form="fdNoShows" class="btn btn--danger" [disabled]="busy()">
                 {{ busy() ? 'Recording…' : 'Record ' + noShowPlayerCount() + ' no-show' + (noShowPlayerCount() === 1 ? '' : 's') + (noShowReview()?.controlled && noShowChargeTotal() > 0 ? ' · charge ' + noShowChargeTotal().toFixed(2) : '') }}
               </button>
             }
