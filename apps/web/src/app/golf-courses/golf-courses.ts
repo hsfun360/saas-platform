@@ -1,7 +1,7 @@
 import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { GolfCourseService } from '../services/golf-course.service';
 import { UnitCourseService } from '../services/unit-course.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
@@ -25,13 +25,22 @@ const toNineOption = (u: UnitCourse): { value: string; label: string } => ({
   label: u.description ? `${u.unitCourseCode} — ${u.description}` : u.unitCourseCode,
 });
 
-// One editable slot row in the slot editor (strings from inputs).
+// One slot row in the flight-times editor: a typed FormGroup inside the
+// `slotLines` FormArray (house standard - the array's own dirty state feeds
+// the dialog's unsaved-changes guard, no hand-kept flag).
+type SlotGroup = FormGroup<{
+  slotNumber: FormControl<number>;
+  teeTime: FormControl<string>; // 'HH:MM'
+  maxPlayers: FormControl<string>;
+  isFrontDesk: FormControl<boolean>;
+  // Crossover landing only - no new tee-offs from any channel (2026-09-28).
+  isCrossoverOnly: FormControl<boolean>;
+}>;
 interface SlotRow {
   slotNumber: number;
-  teeTime: string; // 'HH:MM'
+  teeTime: string;
   maxPlayers: string;
   isFrontDesk: boolean;
-  // Crossover landing only - no new tee-offs from any channel (2026-09-28).
   isCrossoverOnly: boolean;
 }
 
@@ -130,9 +139,11 @@ export class GolfCoursesComponent implements OnInit {
   });
 
   readonly ttSlotsSaving = signal(false);
-  readonly ttSlotsDirty = signal(false);
   readonly ttSlotSet = signal<CourseTeeTimeSet | null>(null);
-  readonly slotRows = signal<SlotRow[]>([]);
+  // The flight-times editor's rows (see SlotGroup); wrapped in a FormGroup so
+  // the template can bind formArrayName / formGroupName.
+  readonly slotLines: FormArray<SlotGroup> = this.fb.array<SlotGroup>([]);
+  readonly slotsForm = this.fb.group({ slots: this.slotLines });
 
   // (Closures moved to the Unit Courses screen 2026-09-30: a closure is a
   // fact about the physical nine, not the 18-hole course.)
@@ -152,7 +163,7 @@ export class GolfCoursesComponent implements OnInit {
   // re-evaluate every CD pass, which is exactly how the other dialogs bind form.dirty.
   ttDirty(): boolean {
     if (this.ttMode() === 'form') return this.ttForm.dirty;
-    if (this.ttMode() === 'slots') return this.ttSlotsDirty();
+    if (this.ttMode() === 'slots') return this.slotLines.dirty;
     return false;
   }
   // What "Generate" will produce, from the set's header - shown on the button.
@@ -426,7 +437,8 @@ export class GolfCoursesComponent implements OnInit {
   // Return to the list view inside the open dialog.
   backToList(): void {
     this.ttMode.set('list');
-    this.ttSlotsDirty.set(false);
+    this.slotLines.clear();
+    this.slotLines.markAsPristine();
   }
 
   private reloadSets(): void {
@@ -449,7 +461,8 @@ export class GolfCoursesComponent implements OnInit {
   closeTeeTimes(): void {
     this.ttOpen.set(false);
     this.ttMode.set('list');
-    this.ttSlotsDirty.set(false);
+    this.slotLines.clear();
+    this.slotLines.markAsPristine();
   }
 
   slotCount(s: CourseTeeTimeSet): number {
@@ -544,11 +557,27 @@ export class GolfCoursesComponent implements OnInit {
 
   // --- Slot editor (opens on top of the list; list reopens after) ---
 
+  private newSlotGroup(r: SlotRow): SlotGroup {
+    return this.fb.nonNullable.group({
+      slotNumber: [r.slotNumber],
+      teeTime: [r.teeTime],
+      maxPlayers: [r.maxPlayers],
+      isFrontDesk: [r.isFrontDesk],
+      isCrossoverOnly: [r.isCrossoverOnly],
+    });
+  }
+
+  private setSlotLines(rows: SlotRow[], dirty: boolean): void {
+    this.slotLines.clear();
+    for (const r of rows) this.slotLines.push(this.newSlotGroup(r));
+    if (dirty) this.slotLines.markAsDirty();
+    else this.slotLines.markAsPristine();
+  }
+
   openSlots(s: CourseTeeTimeSet): void {
     this.clearMessages();
     this.ttSlotSet.set(s);
-    this.ttSlotsDirty.set(false);
-    this.slotRows.set(
+    this.setSlotLines(
       (s.Slots || []).map((sl) => ({
         slotNumber: sl.slotNumber,
         teeTime: this.hhmm(sl.teeTime),
@@ -556,6 +585,7 @@ export class GolfCoursesComponent implements OnInit {
         isFrontDesk: sl.isFrontDesk === true,
         isCrossoverOnly: sl.isCrossoverOnly === true,
       })),
+      false,
     );
     this.ttMode.set('slots');
   }
@@ -578,23 +608,17 @@ export class GolfCoursesComponent implements OnInit {
         isCrossoverOnly: false,
       });
     }
-    this.slotRows.set(rows);
-    this.ttSlotsDirty.set(true);
+    this.setSlotLines(rows, true);
   }
 
-  updateSlot(index: number, field: 'teeTime' | 'maxPlayers', value: string): void {
-    this.slotRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
-    this.ttSlotsDirty.set(true);
-  }
-
-  toggleSlotFrontDesk(index: number): void {
-    this.slotRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, isFrontDesk: !r.isFrontDesk, isCrossoverOnly: false } : r)));
-    this.ttSlotsDirty.set(true);
-  }
-
-  toggleSlotCrossoverOnly(index: number): void {
-    this.slotRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, isCrossoverOnly: !r.isCrossoverOnly, isFrontDesk: false } : r)));
-    this.ttSlotsDirty.set(true);
+  // Front desk and crossover-only are mutually exclusive roles for a slot:
+  // ticking one clears the other (the checkbox itself is a formControlName).
+  exclusiveSlotRole(index: number, ticked: 'isFrontDesk' | 'isCrossoverOnly'): void {
+    const g = this.slotLines.at(index);
+    if (!g || !g.controls[ticked].value) return;
+    const other = ticked === 'isFrontDesk' ? 'isCrossoverOnly' : 'isFrontDesk';
+    g.controls[other].setValue(false);
+    g.controls[other].markAsDirty();
   }
 
   onSaveSlots(): void {
@@ -605,7 +629,7 @@ export class GolfCoursesComponent implements OnInit {
 
     // Quick client-side pass for immediate feedback; the API re-validates.
     const slots: CourseTeeTimeSlot[] = [];
-    for (const r of this.slotRows()) {
+    for (const r of this.slotLines.controls.map((g) => g.getRawValue())) {
       if (!r.teeTime) {
         this.errorMessage.set(`Slot ${r.slotNumber}: tee-off time is required.`);
         return;

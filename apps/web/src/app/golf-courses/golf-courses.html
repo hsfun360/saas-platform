@@ -396,9 +396,10 @@
           }
 
           @case ('slots') {
-            <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="ttSlots". -->
-            <form id="ttSlots" (submit)="$event.preventDefault(); onSaveSlots()">
-            @if (slotRows().length === 0) {
+            <!-- Reactive FormArray editor (house standard): the rows live in `slotLines`,
+                 its dirty state feeds the unsaved-changes guard, Enter submits. -->
+            <form id="ttSlots" [formGroup]="slotsForm" (ngSubmit)="onSaveSlots()">
+            @if (slotLines.length === 0) {
               <div class="empty-state">
                 <span class="material-icons empty-icon" aria-hidden="true">schedule</span>
                 <p>No flight times yet — generate them from this set's schedule, then adjust individual flights as needed.</p>
@@ -408,29 +409,29 @@
               <div class="tt-slot-head" aria-hidden="true">
                 <span>#</span><span>Tee-off</span><span>Players</span><span>Front desk</span><span>X-over</span>
               </div>
-              @for (row of slotRows(); track row.slotNumber; let i = $index) {
-                <div class="tt-slot-row">
-                  <span class="tt-slot-num">{{ row.slotNumber }}</span>
-                  <input type="time" [value]="row.teeTime"
-                         (input)="updateSlot(i, 'teeTime', $any($event.target).value)"
-                         [attr.aria-label]="'Slot ' + row.slotNumber + ' tee-off time'" />
-                  <input type="number" inputmode="numeric" min="1" max="10" step="1" [value]="row.maxPlayers"
-                         (input)="updateSlot(i, 'maxPlayers', $any($event.target).value)"
-                         [attr.aria-label]="'Slot ' + row.slotNumber + ' players'" />
-                  <label class="tt-slot-fd">
-                    <input type="checkbox" [checked]="row.isFrontDesk" (change)="toggleSlotFrontDesk(i)"
-                           [attr.aria-label]="'Slot ' + row.slotNumber + ' front desk only'" />
-                  </label>
-                  <label class="tt-slot-fd">
-                    <input type="checkbox" [checked]="row.isCrossoverOnly" (change)="toggleSlotCrossoverOnly(i)"
-                           [attr.aria-label]="'Slot ' + row.slotNumber + ' crossover only - no new tee-offs'" />
-                  </label>
-                </div>
-              }
+              <div formArrayName="slots">
+                @for (g of slotLines.controls; track g.controls.slotNumber.value; let i = $index) {
+                  <div class="tt-slot-row" [formGroupName]="i">
+                    <span class="tt-slot-num">{{ g.controls.slotNumber.value }}</span>
+                    <input type="time" formControlName="teeTime"
+                           [attr.aria-label]="'Slot ' + g.controls.slotNumber.value + ' tee-off time'" />
+                    <input type="number" inputmode="numeric" min="1" max="10" step="1" formControlName="maxPlayers"
+                           [attr.aria-label]="'Slot ' + g.controls.slotNumber.value + ' players'" />
+                    <label class="tt-slot-fd">
+                      <input type="checkbox" formControlName="isFrontDesk" (change)="exclusiveSlotRole(i, 'isFrontDesk')"
+                             [attr.aria-label]="'Slot ' + g.controls.slotNumber.value + ' front desk only'" />
+                    </label>
+                    <label class="tt-slot-fd">
+                      <input type="checkbox" formControlName="isCrossoverOnly" (change)="exclusiveSlotRole(i, 'isCrossoverOnly')"
+                             [attr.aria-label]="'Slot ' + g.controls.slotNumber.value + ' crossover only - no new tee-offs'" />
+                    </label>
+                  </div>
+                }
+              </div>
             }
             <button type="button" class="btn btn--secondary" (click)="generateSlots()" [disabled]="generateCount() === 0">
               <span class="material-icons" aria-hidden="true">schedule</span>
-              <span>{{ slotRows().length ? 'Regenerate' : 'Generate' }} {{ generateCount() }} flights ({{ hhmm(ttSlotSet()?.firstTeeTime) }}–{{ hhmm(ttSlotSet()?.lastTeeTime) }} every {{ ttSlotSet()?.intervalMinutes }} min)</span>
+              <span>{{ slotLines.length ? 'Regenerate' : 'Generate' }} {{ generateCount() }} flights ({{ hhmm(ttSlotSet()?.firstTeeTime) }}–{{ hhmm(ttSlotSet()?.lastTeeTime) }} every {{ ttSlotSet()?.intervalMinutes }} min)</span>
             </button>
             </form>
           }
@@ -451,7 +452,7 @@
           @case ('slots') {
             <button type="button" class="btn btn--secondary" (click)="backToList()" [disabled]="ttSlotsSaving()">Back to list</button>
             <button type="submit" form="ttSlots" class="btn btn--primary" [disabled]="ttSlotsSaving()">
-              {{ ttSlotsSaving() ? 'Saving…' : 'Save ' + slotRows().length + ' flights' }}
+              {{ ttSlotsSaving() ? 'Saving…' : 'Save ' + slotLines.length + ' flights' }}
             </button>
           }
         }
