@@ -235,13 +235,13 @@
 
   <!-- ============ Holes dialog (spec 2.2.2) ============ -->
   @if (holesOpen()) {
-    <app-dialog #holesDlg variant="drawer" [title]="holesTitle()" [busy]="holesSaving()" [dirty]="holesDirty()"
+    <app-dialog #holesDlg variant="drawer" [title]="holesTitle()" [busy]="holesSaving()" [dirty]="holeRows.dirty"
                 discardTitle="Discard hole changes?"
                 discardMessage="You have unsaved hole changes. Leaving now will discard them."
                 (close)="closeHoles()">
-      <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="ucHoles". -->
-      <form id="ucHoles" (submit)="$event.preventDefault(); onSaveHoles()">
-      <div class="saas-form" style="padding: 0;">
+      <!-- Reactive FormArray editor (house standard): rows live in `holeRows`, its dirty state feeds the guard, Enter submits. -->
+      <form id="ucHoles" [formGroup]="holesForm" (ngSubmit)="onSaveHoles()">
+      <div class="saas-form" style="padding: 0;" formArrayName="holes">
         @if (holesLoading()) {
           <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading holes…</p></div>
         } @else {
@@ -249,26 +249,23 @@
           <div class="uc-hole-head" aria-hidden="true">
             <span>Hole</span><span>Par</span><span>HCP</span><span>Remarks</span>
           </div>
-          @for (row of holeRows(); track row.holeNumber; let i = $index) {
-            <div class="uc-hole-row">
-              <span class="uc-hole-num">{{ row.holeNumber }}</span>
-              <select [value]="row.par" (change)="updateHole(i, 'par', $any($event.target).value)"
-                      [attr.aria-label]="'Hole ' + row.holeNumber + ' par'">
+          @for (g of holeRows.controls; track g.controls.holeNumber.value; let i = $index) {
+            <div class="uc-hole-row" [formGroupName]="i">
+              <span class="uc-hole-num">{{ g.controls.holeNumber.value }}</span>
+              <select formControlName="par" [attr.aria-label]="'Hole ' + g.controls.holeNumber.value + ' par'">
                 <option value="">—</option>
                 @for (p of parOptions; track p) {
-                  <option [value]="p" [selected]="row.par === '' + p">{{ p }}</option>
+                  <option [value]="p">{{ p }}</option>
                 }
               </select>
-              <select [value]="row.handicapIndex" (change)="updateHole(i, 'handicapIndex', $any($event.target).value)"
-                      [attr.aria-label]="'Hole ' + row.holeNumber + ' handicap index'">
+              <select formControlName="handicapIndex" [attr.aria-label]="'Hole ' + g.controls.holeNumber.value + ' handicap index'">
                 <option value="">—</option>
-                @for (n of hcpOptions(row.holeNumber); track n) {
-                  <option [value]="n" [selected]="row.handicapIndex === '' + n">{{ n }}</option>
+                @for (n of hcpOptions(g.controls.holeNumber.value); track n) {
+                  <option [value]="n">{{ n }}</option>
                 }
               </select>
-              <input type="text" maxlength="255" [value]="row.remarks"
-                     (input)="updateHole(i, 'remarks', $any($event.target).value)"
-                     [attr.aria-label]="'Hole ' + row.holeNumber + ' remarks'" />
+              <input type="text" maxlength="255" formControlName="remarks"
+                     [attr.aria-label]="'Hole ' + g.controls.holeNumber.value + ' remarks'" />
             </div>
           }
           <p class="uc-holes-total">Total par: <strong>{{ totalPar() }}</strong></p>
@@ -280,7 +277,7 @@
         <button type="button" class="btn btn--secondary" (click)="holesDlg.requestClose()" [disabled]="holesSaving()">Cancel</button>
         @if (!holesLoading()) {
           <button type="submit" form="ucHoles" class="btn btn--primary" [disabled]="holesSaving()">
-            {{ holesSaving() ? 'Saving…' : 'Save ' + holeRows().length + ' holes' }}
+            {{ holesSaving() ? 'Saving…' : 'Save ' + holeRows.length + ' holes' }}
           </button>
         }
       </ng-container>
@@ -289,84 +286,79 @@
 
   <!-- ============ Tee boxes dialog (spec 2.2.3) ============ -->
   @if (teesOpen()) {
-    <app-dialog #teesDlg variant="drawer" [title]="teesTitle()" [busy]="teesSaving()" [dirty]="teesDirty()"
+    <app-dialog #teesDlg variant="drawer" [title]="teesTitle()" [busy]="teesSaving()" [dirty]="teeRows.dirty"
                 discardTitle="Discard tee box changes?"
                 discardMessage="You have unsaved tee box changes. Leaving now will discard them."
                 (close)="closeTees()">
-      <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="ucTees". -->
-      <form id="ucTees" (submit)="$event.preventDefault(); onSaveTees()">
-      <div class="saas-form" style="padding: 0;">
+      <!-- Reactive FormArray editor (house standard): rows live in `teeRows` with a nested
+           distances group per tee; the array's dirty state feeds the guard, Enter submits. -->
+      <form id="ucTees" [formGroup]="teesForm" (ngSubmit)="onSaveTees()">
+      <div class="saas-form" style="padding: 0;" formArrayName="tees">
         @if (teesLoading()) {
           <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading tee boxes…</p></div>
         } @else {
-          @if (teeRows().length === 0) {
+          @if (teeRows.length === 0) {
             <div class="empty-state">
               <span class="material-icons empty-icon" aria-hidden="true">sports_golf</span>
               <p>No tee boxes yet. Use "Add tee box" to define this nine's tees (e.g. BLUE, WHITE, RED).</p>
             </div>
           }
-          @for (row of teeRows(); track $index; let i = $index) {
-            <div class="uc-tee">
+          @for (g of teeRows.controls; track g; let i = $index) {
+            <div class="uc-tee" [formGroupName]="i">
               <div class="uc-tee-head">
                 <div class="form-group">
                   <label [for]="'teeColor' + i">Colour code <span class="required">*</span></label>
-                  <input [id]="'teeColor' + i" type="text" maxlength="20" [value]="row.colorCode"
-                         placeholder="e.g. BLUE" style="text-transform: uppercase;"
-                         (input)="updateTee(i, 'colorCode', $any($event.target).value)" />
+                  <input [id]="'teeColor' + i" type="text" maxlength="20" formControlName="colorCode"
+                         placeholder="e.g. BLUE" style="text-transform: uppercase;" />
                 </div>
                 <div class="form-group">
                   <label [for]="'teeHex' + i">Colour</label>
-                  <input [id]="'teeHex' + i" type="color" class="uc-tee-swatch" [value]="row.colorHex"
-                         (input)="updateTee(i, 'colorHex', $any($event.target).value)"
-                         [attr.aria-label]="'Tee colour for ' + (row.colorCode || 'tee ' + (i + 1))" />
+                  <input [id]="'teeHex' + i" type="color" class="uc-tee-swatch" formControlName="colorHex"
+                         [attr.aria-label]="'Tee colour for ' + (g.controls.colorCode.value || 'tee ' + (i + 1))" />
                 </div>
                 <div class="form-group">
                   <label [for]="'teeSeq' + i">Number</label>
-                  <select [id]="'teeSeq' + i" [value]="row.seq"
-                          (change)="updateTee(i, 'seq', $any($event.target).value)">
+                  <select [id]="'teeSeq' + i" formControlName="seq">
                     <option value="">—</option>
                     @for (n of seqOptions; track n) {
-                      <option [value]="n" [selected]="row.seq === '' + n">{{ n }}</option>
+                      <option [value]="n">{{ n }}</option>
                     }
                   </select>
                 </div>
                 <div class="form-group">
                   <label [for]="'teeUnit' + i">Measurement</label>
-                  <select [id]="'teeUnit' + i" [value]="row.measurementUnit"
-                          (change)="updateTee(i, 'measurementUnit', $any($event.target).value)">
+                  <select [id]="'teeUnit' + i" formControlName="measurementUnit">
                     @for (u of measurementUnits(); track u.key) {
-                      <option [value]="u.key" [selected]="row.measurementUnit === u.key">{{ u.label }}</option>
+                      <option [value]="u.key">{{ u.label }}</option>
                     }
                   </select>
                 </div>
                 <button type="button" class="btn btn--danger btn--sm uc-tee-remove" (click)="removeTeeRow(i)"
-                        [attr.aria-label]="'Remove tee box ' + (row.colorCode || i + 1)">Remove</button>
+                        [attr.aria-label]="'Remove tee box ' + (g.controls.colorCode.value || i + 1)">Remove</button>
               </div>
               <div class="form-group">
                 <label [for]="'teeDesc' + i">Description</label>
-                <input [id]="'teeDesc' + i" type="text" maxlength="255" [value]="row.description"
-                       placeholder="Optional" (input)="updateTee(i, 'description', $any($event.target).value)" />
+                <input [id]="'teeDesc' + i" type="text" maxlength="255" formControlName="description" placeholder="Optional" />
               </div>
-              <p class="uc-tee-section-label">Distance per hole ({{ row.measurementUnit === 'yard' ? 'yards' : 'meters' }})</p>
+              <p class="uc-tee-section-label">Distance per hole ({{ g.controls.measurementUnit.value === 'yard' ? 'yards' : 'meters' }})</p>
               @for (chunk of teeHoleChunks(teesCourse()); track chunk[0]) {
                 <div class="uc-tee-dist-scroll">
-                  <div class="uc-tee-dist-grid">
+                  <div class="uc-tee-dist-grid" formGroupName="distances">
                     @for (n of chunk; track n) {
                       <span class="uc-tee-dist-hole">{{ n }}</span>
                     }
                     <span class="uc-tee-dist-hole">{{ chunk[0] <= 9 ? 'OUT' : 'IN' }}</span>
                     @for (n of chunk; track n) {
                       <input type="number" inputmode="numeric" min="1" max="2000" step="1"
-                             [value]="row.distances[n]"
-                             (input)="updateTeeDistance(i, n, $any($event.target).value)"
-                             [attr.aria-label]="(row.colorCode || 'tee') + ' distance hole ' + n" />
+                             [formControlName]="'' + n"
+                             [attr.aria-label]="(g.controls.colorCode.value || 'tee') + ' distance hole ' + n" />
                     }
-                    <span class="uc-tee-dist-total">{{ teeTotal(row, chunk) }}</span>
+                    <span class="uc-tee-dist-total">{{ teeTotal(g, chunk) }}</span>
                   </div>
                 </div>
               }
               @if (teeHoleChunks(teesCourse()).length > 1) {
-                <p class="uc-holes-total">Total: <strong>{{ teeGrandTotal(row) }}</strong></p>
+                <p class="uc-holes-total">Total: <strong>{{ teeGrandTotal(g) }}</strong></p>
               }
             </div>
           }
@@ -382,7 +374,7 @@
         <button type="button" class="btn btn--secondary" (click)="teesDlg.requestClose()" [disabled]="teesSaving()">Cancel</button>
         @if (!teesLoading()) {
           <button type="submit" form="ucTees" class="btn btn--primary" [disabled]="teesSaving()">
-            {{ teesSaving() ? 'Saving…' : 'Save ' + teeRows().length + ' tee ' + (teeRows().length === 1 ? 'box' : 'boxes') }}
+            {{ teesSaving() ? 'Saving…' : 'Save ' + teeRows.length + ' tee ' + (teeRows.length === 1 ? 'box' : 'boxes') }}
           </button>
         }
       </ng-container>

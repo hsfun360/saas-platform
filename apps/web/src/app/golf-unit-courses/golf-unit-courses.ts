@@ -2,7 +2,7 @@ import { Component, Injector, OnInit, computed, inject, signal } from '@angular/
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UnitCourseService } from '../services/unit-course.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
@@ -17,14 +17,16 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { CanDirective } from '../shared/can.directive';
 
-// One editable hole row in the Holes dialog. Inputs bind strings; parsing
-// happens on save. Numbering comes from the course type, never the user.
-interface HoleRow {
-  holeNumber: number;
-  par: string;
-  handicapIndex: string;
-  remarks: string;
-}
+// One hole row in the Holes dialog: a typed FormGroup inside the `holeRows`
+// FormArray (house standard - the array's dirty state feeds the unsaved-changes
+// guard). Inputs bind strings; parsing happens on save. Numbering comes from
+// the course type, never the user.
+type HoleGroup = FormGroup<{
+  holeNumber: FormControl<number>;
+  par: FormControl<string>;
+  handicapIndex: FormControl<string>;
+  remarks: FormControl<string>;
+}>;
 
 // Par choices for a hole (spec: 3, 4 or 5).
 const PAR_OPTIONS = [3, 4, 5];
@@ -42,16 +44,18 @@ const FALLBACK_UNITS: MembershipStatusOption[] = [
   { key: 'yard', label: 'Yard' },
 ];
 
-// One editable tee box in the Tee boxes dialog. Distances are per hole (the
-// scorecard's yardage cells), keyed by hole number, in the row's unit.
-interface TeeBoxRow {
-  colorCode: string;
-  seq: string;
-  colorHex: string;
-  description: string;
-  measurementUnit: string;
-  distances: Record<number, string>;
-}
+// One tee box in the Tee boxes dialog: a typed FormGroup inside the `teeRows`
+// FormArray. Distances are per hole (the scorecard's yardage cells) - a nested
+// FormGroup keyed by hole number (as a string), in the row's unit.
+type DistanceGroup = FormGroup<Record<string, FormControl<string>>>;
+type TeeBoxGroup = FormGroup<{
+  colorCode: FormControl<string>;
+  seq: FormControl<string>;
+  colorHex: FormControl<string>;
+  description: FormControl<string>;
+  measurementUnit: FormControl<string>;
+  distances: DistanceGroup;
+}>;
 
 // Display-order choices for a tee box.
 const SEQ_OPTIONS = [1, 2, 3, 4, 5];
@@ -108,29 +112,31 @@ export class GolfUnitCoursesComponent implements OnInit {
 
   // Holes dialog (spec 2.2.2). The grid always shows the type's full range -
   // saved rows merged over defaults - and Save replaces the set atomically.
-  // Row edits mark the dialog dirty by hand (no FormGroup for the grid).
+  // The grid is a reactive FormArray; its dirty state feeds the dialog guard.
   readonly holesOpen = signal(false);
   readonly holesLoading = signal(false);
   readonly holesSaving = signal(false);
-  readonly holesDirty = signal(false);
   readonly holesCourse = signal<UnitCourse | null>(null);
-  readonly holeRows = signal<HoleRow[]>([]);
+  readonly holeRows: FormArray<HoleGroup> = this.fb.array<HoleGroup>([]);
+  readonly holesForm = this.fb.group({ holes: this.holeRows });
   readonly holesTitle = computed(() => `Holes — ${this.holesCourse()?.unitCourseCode || ''}`);
-  readonly totalPar = computed(() =>
-    this.holeRows().reduce((sum, r) => {
-      const p = Number(r.par);
+  // Method, not computed: form values are not signals; template bindings
+  // re-evaluate every CD pass (the same way the dialogs bind form.dirty).
+  totalPar(): number {
+    return this.holeRows.controls.reduce((sum, g) => {
+      const p = Number(g.controls.par.value);
       return sum + (Number.isInteger(p) && p > 0 ? p : 0);
-    }, 0),
-  );
+    }, 0);
+  }
 
   // Tee boxes dialog (spec 2.2.3). User-defined set: rows can be added/removed;
   // Save replaces headers + per-gender rating rows atomically.
   readonly teesOpen = signal(false);
   readonly teesLoading = signal(false);
   readonly teesSaving = signal(false);
-  readonly teesDirty = signal(false);
   readonly teesCourse = signal<UnitCourse | null>(null);
-  readonly teeRows = signal<TeeBoxRow[]>([]);
+  readonly teeRows: FormArray<TeeBoxGroup> = this.fb.array<TeeBoxGroup>([]);
+  readonly teesForm = this.fb.group({ tees: this.teeRows });
   readonly teesTitle = computed(() => `Tee boxes — ${this.teesCourse()?.unitCourseCode || ''}`);
 
   // (Closures moved to the standalone Course Closure menu 2026-09-30, so
@@ -374,26 +380,26 @@ export class GolfUnitCoursesComponent implements OnInit {
   openHoles(c: UnitCourse): void {
     this.clearMessages();
     this.holesCourse.set(c);
-    this.holesDirty.set(false);
-    this.holeRows.set([]);
+    this.holeRows.clear();
+    this.holeRows.markAsPristine();
     this.holesOpen.set(true);
     this.holesLoading.set(true);
     this.service.holes(c.id).subscribe({
       next: (saved) => {
         const byNumber = new Map(saved.map((h) => [h.holeNumber, h]));
         const r = this.holeRange(c.courseType);
-        const rows: HoleRow[] = [];
+        this.holeRows.clear();
         for (let n = r.from; n <= r.to; n++) {
           const h = byNumber.get(n);
-          rows.push({
-            holeNumber: n,
+          this.holeRows.push(this.fb.nonNullable.group({
+            holeNumber: [n],
             // New (never-saved) rows default to par 4; saved rows show what's stored.
-            par: h ? (h.par != null ? String(h.par) : '') : '4',
-            handicapIndex: h && h.handicapIndex != null ? String(h.handicapIndex) : '',
-            remarks: h?.remarks || '',
-          });
+            par: [h ? (h.par != null ? String(h.par) : '') : '4'],
+            handicapIndex: [h && h.handicapIndex != null ? String(h.handicapIndex) : ''],
+            remarks: [h?.remarks || ''],
+          }));
         }
-        this.holeRows.set(rows);
+        this.holeRows.markAsPristine();
         this.holesLoading.set(false);
       },
       error: (err) => {
@@ -406,11 +412,8 @@ export class GolfUnitCoursesComponent implements OnInit {
 
   closeHoles(): void {
     this.holesOpen.set(false);
-  }
-
-  updateHole(index: number, field: 'par' | 'handicapIndex' | 'remarks', value: string): void {
-    this.holeRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
-    this.holesDirty.set(true);
+    this.holeRows.clear();
+    this.holeRows.markAsPristine();
   }
 
   onSaveHoles(): void {
@@ -420,7 +423,7 @@ export class GolfUnitCoursesComponent implements OnInit {
 
     // Quick client-side pass for immediate feedback; the API re-validates.
     const holes: UnitCourseHole[] = [];
-    for (const r of this.holeRows()) {
+    for (const r of this.holeRows.controls.map((g) => g.getRawValue())) {
       const par = r.par.trim() === '' ? null : Number(r.par);
       if (par !== null && !PAR_OPTIONS.includes(par)) {
         this.errorMessage.set(`Hole ${r.holeNumber}: par must be 3, 4 or 5.`);
@@ -441,7 +444,7 @@ export class GolfUnitCoursesComponent implements OnInit {
       next: (res) => {
         this.successMessage.set(res.message);
         this.holesSaving.set(false);
-        this.holesDirty.set(false);
+        this.holeRows.markAsPristine();
         this.holesOpen.set(false);
       },
       error: (err) => {
@@ -453,11 +456,25 @@ export class GolfUnitCoursesComponent implements OnInit {
 
   // --- Tee boxes dialog (spec 2.2.3) ---
 
-  private emptyDistanceCells(courseType: string): Record<number, string> {
-    const cells: Record<number, string> = {};
+  // The per-hole distance cells of one tee box, keyed by hole number.
+  private emptyDistanceGroup(courseType: string): DistanceGroup {
+    const controls: Record<string, FormControl<string>> = {};
     const r = this.holeRange(courseType);
-    for (let n = r.from; n <= r.to; n++) cells[n] = '';
-    return cells;
+    for (let n = r.from; n <= r.to; n++) controls[String(n)] = this.fb.nonNullable.control('');
+    return this.fb.group(controls) as DistanceGroup;
+  }
+
+  private newTeeGroup(courseType: string, t: { colorCode: string; seq: string; colorHex: string; description: string; measurementUnit: string }, distances?: Record<string, string>): TeeBoxGroup {
+    const d = this.emptyDistanceGroup(courseType);
+    if (distances) d.patchValue(distances);
+    return this.fb.nonNullable.group({
+      colorCode: [t.colorCode],
+      seq: [t.seq],
+      colorHex: [t.colorHex],
+      description: [t.description],
+      measurementUnit: [t.measurementUnit],
+      distances: d,
+    });
   }
 
   // The dialog's hole numbers, chunked scorecard-style into nines (a COMPOSITE
@@ -473,42 +490,41 @@ export class GolfUnitCoursesComponent implements OnInit {
   }
 
   // Sum of a tee's entered distances (the scorecard's out/in/total cell).
-  teeTotal(row: TeeBoxRow, holes: number[]): number {
+  teeTotal(g: TeeBoxGroup, holes: number[]): number {
+    const cells = g.controls.distances.controls;
     return holes.reduce((sum, n) => {
-      const d = Number(row.distances[n]);
+      const d = Number(cells[String(n)]?.value);
       return sum + (Number.isInteger(d) && d > 0 ? d : 0);
     }, 0);
   }
 
   // Grand total across every hole (shown when a COMPOSITE tee has two nines).
-  teeGrandTotal(row: TeeBoxRow): number {
-    return this.teeTotal(row, Object.keys(row.distances).map(Number));
+  teeGrandTotal(g: TeeBoxGroup): number {
+    return this.teeTotal(g, Object.keys(g.controls.distances.controls).map(Number));
   }
 
   openTees(c: UnitCourse): void {
     this.clearMessages();
     this.teesCourse.set(c);
-    this.teesDirty.set(false);
-    this.teeRows.set([]);
+    this.teeRows.clear();
+    this.teeRows.markAsPristine();
     this.teesOpen.set(true);
     this.teesLoading.set(true);
     this.service.teeBoxes(c.id).subscribe({
       next: (saved) => {
-        const rows: TeeBoxRow[] = saved.map((b) => {
-          const distances = this.emptyDistanceCells(c.courseType);
-          for (const d of b.Distances || []) {
-            if (d.holeNumber in distances) distances[d.holeNumber] = String(d.distance);
-          }
-          return {
+        this.teeRows.clear();
+        for (const b of saved) {
+          const distances: Record<string, string> = {};
+          for (const d of b.Distances || []) distances[String(d.holeNumber)] = String(d.distance);
+          this.teeRows.push(this.newTeeGroup(c.courseType, {
             colorCode: b.colorCode,
             seq: b.seq != null ? String(b.seq) : '',
             colorHex: b.colorHex || '#000000',
             description: b.description || '',
             measurementUnit: b.measurementUnit || 'meter',
-            distances,
-          };
-        });
-        this.teeRows.set(rows);
+          }, distances));
+        }
+        this.teeRows.markAsPristine();
         this.teesLoading.set(false);
       },
       error: (err) => {
@@ -521,39 +537,19 @@ export class GolfUnitCoursesComponent implements OnInit {
 
   closeTees(): void {
     this.teesOpen.set(false);
+    this.teeRows.clear();
+    this.teeRows.markAsPristine();
   }
 
   addTeeRow(): void {
     const courseType = this.teesCourse()?.courseType || 'out';
-    this.teeRows.update((rows) => [
-      ...rows,
-      {
-        colorCode: '',
-        seq: '',
-        colorHex: '#000000',
-        description: '',
-        measurementUnit: 'meter',
-        distances: this.emptyDistanceCells(courseType),
-      },
-    ]);
-    this.teesDirty.set(true);
+    this.teeRows.push(this.newTeeGroup(courseType, { colorCode: '', seq: '', colorHex: '#000000', description: '', measurementUnit: 'meter' }));
+    this.teeRows.markAsDirty();
   }
 
   removeTeeRow(index: number): void {
-    this.teeRows.update((rows) => rows.filter((_, i) => i !== index));
-    this.teesDirty.set(true);
-  }
-
-  updateTee(index: number, field: 'colorCode' | 'seq' | 'colorHex' | 'description' | 'measurementUnit', value: string): void {
-    this.teeRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
-    this.teesDirty.set(true);
-  }
-
-  updateTeeDistance(index: number, holeNumber: number, value: string): void {
-    this.teeRows.update((rows) =>
-      rows.map((r, i) => (i === index ? { ...r, distances: { ...r.distances, [holeNumber]: value } } : r)),
-    );
-    this.teesDirty.set(true);
+    this.teeRows.removeAt(index);
+    this.teeRows.markAsDirty();
   }
 
   onSaveTees(): void {
@@ -564,7 +560,7 @@ export class GolfUnitCoursesComponent implements OnInit {
     // Quick client-side pass for immediate feedback; the API re-validates.
     const teeBoxes: UnitCourseTeeBox[] = [];
     const seen = new Set<string>();
-    for (const r of this.teeRows()) {
+    for (const r of this.teeRows.controls.map((g) => g.getRawValue())) {
       const colorCode = r.colorCode.trim().toUpperCase();
       if (!colorCode) {
         this.errorMessage.set('Every tee box needs a colour code.');
@@ -585,7 +581,7 @@ export class GolfUnitCoursesComponent implements OnInit {
       const distances = [];
       for (const key of Object.keys(r.distances)) {
         const holeNumber = Number(key);
-        const raw = r.distances[holeNumber].trim();
+        const raw = (r.distances[key] ?? '').trim();
         if (raw === '') continue;
         const distance = Number(raw);
         if (!Number.isInteger(distance) || distance < 1 || distance > 2000) {
@@ -610,7 +606,7 @@ export class GolfUnitCoursesComponent implements OnInit {
       next: (res) => {
         this.successMessage.set(res.message);
         this.teesSaving.set(false);
-        this.teesDirty.set(false);
+        this.teeRows.markAsPristine();
         this.teesOpen.set(false);
       },
       error: (err) => {
