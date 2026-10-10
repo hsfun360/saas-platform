@@ -78,34 +78,35 @@
 
             @if (overridesOn()) {
               <div class="gs-overrides">
-                @if (overrides().length > 0) {
+                @if (overrides.length > 0) {
                   <div class="gs-ov-row gs-ov-row--head" aria-hidden="true">
                     <span>Membership Type</span>
                     <span>Days</span>
                     <span></span>
                   </div>
                 }
-                @for (row of overrides(); track $index; let i = $index) {
-                  <div class="gs-ov-row">
-                    <app-combobox [value]="row.membershipTypeId" (valueChange)="setOverrideType(i, $event)"
-                                  [options]="typeOptions()"
-                                  [allowEmpty]="true" emptyLabel="— Select —"
-                                  [ariaLabel]="'Override ' + (i + 1) + ' membership type'"
-                                  placeholder="Type to search…" />
-                    <input type="number" inputmode="numeric" min="0" max="365" step="1" [value]="row.advanceBookingDays"
-                           (input)="setOverrideDays(i, $any($event.target).value)"
-                           [attr.aria-label]="'Override ' + (i + 1) + ' advance booking days'" />
-                    <button type="button" class="btn btn--danger btn--sm" (click)="removeOverride(i)"
-                            [attr.aria-label]="'Remove override ' + (i + 1)">
-                      <span class="material-icons" aria-hidden="true">close</span>
-                    </button>
-                  </div>
-                }
+                <div formArrayName="overrides">
+                  @for (g of overrides.controls; track g; let i = $index) {
+                    <div class="gs-ov-row" [formGroupName]="i">
+                      <app-combobox formControlName="membershipTypeId"
+                                    [options]="typeOptions()"
+                                    [allowEmpty]="true" emptyLabel="— Select —"
+                                    [ariaLabel]="'Override ' + (i + 1) + ' membership type'"
+                                    placeholder="Type to search…" />
+                      <input type="number" inputmode="numeric" min="0" max="365" step="1" formControlName="advanceBookingDays"
+                             [attr.aria-label]="'Override ' + (i + 1) + ' advance booking days'" />
+                      <button type="button" class="btn btn--danger btn--sm" (click)="removeOverride(i)"
+                              [attr.aria-label]="'Remove override ' + (i + 1)">
+                        <span class="material-icons" aria-hidden="true">close</span>
+                      </button>
+                    </div>
+                  }
+                </div>
                 <button type="button" class="btn btn--secondary btn--sm" (click)="addOverride()">
                   <span class="material-icons" aria-hidden="true">add</span>
                   Add override
                 </button>
-                @if (overrides().length === 0) {
+                @if (overrides.length === 0) {
                   <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No overrides yet — every membership type follows the general days.</p>
                 }
               </div>
@@ -161,32 +162,31 @@
               <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">
                 The club's day parts — e.g. Morning, Afternoon, Evening. "One booking per session" allows one booking in each;
                 a tee time outside every session is unrestricted.
-                @if (sessionLimitOn() && sessions().length === 0) {
+                @if (sessionLimitOn() && sessions.length === 0) {
                   <strong>Define at least one session for the per-session limit to constrain anything.</strong>
                 }
               </p>
-              @if (sessions().length) {
+              @if (sessions.length) {
                 <div class="gs-sess-head" aria-hidden="true">
                   <span>Name</span><span>From</span><span>Until</span><span></span>
                 </div>
               }
-              @for (s of sessions(); track $index; let i = $index) {
-                <div class="gs-sess-row">
-                  <input type="text" [value]="s.name" maxlength="50" placeholder="e.g. Morning"
-                         (input)="setSession(i, { name: $any($event.target).value })"
-                         [attr.aria-label]="'Session ' + (i + 1) + ' name'" />
-                  <input type="time" [value]="s.startTime"
-                         (input)="setSession(i, { startTime: $any($event.target).value })"
-                         [attr.aria-label]="'Session ' + (i + 1) + ' from'" />
-                  <input type="time" [value]="s.endTime"
-                         (input)="setSession(i, { endTime: $any($event.target).value })"
-                         [attr.aria-label]="'Session ' + (i + 1) + ' until'" />
-                  <button type="button" class="btn btn--danger btn--sm" (click)="removeSession(i)"
-                          [attr.aria-label]="'Remove session ' + (s.name || i + 1)">
-                    <span class="material-icons" aria-hidden="true">close</span>
-                  </button>
-                </div>
-              }
+              <div formArrayName="sessions">
+                @for (g of sessions.controls; track g; let i = $index) {
+                  <div class="gs-sess-row" [formGroupName]="i">
+                    <input type="text" formControlName="name" maxlength="50" placeholder="e.g. Morning"
+                           [attr.aria-label]="'Session ' + (i + 1) + ' name'" />
+                    <input type="time" formControlName="startTime"
+                           [attr.aria-label]="'Session ' + (i + 1) + ' from'" />
+                    <input type="time" formControlName="endTime"
+                           [attr.aria-label]="'Session ' + (i + 1) + ' until'" />
+                    <button type="button" class="btn btn--danger btn--sm" (click)="removeSession(i)"
+                            [attr.aria-label]="'Remove session ' + (g.controls.name.value || i + 1)">
+                      <span class="material-icons" aria-hidden="true">close</span>
+                    </button>
+                  </div>
+                }
+              </div>
               <button type="button" class="btn btn--secondary btn--sm" style="margin-top: var(--space-xs); align-self: start;" (click)="addSession()">
                 <span class="material-icons" aria-hidden="true">add</span>
                 Add session
@@ -245,7 +245,7 @@
             <p class="cell-subtle" style="margin: var(--space-sm) 0 0;">A booking passes when its own players meet the minimum — or when joining an existing flight brings the flight's total to it.</p>
 
             <div class="gs-overrides">
-              @if (minPlayerRules().length > 0) {
+              @if (minPlayerRules.length > 0) {
                 <div class="gs-mp-row gs-mp-row--head" aria-hidden="true">
                   <span>Course</span>
                   <span>Days</span>
@@ -255,40 +255,38 @@
                   <span></span>
                 </div>
               }
-              @for (rule of minPlayerRules(); track $index; let i = $index) {
-                <div class="gs-mp-row">
-                  <app-combobox [value]="rule.courseId ?? ''" (valueChange)="setRule(i, { courseId: $event || null })"
-                                [options]="courseOptions()"
-                                [allowEmpty]="true" emptyLabel="Every course"
-                                [ariaLabel]="'Rule ' + (i + 1) + ' course'"
-                                placeholder="Every course" />
-                  <select [value]="rule.dayScope" (change)="setRule(i, { dayScope: $any($event.target).value })"
-                          [attr.aria-label]="'Rule ' + (i + 1) + ' day scope'">
-                    <option value="all">All days</option>
-                    <option value="weekday">Weekday</option>
-                    <option value="weekend">Weekend &amp; Holiday</option>
-                    @for (d of daysOfWeek; track d.key) {
-                      <option [value]="d.key" [selected]="rule.dayScope === d.key">{{ d.label }}</option>
-                    }
-                  </select>
-                  <input type="time" [value]="rule.startTime ?? ''" (change)="setRule(i, { startTime: $any($event.target).value || null })"
-                         [attr.aria-label]="'Rule ' + (i + 1) + ' from time'" />
-                  <input type="time" [value]="rule.endTime ?? ''" (change)="setRule(i, { endTime: $any($event.target).value || null })"
-                         [attr.aria-label]="'Rule ' + (i + 1) + ' to time'" />
-                  <input type="number" inputmode="numeric" min="1" max="10" step="1" [value]="rule.minPlayers"
-                         (input)="setRuleMin(i, $any($event.target).value)"
-                         [attr.aria-label]="'Rule ' + (i + 1) + ' minimum players'" />
-                  <button type="button" class="btn btn--danger btn--sm" (click)="removeRule(i)"
-                          [attr.aria-label]="'Remove rule ' + (i + 1)">
-                    <span class="material-icons" aria-hidden="true">close</span>
-                  </button>
-                </div>
-              }
+              <div formArrayName="minPlayerRules">
+                @for (g of minPlayerRules.controls; track g; let i = $index) {
+                  <div class="gs-mp-row" [formGroupName]="i">
+                    <app-combobox formControlName="courseId"
+                                  [options]="courseOptions()"
+                                  [allowEmpty]="true" emptyLabel="Every course"
+                                  [ariaLabel]="'Rule ' + (i + 1) + ' course'"
+                                  placeholder="Every course" />
+                    <select formControlName="dayScope" [attr.aria-label]="'Rule ' + (i + 1) + ' day scope'">
+                      <option value="all">All days</option>
+                      <option value="weekday">Weekday</option>
+                      <option value="weekend">Weekend &amp; Holiday</option>
+                      @for (d of daysOfWeek; track d.key) {
+                        <option [value]="d.key">{{ d.label }}</option>
+                      }
+                    </select>
+                    <input type="time" formControlName="startTime" [attr.aria-label]="'Rule ' + (i + 1) + ' from time'" />
+                    <input type="time" formControlName="endTime" [attr.aria-label]="'Rule ' + (i + 1) + ' to time'" />
+                    <input type="number" inputmode="numeric" min="1" max="10" step="1" formControlName="minPlayers"
+                           [attr.aria-label]="'Rule ' + (i + 1) + ' minimum players'" />
+                    <button type="button" class="btn btn--danger btn--sm" (click)="removeRule(i)"
+                            [attr.aria-label]="'Remove rule ' + (i + 1)">
+                      <span class="material-icons" aria-hidden="true">close</span>
+                    </button>
+                  </div>
+                }
+              </div>
               <button type="button" class="btn btn--secondary btn--sm" (click)="addRule()">
                 <span class="material-icons" aria-hidden="true">add</span>
                 Add exception
               </button>
-              @if (minPlayerRules().length === 0) {
+              @if (minPlayerRules.length === 0) {
                 <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No exceptions — every flight follows the two general minimums. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a time band (empty times = whole day); the most specific rule wins.</p>
               }
             </div>
@@ -343,7 +341,7 @@
               </div>
 
               <div class="gs-overrides">
-                @if (guestRules().length > 0) {
+                @if (guestRules.length > 0) {
                   <div class="gs-gc-row gs-gc-row--head" aria-hidden="true">
                     <span>Course</span>
                     <span>Days</span>
@@ -354,43 +352,40 @@
                     <span></span>
                   </div>
                 }
-                @for (rule of guestRules(); track $index; let i = $index) {
-                  <div class="gs-gc-row">
-                    <app-combobox [value]="rule.courseId ?? ''" (valueChange)="setGuestRule(i, { courseId: $event || null })"
-                                  [options]="courseOptions()"
-                                  [allowEmpty]="true" emptyLabel="Every course"
-                                  [ariaLabel]="'Guest rule ' + (i + 1) + ' course'"
-                                  placeholder="Every course" />
-                    <select [value]="rule.dayScope" (change)="setGuestRule(i, { dayScope: $any($event.target).value })"
-                            [attr.aria-label]="'Guest rule ' + (i + 1) + ' day scope'">
-                      <option value="all">All days</option>
-                      <option value="weekday">Weekday</option>
-                      <option value="weekend">Weekend &amp; Holiday</option>
-                      @for (d of daysOfWeek; track d.key) {
-                        <option [value]="d.key" [selected]="rule.dayScope === d.key">{{ d.label }}</option>
-                      }
-                    </select>
-                    <input type="time" [value]="rule.startTime ?? ''" (change)="setGuestRule(i, { startTime: $any($event.target).value || null })"
-                           [attr.aria-label]="'Guest rule ' + (i + 1) + ' from time'" />
-                    <input type="time" [value]="rule.endTime ?? ''" (change)="setGuestRule(i, { endTime: $any($event.target).value || null })"
-                           [attr.aria-label]="'Guest rule ' + (i + 1) + ' to time'" />
-                    <input type="checkbox" class="gs-gc-row__check" [checked]="rule.allowGuest"
-                           (change)="setGuestRule(i, { allowGuest: $any($event.target).checked })"
-                           [attr.aria-label]="'Guest rule ' + (i + 1) + ' allow guest (visitor)'" />
-                    <input type="checkbox" class="gs-gc-row__check" [checked]="rule.allowMemberGuest"
-                           (change)="setGuestRule(i, { allowMemberGuest: $any($event.target).checked })"
-                           [attr.aria-label]="'Guest rule ' + (i + 1) + ' allow member as guest'" />
-                    <button type="button" class="btn btn--danger btn--sm" (click)="removeGuestRule(i)"
-                            [attr.aria-label]="'Remove guest rule ' + (i + 1)">
-                      <span class="material-icons" aria-hidden="true">close</span>
-                    </button>
-                  </div>
-                }
+                <div formArrayName="guestRules">
+                  @for (g of guestRules.controls; track g; let i = $index) {
+                    <div class="gs-gc-row" [formGroupName]="i">
+                      <app-combobox formControlName="courseId"
+                                    [options]="courseOptions()"
+                                    [allowEmpty]="true" emptyLabel="Every course"
+                                    [ariaLabel]="'Guest rule ' + (i + 1) + ' course'"
+                                    placeholder="Every course" />
+                      <select formControlName="dayScope" [attr.aria-label]="'Guest rule ' + (i + 1) + ' day scope'">
+                        <option value="all">All days</option>
+                        <option value="weekday">Weekday</option>
+                        <option value="weekend">Weekend &amp; Holiday</option>
+                        @for (d of daysOfWeek; track d.key) {
+                          <option [value]="d.key">{{ d.label }}</option>
+                        }
+                      </select>
+                      <input type="time" formControlName="startTime" [attr.aria-label]="'Guest rule ' + (i + 1) + ' from time'" />
+                      <input type="time" formControlName="endTime" [attr.aria-label]="'Guest rule ' + (i + 1) + ' to time'" />
+                      <input type="checkbox" class="gs-gc-row__check" formControlName="allowGuest"
+                             [attr.aria-label]="'Guest rule ' + (i + 1) + ' allow guest (visitor)'" />
+                      <input type="checkbox" class="gs-gc-row__check" formControlName="allowMemberGuest"
+                             [attr.aria-label]="'Guest rule ' + (i + 1) + ' allow member as guest'" />
+                      <button type="button" class="btn btn--danger btn--sm" (click)="removeGuestRule(i)"
+                              [attr.aria-label]="'Remove guest rule ' + (i + 1)">
+                        <span class="material-icons" aria-hidden="true">close</span>
+                      </button>
+                    </div>
+                  }
+                </div>
                 <button type="button" class="btn btn--secondary btn--sm" (click)="addGuestRule()">
                   <span class="material-icons" aria-hidden="true">add</span>
                   Add exception
                 </button>
-                @if (guestRules().length === 0) {
+                @if (guestRules.length === 0) {
                   <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No exceptions — the weekday and weekend answers above apply everywhere. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a flight-time band; the most specific rule wins.</p>
                 }
               </div>
@@ -421,7 +416,7 @@
 
             @if (handicapControlOn()) {
               <p class="gs-hc-title">Handicap limits</p>
-              @if (limitRules().length > 0) {
+              @if (limitRules.length > 0) {
                 <div class="gs-hl-row gs-hl-row--head" aria-hidden="true">
                   <span>Course</span>
                   <span>Days</span>
@@ -432,55 +427,53 @@
                   <span></span>
                 </div>
               }
-              @for (rule of limitRules(); track $index; let i = $index) {
-                <div class="gs-hl-row">
-                  <app-combobox [value]="rule.courseId ?? ''" (valueChange)="setLimitRule(i, { courseId: $event || null })"
-                                [options]="courseOptions()"
-                                [allowEmpty]="true" emptyLabel="Every course"
-                                [ariaLabel]="'Handicap limit rule ' + (i + 1) + ' course'"
-                                placeholder="Every course" />
-                  <select [value]="rule.dayScope" (change)="setLimitRule(i, { dayScope: $any($event.target).value })"
-                          [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' day scope'">
-                    <option value="all">All days</option>
-                    <option value="weekday">Weekday</option>
-                    <option value="weekend">Weekend &amp; Holiday</option>
-                    @for (d of daysOfWeek; track d.key) {
-                      <option [value]="d.key" [selected]="rule.dayScope === d.key">{{ d.label }}</option>
-                    }
-                  </select>
-                  <select [value]="rule.holes === null ? '' : rule.holes" (change)="setRuleHoles('limit', i, $any($event.target).value)"
-                          [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' holes'">
-                    <option value="">Any</option>
-                    <option value="9">9</option>
-                    <option value="18">18</option>
-                  </select>
-                  <select [value]="rule.gender" (change)="setLimitRule(i, { gender: $any($event.target).value })"
-                          [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' gender'">
-                    <option value="any">Any</option>
-                    <option value="men">Men</option>
-                    <option value="women">Ladies</option>
-                  </select>
-                  <input type="number" inputmode="decimal" min="0" max="54" step="0.1" [value]="rule.maxHandicap"
-                         (change)="setLimitMax(i, $any($event.target).value)"
-                         [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' maximum handicap'" />
-                  <input type="time" [value]="rule.latestTeeOff ?? ''" (change)="setLimitRule(i, { latestTeeOff: $any($event.target).value || null })"
-                         [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' latest tee-off'" />
-                  <button type="button" class="btn btn--danger btn--sm" (click)="removeLimitRule(i)"
-                          [attr.aria-label]="'Remove handicap limit rule ' + (i + 1)">
-                    <span class="material-icons" aria-hidden="true">close</span>
-                  </button>
-                </div>
-              }
+              <div formArrayName="limitRules">
+                @for (g of limitRules.controls; track g; let i = $index) {
+                  <div class="gs-hl-row" [formGroupName]="i">
+                    <app-combobox formControlName="courseId"
+                                  [options]="courseOptions()"
+                                  [allowEmpty]="true" emptyLabel="Every course"
+                                  [ariaLabel]="'Handicap limit rule ' + (i + 1) + ' course'"
+                                  placeholder="Every course" />
+                    <select formControlName="dayScope" [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' day scope'">
+                      <option value="all">All days</option>
+                      <option value="weekday">Weekday</option>
+                      <option value="weekend">Weekend &amp; Holiday</option>
+                      @for (d of daysOfWeek; track d.key) {
+                        <option [value]="d.key">{{ d.label }}</option>
+                      }
+                    </select>
+                    <select formControlName="holes" [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' holes'">
+                      <option value="">Any</option>
+                      <option value="9">9</option>
+                      <option value="18">18</option>
+                    </select>
+                    <select formControlName="gender" [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' gender'">
+                      <option value="any">Any</option>
+                      <option value="men">Men</option>
+                      <option value="women">Ladies</option>
+                    </select>
+                    <input type="number" inputmode="decimal" min="0" max="54" step="0.1" formControlName="maxHandicap"
+                           [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' maximum handicap'" />
+                    <input type="time" formControlName="latestTeeOff"
+                           [attr.aria-label]="'Handicap limit rule ' + (i + 1) + ' latest tee-off'" />
+                    <button type="button" class="btn btn--danger btn--sm" (click)="removeLimitRule(i)"
+                            [attr.aria-label]="'Remove handicap limit rule ' + (i + 1)">
+                      <span class="material-icons" aria-hidden="true">close</span>
+                    </button>
+                  </div>
+                }
+              </div>
               <button type="button" class="btn btn--secondary btn--sm" (click)="addLimitRule()">
                 <span class="material-icons" aria-hidden="true">add</span>
                 Add limit
               </button>
-              @if (limitRules().length === 0) {
+              @if (limitRules.length === 0) {
                 <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No limits — any handicap may play any time. Add one per gender/day, e.g. Men 36.0 and Ladies 40.0 on weekdays for 18 holes.</p>
               }
 
               <p class="gs-hc-title" style="margin-top: var(--space-lg);">Beginner &amp; provisional accompaniment</p>
-              @if (accRules().length > 0) {
+              @if (accRules.length > 0) {
                 <div class="gs-ha-row gs-ha-row--head" aria-hidden="true">
                   <span>Course</span>
                   <span>Days</span>
@@ -496,60 +489,53 @@
                   <span></span>
                 </div>
               }
-              @for (rule of accRules(); track $index; let i = $index) {
-                <div class="gs-ha-row">
-                  <app-combobox [value]="rule.courseId ?? ''" (valueChange)="setAccRule(i, { courseId: $event || null })"
-                                [options]="courseOptions()"
-                                [allowEmpty]="true" emptyLabel="Every course"
-                                [ariaLabel]="'Accompaniment rule ' + (i + 1) + ' course'"
-                                placeholder="Every course" />
-                  <select [value]="rule.dayScope" (change)="setAccRule(i, { dayScope: $any($event.target).value })"
-                          [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' day scope'">
-                    <option value="all">All days</option>
-                    <option value="weekday">Weekday</option>
-                    <option value="weekend">Weekend &amp; Holiday</option>
-                    @for (d of daysOfWeek; track d.key) {
-                      <option [value]="d.key" [selected]="rule.dayScope === d.key">{{ d.label }}</option>
-                    }
-                  </select>
-                  <select [value]="rule.holes === null ? '' : rule.holes" (change)="setRuleHoles('acc', i, $any($event.target).value)"
-                          [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' holes'">
-                    <option value="">Any</option>
-                    <option value="9">9</option>
-                    <option value="18">18</option>
-                  </select>
-                  <input type="time" [value]="rule.startTime ?? ''" (change)="setAccRule(i, { startTime: $any($event.target).value || null })"
-                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' from time'" />
-                  <input type="time" [value]="rule.endTime ?? ''" (change)="setAccRule(i, { endTime: $any($event.target).value || null })"
-                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' to time'" />
-                  <input type="checkbox" class="gs-gc-row__check" [checked]="rule.appliesToBeginner"
-                         (change)="setAccRule(i, { appliesToBeginner: $any($event.target).checked })"
-                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' applies to beginners'" />
-                  <input type="checkbox" class="gs-gc-row__check" [checked]="rule.appliesToProvisional"
-                         (change)="setAccRule(i, { appliesToProvisional: $any($event.target).checked })"
-                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' applies to provisional handicaps'" />
-                  <input type="number" inputmode="numeric" min="1" max="3" step="1" [value]="rule.minCompanions"
-                         (change)="setAccCompanions(i, $any($event.target).value)"
-                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companions needed'" />
-                  <input type="number" inputmode="decimal" min="0" max="54" step="0.1" [value]="rule.companionMaxHandicapMen"
-                         (change)="setAccCap(i, 'companionMaxHandicapMen', $any($event.target).value)"
-                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companion cap for men'" />
-                  <input type="number" inputmode="decimal" min="0" max="54" step="0.1" [value]="rule.companionMaxHandicapWomen"
-                         (change)="setAccCap(i, 'companionMaxHandicapWomen', $any($event.target).value)"
-                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companion cap for ladies'" />
-                  <input type="time" [value]="rule.latestTeeOff ?? ''" (change)="setAccRule(i, { latestTeeOff: $any($event.target).value || null })"
-                         [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' latest tee-off'" />
-                  <button type="button" class="btn btn--danger btn--sm" (click)="removeAccRule(i)"
-                          [attr.aria-label]="'Remove accompaniment rule ' + (i + 1)">
-                    <span class="material-icons" aria-hidden="true">close</span>
-                  </button>
-                </div>
-              }
+              <div formArrayName="accRules">
+                @for (g of accRules.controls; track g; let i = $index) {
+                  <div class="gs-ha-row" [formGroupName]="i">
+                    <app-combobox formControlName="courseId"
+                                  [options]="courseOptions()"
+                                  [allowEmpty]="true" emptyLabel="Every course"
+                                  [ariaLabel]="'Accompaniment rule ' + (i + 1) + ' course'"
+                                  placeholder="Every course" />
+                    <select formControlName="dayScope" [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' day scope'">
+                      <option value="all">All days</option>
+                      <option value="weekday">Weekday</option>
+                      <option value="weekend">Weekend &amp; Holiday</option>
+                      @for (d of daysOfWeek; track d.key) {
+                        <option [value]="d.key">{{ d.label }}</option>
+                      }
+                    </select>
+                    <select formControlName="holes" [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' holes'">
+                      <option value="">Any</option>
+                      <option value="9">9</option>
+                      <option value="18">18</option>
+                    </select>
+                    <input type="time" formControlName="startTime" [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' from time'" />
+                    <input type="time" formControlName="endTime" [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' to time'" />
+                    <input type="checkbox" class="gs-gc-row__check" formControlName="appliesToBeginner"
+                           [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' applies to beginners'" />
+                    <input type="checkbox" class="gs-gc-row__check" formControlName="appliesToProvisional"
+                           [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' applies to provisional handicaps'" />
+                    <input type="number" inputmode="numeric" min="1" max="3" step="1" formControlName="minCompanions"
+                           [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companions needed'" />
+                    <input type="number" inputmode="decimal" min="0" max="54" step="0.1" formControlName="companionMaxHandicapMen"
+                           [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companion cap for men'" />
+                    <input type="number" inputmode="decimal" min="0" max="54" step="0.1" formControlName="companionMaxHandicapWomen"
+                           [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' companion cap for ladies'" />
+                    <input type="time" formControlName="latestTeeOff"
+                           [attr.aria-label]="'Accompaniment rule ' + (i + 1) + ' latest tee-off'" />
+                    <button type="button" class="btn btn--danger btn--sm" (click)="removeAccRule(i)"
+                            [attr.aria-label]="'Remove accompaniment rule ' + (i + 1)">
+                      <span class="material-icons" aria-hidden="true">close</span>
+                    </button>
+                  </div>
+                }
+              </div>
               <button type="button" class="btn btn--secondary btn--sm" (click)="addAccRule()">
                 <span class="material-icons" aria-hidden="true">add</span>
                 Add rule
               </button>
-              @if (accRules().length === 0) {
+              @if (accRules.length === 0) {
                 <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No rules — beginners and provisional golfers play unaccompanied. A rule requires the flight to carry at least the given number of Established golfers under the per-gender handicap caps; the companion is checked across the whole flight.</p>
               }
             }
@@ -660,7 +646,7 @@
       </div>
 
       <div class="gs-actions" *appCan="'edit'">
-        <button type="submit" class="btn btn--primary" [disabled]="saving() || (!form.dirty && !ovDirty() && !mpDirty() && !gcDirty() && !hlDirty() && !haDirty() && !ssDirty())">
+        <button type="submit" class="btn btn--primary" [disabled]="saving() || !form.dirty">
           {{ saving() ? 'Saving…' : 'Save' }}
         </button>
       </div>

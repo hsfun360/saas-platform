@@ -1,6 +1,20 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+
+// The six rule editors are FormArrays INSIDE the one specification form (house
+// standard): typed row groups below; form.dirty alone drives Save and the
+// unsaved-changes state. Nullable model fields ride as '' in the controls and
+// are mapped back to null (and clamped) when the payload is built.
+type OvGroup = FormGroup<{ membershipTypeId: FormControl<string>; advanceBookingDays: FormControl<number> }>;
+type MpGroup = FormGroup<{ courseId: FormControl<string>; dayScope: FormControl<string>; startTime: FormControl<string>; endTime: FormControl<string>; minPlayers: FormControl<number> }>;
+type GcGroup = FormGroup<{ courseId: FormControl<string>; dayScope: FormControl<string>; startTime: FormControl<string>; endTime: FormControl<string>; allowGuest: FormControl<boolean>; allowMemberGuest: FormControl<boolean> }>;
+type HlGroup = FormGroup<{ courseId: FormControl<string>; dayScope: FormControl<string>; holes: FormControl<string>; gender: FormControl<string>; maxHandicap: FormControl<number>; latestTeeOff: FormControl<string> }>;
+type HaGroup = FormGroup<{ courseId: FormControl<string>; dayScope: FormControl<string>; holes: FormControl<string>; startTime: FormControl<string>; endTime: FormControl<string>; appliesToBeginner: FormControl<boolean>; appliesToProvisional: FormControl<boolean>; minCompanions: FormControl<number>; companionMaxHandicapMen: FormControl<number>; companionMaxHandicapWomen: FormControl<number>; latestTeeOff: FormControl<string> }>;
+type SsGroup = FormGroup<{ name: FormControl<string>; startTime: FormControl<string>; endTime: FormControl<string> }>;
+
+const clampInt = (v: unknown, lo: number, hi: number, dflt: number) => Math.max(lo, Math.min(hi, Math.floor(Number(v) || dflt)));
+const clampHcp = (v: unknown) => Math.max(0, Math.min(54, Math.round((Number(v) || 0) * 10) / 10));
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
@@ -78,31 +92,26 @@ export class GolfSettingsComponent implements OnInit {
     teeSheetColorRegistered: ['#f59e0b'],
     teeSheetColorBilled: ['#8b5cf6'],
     teeSheetColorSettled: ['#16a34a'],
+    // The six rule editors (see the *Group types at the top of the file).
+    overrides: this.fb.array<OvGroup>([]),
+    minPlayerRules: this.fb.array<MpGroup>([]),
+    guestRules: this.fb.array<GcGroup>([]),
+    limitRules: this.fb.array<HlGroup>([]),
+    accRules: this.fb.array<HaGroup>([]),
+    sessions: this.fb.array<SsGroup>([]),
   });
-
-  // Override lines kept outside the FormGroup (dynamic rows); ovDirty feeds
-  // the Save state alongside form.dirty.
-  readonly overrides = signal<GolfAdvanceBookingOverride[]>([]);
-  readonly ovDirty = signal(false);
-
-  // Minimum-players exception rules (same dynamic-row pattern).
-  readonly minPlayerRules = signal<GolfMinPlayerRule[]>([]);
-  readonly mpDirty = signal(false);
-
-  // Guest-control exception rules (same dynamic-row pattern).
-  readonly guestRules = signal<GolfGuestControlRule[]>([]);
-  readonly gcDirty = signal(false);
-
-  // Handicap-control rules (Tropicana procedure 2; same dynamic-row pattern).
-  readonly limitRules = signal<GolfHandicapLimitRule[]>([]);
-  readonly hlDirty = signal(false);
-  readonly accRules = signal<GolfHandicapAccompanimentRule[]>([]);
-  readonly haDirty = signal(false);
-
+  // Advance-booking overrides per membership type.
+  get overrides(): FormArray<OvGroup> { return this.form.controls.overrides; }
+  // Minimum-players exception rules.
+  get minPlayerRules(): FormArray<MpGroup> { return this.form.controls.minPlayerRules; }
+  // Guest-control exception rules.
+  get guestRules(): FormArray<GcGroup> { return this.form.controls.guestRules; }
+  // Handicap-control rules (Tropicana procedure 2).
+  get limitRules(): FormArray<HlGroup> { return this.form.controls.limitRules; }
+  get accRules(): FormArray<HaGroup> { return this.form.controls.accRules; }
   // Golf Sessions (2026-10-01): the club's named day parts - the per-session
-  // booking limit's bands (same dynamic-row pattern).
-  readonly sessions = signal<GolfSessionBand[]>([]);
-  readonly ssDirty = signal(false);
+  // booking limit's bands.
+  get sessions(): FormArray<SsGroup> { return this.form.controls.sessions; }
 
   // Booking-limit vocabulary (fixed enum - native selects).
   readonly bookingLimits: { key: GolfBookingLimit; label: string }[] = [
@@ -225,18 +234,13 @@ export class GolfSettingsComponent implements OnInit {
           teeSheetColorBilled: doc.setting.teeSheetColorBilled || '#8b5cf6',
           teeSheetColorSettled: doc.setting.teeSheetColorSettled || '#16a34a',
         });
-        this.overrides.set(doc.overrides);
-        this.ovDirty.set(false);
-        this.minPlayerRules.set(doc.minPlayerRules ?? []);
-        this.mpDirty.set(false);
-        this.guestRules.set(doc.guestControlRules ?? []);
-        this.gcDirty.set(false);
-        this.limitRules.set(doc.handicapLimitRules ?? []);
-        this.hlDirty.set(false);
-        this.accRules.set(doc.handicapAccompanimentRules ?? []);
-        this.haDirty.set(false);
-        this.sessions.set(doc.sessions ?? []);
-        this.ssDirty.set(false);
+        this.fill(this.overrides, doc.overrides, (r) => this.newOverride(r));
+        this.fill(this.minPlayerRules, doc.minPlayerRules ?? [], (r) => this.newMinPlayerRule(r));
+        this.fill(this.guestRules, doc.guestControlRules ?? [], (r) => this.newGuestRule(r));
+        this.fill(this.limitRules, doc.handicapLimitRules ?? [], (r) => this.newLimitRule(r));
+        this.fill(this.accRules, doc.handicapAccompanimentRules ?? [], (r) => this.newAccRule(r));
+        this.fill(this.sessions, doc.sessions ?? [], (r) => this.newSession(r));
+        this.form.markAsPristine();
         this.loading.set(false);
       },
       error: (err) => {
@@ -246,46 +250,76 @@ export class GolfSettingsComponent implements OnInit {
     });
   }
 
+  // ---- row factories (model -> control group) ----
+  private fill<G extends FormGroup>(arr: FormArray<G>, rows: unknown[], make: (r: never) => G): void {
+    arr.clear();
+    for (const r of rows) arr.push(make(r as never));
+  }
+  private push<G extends FormGroup>(arr: FormArray<G>, g: G): void {
+    arr.push(g);
+    arr.markAsDirty();
+  }
+  private drop(arr: FormArray, index: number): void {
+    arr.removeAt(index);
+    arr.markAsDirty();
+  }
+
+  private newOverride(r: GolfAdvanceBookingOverride): OvGroup {
+    return this.fb.nonNullable.group({ membershipTypeId: [r.membershipTypeId], advanceBookingDays: [r.advanceBookingDays] });
+  }
+  private newMinPlayerRule(r: GolfMinPlayerRule): MpGroup {
+    return this.fb.nonNullable.group({ courseId: [r.courseId || ''], dayScope: [r.dayScope as string], startTime: [r.startTime || ''], endTime: [r.endTime || ''], minPlayers: [r.minPlayers] });
+  }
+  private newGuestRule(r: GolfGuestControlRule): GcGroup {
+    return this.fb.nonNullable.group({ courseId: [r.courseId || ''], dayScope: [r.dayScope as string], startTime: [r.startTime || ''], endTime: [r.endTime || ''], allowGuest: [r.allowGuest], allowMemberGuest: [r.allowMemberGuest] });
+  }
+  private newLimitRule(r: GolfHandicapLimitRule): HlGroup {
+    return this.fb.nonNullable.group({ courseId: [r.courseId || ''], dayScope: [r.dayScope], holes: [r.holes === null ? '' : String(r.holes)], gender: [r.gender as string], maxHandicap: [r.maxHandicap], latestTeeOff: [r.latestTeeOff || ''] });
+  }
+  private newAccRule(r: GolfHandicapAccompanimentRule): HaGroup {
+    return this.fb.nonNullable.group({
+      courseId: [r.courseId || ''], dayScope: [r.dayScope], holes: [r.holes === null ? '' : String(r.holes)], startTime: [r.startTime || ''], endTime: [r.endTime || ''],
+      appliesToBeginner: [r.appliesToBeginner], appliesToProvisional: [r.appliesToProvisional], minCompanions: [r.minCompanions],
+      companionMaxHandicapMen: [r.companionMaxHandicapMen], companionMaxHandicapWomen: [r.companionMaxHandicapWomen], latestTeeOff: [r.latestTeeOff || ''],
+    });
+  }
+  private newSession(r: GolfSessionBand): SsGroup {
+    return this.fb.nonNullable.group({ name: [r.name], startTime: [r.startTime], endTime: [r.endTime] });
+  }
+
+  // ---- row readers (control group -> model, '' -> null, clamped) ----
+  private readOverrides(): GolfAdvanceBookingOverride[] {
+    return this.overrides.controls.map((g) => { const v = g.getRawValue(); return { membershipTypeId: v.membershipTypeId, advanceBookingDays: clampInt(v.advanceBookingDays, 0, 365, 0) }; });
+  }
+  private readMinPlayerRules(): GolfMinPlayerRule[] {
+    return this.minPlayerRules.controls.map((g) => { const v = g.getRawValue(); return { courseId: v.courseId || null, dayScope: v.dayScope as GolfMinPlayerRule['dayScope'], startTime: v.startTime || null, endTime: v.endTime || null, minPlayers: clampInt(v.minPlayers, 1, 10, 1) }; });
+  }
+  private readGuestRules(): GolfGuestControlRule[] {
+    return this.guestRules.controls.map((g) => { const v = g.getRawValue(); return { courseId: v.courseId || null, dayScope: v.dayScope as GolfGuestControlRule['dayScope'], startTime: v.startTime || null, endTime: v.endTime || null, allowGuest: v.allowGuest, allowMemberGuest: v.allowMemberGuest }; });
+  }
+  private readLimitRules(): GolfHandicapLimitRule[] {
+    return this.limitRules.controls.map((g) => { const v = g.getRawValue(); return { courseId: v.courseId || null, dayScope: v.dayScope, holes: v.holes === '' ? null : Number(v.holes), gender: v.gender as GolfHandicapLimitRule['gender'], maxHandicap: clampHcp(v.maxHandicap), latestTeeOff: v.latestTeeOff || null }; });
+  }
+  private readAccRules(): GolfHandicapAccompanimentRule[] {
+    return this.accRules.controls.map((g) => { const v = g.getRawValue(); return {
+      courseId: v.courseId || null, dayScope: v.dayScope, holes: v.holes === '' ? null : Number(v.holes), startTime: v.startTime || null, endTime: v.endTime || null,
+      appliesToBeginner: v.appliesToBeginner, appliesToProvisional: v.appliesToProvisional, minCompanions: clampInt(v.minCompanions, 1, 3, 1),
+      companionMaxHandicapMen: clampHcp(v.companionMaxHandicapMen), companionMaxHandicapWomen: clampHcp(v.companionMaxHandicapWomen), latestTeeOff: v.latestTeeOff || null,
+    }; });
+  }
+  private readSessions(): GolfSessionBand[] {
+    return this.sessions.controls.map((g) => g.getRawValue());
+  }
+
   addOverride(): void {
-    this.overrides.update((rows) => [...rows, { membershipTypeId: '', advanceBookingDays: this.form.controls.advanceBookingDays.value }]);
-    this.ovDirty.set(true);
+    this.push(this.overrides, this.newOverride({ membershipTypeId: '', advanceBookingDays: this.form.controls.advanceBookingDays.value }));
   }
-
-  removeOverride(index: number): void {
-    this.overrides.update((rows) => rows.filter((_, i) => i !== index));
-    this.ovDirty.set(true);
-  }
-
-  setOverrideType(index: number, value: string): void {
-    this.overrides.update((rows) => rows.map((r, i) => (i === index ? { ...r, membershipTypeId: value } : r)));
-    this.ovDirty.set(true);
-  }
-
-  setOverrideDays(index: number, value: string): void {
-    const days = Math.max(0, Math.min(365, Math.floor(Number(value) || 0)));
-    this.overrides.update((rows) => rows.map((r, i) => (i === index ? { ...r, advanceBookingDays: days } : r)));
-    this.ovDirty.set(true);
-  }
+  removeOverride(index: number): void { this.drop(this.overrides, index); }
 
   addRule(): void {
-    this.minPlayerRules.update((rows) => [...rows, { courseId: null, dayScope: 'all', startTime: null, endTime: null, minPlayers: 2 }]);
-    this.mpDirty.set(true);
+    this.push(this.minPlayerRules, this.newMinPlayerRule({ courseId: null, dayScope: 'all', startTime: null, endTime: null, minPlayers: 2 }));
   }
-
-  removeRule(index: number): void {
-    this.minPlayerRules.update((rows) => rows.filter((_, i) => i !== index));
-    this.mpDirty.set(true);
-  }
-
-  setRule(index: number, patch: Partial<GolfMinPlayerRule>): void {
-    this.minPlayerRules.update((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
-    this.mpDirty.set(true);
-  }
-
-  setRuleMin(index: number, value: string): void {
-    const min = Math.max(1, Math.min(10, Math.floor(Number(value) || 1)));
-    this.setRule(index, { minPlayers: min });
-  }
+  removeRule(index: number): void { this.drop(this.minPlayerRules, index); }
 
   // Method, not computed: control values are not signals (same as overridesOn).
   guestControlOn(): boolean {
@@ -293,19 +327,9 @@ export class GolfSettingsComponent implements OnInit {
   }
 
   addGuestRule(): void {
-    this.guestRules.update((rows) => [...rows, { courseId: null, dayScope: 'all', startTime: null, endTime: null, allowGuest: true, allowMemberGuest: true }]);
-    this.gcDirty.set(true);
+    this.push(this.guestRules, this.newGuestRule({ courseId: null, dayScope: 'all', startTime: null, endTime: null, allowGuest: true, allowMemberGuest: true }));
   }
-
-  removeGuestRule(index: number): void {
-    this.guestRules.update((rows) => rows.filter((_, i) => i !== index));
-    this.gcDirty.set(true);
-  }
-
-  setGuestRule(index: number, patch: Partial<GolfGuestControlRule>): void {
-    this.guestRules.update((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
-    this.gcDirty.set(true);
-  }
+  removeGuestRule(index: number): void { this.drop(this.guestRules, index); }
 
   // Method, not computed: control values are not signals (same as overridesOn).
   handicapControlOn(): boolean {
@@ -313,59 +337,18 @@ export class GolfSettingsComponent implements OnInit {
   }
 
   addLimitRule(): void {
-    this.limitRules.update((rows) => [...rows, { courseId: null, dayScope: 'weekday', holes: null, gender: 'any', maxHandicap: 36, latestTeeOff: null }]);
-    this.hlDirty.set(true);
+    this.push(this.limitRules, this.newLimitRule({ courseId: null, dayScope: 'weekday', holes: null, gender: 'any', maxHandicap: 36, latestTeeOff: null }));
   }
-
-  removeLimitRule(index: number): void {
-    this.limitRules.update((rows) => rows.filter((_, i) => i !== index));
-    this.hlDirty.set(true);
-  }
-
-  setLimitRule(index: number, patch: Partial<GolfHandicapLimitRule>): void {
-    this.limitRules.update((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
-    this.hlDirty.set(true);
-  }
-
-  setLimitMax(index: number, value: string): void {
-    const n = Math.max(0, Math.min(54, Math.round((Number(value) || 0) * 10) / 10));
-    this.setLimitRule(index, { maxHandicap: n });
-  }
-
-  setRuleHoles(kind: 'limit' | 'acc', index: number, value: string): void {
-    const holes = value === '' ? null : Number(value);
-    if (kind === 'limit') this.setLimitRule(index, { holes });
-    else this.setAccRule(index, { holes });
-  }
+  removeLimitRule(index: number): void { this.drop(this.limitRules, index); }
 
   addAccRule(): void {
-    this.accRules.update((rows) => [...rows, {
+    this.push(this.accRules, this.newAccRule({
       courseId: null, dayScope: 'weekday', holes: null, startTime: null, endTime: null,
       appliesToBeginner: true, appliesToProvisional: true, minCompanions: 1,
       companionMaxHandicapMen: 24, companionMaxHandicapWomen: 36, latestTeeOff: null,
-    }]);
-    this.haDirty.set(true);
+    }));
   }
-
-  removeAccRule(index: number): void {
-    this.accRules.update((rows) => rows.filter((_, i) => i !== index));
-    this.haDirty.set(true);
-  }
-
-  setAccRule(index: number, patch: Partial<GolfHandicapAccompanimentRule>): void {
-    this.accRules.update((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
-    this.haDirty.set(true);
-  }
-
-  setAccCap(index: number, field: 'companionMaxHandicapMen' | 'companionMaxHandicapWomen', value: string): void {
-    const n = Math.max(0, Math.min(54, Math.round((Number(value) || 0) * 10) / 10));
-    this.setAccRule(index, { [field]: n } as Partial<GolfHandicapAccompanimentRule>);
-  }
-
-  setAccCompanions(index: number, value: string): void {
-    const n = Math.max(1, Math.min(3, Math.floor(Number(value) || 1)));
-    this.setAccRule(index, { minCompanions: n });
-  }
+  removeAccRule(index: number): void { this.drop(this.accRules, index); }
 
   // Whether either day type limits bookings per session (shows the bands
   // editor emphasis). Method, not computed: control values are not signals.
@@ -375,19 +358,9 @@ export class GolfSettingsComponent implements OnInit {
   }
 
   addSession(): void {
-    this.sessions.update((rows) => [...rows, { name: '', startTime: '', endTime: '' }]);
-    this.ssDirty.set(true);
+    this.push(this.sessions, this.newSession({ name: '', startTime: '', endTime: '' }));
   }
-
-  removeSession(index: number): void {
-    this.sessions.update((rows) => rows.filter((_, i) => i !== index));
-    this.ssDirty.set(true);
-  }
-
-  setSession(index: number, patch: Partial<GolfSessionBand>): void {
-    this.sessions.update((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
-    this.ssDirty.set(true);
-  }
+  removeSession(index: number): void { this.drop(this.sessions, index); }
 
   // Live preview of the window rule with the current numbers. Hidden while
   // either number is out of range - the field errors speak then (a 25-hour
@@ -408,7 +381,7 @@ export class GolfSettingsComponent implements OnInit {
       this.form.markAllAsTouched();
       return;
     }
-    const rows = this.overrides();
+    const rows = this.readOverrides();
     if (rows.some((r) => !r.membershipTypeId)) {
       this.errorMessage.set('Every override line needs a membership type.');
       return;
@@ -418,9 +391,9 @@ export class GolfSettingsComponent implements OnInit {
       this.errorMessage.set('A membership type can only have one override line.');
       return;
     }
-    const rules = this.minPlayerRules();
-    const guestRules = this.guestRules();
-    const accRules = this.accRules();
+    const rules = this.readMinPlayerRules();
+    const guestRules = this.readGuestRules();
+    const accRules = this.readAccRules();
     for (const [label, scoped] of [['minimum-players', rules], ['guest-control', guestRules], ['accompaniment', accRules]] as const) {
       for (const r of scoped) {
         if (!!r.startTime !== !!r.endTime) {
@@ -439,7 +412,7 @@ export class GolfSettingsComponent implements OnInit {
         return;
       }
     }
-    const sessions = this.sessions();
+    const sessions = this.readSessions();
     for (const s of sessions) {
       if (!s.name.trim()) {
         this.errorMessage.set('Every session needs a name.');
@@ -491,7 +464,7 @@ export class GolfSettingsComponent implements OnInit {
       overrides: rows,
       minPlayerRules: rules,
       guestControlRules: guestRules,
-      handicapLimitRules: this.limitRules(),
+      handicapLimitRules: this.readLimitRules(),
       handicapAccompanimentRules: accRules,
       sessions,
     }).subscribe({
