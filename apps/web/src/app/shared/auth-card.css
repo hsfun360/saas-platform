@@ -1,0 +1,176 @@
+/* =====================================================================
+   AUTH CARD - the ONE centred-card layout for every screen outside the
+   shell: login, register, forgot/reset/setup password, verify email, MFA
+   enrolment, the member and agent portal registrations.
+   Each of those screens imports THIS file (styleUrls) and composes these
+   classes plus the global primitives (.form-group, .btn, .field-error).
+   Never copy these rules into a screen stylesheet - that drift (five
+   .btn-primary copies, three card shadows, 400/440/480px widths, Arial and
+   Inter fonts) is what this file replaced on 2026-10-10.
+   ===================================================================== */
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background-color: var(--surface-page);
+  box-sizing: border-box;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  padding: var(--space-xl);
+  box-sizing: border-box;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* The page title - the ONE h1 of an auth page. */
+.auth-title {
+  margin: 0 0 var(--space-sm);
+  text-align: center;
+  font-size: var(--font-h1);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+}
+
+/* Centred secondary copy under the title. */
+.auth-lead {
+  margin: 0 0 var(--space-lg);
+  text-align: center;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Who / where greeting block (setup-password, portal registrations). */
+.auth-greeting {
+  text-align: center;
+  margin-bottom: var(--space-lg);
+}
+.auth-greeting__hello {
+  margin: 0 0 var(--space-xs);
+  font-size: var(--font-h3);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+.auth-greeting__name {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-h2);
+  font-weight: var(--weight-bold);
+  color: var(--brand-text);
+}
+
+/* Identity pill (email, member number) with a leading glyph. */
+.auth-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: 20px;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-size: var(--font-body-2);
+}
+.auth-chip .material-icons {
+  font-size: var(--icon-sm);
+}
+
+.auth-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0 0 var(--space-lg);
+}
+
+/* The auth form's fields stack with a lg rhythm (the global .form-group has
+   no outer margin because dialogs lay fields out on a grid). */
+.auth-card .form-group {
+  margin-bottom: var(--space-lg);
+}
+.auth-card .form-group input {
+  min-height: 44px;
+}
+
+/* Outcome cards - the documented in-flow exception to the flash snackbar:
+   "check your email", "link expired", "email verified" stay inside the card. */
+.auth-alert {
+  padding: var(--space-md);
+  border-radius: 8px;
+  margin-bottom: var(--space-lg);
+  font-size: var(--font-body-2);
+  line-height: 1.5;
+  text-align: center;
+}
+.auth-alert h2,
+.auth-alert h3 {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-h3);
+}
+.auth-alert p {
+  margin: 0 0 var(--space-sm);
+}
+.auth-alert p:last-child {
+  margin-bottom: 0;
+}
+.auth-alert--success {
+  background: var(--success-surface);
+  border: 1px solid var(--success-border);
+  color: var(--success-text);
+}
+.auth-alert--danger {
+  background: var(--danger-surface);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-text);
+}
+.auth-alert--neutral {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+/* Large outcome glyph - the same fixed 48px as the global empty-state glyph. */
+.auth-alert__icon {
+  display: block;
+  font-size: 48px;
+  margin: 0 auto var(--space-sm);
+}
+.auth-alert--success .auth-alert__icon { color: var(--success-text); }
+.auth-alert--danger .auth-alert__icon { color: var(--danger-text); }
+.auth-alert--neutral .auth-alert__icon { color: var(--brand-text); }
+
+/* Primary CTA = the global .btn system (.btn .btn--primary .btn--block);
+   this only adds the vertical rhythm around it. */
+.auth-card .btn--block {
+  margin-top: var(--space-sm);
+}
+
+/* Footer links ("Already have an account?", "Back to login"). */
+.auth-links {
+  margin-top: var(--space-lg);
+  text-align: center;
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.auth-links a,
+.auth-links .btn--link {
+  color: var(--brand-text);
+  font-weight: var(--weight-bold);
+  text-decoration: none;
+}
+.auth-links a:hover,
+.auth-links .btn--link:hover {
+  text-decoration: underline;
+}
+
+/* Mobile tier: tighten the gutters, keep the card vertically centred. */
+@media (max-width: 767px) {
+  .auth-page {
+    padding: var(--space-md);
+  }
+  .auth-card {
+    padding: var(--space-lg);
+  }
+}

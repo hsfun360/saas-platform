@@ -211,8 +211,24 @@ Rules:
 - Icon-in-button: put a `<span class="material-icons" aria-hidden="true">…</span>` inside;
   `.btn` already spaces it. Icon-only buttons still need an `aria-label`.
 - `button[type="submit"]` and `.btn--block` go full-width on mobile automatically.
-- The auth screens (login / reset / forgot / system-setup) keep their own scoped
-  `.btn-primary` (single-dash) for their centred-card layout - don't confuse the two.
+- The auth screens use the SAME system (`.btn .btn--primary .btn--block` for the card's
+  CTA, `.btn--secondary .btn--block` for the SSO and workspace buttons); the old scoped
+  single-dash `.btn-primary` copies were deleted on 2026-10-10 - see "Auth card" below.
+
+#### Auth card - the ONE layout outside the shell
+
+Every screen outside the shell (login, register, forgot / reset / setup password, verify email,
+MFA enrolment, member and agent portal registration) composes **`shared/auth-card.css`**
+(imported via `styleUrls`) plus the global primitives - never its own card, button or field copy:
+`.auth-page` > `.auth-card` (440px, `--shadow-sm`) > `<h1 class="auth-title">` + `.auth-lead`,
+global `.form-group` fields with `.field-error` + `aria-describedby`, `.btn btn--primary btn--block`,
+`.auth-links` footer. Outcome cards (`.auth-alert--success/--danger/--neutral` with a
+`.auth-alert__icon` Material glyph) are the documented in-card exception to the flash snackbar.
+`.auth-greeting` + `.auth-chip` carry the who/where line on the token-driven registrations.
+Only screen-specific pieces stay local (login's password toggle, SSO row and sign-in overlay;
+MFA's QR and recovery grid). All of these screens are signals + OnPush: a plain field set in an
+HTTP callback never re-renders under zoneless (the register-lead and setup-password outcomes
+were invisible until 2026-10-10 for exactly that reason).
 
 #### Flash messages - ONE floating snackbar standard
 

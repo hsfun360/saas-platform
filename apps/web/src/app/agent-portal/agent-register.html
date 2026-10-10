@@ -1,84 +1,78 @@
-<div class="registration-wrapper">
-  <div class="card form-container">
+<div class="auth-page">
+  <div class="auth-card">
 
-    <h2>Agent Portal</h2>
+    <h1 class="auth-title">Agent Portal</h1>
 
     @if (loading()) {
-      <p style="text-align: center;">Checking your invitation…</p>
+      <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Checking your invitation…</p></div>
     } @else if (invalidMessage()) {
-      <div class="alert alert-danger" role="alert" style="text-align: center;">
-        <h3 style="margin-top: 0;">⚠️ Link problem</h3>
-        <p style="color: var(--danger-text);">{{ invalidMessage() }}</p>
+      <div class="auth-alert auth-alert--danger" role="alert">
+        <span class="material-icons auth-alert__icon" aria-hidden="true">link_off</span>
+        <h2>Link problem</h2>
+        <p>{{ invalidMessage() }}</p>
       </div>
     } @else if (linkedMessage()) {
-      <div role="status" style="text-align: center; padding: var(--space-lg); border-radius: 8px; background-color: var(--success-surface); border: 1px solid var(--success-border);">
-        <h3 style="margin-top: 0; color: var(--success-text);">✅ Engagement linked</h3>
-        <p style="color: var(--success-text);">{{ linkedMessage() }}</p>
+      <div class="auth-alert auth-alert--success" role="status">
+        <span class="material-icons auth-alert__icon" aria-hidden="true">check_circle</span>
+        <h2>Engagement linked</h2>
+        <p>{{ linkedMessage() }}</p>
       </div>
-      <button type="button" routerLink="/login"
-              style="margin-top: var(--space-lg); background-color: var(--brand); color: var(--text-on-brand); border: none; cursor: pointer; border-radius: 8px;">
-        Go to login
-      </button>
+      <a routerLink="/login" class="btn btn--primary btn--block">Go to login</a>
     } @else if (context()?.alreadyRegistered) {
-      <div role="status" style="text-align: center; padding: var(--space-lg); border-radius: 8px; background-color: var(--surface-sunken); border: 1px solid var(--border);">
-        <h3 style="margin-top: 0;">You're already registered</h3>
+      <div class="auth-alert auth-alert--neutral" role="status">
+        <span class="material-icons auth-alert__icon" aria-hidden="true">how_to_reg</span>
+        <h2>You're already registered</h2>
         <p>This engagement is already linked to a portal account. Log in to continue.</p>
       </div>
-      <button type="button" routerLink="/login"
-              style="margin-top: var(--space-lg); background-color: var(--brand); color: var(--text-on-brand); border: none; cursor: pointer; border-radius: 8px;">
-        Go to login
-      </button>
+      <a routerLink="/login" class="btn btn--primary btn--block">Go to login</a>
     } @else if (context(); as ctx) {
 
-      <div style="text-align: center; margin-bottom: var(--space-lg);">
-        <h3 style="color: var(--text-primary); margin-bottom: var(--space-xs);">Welcome, {{ ctx.agentName }}</h3>
+      <div class="auth-greeting">
+        <p class="auth-greeting__hello">Welcome, {{ ctx.agentName }}</p>
         @if (ctx.companyName) {
-          <h2 style="color: var(--brand-text); margin-top: 0; margin-bottom: var(--space-sm);">{{ ctx.companyName }}</h2>
+          <h2 class="auth-greeting__name">{{ ctx.companyName }}</h2>
         }
-        <div style="display: inline-block; background-color: var(--surface-sunken); padding: var(--space-xs) var(--space-md); border-radius: 20px; color: var(--text-muted); font-size: var(--font-body-2);">
-          🪪 {{ ctx.agentCode }}@if (ctx.agencyName) { · 🏢 {{ ctx.agencyName }}}@if (ctx.email) { · ✉️ {{ ctx.email }}}
-        </div>
+        <span class="auth-chip">
+          <span class="material-icons" aria-hidden="true">badge</span>{{ ctx.agentCode }}
+          @if (ctx.agencyName) { <span aria-hidden="true">·</span> <span class="material-icons" aria-hidden="true">corporate_fare</span>{{ ctx.agencyName }} }
+          @if (ctx.email) { <span aria-hidden="true">·</span> <span class="material-icons" aria-hidden="true">mail</span>{{ ctx.email }} }
+        </span>
       </div>
 
-      <hr style="border: none; border-top: 1px solid var(--border); margin-bottom: var(--space-lg);">
+      <hr class="auth-divider">
 
-      <p style="text-align: center; color: var(--text-secondary); margin-bottom: var(--space-lg);">
-        Create a password to activate your Agent Portal account.
-      </p>
+      <p class="auth-lead">Create a password to activate your Agent Portal account.</p>
 
       <form [formGroup]="form" (ngSubmit)="onSubmit()">
 
         @if (errorMessage()) {
-          <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
+          <div class="auth-alert auth-alert--danger" role="alert" aria-live="assertive">{{ errorMessage() }}</div>
         }
 
         <div class="form-group">
           <label for="apPassword">Password</label>
           <input id="apPassword" type="password" formControlName="password" autocomplete="new-password"
-                 placeholder="Minimum 8 characters" [attr.aria-invalid]="showError('password')" aria-describedby="apPasswordErr">
+                 placeholder="Minimum 8 characters" [attr.aria-invalid]="showError('password') ? 'true' : null"
+                 [attr.aria-describedby]="showError('password') ? 'apPasswordErr' : null">
           @if (showError('password')) {
-            <div id="apPasswordErr" role="alert" style="color: var(--danger-text); font-size: var(--font-caption); margin-top: var(--space-xs);">
-              Password must be at least 8 characters.
-            </div>
+            <div id="apPasswordErr" class="field-error" role="alert">The password must be at least 8 characters.</div>
           }
         </div>
 
         <div class="form-group">
           <label for="apConfirm">Confirm password</label>
           <input id="apConfirm" type="password" formControlName="confirmPassword" autocomplete="new-password"
-                 placeholder="Re-type your password" [attr.aria-invalid]="showError('confirmPassword') || form.hasError('mismatch')" aria-describedby="apConfirmErr">
-          @if (form.get('confirmPassword')?.touched && form.hasError('mismatch')) {
-            <div id="apConfirmErr" role="alert" style="color: var(--danger-text); font-size: var(--font-caption); margin-top: var(--space-xs);">
-              Passwords do not match.
-            </div>
+                 placeholder="Re-type your password"
+                 [attr.aria-invalid]="(showError('confirmPassword') || (form.controls.confirmPassword.touched && form.hasError('mismatch'))) ? 'true' : null"
+                 [attr.aria-describedby]="form.controls.confirmPassword.touched && form.hasError('mismatch') ? 'apConfirmErr' : null">
+          @if (form.controls.confirmPassword.touched && form.hasError('mismatch')) {
+            <div id="apConfirmErr" class="field-error" role="alert">The passwords do not match.</div>
           }
         </div>
 
-        <button type="submit" [disabled]="submitting()"
-                style="background-color: var(--brand); color: var(--text-on-brand); border: none; cursor: pointer;">
-          {{ submitting() ? 'Registering…' : 'Register & enter the portal' }}
+        <button type="submit" class="btn btn--primary btn--block" [disabled]="submitting()">
+          {{ submitting() ? 'Registering…' : 'Register and enter the portal' }}
         </button>
-
       </form>
     }
 

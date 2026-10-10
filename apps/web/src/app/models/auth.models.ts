@@ -192,6 +192,8 @@ export interface LeadRegistrationData {
   name: string;
   companyName: string;
   phone?: string;
+  timezone?: string; // the prospect's device timezone, captured silently
+  source?: string;   // acquisition channel, e.g. 'Organic'
 }
 
 export interface UpdateProfileData {

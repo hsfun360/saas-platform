@@ -10,7 +10,7 @@ import { AuthService } from '../auth.service';
   standalone: true,
   imports: [RouterLink],
   templateUrl: './verify-email.html',
-  styleUrls: ['./verify-email.css'],
+  styleUrls: ['../shared/auth-card.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VerifyEmailComponent implements OnInit {

@@ -1,6 +1,6 @@
 import { MsalService } from '@azure/msal-angular';
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../auth.service';
 import { LanguageService } from '../services/language.service';
@@ -20,67 +20,66 @@ declare var google: {
   };
 };
 
-// Legacy prod Google OAuth client - the fallback when /api/auth/sso-config is
-// unreachable, mirroring the API's own fallback so the pair stays consistent.
-const DEFAULT_GOOGLE_CLIENT_ID = '148523901156-uc6a3f7q2le2fsqbm5idc0ai27vebe69.apps.googleusercontent.com';
-
 @Component({
-    selector: 'app-login',
-    templateUrl: './login.html',
-    styleUrls: ['./login.css'],
-    imports: [ReactiveFormsModule, RouterLink, TranslatePipe]
+  selector: 'app-login',
+  standalone: true,
+  templateUrl: './login.html',
+  styleUrls: ['../shared/auth-card.css', './login.css'],
+  imports: [ReactiveFormsModule, RouterLink, TranslatePipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginComponent implements OnInit {
+  private readonly fb = inject(FormBuilder);
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly msalService = inject(MsalService);
+  private readonly languageService = inject(LanguageService);
+  readonly i18n = inject(I18nService);
+
+  // Everything the template reads is a signal (zoneless + OnPush): the view
+  // re-renders on every async outcome without manual change detection.
 
   // Languages offered by the pre-login switcher. Seeded with the shipped set so it
   // always works, then replaced by the platform's active languages if reachable.
-  loginLanguages: Language[] = SHIPPED_UI_LANGUAGES;
+  readonly loginLanguages = signal<Language[]>(SHIPPED_UI_LANGUAGES);
 
-  loginForm!: FormGroup;
-  loading = false;
-  errorMessage: string | null = null;
-  successMessage: string | null = null;
+  readonly loginForm = this.fb.nonNullable.group({
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required]],
+    // "Keep me signed in": 7-day session instead of 24h (backend decides
+    // the actual lifetimes; the flag also survives workspace switching).
+    rememberMe: [false],
+  });
 
-  showPassword = false;
-  isLoggingIn = false;
+  readonly loading = signal(false);
+  readonly errorMessage = signal('');
+  readonly successMessage = signal('');
+  readonly showPassword = signal(false);
 
   // True while a sign-in is being completed - an SSO redirect return, a local
   // (email/password) submit, or a workspace-selection resume. The template
   // shows the full-screen "Signing you in…" overlay so every login method has
   // the same progress feedback.
-  signingIn = false;
+  readonly signingIn = signal(false);
 
-  // Per-environment SSO wiring (null until /auth/sso-config answers; the
-  // fallbacks keep both buttons functional if it never does).
-  ssoConfig: SsoConfig | null = null;
+  // Per-environment SSO wiring (null until /auth/sso-config answers).
+  readonly ssoConfig = signal<SsoConfig | null>(null);
+  // Microsoft stays visible unless the environment explicitly disables it.
+  readonly microsoftEnabled = computed(() => this.ssoConfig()?.microsoftEnabled !== false);
 
-  // Microsoft stays visible unless the environment explicitly disables it, so
-  // environments without the endpoint (or before it answers) behave as before.
-  get microsoftEnabled(): boolean {
-    return this.ssoConfig?.microsoftEnabled !== false;
-  }
-
-  isWorkspaceSelection = false;
-  availableWorkspaces: Workspace[] = [];
-  pendingLoginMethod: 'local' | 'google' | null = null;
-  pendingGoogleToken: string | null = null;
+  readonly isWorkspaceSelection = signal(false);
+  readonly availableWorkspaces = signal<Workspace[]>([]);
+  private pendingLoginMethod: 'local' | 'google' | null = null;
+  private pendingGoogleToken: string | null = null;
 
   // MFA step-up: password/SSO succeeded, now the 6-digit (or recovery) code.
-  isMfaStep = false;
-  pendingMfaToken: string | null = null;
-  mfaCode = '';
-  // "Don't ask again on this device for 30 days" (trusted-device cookie).
-  mfaRememberDevice = true;
-
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService,
-    private router: Router,
-    private cdr: ChangeDetectorRef, // 2. Inject it here
-    private msalService: MsalService, // 👈 Add this here!
-    private languageService: LanguageService,
-    public i18n: I18nService,
-  ) {}
+  readonly isMfaStep = signal(false);
+  private pendingMfaToken: string | null = null;
+  readonly mfaForm = this.fb.nonNullable.group({
+    code: ['', [Validators.required]],
+    // "Don't ask again on this device for 30 days" (trusted-device cookie).
+    rememberDevice: [true],
+  });
 
   // Switch the login UI language. Persists via I18nService (localStorage), so the
   // choice carries into the app after sign-in.
@@ -89,89 +88,67 @@ export class LoginComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loginForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required]],
-      // "Keep me signed in": 7-day session instead of 24h (backend decides
-      // the actual lifetimes; the flag also survives workspace switching).
-      rememberMe: [false]
-    });
-
-    // Guarantee that the workspace selection screen is hidden when the page loads
-    this.isWorkspaceSelection = false;
-    this.pendingLoginMethod = null;
-    this.pendingGoogleToken = null;
-    this.availableWorkspaces = [];
-
     // Arriving from the email-verification redirect (legacy GET verify link).
     if (new URLSearchParams(window.location.search).get('verified') === 'true') {
-      this.successMessage = 'Email verified successfully! Please log in.';
+      this.successMessage.set('Email verified successfully! Please log in.');
     }
 
     // Offer the platform's active languages in the pre-login switcher (falls back
     // to the shipped set already seeded if the public endpoint returns nothing).
     this.languageService.listActivePublic().subscribe({
-      next: (list) => { if (list?.length) this.loginLanguages = list; },
+      next: (list) => { if (list?.length) this.loginLanguages.set(list); },
       error: () => {}, // keep the shipped fallback
     });
 
     // Per-environment SSO wiring (Google client id + Microsoft toggle).
     this.authService.getSsoConfig().subscribe({
-      next: (cfg) => { this.ssoConfig = cfg; this.cdr.detectChanges(); },
-      error: () => {}, // keep the built-in fallbacks
+      next: (cfg) => this.ssoConfig.set(cfg),
+      error: () => {}, // Google stays unavailable until the config answers
     });
 
     // Returning from the Google redirect (?code=… in the query): show the
     // "Signing you in…" overlay immediately so the login form never flashes back
     // up. handleGoogleRedirect manages its own reset.
     if (new URLSearchParams(window.location.search).has('code')) {
-      this.signingIn = true;
+      this.signingIn.set(true);
     }
-    // Catch the user when they return from the Google authorization-code redirect.
     this.handleGoogleRedirect();
 
-    // Returning from the Microsoft redirect — MSAL puts its response in the URL
+    // Returning from the Microsoft redirect - MSAL puts its response in the URL
     // FRAGMENT (#code=…/#error=…), so detect that separately from Google's query.
     const msReturn = window.location.hash.includes('code=') || window.location.hash.includes('error=');
     if (msReturn) {
-      this.signingIn = true;
+      this.signingIn.set(true);
     }
     this.msalService.handleRedirectObservable().subscribe({
       next: (response: { accessToken?: string } | null) => {
         if (response?.accessToken) {
           this.processMicrosoftToken(response.accessToken);
         } else if (msReturn) {
-          // A Microsoft return without a usable token — drop the overlay.
-          this.signingIn = false;
-          this.cdr.detectChanges();
+          // A Microsoft return without a usable token - drop the overlay.
+          this.signingIn.set(false);
         }
       },
       error: () => {
-        if (msReturn) this.signingIn = false;
-        this.errorMessage = 'Microsoft sign-in failed. Please try again.';
-        this.cdr.detectChanges();
-      }
-    });
-  }
-  
-  processMicrosoftToken(token: string): void {
-    this.authService.microsoftLogin(token).subscribe({
-      next: (res) => {
-        this.handleLoginResponse(res, 'local');
+        if (msReturn) this.signingIn.set(false);
+        this.errorMessage.set('Microsoft sign-in failed. Please try again.');
       },
-      error: () => {
-        this.signingIn = false;
-        this.errorMessage = 'Microsoft sign-in failed. Please try again.';
-        this.cdr.detectChanges();
-      }
     });
   }
 
-  get f() { return this.loginForm.controls; }
-  
-  // Replace your old togglePasswordVisibility with these two
-  setPasswordVisibility(visible: boolean): void {
-    this.showPassword = visible;
+  private processMicrosoftToken(token: string): void {
+    this.authService.microsoftLogin(token).subscribe({
+      next: (res) => this.handleLoginResponse(res, 'local'),
+      error: () => {
+        this.signingIn.set(false);
+        this.errorMessage.set('Microsoft sign-in failed. Please try again.');
+      },
+    });
+  }
+
+  showError(name: 'email' | 'password'): boolean {
+    const c = this.loginForm.controls[name];
+    return c.invalid && c.touched;
   }
 
   onSubmit(): void {
@@ -183,31 +160,21 @@ export class LoginComponent implements OnInit {
     // Same progress feedback as SSO: the "Signing you in…" overlay covers the
     // form for the whole attempt. Dropped again on any non-success outcome
     // (wrong password here; MFA / workspace picker inside handleLoginResponse).
-    this.loading = true;
-    this.signingIn = true;
-    this.errorMessage = null;
-    this.successMessage = null;
+    this.loading.set(true);
+    this.signingIn.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
 
-    const { email, password, rememberMe } = this.loginForm.value;
-
-    this.authService.login(email, password, null, !!rememberMe)
-      .pipe(
-        finalize(() => {
-          // This runs ALWAYS (on success OR error)
-          this.loading = false;
-          this.cdr.detectChanges(); // Tell the button to change back to "Login"
-        })
-      )
+    const { email, password, rememberMe } = this.loginForm.getRawValue();
+    this.authService.login(email, password, null, rememberMe)
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: (response) => {
-          this.handleLoginResponse(response, 'local');
-        },
+        next: (response) => this.handleLoginResponse(response, 'local'),
         error: (err) => {
           // Surface the backend reason (invalid email/password, deactivated
           // account, etc.); fall back to a generic message otherwise.
-          this.signingIn = false;
-          this.errorMessage = err?.error?.message || 'Login failed. Please try again.';
-          this.cdr.detectChanges();
+          this.signingIn.set(false);
+          this.errorMessage.set(err?.error?.message || 'Login failed. Please try again.');
         },
       });
   }
@@ -215,10 +182,17 @@ export class LoginComponent implements OnInit {
   // Same-tab redirect (like Microsoft), using Google's authorization-code flow.
   // Google redirects back to /login?code=…&state=…, handled in ngOnInit.
   loginWithGoogle(): void {
+    const clientId = this.ssoConfig()?.googleClientId;
+    if (!clientId) {
+      // No hard-coded fallback key (project constraint): without the
+      // environment's config, Google sign-in simply is not available.
+      this.errorMessage.set('Google sign-in is not available right now. Please sign in with your email and password.');
+      return;
+    }
     const state = Math.random().toString(36).slice(2);
     sessionStorage.setItem('googleOauthState', state);
     const client = google.accounts.oauth2.initCodeClient({
-      client_id: this.ssoConfig?.googleClientId || DEFAULT_GOOGLE_CLIENT_ID,
+      client_id: clientId,
       scope: 'email profile openid',
       ux_mode: 'redirect',
       redirect_uri: window.location.origin + '/login',
@@ -243,23 +217,22 @@ export class LoginComponent implements OnInit {
     history.replaceState({}, '', '/login');
 
     if (!expectedState || returnedState !== expectedState) {
-      this.signingIn = false;
-      this.errorMessage = 'Google sign-in failed (state mismatch). Please try again.';
+      this.signingIn.set(false);
+      this.errorMessage.set('Google sign-in failed (state mismatch). Please try again.');
       return;
     }
 
-    this.loading = true;
+    this.loading.set(true);
     const fail = () => {
-      this.signingIn = false;
-      this.loading = false;
-      this.errorMessage = 'Google sign-in failed. Please try again.';
-      this.cdr.detectChanges();
+      this.signingIn.set(false);
+      this.loading.set(false);
+      this.errorMessage.set('Google sign-in failed. Please try again.');
     };
     this.authService.exchangeGoogleCode(code, redirectUri).subscribe({
       next: ({ accessToken }) => {
         this.authService.googleLogin(accessToken).subscribe({
           next: (response) => {
-            this.loading = false;
+            this.loading.set(false);
             this.handleLoginResponse(response, 'google', accessToken);
           },
           error: fail,
@@ -270,13 +243,11 @@ export class LoginComponent implements OnInit {
   }
 
   loginWithMicrosoft(): void {
-    this.msalService.loginRedirect({
-      scopes: ['User.Read', 'email', 'profile']
-    });
+    this.msalService.loginRedirect({ scopes: ['User.Read', 'email', 'profile'] });
   }
 
   togglePasswordVisibility(): void {
-    this.showPassword = !this.showPassword;
+    this.showPassword.update((v) => !v);
   }
 
   // A helper function to handle both Local and Google API responses. The
@@ -284,21 +255,21 @@ export class LoginComponent implements OnInit {
   // we get here; it stays until navigation on success and is dropped on the
   // branches that need more input (MFA, workspace picker).
   private handleLoginResponse(res: AuthResponse, method: 'local' | 'google', googleToken?: string): void {
+    const formEmail = this.loginForm.controls.email.value;
     if (res.mfaEnrollRequired && res.mfaToken) {
       // Admin role without MFA: enrollment is mandatory. The purpose-scoped
       // token drives the full-screen /mfa-setup flow (guards keep it there).
       localStorage.setItem('token', res.mfaToken);
-      localStorage.setItem('userEmail', res.email || this.loginForm.value.email);
+      localStorage.setItem('userEmail', res.email || formEmail);
       this.router.navigate(['/mfa-setup']);
       return;
     }
     if (res.mfaRequired && res.mfaToken) {
-      this.signingIn = false;
-      this.isMfaStep = true;
+      this.signingIn.set(false);
+      this.isMfaStep.set(true);
       this.pendingMfaToken = res.mfaToken;
-      this.mfaCode = '';
-      this.errorMessage = null;
-      this.cdr.detectChanges();
+      this.mfaForm.reset({ code: '', rememberDevice: true });
+      this.errorMessage.set('');
       return;
     }
     if (res.onboarding && res.token) {
@@ -306,109 +277,100 @@ export class LoginComponent implements OnInit {
       // token and run the Create-your-organization wizard (the guards keep this
       // token out of the shell, and the API rejects it everywhere else).
       localStorage.setItem('token', res.token);
-      localStorage.setItem('userEmail', res.email || this.loginForm.value.email);
+      localStorage.setItem('userEmail', res.email || formEmail);
       if (res.fullName) localStorage.setItem('userFullName', res.fullName);
       this.router.navigate(['/onboarding']);
       return;
     }
     if (res.clubs) {
-      // SCENARIO B: The 206 Multi-Workspace Pause! Show the picker (not the
-      // "signing in" state).
-      this.signingIn = false;
-      this.isWorkspaceSelection = true;
-      this.availableWorkspaces = res.clubs;
+      // SCENARIO B: the 206 multi-workspace pause - show the picker.
+      this.signingIn.set(false);
+      this.isWorkspaceSelection.set(true);
+      this.availableWorkspaces.set(res.clubs);
       this.pendingLoginMethod = method;
       if (googleToken) this.pendingGoogleToken = googleToken;
     } else if (res.token) {
-      // SCENARIO C: Login is complete!
+      // SCENARIO C: login is complete.
       localStorage.setItem('token', res.token);
-      localStorage.setItem('userEmail', res.email || this.loginForm.value.email);
+      localStorage.setItem('userEmail', res.email || formEmail);
       localStorage.setItem('userRole', res.roleName || 'User');
       localStorage.setItem('userFullName', res.fullName || 'User');
       localStorage.setItem('userProfilePicture', res.profilePicture || '');
       this.authService.storeUserMenus(res.menus);
-      
+
       // Always reflect THIS user's avatar (empty/null -> default), so a previous
       // user's picture (e.g. a Google SSO avatar) never carries into the next login.
       this.authService.updateAvatarState(res.profilePicture || '');
       if (res.fullName) {
-        this.authService.updateFullNameState(res.fullName); // Broadcast to the app
+        this.authService.updateFullNameState(res.fullName);
       }
 
       // Apply the user's effective language for this workspace (personal preference
       // -> account default -> platform default), resolved server-side.
       this.languageService.getMyLanguage().subscribe({
         next: (state) => {
-          this.i18n.setFallback(state.accountDefault); // subscriber's fallback for missing translations
+          this.i18n.setFallback(state.accountDefault);
           this.i18n.use(state.effective);
         },
         error: () => {}, // keep the current/stored language
       });
 
       // Go straight into the app - the "Signing you in…" overlay stays until
-      // navigation, so the login form never reappears and there is no
-      // artificial "Redirecting…" delay.
+      // navigation, so the login form never reappears.
       this.router.navigate(['/home']);
     }
   }
 
   // Submit the MFA code (TOTP or XXXX-XXXX recovery code).
   submitMfaCode(): void {
-    const code = this.mfaCode.trim();
-    if (!code || !this.pendingMfaToken) return;
-    this.loading = true;
-    this.signingIn = true;
-    this.errorMessage = null;
-    this.authService.mfaVerify(this.pendingMfaToken, code, this.mfaRememberDevice)
-      .pipe(finalize(() => { this.loading = false; this.cdr.detectChanges(); }))
+    if (this.mfaForm.invalid) {
+      this.mfaForm.markAllAsTouched();
+      return;
+    }
+    const { code, rememberDevice } = this.mfaForm.getRawValue();
+    if (!this.pendingMfaToken) return;
+    this.loading.set(true);
+    this.signingIn.set(true);
+    this.errorMessage.set('');
+    this.authService.mfaVerify(this.pendingMfaToken, code.trim(), rememberDevice)
+      .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: (res) => {
-          this.isMfaStep = false;
+          this.isMfaStep.set(false);
           this.pendingMfaToken = null;
           this.handleLoginResponse(res, 'local');
         },
         error: (err) => {
-          this.signingIn = false;
-          this.errorMessage = err?.error?.message || 'That code is not valid. Please try again.';
-          this.cdr.detectChanges();
+          this.signingIn.set(false);
+          this.errorMessage.set(err?.error?.message || 'That code is not valid. Please try again.');
         },
       });
   }
 
   cancelMfa(): void {
-    this.isMfaStep = false;
+    this.isMfaStep.set(false);
     this.pendingMfaToken = null;
-    this.mfaCode = '';
-    this.errorMessage = null;
+    this.mfaForm.reset({ code: '', rememberDevice: true });
+    this.errorMessage.set('');
   }
 
-  // 👇 The function triggered by your HTML Workspace buttons
-  selectWorkspace(companyId: string) {
-    this.loading = true;
-    this.signingIn = true; // same overlay while the chosen workspace's login completes
-
-    // Resume the login based on how they started (Email vs Google)
+  // Resume the paused login inside the chosen workspace.
+  selectWorkspace(companyId: string): void {
+    this.loading.set(true);
+    this.signingIn.set(true);
+    const fail = (fallback: string) => (err: { error?: { message?: string } }) => {
+      this.signingIn.set(false);
+      this.errorMessage.set(err?.error?.message || fallback);
+    };
     if (this.pendingLoginMethod === 'local') {
-      const { email, password, rememberMe } = this.loginForm.value;
-      this.authService.login(email, password, companyId, !!rememberMe).pipe(
-        finalize(() => { this.loading = false; this.cdr.detectChanges(); })
-      ).subscribe({
-        next: (res) => this.handleLoginResponse(res, 'local'),
-        error: (err) => {
-          this.signingIn = false;
-          this.errorMessage = err?.error?.message || 'Login failed.';
-        }
-      });
+      const { email, password, rememberMe } = this.loginForm.getRawValue();
+      this.authService.login(email, password, companyId, rememberMe)
+        .pipe(finalize(() => this.loading.set(false)))
+        .subscribe({ next: (res) => this.handleLoginResponse(res, 'local'), error: fail('Login failed.') });
     } else if (this.pendingLoginMethod === 'google' && this.pendingGoogleToken) {
-      this.authService.googleLogin(this.pendingGoogleToken, companyId).pipe(
-        finalize(() => { this.loading = false; this.cdr.detectChanges(); })
-      ).subscribe({
-        next: (res) => this.handleLoginResponse(res, 'google'),
-        error: (err) => {
-          this.signingIn = false;
-          this.errorMessage = err?.error?.message || 'Google login failed.';
-        }
-      });
+      this.authService.googleLogin(this.pendingGoogleToken, companyId)
+        .pipe(finalize(() => this.loading.set(false)))
+        .subscribe({ next: (res) => this.handleLoginResponse(res, 'google'), error: fail('Google login failed.') });
     }
   }
 }

@@ -1,5 +1,6 @@
-/* Centred single column; `.screen-pad` (styles.css) handles the mobile gutter
-   (md 0) so there is no double gutter inside the shell's content area. */
+/* Centred single column (Profile is a documented narrow exception to the 1140
+   cap); `.screen-pad` (styles.css) handles the mobile gutter. Fields, buttons,
+   flash and loading states are the global primitives. */
 .profile-wrap {
   max-width: 600px;
   margin: 0 auto;
@@ -19,7 +20,7 @@
   border: 2px solid var(--border);
 }
 
-/* Text link styled as a ≥ 44px touch target (label wraps the hidden file input). */
+/* Text link styled as a >= 44px touch target (label wraps the hidden file input). */
 .change-photo {
   display: inline-flex;
   align-items: center;
@@ -32,12 +33,15 @@
   cursor: pointer;
 }
 
-/* Bordered card — matches the app-wide record/card standard. */
+/* Bordered card - the app-wide record/card look; one for the form, one for Security. */
 .profile-card {
   background: var(--surface-card);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: var(--space-lg);
+}
+.profile-card + .profile-card {
+  margin-top: var(--space-lg);
 }
 
 .profile-header {
@@ -45,49 +49,19 @@
   padding-bottom: var(--space-md);
   border-bottom: 1px solid var(--border);
 }
-
 .profile-header h2 {
   margin: 0;
   color: var(--text-primary);
   font-size: var(--font-h2);
 }
-
 .profile-header p {
   color: var(--text-muted);
   font-size: var(--font-body-2);
-  margin-top: var(--space-xs);
+  margin: var(--space-xs) 0 0;
 }
 
-.form-group {
+.profile-card .form-group {
   margin-bottom: var(--space-lg);
-}
-
-.form-group label {
-  display: block;
-  font-size: var(--font-body-2);
-  font-weight: var(--weight-semibold);
-  color: var(--text-secondary);
-  margin-bottom: var(--space-sm);
-}
-
-.form-group input,
-.form-group textarea {
-  width: 100%;
-  padding: var(--space-sm);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  font-size: var(--font-body);
-  box-sizing: border-box;
-}
-
-.form-group textarea {
-  resize: vertical;
-}
-
-.form-group input:disabled {
-  background-color: var(--surface-sunken);
-  color: var(--text-muted);
-  cursor: not-allowed;
 }
 
 .form-alert {
@@ -96,19 +70,62 @@
   margin-bottom: var(--space-md);
   font-size: var(--font-body-2);
 }
-
 .form-alert--success {
   background-color: var(--success-surface);
   color: var(--success-text);
 }
 
-.form-alert--error {
-  background-color: var(--danger-surface);
-  color: var(--danger-text);
-}
-
-/* Primary CTA uses the shared .btn system: full-width on mobile (global submit
-   rule), auto width on desktop. */
 .form-actions {
   margin-top: var(--space-lg);
+}
+.form-actions--row {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+/* Security card: the status row (text + one Enable/Disable button). */
+.pf-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+.pf-row__main {
+  min-width: 0;
+}
+.pf-row__title {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+.pf-row__sub {
+  font-size: var(--font-body-2);
+  color: var(--text-muted);
+}
+
+.pf-qr {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-md);
+}
+.pf-qr img {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-qr);
+}
+
+.pf-recovery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin: var(--space-md) 0;
+}
+.pf-recovery code {
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  padding: var(--space-sm);
+  text-align: center;
+  color: var(--text-primary);
+  background: var(--surface-sunken);
 }

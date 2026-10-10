@@ -1,86 +1,62 @@
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../auth.service'; // Adjust path if your service is elsewhere
+import { AuthService } from '../auth.service';
 
+// Self-subscribe step 1: a prospect leaves their name, company and work email
+// and receives the activation link (setup-password completes the sign-up).
 @Component({
   selector: 'app-register-lead',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './register-lead.html',
-  styleUrls: ['./register-lead.css']
+  styleUrls: ['../shared/auth-card.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class RegisterLeadComponent implements OnInit {
-  registerForm!: FormGroup;
-  loading = false;
-  submitted = false;
-  successMessage = '';
-  errorMessage = '';
+export class RegisterLeadComponent {
+  private readonly fb = inject(FormBuilder);
+  private readonly authService = inject(AuthService);
 
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService
-  ) {}
+  // Signals (zoneless): a plain field set inside the HTTP callback never
+  // re-rendered, so the button used to stay on "Generating link…".
+  readonly loading = signal(false);
+  readonly successMessage = signal('');
+  readonly errorMessage = signal('');
 
-  ngOnInit(): void {
-    this.registerForm = this.fb.group({
-      name: ['', Validators.required],
-      companyName: ['', Validators.required],
-      email: ['', [Validators.required, Validators.email]]
-    });
+  readonly form = this.fb.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(150)]],
+    companyName: ['', [Validators.required, Validators.maxLength(150)]],
+    email: ['', [Validators.required, Validators.email]],
+  });
+
+  showError(name: 'name' | 'companyName' | 'email'): boolean {
+    const c = this.form.controls[name];
+    return c.invalid && c.touched;
   }
 
   onSubmit(): void {
-    console.log('1. BUTTON CLICKED!'); // <--- Add this
-
-    this.submitted = true;
-    this.errorMessage = '';
-
-    // Stop here if the form is missing required fields
-    if (this.registerForm.invalid) {
-      console.log('2. FORM IS INVALID. STOPPING.'); // <--- Add this
-      console.log('Form Errors:', this.registerForm.errors);
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
       return;
     }
-
-    console.log('3. FORM IS VALID. PROCEEDING.'); // <--- Add this
-    this.loading = true;
-
-    // SILENT CAPTURE: Get the user's local timezone automatically
-    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const leadData = {
-      ...this.registerForm.value,
-      timezone: userTimezone,
-      source: 'Organic' 
-    };
-
-    // Send it to the Node.js backend
-    this.authService.registerLead(leadData).subscribe({
-      next: (res) => {
-        console.log('4. BACKEND SUCCESS!', res);
-        this.loading = false;
-        
-        // 1. Show the pop-up prompt!
-        alert('Your account has been successfully created. Please check your email to complete the activation process.');
-        
-        // 2. Clear the form so they don't accidentally submit it twice
-        this.registerForm.reset();
-        this.submitted = false;
+    this.loading.set(true);
+    this.errorMessage.set('');
+    // The prospect's local timezone travels silently with the lead.
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    this.authService.registerLead({ ...this.form.getRawValue(), timezone, source: 'Organic' }).subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.successMessage.set('Your account has been created. Check your inbox to complete the activation.');
+        this.form.reset();
       },
       error: (err) => {
-        console.log('5. BACKEND ERROR CAUGHT:', err);
-        this.loading = false;
-
-        // Check if it is the duplicate email error
+        this.loading.set(false);
         if (err.status === 400 && err.error?.message?.includes('already exists')) {
-            // Show the pop-up prompt!
-            alert('This email address has already been used. Please create your Account with a different email.');
+          this.errorMessage.set('This email address has already been used. Please create your account with a different email.');
         } else {
-            // Fallback for other errors
-            alert(err.error?.message || 'Something went wrong. Please try again.');
+          this.errorMessage.set(err.error?.message || 'Something went wrong. Please try again.');
         }
-      }
+      },
     });
   }
 }

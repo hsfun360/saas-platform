@@ -1,116 +1,89 @@
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../auth.service';
 
+// Self-subscribe step 2: the activation link lands here; the signed token in
+// the URL names the company and email, the prospect sets a password and the
+// workspace is provisioned.
 @Component({
   selector: 'app-setup-password',
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './setup-password.html',
-  styleUrls: ['./setup-password.css']
+  styleUrls: ['../shared/auth-card.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SetupPasswordComponent implements OnInit {
-  setupForm!: FormGroup;
-  token: string | null = null;
-  loading = false;
-  errorMessage = '';
-  extractedEmail: string = '';
-  extractedCompanyName: string = '';
-  isLinkValid: boolean = false;
+  private readonly fb = inject(FormBuilder);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
 
-  constructor(
-    private fb: FormBuilder,
-    private route: ActivatedRoute,
-    private router: Router,
-    private authService: AuthService
-  ) {}
+  private token: string | null = null;
+
+  // Signals (zoneless): plain fields set inside the HTTP callback never
+  // re-rendered - the error banner stayed hidden and the button stuck on
+  // "Provisioning…".
+  readonly loading = signal(false);
+  readonly errorMessage = signal('');
+  readonly extractedEmail = signal('');
+  readonly extractedCompanyName = signal('');
+  readonly isLinkValid = signal(false);
+  readonly activated = signal(false);
+
+  readonly form = this.fb.nonNullable.group(
+    {
+      password: ['', [Validators.required, Validators.minLength(8)]],
+      confirmPassword: ['', Validators.required],
+    },
+    { validators: passwordMatchValidator },
+  );
 
   ngOnInit(): void {
-    // 1. Grab the token from the URL (e.g., ?token=eyJhbGci...)
     this.token = this.route.snapshot.queryParamMap.get('token');
-
-    // 2. Decode the token to get the Company Name and Email
-    if (this.token) {
-      try {
-        // A JWT has 3 parts separated by dots. The middle part contains our data!
-        const payloadBase64 = this.token.split('.')[1];
-        const decodedPayload = JSON.parse(atob(payloadBase64));
-        
-        // JWT expiration is in seconds, so we multiply by 1000 for milliseconds
-        const expirationDate = decodedPayload.exp * 1000;
-        const currentTime = Date.now();
-
-        if (currentTime > expirationDate) {
-           // The token is officially expired! 
-           this.isLinkValid = false;
-        } else {
-           // The token is good! Extract the data and show the form
-           this.extractedEmail = decodedPayload.email;
-           this.extractedCompanyName = decodedPayload.companyName;
-           this.isLinkValid = true;
-        }
-      } catch (error) {
-        // If the token is mangled or tampered with, it's invalid
-        this.isLinkValid = false;
-        console.error('Could not decode token data');
-      }
+    if (!this.token) return;
+    // The link's token carries the company name, email and expiry; a mangled
+    // or expired token shows the "link expired" card (the API re-checks).
+    try {
+      const payload = JSON.parse(atob(this.token.split('.')[1])) as { exp?: number; email?: string; companyName?: string };
+      if (payload.exp && Date.now() > payload.exp * 1000) return;
+      this.extractedEmail.set(payload.email || '');
+      this.extractedCompanyName.set(payload.companyName || '');
+      this.isLinkValid.set(true);
+    } catch {
+      this.isLinkValid.set(false);
     }
-
-    // 2. Initialize the form with password match validation
-    this.setupForm = this.fb.group({
-      password: ['', [Validators.required, Validators.minLength(8)]],
-      confirmPassword: ['', Validators.required]
-    }, { validators: this.passwordMatchValidator });
   }
 
-  // Custom validator to ensure passwords match exactly
-  passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
-    const password = control.get('password')?.value;
-    const confirmPassword = control.get('confirmPassword')?.value;
-    return password === confirmPassword ? null : { mismatch: true };
+  showError(name: 'password' | 'confirmPassword'): boolean {
+    const c = this.form.controls[name];
+    return c.invalid && c.touched;
   }
 
   onSubmit(): void {
-    console.log('1. BUTTON CLICKED!');
-
-    // Trap 1: Is the token missing?
-    if (!this.token) {
-      console.error('2. ERROR: Token is missing from the URL!');
-      alert('Error: Missing activation token.');
+    if (!this.token) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
       return;
     }
-
-    // Trap 2: Is the form secretly invalid?
-    if (this.setupForm.invalid) {
-      console.error('2. ERROR: Form is invalid!', this.setupForm.errors);
-      console.log('Password Errors:', this.setupForm.get('password')?.errors);
-      console.log('Confirm Errors:', this.setupForm.get('confirmPassword')?.errors);
-      console.log('Form Mismatch:', this.setupForm.hasError('mismatch'));
-      return;
-    }
-
-    console.log('3. FORM IS VALID. Sending to backend...');
-    this.loading = true;
-    this.errorMessage = '';
-    const password = this.setupForm.get('password')?.value;
-
-    this.authService.activateAccount(this.token, password).subscribe({
-      next: (res) => {
-        console.log('4. BACKEND SUCCESS!', res);
-        this.loading = false;
-        
-        alert('Workspace activated successfully! Redirecting to login...');
-        
-        // 👇 Now routing to the Login page as requested!
-        this.router.navigate(['/login']); 
+    this.loading.set(true);
+    this.errorMessage.set('');
+    this.authService.activateAccount(this.token, this.form.getRawValue().password).subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.activated.set(true);
+        // Show the outcome, then hand over to login.
+        setTimeout(() => this.router.navigate(['/login']), 2500);
       },
       error: (err) => {
-        console.error('5. BACKEND ERROR CAUGHT:', err);
-        this.loading = false;
-        this.errorMessage = err.error?.message || 'Failed to activate account. The link may have expired.';
-      }
+        this.loading.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to activate the account. The link may have expired.');
+      },
     });
   }
+}
+
+function passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
+  return control.get('password')?.value === control.get('confirmPassword')?.value ? null : { mismatch: true };
 }

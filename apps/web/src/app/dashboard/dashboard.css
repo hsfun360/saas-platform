@@ -1157,3 +1157,44 @@
     flex-shrink: 0;
   }
 }
+/* ---- Header user block + hamburger: text ON the branded bar is always the
+   on-brand token (the bar is dark blue / dark red in both themes). ---- */
+.topbar-user__email {
+  color: var(--text-on-brand);
+  font-size: var(--font-body);
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+}
+.topbar-user__role {
+  color: var(--text-on-brand);
+  opacity: 0.85;
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  margin-top: var(--space-xs);
+}
+.menu-btn {
+  color: var(--text-on-brand);
+}
+
+/* ---- Pending invitations band at the top of the content area ---- */
+.shell-invites {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--info-surface);
+  border: 1px solid var(--info-border);
+  border-radius: 12px;
+}
+.shell-invites__title {
+  margin: 0 0 var(--space-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-h2);
+  color: var(--info-text);
+}
+.shell-invites .data-list {
+  padding-bottom: 0;
+}

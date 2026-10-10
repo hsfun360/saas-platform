@@ -1,138 +1,113 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
-import { AuthService } from '../../auth.service'; // Double check this path!
-import { TitleCasePipe } from '@angular/common'; // Needed for the {{ authMethod | titlecase }}
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { TitleCasePipe } from '@angular/common';
+import { AuthService } from '../../auth.service';
 import { LanguageService } from '../../services/language.service';
 import { ThemeService } from '../../services/theme.service';
 import { I18nService } from '../../i18n/i18n.service';
 import { TranslatePipe } from '../../i18n/translate.pipe';
 import { Language } from '../../models/auth.models';
 
-// 👇 1. Create a custom validator to check if passwords match
-export function passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
-  const newPassword = control.get('newPassword')?.value;
-  const confirmPassword = control.get('confirmPassword')?.value;
-
-  // If both fields have text, but they don't match, return an error
-  if (newPassword && confirmPassword && newPassword !== confirmPassword) {
-    return { passwordsMismatch: true };
-  }
-  return null;
-}
-
+// The signed-in user's own preferences: appearance, language and password.
 @Component({
-    selector: 'app-settings',
-    standalone: true,
-    templateUrl: './settings.html', // Note: Ensure this points to settings.html
-    styleUrl: './settings.css', // Note: Ensure this points to settings.css
-    imports: [ReactiveFormsModule, TitleCasePipe, TranslatePipe] // 👈 Make sure these are here!
+  selector: 'app-settings',
+  standalone: true,
+  templateUrl: './settings.html',
+  styleUrl: './settings.css',
+  imports: [ReactiveFormsModule, TitleCasePipe, TranslatePipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsComponent implements OnInit {
+  private readonly fb = inject(FormBuilder);
+  private readonly authService = inject(AuthService);
   private readonly languageService = inject(LanguageService);
   // Public: the template binds the language select to i18n.lang() - the ONE
-  // live source of the applied language, shared with the header quick-switch
-  // (a private snapshot here went stale when the header changed it mid-visit).
+  // live source of the applied language, shared with the header quick-switch.
   readonly i18n = inject(I18nService);
-  // Public so the template can read the current mode and switch it.
   readonly theme = inject(ThemeService);
 
-  // 1. The variables we need for the new UI
-  authMethod: string = 'local';
-  passwordForm!: FormGroup;
-
-  // Language preference: the languages this user may pick from (their account's
-  // set) + their current effective language.
-  // A signal: the list lands async, and a plain array mutated after the first
-  // change-detection pass trips NG0100 under zoneless dev mode.
+  readonly authMethod = signal('local');
+  readonly generalOpen = signal(true);
   readonly languageOptions = signal<Language[]>([]);
-  readonly languageMessage = signal('');
+  readonly successMessage = signal('');
+  readonly errorMessage = signal('');
+  readonly changingPassword = signal(false);
 
-  // 👇 1. Add this variable to track if General Settings is open (default to true)
-  isGeneralSettingsExpanded: boolean = true;
-
-  // Theme now lives in ThemeService; these two remain here (placeholder prefs).
-  settings = {
-    emailNotifications: true,
-    compactView: false
-  };
-
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService
-  ) {}
+  // Password floor unified app-wide at 8 characters.
+  readonly passwordForm = this.fb.nonNullable.group(
+    {
+      currentPassword: ['', Validators.required],
+      newPassword: ['', [Validators.required, Validators.minLength(8)]],
+      confirmPassword: ['', Validators.required],
+    },
+    { validators: passwordMatchValidator },
+  );
 
   ngOnInit(): void {
-    // 2. Initialize the empty password form with the new confirmPassword field
-    this.passwordForm = this.fb.group({
-      currentPassword: ['', Validators.required],
-      newPassword: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', Validators.required]
-    }, { validators: passwordMatchValidator }); // Attach validator to the whole group
-
-    // 3. Fetch the authMethod from the backend to decide whether to hide the form!
+    // The password form only applies to local accounts (SSO users change it
+    // with their provider).
     this.authService.getProfile().subscribe({
-      next: (res) => {
-        this.authMethod = res.user.authMethod || 'local';
-      },
-      error: (err) => console.error('Failed to load settings profile', err)
+      next: (res) => this.authMethod.set(res.user.authMethod || 'local'),
+      error: () => {},
     });
-
-    // 4. Load the user's language options + current effective language.
     this.languageService.getMyLanguage().subscribe({
       next: (state) => {
         this.languageOptions.set(state.options);
-        this.i18n.setFallback(state.accountDefault); // subscriber's fallback for missing translations
+        this.i18n.setFallback(state.accountDefault);
       },
-      error: (err) => console.error('Failed to load language options', err),
+      error: () => {},
     });
   }
 
   onLanguageChange(code: string): void {
     this.i18n.use(code); // apply immediately; the select tracks i18n.lang()
-    this.languageMessage.set('');
     this.languageService.setMyLanguage(code).subscribe({
       next: (state) => {
         this.i18n.use(state.effective); // settle on the server's resolution
-        this.languageMessage.set(this.i18n.translate('language.saved'));
-        setTimeout(() => this.languageMessage.set(''), 3000);
+        this.successMessage.set(this.i18n.translate('language.saved'));
       },
-      error: (err) => console.error('Failed to update language', err),
+      error: (err) => this.errorMessage.set(err?.error?.message || 'Failed to save the language preference.'),
     });
   }
-  
-  // 👇 2. Add this function to toggle the state when clicked
-  toggleGeneralSettings() {
-    this.isGeneralSettingsExpanded = !this.isGeneralSettingsExpanded;
+
+  toggleGeneral(): void {
+    this.generalOpen.update((v) => !v);
   }
 
-  toggleSetting(key: keyof typeof this.settings) {
-    this.settings[key] = !this.settings[key];
-    localStorage.setItem('appSettings', JSON.stringify(this.settings));
+  showError(name: 'currentPassword' | 'newPassword' | 'confirmPassword'): boolean {
+    const c = this.passwordForm.controls[name];
+    return c.invalid && c.touched;
   }
 
-  onChangePassword() {
-    if (this.passwordForm.valid) {
-      // Extract the passwords from the form
-      const { currentPassword, newPassword } = this.passwordForm.value;
-      
-      const payload = {
-        currentPassword: currentPassword,
-        newPassword: newPassword
-      };
+  get mismatch(): boolean {
+    return this.passwordForm.controls.confirmPassword.touched && this.passwordForm.hasError('passwordsMismatch');
+  }
 
-      // Call the backend service!
-      this.authService.changePassword(payload).subscribe({
-        next: (res) => {
-          // Success! Show an alert and clear the form
-          alert('Success: ' + res.message);
-          this.passwordForm.reset();
-        },
-        error: (err) => {
-          // Failure (e.g., they typed the wrong current password)
-          console.error('Password change failed:', err);
-          alert('Error: ' + (err.error?.message || 'Failed to update password.'));
-        }
-      });
+  onChangePassword(): void {
+    if (this.passwordForm.invalid) {
+      this.passwordForm.markAllAsTouched();
+      return;
     }
+    const { currentPassword, newPassword } = this.passwordForm.getRawValue();
+    this.changingPassword.set(true);
+    this.successMessage.set('');
+    this.errorMessage.set('');
+    this.authService.changePassword({ currentPassword, newPassword }).subscribe({
+      next: (res) => {
+        this.changingPassword.set(false);
+        this.successMessage.set(res.message || 'Password updated.');
+        this.passwordForm.reset();
+      },
+      error: (err) => {
+        this.changingPassword.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to update the password.');
+      },
+    });
   }
+}
+
+export function passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
+  const newPassword = control.get('newPassword')?.value;
+  const confirmPassword = control.get('confirmPassword')?.value;
+  return newPassword && confirmPassword && newPassword !== confirmPassword ? { passwordsMismatch: true } : null;
 }

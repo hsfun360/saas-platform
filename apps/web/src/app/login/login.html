@@ -1,134 +1,123 @@
-@if (isWorkspaceSelection) {
-  <div style="text-align: center;">
-    <h3 style="margin-bottom: var(--space-lg);">Select Workspace</h3>
-    <p style="color: var(--text-muted); margin-bottom: var(--space-lg);">Which account are you logging into today?</p>
+@if (isWorkspaceSelection()) {
+  <div class="auth-page">
+    <div class="auth-card">
+      <h1 class="auth-title">Select workspace</h1>
+      <p class="auth-lead">Which account are you logging into today?</p>
 
-    <div class="data-list">
-      @for (club of availableWorkspaces; track club.companyId) {
-        <button (click)="selectWorkspace(club.companyId)" [disabled]="loading"
-                style="padding: var(--space-sm); border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface-card); cursor: pointer; font-weight: var(--weight-bold); color: var(--text-primary); display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
-          <span class="material-icons" style="margin-right: var(--space-sm); color: var(--brand-text);">
-            {{ club.companyId === 'SYSTEM' ? 'admin_panel_settings' : 'business' }}
-          </span>
-          {{ club.companyName }}
-        </button>
+      @if (errorMessage()) {
+        <div class="auth-alert auth-alert--danger" role="alert" aria-live="assertive">{{ errorMessage() }}</div>
       }
+
+      <div class="login-workspaces">
+        @for (club of availableWorkspaces(); track club.companyId) {
+          <button type="button" class="btn btn--secondary btn--block" (click)="selectWorkspace(club.companyId)" [disabled]="loading()">
+            <span class="material-icons" aria-hidden="true">{{ club.companyId === 'SYSTEM' ? 'admin_panel_settings' : 'business' }}</span>
+            {{ club.companyName }}
+          </button>
+        }
+      </div>
     </div>
   </div>
-} @else if (isMfaStep) {
-  <div class="login-page-container">
-    <div class="login-card">
-      <h2 class="login-title">Two-factor authentication</h2>
-      <p style="color: var(--text-muted); text-align: center; margin-bottom: var(--space-lg);">
-        Enter the 6-digit code from your authenticator app, or one of your recovery codes.
-      </p>
+} @else if (isMfaStep()) {
+  <div class="auth-page">
+    <div class="auth-card">
+      <h1 class="auth-title">Two-factor authentication</h1>
+      <p class="auth-lead">Enter the 6-digit code from your authenticator app, or one of your recovery codes.</p>
 
-      @if (errorMessage) {
-        <div class="login-error" role="alert" aria-live="assertive">{{ errorMessage }}</div>
+      @if (errorMessage()) {
+        <div class="auth-alert auth-alert--danger" role="alert" aria-live="assertive">{{ errorMessage() }}</div>
       }
 
-      <div class="form-group">
-        <label for="mfa-code">Verification code</label>
-        <input
-          id="mfa-code"
-          type="text"
-          inputmode="numeric"
-          autocomplete="one-time-code"
-          placeholder="123456 or XXXX-XXXX"
-          maxlength="10"
-          [value]="mfaCode"
-          (input)="mfaCode = $any($event.target).value"
-          (keyup.enter)="submitMfaCode()"
-          style="text-align: center; letter-spacing: 0.2em; font-size: var(--font-h3);"
-        >
-      </div>
+      <form [formGroup]="mfaForm" (ngSubmit)="submitMfaCode()">
+        <div class="form-group">
+          <label for="mfa-code">Verification code</label>
+          <input id="mfa-code" class="login-mfa-code" type="text" inputmode="numeric" autocomplete="one-time-code"
+                 placeholder="123456 or XXXX-XXXX" maxlength="10" formControlName="code"
+                 [attr.aria-invalid]="mfaForm.controls.code.touched && mfaForm.controls.code.invalid ? 'true' : null"
+                 [attr.aria-describedby]="mfaForm.controls.code.touched && mfaForm.controls.code.invalid ? 'mfaCodeErr' : null">
+          @if (mfaForm.controls.code.touched && mfaForm.controls.code.invalid) {
+            <div id="mfaCodeErr" class="field-error" role="alert">Enter the code from your app.</div>
+          }
+        </div>
 
-      <label class="remember-me" style="margin-bottom: var(--space-md);">
-        <input type="checkbox" [checked]="mfaRememberDevice" (change)="mfaRememberDevice = $any($event.target).checked">
-        <span>Don't ask again on this device for 30 days</span>
-      </label>
+        <label class="login-check">
+          <input type="checkbox" formControlName="rememberDevice">
+          <span>Don't ask again on this device for 30 days</span>
+        </label>
 
-      <button type="button" class="btn-primary" (click)="submitMfaCode()" [disabled]="loading || !mfaCode.trim()">
-        {{ loading ? 'Verifying…' : 'Verify' }}
-      </button>
-
-      <div class="back-to-login" style="text-align: center; margin-top: var(--space-md);">
-        <button type="button" (click)="cancelMfa()"
-                style="background: none; border: none; color: var(--brand-text); cursor: pointer; min-height: 44px; font-size: var(--font-body-2);">
-          &larr; Back to login
+        <button type="submit" class="btn btn--primary btn--block" [disabled]="loading()">
+          {{ loading() ? 'Verifying…' : 'Verify' }}
         </button>
+      </form>
+
+      <div class="auth-links">
+        <button type="button" class="btn btn--link" (click)="cancelMfa()">&larr; Back to login</button>
       </div>
     </div>
   </div>
 } @else {
-<div class="login-page-container">
-  <div class="login-card">
+<div class="auth-page">
+  <div class="auth-card">
 
     <!-- Pre-login language switcher -->
-    <div style="display: flex; justify-content: flex-end; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-xs); color: var(--text-muted);">
-      <span class="material-icons" aria-hidden="true" style="font-size: 20px;">language</span>
+    <div class="login-lang">
+      <span class="material-icons" aria-hidden="true">language</span>
       <select id="login-lang" [value]="i18n.lang()" (change)="switchLoginLanguage($any($event.target).value)"
-              [attr.aria-label]="'language.switch' | t"
-              style="padding: 4px 8px; border: 1px solid var(--border-strong); border-radius: 6px; font-size: var(--font-body-2); background: var(--surface-input); color: var(--text-primary);">
-        @for (l of loginLanguages; track l.languageCode) {
+              [attr.aria-label]="'language.switch' | t">
+        @for (l of loginLanguages(); track l.languageCode) {
           <option [value]="l.languageCode">{{ l.name }}</option>
         }
       </select>
     </div>
 
-    <h2 class="login-title">{{ 'login.title' | t }}</h2>
+    <h1 class="auth-title">{{ 'login.title' | t }}</h1>
 
-    @if (errorMessage) {
-      <div class="login-error" role="alert" aria-live="assertive">{{ errorMessage }}</div>
+    @if (errorMessage()) {
+      <div class="auth-alert auth-alert--danger" role="alert" aria-live="assertive">{{ errorMessage() }}</div>
     }
 
-    @if (successMessage) {
-      <div class="login-success" role="status" aria-live="polite">{{ successMessage }}</div>
+    @if (successMessage()) {
+      <div class="auth-alert auth-alert--success" role="status" aria-live="polite">{{ successMessage() }}</div>
     }
 
     <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
-      
+
       <div class="form-group">
         <label for="email">{{ 'login.email' | t }}</label>
-        <input
-          type="email" inputmode="email"
-          id="email"
-          formControlName="email"
-          [placeholder]="'login.emailPlaceholder' | t"
-          class="form-control"
-          autocomplete="email"
-        >
+        <input type="email" inputmode="email" id="email" formControlName="email" [placeholder]="'login.emailPlaceholder' | t" autocomplete="email"
+               [attr.aria-invalid]="showError('email') ? 'true' : null" [attr.aria-describedby]="showError('email') ? 'loginEmailErr' : null">
+        @if (showError('email')) {
+          <div id="loginEmailErr" class="field-error" role="alert">Please enter a valid email address.</div>
+        }
       </div>
 
       <div class="form-group">
         <label for="password">{{ 'login.password' | t }}</label>
         <div class="password-wrapper">
-          <input
-            [type]="showPassword ? 'text' : 'password'"
-            id="password"
-            formControlName="password"
-            [placeholder]="'login.passwordPlaceholder' | t"
-            class="form-control"
-            autocomplete="current-password"
-          >
+          <input [type]="showPassword() ? 'text' : 'password'" id="password" formControlName="password"
+                 [placeholder]="'login.passwordPlaceholder' | t" autocomplete="current-password"
+                 [attr.aria-invalid]="showError('password') ? 'true' : null" [attr.aria-describedby]="showError('password') ? 'loginPasswordErr' : null">
           <button type="button" class="btn-toggle-password" (click)="togglePasswordVisibility()"
-                  [attr.aria-label]="showPassword ? ('login.hide' | t) : ('login.show' | t)"
-                  [attr.aria-pressed]="showPassword">
-            <span class="material-icons" aria-hidden="true">{{ showPassword ? 'visibility_off' : 'visibility' }}</span>
+                  [attr.aria-label]="showPassword() ? ('login.hide' | t) : ('login.show' | t)"
+                  [attr.aria-pressed]="showPassword()">
+            <span class="material-icons" aria-hidden="true">{{ showPassword() ? 'visibility_off' : 'visibility' }}</span>
           </button>
         </div>
+        @if (showError('password')) {
+          <div id="loginPasswordErr" class="field-error" role="alert">Your password is required.</div>
+        }
       </div>
 
-      <div class="forgot-password-row">
-        <label class="remember-me">
+      <div class="login-row">
+        <label class="login-check">
           <input type="checkbox" formControlName="rememberMe">
           <span>{{ 'login.rememberMe' | t }}</span>
         </label>
-        <a routerLink="/forgot-password" class="forgot-password-link">{{ 'login.forgot' | t }}</a>
+        <a routerLink="/forgot-password" class="login-link">{{ 'login.forgot' | t }}</a>
       </div>
 
-      <button type="submit" class="btn-primary" [disabled]="loginForm.invalid || loading">
-        {{ loading ? ('login.submitting' | t) : ('login.submit' | t) }}
+      <button type="submit" class="btn btn--primary btn--block" [disabled]="loading()">
+        {{ loading() ? ('login.submitting' | t) : ('login.submit' | t) }}
       </button>
 
       <div class="divider">
@@ -136,8 +125,8 @@
       </div>
 
       <div class="sso-container">
-        <button type="button" class="btn-sso btn-google" (click)="loginWithGoogle()">
-          <svg class="sso-icon" viewBox="0 0 48 48" width="20px" height="20px">
+        <button type="button" class="btn btn--secondary btn--block btn-sso" (click)="loginWithGoogle()">
+          <svg class="sso-icon" viewBox="0 0 48 48" aria-hidden="true">
             <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
             <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
             <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
@@ -145,10 +134,10 @@
           </svg>
           {{ 'login.continueGoogle' | t }}
         </button>
-        
-        @if (microsoftEnabled) {
-          <button type="button" class="btn-sso btn-microsoft" (click)="loginWithMicrosoft()">
-            <svg class="sso-icon" viewBox="0 0 21 21" width="20px" height="20px">
+
+        @if (microsoftEnabled()) {
+          <button type="button" class="btn btn--secondary btn--block btn-sso" (click)="loginWithMicrosoft()">
+            <svg class="sso-icon" viewBox="0 0 21 21" aria-hidden="true">
               <path fill="#f35325" d="M1 1h9v9H1z"/>
               <path fill="#81bc06" d="M11 1h9v9h-9z"/>
               <path fill="#05a6f0" d="M1 11h9v9H1z"/>
@@ -159,27 +148,26 @@
         }
       </div>
 
-      <div class="register-row">
+      <div class="auth-links">
         {{ 'login.noAccount' | t }} <a routerLink="/register-user">{{ 'login.registerHere' | t }}</a>
       </div>
 
     </form>
   </div>
 </div>
-
 }
 
-<!-- Sign-in progress overlay — shared by EVERY method (local submit, Google /
+<!-- Sign-in progress overlay - shared by EVERY method (local submit, Google /
      Microsoft redirect returns, workspace-selection resume, MFA verify), so it
      sits outside the branches above and covers whichever screen is behind it. -->
-@if (signingIn) {
+@if (signingIn()) {
   <div class="sso-overlay">
-    <div class="sso-panel">
-      <div class="sso-spinner" aria-hidden="true"></div>
+    <div class="sso-panel" role="status" aria-live="polite">
+      <div class="spinner large" aria-hidden="true"></div>
       <div class="sso-panel__title">Signing you in…</div>
-      <p class="sso-panel__sub">Please wait while we complete your sign‑in.</p>
-      @if (errorMessage) {
-        <p class="sso-panel__error" role="alert">{{ errorMessage }}</p>
+      <p class="sso-panel__sub">Please wait while we complete your sign-in.</p>
+      @if (errorMessage()) {
+        <p class="sso-panel__error" role="alert">{{ errorMessage() }}</p>
       }
     </div>
   </div>

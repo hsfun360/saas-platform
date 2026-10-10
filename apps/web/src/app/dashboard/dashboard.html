@@ -3,7 +3,7 @@
   <header class="google-topbar" [style.background-color]="isSystemAdmin ? '#BE0000' : 'rgb(0, 60, 145)'">
 
     <div class="topbar-left">
-      <button class="menu-btn" style="color: white" (click)="toggleSidebar()" aria-label="Toggle navigation menu" [attr.aria-expanded]="isSidebarPinned">☰</button>
+      <button class="menu-btn" (click)="toggleSidebar()" aria-label="Toggle navigation menu" [attr.aria-expanded]="isSidebarPinned"><span class="material-icons" aria-hidden="true">menu</span></button>
       <div class="brand-stack">
         <!-- The active MODULE title lives at the top of the sidebar (.sidebar-module),
              not here - keeps the header compact, especially on mobile. -->
@@ -75,10 +75,10 @@
     <div class="topbar-right" style="display: flex; align-items: center; gap: var(--space-md); height: 100%;">
 
       <div class="hide-mobile" style="display: flex; flex-direction: column; text-align: right; justify-content: center;">
-        <span [style.color]="isSystemAdmin ? '#ffffff' : '#1e293b'" style="font-size: var(--font-body); font-weight: var(--weight-semibold); line-height: 1.2;">
+        <span class="topbar-user__email">
           {{ loggedInUser }}
         </span>
-        <span [style.color]="isSystemAdmin ? '#fca5a5' : '#0284c7'" style="font-size: var(--font-caption); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2; margin-top: var(--space-xs);">
+        <span class="topbar-user__role">
           {{ userRoleName }}
         </span>
       </div>
@@ -305,37 +305,40 @@
            current screen has a published user guide) - keeps the top header free. -->
       <app-help-button class="content-help"></app-help-button>
 
+      <!-- Shell-level errors (switch workspace, invitations) use the GLOBAL floating snackbar. -->
+      @if (shellError()) {
+        <div class="flash flash-error" role="alert" aria-live="assertive">
+          <span class="flash-icon">❌</span>
+          <span>{{ shellError() }}</span>
+          <button class="flash-close" type="button" (click)="shellError.set('')" aria-label="Dismiss">✕</button>
+        </div>
+      }
+
       @if (myInvitations().length > 0) {
-        <div style="margin-bottom: var(--space-lg); background: var(--info-surface); border: 1px solid var(--info-border); border-radius: 12px; padding: var(--space-md) var(--space-lg);">
-          <h3 style="margin: 0 0 var(--space-sm); color: var(--info-text); display: flex; align-items: center; gap: var(--space-sm); font-size: var(--font-h2);">
-            ✉️ Pending Invitations
-          </h3>
-          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-sm);">
+        <!-- Accept / Decline is a decision pair (like Approvals), not record CRUD - both stay visible. -->
+        <section class="shell-invites" aria-labelledby="shellInvitesTitle">
+          <h2 id="shellInvitesTitle" class="shell-invites__title">
+            <span class="material-icons" aria-hidden="true">mail</span>
+            Pending invitations
+          </h2>
+          <ul class="data-list">
             @for (inv of myInvitations(); track inv.id) {
-              <li style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); background: var(--surface-card); border: 1px solid var(--border); border-radius: 8px; padding: var(--space-sm) var(--space-md);">
-                <div>
-                  <div style="font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary);">
-                    {{ inv.companyName }}
-                    @if (inv.subscriberName) { <span style="font-weight: var(--weight-regular); color: var(--text-muted);">· {{ inv.subscriberName }}</span> }
-                  </div>
-                  <div style="font-size: var(--font-caption); color: var(--text-muted); margin-top: var(--space-xs);">
-                    Role: {{ inv.roleName || 'No role' }}
-                  </div>
+              <li class="data-card data-row">
+                <div class="data-row__main">
+                  <div class="data-card__title">{{ inv.companyName }}@if (inv.subscriberName) { <span class="data-card__reg">· {{ inv.subscriberName }}</span> }</div>
+                  <div class="data-card__desc">Role: {{ inv.roleName || 'No role' }}</div>
                 </div>
-                <div style="display: flex; gap: var(--space-sm);">
-                  <button type="button" (click)="acceptInvitation(inv.id)" [disabled]="respondingInvitationId() === inv.id"
-                          style="background: #16a34a; color: white; border: none; padding: var(--space-sm) var(--space-md); border-radius: 6px; font-weight: var(--weight-semibold); cursor: pointer;">
+                <div class="data-row__actions">
+                  <button type="button" class="btn btn--success btn--sm" (click)="acceptInvitation(inv.id)" [disabled]="respondingInvitationId() === inv.id">
+                    <span class="material-icons" aria-hidden="true">check_circle</span>
                     Accept
                   </button>
-                  <button type="button" (click)="declineInvitation(inv.id)" [disabled]="respondingInvitationId() === inv.id"
-                          style="background: transparent; color: var(--text-muted); border: 1px solid var(--border-strong); padding: var(--space-sm) var(--space-md); border-radius: 6px; cursor: pointer;">
-                    Decline
-                  </button>
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="declineInvitation(inv.id)" [disabled]="respondingInvitationId() === inv.id">Decline</button>
                 </div>
               </li>
             }
           </ul>
-        </div>
+        </section>
       }
 
       <router-outlet></router-outlet>

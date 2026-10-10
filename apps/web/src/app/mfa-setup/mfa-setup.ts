@@ -1,4 +1,5 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../auth.service';
 
@@ -10,9 +11,9 @@ import { AuthService } from '../auth.service';
 @Component({
   selector: 'app-mfa-setup',
   standalone: true,
-  imports: [],
+  imports: [ReactiveFormsModule],
   templateUrl: './mfa-setup.html',
-  styleUrls: ['./mfa-setup.css'],
+  styleUrls: ['../shared/auth-card.css', './mfa-setup.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MfaSetupComponent implements OnInit {
@@ -26,7 +27,8 @@ export class MfaSetupComponent implements OnInit {
   readonly loading = signal(true);
   readonly submitting = signal(false);
   readonly errorMessage = signal('');
-  readonly code = signal('');
+  // The 6-digit code is a reactive control so Enter submits the form.
+  readonly code = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(6)] });
 
   // After enabling: show the recovery codes ONCE, then continue into the app.
   readonly recoveryCodes = signal<string[]>([]);
@@ -46,16 +48,14 @@ export class MfaSetupComponent implements OnInit {
     });
   }
 
-  onCodeInput(event: Event): void {
-    this.code.set((event.target as HTMLInputElement).value);
-  }
-
   confirm(): void {
-    const code = this.code().trim();
-    if (!code) return;
+    if (this.code.invalid) {
+      this.code.markAsTouched();
+      return;
+    }
     this.submitting.set(true);
     this.errorMessage.set('');
-    this.auth.mfaEnable(code).subscribe({
+    this.auth.mfaEnable(this.code.value.trim()).subscribe({
       next: (res) => {
         this.submitting.set(false);
         this.recoveryCodes.set(res.recoveryCodes || []);

@@ -1,87 +1,59 @@
-<div class="registration-wrapper">
-  <div class="card form-container">
-    
-    <h2>Start your Free Trial</h2>
-    @if (!successMessage) {
-      <p>Set up your company's workspace in minutes.</p>
-    }
+<div class="auth-page">
+  <div class="auth-card">
 
-    @if (successMessage) {
-      <div class="alert alert-success success-card">
-        <h3 style="color: var(--success-text);">✉️ Check your inbox!</h3>
-        <p>{{ successMessage }}</p>
+    <h1 class="auth-title">Start your free trial</h1>
+
+    @if (successMessage()) {
+      <!-- Outcome card: the documented in-card exception to the flash snackbar. -->
+      <div class="auth-alert auth-alert--success" role="status" aria-live="polite">
+        <span class="material-icons auth-alert__icon" aria-hidden="true">mark_email_unread</span>
+        <h2>Check your inbox</h2>
+        <p>{{ successMessage() }}</p>
         <p>Click the secure link in the email to set your password and activate your account.</p>
       </div>
     } @else {
-      <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
-        
-        @if (errorMessage) {
-          <div class="alert alert-danger" style="color: var(--danger-text); margin-bottom: var(--space-md);">
-            {{ errorMessage }}
-          </div>
-        }
+      <p class="auth-lead">Set up your company's workspace in minutes.</p>
 
-        <div class="form-group" style="margin-bottom: var(--space-md);">
-          <label for="name">Your Full Name</label>
-          <input 
-            id="name" 
-            type="text" 
-            formControlName="name" 
-            placeholder="John Doe"
-            style="width: 100%; padding: var(--space-sm);"
-          >
-          @if (submitted && registerForm.get('name')?.errors?.['required']) {
-            <div style="color: var(--danger-text); font-size: var(--font-caption);">
-              Name is required.
-            </div>
+      @if (errorMessage()) {
+        <div class="auth-alert auth-alert--danger" role="alert" aria-live="assertive">{{ errorMessage() }}</div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <div class="form-group">
+          <label for="rlName">Your full name</label>
+          <input id="rlName" type="text" formControlName="name" placeholder="John Doe" autocomplete="name" maxlength="150"
+                 [attr.aria-invalid]="showError('name') ? 'true' : null" [attr.aria-describedby]="showError('name') ? 'rlNameErr' : null">
+          @if (showError('name')) {
+            <div id="rlNameErr" class="field-error" role="alert">Your name is required.</div>
           }
         </div>
 
-        <div class="form-group" style="margin-bottom: var(--space-md);">
-          <label for="companyName">Company Name</label>
-          <input 
-            id="companyName" 
-            type="text" 
-            formControlName="companyName" 
-            placeholder="Acme Fitness & Leisure Sdn Bhd"
-            style="width: 100%; padding: var(--space-sm);"
-          >
-          @if (submitted && registerForm.get('companyName')?.errors?.['required']) {
-            <div style="color: var(--danger-text); font-size: var(--font-caption);">
-              Company Name is required.
-            </div>
+        <div class="form-group">
+          <label for="rlCompany">Company name</label>
+          <input id="rlCompany" type="text" formControlName="companyName" placeholder="Acme Fitness & Leisure Sdn Bhd" autocomplete="organization" maxlength="150"
+                 [attr.aria-invalid]="showError('companyName') ? 'true' : null" [attr.aria-describedby]="showError('companyName') ? 'rlCompanyErr' : null">
+          @if (showError('companyName')) {
+            <div id="rlCompanyErr" class="field-error" role="alert">The company name is required.</div>
           }
         </div>
 
-        <div class="form-group" style="margin-bottom: var(--space-lg);">
-          <label for="email">Work Email</label>
-          <input 
-            id="email" 
-            type="email" inputmode="email" 
-            formControlName="email" 
-            placeholder="john@acme.com"
-            style="width: 100%; padding: var(--space-sm);"
-          >
-          @if (submitted && registerForm.get('email')?.errors) {
-            <div style="color: var(--danger-text); font-size: var(--font-caption);">
-              Please enter a valid email.
-            </div>
+        <div class="form-group">
+          <label for="rlEmail">Work email</label>
+          <input id="rlEmail" type="email" inputmode="email" formControlName="email" placeholder="john@acme.com" autocomplete="email"
+                 [attr.aria-invalid]="showError('email') ? 'true' : null" [attr.aria-describedby]="showError('email') ? 'rlEmailErr' : null">
+          @if (showError('email')) {
+            <div id="rlEmailErr" class="field-error" role="alert">Please enter a valid email address.</div>
           }
         </div>
 
-        <button 
-          type="submit" 
-          [disabled]="loading" 
-          style="width: 100%; padding: var(--space-sm); background-color: var(--brand); color: var(--text-on-brand); border: none; cursor: pointer;"
-        >
-          {{ loading ? 'Generating Link...' : 'Create Account' }}
+        <button type="submit" class="btn btn--primary btn--block" [disabled]="loading()">
+          {{ loading() ? 'Generating link…' : 'Create account' }}
         </button>
-
       </form>
     }
 
-    <div style="margin-top: var(--space-lg); text-align: center; font-size: var(--font-body-2);">
-       <p>Already have an account? <a routerLink="/login">Log in here</a></p>
+    <div class="auth-links">
+      Already have an account? <a routerLink="/login">Log in here</a>
     </div>
 
   </div>

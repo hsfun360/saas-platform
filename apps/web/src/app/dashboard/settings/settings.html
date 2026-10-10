@@ -1,18 +1,42 @@
 <section class="screen-pad settings-wrap">
 
-  <!-- General Settings (collapsible) -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">settings</span>
+      <div>
+        <h1>Settings</h1>
+        <p class="saas-subtitle">Appearance, language and password for your own account.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transient messages use the GLOBAL floating snackbar standard (.flash). -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button class="flash-close" type="button" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button class="flash-close" type="button" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- General settings (collapsible) -->
   <div class="settings-card">
-    <button type="button" class="settings-header settings-header--button"
-            (click)="toggleGeneralSettings()" [attr.aria-expanded]="isGeneralSettingsExpanded">
+    <button type="button" class="settings-header settings-header--button" (click)="toggleGeneral()" [attr.aria-expanded]="generalOpen()">
       <span class="settings-header__text">
-        <span class="settings-header__title">General Settings</span>
-        <span class="settings-header__sub">Customize your dashboard experience</span>
+        <span class="settings-header__title">General settings</span>
+        <span class="settings-header__sub">Customize your dashboard experience.</span>
       </span>
-      <span class="material-icons settings-header__chevron"
-            [class.settings-header__chevron--open]="isGeneralSettingsExpanded" aria-hidden="true">chevron_right</span>
+      <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="generalOpen()" aria-hidden="true">chevron_right</span>
     </button>
 
-    @if (isGeneralSettingsExpanded) {
+    @if (generalOpen()) {
       <div class="settings-body">
         <div class="setting-item">
           <div class="setting-info">
@@ -37,35 +61,12 @@
             </button>
           </div>
         </div>
-
-        <div class="setting-item">
-          <div class="setting-info">
-            <span class="setting-title">Email Notifications</span>
-            <span class="setting-description">Receive updates about your account via email</span>
-          </div>
-          <label class="switch">
-            <input type="checkbox" [checked]="settings.emailNotifications" (change)="toggleSetting('emailNotifications')" aria-label="Email Notifications">
-            <span class="slider round"></span>
-          </label>
-        </div>
-
-        <div class="setting-item setting-item--last">
-          <div class="setting-info">
-            <span class="setting-title">Compact View</span>
-            <span class="setting-description">Show more content with less spacing</span>
-          </div>
-          <label class="switch">
-            <input type="checkbox" [checked]="settings.compactView" (change)="toggleSetting('compactView')" aria-label="Compact View">
-            <span class="slider round"></span>
-          </label>
-        </div>
       </div>
     }
   </div>
 
-  <!-- Language — shown only when the user actually has a choice. Mirrors the
-       header language switcher, which is likewise hidden at <= 1 language, so a
-       single-language account never sees an empty/disabled picker. -->
+  <!-- Language - shown only when the user actually has a choice. Mirrors the
+       header language switcher, which is likewise hidden at <= 1 language. -->
   @if (languageOptions().length > 1) {
     <div class="settings-card">
       <div class="settings-header">
@@ -75,16 +76,14 @@
         </span>
       </div>
       <div class="settings-body">
-        <label for="pref-lang" class="field-label">{{ 'language.preferred' | t }}</label>
-        <select id="pref-lang" class="field-control" [value]="i18n.lang()"
-                (change)="onLanguageChange($any($event.target).value)">
-          @for (l of languageOptions(); track l.languageCode) {
-            <option [value]="l.languageCode">{{ l.name }}</option>
-          }
-        </select>
-        @if (languageMessage()) {
-          <p class="field-success" role="status" aria-live="polite">{{ languageMessage() }}</p>
-        }
+        <div class="form-group settings-field">
+          <label for="pref-lang">{{ 'language.preferred' | t }}</label>
+          <select id="pref-lang" [value]="i18n.lang()" (change)="onLanguageChange($any($event.target).value)">
+            @for (l of languageOptions(); track l.languageCode) {
+              <option [value]="l.languageCode">{{ l.name }}</option>
+            }
+          </select>
+        </div>
       </div>
     </div>
   }
@@ -94,37 +93,50 @@
     <div class="settings-header">
       <span class="settings-header__text">
         <span class="settings-header__title">{{ 'settings.security' | t }}</span>
-        <span class="settings-header__sub">Manage your account security and passwords</span>
+        <span class="settings-header__sub">Change the password you sign in with.</span>
       </span>
     </div>
     <div class="settings-body">
-      @if (authMethod === 'local') {
+      @if (authMethod() === 'local') {
         <form [formGroup]="passwordForm" (ngSubmit)="onChangePassword()">
-          <div class="form-group">
-            <label for="cur-pw">Current Password</label>
-            <input id="cur-pw" type="password" formControlName="currentPassword" placeholder="Enter current password">
-          </div>
-
-          <div class="form-group">
-            <label for="new-pw">New Password</label>
-            <input id="new-pw" type="password" formControlName="newPassword" placeholder="Minimum 6 characters">
-          </div>
-
-          <div class="form-group">
-            <label for="conf-pw">Confirm New Password</label>
-            <input id="conf-pw" type="password" formControlName="confirmPassword" placeholder="Re-enter new password"
-                   [class.field-control--error]="passwordForm.errors?.['passwordsMismatch'] && passwordForm.get('confirmPassword')?.touched">
-            @if (passwordForm.errors?.['passwordsMismatch'] && passwordForm.get('confirmPassword')?.touched) {
-              <p class="field-error" role="alert">Passwords do not match</p>
+          <div class="form-group settings-field">
+            <label for="cur-pw">Current password <span class="required">*</span></label>
+            <input id="cur-pw" type="password" formControlName="currentPassword" autocomplete="current-password" placeholder="Enter your current password"
+                   [attr.aria-invalid]="showError('currentPassword') ? 'true' : null" [attr.aria-describedby]="showError('currentPassword') ? 'curPwErr' : null">
+            @if (showError('currentPassword')) {
+              <div id="curPwErr" class="field-error" role="alert">Your current password is required.</div>
             }
           </div>
 
-          <button type="submit" class="btn btn--primary" [disabled]="passwordForm.invalid">Update Password</button>
+          <div class="form-group settings-field">
+            <label for="new-pw">New password <span class="required">*</span></label>
+            <input id="new-pw" type="password" formControlName="newPassword" autocomplete="new-password" placeholder="Minimum 8 characters"
+                   [attr.aria-invalid]="showError('newPassword') ? 'true' : null" [attr.aria-describedby]="showError('newPassword') ? 'newPwErr' : null">
+            @if (showError('newPassword')) {
+              <div id="newPwErr" class="field-error" role="alert">
+                @if (passwordForm.controls.newPassword.errors?.['required']) { A new password is required. }
+                @else { The new password must be at least 8 characters. }
+              </div>
+            }
+          </div>
+
+          <div class="form-group settings-field">
+            <label for="conf-pw">Confirm new password <span class="required">*</span></label>
+            <input id="conf-pw" type="password" formControlName="confirmPassword" autocomplete="new-password" placeholder="Re-enter the new password"
+                   [attr.aria-invalid]="(showError('confirmPassword') || mismatch) ? 'true' : null" [attr.aria-describedby]="mismatch ? 'confPwErr' : null">
+            @if (mismatch) {
+              <div id="confPwErr" class="field-error" role="alert">The passwords do not match.</div>
+            }
+          </div>
+
+          <button type="submit" class="btn btn--primary" [disabled]="changingPassword()">
+            {{ changingPassword() ? 'Updating…' : 'Update password' }}
+          </button>
         </form>
       } @else {
         <div class="sso-note">
-          You logged in using <strong>{{ authMethod | titlecase }}</strong>. To change your password or update
-          security settings, please visit your {{ authMethod | titlecase }} account provider directly.
+          You signed in with <strong>{{ authMethod() | titlecase }}</strong>. To change your password or update
+          security settings, visit your {{ authMethod() | titlecase }} account directly.
         </div>
       }
     </div>

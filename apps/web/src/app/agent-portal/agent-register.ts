@@ -1,5 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../auth.service';
@@ -11,9 +10,10 @@ import { SalesService, AgentRegistrationContext } from '../services/sales.servic
 @Component({
   selector: 'app-agent-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './agent-register.html',
-  styleUrls: ['../setup-password/setup-password.css'],
+  styleUrls: ['../shared/auth-card.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AgentRegisterComponent implements OnInit {
   private readonly fb = inject(FormBuilder);

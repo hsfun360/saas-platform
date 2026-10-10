@@ -1,4 +1,5 @@
-import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, signal, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
@@ -78,6 +79,9 @@ export class Dashboard implements OnInit, OnDestroy {
   isSystemAdmin = false;
   userRoleName = 'User';
   profilePictureUrl = signal<string | null>(null);
+  // Shell-level error (switch workspace / invitations) shown by the global flash snackbar.
+  readonly shellError = signal('');
+  private readonly destroyRef = inject(DestroyRef);
   activeCompanyName = 'Loading...';
   allowedMenus: MenuItem[] = [];
   displayedMenus: MenuItem[] = [];
@@ -175,10 +179,10 @@ export class Dashboard implements OnInit, OnDestroy {
     const savedAvatar = localStorage.getItem('profilePicture');
     if (savedAvatar) this.profilePictureUrl.set(savedAvatar);
 
-    this.authService.avatar$.subscribe(url => {
+    this.authService.avatar$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(url => {
       if (url) this.profilePictureUrl.set(url);
     });
-    this.authService.fullName$.subscribe(name => {
+    this.authService.fullName$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(name => {
       if (name && name !== 'Loading...') this.userFullName.set(name);
     });
 
@@ -463,7 +467,7 @@ export class Dashboard implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.switchingWorkspace.set(false);
-        alert(err.error?.message || 'Failed to switch workspace.');
+        this.shellError.set(err.error?.message || 'Failed to switch workspace.');
       },
     });
   }
@@ -489,7 +493,7 @@ export class Dashboard implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.respondingInvitationId.set(null);
-        alert(err.error?.message || 'Failed to accept invitation.');
+        this.shellError.set(err.error?.message || 'Failed to accept the invitation.');
       },
     });
   }
@@ -506,7 +510,7 @@ export class Dashboard implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.respondingInvitationId.set(null);
-        alert(err.error?.message || 'Failed to decline invitation.');
+        this.shellError.set(err.error?.message || 'Failed to decline the invitation.');
       },
     });
   }

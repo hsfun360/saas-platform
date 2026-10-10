@@ -140,6 +140,7 @@ textarea[aria-invalid='true'] {
   --overlay: rgba(15, 23, 42, 0.55);
   --shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --surface-qr: #ffffff; /* QR quiet zone: must stay white in BOTH themes for scanners */
 }
 
 :root[data-theme="dark"] {
@@ -189,6 +190,7 @@ textarea[aria-invalid='true'] {
   --overlay: rgba(0, 0, 0, 0.6);
   --shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --surface-qr: #ffffff; /* QR quiet zone stays white even in dark mode */
 }
 
 /* Base page colours from tokens (prevents white flashes; themes login/register
