@@ -1,12 +1,251 @@
 {
-  "home": { "title": "My Dashboard" },
-  "admin-companies": { "title": "Companies" },
-  "admin-countries": { "title": "Countries" },
-  "golf-unit-courses": { "title": "Unit Courses" },
-  "golf-settings": { "title": "Golf Specification" },
-  "golf-no-show-charges": { "title": "No-show Charges" },
-  "golf-transaction-types": { "title": "Transaction Type" },
-  "golf-tee-time-sheet": { "title": "Tee Time Sheet" },
-  "golf-group-bookings": { "title": "Group Bookings" },
-  "ar-analysis": { "title": "Analysis Setup" }
+  "home": {
+    "title": "My Dashboard"
+  },
+  "admin-companies": {
+    "title": "Companies"
+  },
+  "admin-countries": {
+    "title": "Countries"
+  },
+  "golf-unit-courses": {
+    "title": "Unit Courses"
+  },
+  "golf-settings": {
+    "title": "Golf Specification"
+  },
+  "golf-no-show-charges": {
+    "title": "No-show Charges"
+  },
+  "golf-transaction-types": {
+    "title": "Transaction Type"
+  },
+  "golf-tee-time-sheet": {
+    "title": "Tee Time Sheet"
+  },
+  "golf-group-bookings": {
+    "title": "Group Bookings"
+  },
+  "ar-analysis": {
+    "title": "Analysis Setup"
+  },
+  "ar-invoices": {
+    "title": "Invoices"
+  },
+  "ar-debit-notes": {
+    "title": "Debit Notes"
+  },
+  "ar-credit-notes": {
+    "title": "Credit Notes"
+  },
+  "ar-receipts": {
+    "title": "Official Receipts"
+  },
+  "ar-refunds": {
+    "title": "Refunds"
+  },
+  "ar-deposits": {
+    "title": "Deposits"
+  },
+  "ar-interests": {
+    "title": "Interest Documents"
+  },
+  "ar-debtors": {
+    "title": "Debtor Listing"
+  },
+  "ar-exchange-rates": {
+    "title": "Exchange Rates"
+  },
+  "ar-interest-generation": {
+    "title": "Interest Generation"
+  },
+  "ar-numbering": {
+    "title": "Numbering Control"
+  },
+  "ar-settings": {
+    "title": "AR Specification"
+  },
+  "ar-statement-generation": {
+    "title": "Statement Generation"
+  },
+  "ar-statements": {
+    "title": "Statement Listing"
+  },
+  "ar-transaction-types": {
+    "title": "Transaction Type"
+  },
+  "golf-bookings": {
+    "title": "Golf Booking"
+  },
+  "golf-closures": {
+    "title": "Course Closure"
+  },
+  "golf-courses": {
+    "title": "Courses"
+  },
+  "golf-golfers": {
+    "title": "Golfers"
+  },
+  "golf-numbering": {
+    "title": "Numbering Control"
+  },
+  "golf-payment-types": {
+    "title": "Payment Type"
+  },
+  "membership-settings": {
+    "title": "Club Specification"
+  },
+  "membership-statuses": {
+    "title": "Membership Status"
+  },
+  "membership-types": {
+    "title": "Membership Type"
+  },
+  "membership-fees": {
+    "title": "Membership Fee"
+  },
+  "membership-transaction-types": {
+    "title": "Transaction Type"
+  },
+  "membership-numbering": {
+    "title": "Numbering Control"
+  },
+  "membership-sales-agencies": {
+    "title": "Sales Agencies"
+  },
+  "membership-sales-agents": {
+    "title": "Sales Agents"
+  },
+  "membership-memberships": {
+    "title": "Memberships"
+  },
+  "membership-members": {
+    "title": "Members"
+  },
+  "membership-billing": {
+    "title": "Billing Schedules"
+  },
+  "membership-import": {
+    "title": "Membership Import"
+  },
+  "membership-type-import": {
+    "title": "Membership Type Import"
+  },
+  "membership-membership-analysis": {
+    "title": "Membership Analysis"
+  },
+  "membership-agent-performance": {
+    "title": "Agent Performance"
+  },
+  "admin-subscribers": {
+    "title": "Subscriber Management"
+  },
+  "admin-platform-users": {
+    "title": "Platform Users"
+  },
+  "admin-system-roles": {
+    "title": "System Roles"
+  },
+  "admin-system-setup": {
+    "title": "Assign Role"
+  },
+  "admin-unverified-users": {
+    "title": "Unverified Registrations"
+  },
+  "admin-audit-log": {
+    "title": "Audit Log"
+  },
+  "admin-modules-menus": {
+    "title": "Tenant Modules & Menus"
+  },
+  "admin-platform-menus": {
+    "title": "Platform Modules & Menus"
+  },
+  "admin-platform-profile": {
+    "title": "Platform Profile"
+  },
+  "admin-platform-tax": {
+    "title": "Platform Tax"
+  },
+  "admin-email-templates": {
+    "title": "Email Templates"
+  },
+  "admin-currencies": {
+    "title": "Currencies"
+  },
+  "admin-languages": {
+    "title": "Languages"
+  },
+  "admin-e-invoice-classification-codes": {
+    "title": "e-Invoice Classification Codes"
+  },
+  "admin-e-invoice-document-types": {
+    "title": "e-Invoice Document Types"
+  },
+  "admin-e-invoice-msic-codes": {
+    "title": "e-Invoice MSIC Codes"
+  },
+  "admin-e-invoice-payment-methods": {
+    "title": "e-Invoice Payment Methods"
+  },
+  "admin-e-invoice-state-codes": {
+    "title": "e-Invoice State Codes"
+  },
+  "admin-e-invoice-tax-types": {
+    "title": "e-Invoice Tax Types"
+  },
+  "admin-e-invoice-unit-types": {
+    "title": "e-Invoice Unit Types"
+  },
+  "admin-users": {
+    "title": "User Management"
+  },
+  "admin-roles": {
+    "title": "Role Management"
+  },
+  "admin-departments": {
+    "title": "Departments"
+  },
+  "admin-positions": {
+    "title": "Positions"
+  },
+  "admin-tax-schemes": {
+    "title": "Tax Setup"
+  },
+  "admin-company-tax": {
+    "title": "Company Tax"
+  },
+  "admin-public-holidays": {
+    "title": "Public Holidays"
+  },
+  "admin-account-currencies": {
+    "title": "Currencies"
+  },
+  "admin-account-languages": {
+    "title": "Languages"
+  },
+  "admin-account-email-templates": {
+    "title": "Email Templates"
+  },
+  "admin-account-audit-log": {
+    "title": "Audit Log"
+  },
+  "admin-workflows": {
+    "title": "Workflow Setup"
+  },
+  "admin-salutations": {
+    "title": "Salutations"
+  },
+  "admin-titles": {
+    "title": "Titles"
+  },
+  "admin-races": {
+    "title": "Races"
+  },
+  "admin-nationalities": {
+    "title": "Nationalities"
+  },
+  "admin-industry-types": {
+    "title": "Industry Types"
+  }
 }
