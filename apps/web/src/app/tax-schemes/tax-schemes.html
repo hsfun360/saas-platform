@@ -94,10 +94,11 @@
           <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
         </div>
       } @else {
-        <div class="tx-list">
+        <div class="data-list">
           @for (s of filtered(); track s.id) {
-            <div class="tx-row" [class.tx-row--active]="s.id === selectedId()" [attr.data-return-id]="s.id">
-              <button type="button" class="tx-row__select" (click)="select(s.id)"
+            <div class="data-card" [class.data-card--selected]="s.id === selectedId()" [attr.data-return-id]="s.id">
+            <div class="data-row data-row--with-badge">
+              <button type="button" class="data-row__main tx-row__select" (click)="select(s.id)"
                       [attr.aria-pressed]="s.id === selectedId()">
                 @if (countryFlag(s.countryCode)) {
                   <span class="tx-row__flag" aria-hidden="true">{{ countryFlag(s.countryCode) }}</span>
@@ -115,11 +116,11 @@
                 </span>
               </button>
               @if (s.isActive === false) {
-                <span class="status-chip status-chip--off tx-row__badge">Disabled</span>
+                <span class="status-chip status-chip--off data-row__badge">Disabled</span>
               } @else {
-                <span class="status-chip status-chip--on tx-row__badge">Active</span>
+                <span class="status-chip status-chip--on data-row__badge">Active</span>
               }
-              <div class="tx-row__actions">
+              <div class="data-row__actions">
                 <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditScheme(s)">Edit</button>
                 <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + s.taxSchemeCode">
                   <button type="button" appMenuItem (click)="toggleSchemeActive(s)" [disabled]="togglingSchemeId() === s.id">
@@ -128,6 +129,7 @@
                   </button>
                 </app-overflow-menu>
               </div>
+            </div>
             </div>
           }
         </div>

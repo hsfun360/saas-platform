@@ -159,25 +159,8 @@
   padding: var(--space-sm) var(--space-md);
   margin-bottom: var(--space-sm);
 }
-.mem-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: "main actions";
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-xs) 0;
-}
-.mem-row__main {
-  grid-area: main;
-  min-width: 0;
-}
-.mem-row__actions {
-  grid-area: actions;
-  justify-self: end;
-  display: flex;
-  gap: var(--space-xs);
-  flex-shrink: 0;
-}
+/* Member rows compose the global .data-row grid (styles.css); only the
+   dependent indent and the name / sub lines are screen-specific. */
 .mem-row--dep {
   border-top: 1px dashed var(--border);
   margin-left: var(--space-lg);
@@ -199,16 +182,6 @@
   color: var(--text-secondary);
   flex-wrap: wrap;
 }
-@media (max-width: 767px) {
-  .mem-row {
-    grid-template-columns: 1fr;
-    grid-template-areas: "main" "actions";
-  }
-  .mem-row__actions {
-    justify-self: end;
-  }
-}
-
 /* --- Member photo (profile form uploader + list avatars) --- */
 .ms-photo {
   display: flex;

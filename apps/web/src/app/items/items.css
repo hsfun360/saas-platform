@@ -18,35 +18,12 @@
   min-width: 0;
 }
 
-/* List/card action-row pattern (see docs/project-overview.md): content on the
-   left, actions right on desktop; actions drop to a full-width row below,
-   left-justified, on mobile. */
-.it-row {
-  display: grid;
-  /* minmax(0, 1fr) (not 1fr) so the main track can shrink below its content's
-     min-content width — the main cell is a <button>, whose intrinsic min size
-     would otherwise keep the track from shrinking and spill text into the
-     actions column. With this, long names/descriptions wrap instead. */
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: "main actions";
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-xs) var(--space-sm);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-card);
-}
-
-.it-row--active {
-  border-color: var(--brand);
-  background: var(--surface-sunken);
-}
+/* Item rows compose the global .data-card + .data-row grid (styles.css). */
 
 /* The item name is a button that opens its detail. It fills its grid cell by
    default (justify-self: stretch) — no width:100%, which would feed the
    button's preferred width back into track sizing. */
 .it-row__select {
-  grid-area: main;
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -60,19 +37,10 @@
 }
 
 .it-row__text {
-  grid-area: main;
   display: flex;
   flex-direction: column;
   min-width: 0;
   overflow-wrap: anywhere; /* never let a long token overflow the cell */
-}
-
-.it-row__actions {
-  grid-area: actions;
-  display: flex;
-  gap: var(--space-xs);
-  justify-self: end; /* right-justified on desktop */
-  flex-shrink: 0; /* keep Edit/Delete intact; the main cell yields space */
 }
 
 /* Search field — icon on the left, optional clear (✕) on the right. */
@@ -117,16 +85,6 @@
     display: inline-flex;
   }
 
-  /* Action rows stack: actions drop to a full-width row below, left-justified. */
-  .it-row {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "main"
-      "actions";
-  }
-  .it-row__actions {
-    justify-self: end;
-  }
 }
 
 @keyframes it-slide-in {

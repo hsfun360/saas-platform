@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
+import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -22,7 +23,7 @@ import { ScrollReturnService } from '../services/scroll-return.service';
   selector: 'app-items',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ConfirmDialogComponent, LocalDatePipe, ReactiveFormsModule],
+  imports: [ConfirmDialogComponent, LocalDatePipe, ReactiveFormsModule, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './items.html',
   styleUrls: ['./items.css'],
 })

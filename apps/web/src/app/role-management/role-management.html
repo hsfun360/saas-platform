@@ -53,10 +53,10 @@
       <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
     </div>
   } @else {
-    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-xs);">
+    <ul class="data-list">
       @for (role of filteredRoles(); track role.id) {
-        <li class="role-row" [attr.data-return-id]="role.id" [style.background]="editingRoleId() === role.id ? 'var(--surface-sunken)' : 'transparent'">
-          <span class="role-main">
+        <li class="data-card data-row" [class.data-card--selected]="editingRoleId() === role.id" [attr.data-return-id]="role.id">
+          <span class="data-row__main role-main">
             <span class="material-icons" aria-hidden="true" style="font-size: var(--icon-sm); color: var(--accent);">badge</span>
             <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
               <span>
@@ -73,10 +73,10 @@
             </span>
           </span>
 
-          <!-- Actions: right of the info on desktop, full-width bottom-left on
-               mobile. The system-managed Tenant Admin role is read-only. -->
+          <!-- Actions: right of the info on desktop, full-width bottom-right on
+               mobile (global .data-row). The system-managed Tenant Admin role is read-only. -->
           @if (role.name !== protectedRoleName) {
-            <span class="role-actions">
+            <span class="data-row__actions">
               <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="startEdit(role)"
                       [disabled]="!!deletingRoleId()" [attr.aria-label]="'Edit role ' + role.name">
                 <span class="material-icons" aria-hidden="true">edit</span>
@@ -90,7 +90,7 @@
               </app-overflow-menu>
             </span>
           } @else {
-            <span class="role-actions" style="color: var(--text-muted); font-size: var(--font-caption); align-items: center;">System role</span>
+            <span class="data-row__actions" style="color: var(--text-muted); font-size: var(--font-caption); align-items: center;">System role</span>
           }
         </li>
       }

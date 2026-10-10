@@ -162,14 +162,14 @@ describe('MembershipsComponent members dialog', () => {
     expect(queryAll('app-dialog').length).toBe(1);
     expect(query('app-dialog')?.textContent).toContain('Members — CORP-126-000003');
     expect(query('app-dialog')?.textContent).toContain('SUFFIX-TEST-NOMINEE');
-    const editBtn = queryAll('.mem-row__actions button').find((b) => b.textContent?.trim() === 'Edit');
+    const editBtn = queryAll('.data-row__actions button').find((b) => b.textContent?.trim() === 'Edit');
     expect(editBtn).toBeTruthy();
   });
 
   it('Edit on the nominee opens the member form view - and it STAYS open (regression: dialog-swap history race)', async () => {
     await openMembersDialog();
 
-    const editBtn = queryAll('.mem-row__actions button').find(
+    const editBtn = queryAll('.data-row__actions button').find(
       (b) => b.textContent?.trim() === 'Edit',
     ) as HTMLButtonElement;
     editBtn.click();
@@ -194,7 +194,7 @@ describe('MembershipsComponent members dialog', () => {
   it('saves an edited Email and returns to the members list view', async () => {
     await openMembersDialog();
 
-    (queryAll('.mem-row__actions button').find(
+    (queryAll('.data-row__actions button').find(
       (b) => b.textContent?.trim() === 'Edit',
     ) as HTMLButtonElement).click();
     fixture.detectChanges();
@@ -223,7 +223,7 @@ describe('MembershipsComponent members dialog', () => {
   it('Back to list returns to the members list without closing the dialog', async () => {
     await openMembersDialog();
 
-    (queryAll('.mem-row__actions button').find(
+    (queryAll('.data-row__actions button').find(
       (b) => b.textContent?.trim() === 'Edit',
     ) as HTMLButtonElement).click();
     fixture.detectChanges();

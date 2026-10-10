@@ -17,25 +17,8 @@
   min-width: 0;
 }
 
-/* List/card action-row pattern (see docs/project-overview.md):
-   content on the left, actions right on desktop; actions drop to a
-   full-width row below, left-justified, on mobile. */
-.mm-row {
-  display: grid;
-  /* minmax(0, 1fr) (not 1fr) so the main track can shrink below its content's
-     min-content width. The main cell here is a <button>, whose intrinsic min
-     size otherwise keeps the track from shrinking and its text spills into the
-     actions column. With this, long names/descriptions wrap instead. */
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas: "main actions";
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-xs) var(--space-sm);
-  border: 1px solid var(--border);
-  background: var(--surface-card);
-  border-radius: 8px;
-}
-
+/* Module / menu rows compose the global .data-card + .data-row grid
+   (styles.css); .mm-row--active stays for the TREE view rows. */
 .mm-row--active {
   border-color: var(--accent);
   background: var(--surface-selected);
@@ -45,7 +28,6 @@
    It fills its grid cell by default (justify-self: stretch) — no width:100%,
    which would feed the button's preferred width back into track sizing. */
 .mm-row__select {
-  grid-area: main;
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -59,19 +41,10 @@
 }
 
 .mm-row__text {
-  grid-area: main;
   display: flex;
   flex-direction: column;
   min-width: 0;
   overflow-wrap: anywhere; /* never let a long token overflow the cell */
-}
-
-.mm-row__actions {
-  grid-area: actions;
-  display: flex;
-  gap: var(--space-xs);
-  justify-self: end; /* right-justified on desktop */
-  flex-shrink: 0; /* keep Edit/Delete intact; the main cell yields space */
 }
 
 /* Listing search — icon left, optional clear (✕) right. */
@@ -145,16 +118,6 @@
     display: inline-flex;
   }
 
-  /* Action rows stack: actions drop to a full-width row below, left-justified. */
-  .mm-row {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "main"
-      "actions";
-  }
-  .mm-row__actions {
-    justify-self: end;
-  }
 }
 
 @keyframes mm-slide-in {

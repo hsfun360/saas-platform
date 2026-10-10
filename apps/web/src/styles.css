@@ -232,6 +232,12 @@ body {
      the .data-row--wide-actions @container rule below. */
   container-type: inline-size;
 }
+/* The selected / being-edited record on a master-detail or inline-edit listing
+   (Tax Setup, Modules & Menus, Items, Role Management). */
+.data-card--selected {
+  border-color: var(--brand);
+  background: var(--surface-selected);
+}
 
 .data-card__title {
   font-size: var(--font-body);

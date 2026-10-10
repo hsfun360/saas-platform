@@ -403,9 +403,12 @@ Notes:
 - Keep expanding panels / edit forms as **full-width siblings below** the grid row, not
   inside it, so they span the whole card.
 - Reference implementations: `companies.html` (the global `.data-row--with-badge`, with a
-  status chip), `tenant-users.css` (`.assign-row*`), and `modules-menus.css` (`.mm-row*`,
-  with a `<button>` main cell). `role-management.css` (`.role-*`) and `tax-schemes.css`
-  (`.tx-row*`) still carry hand-rolled rows and are legacy, not references to copy.
+  status chip), `tax-schemes.html` (a `<button>` main cell inside `.data-row--with-badge`,
+  plus the `.data-card--selected` highlight on the open scheme) and `modules-menus.html` /
+  `items.html` (`<button>` main cell in a `.data-list` of `.data-card`s).
+  **Never write a per-screen row grid**: the last private copies (`.role-*`, `.tx-row*`,
+  `.mm-row*`, `.it-row*`, `.mem-row*`) were folded into the global classes on 2026-10-10;
+  a screen keeps only what is not grid - a reset `__select` button, a text column, an indent.
 
 **Status chip (active/inactive etc.) is always TOP-RIGHT.** When a record card carries a
 status badge, it is **right-justified** in its own grid area, not inline after the title -
@@ -605,6 +608,8 @@ left the Companies screen unthemed until it was migrated).
   `.data-card__desc` / `.data-card__meta` (`dt`/`dd`) - the content.
 - `.data-row` + `.data-row--with-badge` (with `.data-row__main` / `__badge` / `__actions`) -
   the content + status + actions grid.
+- `.data-card--selected` - the open / being-edited record on a master-detail or inline-edit
+  listing (brand border + `--surface-selected` fill); bind it with `[class.data-card--selected]`.
 - `.status-chip` + `.status-chip--on` / `--off` - the compact top-right status pill (green =
   on, grey = off), replacing per-screen badge classes and inline colours.
 
@@ -656,6 +661,7 @@ It is the global **`.status-chip`** with ONE state modifier - never a per-screen
 - `status-chip--info` (blue) for a pending or partial standing and `status-chip--danger` (red) for an outstanding / overdue one, so multi-state documents compose the same chip (reference: the Group Bookings deposit standing).
 - The look is `--font-overline` (10px), `--weight-bold`, uppercase, `letter-spacing: 0.5px`, `border-radius: 12px`, padding `--space-xs --space-sm`, colours from the `--success-*` / `--chip-off-*` / `--info-*` / `--danger-*` tokens.
 - The legacy `.badge-active` / `.badge-inactive` rules and the private `.it-status` / `.tx-status` / `.ggb-standing` copies were deleted on 2026-10-09 (25 listings migrated). Reference: `companies.html`, `platform-users.html`.
+- **The one exemption: a status whose colour is user data.** Membership and Member statuses carry their own colour in the status master, so they render as the global **`.status-dot`** (a `.status-dot__swatch` bound to the configured colour + the status name, caption size) instead of a chip - the colour must survive as configured, not map onto on/off/info/danger. Two private copies (`.ms-status`, `.md-status`) were folded into it on 2026-10-10; reference: `memberships.html`, `members.html`, `insight-drill.html`.
 
 **Master-detail: the record's actions live on the MASTER card, not in the detail.**
 For a list → children master-detail (Modules & Menus, Tax Setup), the record's own actions - **Edit**, and for soft-lifecycle records **Enable/Disable** (never a hard **Delete** where posted data may reference the record) - sit on the master card via the action-row-with-badge grid.

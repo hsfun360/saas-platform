@@ -715,8 +715,8 @@
 
             @for (group of memberTree(); track group.principal.id) {
               <div class="mem-card">
-                <div class="mem-row">
-                  <div class="mem-row__main">
+                <div class="data-row">
+                  <div class="data-row__main">
                     <div class="mem-row__name">
                       @if (group.principal.photoUrl) {
                         <img class="ms-avatar" [src]="group.principal.photoUrl" alt="" />
@@ -732,7 +732,7 @@
                       </span>
                     </div>
                   </div>
-                  <div class="mem-row__actions">
+                  <div class="data-row__actions">
                     <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditMember(group.principal)">Edit</button>
                     <app-overflow-menu *appCan="'create'" [label]="'More actions for ' + group.principal.memberNo">
                       <button type="button" appMenuItem (click)="openAddDependent(group.principal)">
@@ -744,8 +744,8 @@
                 </div>
 
                 @for (d of group.dependents; track d.id) {
-                  <div class="mem-row mem-row--dep">
-                    <div class="mem-row__main">
+                  <div class="data-row mem-row--dep">
+                    <div class="data-row__main">
                       <div class="mem-row__name">
                         @if (d.photoUrl) {
                           <img class="ms-avatar" [src]="d.photoUrl" alt="" />
@@ -762,7 +762,7 @@
                         @if (d.expiryDate) { <span class="cell-subtle">expires {{ d.expiryDate | localDate }}</span> }
                       </div>
                     </div>
-                    <div class="mem-row__actions">
+                    <div class="data-row__actions">
                       <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEditMember(d)">Edit</button>
                     </div>
                   </div>
