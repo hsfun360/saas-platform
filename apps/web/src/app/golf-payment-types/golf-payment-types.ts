@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -17,6 +17,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 // front-desk settlement tiles. Enable/disable, no delete. Mirrors the golf
 // Transaction Type screen (minus pricing/package).
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-golf-payment-types',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,

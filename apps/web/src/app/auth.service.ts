@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { environment } from '../environments/environment';
@@ -20,7 +20,6 @@ import {
   CreateCompanyData,
   UpdateCompanyData,
   WorkspaceOption,
-  CompanyInvitation,
   MyInvitation,
   AccountUsersResponse,
   OnboardingModule,
@@ -44,7 +43,7 @@ export class AuthService {
   private fullNameSubject = new BehaviorSubject<string>('Loading...');
   fullName$ = this.fullNameSubject.asObservable();
 
-  constructor(private http: HttpClient) { }
+  private readonly http = inject(HttpClient);
 
   // Broadcast the avatar for the CURRENT user. An empty/falsy value resets to the
   // default avatar and clears the stored one - critical so a previous user's
@@ -136,11 +135,6 @@ export class AuthService {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/mfa/disable`, { code });
   }
 
-  // Rotate the httpOnly refresh cookie for a fresh 1h access token.
-  refreshSession(): Observable<{ token: string }> {
-    return this.http.post<{ token: string }>(`${this.apiBaseUrl}/auth/refresh`, {});
-  }
-
   // Revoke the server-side session (the interceptor clears local state).
   logout(): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/logout`, {});
@@ -159,10 +153,6 @@ export class AuthService {
   setEmail(email: string): void {
     this.userEmail = email;
     localStorage.setItem('userEmail', email);
-  }
-
-  getEmail(): string | null {
-    return this.userEmail || localStorage.getItem('userEmail');
   }
 
   storeToken(token: string): void {
@@ -305,10 +295,6 @@ export class AuthService {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/company/invitations`, { email, roleId, companyId });
   }
 
-  getCompanyInvitations(companyId?: string): Observable<CompanyInvitation[]> {
-    const q = companyId ? `?companyId=${companyId}` : '';
-    return this.http.get<CompanyInvitation[]>(`${this.apiBaseUrl}/auth/company/invitations${q}`);
-  }
 
   revokeInvitation(id: string): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/company/invitations/${id}/revoke`, {});

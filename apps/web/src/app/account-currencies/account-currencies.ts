@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { CurrencyService } from '../services/currency.service';
@@ -10,6 +10,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 // account can then pick their default currency from this set (Companies screen).
 // Reuses the System Setup stylesheet (shared admin-screen look).
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-account-currencies',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule],

@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -11,6 +11,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 // screen (Roles and Users were split into /admin/system-roles and
 // /admin/platform-users). Grants a platform role to a user.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-system-setup',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, ComboboxComponent],
@@ -42,7 +43,7 @@ export class SystemSetupComponent implements OnInit {
   successMessage = signal('');
   errorMessage = signal('');
 
-  constructor(private adminService: AdminService) {}
+  private readonly adminService = inject(AdminService);
 
   // Show a control's validation message once the user has interacted with it
   // (or after a submit attempt marks everything touched).

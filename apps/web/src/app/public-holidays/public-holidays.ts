@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { LocalDatePipe, formatLocalDate } from '../shared/local-date.pipe';
 import { ScreenTitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -20,6 +20,7 @@ import { CanDirective } from '../shared/can.directive';
 // in a SINGLE country, the country picker/filter is hidden and defaulted.
 // Enable/disable, no hard delete. Reactive Forms + the dialog dirty-guard.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-public-holidays',
   standalone: true,
   imports: [CanDirective, FavStarComponent, LocalDatePipe, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],

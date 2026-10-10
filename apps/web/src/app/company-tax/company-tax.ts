@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector, ChangeDetectionStrategy } from '@angular/core';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -21,6 +21,7 @@ import { CanDirective } from '../shared/can.directive';
 // code (rebuilt per scheme, since the component set varies). `editForm.dirty` feeds
 // the shared dialog's unsaved-changes guard.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-company-tax',
   standalone: true,
   imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],

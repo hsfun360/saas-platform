@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -34,6 +34,7 @@ type PlacementForm = FormGroup<{
 // role/department option lists load asynchronously - the raw [value] binding this
 // replaced was applied before the options existed and silently showed "No role").
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-tenant-users',
   standalone: true,
   imports: [CanDirective, 
@@ -149,7 +150,7 @@ export class TenantUsersComponent implements OnInit {
   private readonly injector = inject(Injector);
   private static readonly LIST_PATH = '/admin/users';
 
-  constructor(private authService: AuthService) {}
+  private readonly authService = inject(AuthService);
 
   ngOnInit(): void {
     this.load();

@@ -235,10 +235,6 @@ export class GolfGroupBookingsComponent implements OnInit {
     const id = this.drawDayId();
     return b ? b.days.find((d) => d.id === id) || b.days.find((d) => d.status === 'planned') || null : null;
   });
-  readonly drawFlightOptions = computed(() => {
-    const day = this.drawDay();
-    return (day ? day.flights : []).map((f) => ({ value: f.id, label: this.flightTitle(f, day) }));
-  });
   // Seats taken per flight in the EDITED draw. Methods, not computeds: they
   // read form controls, which signals cannot track.
   drawLoad(): Record<string, number> {
@@ -416,22 +412,18 @@ export class GolfGroupBookingsComponent implements OnInit {
   // The folio stays workable on a CANCELLED booking while its group bill is
   // open (a cancellation charge is billed and settled by the deposit); only
   // a booked booking takes new items on an empty folio or new deposits.
-  billOpen(): boolean {
+  readonly billOpen = computed(() => {
     const f = this.folio();
     const b = this.booking();
     if (!b) return false;
     if (f?.bill) return f.bill.status === 'open';
     return b.status === 'booked';
-  }
+  });
 
-  canDeposit(): boolean {
+  readonly canDeposit = computed(() => {
     const b = this.booking();
     return !!b && b.status === 'booked';
-  }
-
-  billSettled(): boolean {
-    return this.folio()?.bill?.status === 'settled';
-  }
+  });
 
   setAddItemType(id: string): void {
     this.addItemTypeId.set(id);
@@ -641,7 +633,7 @@ export class GolfGroupBookingsComponent implements OnInit {
     });
     // Switching the tender clears the deposit pick (a Deposit-class line
     // chooses which held deposit it draws on; any other tender carries none).
-    g.controls.paymentTypeId.valueChanges.subscribe(() => g.controls.depositBillId.setValue('', { emitEvent: false }));
+    g.controls.paymentTypeId.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => g.controls.depositBillId.setValue('', { emitEvent: false }));
     return g;
   }
 

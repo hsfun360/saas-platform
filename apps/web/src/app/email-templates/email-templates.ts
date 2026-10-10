@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
@@ -10,6 +10,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 // System Admin: the platform email templates. A fixed catalogue (no create /
 // delete) — each row opens the editor. Reuses the shared admin-screen styles.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-email-templates',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, RouterModule],

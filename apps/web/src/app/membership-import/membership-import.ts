@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector, ChangeDetectionStrategy } from '@angular/core';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { CommonModule } from '@angular/common';
@@ -21,6 +21,7 @@ import { ImportBatchDetail, ImportBatchSummary, ImportMigrateResult, ImportRow }
 // URL state: /membership/import lists batches, /membership/import/:id reviews
 // one (deep-linkable, browser back returns to the list).
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-membership-import',
   standalone: true,
   imports: [ConfirmDialogComponent, CommonModule, CanDirective, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, OverflowMenuComponent, MenuItemDirective],

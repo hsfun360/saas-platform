@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector, ChangeDetectionStrategy } from '@angular/core';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -44,6 +44,7 @@ const MSIC_SECTION_NAMES: Record<string, string> = {
 // delete them. Clone of the e-Invoice Classification Codes screen; reuses the System
 // Setup stylesheet (shared admin-screen look).
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-e-invoice-msic-codes',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective],

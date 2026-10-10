@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, viewChild, ChangeDetectionStrategy } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -17,6 +17,7 @@ import { ArCopyCandidate, ArOption, ArTransactionTypeMeta, ArTransactionTypeRow 
 // module usability (entitled modules only) + e-Invoice classification.
 // Enable/disable, no delete.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-ar-transaction-types',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, CanDirective, ComboboxComponent],

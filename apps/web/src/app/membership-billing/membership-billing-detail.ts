@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -12,6 +12,7 @@ import { BillingSchedule, BillingScheduleItem } from '../models/billing.models';
 // post the selection. One AR Invoice per posted item; failures stay on the
 // item with their reason.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-membership-billing-detail',
   standalone: true,
   imports: [CommonModule, RouterLink, CanDirective, LocalDatePipe],

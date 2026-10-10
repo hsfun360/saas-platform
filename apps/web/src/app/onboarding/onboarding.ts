@@ -1,4 +1,5 @@
-import { Component, OnInit, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject, signal, computed, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../auth.service';
@@ -17,6 +18,7 @@ import { OnboardingModule } from '../models/auth.models';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OnboardingComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
@@ -42,8 +44,8 @@ export class OnboardingComponent implements OnInit {
   readonly selectedCount = computed(() => this.selectedModuleIds().size);
 
   ngOnInit(): void {
-    this.form.controls.subscriberName.valueChanges.subscribe(v => this.orgName.set(v.trim()));
-    this.form.controls.companyName.valueChanges.subscribe(v => this.companyNameValue.set(v.trim()));
+    this.form.controls.subscriberName.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(v => this.orgName.set(v.trim()));
+    this.form.controls.companyName.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(v => this.companyNameValue.set(v.trim()));
 
     this.auth.getOnboardingModules().subscribe({
       next: (mods) => {

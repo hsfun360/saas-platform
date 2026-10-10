@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -13,6 +13,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 // person the company knows: individual members, nominees and dependents.
 // Creation/editing happens on the Memberships screen.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-members',
   standalone: true,
   imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ComboboxComponent],

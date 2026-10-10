@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -25,6 +25,7 @@ import { ArAccount, ArAccountMeta, ArDepositDoc, ArLedgerDoc, ArReceiptDoc } fro
 // docDate = occurrence (drives aging/dueDate); trxDate = accounting period
 // (defaults to docDate; differs when back-keying into a closed GL month).
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-ar-debtor-account',
   standalone: true,
   imports: [

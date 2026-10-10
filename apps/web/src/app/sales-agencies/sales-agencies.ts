@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector, ChangeDetectionStrategy } from '@angular/core';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -17,6 +17,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 // companies a club engages to promote its memberships; their staff are Sales
 // Agents of kind 'agency-staff'.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-sales-agencies',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],

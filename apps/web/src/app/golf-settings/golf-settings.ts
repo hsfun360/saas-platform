@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
@@ -43,6 +43,7 @@ import {
 // minus the hours, club-local. Section-card standard, one Save (PUT upserts
 // the singleton and replaces the override lines atomically).
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-golf-settings',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective, ComboboxComponent],

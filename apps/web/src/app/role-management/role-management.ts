@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, viewChild, ChangeDetectionStrategy } from '@angular/core';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -23,6 +23,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 // the SHARED <app-permission-picker> (also used by the platform System Roles
 // editor), bound to the `selectedGrants` map signal.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-role-management',
   standalone: true,
   imports: [ConfirmDialogComponent, CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PermissionPickerComponent, OverflowMenuComponent, MenuItemDirective],

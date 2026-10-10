@@ -1,4 +1,4 @@
-import { Component, DestroyRef, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, Injector, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AbstractControl, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -40,6 +40,7 @@ type ModuleRowForm = FormGroup<{
 // level stays a one-column report. The parent link is independent of the
 // dimension NUMBER: Division may be Dimension 5 and Department Dimension 2.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-ar-analysis',
   standalone: true,
   imports: [

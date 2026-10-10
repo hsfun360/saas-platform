@@ -1,4 +1,4 @@
-import { Component, computed, input, model, signal } from '@angular/core';
+import { Component, computed, input, model, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RoleMenuPermission } from '../../models/auth.models';
 
@@ -74,6 +74,7 @@ interface PermModuleView {
 // grants are tolerated - they are invisible here and stripped from the
 // output) and reads the final payload via `permissions()`.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-permission-picker',
   standalone: true,
   imports: [CommonModule],

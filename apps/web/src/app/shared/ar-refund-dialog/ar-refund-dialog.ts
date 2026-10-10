@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, effect, inject, input, output, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subject, debounceTime } from 'rxjs';
@@ -45,6 +45,7 @@ const REFUND_KINDS: RefundKindDef[] = [
 ];
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-ar-refund-dialog',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, ComboboxComponent],

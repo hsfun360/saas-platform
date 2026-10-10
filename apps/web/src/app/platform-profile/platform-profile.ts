@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { MoneyPipe } from '../shared/money.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -24,6 +24,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 // `<app-phone-input>` bound via formControlName, inline role="alert" errors, correct
 // HTML5 input types. The billing country drives the scheme picker via a signal.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-platform-profile',
   standalone: true,
   imports: [MoneyPipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, PhoneInputComponent, MoneyInputDirective, ComboboxComponent],

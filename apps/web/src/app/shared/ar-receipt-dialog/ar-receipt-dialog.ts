@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, effect, inject, input, output, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subject, debounceTime } from 'rxjs';
@@ -20,6 +20,7 @@ import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate, arTrimRate } from '..
 // collection is stored on the draft and resolved at posting, after which the
 // remainder auto-allocates FIFO across open items (receipt behaviour).
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-ar-receipt-dialog',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, ComboboxComponent],

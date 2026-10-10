@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector, ChangeDetectionStrategy } from '@angular/core';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -19,6 +19,7 @@ import { CanDirective } from '../shared/can.directive';
 // "Load defaults" previews the bundled Staff/Supervisor/Manager ladder and
 // creates only what you select (show-expected-results standard).
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-positions',
   standalone: true,
   imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],

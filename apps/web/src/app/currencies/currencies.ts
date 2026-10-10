@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -19,6 +19,7 @@ import { CanDirective } from '../shared/can.directive';
 // nonNullable FormGroups, validators live on the controls, and `form.dirty`
 // feeds the shared dialog's unsaved-changes guard directly.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-currencies',
   standalone: true,
   imports: [ConfirmDialogComponent, CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],

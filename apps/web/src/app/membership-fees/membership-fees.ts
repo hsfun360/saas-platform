@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { MoneyPipe } from '../shared/money.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -36,6 +36,7 @@ function round2(n: number): number {
 // enabled only while "Allow installment" is on — wired through the checkbox
 // control's valueChanges.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-membership-fees',
   standalone: true,
   imports: [MoneyPipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],

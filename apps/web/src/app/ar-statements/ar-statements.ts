@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { CommonModule } from '@angular/common';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
@@ -37,6 +37,7 @@ const VIEW_COL_ORDER: ArStatementColumnKey[] = ['date', 'docNo', 'details', 'deb
 // category filters, the frozen-document viewer (print-complete: letterhead,
 // contact person, running balance, deposit, aging buckets), and void.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-ar-statements',
   standalone: true,
   imports: [ConfirmDialogComponent, 

@@ -1,3 +1,4 @@
+import { inject } from '@angular/core';
 ﻿import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -29,7 +30,7 @@ import {
 export class AdminService {
   private apiBaseUrl = `${environment.apiUrl}/admin`;
 
-  constructor(private http: HttpClient) { }
+  private readonly http = inject(HttpClient);
 
   // --- Audit-trail viewer (read-only) ---
   listAuditLog(filters: { tableName?: string; recordId?: string; userEmail?: string; from?: string; to?: string; page?: number; limit?: number }): Observable<AuditLogPage> {

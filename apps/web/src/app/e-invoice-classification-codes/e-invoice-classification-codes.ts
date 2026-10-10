@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector, ChangeDetectionStrategy } from '@angular/core';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -20,6 +20,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 // nonNullable FormGroups, validators live on the controls, and `form.dirty`
 // feeds the shared dialog's unsaved-changes guard directly.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-e-invoice-classification-codes',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective],

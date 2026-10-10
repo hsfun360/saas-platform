@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -70,6 +70,7 @@ function toHHMM(minutes: number): string {
 // labels and DB columns (user's vocabulary). Legacy zone column dropped.
 // Enable/disable (no hard delete). Reuses the System Setup stylesheet.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-golf-courses',
   standalone: true,
   imports: [ConfirmDialogComponent, LocalDatePipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,

@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
@@ -15,6 +15,7 @@ import { GolfGolferService, Golfer } from '../services/golf-golfer.service';
 // Specification screen read these fields. Names/member numbers are
 // snapshots of the profile source and stay read-only here.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-golf-golfers',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective, DialogComponent],

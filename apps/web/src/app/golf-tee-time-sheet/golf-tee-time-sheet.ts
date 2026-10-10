@@ -1,4 +1,5 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
@@ -75,6 +76,7 @@ function localToday(): string {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-golf-tee-time-sheet',
   standalone: true,
   imports: [
@@ -86,6 +88,7 @@ function localToday(): string {
   styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css', './golf-tee-time-sheet.css'],
 })
 export class GolfTeeTimeSheetComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(GolfFrontDeskService);
   private readonly fb = inject(FormBuilder);
   private readonly returnScroll = inject(ScrollReturnService);
@@ -669,10 +672,10 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     this.load();
   }
 
-  billOpen(): boolean {
+  readonly billOpen = computed(() => {
     const b = this.bill();
     return !!b && b.status === 'open';
-  }
+  });
 
   addTile(transactionTypeId: string): void {
     const b = this.bill();
@@ -883,7 +886,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     });
     // Waiving only applies to an included booking (reactive-forms way: the
     // control is disabled, never the DOM attribute).
-    g.controls.include.valueChanges.subscribe((inc) => {
+    g.controls.include.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((inc) => {
       if (inc) g.controls.waive.enable({ emitEvent: false });
       else g.controls.waive.disable({ emitEvent: false });
     });

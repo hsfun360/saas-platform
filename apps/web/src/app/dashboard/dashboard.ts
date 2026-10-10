@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, computed, signal, DestroyRef, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, signal, DestroyRef, inject, ChangeDetectionStrategy } from '@angular/core';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterModule, Router } from '@angular/router';
@@ -61,7 +61,9 @@ interface NavNode {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
     selector: 'app-dashboard',
+    standalone: true,
     templateUrl: './dashboard.html',
     styleUrl: './dashboard.css',
     imports: [CommonModule, RouterModule, TranslatePipe, HelpButtonComponent, ConfirmDialogComponent],
@@ -75,7 +77,6 @@ export class Dashboard implements OnInit, OnDestroy {
   // Updated asynchronously from the avatar$/fullName$ streams, so held in signals
   // to refresh the view without relying on zone-based change detection.
   userFullName = signal<string | null>(null);
-  userAvatar: string | null = null;
   isAppsDropdownOpen = false;
   isSystemAdmin = false;
   userRoleName = 'User';

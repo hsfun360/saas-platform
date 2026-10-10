@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -21,6 +21,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 // (/admin/tax-schemes/:id) so it deep-links and survives back/forward. Reuses the
 // System Setup stylesheet for the shared admin-screen look.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-tax-schemes',
   standalone: true,
   imports: [CanDirective, LocalDatePipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective],

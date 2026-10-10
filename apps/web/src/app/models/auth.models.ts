@@ -1,5 +1,6 @@
 ﻿export interface MenuItem {
-  Module: any;
+  // The owning module as the API ships it alongside a menu (name/code), when present.
+  Module?: { name: string; code?: string } | null;
   // Menu id (DB UUID, or a synthetic string for code-defined section headers),
   // used to build the sidebar tree from parentId.
   id?: string;

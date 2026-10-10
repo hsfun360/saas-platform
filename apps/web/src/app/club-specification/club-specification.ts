@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -16,6 +16,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 // Every option states its consequence in a caption (the "show expected
 // results" principle): the user sees WHAT the entry screens will hide.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-club-specification',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],

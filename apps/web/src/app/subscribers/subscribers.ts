@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector, ChangeDetectionStrategy } from '@angular/core';
 import { COUNTRY_TIMEZONES } from '../shared/countries';
 import { timezoneWithOffset } from '../shared/timezone';
 import { ComboboxComponent } from '../shared/combobox/combobox';
@@ -41,6 +41,7 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
 // group-level password-match validator), and `form.dirty` feeds the shared
 // dialog's unsaved-changes guard directly.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-subscribers',
   standalone: true,
   imports: [ComboboxComponent, ConfirmDialogComponent, CanDirective, FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective],
@@ -132,7 +133,7 @@ export class SubscribersComponent implements OnInit {
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
 
-  constructor(private adminService: AdminService) {}
+  private readonly adminService = inject(AdminService);
 
   ngOnInit(): void {
     this.loadSubscriptions();

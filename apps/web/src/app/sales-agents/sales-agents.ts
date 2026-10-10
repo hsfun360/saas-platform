@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector, ChangeDetectionStrategy } from '@angular/core';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
@@ -18,6 +18,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 // staff, external individuals and internal sales staff - with an
 // invite-to-login flow onto the /agent portal.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-sales-agents',
   standalone: true,
   imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],

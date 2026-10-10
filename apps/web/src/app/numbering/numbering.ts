@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector, ChangeDetectionStrategy } from '@angular/core';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ActivatedRoute } from '@angular/router';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
@@ -19,6 +19,7 @@ import { CanDirective } from '../shared/can.directive';
 // auto, the format tokens + counter build the number. Live preview mirrors the
 // server generator. Reactive Forms + the dialog dirty-guard.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-numbering',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, CanDirective],

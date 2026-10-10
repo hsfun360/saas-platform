@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -17,6 +17,7 @@ import { CanDirective } from '../shared/can.directive';
 // address data; a person living in Malaysia may be Singaporean.
 // Enable/disable, no hard delete. Reactive Forms + the dialog dirty-guard.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-nationalities',
   standalone: true,
   imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],

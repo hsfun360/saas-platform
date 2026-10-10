@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { TransactionTypeService } from '../services/transaction-type.service';
@@ -25,6 +25,7 @@ const CLASS_LABELS: Record<string, string> = {
 };
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-membership-transaction-types',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule],

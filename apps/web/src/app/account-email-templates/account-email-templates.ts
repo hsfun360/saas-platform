@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
@@ -10,6 +10,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 // Tenant Admin: the platform emails this subscriber may customise. Each row shows
 // whether they currently use their own version or the platform default.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-account-email-templates',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, RouterModule],

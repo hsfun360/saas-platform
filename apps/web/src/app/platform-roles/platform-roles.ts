@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, viewChild, ChangeDetectionStrategy } from '@angular/core';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -22,6 +22,7 @@ import { CanDirective } from '../shared/can.directive';
 // carry a data scope — platform RBAC mirrors the tenant model exactly. The
 // seeded "System Admin" role is implicit-full-access and stays system-managed.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-platform-roles',
   standalone: true,
   imports: [ConfirmDialogComponent, CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PermissionPickerComponent, OverflowMenuComponent, MenuItemDirective],
@@ -78,7 +79,7 @@ export class PlatformRolesComponent implements OnInit {
   successMessage = signal('');
   errorMessage = signal('');
 
-  constructor(private adminService: AdminService) {}
+  private readonly adminService = inject(AdminService);
 
   ngOnInit(): void {
     this.loadRoles();

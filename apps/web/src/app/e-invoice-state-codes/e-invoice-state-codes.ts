@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal, Injector } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, Injector, ChangeDetectionStrategy } from '@angular/core';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -17,6 +17,7 @@ import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-men
 // add codes manually, edit them, and enable/disable or delete them. Clone of the
 // Classification Codes screen; reuses the System Setup stylesheet.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-e-invoice-state-codes',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective],

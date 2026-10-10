@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { MoneyPipe } from '../shared/money.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -50,6 +50,7 @@ const MONTH_NAMES = [
 // personal-only (child age / play times) and corporate-only (nominee) fields.
 // Reactive Forms + the shared dialog unsaved-changes guard (house standard).
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-membership-types',
   standalone: true,
   imports: [MoneyPipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],

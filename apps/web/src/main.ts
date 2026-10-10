@@ -1,4 +1,4 @@
-import { ApplicationConfig, provideAppInitializer, inject } from '@angular/core';
+import { provideAppInitializer, inject } from '@angular/core';
 import { provideRouter, Routes } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './app/auth.interceptor';
@@ -246,15 +246,6 @@ const routes: Routes = [
   },
 ];
 
-export const appConfig: ApplicationConfig = {
-  providers: [
-    provideRouter(routes),
-
-    // 👇 Add this exact line to turn on your HTTP traffic cop!
-    provideHttpClient(withInterceptors([authInterceptor]))
-  ]
-};
-
 // 2. Microsoft Configuration Factory
 export function MSALInstanceFactory(): IPublicClientApplication {
   return new PublicClientApplication({
@@ -275,9 +266,7 @@ export function MSALInstanceFactory(): IPublicClientApplication {
     },
     system: {
       loggerOptions: {
-        loggerCallback: (level, message, containsPii) => {
-          console.log('[MSAL]', message);
-        },
+        loggerCallback: () => {}, // MSAL chatter stays out of the console
         piiLoggingEnabled: false
       }
     }

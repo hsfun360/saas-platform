@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LanguageService } from '../services/language.service';
 import { TranslatePipe } from '../i18n/translate.pipe';
@@ -10,6 +10,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 // account can then pick a personal preferred language from this set (Settings).
 // Reuses the System Setup stylesheet (shared admin-screen look).
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-account-languages',
   standalone: true,
   imports: [CommonModule, TranslatePipe, FavStarComponent],

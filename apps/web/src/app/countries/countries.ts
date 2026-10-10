@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
@@ -38,6 +38,7 @@ type TranslationGroup = FormGroup<{
 // control plus a `translations` FormArray (one FormGroup per language). `form.dirty`
 // feeds the shared dialog's unsaved-changes guard directly.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-countries',
   standalone: true,
   imports: [CanDirective, FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
@@ -100,7 +101,7 @@ export class CountriesComponent implements OnInit {
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
 
-  constructor(private countryService: CountryService) {}
+  private readonly countryService = inject(CountryService);
 
   ngOnInit(): void {
     this.load();

@@ -1,58 +1,40 @@
-import { Component, signal, OnInit } from '@angular/core';
-import { RouterOutlet, Router } from '@angular/router'; // 👈 Required to render your routes
+import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { Router, RouterOutlet } from '@angular/router';
 import { MsalService } from '@azure/msal-angular';
-import { AuthService } from './auth.service'; // 👈 Import your auth service
+import { AuthService } from './auth.service';
 
 @Component({
   selector: 'app-root',
-  standalone: true, // 👈 Must be true!
-  styleUrl: './app.css',
-  imports: [RouterOutlet], // 👈 Inject the router outlet directly
-//  templateUrl: './app.html',
-  template: `<router-outlet></router-outlet> <!-- This is where your routed components will appear -->`
+  standalone: true,
+  imports: [RouterOutlet],
+  template: `<router-outlet></router-outlet>`,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App implements OnInit {
-  protected readonly title = signal('Login');
-
-  constructor(
-    private msalService: MsalService,
-    private authService: AuthService,
-    private router: Router
-  ) {}
+  private readonly msalService = inject(MsalService);
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
 
   ngOnInit(): void {
-    // Wake up the Microsoft authentication service when the app loads
+    // Initialise MSAL once at boot; a Microsoft redirect return carries the
+    // token that completes the login (the login screen handles the UI).
     this.msalService.instance.initialize().then(() => {
-      console.log('Microsoft MSAL Initialized successfully!');
-
-      // 👇 THIS CATCHES THE TOKEN WHEN MICROSOFT REDIRECTS BACK 👇
       this.msalService.handleRedirectObservable().subscribe({
         next: (response) => {
           if (response !== null && response.accessToken) {
-            console.log('Successfully returned from Microsoft with token!');
-            
-            // Send token to your Node.js backend
             this.authService.microsoftLogin(response.accessToken).subscribe({
               next: (res) => {
-                if (res.token) {
-                  localStorage.setItem('token', res.token);
-                }
-                if (res.email) {
-                  localStorage.setItem('userEmail', res.email);
-                }
-                if (res.fullName) {
-                  this.authService.updateFullNameState(res.fullName);
-                }
+                if (res.token) localStorage.setItem('token', res.token);
+                if (res.email) localStorage.setItem('userEmail', res.email);
+                if (res.fullName) this.authService.updateFullNameState(res.fullName);
                 this.router.navigate(['/home']);
               },
-              error: (err) => console.error('Backend rejected token:', err)
+              error: () => {}, // the login screen reports the failure
             });
           }
         },
-        error: (error) => console.error('Redirect Error:', error)
+        error: () => {},
       });
-    }).catch(err => {
-      console.error('MSAL Initialization Error:', err);
-    });
+    }).catch(() => {});
   }
 }

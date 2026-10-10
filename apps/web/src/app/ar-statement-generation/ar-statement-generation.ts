@@ -1,4 +1,5 @@
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -24,6 +25,7 @@ import { ArStatementCategory, ArStatementRun, ArStatementRunPreview } from '../m
 // Cancel settles at the next chunk; failed/partial runs Resume exactly where
 // they stopped.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-ar-statement-generation',
   standalone: true,
   imports: [ConfirmDialogComponent, 
@@ -35,6 +37,7 @@ import { ArStatementCategory, ArStatementRun, ArStatementRunPreview } from '../m
   styleUrls: ['../system-setup/system-setup.css', './ar-statement-generation.css'],
 })
 export class ArStatementGenerationComponent implements OnInit, OnDestroy {
+  private readonly destroyRef = inject(DestroyRef);
   // Month picker options (shared combobox - Firefox has no native month input).
   readonly monthOptions = monthComboOptions();
   private readonly service = inject(ArService);
@@ -95,7 +98,7 @@ export class ArStatementGenerationComponent implements OnInit, OnDestroy {
     this.runForm.patchValue({ month });
     this.loadSetting(month);
     this.loadRuns();
-    this.runForm.controls.month.valueChanges.subscribe((m) => this.applyDefaultPeriod(m));
+    this.runForm.controls.month.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((m) => this.applyDefaultPeriod(m));
   }
 
   ngOnDestroy(): void {

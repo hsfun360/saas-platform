@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
@@ -23,6 +23,7 @@ function localDate(d: Date): string {
 // and the Front Desk's no-show review, never here. Grantable on its own so
 // finance can hold it without the tee-sheet or booking screens.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-golf-no-show-charges',
   standalone: true,
   imports: [CommonModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective, DialogComponent,

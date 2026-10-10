@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, computed, inject, signal, viewChild, Injector } from '@angular/core';
+import { Component, ElementRef, OnInit, computed, inject, signal, viewChild, Injector, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { LocalDatePipe, localDateOnly } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
@@ -39,6 +39,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 // nominees under a corporate membership, dependents (spouse/son/daughter/ward)
 // under an individual member or a nominee.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-memberships',
   standalone: true,
   imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, MoneyInputDirective, SortMenuComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
@@ -46,6 +47,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
   styleUrls: ['../system-setup/system-setup.css', './memberships.css'],
 })
 export class MembershipsComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(MembershipService);
   // After-save return-to-row (app-wide listing standard).
   private readonly returnScroll = inject(ScrollReturnService);
@@ -399,7 +401,7 @@ export class MembershipsComponent implements OnInit {
     this.countryService.listActive().subscribe({ next: (l) => this.countries.set(l), error: () => {} });
 
     // The picked type drives class + defaults while adding.
-    this.membershipForm.controls.membershipTypeId.valueChanges.subscribe((id) => {
+    this.membershipForm.controls.membershipTypeId.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((id) => {
       if (this.editMembership()) return;
       const type = this.options()?.types.find((t) => t.id === id);
       if (!type) return;

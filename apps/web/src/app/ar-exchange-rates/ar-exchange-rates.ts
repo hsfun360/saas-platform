@@ -1,4 +1,5 @@
-import { Component, Injector, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, Injector, OnInit, computed, inject, signal, viewChild, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -19,6 +20,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 // Documents snapshot the rate they used, so rows here only set future
 // defaults - editing/deleting never rewrites history.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-ar-exchange-rates',
   standalone: true,
   imports: [ConfirmDialogComponent, 
@@ -30,6 +32,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
   styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css', './ar-exchange-rates.css'],
 })
 export class ArExchangeRatesComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(ArService);
   private readonly fb = inject(FormBuilder);
   // After-save return-to-row (app standard): the list re-sorts on reload, so
@@ -124,8 +127,8 @@ export class ArExchangeRatesComponent implements OnInit {
     this.load();
     // Mirror the two preview-relevant controls into signals (computed cannot
     // read a FormControl directly).
-    this.form.controls.currencyCode.valueChanges.subscribe((v) => this.formCurrency.set(v));
-    this.form.controls.rate.valueChanges.subscribe((v) => this.formRate.set(v));
+    this.form.controls.currencyCode.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((v) => this.formCurrency.set(v));
+    this.form.controls.rate.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((v) => this.formRate.set(v));
   }
 
   showError(control: AbstractControl): boolean {

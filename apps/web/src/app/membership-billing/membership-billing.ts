@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, Injector } from '@angular/core';
+import { Component, OnInit, inject, signal, Injector, ChangeDetectionStrategy } from '@angular/core';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { CommonModule } from '@angular/common';
@@ -18,6 +18,7 @@ import { BillingSchedule } from '../models/billing.models';
 // Subscription Fee holding for a month, then open a schedule to review its
 // items and post - one AR Invoice per posted item.
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-membership-billing',
   standalone: true,
   imports: [ConfirmDialogComponent, 
