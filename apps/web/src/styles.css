@@ -198,6 +198,9 @@ textarea[aria-invalid='true'] {
 body {
   background: var(--surface-page);
   color: var(--text-primary);
+  /* The app font, inherited by everything outside the shell too (auth card,
+     portals) - without it those pages fell back to the browser serif. */
+  font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
 }
 
 /* ============================================================== */

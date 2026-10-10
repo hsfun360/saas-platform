@@ -3,6 +3,10 @@ import { NavigationEnd, Router } from '@angular/router';
 import { MenuItem } from '../models/auth.models';
 import { I18nService } from './i18n.service';
 
+// The browser-tab title when the route is not a granted menu (login, profile,
+// settings, portals) - the product name from index.html, never a stale screen.
+const APP_TITLE = 'myEasySoft';
+
 // Resolves the current screen's header title/subtitle from the granted MENU
 // record, so what the user clicked in the sidebar and what the screen says
 // always agree - in the user's active language. The Menu is the single source
@@ -41,7 +45,7 @@ export class ScreenTitleService {
     effect(() => {
       const lang = this.i18n.lang();
       const menu = this.menuFor(this.path());
-      document.title = (menu && ((menu.names && menu.names[lang]) || menu.name)) || 'Login';
+      document.title = (menu && ((menu.names && menu.names[lang]) || menu.name)) || APP_TITLE;
     });
   }
 
