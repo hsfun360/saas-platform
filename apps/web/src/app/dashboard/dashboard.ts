@@ -305,6 +305,7 @@ export class Dashboard implements OnInit, OnDestroy {
     const next = !this.isDropdownOpen;
     this.closeDropdown();
     this.isDropdownOpen = next;
+    if (next) this.openDropdownFrom(event);
   }
 
   onAvatarError(): void {
@@ -315,6 +316,10 @@ export class Dashboard implements OnInit, OnDestroy {
 
   toggleSidebar(): void {
     this.isSidebarPinned = !this.isSidebarPinned;
+    // Mobile drawer: move focus into the navigation when it opens.
+    if (this.isSidebarPinned && window.innerWidth < 768) {
+      requestAnimationFrame(() => document.querySelector<HTMLElement>('.sidebar-nav a, .sidebar-nav button')?.focus());
+    }
   }
 
   onLogout(): void {
@@ -334,6 +339,7 @@ export class Dashboard implements OnInit, OnDestroy {
     const next = !this.isAppsDropdownOpen;
     this.closeDropdown();
     this.isAppsDropdownOpen = next;
+    if (next) this.openDropdownFrom(event);
   }
 
   selectModule(moduleName: string, navigate = true): void {
@@ -358,11 +364,30 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   closeDropdown(): void {
+    const wasOpen = this.isDropdownOpen || this.isAppsDropdownOpen || this.isWorkspaceDropdownOpen || this.isLanguageDropdownOpen || this.isNotifDropdownOpen;
     this.isDropdownOpen = false;
     this.isAppsDropdownOpen = false;
     this.isWorkspaceDropdownOpen = false;
     this.isLanguageDropdownOpen = false;
     this.isNotifDropdownOpen = false;
+    // Focus management (a11y): focus returns to the trigger that opened the menu.
+    if (wasOpen && this.dropdownTrigger) {
+      const trigger = this.dropdownTrigger;
+      this.dropdownTrigger = null;
+      queueMicrotask(() => trigger.focus());
+    }
+  }
+
+  // The header dropdowns are signal-less popovers; on open, focus moves to
+  // their first item (keyboard users land inside the menu, Esc / outside
+  // click closes and returns focus - see closeDropdown).
+  private dropdownTrigger: HTMLElement | null = null;
+  private openDropdownFrom(event: Event): void {
+    this.dropdownTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    requestAnimationFrame(() => {
+      const first = document.querySelector<HTMLElement>('.menu-pop .menu-pop__item, .menu-pop .account-pill, .menu-pop button');
+      first?.focus();
+    });
   }
 
   ngOnDestroy(): void {
@@ -375,6 +400,7 @@ export class Dashboard implements OnInit, OnDestroy {
     const next = !this.isNotifDropdownOpen;
     this.closeDropdown();
     this.isNotifDropdownOpen = next;
+    if (next) this.openDropdownFrom(event);
     if (next) this.notifications.load(); // fresh list on open
   }
 
@@ -421,6 +447,7 @@ export class Dashboard implements OnInit, OnDestroy {
     const next = !this.isLanguageDropdownOpen;
     this.closeDropdown();
     this.isLanguageDropdownOpen = next;
+    if (next) this.openDropdownFrom(event);
   }
 
   chooseLanguage(code: string): void {
@@ -444,6 +471,7 @@ export class Dashboard implements OnInit, OnDestroy {
     const next = !this.isWorkspaceDropdownOpen;
     this.closeDropdown();
     this.isWorkspaceDropdownOpen = next;
+    if (next) this.openDropdownFrom(event);
   }
 
   loadWorkspaces(): void {

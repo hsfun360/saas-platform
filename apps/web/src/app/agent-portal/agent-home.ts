@@ -1,6 +1,5 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { LocalDatePipe } from '../shared/local-date.pipe';
-import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { SalesService, AgentEngagement } from '../services/sales.service';
 
@@ -12,9 +11,10 @@ import { SalesService, AgentEngagement } from '../services/sales.service';
 @Component({
   selector: 'app-agent-home',
   standalone: true,
-  imports: [LocalDatePipe, CommonModule],
+  imports: [LocalDatePipe],
   templateUrl: './agent-home.html',
   styleUrls: ['../portal/portal-home.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AgentHomeComponent implements OnInit {
   private readonly sales = inject(SalesService);
@@ -25,10 +25,10 @@ export class AgentHomeComponent implements OnInit {
   readonly errorMessage = signal('');
 
   readonly tiles = [
-    { icon: '📈', title: 'My sales', blurb: 'The memberships you closed.' },
-    { icon: '📇', title: 'My prospects', blurb: 'Leads and follow-ups.' },
-    { icon: '💰', title: 'My commission', blurb: 'Earnings from your sales.' },
-    { icon: '👤', title: 'My profile', blurb: 'Keep your contact details up to date.' },
+    { icon: 'trending_up', title: 'My sales', blurb: 'The memberships you closed.' },
+    { icon: 'contacts', title: 'My prospects', blurb: 'Leads and follow-ups.' },
+    { icon: 'payments', title: 'My commission', blurb: 'Earnings from your sales.' },
+    { icon: 'person', title: 'My profile', blurb: 'Keep your contact details up to date.' },
   ];
 
   ngOnInit(): void {

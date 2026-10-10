@@ -1,6 +1,5 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { LocalDatePipe } from '../shared/local-date.pipe';
-import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { PortalService, PortalMembershipCard } from '../services/portal.service';
 
@@ -12,9 +11,10 @@ import { PortalService, PortalMembershipCard } from '../services/portal.service'
 @Component({
   selector: 'app-portal-home',
   standalone: true,
-  imports: [LocalDatePipe, CommonModule],
+  imports: [LocalDatePipe],
   templateUrl: './portal-home.html',
   styleUrls: ['./portal-home.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PortalHomeComponent implements OnInit {
   private readonly portal = inject(PortalService);
@@ -25,11 +25,11 @@ export class PortalHomeComponent implements OnInit {
   readonly errorMessage = signal('');
 
   readonly tiles = [
-    { icon: '⛳', title: 'Golf booking', blurb: 'Book a tee time.' },
-    { icon: '🏸', title: 'Facility booking', blurb: 'Reserve courts and rooms.' },
-    { icon: '🍽️', title: 'Dining', blurb: 'Reserve a table at the restaurant.' },
-    { icon: '👤', title: 'My profile', blurb: 'Keep your contact details up to date.' },
-    { icon: '🎫', title: 'My requests', blurb: 'Raise and track requests with the club.' },
+    { icon: 'golf_course', title: 'Golf booking', blurb: 'Book a tee time.' },
+    { icon: 'sports_tennis', title: 'Facility booking', blurb: 'Reserve courts and rooms.' },
+    { icon: 'restaurant', title: 'Dining', blurb: 'Reserve a table at the restaurant.' },
+    { icon: 'person', title: 'My profile', blurb: 'Keep your contact details up to date.' },
+    { icon: 'confirmation_number', title: 'My requests', blurb: 'Raise and track requests with the club.' },
   ];
 
   ngOnInit(): void {

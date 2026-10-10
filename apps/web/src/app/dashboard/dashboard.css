@@ -28,13 +28,22 @@
 }
 
 /* --- GOOGLE STYLE TOP BAR --- */
+/* The branded app bar is the ONE deliberately always-dark surface (both
+   themes); everything drawn ON it uses these bar-local tokens, never a hex. */
+:host {
+  --bar-brand: rgb(0, 60, 145);
+  --bar-admin: #be0000;
+  --bar-hover: rgba(255, 255, 255, 0.12);
+  --bar-divider: rgba(255, 255, 255, 0.35);
+  --surface-logo-tile: #ffffff; /* arbitrary company logos stay legible on the dark bar */
+}
 .google-topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 var(--space-lg);
-  background-color: #202124;
-  color: white;
+  background-color: var(--bar-brand);
+  color: var(--text-on-brand);
   height: var(--header-height);
   /* Never let the fixed-height column flex compress the header when a tall
      route fills the content area — it must stay a constant height. */
@@ -83,7 +92,7 @@
 /* Smallest phones: drop the logo chip from the bar - the NAME identifies the
    workspace better than the logo, and every freed pixel goes to it. The logo
    still shows inside the switcher dropdown rows (.ws-logo--row unaffected). */
-@media (max-width: 479px) {
+@media (max-width: 767px) {
   .ws-trigger .ws-logo,
   .ws-trigger .ws-icon {
     display: none;
@@ -105,17 +114,17 @@
   border-radius: 8px;
   cursor: pointer;
   font-size: var(--font-body-2);
-  min-height: 40px;
+  min-height: 44px;
 }
 .ws-trigger:hover:not(:disabled):not(.ws-trigger--static) {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--bar-hover);
 }
 .ws-trigger--static {
   cursor: default;
 }
 .ws-icon,
 .ws-caret {
-  font-size: 20px;
+  font-size: var(--icon-md);
 }
 .ws-caret {
   opacity: 0.85;
@@ -127,11 +136,11 @@
   height: 26px;
   flex: none;
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--surface-logo-tile);
   object-fit: contain;
-  padding: 2px;
+  padding: var(--space-2xs);
   box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid var(--bar-divider);
 }
 .ws-logo--row {
   border-color: var(--border);
@@ -148,10 +157,9 @@
 
 /* HAMBURGER MENU */
 .menu-btn {
-  background: transparent; /* Fixes the grey box issue */
+  background: transparent;
   border: none;
-  color: white;
-  font-size: 28px; /* Made larger */
+  color: var(--text-on-brand);
   cursor: pointer;
   width: 48px;
   height: 48px;
@@ -163,21 +171,14 @@
 }
 
 .menu-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.user-email {
-  font-size: var(--font-body-2);
-  color: #e8eaed;
-  margin-right: var(--space-sm);
+  background-color: var(--bar-hover);
 }
 
 /* RIGHT SIDE ICONS */
 .icon-btn {
   background: transparent;
   border: none;
-  color: white;
-  font-size: 24px; /* Made larger */
+  color: var(--text-on-brand);
   cursor: pointer;
   width: 48px; 
   height: 48px;
@@ -189,7 +190,7 @@
 }
 
 .icon-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--bar-hover);
 }
 
 /* --- AVATAR & DROPDOWN --- */
@@ -200,53 +201,6 @@
   cursor: pointer;
   margin-left: var(--space-xs);
 }
-
-/* The colorful ring around the avatar */
-.topbar-avatar {
-  width: 40px; 
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 3px solid transparent;
-  background-image: linear-gradient(#202124, #202124), 
-                    linear-gradient(to right, #ea4335, #fbbc05, #34a853, #4285f4);
-  background-origin: border-box;
-  background-clip: content-box, border-box;
-}
-
-/* 👇 ADD THESE STYLES FOR THE HOVER TOOLTIP */
-.avatar-tooltip {
-  visibility: hidden;
-  opacity: 0;
-  position: absolute;
-  top: var(--header-height); /* sit right under the header */
-  right: 0;
-  background-color: #3c4043; /* Google's dark tooltip color */
-  color: white;
-  padding: var(--space-sm) var(--space-md);
-  border-radius: 4px;
-  font-size: var(--font-body-2);
-  white-space: nowrap;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-  transition: opacity 0.2s, visibility 0.2s;
-  z-index: 1001;
-  pointer-events: none; /* Prevents the tooltip from blocking clicks */
-}
-
-/* Make it visible on hover */
-.avatar-wrapper:hover .avatar-tooltip {
-  visibility: visible;
-  opacity: 1;
-}
-
-.tooltip-header {
-  font-size: var(--font-overline);
-  color: #9aa0a6;
-  text-transform: uppercase;
-  margin-bottom: var(--space-xs);
-  letter-spacing: 0.5px;
-}
-
 
 /* --- Header dropdown popovers (Workspace / Language / Apps / Account) ---
    These float over the CONTENT area, so they follow the appearance mode via
@@ -317,7 +271,7 @@
   color: var(--text-muted);
 }
 .menu-pop__check {
-  font-size: 18px;
+  font-size: var(--icon-sm);
   color: var(--success-text);
 }
 .menu-pop__divider {
@@ -381,7 +335,8 @@
   font-size: var(--font-caption);
   font-weight: var(--weight-semibold);
   cursor: pointer;
-  padding: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  min-height: 44px;
   text-transform: none;
 }
 
@@ -404,7 +359,7 @@
 }
 .notif-row__dismiss {
   flex: 0 0 auto;
-  min-width: 40px;
+  min-width: 44px;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
@@ -420,7 +375,7 @@
   color: var(--text-primary);
 }
 .notif-row__dismiss .material-icons {
-  font-size: 18px;
+  font-size: var(--icon-sm);
 }
 
 .notif-pop__actions {
@@ -504,6 +459,7 @@
 }
 .account-pill {
   margin-top: var(--space-sm);
+  min-height: 44px;
   padding: var(--space-sm) var(--space-lg);
   border-radius: 100px;
   border: 1px solid var(--border-strong);
@@ -541,87 +497,6 @@
   font-family: 'Roboto', Arial, sans-serif;
 }
 
-/* 2. TOP HEADER - Left and Right Justified */
-.top-header {
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between; /* This pushes Left and Right to edges */
-  padding: 0 var(--space-sm); /* Reduced from 16px to 8px to get closer to the edge */
-  border-bottom: 1px solid #dadce0;
-  background: white;
-  z-index: 1100;
-  width: 100%;
-  box-sizing: border-box; /* Ensures padding doesn't break width */
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  /*gap: 8px; /* Space between hamburger and logo */
-}
-
-/* 3. THE HAMBURGER BUTTON - Perfect Circle Fix */
-.hamburger-btn {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: #5f6368;
-  
-  /* To make a perfect circle, width and height MUST be identical */
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  
-  border-radius: 50%; /* This makes the circle */
-  transition: background 0.2s;
-  outline: none;
-}
-
-.hamburger-btn:hover {
-  background-color: rgba(60, 64, 67, 0.08); /* Gmail's exact hover color */
-}
-
-.logo-text {
-  font-size: var(--font-h2);
-  font-family: 'Product Sans', Arial, sans-serif;
-  color: #5f6368;
-  margin-left: var(--space-xs); /* Minimal gap between button and text */
-  white-space: nowrap;
-}
-
-/* 4. USER INFO - Right Justified */
-.header-right {
-  display: flex;
-  align-items: center;
-  padding-right: var(--space-sm);
-  gap: var(--space-sm); /* Space between email and avatar */
-}
-
-.user-email {
-  white-space: nowrap;
-  color: #5f6368;
-  font-size: var(--font-body-2);
-  margin-right: var(--space-sm);
-}
-
-.avatar {
-  width: 32px;
-  height: 32px;
-  background: #1a73e8;
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: var(--weight-bold);
-  font-size: var(--font-body-2);
-  font-weight: var(--weight-medium);
-}
-
 /* 4. MAIN LAYOUT - Sidebar and Content Area */
 .main-layout {
   display: flex;
@@ -656,7 +531,6 @@
 /* Pinned State (Pushes Content) */
 .sidebar.pinned {
   width: 256px;
-  /*border-right: 1px solid #dadce0;*/
 }
 
 /* Hover State (When NOT pinned, it overlays) */
@@ -664,8 +538,7 @@
   width: 256px;
   position: absolute; /* Overlays over content */
   height: 100%;
-  box-shadow: 0 8px 10px rgba(0,0,0,0.2);
-  /*box-shadow: 0 16px 10px 0 rgba(0,0,0,0.14), 0 11px 18px 0 rgba(0,0,0,0.12);*/
+  box-shadow: var(--shadow);
   border-right: 1px solid var(--border);
 }
 
@@ -754,7 +627,7 @@
   margin: 0;
 }
 
-.sidebar-nav a, .logout-item {
+.sidebar-nav a {
   height: 48px;
   display: flex;
   align-items: center;
@@ -771,7 +644,7 @@
   overflow: hidden; /* Ensures text doesn't bleed out */
 }
 
-.sidebar-nav a:hover, .logout-item:hover {
+.sidebar-nav a:hover {
   background-color: var(--surface-hover);
 }
 
@@ -849,7 +722,7 @@
   white-space: nowrap;
 }
 .nav-group__chevron {
-  font-size: 18px;
+  font-size: var(--icon-sm);
   color: var(--text-muted);
   flex-shrink: 0;
   margin-right: var(--space-md);
@@ -865,7 +738,7 @@
 /* Sub-menu icons render a step smaller than their master's - a hierarchy cue
    that also works in the icon-only rail (the 72px column stays aligned). */
 .nav-group__menus .icon {
-  font-size: 18px;
+  font-size: var(--icon-sm);
 }
 
 /* Chevron follows the label's visibility (tablet hover / pin expand). */
@@ -876,7 +749,7 @@
 
 /* 2. THE ICON: This must be exactly 72px to match the collapsed sidebar */
 .icon {
-  font-size: 20px;
+  font-size: var(--icon-md);
   width: 72px;      
   min-width: 72px;
   height: 48px;
@@ -985,7 +858,7 @@
 }
 
 .bottom-nav-item .material-icons {
-  font-size: 22px;
+  font-size: var(--icon-lg);
 }
 
 .bottom-nav-label {
@@ -1013,7 +886,7 @@
     left: 0;
     width: 256px;
     transform: translateX(-100%);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow);
   }
   .sidebar.pinned {
     transform: translateX(0);
@@ -1122,9 +995,8 @@
   /* Smaller icon buttons so they don't touch the top/bottom of the header. */
   .menu-btn,
   .icon-btn {
-    width: 40px;
-    height: 40px;
-    font-size: 24px;
+    width: 44px;
+    height: 44px;
   }
 
   /* Left group takes the remaining width and may shrink; right group (apps +
@@ -1197,4 +1069,68 @@
 }
 .shell-invites .data-list {
   padding-bottom: 0;
+}
+
+.google-topbar--admin {
+  background-color: var(--bar-admin);
+}
+.topbar-admin-chip {
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 12px;
+  background: var(--danger-surface);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.5px;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  border-left: 1px solid var(--bar-divider);
+  padding-left: var(--space-md);
+}
+.icon-btn .material-icons,
+.menu-btn .material-icons {
+  font-size: var(--icon-lg);
+}
+.menu-pop__glyph {
+  font-size: var(--icon-md);
+  color: var(--accent);
+}
+.menu-pop__check--sm {
+  font-size: var(--icon-xs);
+}
+/* Avatar trigger: ring hover/focus from tokens (no inline handlers). */
+.avatar-trigger {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+.avatar-ring {
+  padding: var(--space-xs);
+  border-radius: 50%;
+  border: 2px solid var(--bar-divider);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.avatar-trigger:hover .avatar-ring,
+.avatar-trigger:focus-visible .avatar-ring {
+  border-color: var(--text-on-brand);
+  box-shadow: 0 0 0 2px var(--focus-glow);
+}
+.avatar-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
 }

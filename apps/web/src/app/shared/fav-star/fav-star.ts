@@ -37,7 +37,8 @@ import { FavoritesService } from '../../services/favorites.service';
       .fav-star {
         width: 44px;
         height: 44px;
-        margin: -12px 0 -12px var(--space-xs);
+        /* centre the 44px target on the h1 line without stretching it */
+        margin: calc((var(--font-h1) - 44px) / 2) 0 calc((var(--font-h1) - 44px) / 2) var(--space-xs);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -56,7 +57,7 @@ import { FavoritesService } from '../../services/favorites.service';
         color: var(--accent);
       }
       .fav-star .material-icons {
-        font-size: 22px;
+        font-size: var(--icon-lg);
       }
     `,
   ],

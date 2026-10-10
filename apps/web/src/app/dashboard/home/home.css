@@ -58,10 +58,6 @@
   padding: var(--space-xl) var(--space-md);
   text-align: center;
 }
-.hm-tasks-empty__emoji {
-  font-size: 40px;
-  line-height: 1;
-}
 .hm-tasks-empty p {
   margin: 0;
   font-size: var(--font-body-2);
@@ -165,7 +161,7 @@
 .hm-task__text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-2xs);
   min-width: 0;
   flex: 1;
 }
@@ -231,7 +227,7 @@
 }
 
 .hm-eye .material-icons {
-  font-size: 20px;
+  font-size: var(--icon-md);
 }
 
 /* A module group inside Quick access - the title row is a collapse toggle. */
@@ -264,7 +260,7 @@
 }
 
 .hm-group__title .material-icons {
-  font-size: 16px;
+  font-size: var(--icon-xs);
   color: var(--brand-text);
 }
 
@@ -298,7 +294,7 @@
 }
 
 .hm-group__title .hm-group__caret {
-  font-size: 20px;
+  font-size: var(--icon-md);
 }
 
 /* --- Manage dialog (Menu-setup look: collapsible module blocks + drag rows,
@@ -325,7 +321,7 @@
 }
 
 .hm-mg-group__icon {
-  font-size: 18px;
+  font-size: var(--icon-sm);
   color: var(--brand-text);
   flex-shrink: 0;
 }
@@ -360,7 +356,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
+  width: 44px;
   height: 44px;
   border: none;
   background: transparent;
@@ -375,7 +371,7 @@
 }
 
 .hm-mg-caret .material-icons {
-  font-size: 20px;
+  font-size: var(--icon-md);
 }
 
 /* The module's rows sit indented under the header, like a menu group. */
@@ -408,7 +404,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
+  width: 44px;
   height: 44px;
   border: none;
   background: transparent;
@@ -422,7 +418,7 @@
 }
 
 .hm-mg-row__icon {
-  font-size: 18px;
+  font-size: var(--icon-sm);
   color: var(--accent);
   flex-shrink: 0;
 }
@@ -453,7 +449,7 @@
 
 /* Drag affordances (same values as modules-menus). */
 .cdk-drag-preview {
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow);
   border-radius: 8px;
   background: var(--surface-card);
 }
@@ -523,5 +519,5 @@
 }
 
 .hm-tile__unpin .material-icons {
-  font-size: 20px;
+  font-size: var(--icon-md);
 }

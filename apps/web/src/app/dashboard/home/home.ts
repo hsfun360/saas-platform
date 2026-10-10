@@ -44,9 +44,9 @@ interface FavoriteGroup {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, DialogComponent, CdkDropList, CdkDrag, CdkDragHandle, LocalDatePipe, TranslatePipe],
   templateUrl: './home.html',
-  // system-setup.css supplies the shared .saas-container/.saas-header chrome;
-  // launchpad.css the tile/hero primitives (both component-scoped).
-  styleUrls: ['../../system-setup/system-setup.css', './launchpad.css', './home.css'],
+  // launchpad.css holds the tile/hero primitives (component-scoped); the
+  // container/header chrome is global.
+  styleUrls: ['./launchpad.css', './home.css'],
 })
 export class HomeComponent {
   private readonly i18n = inject(I18nService);

@@ -1,6 +1,6 @@
 <div class="app-container">
 
-  <header class="google-topbar" [style.background-color]="isSystemAdmin ? '#BE0000' : 'rgb(0, 60, 145)'">
+  <header class="google-topbar" [class.google-topbar--admin]="isSystemAdmin">
 
     <div class="topbar-left">
       <button class="menu-btn" (click)="toggleSidebar()" aria-label="Toggle navigation menu" [attr.aria-expanded]="isSidebarPinned"><span class="material-icons" aria-hidden="true">menu</span></button>
@@ -9,7 +9,7 @@
              not here - keeps the header compact, especially on mobile. -->
         <div class="brand-row">
           @if (isSystemAdmin) {
-            <span class="hide-mobile" style="background: #ef4444; color: white; padding: var(--space-xs) var(--space-sm); border-radius: 12px; font-size: var(--font-caption); font-weight: var(--weight-bold); border: 1px solid #fca5a5; letter-spacing: 0.5px;">
+            <span class="hide-mobile topbar-admin-chip">
               MASTER ADMIN
             </span>
           }
@@ -42,13 +42,13 @@
                   @if (ws.logo) {
                     <img class="ws-logo ws-logo--row" [src]="ws.logo" alt="">
                   } @else {
-                    <span class="material-icons" aria-hidden="true" style="font-size: 20px; color: var(--accent);">corporate_fare</span>
+                    <span class="material-icons menu-pop__glyph" aria-hidden="true">corporate_fare</span>
                   }
-                  <span style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0;">
+                  <span style="display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2xs); min-width: 0;">
                     <span style="display: flex; align-items: center; gap: var(--space-xs);">
                       {{ ws.companyName }}
                       @if (ws.companyId === currentCompanyId) {
-                        <span class="material-icons menu-pop__check" style="font-size: 16px;">check</span>
+                        <span class="material-icons menu-pop__check menu-pop__check--sm">check</span>
                       }
                     </span>
                     <span class="menu-pop__sub">{{ ws.roleName }}</span>
@@ -83,7 +83,7 @@
         </span>
       </div>
 
-      <div class="header-actions" style="display: flex; align-items: center; gap: var(--space-sm); border-left: 1px solid #e2e8f0; padding-left: var(--space-md);">
+      <div class="header-actions">
         <!-- Settings deliberately lives ONLY in the avatar menu (with Profile and
              Sign out) - the header stays uncluttered and mobile always worked
              that way. Don't re-add a header gear. -->
@@ -92,8 +92,8 @@
         <div style="position: relative; display: flex; align-items: center;">
           <button class="icon-btn notif-bell" title="Notifications" aria-label="Notifications"
                   aria-haspopup="true" [attr.aria-expanded]="isNotifDropdownOpen"
-                  (click)="toggleNotifDropdown($event)" style="color: white">
-            <span class="material-icons" style="font-size: 22px; vertical-align: middle;">notifications</span>
+                  (click)="toggleNotifDropdown($event)">
+            <span class="material-icons" aria-hidden="true">notifications</span>
             @if (notifications.unread() > 0) {
               <span class="notif-badge">{{ notifications.unread() > 99 ? '99+' : notifications.unread() }}</span>
             }
@@ -146,8 +146,8 @@
           <div class="hide-mobile" style="position: relative; display: flex; align-items: center;">
             <button class="icon-btn" [title]="'language.switch' | t" [attr.aria-label]="'language.switch' | t"
                     aria-haspopup="true" [attr.aria-expanded]="isLanguageDropdownOpen"
-                    (click)="toggleLanguageDropdown($event)" style="color: white; display: inline-flex; align-items: center; gap: 4px;">
-              <span class="material-icons" style="font-size: 22px; vertical-align: middle;">language</span>
+                    (click)="toggleLanguageDropdown($event)">
+              <span class="material-icons" aria-hidden="true">language</span>
               <span class="hide-mobile" style="font-size: var(--font-caption); font-weight: var(--weight-bold); text-transform: uppercase;">{{ i18n.lang() }}</span>
             </button>
 
@@ -169,8 +169,8 @@
         }
 
         <div style="position: relative; display: flex; align-items: center;">
-          <button class="icon-btn" title="Apps" aria-label="Apps" aria-haspopup="true" [attr.aria-expanded]="isAppsDropdownOpen" (click)="toggleAppsDropdown($event)" style="color: white">
-            <span class="material-icons" style="font-size: 24px; vertical-align: middle;">apps</span>
+          <button class="icon-btn" title="Apps" aria-label="Apps" aria-haspopup="true" [attr.aria-expanded]="isAppsDropdownOpen" (click)="toggleAppsDropdown($event)">
+            <span class="material-icons" aria-hidden="true">apps</span>
           </button>
 
           @if (isAppsDropdownOpen) {
@@ -178,7 +178,7 @@
               <div class="menu-pop__title">{{ 'nav.yourApps' | t }}</div>
               @for (mod of availableModules; track mod.name) {
                 <button type="button" class="menu-pop__item" (click)="selectModule(mod.name)">
-                  <span class="material-icons" style="font-size: 20px; color: var(--accent);">{{ mod.icon }}</span>
+                  <span class="material-icons menu-pop__glyph" aria-hidden="true">{{ mod.icon }}</span>
                   <span>{{ resolveLabel(mod.name, mod.names) }}</span>
                 </button>
               }
@@ -190,13 +190,9 @@
       <div class="avatar-wrapper" style="position: relative; margin-left: var(--space-sm);">
 
         <button type="button" class="avatar-trigger" (click)="toggleDropdown($event)"
-                aria-label="Account menu" aria-haspopup="true" [attr.aria-expanded]="isDropdownOpen"
-                style="background: transparent; border: none; padding: 0; cursor: pointer; display: flex; align-items: center;">
-          <span style="padding: var(--space-xs); border-radius: 50%; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"
-                onmouseover="this.style.borderColor='#0ea5e9'; this.style.boxShadow='0 0 0 2px rgba(14,165,233,0.1)'"
-                onmouseout="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
-            <img [src]="profilePictureUrl()" alt="User Avatar" (error)="onAvatarError()" title="Google Account&#10;{{ userFullName() }}&#10;{{ loggedInUser }}"
-                 style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
+                aria-label="Account menu" aria-haspopup="true" [attr.aria-expanded]="isDropdownOpen">
+          <span class="avatar-ring">
+            <img class="avatar-img" [src]="profilePictureUrl()" alt="" (error)="onAvatarError()" [title]="userFullName() + ' - ' + loggedInUser">
           </span>
         </button>
 
@@ -222,7 +218,7 @@
               <button type="button" class="account-pill"
                       style="margin-top: 0; padding: var(--space-sm) 40px; border-radius: 24px; color: var(--text-primary);"
                       (click)="onLogout()">
-                <span class="material-icons" style="font-size: 20px;" aria-hidden="true">logout</span>
+                <span class="material-icons" aria-hidden="true">logout</span>
                 Sign out
               </button>
             </div>
@@ -287,7 +283,7 @@
               }
             }
             @empty {
-              <li style="padding: var(--space-md); color: #64748b; font-size: var(--font-body);">
+              <li style="padding: var(--space-md); color: var(--text-muted); font-size: var(--font-body);">
                 <span class="label">No extra menus assigned.</span>
               </li>
             }

@@ -7,11 +7,15 @@
   <main class="pt-main">
 
     @if (errorMessage()) {
-      <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
+      <div class="flash flash-error" role="alert" aria-live="assertive">
+        <span class="flash-icon">❌</span>
+        <span>{{ errorMessage() }}</span>
+        <button class="flash-close" type="button" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      </div>
     }
 
     @if (loading()) {
-      <p class="pt-muted">Loading your engagements…</p>
+      <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading your engagements…</p></div>
     } @else if (engagements().length === 0) {
       <div class="pt-card pt-card--empty">
         <p>No sales engagement is linked to this account yet.</p>
@@ -28,12 +32,12 @@
                   @if (e.companyName) { <div class="pt-member__club">{{ e.companyName }}</div> }
                 </div>
               </div>
-              <span class="pt-status">
-                <span class="pt-status__dot" [style.background]="e.isActive ? 'var(--success-text)' : 'var(--text-muted)'" aria-hidden="true"></span>
+              <span class="status-dot">
+                  <span class="status-dot__swatch" [style.background]="e.isActive ? 'var(--success-text)' : 'var(--text-muted)'" aria-hidden="true"></span>
                 {{ e.isActive ? 'Active' : 'Disabled' }}
               </span>
             </div>
-            <dl class="pt-member__meta">
+            <dl class="data-card__meta">
               <div class="meta"><dt>Agent code</dt><dd>{{ e.agentCode }}</dd></div>
               <div class="meta"><dt>Kind</dt><dd>{{ e.agentKindLabel }}</dd></div>
               @if (e.agencyName) { <div class="meta"><dt>Agency</dt><dd>{{ e.agencyName }}</dd></div> }
@@ -47,7 +51,7 @@
     <section aria-label="Portal services" class="pt-tiles">
       @for (t of tiles; track t.title) {
         <div class="pt-card pt-tile">
-          <span class="pt-tile__icon" aria-hidden="true">{{ t.icon }}</span>
+          <span class="material-icons pt-tile__icon" aria-hidden="true">{{ t.icon }}</span>
           <div class="pt-tile__body">
             <div class="pt-tile__title">{{ t.title }}</div>
             <div class="pt-muted">{{ t.blurb }}</div>

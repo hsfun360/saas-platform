@@ -19,7 +19,7 @@ import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, ReactiveFormsModule, DialogComponent, FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe],
   templateUrl: './approvals.html',
-  styleUrls: ['../system-setup/system-setup.css', './approvals.css'],
+  styleUrls: ['./approvals.css'],
 })
 export class ApprovalsComponent implements OnInit {
   private readonly service = inject(WorkflowService);

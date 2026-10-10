@@ -7,11 +7,15 @@
   <main class="pt-main">
 
     @if (errorMessage()) {
-      <div class="alert alert-danger" role="alert">{{ errorMessage() }}</div>
+      <div class="flash flash-error" role="alert" aria-live="assertive">
+        <span class="flash-icon">❌</span>
+        <span>{{ errorMessage() }}</span>
+        <button class="flash-close" type="button" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      </div>
     }
 
     @if (loading()) {
-      <p class="pt-muted">Loading your memberships…</p>
+      <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading your memberships…</p></div>
     } @else if (cards().length === 0) {
       <div class="pt-card pt-card--empty">
         <p>No membership is linked to this account yet.</p>
@@ -32,13 +36,13 @@
                 </div>
               </div>
               @if (c.statusName) {
-                <span class="pt-status">
-                  <span class="pt-status__dot" [style.background]="c.statusColor || 'var(--text-muted)'" aria-hidden="true"></span>
+                <span class="status-dot">
+                  <span class="status-dot__swatch" [style.background]="c.statusColor || 'var(--text-muted)'" aria-hidden="true"></span>
                   {{ c.statusName }}
                 </span>
               }
             </div>
-            <dl class="pt-member__meta">
+            <dl class="data-card__meta">
               <div class="meta"><dt>Member no.</dt><dd>{{ c.memberNo }}</dd></div>
               @if (c.membershipNo && c.membershipNo !== c.memberNo) { <div class="meta"><dt>Membership</dt><dd>{{ c.membershipNo }}</dd></div> }
               @if (c.membershipTypeName) { <div class="meta"><dt>Type</dt><dd>{{ c.membershipTypeName }}</dd></div> }
@@ -53,7 +57,7 @@
     <section aria-label="Portal services" class="pt-tiles">
       @for (t of tiles; track t.title) {
         <div class="pt-card pt-tile">
-          <span class="pt-tile__icon" aria-hidden="true">{{ t.icon }}</span>
+          <span class="material-icons pt-tile__icon" aria-hidden="true">{{ t.icon }}</span>
           <div class="pt-tile__body">
             <div class="pt-tile__title">{{ t.title }}</div>
             <div class="pt-muted">{{ t.blurb }}</div>

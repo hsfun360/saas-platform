@@ -32,7 +32,7 @@ import { HelpService } from '../../services/help.service';
       <div class="hp-backdrop" (click)="close()" aria-hidden="true"></div>
       <aside class="hp-panel" role="dialog" aria-modal="true"
              [attr.aria-label]="'User guide: ' + help.currentTitle()"
-             (keydown.escape)="close()">
+             (keydown.escape)="close()" (keydown.tab)="trapTab($event)">
         <header class="hp-head">
           <button type="button" #closeBtn class="hp-close" (click)="close()" aria-label="Close the user guide">
             <span class="material-icons" aria-hidden="true">arrow_back</span>
@@ -67,7 +67,7 @@ import { HelpService } from '../../services/help.service';
         color: var(--brand-text);
         padding: 0;
       }
-      .hp-btn .material-icons { font-size: 24px; }
+      .hp-btn .material-icons { font-size: var(--icon-lg); }
       .hp-btn:hover { background: var(--surface-hover); }
       /* The panel and its backdrop sit BELOW the app header (the header owns
          z-index 1100 and an ancestor stacking context caps us underneath it -
@@ -197,5 +197,19 @@ export class HelpButtonComponent {
     this.open.set(false);
     this.lastFocus?.focus();
     this.lastFocus = null;
+  }
+
+  // role="dialog" + aria-modal: Tab stays inside the panel while it is open.
+  trapTab(event: Event): void {
+    const e = event as KeyboardEvent;
+    const panel = (e.currentTarget as HTMLElement | null);
+    if (!panel) return;
+    const focusables = Array.from(panel.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+      .filter((el) => !el.hasAttribute('disabled'));
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   }
 }

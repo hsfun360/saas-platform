@@ -9,28 +9,23 @@ import { Router } from '@angular/router';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div style="padding: var(--space-2xl) var(--space-lg); display: flex; flex-direction: column;
-                align-items: center; text-align: center;">
-      <span class="material-icons" aria-hidden="true"
-            style="font-size: 64px; width: 64px; height: 64px; display: inline-flex; align-items: center;
-                   justify-content: center; overflow: hidden; color: var(--brand-text);">construction</span>
-
-      <h1 style="margin: var(--space-md) 0 0; font-size: var(--font-h1); color: var(--text-primary);">Under construction</h1>
-
-      <p style="margin: var(--space-sm) 0 0; font-size: var(--font-body); color: var(--text-secondary); max-width: 460px;">
-        <strong>{{ featureName }}</strong> isn't available yet — we're still building it. Check back soon.
-      </p>
-
-      <p style="margin: var(--space-xs) 0 var(--space-lg); font-size: var(--font-body-2); color: var(--text-muted);">
-        {{ path }}
-      </p>
-
+    <div class="empty-state uc-page">
+      <span class="material-icons empty-icon" aria-hidden="true">construction</span>
+      <h1 class="uc-page__title">Under construction</h1>
+      <p><strong>{{ featureName }}</strong> isn't available yet - we're still building it. Check back soon.</p>
+      <p class="cell-subtle uc-page__path">{{ path }}</p>
       <button type="button" class="btn btn--primary" (click)="goToDashboard()">
         <span class="material-icons" aria-hidden="true">space_dashboard</span>
         Back to My Dashboard
       </button>
     </div>
   `,
+  styles: [`
+    .uc-page { padding: var(--space-2xl) var(--space-lg); max-width: 520px; margin: 0 auto; }
+    .uc-page__title { margin: var(--space-md) 0 0; font-size: var(--font-h1); color: var(--text-primary); }
+    .uc-page p { margin: var(--space-sm) 0 0; }
+    .uc-page__path { margin-bottom: var(--space-lg); }
+  `],
 })
 export class UnderConstructionComponent {
   private readonly router = inject(Router);
