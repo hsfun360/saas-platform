@@ -23,6 +23,8 @@ router.post('/:id/days', controller.addDay);
 router.put('/:id/days/:dayId', controller.updateDay);
 router.delete('/:id/days/:dayId', controller.removeDay);
 router.get('/:id/days/:dayId/share', controller.dayShare);
+router.post('/:id/days/:dayId/waitlist', controller.joinWaitlist);
+router.delete('/:id/days/:dayId/waitlist', controller.leaveWaitlist);
 router.post('/:id/days/:dayId/flights/generate', controller.generateFlights);
 router.delete('/:id/days/:dayId/flights/:flightId', controller.removeFlight);
 router.put('/:id/days/:dayId/draw', controller.draw);

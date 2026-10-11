@@ -662,4 +662,28 @@ module.exports = [
             {{/if}}
         `),
     },
+    {
+        key: 'golf.group.waitlist-offer',
+        name: 'Golf group booking - next in line',
+        description: 'Sent to the user whose tentative group booking is next in the waitlist when the course frees up on the date: they have an exclusive window to reserve the flights.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'userName', description: "The recipient's name." },
+            { name: 'groupName', description: 'The waiting group / tournament name.' },
+            { name: 'bookingNo', description: 'The waiting booking number.' },
+            { name: 'courseName', description: 'The course that freed up.' },
+            { name: 'playDateText', description: "The play date, e.g. '24 Nov 2026'." },
+            { name: 'offerExpiresText', description: "When the exclusive window ends, e.g. '15 Oct 2026, 18:33'." },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: { userName: 'Sales Executive', groupName: 'Tuesday Society', bookingNo: 'B261000018', courseName: 'E1 - East Course 1', playDateText: '24 Nov 2026', offerExpiresText: '15 Oct 2026, 18:33', companyName: 'Kuala Lumpur Golf & Country Club' },
+        fromName: null,
+        subject: 'Next in line: {{courseName}} on {{playDateText}} is free for {{groupName}} until {{offerExpiresText}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">You are next in line</h2>
+            <p>Dear {{userName}},</p>
+            <p>The group that held <strong>{{courseName}}</strong> on <strong>{{playDateText}}</strong> at <strong>{{companyName}}</strong> has released it, and <strong>{{groupName}}</strong> ({{bookingNo}}) is next in the waitlist.</p>
+            <p>Until <strong>{{offerExpiresText}}</strong> no other group may reserve flights on that course and date - open the booking under Golf Management → Group Bookings and reserve them. After that the offer passes to the next group in the queue.</p>
+        `),
+    },
 ];

@@ -274,6 +274,13 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: 0,
     },
+    // Waitlist: the exclusive window (hours) the next group in the queue has
+    // to reserve a freed day before the offer moves on.
+    groupNextInLineHours: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 24,
+    },
     // Merge booking (club-wide, user decision 2026-09-19). OFF = exclusive
     // flights: the first confirmed booking claims the whole flight, extra
     // players join only that same booking. ON = shared flights: bookings

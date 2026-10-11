@@ -107,7 +107,8 @@ Charges are posted to the booker's member account and can be followed up on the 
 5. Under **Share caps**, enter the **Weekday Group Share Cap** and the **Weekend & Holiday Group Share Cap** - the most of a course's tee times on one day that all group bookings together may hold, in percent (`0` means no cap).
    These apply whether the control is on or off, and a reservation that would push groups past the cap is refused with the numbers; the club's own events (flagged as club events on the booking) are exempt and do not count.
 6. With the control on, enter **Tentative Bookings per User** - how many tentative bookings with reserved flights one user may hold at a time (`0` means no limit).
-7. Read the preview sentences, then click **Save**.
+7. With the control on, enter **Next in Line (hours)** - when a held day frees up, how long the first group on its waitlist has to reserve it before the offer passes to the next group.
+8. Read the preview sentences, then click **Save**.
 
 The approval chain itself is set up under Workflow → Approval Setup for the purpose **Golf group booking**; with no chain, submitting a booking approves it at once.
 Its step conditions can test, among others, the share of the day a booking takes, the share all groups hold after it, the bill total, the discount against catalog and the deposit percentage.
@@ -199,6 +200,7 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 | **Weekday Group Share Cap (%)** | Yes | The most of a course's tee times all groups together may hold on a weekday, e.g. `40`; `0` = no cap. | Whole number from 0 to 100; applies in both modes; club events are exempt. |
 | **Weekend & Holiday Group Share Cap (%)** | Yes | The same for weekends and public holidays, e.g. `25`. | Whole number from 0 to 100. |
 | **Tentative Bookings per User** | Yes (while on) | How many tentative bookings with reserved flights one user may hold at a time, e.g. `3`; `0` = no limit. | Whole number from 0 to 50. |
+| **Next in Line (hours)** | Yes (while on) | The exclusive window the first group on a day's waitlist has to reserve it once the day frees up, e.g. `24`. | Whole number from 1 to 168; other groups are refused meanwhile, members never. |
 
 ### Tee Sheet
 

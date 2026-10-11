@@ -125,6 +125,13 @@ const GolfGroupRefund = require('../modules/golf/groupRefund.model');
 const GolfGroupRefundItem = require('../modules/golf/groupRefundItem.model');
 GolfGroupRefund.hasMany(GolfGroupRefundItem, { foreignKey: 'groupRefundId', as: 'items', onDelete: 'CASCADE' });
 GolfGroupRefundItem.belongsTo(GolfGroupRefund, { foreignKey: 'groupRefundId', as: 'refund' });
+// Waitlist (lifecycle slice 4, 2026-10-11): a booking's queue entries go
+// with the booking and with the play day they were joined for.
+const GolfGroupWaitlist = require('../modules/golf/groupWaitlist.model');
+GolfBookingProfile.hasMany(GolfGroupWaitlist, { foreignKey: 'bookingProfileId', as: 'waitlist', onDelete: 'CASCADE' });
+GolfGroupWaitlist.belongsTo(GolfBookingProfile, { foreignKey: 'bookingProfileId', as: 'bookingProfile' });
+GolfGroupPlayDay.hasMany(GolfGroupWaitlist, { foreignKey: 'groupPlayDayId', as: 'waitlist', onDelete: 'CASCADE' });
+GolfGroupWaitlist.belongsTo(GolfGroupPlayDay, { foreignKey: 'groupPlayDayId', as: 'playDay' });
 
 // Front desk billing (2026-09-26): per-player Bill with its items and
 // payments as real intra-service FKs (Bill.playerId stays a plain value ref
@@ -437,6 +444,7 @@ module.exports = {
     GolfGroupPlayer,
     GolfGroupRefund,
     GolfGroupRefundItem,
+    GolfGroupWaitlist,
     TaxScheme,
     TaxRate,
     CompanyTaxScheme,

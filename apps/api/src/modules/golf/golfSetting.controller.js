@@ -33,7 +33,7 @@ const DEFAULTS = {
     teeSheetColorBooked: '#2563eb', teeSheetColorRegistered: '#f59e0b',
     teeSheetColorBilled: '#8b5cf6', teeSheetColorSettled: '#16a34a',
     groupBookingControlEnabled: false, groupTentativeHoldHours: 72, groupDepositDueDays: 7, groupDefaultDepositPct: 30,
-    groupShareCapWeekday: 0, groupShareCapWeekend: 0, groupMaxTentativePerUser: 0,
+    groupShareCapWeekday: 0, groupShareCapWeekend: 0, groupMaxTentativePerUser: 0, groupNextInLineHours: 24,
 };
 
 function settingDto(row) {
@@ -72,6 +72,7 @@ function settingDto(row) {
         groupShareCapWeekday: row.groupShareCapWeekday || 0,
         groupShareCapWeekend: row.groupShareCapWeekend || 0,
         groupMaxTentativePerUser: row.groupMaxTentativePerUser || 0,
+        groupNextInLineHours: row.groupNextInLineHours === null || row.groupNextInLineHours === undefined ? DEFAULTS.groupNextInLineHours : row.groupNextInLineHours,
         saved: true,
     };
 }
@@ -528,6 +529,8 @@ exports.save = async (req, res) => {
         if (groupShareCapWeekend === undefined) return res.status(400).json({ message: 'The weekend group share cap must be a whole percentage between 0 and 100.' });
         const groupMaxTentativePerUser = parseIntIn(req.body.groupMaxTentativePerUser === undefined ? 0 : req.body.groupMaxTentativePerUser, 0, 50);
         if (groupMaxTentativePerUser === undefined) return res.status(400).json({ message: 'The tentative bookings per user cap must be a whole number between 0 and 50.' });
+        const groupNextInLineHours = parseIntIn(req.body.groupNextInLineHours === undefined ? DEFAULTS.groupNextInLineHours : req.body.groupNextInLineHours, 1, 168);
+        if (groupNextInLineHours === undefined) return res.status(400).json({ message: 'Next in line must be a whole number of hours between 1 and 168.' });
         const HEX_RE = /^#[0-9a-fA-F]{6}$/;
         const colors = {};
         for (const key of ['teeSheetColorBooked', 'teeSheetColorRegistered', 'teeSheetColorBilled', 'teeSheetColorSettled']) {
@@ -555,7 +558,7 @@ exports.save = async (req, res) => {
                 handicapControlEnabled, juniorBookingControlEnabled,
                 noShowControlEnabled, cancellationNoticeHours, lateCancellationAction, noShowTransactionTypeId, noShowChargeBasis,
                 groupBookingControlEnabled, groupTentativeHoldHours, groupDepositDueDays, groupDefaultDepositPct,
-                groupShareCapWeekday, groupShareCapWeekend, groupMaxTentativePerUser,
+                groupShareCapWeekday, groupShareCapWeekend, groupMaxTentativePerUser, groupNextInLineHours,
                 ...colors,
             };
             if (existing) {

@@ -101,6 +101,7 @@ export class GolfSettingsComponent implements OnInit {
     groupShareCapWeekday: [0, [Validators.required, Validators.min(0), Validators.max(100)]],
     groupShareCapWeekend: [0, [Validators.required, Validators.min(0), Validators.max(100)]],
     groupMaxTentativePerUser: [0, [Validators.required, Validators.min(0), Validators.max(50)]],
+    groupNextInLineHours: [24, [Validators.required, Validators.min(1), Validators.max(168)]],
     // The six rule editors (see the *Group types at the top of the file).
     overrides: this.fb.array<OvGroup>([]),
     minPlayerRules: this.fb.array<MpGroup>([]),
@@ -278,6 +279,7 @@ export class GolfSettingsComponent implements OnInit {
           groupShareCapWeekday: doc.setting.groupShareCapWeekday ?? 0,
           groupShareCapWeekend: doc.setting.groupShareCapWeekend ?? 0,
           groupMaxTentativePerUser: doc.setting.groupMaxTentativePerUser ?? 0,
+          groupNextInLineHours: doc.setting.groupNextInLineHours ?? 24,
         });
         this.fill(this.overrides, doc.overrides, (r) => this.newOverride(r));
         this.fill(this.minPlayerRules, doc.minPlayerRules ?? [], (r) => this.newMinPlayerRule(r));
@@ -513,6 +515,7 @@ export class GolfSettingsComponent implements OnInit {
       groupShareCapWeekday: v.groupShareCapWeekday,
       groupShareCapWeekend: v.groupShareCapWeekend,
       groupMaxTentativePerUser: v.groupMaxTentativePerUser,
+      groupNextInLineHours: v.groupNextInLineHours,
       overrides: rows,
       minPlayerRules: rules,
       guestControlRules: guestRules,

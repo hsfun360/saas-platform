@@ -239,6 +239,12 @@
                         No flights reserved yet - the tee sheet is not held for this day.
                       }
                     </div>
+                    @if (waitlistLine(d); as wl) {
+                      <div class="data-card__desc ggb-waitlist" [class]="'data-card__desc ggb-waitlist ggb-waitlist--' + wl.tone">
+                        <span class="material-icons" aria-hidden="true">{{ wl.tone === 'offer' ? 'notifications_active' : wl.tone === 'blocked' ? 'lock_clock' : 'hourglass_empty' }}</span>
+                        <span>{{ wl.text }}</span>
+                      </div>
+                    }
                   </div>
                   <span class="data-row__badge status-chip" [class.status-chip--on]="d.status === 'planned'" [class.status-chip--off]="d.status !== 'planned'">{{ d.status }}</span>
                   @if (can('editStructure') && d.status === 'planned' && b.canModify !== false) {
@@ -252,6 +258,18 @@
                           <span class="material-icons" aria-hidden="true">edit</span>
                           Edit day
                         </button>
+                        @if (canJoinWaitlist(d)) {
+                          <button type="button" appMenuItem (click)="joinWaitlist(d)">
+                            <span class="material-icons" aria-hidden="true">hourglass_empty</span>
+                            Join waitlist for this day
+                          </button>
+                        }
+                        @if (canLeaveWaitlist(d)) {
+                          <button type="button" appMenuItem (click)="askLeaveWaitlist(d)">
+                            <span class="material-icons" aria-hidden="true">hourglass_disabled</span>
+                            Leave waitlist
+                          </button>
+                        }
                         <button *appCan="'delete'" type="button" appMenuItem (click)="askRemoveDay(d)">
                           <span class="material-icons" aria-hidden="true">delete</span>
                           Remove day

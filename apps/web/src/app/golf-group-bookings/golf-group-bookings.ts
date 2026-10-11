@@ -1348,6 +1348,52 @@ export class GolfGroupBookingsComponent implements OnInit {
     });
   }
 
+  // ---------- waitlist ----------
+
+  // The queue line under a play day: this booking's place, a live offer to
+  // it, or the other group's offer that blocks reserving.
+  waitlistLine(d: GolfGroupPlayDay): { text: string; tone: 'offer' | 'wait' | 'blocked' } | null {
+    const w = d.waitlist;
+    if (!w) return null;
+    if (w.status === 'offered' && w.offerExpiresAt) return { text: `Next in line: this course and date are yours to reserve until ${formatLocalDate(w.offerExpiresAt, 'datetime')} - no other group can take them meanwhile.`, tone: 'offer' };
+    if (w.status === 'waiting') return { text: `On the waitlist - position ${w.position} of ${w.waiting}. You are told when the day frees up.`, tone: 'wait' };
+    if (w.blockedUntil) return { text: `Another group is next in line for this course and date until ${formatLocalDate(w.blockedUntil, 'datetime')}; join the waitlist to be offered it next.`, tone: 'blocked' };
+    if (w.status === 'expired') return { text: 'Your next-in-line offer passed unanswered; join the waitlist again if you still want the day.', tone: 'wait' };
+    return null;
+  }
+
+  canJoinWaitlist(d: GolfGroupPlayDay): boolean {
+    const b = this.booking();
+    return !!b && this.controlOn() && b.status === 'tentative' && d.status === 'planned' && d.flights.length === 0
+      && !(d.waitlist && (d.waitlist.status === 'waiting' || d.waitlist.status === 'offered'));
+  }
+
+  canLeaveWaitlist(d: GolfGroupPlayDay): boolean {
+    return !!(d.waitlist && (d.waitlist.status === 'waiting' || d.waitlist.status === 'offered'));
+  }
+
+  joinWaitlist(d: GolfGroupPlayDay): void {
+    const b = this.booking();
+    if (!b) return;
+    this.clearMessages();
+    this.performLifecycle(this.service.joinWaitlist(b.id, d.id));
+  }
+
+  askLeaveWaitlist(d: GolfGroupPlayDay): void {
+    const b = this.booking();
+    if (!b) return;
+    const offered = d.waitlist?.status === 'offered';
+    this.confirmAction.set({
+      title: 'Leave waitlist',
+      message: offered
+        ? `Give up your next-in-line offer for ${formatLocalDate(d.playDate)}? The day is offered to the next group at once.`
+        : `Leave the waitlist for ${formatLocalDate(d.playDate)}? Your place in the queue is lost.`,
+      confirmLabel: 'Leave waitlist',
+      danger: false,
+      run: () => { this.confirmAction.set(null); this.performLifecycle(this.service.leaveWaitlist(b.id, d.id)); },
+    });
+  }
+
   // ---------- flights ----------
 
   openFlights(d: GolfGroupPlayDay): void {

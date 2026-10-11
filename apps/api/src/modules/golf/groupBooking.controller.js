@@ -150,8 +150,9 @@ function flightDto(f, drawn) {
     };
 }
 
-function dayDto(d, flights, nineById, course) {
+function dayDto(d, flights, nineById, course, waitlist = null) {
     return {
+        waitlist,
         id: d.id,
         playDate: d.playDate,
         courseId: d.courseId,
@@ -254,10 +255,15 @@ async function fullDto(req, companyId, profile, { transaction } = {}) {
         bookerMemberNo = g ? g.memberNo : null;
     }
     const listed = roster.filter((p) => p.status === 'listed').length;
+    // The waitlist picture per day (only a sales club has a queue).
+    const waitlistByDay = new Map();
+    if (setting.controlOn) {
+        for (const d of days) waitlistByDay.set(d.id, await lifecycle.waitlistOfDay(profile, d, { transaction }));
+    }
     return headerDto(profile, {
         setting,
         bookerMemberNo,
-        days: days.map((d) => dayDto(d, flightsByDay.get(d.id), maps.nineById, maps.courseById.get(d.courseId))),
+        days: days.map((d) => dayDto(d, flightsByDay.get(d.id), maps.nineById, maps.courseById.get(d.courseId), waitlistByDay.get(d.id) || null)),
         roster: roster.map((p) => rosterDto(p, drawnByPlayer.get(p.id))),
         rosterCount: listed,
     });
@@ -618,6 +624,7 @@ exports.cancel = async (req, res) => {
             // A booking awaiting approval withdraws its run first (the
             // workflow's recall handler would otherwise flip it back later).
             if (profile.status === 'pending-approval') await workflowGateway.cancelForEntity(lifecycle.ENTITY_TYPE, profile.id, transaction);
+            const freedDays = await GroupPlayDay.findAll({ where: { bookingProfileId: profile.id, status: 'planned' }, transaction });
             profile.status = 'cancelled';
             profile.cancelledAt = new Date();
             profile.cancelledBy = callerId;
@@ -628,6 +635,9 @@ exports.cancel = async (req, res) => {
             await Player.update({
                 status: 'cancelled', cancelledAt: new Date(), cancelledBy: callerId, cancelReason: reason, updatedBy: callerId,
             }, { where: { bookingProfileId: profile.id, status: 'booked' }, transaction });
+            // The freed days go to the next groups in line; the booking's own
+            // queue entries are withdrawn.
+            await lifecycle.onSpaceFreed(profile, { transaction, gone: true, days: freedDays });
         });
         res.status(200).json({ message: `Group booking ${profile.bookingNo} cancelled.` });
     } catch (error) {
@@ -834,9 +844,11 @@ exports.removeDay = async (req, res) => {
         const drawn = await drawnCountOfDay(day.id);
         if (drawn > 0) return res.status(400).json({ message: `${drawn} player(s) are drawn into this day - clear the draw first.` });
         await sequelize.transaction(async (transaction) => {
+            const had = await GroupFlight.count({ where: { groupPlayDayId: day.id }, transaction });
             await GroupFlight.destroy({ where: { groupPlayDayId: day.id }, transaction });
             await day.destroy({ transaction });
             await refreshDateRange(profile, transaction);
+            if (had) await lifecycle.onSpaceFreed(profile, { transaction, days: [day] });
         });
         res.status(200).json({ message: `Play day ${day.playDate} removed.`, booking: await fullDto(req, companyId, profile) });
     } catch (error) {
@@ -1058,6 +1070,9 @@ exports.generateFlights = async (req, res) => {
             const newCells = lifecycle.cellsOfDay(day, built.rows.length, slots);
             const capped = lifecycle.capCheck({ profile, day, course, ctx, newCells, dayType, setting });
             if (capped) return { fail: capped.fail, status: 409 };
+            // Waitlist: a live offer to another group holds the day for it.
+            const blocked = await lifecycle.offerBlock(profile, day, { transaction });
+            if (blocked) return { fail: blocked.fail, status: 409 };
             for (const row of built.rows) {
                 await GroupFlight.create({
                     companyId, groupPlayDayId: day.id, bookingProfileId: profile.id,
@@ -1068,6 +1083,7 @@ exports.generateFlights = async (req, res) => {
                 }, { transaction });
             }
             await lifecycle.onFlightsReserved(profile, { transaction });
+            await lifecycle.markTaken(profile, day, { transaction });
             return { count: built.rows.length };
         });
         if (result.fail) return res.status(result.status).json({ message: result.fail });
@@ -1077,6 +1093,42 @@ exports.generateFlights = async (req, res) => {
         });
     } catch (error) {
         console.error('Error generating group flights:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/golf/group-bookings/:id/days/:dayId/waitlist - queue the day
+// (a tentative booking that could not reserve it); DELETE leaves the queue.
+exports.joinWaitlist = async (req, res) => {
+    try {
+        const found = await findBooking(req, req.params.id);
+        if (!found.profile) return res.status(found.status).json({ message: found.message });
+        const guard = await guardKind(req, found, 'structure');
+        if (guard) return res.status(guard.status).json({ message: guard.message });
+        const day = await GroupPlayDay.findOne({ where: { bookingProfileId: found.profile.id, id: req.params.dayId } });
+        if (!day) return res.status(404).json({ message: 'Play day not found.' });
+        const result = await lifecycle.joinWaitlist(req, found.profile, day);
+        if (result.fail) return res.status(400).json({ message: result.fail });
+        const info = await lifecycle.waitlistOfDay(found.profile, day);
+        res.status(200).json({ message: `Joined the waitlist for ${day.playDate} - position ${info.position}${info.waiting > 1 ? ' of ' + info.waiting : ''}. You are told when the day frees up.`, booking: await fullDto(req, found.companyId, found.profile) });
+    } catch (error) {
+        console.error('Error joining group waitlist:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+exports.leaveWaitlist = async (req, res) => {
+    try {
+        const found = await findBooking(req, req.params.id);
+        if (!found.profile) return res.status(found.status).json({ message: found.message });
+        if (!(await canModifyRecord(req, found.profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const day = await GroupPlayDay.findOne({ where: { bookingProfileId: found.profile.id, id: req.params.dayId } });
+        if (!day) return res.status(404).json({ message: 'Play day not found.' });
+        const result = await lifecycle.leaveWaitlist(req, found.profile, day);
+        if (result.fail) return res.status(400).json({ message: result.fail });
+        res.status(200).json({ message: `Left the waitlist for ${day.playDate}.`, booking: await fullDto(req, found.companyId, found.profile) });
+    } catch (error) {
+        console.error('Error leaving group waitlist:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };

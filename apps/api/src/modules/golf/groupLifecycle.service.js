@@ -35,6 +35,8 @@ const BookingProfile = require('./bookingProfile.model');
 const GroupPlayDay = require('./groupPlayDay.model');
 const GroupFlight = require('./groupFlight.model');
 const GroupPlayer = require('./groupPlayer.model');
+const GroupWaitlist = require('./groupWaitlist.model');
+const Course = require('./course.model');
 const Player = require('./player.model');
 const Bill = require('./bill.model');
 const BillItem = require('./billItem.model');
@@ -59,6 +61,7 @@ async function settingFor(companyId, { transaction } = {}) {
         capWeekday: row ? int(row.groupShareCapWeekday, 0) : 0,
         capWeekend: row ? int(row.groupShareCapWeekend, 0) : 0,
         maxTentative: row ? int(row.groupMaxTentativePerUser, 0) : 0,
+        nextInLineHours: row ? int(row.groupNextInLineHours, 24) : 24,
     };
 }
 
@@ -533,7 +536,9 @@ async function applyRejection(profile, { transaction, userId = null }) {
     profile.holdExpiresAt = null;
     profile.updatedBy = userId || profile.updatedBy;
     await profile.save({ transaction });
-    return releaseFlights(profile, { transaction });
+    const n = await releaseFlights(profile, { transaction });
+    if (n) await onSpaceFreed(profile, { transaction });
+    return n;
 }
 
 // The submitter recalled it: back to tentative, everything kept, the clock
@@ -704,6 +709,184 @@ async function notice(profile, { type, title, body, templateKey, data, organiser
 }
 
 // ---------------------------------------------------------------------------
+// Waitlist (lifecycle slice 4): the queue for a course on a date.
+
+// The live offer on a course/date held by ANOTHER booking, or null.
+async function activeOfferFor(companyId, courseId, playDate, { excludeBookingId = null, transaction = null, now = new Date() } = {}) {
+    const where = { companyId, courseId, playDate, status: 'offered', offerExpiresAt: { [Op.gt]: now } };
+    if (excludeBookingId) where.bookingProfileId = { [Op.ne]: excludeBookingId };
+    return GroupWaitlist.findOne({ where, transaction });
+}
+
+// Refuse another group's reservation while an offer is live on the day.
+async function offerBlock(profile, day, { transaction } = {}) {
+    const offer = await activeOfferFor(profile.companyId, day.courseId, String(day.playDate), { excludeBookingId: profile.id, transaction });
+    if (!offer) return null;
+    const holder = await BookingProfile.findOne({ where: { id: offer.bookingProfileId }, attributes: ['groupName', 'bookingNo'], transaction });
+    const tz = await companyTimezoneById(profile.companyId);
+    return { fail: `${holder ? holder.groupName || holder.bookingNo : 'Another group'} is next in line for this course on ${day.playDate} and may reserve until ${instantText(offer.offerExpiresAt, tz)}. Join the waitlist to be offered the day when it frees up.` };
+}
+
+// Offer the day to the first waiting booking (none = nothing to do).
+async function offerNext(companyId, courseId, playDate, { transaction = null } = {}) {
+    const first = await GroupWaitlist.findOne({
+        where: { companyId, courseId, playDate, status: 'waiting' },
+        order: [['position', 'ASC']],
+        transaction,
+    });
+    if (!first) return null;
+    const setting = await settingFor(companyId, { transaction });
+    first.status = 'offered';
+    first.offeredAt = new Date();
+    first.offerExpiresAt = new Date(first.offeredAt.getTime() + setting.nextInLineHours * 3600000);
+    await first.save({ transaction });
+    const [profile, course] = await Promise.all([
+        BookingProfile.findOne({ where: { id: first.bookingProfileId }, transaction }),
+        Course.findOne({ where: { id: courseId }, attributes: ['courseCode', 'description'], transaction }),
+    ]);
+    if (profile) {
+        const tz = await companyTimezoneById(companyId);
+        const courseName = course ? `${course.courseCode}${course.description ? ' - ' + course.description : ''}` : 'the course';
+        await notice(profile, {
+            type: 'golf-group-waitlist-offer',
+            title: `Next in line: ${courseName} on ${playDateText(playDate)}`,
+            body: `${profile.groupName || profile.bookingNo} may reserve flights on ${courseName} for ${playDateText(playDate)} until ${instantText(first.offerExpiresAt, tz)} - no other group can take the day meanwhile.`,
+            templateKey: 'golf.group.waitlist-offer',
+            data: { groupName: profile.groupName || profile.bookingNo, bookingNo: profile.bookingNo, courseName, playDateText: playDateText(playDate), offerExpiresText: instantText(first.offerExpiresAt, tz) },
+            transaction,
+        });
+    }
+    return first;
+}
+
+// A booking's space on its play days freed (hold expired, rejected, lapsed,
+// cancelled): offer each course/date to the next in line. Also withdraws
+// the booking's OWN queue entries when it is gone for good (`gone`).
+async function onSpaceFreed(profile, { transaction, gone = false, days = null } = {}) {
+    const list = days || await GroupPlayDay.findAll({ where: { bookingProfileId: profile.id }, transaction });
+    if (gone) await withdrawAll(profile, { transaction });
+    for (const d of list) {
+        await offerNext(profile.companyId, d.courseId, String(d.playDate), { transaction });
+    }
+}
+
+// Leave every queue the booking is in; a live offer it held moves on.
+async function withdrawAll(profile, { transaction } = {}) {
+    const rows = await GroupWaitlist.findAll({ where: { bookingProfileId: profile.id, status: { [Op.in]: ['waiting', 'offered'] } }, transaction });
+    for (const r of rows) {
+        const wasOffered = r.status === 'offered';
+        r.status = 'withdrawn';
+        r.closedAt = new Date();
+        await r.save({ transaction });
+        if (wasOffered) await offerNext(r.companyId, r.courseId, String(r.playDate), { transaction });
+    }
+    return rows.length;
+}
+
+// POST join: a tentative booking queues one of its play days.
+async function joinWaitlist(req, profile, day) {
+    const setting = await settingFor(profile.companyId);
+    if (!setting.controlOn) return { fail: 'The waitlist is part of group booking control - switch it on under Golf Specification.' };
+    if (profile.status !== 'tentative') return { fail: 'Only a tentative booking joins the waitlist.' };
+    if (day.status !== 'planned') return { fail: 'Only a planned play day joins the waitlist.' };
+    const flights = await GroupFlight.count({ where: { groupPlayDayId: day.id } });
+    if (flights > 0) return { fail: 'This day already holds flights - the waitlist is for a day you could not reserve.' };
+    const existing = await GroupWaitlist.findOne({ where: { bookingProfileId: profile.id, groupPlayDayId: day.id, status: { [Op.in]: ['waiting', 'offered'] } } });
+    if (existing) return { fail: 'This day is already on the waitlist.' };
+    const userId = getUserContext(req).userId;
+    return sequelize.transaction(async (transaction) => {
+        const last = await GroupWaitlist.max('position', { where: { companyId: profile.companyId, courseId: day.courseId, playDate: String(day.playDate) }, transaction });
+        const row = await GroupWaitlist.create({
+            companyId: profile.companyId, courseId: day.courseId, playDate: String(day.playDate),
+            bookingProfileId: profile.id, groupPlayDayId: day.id, position: (Number(last) || 0) + 1, status: 'waiting',
+            createdBy: userId, updatedBy: userId,
+        }, { transaction });
+        return { entry: row };
+    });
+}
+
+// DELETE leave: the booking leaves the queue for that day.
+async function leaveWaitlist(req, profile, day) {
+    const row = await GroupWaitlist.findOne({ where: { bookingProfileId: profile.id, groupPlayDayId: day.id, status: { [Op.in]: ['waiting', 'offered'] } } });
+    if (!row) return { fail: 'This day is not on the waitlist.' };
+    const userId = getUserContext(req).userId;
+    return sequelize.transaction(async (transaction) => {
+        const wasOffered = row.status === 'offered';
+        row.status = 'withdrawn';
+        row.closedAt = new Date();
+        row.updatedBy = userId;
+        await row.save({ transaction });
+        if (wasOffered) await offerNext(row.companyId, row.courseId, String(row.playDate), { transaction });
+        return {};
+    });
+}
+
+// Flights reserved on a day the booking was queued (or offered) for: taken.
+async function markTaken(profile, day, { transaction } = {}) {
+    const row = await GroupWaitlist.findOne({ where: { bookingProfileId: profile.id, groupPlayDayId: day.id, status: { [Op.in]: ['waiting', 'offered'] } }, transaction });
+    if (!row) return false;
+    row.status = 'taken';
+    row.closedAt = new Date();
+    await row.save({ transaction });
+    return true;
+}
+
+// The queue picture of ONE play day for the booking page: this booking's
+// entry (position among those still waiting, offer window), the queue length,
+// and any live offer to another group that blocks reserving.
+async function waitlistOfDay(profile, day, { transaction = null } = {}) {
+    const [mine, waiting, offer] = await Promise.all([
+        GroupWaitlist.findOne({ where: { bookingProfileId: profile.id, groupPlayDayId: day.id }, order: [['createdAt', 'DESC']], transaction }),
+        GroupWaitlist.findAll({ where: { companyId: profile.companyId, courseId: day.courseId, playDate: String(day.playDate), status: 'waiting' }, attributes: ['bookingProfileId', 'position'], order: [['position', 'ASC']], transaction }),
+        activeOfferFor(profile.companyId, day.courseId, String(day.playDate), { excludeBookingId: profile.id, transaction }),
+    ]);
+    const queueAhead = mine && mine.status === 'waiting' ? waiting.filter((w) => w.position < mine.position).length : 0;
+    return {
+        status: mine ? mine.status : null,
+        position: mine && mine.status === 'waiting' ? queueAhead + 1 : null,
+        waiting: waiting.length,
+        offerExpiresAt: mine && mine.status === 'offered' ? mine.offerExpiresAt : null,
+        blockedUntil: offer ? offer.offerExpiresAt : null,
+    };
+}
+
+// Worker: expire unanswered offers and move the queue on.
+async function scanWaitlist({ now = new Date() } = {}) {
+    const stale = await GroupWaitlist.findAll({ where: { status: 'offered', offerExpiresAt: { [Op.lte]: now } } });
+    let moved = 0;
+    for (const r of stale) {
+        try {
+            await sequelize.transaction(async (transaction) => {
+                const fresh = await GroupWaitlist.findOne({ where: { id: r.id }, transaction, lock: transaction.LOCK.UPDATE });
+                if (!fresh || fresh.status !== 'offered' || fresh.offerExpiresAt > now) return;
+                fresh.status = 'expired';
+                fresh.closedAt = new Date();
+                await fresh.save({ transaction });
+                const profile = await BookingProfile.findOne({ where: { id: fresh.bookingProfileId }, transaction });
+                if (profile) {
+                    try {
+                        await notifyUser({
+                            userId: profile.createdBy, companyId: profile.companyId, type: 'golf-group-waitlist-expired',
+                            title: `Offer passed: ${profile.groupName || profile.bookingNo}`,
+                            body: `The next-in-line window for ${playDateText(String(fresh.playDate))} ended without a reservation; the day was offered to the next group.`,
+                            linkRoute: `${GROUP_ROUTE}/${profile.id}`, transaction,
+                        });
+                    } catch (err) {
+                        console.error(`[GOLF GROUP] waitlist bell failed for ${profile.id}:`, err.message);
+                    }
+                }
+                await offerNext(fresh.companyId, fresh.courseId, String(fresh.playDate), { transaction });
+                moved += 1;
+            });
+        } catch (err) {
+            console.error(`[GOLF GROUP] waitlist offer expiry failed for ${r.id}:`, err);
+        }
+    }
+    if (moved) console.log(`[GOLF GROUP] waitlist scan: ${moved} offer(s) moved on.`);
+    return { moved };
+}
+
+// ---------------------------------------------------------------------------
 // The worker tick: warn 24h ahead, expire tentative holds, lapse unpaid
 // approvals.
 
@@ -776,6 +959,7 @@ async function scanGroupLifecycle({ now = new Date() } = {}) {
                 fresh.holdWarnedAt = null;
                 await fresh.save({ transaction });
                 released += 1;
+                if (n) await onSpaceFreed(fresh, { transaction });
                 await notice(fresh, {
                     type: 'golf-group-hold-expired',
                     title: `Hold expired: ${fresh.groupName || fresh.bookingNo}`,
@@ -807,8 +991,10 @@ async function scanGroupLifecycle({ now = new Date() } = {}) {
                 fresh.lapsedAt = new Date();
                 fresh.lapseReason = `Deposit of ${required.toFixed(2)} not received by the pay-by date (${held.toFixed(2)} held).`;
                 await fresh.save({ transaction });
+                const lapsedDays = await GroupPlayDay.findAll({ where: { bookingProfileId: fresh.id, status: 'planned' }, transaction });
                 await GroupPlayDay.update({ status: 'cancelled' }, { where: { bookingProfileId: fresh.id, status: 'planned' }, transaction });
                 lapsed += 1;
+                await onSpaceFreed(fresh, { transaction, gone: true, days: lapsedDays });
                 await notice(fresh, {
                     type: 'golf-group-lapsed',
                     title: `Booking lapsed: ${fresh.groupName || fresh.bookingNo}`,
@@ -824,7 +1010,8 @@ async function scanGroupLifecycle({ now = new Date() } = {}) {
         }
     }
     if (released || lapsed || warned) console.log(`[GOLF GROUP] lifecycle scan: ${warned} warning(s), ${released} hold(s) released, ${lapsed} booking(s) lapsed.`);
-    return { released, lapsed, warned };
+    const waitlist = await scanWaitlist({ now });
+    return { released, lapsed, warned, moved: waitlist.moved };
 }
 
 // ---------------------------------------------------------------------------
@@ -863,6 +1050,16 @@ module.exports = {
     capCheck,
     hoardingCheck,
     dayShare,
+    activeOfferFor,
+    offerBlock,
+    offerNext,
+    onSpaceFreed,
+    withdrawAll,
+    joinWaitlist,
+    leaveWaitlist,
+    markTaken,
+    waitlistOfDay,
+    scanWaitlist,
     abilities,
     refusal,
     guardMessage,

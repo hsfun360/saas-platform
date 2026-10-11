@@ -121,6 +121,8 @@ export interface GolfSettingDoc {
     groupShareCapWeekday: number;
     groupShareCapWeekend: number;
     groupMaxTentativePerUser: number;
+    // Waitlist: the exclusive window (hours) the next group in line has.
+    groupNextInLineHours: number;
     saved: boolean;
   };
   overrides: GolfAdvanceBookingOverride[];
@@ -208,6 +210,7 @@ export class GolfSettingService {
     groupShareCapWeekday: number;
     groupShareCapWeekend: number;
     groupMaxTentativePerUser: number;
+    groupNextInLineHours: number;
     overrides: GolfAdvanceBookingOverride[];
     minPlayerRules: GolfMinPlayerRule[];
     guestControlRules: GolfGuestControlRule[];

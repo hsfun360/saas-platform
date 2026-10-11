@@ -93,6 +93,17 @@ export interface GolfGroupPlayDay {
   flights: GolfGroupFlight[];
   drawnCount: number;
   seatCount: number;
+  // The waitlist picture (sales club only): this booking's entry, the queue
+  // length, and a live offer to ANOTHER group that blocks reserving.
+  waitlist: GolfGroupDayWaitlist | null;
+}
+
+export interface GolfGroupDayWaitlist {
+  status: 'waiting' | 'offered' | 'taken' | 'expired' | 'withdrawn' | null;
+  position: number | null;
+  waiting: number;
+  offerExpiresAt: string | null;
+  blockedUntil: string | null;
 }
 
 export interface GolfGroupRosterPlayer {
@@ -440,6 +451,14 @@ export class GolfGroupBookingService {
 
   removeDay(id: string, dayId: string): Observable<Saved> {
     return this.http.delete<Saved>(`${this.base}/${id}/days/${dayId}`);
+  }
+
+  joinWaitlist(id: string, dayId: string): Observable<Saved> {
+    return this.http.post<Saved>(`${this.base}/${id}/days/${dayId}/waitlist`, {});
+  }
+
+  leaveWaitlist(id: string, dayId: string): Observable<Saved> {
+    return this.http.delete<Saved>(`${this.base}/${id}/days/${dayId}/waitlist`);
   }
 
   dayShare(id: string, dayId: string): Observable<{ share: GolfGroupDayShare }> {

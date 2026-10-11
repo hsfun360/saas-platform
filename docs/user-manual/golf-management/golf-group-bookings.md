@@ -93,6 +93,22 @@ With group booking control on, the tee sheet names the state as well ("TENTATIVE
 A tentative booking's flights are held only for the tentative hold period set in Golf Specification; reserving again restarts that clock, and the lifecycle line on the header shows when it runs out.
 If it runs out before you submit, the flights are released, you receive a notification, and the booking stays tentative without flights - reserve them again when you are ready.
 
+### Join the waitlist for a day another group holds
+
+Group booking control on only.
+
+1. On a tentative booking, a play day whose flights could not be reserved shows why - another group holds the course, or is next in line for it.
+2. Open the day's ⋮ menu and click **Join waitlist for this day**.
+   The day shows your place: "On the waitlist - position 2 of 3".
+3. When the holding group's space frees up (its hold expires, it is rejected, lapses, is cancelled, or removes the day), the first group in the queue is told by bell and email that it is **next in line**.
+   For the next-in-line hours set in Golf Specification, no other group may reserve flights on that course and date; the day reads "Next in line: this course and date are yours to reserve until …".
+4. Click **Reserve flights** on the day as usual; the queue entry is marked taken.
+   If the window passes unanswered, the offer moves to the next group and you are told.
+
+**Leave waitlist** in the same menu gives up your place (and a live offer, which then passes on at once).
+Members' own bookings are never held back by the queue - it is fair play between groups only.
+A booking that is cancelled or lapses leaves every queue it was in.
+
 ### Reminders and notices
 
 The system watches the clocks for you.
@@ -299,6 +315,8 @@ Changing a day's date, course, holes, format or times drops its reserved flights
 - **"Reserve flights for <dates> before submitting"** - every play day needs its flights before the approvers can judge what the booking takes.
 - **"That would put group bookings at 45% of E1's tee times... the weekend cap is 40%"** - the day is nearly full of groups; reserve fewer flights, pick another day or course, or ask management to change the cap. The club's own events are flagged as club events and do not count.
 - **"You already hold 3 tentative booking(s) with reserved flights"** - submit one of them for approval or release its flights, then reserve again.
+- **"<Group> is next in line for this course on <date> and may reserve until …"** - another group's waitlist offer is live; join the waitlist to be offered the day next, or pick another day.
+- **"This day already holds flights - the waitlist is for a day you could not reserve"** - release the day's flights first if you really want to queue instead.
 - **The Submit preview shows "Against catalog ... 12% off"** - some lines carry a manually keyed price; the approvers see the discount against the rate card.
 - **The tee sheet shows "Not confirmed yet" on a group** - the booking is tentative, pending or awaiting its deposit; players register once it is confirmed.
 - **A booking shows Lapsed** - its deposit was not in by the pay-by date; the reason is on the header. Reopen it to start again, or request a refund of any deposit it does hold.

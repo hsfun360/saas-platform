@@ -77,6 +77,17 @@ const HOLD_STATE_LABELS = {
     booked: null,
 };
 
+// Waitlist (lifecycle slice 4, 2026-10-11): a booking's place in the queue
+// for a course and date another group holds - see groupWaitlist.model.
+const WAITLIST_STATUSES = [
+    { key: 'waiting', label: 'Waiting' },
+    { key: 'offered', label: 'Offered' },
+    { key: 'taken', label: 'Taken' },
+    { key: 'expired', label: 'Offer expired' },
+    { key: 'withdrawn', label: 'Withdrawn' },
+];
+const WAITLIST_STATUS_KEYS = WAITLIST_STATUSES.map((s) => s.key);
+
 // Refund requests to Finance (slice 4): plain request-and-settle.
 const GROUP_REFUND_STATUSES = [
     { key: 'requested', label: 'Requested' },
@@ -111,6 +122,8 @@ module.exports = {
     GROUP_BOOKING_STATUS_KEYS,
     HOLD_STATUS_KEYS,
     HOLD_STATE_LABELS,
+    WAITLIST_STATUSES,
+    WAITLIST_STATUS_KEYS,
     DEFAULT_FLIGHT_CAPACITY,
     MAX_FLIGHTS_PER_DAY,
     MAX_ROSTER,

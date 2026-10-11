@@ -75,6 +75,30 @@
   font-weight: var(--weight-semibold);
 }
 
+/* Waitlist line under a play day (2026-10-11): an offer to this booking is
+   the call to action, a place in the queue is neutral, another group's live
+   offer explains why reserving is refused. */
+.ggb-waitlist {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+.ggb-waitlist .material-icons {
+  font-size: var(--icon-sm);
+  flex-shrink: 0;
+}
+.ggb-waitlist--offer {
+  color: var(--success-text);
+  font-weight: var(--weight-semibold);
+}
+.ggb-waitlist--blocked {
+  color: var(--danger-text);
+}
+.ggb-waitlist--wait {
+  color: var(--info-text);
+}
+
 /* Group / Tournament chip on a card subline and the detail title. */
 .ggb-type {
   font-weight: var(--weight-semibold);
