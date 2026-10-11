@@ -494,7 +494,6 @@
   padding: 0;
   overflow: hidden; /* Prevents the whole page from scrolling horizontally */
   box-sizing: border-box;
-  font-family: 'Roboto', Arial, sans-serif;
 }
 
 /* 4. MAIN LAYOUT - Sidebar and Content Area */

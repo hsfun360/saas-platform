@@ -81,7 +81,7 @@
             <div class="form-group">
               <label for="dpTrxDate">Transaction date (period) <span class="required">*</span></label>
               <input id="dpTrxDate" type="date" formControlName="trxDate" />
-              <p class="cell-subtle" style="margin: 2px 0 0;">Accounting period — differs from the document date only when back-keying into a closed month.</p>
+              <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Accounting period — differs from the document date only when back-keying into a closed month.</p>
             </div>
           </div>
           @if (isForeign()) {
@@ -95,7 +95,7 @@
                 @if (showError(form.controls.exchangeRate)) {
                   <p id="dpRateErr" class="field-error" role="alert">Enter a positive decimal with at most 10 decimal places.</p>
                 }
-                <p class="cell-subtle" style="margin: 2px 0 0;">
+                <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">
                   Amount in {{ fxCurrency()?.code }}; 1 {{ fxCurrency()?.code }} = rate {{ fxCurrency()?.baseCurrencyCode }}.
                   @if (baseEquivalent()) { <strong class="ald-fx-base">≈ {{ baseEquivalent() }} {{ fxCurrency()?.baseCurrencyCode }}</strong> required }
                 </p>

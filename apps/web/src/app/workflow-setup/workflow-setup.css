@@ -117,7 +117,7 @@
 }
 
 .cdk-drag-preview.wf-step {
-  box-shadow: 0 6px 18px var(--shadow, rgba(0, 0, 0, 0.2));
+  box-shadow: var(--shadow);
 }
 .cdk-drag-placeholder { opacity: 0.35; }
 

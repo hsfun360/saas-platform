@@ -72,7 +72,7 @@
                 <button type="button" class="btn btn--link btn--sm" style="padding: 0; min-height: auto;" (click)="changeKind()">Change</button>
               }
               @if (refundKind() === 'offset') {
-                <p class="cell-subtle" style="margin: 2px 0 0;">No money moves — a Credit Note posts with the refund and settles open items, oldest first.</p>
+                <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">No money moves — a Credit Note posts with the refund and settles open items, oldest first.</p>
               }
             </div>
             <div class="form-group">
@@ -96,7 +96,7 @@
             <div class="form-group">
               <label for="rfTrxDate">Transaction date (period) <span class="required">*</span></label>
               <input id="rfTrxDate" type="date" formControlName="trxDate" />
-              <p class="cell-subtle" style="margin: 2px 0 0;">Accounting period — differs from the document date only when back-keying into a closed month.</p>
+              <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Accounting period — differs from the document date only when back-keying into a closed month.</p>
             </div>
           </div>
           @if (needsDeposit()) {
@@ -112,7 +112,7 @@
                   <p id="rfDepositErr" class="field-error" role="alert">Select the deposit this refund draws on.</p>
                 }
                 @if (refundableDeposits().length === 0) {
-                  <p class="cell-subtle" style="margin: 2px 0 0;">No deposit on this debtor has a held balance to draw on.</p>
+                  <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">No deposit on this debtor has a held balance to draw on.</p>
                 }
               </div>
               <div class="form-group">
@@ -122,7 +122,7 @@
                 @if (showError(form.controls.amount)) {
                   <p id="rfAmountErr" class="field-error" role="alert">Enter an amount greater than zero.</p>
                 }
-                <p class="cell-subtle" style="margin: 2px 0 0;">Up to the deposit’s held balance.</p>
+                <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Up to the deposit’s held balance.</p>
               </div>
             </div>
           } @else {
@@ -134,7 +134,7 @@
                 @if (showError(form.controls.amount)) {
                   <p id="rfAmountErr" class="field-error" role="alert">Enter an amount greater than zero.</p>
                 }
-                <p class="cell-subtle" style="margin: 2px 0 0;">Funded from unallocated receipt credit, oldest first.</p>
+                <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Funded from unallocated receipt credit, oldest first.</p>
               </div>
             </div>
           }
@@ -152,7 +152,7 @@
                   <p id="rfMethodErr" class="field-error" role="alert">Payment method is required.</p>
                 }
                 @if (methodTypes().length === 0) {
-                  <p class="cell-subtle" style="margin: 2px 0 0;">No Refund-class entries yet — create payout methods (e.g. BANKOUT) on the AR Transaction Type master.</p>
+                  <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">No Refund-class entries yet — create payout methods (e.g. BANKOUT) on the AR Transaction Type master.</p>
                 }
               </div>
               <div class="form-group">
@@ -173,7 +173,7 @@
                 @if (showError(form.controls.exchangeRate)) {
                   <p id="rfRateErr" class="field-error" role="alert">Enter a positive decimal with at most 10 decimal places.</p>
                 }
-                <p class="cell-subtle" style="margin: 2px 0 0;">
+                <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">
                   Amount in {{ fxCurrency()?.code }}; 1 {{ fxCurrency()?.code }} = rate {{ fxCurrency()?.baseCurrencyCode }}.
                   @if (baseEquivalent()) { <strong class="ald-fx-base">≈ {{ baseEquivalent() }} {{ fxCurrency()?.baseCurrencyCode }}</strong> paid out }
                 </p>

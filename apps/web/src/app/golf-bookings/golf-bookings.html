@@ -146,8 +146,8 @@
                   <input id="gbTime" type="time" formControlName="time" />
                 </div>
                 <div class="form-group">
-                  <label for="gbPlayers">Number of Players <span class="required">*</span></label>
-                  <select id="gbPlayers" formControlName="players">
+                  <label for="gbPlayerCount">Number of Players <span class="required">*</span></label>
+                  <select id="gbPlayerCount" formControlName="players">
                     @for (n of [1,2,3,4,5,6,7,8]; track n) {
                       <option [ngValue]="n">{{ n }}</option>
                     }
