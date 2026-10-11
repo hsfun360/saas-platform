@@ -33,8 +33,9 @@ The status chip on every card and page tells you where a booking stands, and the
 
 - Two date fields filter by play dates; the range reaches 31 days back and 180 days ahead.
 - A **Status** filter narrows to one state (Tentative, Pending approval, Approved, Confirmed, Lapsed or Cancelled); a search box filters the loaded list by group name, booking number, organiser or course.
+- A sort control beside the search orders the list by **Urgency** (the booking whose hold or deposit clock runs out first comes first, then the ones awaiting approval, then the rest), **Play date** or **Group**; with group booking control on the list opens on Urgency - the sales pipeline.
 - Each booking is a card: the group name as the title, a **Group** or **Tournament** chip, the booking number, the play dates and courses, then the organiser, the number of days and the roster count against the expected players.
-  With group booking control on, a line such as "Hold expires 14 Oct, 09:00" or "Deposit 3,000.00 due 18 Oct, 23:59" shows the clock that is running.
+  With group booking control on, a line such as "Hold expires in 5 h · 14 Oct, 09:00" or "Deposit 3,000.00 due in 3 days · 18 Oct, 23:59" shows the clock that is running; a card whose clock ends within three days carries a blue edge, within one day a red edge, and "· warned" once the reminder has gone out.
 - **Open** goes to the booking's own page; the ⋮ menu holds **Cancel booking**.
 - **New group booking** sits bottom-right.
 
@@ -91,6 +92,15 @@ With the tentative-bookings-per-user cap on, you may hold only that many tentati
 With group booking control on, the tee sheet names the state as well ("TENTATIVE · <group>", "PENDING · <group>", "APPROVED · <group>") until the booking is confirmed.
 A tentative booking's flights are held only for the tentative hold period set in Golf Specification; reserving again restarts that clock, and the lifecycle line on the header shows when it runs out.
 If it runs out before you submit, the flights are released, you receive a notification, and the booking stays tentative without flights - reserve them again when you are ready.
+
+### Reminders and notices
+
+The system watches the clocks for you.
+Twenty-four hours before a tentative booking's hold runs out, and twenty-four hours before an approved booking's pay-by date while the deposit is still short, whoever created the booking gets a bell notification and an email.
+The deposit reminder also goes to the organiser's **Contact email** on the booking, worded for the organiser.
+When a hold expires or a booking lapses, the same people are told what was released and what to do next.
+Each reminder goes once per clock; extending the deadline, reopening or reserving again starts a fresh clock and a fresh reminder.
+The email wording is maintained under System Setup → Email Templates (the Golf group booking templates).
 
 ### Submit for approval
 
@@ -236,6 +246,7 @@ The folio stays workable on a cancelled booking while its group bill is open; no
 | **Member No** | With Member | The organising member's number. | The member's account becomes the billing party. |
 | **Organiser name** | With No account | The organiser's name. | |
 | **Contact person**, **Contact mobile** | No | Who to call. | Print on the proforma. |
+| **Contact email** | No | The organiser's email address. | Must be a valid address; receives the deposit-due reminder and the lapse notice. |
 | **Expected players** | No | The size the organiser quoted. | 1 to 999; shown against the roster count. |
 | **Club event** | No | Tick for the club's own event (Monthly Medal, captain's day). | Shown only to users who hold Golf Specification; exempt from the share caps and the approval chain, and not counted as a group against members' tee times. |
 

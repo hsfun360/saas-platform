@@ -21,7 +21,7 @@ const { sequelize } = require('../../platform/db');
 const { getUserContext, holdsMenu } = require('../../platform/serviceContext');
 const { classifyDateRange, companyTimezone, companyTimezoneById } = require('../../platform/calendarGateway');
 const workflowGateway = require('../../platform/workflowGateway');
-const { notifyUser } = require('../../platform/notificationGateway');
+const { notifyUser, emailUser, emailAddress } = require('../../platform/notificationGateway');
 const availability = require('./bookingAvailability.service');
 const billing = require('./billing.service');
 const { round2 } = billing;
@@ -520,6 +520,7 @@ async function applyApproval(profile, { transaction, userId = null, setting = nu
     if (groupBill) groupBill.depositDueDate = dueDate;
     profile.status = 'approved';
     profile.depositDueAt = endOfDayInZone(dueDate, tz);
+    profile.depositWarnedAt = null;
     await profile.save({ transaction });
     if (groupBill && groupBill.changed()) await groupBill.save({ transaction });
     return 'approved';
@@ -542,6 +543,7 @@ async function applyRecall(profile, { transaction, userId = null, setting = null
     profile.status = 'tentative';
     const hasFlights = await GroupFlight.count({ where: { bookingProfileId: profile.id }, transaction });
     profile.holdExpiresAt = hasFlights ? holdExpiry(cfg) : null;
+    profile.holdWarnedAt = null;
     profile.updatedBy = userId || profile.updatedBy;
     await profile.save({ transaction });
 }
@@ -575,6 +577,8 @@ async function reopen(req, profile) {
         const hasFlights = await GroupFlight.count({ where: { bookingProfileId: profile.id }, transaction });
         profile.status = 'tentative';
         profile.holdExpiresAt = held > 0 || !hasFlights ? null : holdExpiry(setting);
+        profile.holdWarnedAt = null;
+        profile.depositWarnedAt = null;
         profile.submittedAt = null;
         profile.approvedAt = null;
         profile.depositDueAt = null;
@@ -606,6 +610,7 @@ async function extendDeposit(req, profile, { depositDueDate, reason }) {
     const userId = getUserContext(req).userId;
     return sequelize.transaction(async (transaction) => {
         profile.depositDueAt = next;
+        profile.depositWarnedAt = null; // the extended clock warns again
         profile.depositDueExtendedAt = new Date();
         profile.depositDueExtendedBy = userId;
         profile.depositDueExtensionReason = reason;
@@ -640,6 +645,7 @@ async function onFlightsReserved(profile, { transaction }) {
     const setting = await settingFor(profile.companyId, { transaction });
     const held = await depositsHeld(profile, { transaction });
     profile.holdExpiresAt = held > 0 ? null : holdExpiry(setting);
+    profile.holdWarnedAt = null; // a new clock warns again
     await profile.save({ transaction });
 }
 
@@ -650,11 +656,113 @@ async function initialStatus(companyId) {
 }
 
 // ---------------------------------------------------------------------------
-// The worker tick: expire tentative holds, lapse unpaid approvals.
+// Notices (bell + email); every send is non-critical - logged, never thrown.
+
+const WARN_BEFORE_MS = 24 * 3600000;
+
+// '24 Nov 2026' from 'YYYY-MM-DD' (UTC so the server timezone never shifts
+// the date) - the booking emails' date style.
+function playDateText(iso) {
+    return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
+// '18 Oct 2026, 23:59' club-local.
+function instantText(date, timezone) {
+    return new Intl.DateTimeFormat('en-GB', { timeZone: timezone || 'UTC', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date).replace(',', ',');
+}
+
+async function flightCountOf(profile) {
+    return GroupFlight.count({ where: { bookingProfileId: profile.id } });
+}
+
+// Bell + email to the creator, and (when `organiser`) the same email to the
+// organiser's contact address with the organiser wording.
+async function notice(profile, { type, title, body, templateKey, data, organiser = false, transaction = null }) {
+    const linkRoute = `${GROUP_ROUTE}/${profile.id}`;
+    try {
+        await notifyUser({ userId: profile.createdBy, companyId: profile.companyId, type, title, body, linkRoute, transaction });
+    } catch (err) {
+        console.error(`[GOLF GROUP] bell failed for ${profile.id}:`, err.message);
+    }
+    try {
+        // The gateway fills userName from the user record; the templates fall
+        // back to it when recipientName is absent.
+        await emailUser({ userId: profile.createdBy, companyId: profile.companyId, templateKey, data: { ...data, isOrganiser: false } });
+    } catch (err) {
+        console.error(`[GOLF GROUP] creator email failed for ${profile.id}:`, err.message);
+    }
+    if (organiser && profile.contactEmail) {
+        try {
+            await emailAddress({
+                companyId: profile.companyId, templateKey, to: profile.contactEmail,
+                data: { ...data, recipientName: profile.contactPerson || profile.organiserName || 'Organiser', isOrganiser: true },
+            });
+        } catch (err) {
+            console.error(`[GOLF GROUP] organiser email failed for ${profile.id}:`, err.message);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The worker tick: warn 24h ahead, expire tentative holds, lapse unpaid
+// approvals.
 
 async function scanGroupLifecycle({ now = new Date() } = {}) {
     let released = 0;
     let lapsed = 0;
+    let warned = 0;
+    const horizon = new Date(now.getTime() + WARN_BEFORE_MS);
+
+    // 24-hour warnings, once per clock (the markers clear when a clock restarts).
+    const holdSoon = await BookingProfile.findAll({
+        where: { bookingType: { [Op.in]: GROUP_BOOKING_TYPE_KEYS }, status: 'tentative', holdExpiresAt: { [Op.gt]: now, [Op.lte]: horizon }, holdWarnedAt: null },
+    });
+    for (const p of holdSoon) {
+        try {
+            const tz = await companyTimezoneById(p.companyId);
+            const flights = await flightCountOf(p);
+            p.holdWarnedAt = new Date();
+            await p.save();
+            await notice(p, {
+                type: 'golf-group-hold-expiring',
+                title: `Hold ends soon: ${p.groupName || p.bookingNo}`,
+                body: `${flights} reserved flight(s) are released at ${instantText(p.holdExpiresAt, tz)} unless the booking is submitted for approval.`,
+                templateKey: 'golf.group.hold-expiring',
+                data: { groupName: p.groupName || p.bookingNo, bookingNo: p.bookingNo, playDateText: playDateText(String(p.playDate)), expiresText: instantText(p.holdExpiresAt, tz), flightCount: flights },
+            });
+            warned += 1;
+        } catch (err) {
+            console.error(`[GOLF GROUP] hold warning failed for ${p.id}:`, err);
+        }
+    }
+    const depositSoon = await BookingProfile.findAll({
+        where: { bookingType: { [Op.in]: GROUP_BOOKING_TYPE_KEYS }, status: 'approved', depositDueAt: { [Op.gt]: now, [Op.lte]: horizon }, depositWarnedAt: null },
+    });
+    for (const p of depositSoon) {
+        try {
+            const tz = await companyTimezoneById(p.companyId);
+            const held = await depositsHeld(p);
+            const required = Number(p.depositRequiredAmount || 0);
+            p.depositWarnedAt = new Date();
+            await p.save();
+            if (held >= required) { await refreshConfirmation(p); continue; }
+            const short = round2(required - held);
+            await notice(p, {
+                type: 'golf-group-deposit-due',
+                title: `Deposit due soon: ${p.groupName || p.bookingNo}`,
+                body: `${short.toFixed(2)} of the ${required.toFixed(2)} deposit is still outstanding; the booking lapses at ${instantText(p.depositDueAt, tz)} unless it is received.`,
+                templateKey: 'golf.group.deposit-due',
+                organiser: true,
+                data: {
+                    groupName: p.groupName || p.bookingNo, bookingNo: p.bookingNo, playDateText: playDateText(String(p.playDate)),
+                    dueText: instantText(p.depositDueAt, tz), depositRequired: required.toFixed(2), depositHeld: held.toFixed(2), depositShort: short.toFixed(2),
+                },
+            });
+            warned += 1;
+        } catch (err) {
+            console.error(`[GOLF GROUP] deposit warning failed for ${p.id}:`, err);
+        }
+    }
     const expiring = await BookingProfile.findAll({
         where: { bookingType: { [Op.in]: GROUP_BOOKING_TYPE_KEYS }, status: 'tentative', holdExpiresAt: { [Op.lte]: now } },
     });
@@ -665,13 +773,16 @@ async function scanGroupLifecycle({ now = new Date() } = {}) {
                 if (!fresh || fresh.status !== 'tentative' || !fresh.holdExpiresAt || fresh.holdExpiresAt > now) return;
                 const n = await releaseFlights(fresh, { transaction });
                 fresh.holdExpiresAt = null;
+                fresh.holdWarnedAt = null;
                 await fresh.save({ transaction });
                 released += 1;
-                await notifyUser({
-                    userId: fresh.createdBy, companyId: fresh.companyId, type: 'golf-group-hold-expired',
+                await notice(fresh, {
+                    type: 'golf-group-hold-expired',
                     title: `Hold expired: ${fresh.groupName || fresh.bookingNo}`,
                     body: `${n} reserved flight(s) were released because the booking was not submitted for approval in time. Reserve them again to continue.`,
-                    linkRoute: `${GROUP_ROUTE}/${fresh.id}`, transaction,
+                    templateKey: 'golf.group.hold-expired',
+                    data: { groupName: fresh.groupName || fresh.bookingNo, bookingNo: fresh.bookingNo, playDateText: playDateText(String(fresh.playDate)), flightCount: n },
+                    transaction,
                 });
             });
         } catch (err) {
@@ -698,19 +809,22 @@ async function scanGroupLifecycle({ now = new Date() } = {}) {
                 await fresh.save({ transaction });
                 await GroupPlayDay.update({ status: 'cancelled' }, { where: { bookingProfileId: fresh.id, status: 'planned' }, transaction });
                 lapsed += 1;
-                await notifyUser({
-                    userId: fresh.createdBy, companyId: fresh.companyId, type: 'golf-group-lapsed',
+                await notice(fresh, {
+                    type: 'golf-group-lapsed',
                     title: `Booking lapsed: ${fresh.groupName || fresh.bookingNo}`,
                     body: `${fresh.lapseReason} ${n} flight(s) were released. Reopen the booking to start again.`,
-                    linkRoute: `${GROUP_ROUTE}/${fresh.id}`, transaction,
+                    templateKey: 'golf.group.lapsed',
+                    organiser: true,
+                    data: { groupName: fresh.groupName || fresh.bookingNo, bookingNo: fresh.bookingNo, playDateText: playDateText(String(fresh.playDate)), depositRequired: required.toFixed(2), depositHeld: held.toFixed(2), flightCount: n },
+                    transaction,
                 });
             });
         } catch (err) {
             console.error(`[GOLF GROUP] deposit lapse failed for ${p.id}:`, err);
         }
     }
-    if (released || lapsed) console.log(`[GOLF GROUP] lifecycle scan: ${released} hold(s) released, ${lapsed} booking(s) lapsed.`);
-    return { released, lapsed };
+    if (released || lapsed || warned) console.log(`[GOLF GROUP] lifecycle scan: ${warned} warning(s), ${released} hold(s) released, ${lapsed} booking(s) lapsed.`);
+    return { released, lapsed, warned };
 }
 
 // ---------------------------------------------------------------------------
@@ -730,6 +844,8 @@ function lifecycleDto(profile, setting) {
         lapseReason: profile.lapseReason || null,
         depositDueExtendedAt: profile.depositDueExtendedAt || null,
         depositDueExtensionReason: profile.depositDueExtensionReason || null,
+        holdWarnedAt: profile.holdWarnedAt || null,
+        depositWarnedAt: profile.depositWarnedAt || null,
         can: abilities(profile.status, { controlOn: setting.controlOn, depositDueExtendedAt: profile.depositDueExtendedAt }),
         isClubEvent: profile.isClubEvent === true,
     };

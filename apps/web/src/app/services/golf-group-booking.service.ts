@@ -144,6 +144,9 @@ export interface GolfGroupLifecycle {
   lapseReason: string | null;
   depositDueExtendedAt: string | null;
   depositDueExtensionReason: string | null;
+  // The 24-hour warnings already sent for the running clocks.
+  holdWarnedAt: string | null;
+  depositWarnedAt: string | null;
   can: GolfGroupAbilities;
 }
 
@@ -172,6 +175,7 @@ export interface GolfGroupBookingHeader {
   bookerMemberNo: string | null;
   contactPerson: string | null;
   contactMobile: string | null;
+  contactEmail: string | null;
   expectedPlayers: number | null;
   playDate: string;
   playDateTo: string | null;
@@ -216,6 +220,7 @@ export interface GolfGroupHeaderPayload {
   organiserName?: string;
   contactPerson?: string;
   contactMobile?: string;
+  contactEmail?: string | null;
   expectedPlayers?: number | null;
   remarks?: string;
   bookingNo?: string;

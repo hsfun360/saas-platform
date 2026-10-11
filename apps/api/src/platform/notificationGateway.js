@@ -44,4 +44,19 @@ async function emailUser({ userId, companyId = null, templateKey, data = {} }) {
     });
 }
 
-module.exports = { notifyUser, emailUser };
+// Queue a templated email to an ADDRESS that is not a user (an organiser's
+// contact email on a group booking). Same cascade + branding as emailUser.
+async function emailAddress({ companyId = null, templateKey, to, data = {} }) {
+    if (!to) return false;
+    const company = companyId ? await getCompanyProfile(companyId) : null;
+    const { enqueueEmail } = require('../modules/notification/emailOutbox');
+    return enqueueEmail({
+        templateKey,
+        accountId: company ? company.accountId : null,
+        companyId,
+        to,
+        data: { companyName: company ? company.name : '', ...data },
+    });
+}
+
+module.exports = { notifyUser, emailUser, emailAddress };

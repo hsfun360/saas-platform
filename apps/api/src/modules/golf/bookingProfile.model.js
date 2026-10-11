@@ -88,6 +88,12 @@ const BookingProfile = sequelize.define('GolfBookingProfile', {
         type: DataTypes.STRING(100),
         allowNull: true,
     },
+    // The organiser's email (2026-10-11): the deposit-due warning and the
+    // lapse notice go here as well as to the booking's creator.
+    contactEmail: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+    },
     expectedPlayers: {
         type: DataTypes.INTEGER,
         allowNull: true,
@@ -157,6 +163,16 @@ const BookingProfile = sequelize.define('GolfBookingProfile', {
     },
     lapseReason: {
         type: DataTypes.STRING,
+        allowNull: true,
+    },
+    // The 24-hour warnings sent once per clock (cleared whenever the clock
+    // restarts, so a reopened or extended booking is warned again).
+    holdWarnedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    depositWarnedAt: {
+        type: DataTypes.DATE,
         allowNull: true,
     },
     // The ONE deadline extension a manager may grant before the lapse.

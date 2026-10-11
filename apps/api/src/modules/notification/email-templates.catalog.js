@@ -548,4 +548,118 @@ module.exports = [
             <p style="font-size: 12px; color: #666; margin-top: 16px;">If you believe this charge was raised in error, please contact the club's front desk.</p>
         `),
     },
+    // --- Group booking lifecycle (2026-10-11): the clocks' warnings and outcomes ---
+    {
+        key: 'golf.group.hold-expiring',
+        name: 'Golf group booking - hold expiring',
+        description: 'Sent to the user who created a tentative group booking 24 hours before its reserved flights are released, unless it is submitted for approval.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'userName', description: "The recipient's name." },
+            { name: 'groupName', description: 'The group / tournament name.' },
+            { name: 'bookingNo', description: 'The booking number.' },
+            { name: 'playDateText', description: "The first play date, e.g. '24 Nov 2026'." },
+            { name: 'expiresText', description: "When the hold ends, e.g. '14 Oct 2026, 18:33'." },
+            { name: 'flightCount', description: 'The reserved flights that would be released.' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: { userName: 'Sales Executive', groupName: 'IFCA Invitational', bookingNo: 'B261000017', playDateText: '24 Nov 2026', expiresText: '14 Oct 2026, 18:33', flightCount: 12, companyName: 'Kuala Lumpur Golf & Country Club' },
+        fromName: null,
+        subject: 'Hold on {{groupName}} ({{bookingNo}}) ends {{expiresText}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Hold expiring</h2>
+            <p>Dear {{userName}},</p>
+            <p>The <strong>{{flightCount}}</strong> reserved flight(s) of tentative group booking <strong>{{groupName}}</strong> ({{bookingNo}}, playing {{playDateText}}) at <strong>{{companyName}}</strong> will be released at <strong>{{expiresText}}</strong> unless the booking is submitted for approval before then.</p>
+            <p>Open the booking under Golf Management → Group Bookings and submit it, or let the hold lapse if the deal is off.</p>
+        `),
+    },
+    {
+        key: 'golf.group.hold-expired',
+        name: 'Golf group booking - hold expired',
+        description: 'Sent to the user who created a tentative group booking when its reserved flights were released because it was not submitted in time.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'userName', description: "The recipient's name." },
+            { name: 'groupName', description: 'The group / tournament name.' },
+            { name: 'bookingNo', description: 'The booking number.' },
+            { name: 'playDateText', description: 'The first play date.' },
+            { name: 'flightCount', description: 'The flights released.' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: { userName: 'Sales Executive', groupName: 'IFCA Invitational', bookingNo: 'B261000017', playDateText: '24 Nov 2026', flightCount: 12, companyName: 'Kuala Lumpur Golf & Country Club' },
+        fromName: null,
+        subject: 'Hold on {{groupName}} ({{bookingNo}}) has expired',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Hold expired</h2>
+            <p>Dear {{userName}},</p>
+            <p>The <strong>{{flightCount}}</strong> reserved flight(s) of tentative group booking <strong>{{groupName}}</strong> ({{bookingNo}}, playing {{playDateText}}) at <strong>{{companyName}}</strong> have been released to the tee sheet because the booking was not submitted for approval in time.</p>
+            <p>The booking is still tentative. Reserve its flights again under Golf Management → Group Bookings when you are ready to submit it.</p>
+        `),
+    },
+    {
+        key: 'golf.group.deposit-due',
+        name: 'Golf group booking - deposit due',
+        description: "Sent 24 hours before an approved group booking's pay-by date to the user who created it and to the organiser's contact email, while the deposit is still short.",
+        tenantOverridable: true,
+        variables: [
+            { name: 'recipientName', description: "The recipient's name (the user, or the organiser's contact)." },
+            { name: 'groupName', description: 'The group / tournament name.' },
+            { name: 'bookingNo', description: 'The booking number.' },
+            { name: 'playDateText', description: 'The first play date.' },
+            { name: 'dueText', description: "The pay-by instant, e.g. '18 Oct 2026, 23:59'." },
+            { name: 'depositRequired', description: "The deposit demanded, e.g. '1,036.80'." },
+            { name: 'depositHeld', description: 'The deposit already received.' },
+            { name: 'depositShort', description: 'The amount still outstanding.' },
+            { name: 'isOrganiser', description: "True when sent to the organiser's contact (drives the wording)." },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: { recipientName: 'Mr Lim', groupName: 'IFCA Invitational', bookingNo: 'B261000017', playDateText: '24 Nov 2026', dueText: '18 Oct 2026, 23:59', depositRequired: '1036.80', depositHeld: '0.00', depositShort: '1036.80', isOrganiser: true, companyName: 'Kuala Lumpur Golf & Country Club' },
+        fromName: null,
+        subject: 'Deposit of {{depositShort}} for {{groupName}} due {{dueText}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Deposit due</h2>
+            <p>Dear {{#if recipientName}}{{recipientName}}{{else}}{{userName}}{{/if}},</p>
+            {{#if isOrganiser}}
+            <p>Your group booking <strong>{{groupName}}</strong> ({{bookingNo}}, playing {{playDateText}}) at <strong>{{companyName}}</strong> is approved and its tee times are held for you. The deposit must reach the club by <strong>{{dueText}}</strong> to confirm the booking; after that the held tee times are released.</p>
+            {{else}}
+            <p>Group booking <strong>{{groupName}}</strong> ({{bookingNo}}, playing {{playDateText}}) is approved but its deposit is still short. Unless it is received by <strong>{{dueText}}</strong>, the booking lapses and its flights are released.</p>
+            {{/if}}
+            <p>
+                <strong>Deposit required:</strong> {{depositRequired}}<br>
+                <strong>Received:</strong> {{depositHeld}}<br>
+                <strong>Outstanding:</strong> {{depositShort}}
+            </p>
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">If the deposit has already been sent, please contact the club so it can be recorded.</p>
+        `),
+    },
+    {
+        key: 'golf.group.lapsed',
+        name: 'Golf group booking - lapsed',
+        description: "Sent when an approved group booking lapses because its deposit was not received by the pay-by date, to the user who created it and to the organiser's contact email.",
+        tenantOverridable: true,
+        variables: [
+            { name: 'recipientName', description: "The recipient's name." },
+            { name: 'groupName', description: 'The group / tournament name.' },
+            { name: 'bookingNo', description: 'The booking number.' },
+            { name: 'playDateText', description: 'The first play date.' },
+            { name: 'depositRequired', description: 'The deposit demanded.' },
+            { name: 'depositHeld', description: 'The deposit received.' },
+            { name: 'flightCount', description: 'The flights released.' },
+            { name: 'isOrganiser', description: "True when sent to the organiser's contact." },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: { recipientName: 'Mr Lim', groupName: 'IFCA Invitational', bookingNo: 'B261000017', playDateText: '24 Nov 2026', depositRequired: '1036.80', depositHeld: '0.00', flightCount: 12, isOrganiser: true, companyName: 'Kuala Lumpur Golf & Country Club' },
+        fromName: null,
+        subject: 'Group booking {{groupName}} ({{bookingNo}}) has lapsed',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Booking lapsed</h2>
+            <p>Dear {{#if recipientName}}{{recipientName}}{{else}}{{userName}}{{/if}},</p>
+            <p>Group booking <strong>{{groupName}}</strong> ({{bookingNo}}, playing {{playDateText}}) at <strong>{{companyName}}</strong> has lapsed: the deposit of <strong>{{depositRequired}}</strong> was not received by the pay-by date ({{depositHeld}} received). Its <strong>{{flightCount}}</strong> reserved flight(s) have been released to the tee sheet.</p>
+            {{#if isOrganiser}}
+            <p>If you still wish to play, please contact the club - the booking can be reopened and the tee times reserved again, subject to availability.</p>
+            {{else}}
+            <p>Reopen the booking under Golf Management → Group Bookings to start again, or request a refund of any deposit it holds.</p>
+            {{/if}}
+        `),
+    },
 ];

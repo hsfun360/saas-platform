@@ -38,6 +38,43 @@
 }
 
 
+/* Search + sort on one row (listing standard): the search flexes, the sort
+   menu keeps its size. */
+.ggb-search-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+.ggb-search-row .saas-search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The pipeline (2026-10-11): a card whose clock runs out inside 72 hours
+   carries a warning edge, inside 24 hours a danger edge; the countdown line
+   repeats it with a glyph. */
+.ggb-urgent--soon {
+  border-left: 4px solid var(--info-border);
+}
+.ggb-urgent--due {
+  border-left: 4px solid var(--danger-border);
+}
+.ggb-countdown {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.ggb-countdown .material-icons {
+  font-size: var(--icon-sm);
+}
+.ggb-urgent--soon .ggb-countdown {
+  color: var(--info-text);
+}
+.ggb-urgent--due .ggb-countdown {
+  color: var(--danger-text);
+  font-weight: var(--weight-semibold);
+}
+
 /* Group / Tournament chip on a card subline and the detail title. */
 .ggb-type {
   font-weight: var(--weight-semibold);

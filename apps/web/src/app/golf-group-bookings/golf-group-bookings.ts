@@ -11,6 +11,7 @@ import { CanDirective } from '../shared/can.directive';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { SortMenuComponent, SortOption, SortValue } from '../shared/sort-menu/sort-menu';
 import { LocalDatePipe, formatLocalDate } from '../shared/local-date.pipe';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { ScrollReturnService } from '../services/scroll-return.service';
@@ -71,7 +72,7 @@ function localDate(d: Date): string {
   imports: [ConfirmDialogComponent, 
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective,
     DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective, LocalDatePipe, MoneyInputDirective, MoneyPipe,
-    PhoneInputComponent,
+    PhoneInputComponent, SortMenuComponent,
   ],
   templateUrl: './golf-group-bookings.html',
   styleUrls: ['../system-setup/system-setup.css', './golf-group-bookings.css'],
@@ -99,15 +100,77 @@ export class GolfGroupBookingsComponent implements OnInit {
   readonly dateTo = signal(localDate(new Date(Date.now() + 180 * 86400000)));
   readonly status = signal('');
   readonly search = signal('');
+  // The pipeline (2026-10-11): a sales club reads the list by URGENCY - the
+  // booking whose hold or deposit clock runs out first comes first, then the
+  // ones awaiting approval, then everything else by play date. The sort menu
+  // sits beside the search (listing standard); play date is the committee
+  // club's natural order and the default when the control is off.
+  readonly controlOnList = signal(false);
+  readonly sortOptions: SortOption[] = [
+    { key: 'urgency', label: 'Urgency', defaultDir: 'asc' },
+    { key: 'playDate', label: 'Play date', defaultDir: 'desc' },
+    { key: 'groupName', label: 'Group', defaultDir: 'asc' },
+  ];
+  readonly sort = signal<SortValue>({ key: 'playDate', dir: 'desc' });
   readonly filtered = computed(() => {
     const q = this.search().trim().toLowerCase();
     const rows = this.bookings();
-    if (!q) return rows;
-    return rows.filter((b) => (b.groupName || '').toLowerCase().includes(q)
+    const hit = q ? rows.filter((b) => (b.groupName || '').toLowerCase().includes(q)
       || b.bookingNo.toLowerCase().includes(q)
       || (b.organiserName || '').toLowerCase().includes(q)
-      || b.courses.join(' ').toLowerCase().includes(q));
+      || b.courses.join(' ').toLowerCase().includes(q)) : rows.slice();
+    const { key, dir } = this.sort();
+    const sign = dir === 'asc' ? 1 : -1;
+    const cmp = (a: GolfGroupBookingRow, b: GolfGroupBookingRow): number => {
+      if (key === 'groupName') return (a.groupName || '').localeCompare(b.groupName || '');
+      if (key === 'urgency') {
+        const ua = this.deadlineOf(a);
+        const ub = this.deadlineOf(b);
+        if (ua !== ub) return ua - ub;
+        return a.playDate.localeCompare(b.playDate);
+      }
+      return a.playDate.localeCompare(b.playDate) || a.bookingNo.localeCompare(b.bookingNo);
+    };
+    return hit.sort((a, b) => sign * cmp(a, b));
   });
+
+  // The instant a booking's running clock ends (hold expiry or deposit due);
+  // pending approvals sit after every clock, the rest at the end.
+  private deadlineOf(b: GolfGroupBookingRow): number {
+    const l = b.lifecycle;
+    if (!l) return Number.MAX_SAFE_INTEGER;
+    if (b.status === 'tentative' && l.holdExpiresAt) return new Date(l.holdExpiresAt).getTime();
+    if (b.status === 'approved' && l.depositDueAt) return new Date(l.depositDueAt).getTime();
+    if (b.status === 'pending-approval') return Number.MAX_SAFE_INTEGER - 2;
+    if (b.status === 'tentative') return Number.MAX_SAFE_INTEGER - 1;
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  setSort(value: SortValue): void {
+    this.sort.set(value);
+  }
+
+  // "in 5h" / "in 3 days" / "overdue" for the listing's countdown.
+  relative(iso: string | null): string {
+    if (!iso) return '';
+    const ms = new Date(iso).getTime() - Date.now();
+    if (ms <= 0) return 'now';
+    const h = Math.round(ms / 3600000);
+    if (h < 1) return `in ${Math.max(1, Math.round(ms / 60000))} min`;
+    if (h < 48) return `in ${h} h`;
+    return `in ${Math.round(h / 24)} days`;
+  }
+
+  // The urgency class of a listing card: a clock inside 24 hours is danger,
+  // inside 72 hours is a warning.
+  urgencyClass(b: GolfGroupBookingRow): string {
+    const at = this.deadlineOf(b);
+    if (at >= Number.MAX_SAFE_INTEGER - 2) return '';
+    const ms = at - Date.now();
+    if (ms <= 24 * 3600000) return 'ggb-urgent--due';
+    if (ms <= 72 * 3600000) return 'ggb-urgent--soon';
+    return '';
+  }
 
   // ---- detail ----
   readonly selectedId = signal<string | null>(null);
@@ -199,6 +262,7 @@ export class GolfGroupBookingsComponent implements OnInit {
     organiserName: ['', Validators.maxLength(150)],
     contactPerson: ['', Validators.maxLength(100)],
     contactMobile: ['', Validators.maxLength(30)],
+    contactEmail: ['', [Validators.email, Validators.maxLength(255)]],
     expectedPlayers: ['' as string | number],
     remarks: ['', Validators.maxLength(255)],
     // The club's own event (Golf Specification holders only): exempt from
@@ -322,6 +386,9 @@ export class GolfGroupBookingsComponent implements OnInit {
     this.service.list({ dateFrom: this.dateFrom(), dateTo: this.dateTo(), status: this.status() }).subscribe({
       next: (res) => {
         this.bookings.set(res.bookings);
+        // A sales club lands on the pipeline order; set once, the user's pick wins after.
+        if (res.controlOn && !this.controlOnList()) this.sort.set({ key: 'urgency', dir: 'asc' });
+        this.controlOnList.set(res.controlOn === true);
         this.loading.set(false);
         this.returnScroll.consume(GolfGroupBookingsComponent.LIST_PATH, this.injector);
       },
@@ -408,13 +475,14 @@ export class GolfGroupBookingsComponent implements OnInit {
     }
   }
 
-  // The short countdown on a listing card ("Hold expires 14 Oct, 09:00").
+  // The short countdown on a listing card ("Hold expires in 5 h · 14 Oct, 09:00").
   lifecycleShort(b: GolfGroupBookingRow): string {
     const l = b.lifecycle;
     if (!l || !l.controlOn) return '';
-    if (b.status === 'tentative' && l.holdExpiresAt) return `Hold expires ${formatLocalDate(l.holdExpiresAt, 'datetime')}`;
-    if (b.status === 'approved' && l.depositDueAt) return `Deposit ${(l.depositRequiredAmount || 0).toFixed(2)} due ${formatLocalDate(l.depositDueAt, 'datetime')}`;
-    if (b.status === 'pending-approval') return 'Awaiting approval';
+    if (b.status === 'tentative' && l.holdExpiresAt) return `Hold expires ${this.relative(l.holdExpiresAt)} · ${formatLocalDate(l.holdExpiresAt, 'datetime')}${l.holdWarnedAt ? ' · warned' : ''}`;
+    if (b.status === 'approved' && l.depositDueAt) return `Deposit ${(l.depositRequiredAmount || 0).toFixed(2)} due ${this.relative(l.depositDueAt)} · ${formatLocalDate(l.depositDueAt, 'datetime')}${l.depositWarnedAt ? ' · warned' : ''}`;
+    if (b.status === 'pending-approval') return `Awaiting approval since ${formatLocalDate(l.submittedAt, 'datetime')}`;
+    if (b.status === 'tentative') return 'Tentative - no flights held';
     return '';
   }
 
@@ -1042,7 +1110,7 @@ export class GolfGroupBookingsComponent implements OnInit {
     this.headerMode.set('create');
     this.headerForm.reset({
       bookingType: 'group', groupName: '', organiserKind: 'other', otherDebtorId: '', memberNo: '', organiserName: '',
-      contactPerson: '', contactMobile: '', expectedPlayers: '', remarks: '', isClubEvent: false,
+      contactPerson: '', contactMobile: '', contactEmail: '', expectedPlayers: '', remarks: '', isClubEvent: false,
     });
     this.dayLines.clear();
     this.dayLines.push(this.newDayGroup());
@@ -1058,7 +1126,7 @@ export class GolfGroupBookingsComponent implements OnInit {
       bookingType: b.bookingType, groupName: b.groupName || '', organiserKind: kind,
       otherDebtorId: kind === 'other' ? (b.debtorSourceId || '') : '',
       memberNo: b.bookerMemberNo || '', organiserName: kind === 'none' ? (b.organiserName || '') : '',
-      contactPerson: b.contactPerson || '', contactMobile: b.contactMobile || '',
+      contactPerson: b.contactPerson || '', contactMobile: b.contactMobile || '', contactEmail: b.contactEmail || '',
       expectedPlayers: b.expectedPlayers === null ? '' : b.expectedPlayers, remarks: b.remarks || '', isClubEvent: b.isClubEvent === true,
     });
     this.dayLines.clear();
@@ -1097,6 +1165,7 @@ export class GolfGroupBookingsComponent implements OnInit {
       organiserName: v.organiserKind === 'none' ? v.organiserName.trim() : undefined,
       contactPerson: v.contactPerson.trim() || undefined,
       contactMobile: v.contactMobile.trim() || undefined,
+      contactEmail: v.contactEmail.trim() || null,
       expectedPlayers: v.expectedPlayers === '' || v.expectedPlayers === null ? null : Number(v.expectedPlayers),
       remarks: v.remarks.trim() || undefined,
       // Sent only when this user may set it; otherwise the server keeps the flag.

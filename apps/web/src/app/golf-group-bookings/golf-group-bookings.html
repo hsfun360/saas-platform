@@ -41,13 +41,18 @@
         }
       </select>
     </div>
-    <div class="saas-search">
-      <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
-      <input class="saas-search__input" type="search" [value]="search()" (input)="search.set($any($event.target).value)"
-             placeholder="Search by group, booking no, organiser or course…" aria-label="Search group bookings" />
-      @if (search()) {
-        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
-      }
+    <!-- Search + sort share one row (listing standard): find on the left, order on the right.
+         Urgency = the pipeline: the booking whose clock runs out first comes first. -->
+    <div class="ggb-search-row">
+      <div class="saas-search">
+        <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
+        <input class="saas-search__input" type="search" [value]="search()" (input)="search.set($any($event.target).value)"
+               placeholder="Search by group, booking no, organiser or course…" aria-label="Search group bookings" />
+        @if (search()) {
+          <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+        }
+      </div>
+      <app-sort-menu [options]="sortOptions" [value]="sort()" (valueChange)="setSort($event)"></app-sort-menu>
     </div>
 
     @if (loading()) {
@@ -66,7 +71,7 @@
     } @else {
       <div class="data-list">
         @for (b of filtered(); track b.id) {
-          <div class="data-card" [attr.data-return-id]="b.id">
+          <div class="data-card" [class]="'data-card ' + urgencyClass(b)" [attr.data-return-id]="b.id">
             <div class="data-row data-row--with-badge">
               <div class="data-row__main">
                 <div class="data-card__title">{{ b.groupName }}</div>
@@ -82,7 +87,7 @@
                   <div class="meta"><dt>Days</dt><dd>{{ b.dayCount }}</dd></div>
                   <div class="meta"><dt>Roster</dt><dd>{{ b.rosterCount }}{{ b.expectedPlayers ? ' of ' + b.expectedPlayers : '' }}</dd></div>
                 </dl>
-                @if (lifecycleShort(b); as line) { <div class="data-card__desc">{{ line }}</div> }
+                @if (lifecycleShort(b); as line) { <div class="data-card__desc ggb-countdown">@if (urgencyClass(b)) { <span class="material-icons" aria-hidden="true">{{ urgencyClass(b) === 'ggb-urgent--due' ? 'alarm' : 'schedule' }}</span> }{{ line }}</div> }
               </div>
               <span [class]="'data-row__badge status-chip ' + statusClass(b.status)">
                 {{ statusLabel(b.status) }}
@@ -148,7 +153,7 @@
             <dl class="data-card__meta ggb-meta">
               <div class="meta"><dt>Organiser</dt><dd>{{ b.organiserName || '—' }}</dd></div>
               <div class="meta"><dt>Billing party</dt><dd>{{ b.debtorType === 'other' ? 'City ledger (Other Debtor)' : (b.debtorType ? 'Member account' : 'Cash only - no account') }}</dd></div>
-              <div class="meta"><dt>Contact</dt><dd>{{ b.contactPerson || '—' }}{{ b.contactMobile ? ' · ' + b.contactMobile : '' }}</dd></div>
+              <div class="meta"><dt>Contact</dt><dd>{{ b.contactPerson || '—' }}{{ b.contactMobile ? ' · ' + b.contactMobile : '' }}{{ b.contactEmail ? ' · ' + b.contactEmail : '' }}</dd></div>
               <div class="meta"><dt>Expected players</dt><dd>{{ b.expectedPlayers ?? '—' }}</dd></div>
               <div class="meta"><dt>Roster</dt><dd>{{ b.rosterCount }} listed</dd></div>
               @if (b.remarks) { <div class="meta"><dt>Remarks</dt><dd>{{ b.remarks }}</dd></div> }
@@ -947,6 +952,13 @@
           <div class="form-group">
             <label for="ggbMobile">Contact mobile</label>
             <app-phone-input formControlName="contactMobile" inputId="ggbMobile" placeholder="Optional"></app-phone-input>
+          </div>
+          <div class="form-group">
+            <label for="ggbEmail">Contact email</label>
+            <input id="ggbEmail" type="email" inputmode="email" formControlName="contactEmail" maxlength="255" autocomplete="off" placeholder="Optional"
+                   [attr.aria-invalid]="showError(headerForm.controls.contactEmail)" aria-describedby="ggbEmailErr ggbEmailHint" />
+            @if (showError(headerForm.controls.contactEmail)) { <p class="field-error" role="alert" id="ggbEmailErr">Enter a valid email address.</p> }
+            <p class="cell-subtle" id="ggbEmailHint">The organiser receives the deposit-due reminder and the lapse notice here.</p>
           </div>
           <div class="form-group">
             <label for="ggbExpected">Expected players</label>

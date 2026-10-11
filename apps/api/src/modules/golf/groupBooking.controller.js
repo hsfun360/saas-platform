@@ -74,6 +74,13 @@ function str(v, max) {
     return s ? s.slice(0, max) : null;
 }
 
+// An optional email: null when blank, undefined when present but invalid.
+function parseEmail(v) {
+    const s = str(v, 255);
+    if (!s) return null;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? s.toLowerCase() : undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Lookups
 
@@ -195,6 +202,7 @@ function headerDto(profile, extra) {
         bookerMemberNo: extra && extra.bookerMemberNo ? extra.bookerMemberNo : null,
         contactPerson: profile.contactPerson,
         contactMobile: profile.contactMobile,
+        contactEmail: profile.contactEmail || null,
         expectedPlayers: profile.expectedPlayers,
         playDate: profile.playDate,
         playDateTo: profile.playDateTo,
@@ -485,6 +493,8 @@ exports.create = async (req, res) => {
         }
         const stamps = await callerStamps(req);
         const initialStatus = await lifecycle.initialStatus(companyId);
+        const contactEmail = parseEmail(req.body.contactEmail);
+        if (contactEmail === undefined) return res.status(400).json({ message: 'The contact email is not a valid address.' });
         const isClubEvent = req.body.isClubEvent === true;
         if (isClubEvent && !(await lifecycle.mayFlagClubEvent(req))) return res.status(403).json({ message: 'Only a user who holds Golf Specification can flag a booking as the club\'s own event.' });
 
@@ -514,6 +524,7 @@ exports.create = async (req, res) => {
                 debtorSourceId: organiser.debtorSourceId,
                 contactPerson: str(req.body.contactPerson, 100),
                 contactMobile: str(req.body.contactMobile, 30),
+                contactEmail,
                 expectedPlayers,
                 remarks: str(req.body.remarks, 255),
                 isClubEvent,
@@ -555,6 +566,8 @@ exports.update = async (req, res) => {
             return res.status(400).json({ message: 'Expected players must be 1 to 999.' });
         }
         const stamps = await callerStamps(req);
+        const contactEmail = parseEmail(req.body.contactEmail);
+        if (contactEmail === undefined) return res.status(400).json({ message: 'The contact email is not a valid address.' });
         // The club-event flag changes hands only through Golf Specification
         // holders; everyone else's edits leave it as it is.
         const wantsClubEvent = req.body.isClubEvent === undefined ? profile.isClubEvent === true : req.body.isClubEvent === true;
@@ -573,6 +586,7 @@ exports.update = async (req, res) => {
             profile.bookerGolferId = organiser.bookerGolferId;
             profile.contactPerson = str(req.body.contactPerson, 100);
             profile.contactMobile = str(req.body.contactMobile, 30);
+            profile.contactEmail = contactEmail;
             profile.expectedPlayers = expectedPlayers;
             profile.remarks = str(req.body.remarks, 255);
             profile.updatedBy = stamps.updatedBy;
