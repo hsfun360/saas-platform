@@ -607,6 +607,64 @@
         }
       </div>
 
+      <!-- ============ Group Bookings (lifecycle control) ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('groups')"
+                [attr.aria-expanded]="isExpanded('groups')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Group Bookings</span>
+            <span class="settings-header__sub">Whether group and tournament bookings go through tentative holds, approval and a deposit deadline, and how long each clock runs.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('groups')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('groups')) {
+          <div class="settings-body">
+            <div class="form-row">
+              <label class="gs-check">
+                <input type="checkbox" formControlName="groupBookingControlEnabled" />
+                <span>Enable group booking control</span>
+              </label>
+              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Off: a group booking is confirmed the moment it is created - the committee club keying its own events. On: a new booking is tentative, its reserved flights expire unless it is submitted for approval, approval starts the deposit clock, and the booking is confirmed when the deposit is received. The approval chain itself is set up under Workflow (purpose Golf group booking); with no chain, submitting approves at once.</p>
+            </div>
+
+            @if (groupControlOn()) {
+              <div class="gs-grid" style="margin-top: var(--space-md);">
+                <div class="form-group">
+                  <label for="gsGroupHold">Tentative Hold (hours) <span class="required">*</span></label>
+                  <input id="gsGroupHold" type="number" inputmode="numeric" min="0" max="720" step="1" formControlName="groupTentativeHoldHours"
+                         [attr.aria-invalid]="showError(form.controls.groupTentativeHoldHours)" aria-describedby="gsGroupHoldErr" />
+                  @if (showError(form.controls.groupTentativeHoldHours)) {
+                    <p id="gsGroupHoldErr" class="field-error" role="alert">Enter a whole number between 0 and 720.</p>
+                  }
+                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">How long reserved flights hold the tee sheet while the booking is still tentative. 0 = no expiry.</p>
+                </div>
+                <div class="form-group">
+                  <label for="gsGroupDue">Deposit Due (days after approval) <span class="required">*</span></label>
+                  <input id="gsGroupDue" type="number" inputmode="numeric" min="0" max="365" step="1" formControlName="groupDepositDueDays"
+                         [attr.aria-invalid]="showError(form.controls.groupDepositDueDays)" aria-describedby="gsGroupDueErr" />
+                  @if (showError(form.controls.groupDepositDueDays)) {
+                    <p id="gsGroupDueErr" class="field-error" role="alert">Enter a whole number between 0 and 365.</p>
+                  }
+                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The proforma's pay-by date defaults to this many days after approval. A manager may extend it once.</p>
+                </div>
+                <div class="form-group">
+                  <label for="gsGroupPct">Default Deposit (% of the group bill) <span class="required">*</span></label>
+                  <input id="gsGroupPct" type="number" inputmode="numeric" min="0" max="100" step="1" formControlName="groupDefaultDepositPct"
+                         [attr.aria-invalid]="showError(form.controls.groupDefaultDepositPct)" aria-describedby="gsGroupPctErr" />
+                  @if (showError(form.controls.groupDefaultDepositPct)) {
+                    <p id="gsGroupPctErr" class="field-error" role="alert">Enter a whole number between 0 and 100.</p>
+                  }
+                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Used when the proforma does not state a deposit. 0 = no deposit, approval confirms at once.</p>
+                </div>
+              </div>
+              @if (groupPreview(); as preview) {
+                <p class="gs-preview">{{ preview }}</p>
+              }
+            }
+          </div>
+        }
+      </div>
+
       <!-- ============ Tee Sheet (seat-dot colours) ============ -->
       <div class="settings-card">
         <button type="button" class="settings-header settings-header--button" (click)="toggleSection('teesheet')"

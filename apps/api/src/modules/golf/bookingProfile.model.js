@@ -96,11 +96,72 @@ const BookingProfile = sequelize.define('GolfBookingProfile', {
         type: DataTypes.STRING,
         allowNull: true,
     },
-    // 'booked' | 'cancelled' (booking.constants BOOKING_STATUS_KEYS).
+    // Ordinary booking: 'booked' | 'cancelled' (booking.constants). Group
+    // types walk groupBooking.constants GROUP_BOOKING_STATUS_KEYS (tentative /
+    // pending-approval / approved / booked / lapsed / cancelled) when Group
+    // booking control is ON; OFF keeps the ordinary pair.
     status: {
         type: DataTypes.STRING(20),
         allowNull: false,
         defaultValue: 'booked',
+    },
+    // ---- group lifecycle (user decisions 2026-10-11) ----
+    // The live approval run (workflow.WorkflowInstance) while pending; kept
+    // afterwards as the pointer to the decision.
+    workflowInstanceId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    // Tentative: when the reserved flights are released unless submitted.
+    // NULL = no clock (no flights yet, hold hours 0, or a deposit is held).
+    holdExpiresAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    submittedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    approvedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    // Approved: the instant the deposit must be in by (the proforma's pay-by
+    // date at the club's end of day), after which the booking LAPSES.
+    depositDueAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    // The deposit demanded at approval (snapshot: the proforma's figure, or
+    // the default percentage of the bill total) - what the clock measures.
+    depositRequiredAmount: {
+        type: DataTypes.DECIMAL(21, 2),
+        allowNull: true,
+    },
+    confirmedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    lapsedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    lapseReason: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    // The ONE deadline extension a manager may grant before the lapse.
+    depositDueExtendedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    depositDueExtendedBy: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    depositDueExtensionReason: {
+        type: DataTypes.STRING,
+        allowNull: true,
     },
     cancelledAt: {
         type: DataTypes.DATE,

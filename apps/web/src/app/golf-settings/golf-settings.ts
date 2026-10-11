@@ -64,7 +64,7 @@ export class GolfSettingsComponent implements OnInit {
   readonly noShowTypes = signal<GolfNoShowTypeOption[]>([]);
 
   // Collapsible section state (section-card standard; sections start open).
-  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true, handicap: true, noshow: true, teesheet: true });
+  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true, handicap: true, noshow: true, groups: true, teesheet: true });
 
   readonly form = this.fb.nonNullable.group({
     advanceBookingDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
@@ -93,6 +93,11 @@ export class GolfSettingsComponent implements OnInit {
     teeSheetColorRegistered: ['#f59e0b'],
     teeSheetColorBilled: ['#8b5cf6'],
     teeSheetColorSettled: ['#16a34a'],
+    // Group booking control (2026-10-11).
+    groupBookingControlEnabled: [false],
+    groupTentativeHoldHours: [72, [Validators.required, Validators.min(0), Validators.max(720)]],
+    groupDepositDueDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
+    groupDefaultDepositPct: [30, [Validators.required, Validators.min(0), Validators.max(100)]],
     // The six rule editors (see the *Group types at the top of the file).
     overrides: this.fb.array<OvGroup>([]),
     minPlayerRules: this.fb.array<MpGroup>([]),
@@ -176,6 +181,23 @@ export class GolfSettingsComponent implements OnInit {
     return this.form.controls.noShowControlEnabled.value === true;
   }
 
+  groupControlOn(): boolean {
+    return this.form.controls.groupBookingControlEnabled.value === true;
+  }
+
+  // What the group-booking timers mean with the current numbers (show the
+  // expected result); hidden while a number is out of range.
+  groupPreview(): string {
+    const c = this.form.controls;
+    if (c.groupTentativeHoldHours.invalid || c.groupDepositDueDays.invalid || c.groupDefaultDepositPct.invalid) return '';
+    const hold = Number(c.groupTentativeHoldHours.value) || 0;
+    const days = Number(c.groupDepositDueDays.value) || 0;
+    const pct = Number(c.groupDefaultDepositPct.value) || 0;
+    const holdText = hold > 0 ? `Reserved flights of a tentative booking are released after ${hold} hour(s) unless it is submitted for approval.` : 'Reserved flights of a tentative booking are held until it is submitted (no expiry).';
+    const depText = pct > 0 ? `Unless the proforma states otherwise, the deposit is ${pct}% of the group bill, due ${days} day(s) after approval; a booking whose deposit is not in by then lapses and its flights are released.` : 'No deposit is demanded unless the proforma states one - approval confirms the booking at once.';
+    return `${holdText} ${depText}`;
+  }
+
   setNoShowType(value: string): void {
     this.form.controls.noShowTransactionTypeId.setValue(value || '');
     this.form.controls.noShowTransactionTypeId.markAsDirty();
@@ -234,6 +256,10 @@ export class GolfSettingsComponent implements OnInit {
           teeSheetColorRegistered: doc.setting.teeSheetColorRegistered || '#f59e0b',
           teeSheetColorBilled: doc.setting.teeSheetColorBilled || '#8b5cf6',
           teeSheetColorSettled: doc.setting.teeSheetColorSettled || '#16a34a',
+          groupBookingControlEnabled: doc.setting.groupBookingControlEnabled === true,
+          groupTentativeHoldHours: doc.setting.groupTentativeHoldHours ?? 72,
+          groupDepositDueDays: doc.setting.groupDepositDueDays ?? 7,
+          groupDefaultDepositPct: doc.setting.groupDefaultDepositPct ?? 30,
         });
         this.fill(this.overrides, doc.overrides, (r) => this.newOverride(r));
         this.fill(this.minPlayerRules, doc.minPlayerRules ?? [], (r) => this.newMinPlayerRule(r));
@@ -462,6 +488,10 @@ export class GolfSettingsComponent implements OnInit {
       teeSheetColorRegistered: v.teeSheetColorRegistered,
       teeSheetColorBilled: v.teeSheetColorBilled,
       teeSheetColorSettled: v.teeSheetColorSettled,
+      groupBookingControlEnabled: v.groupBookingControlEnabled,
+      groupTentativeHoldHours: v.groupTentativeHoldHours,
+      groupDepositDueDays: v.groupDepositDueDays,
+      groupDefaultDepositPct: v.groupDefaultDepositPct,
       overrides: rows,
       minPlayerRules: rules,
       guestControlRules: guestRules,

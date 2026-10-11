@@ -95,6 +95,20 @@ The Booking screen refuses a flight that breaks a rule; the Front Desk still reg
 The penalty is never charged silently: the Booking screen shows the exact amount before a late cancellation is confirmed, and the Tee Time Sheet's **No-shows** review lists who did not register before anything is recorded.
 Charges are posted to the booker's member account and can be followed up on the No-show Charges screen.
 
+### Control group bookings
+
+[Screenshot: Group Bookings section with the control switched on]
+
+1. Open **Group Bookings** and tick **Enable group booking control**.
+   Leave it off if the club only keys its own events (a committee club's Monthly Medal): a group booking is then confirmed the moment it is created.
+2. Enter the **Tentative Hold (hours)** - how long a tentative booking's reserved flights hold the tee sheet before they are released if the booking has not been submitted for approval (`72` for three days; `0` holds them until submitted).
+3. Enter the **Deposit Due (days after approval)** - the proforma's pay-by date defaults to this many days after approval.
+4. Enter the **Default Deposit (% of the group bill)** - the deposit demanded when the proforma does not state one (`0` means no deposit, so approval confirms the booking at once).
+5. Read the preview sentence, then click **Save**.
+
+The approval chain itself is set up under Workflow → Approval Setup for the purpose **Golf group booking**; with no chain, submitting a booking approves it at once.
+The clocks run on the server: a tentative booking whose hold runs out loses its flights, and an approved booking whose deposit is not in by the pay-by date lapses; whoever created the booking is notified either way.
+
 ### Change the tee-sheet colours
 
 1. Open **Tee Sheet**.
@@ -170,6 +184,15 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 | **No-show Charge** | Yes (while on) | The Transaction Type of charge type No Show Charges that prices the penalty. | Must be one of this club's No Show Charges types and active while the control is on. |
 | **Charge Basis** | Yes | Per no-show player, or Per booking. | |
 
+### Group Bookings
+
+| Field | Required | What to enter | Rules |
+| --- | --- | --- | --- |
+| **Enable group booking control** | No | The master switch; off = a group booking is confirmed at creation with no holds, approval or deposit clock. | Reveals the three timers below; they are kept while off. |
+| **Tentative Hold (hours)** | Yes (while on) | How long a tentative booking's reserved flights hold the tee sheet before they are released unless it is submitted, e.g. `72`; `0` = no expiry. | Whole number from 0 to 720. |
+| **Deposit Due (days after approval)** | Yes (while on) | The default pay-by date of the deposit, counted from approval, e.g. `7`. | Whole number from 0 to 365; a manager may extend a booking's date once. |
+| **Default Deposit (% of the group bill)** | Yes (while on) | The deposit demanded when the proforma does not state one, e.g. `30`; `0` = none, approval confirms at once. | Whole number from 0 to 100. |
+
 ### Tee Sheet
 
 | Field | Required | What to enter | Rules |
@@ -197,5 +220,7 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 - Golf Management → Front Desk → No-show Charges - the penalties raised under the Cancellation & No-show rules.
 - Golf Management → Transaction Type - the No Show Charges type and its price card.
 - Golf Management → Golfers - handicap index and status read by Handicap Control.
+- Golf Management → Group Bookings - follows the Group Bookings control: tentative holds, submission for approval, the deposit deadline and lapse.
+- Workflow → Approval Setup - the chain for the purpose Golf group booking.
 - Membership Management → Membership Type - the guest quota per booking.
 - System Setup → Companies → Weekend days, and Public Holidays - decide which dates count as weekend.

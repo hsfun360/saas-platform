@@ -41,6 +41,42 @@ const GROUP_PLAYER_STATUSES = [
     { key: 'withdrawn', label: 'Withdrawn' },
 ];
 
+// GROUP BOOKING LIFECYCLE (user decisions 2026-10-11). With Group booking
+// control OFF (committee club) a group booking is 'booked' at creation and
+// stays so until cancelled - exactly the ordinary booking's pair. With the
+// control ON (sales club) it walks the timed lifecycle:
+//   tentative        - quoting; reserved flights hold the sheet until
+//                      holdExpiresAt (the tentative hold hours), then are
+//                      released by the worker scan.
+//   pending-approval - submitted; the hold is frozen while the chain runs
+//                      (the approver's delay never punishes the organiser).
+//   approved         - approved, deposit pending: depositDueAt runs; the
+//                      proforma can be issued and deposits recorded.
+//   booked           - confirmed (deposit met, or none required); draw,
+//                      registration and the final bill proceed.
+//   lapsed           - the deposit date passed short: flights released, the
+//                      booking kept for the record (distinct from cancelled).
+//   cancelled        - a person cancelled it.
+// Every status in HOLD_STATUS_KEYS keeps its flights on the tee sheet.
+const GROUP_BOOKING_STATUSES = [
+    { key: 'tentative', label: 'Tentative' },
+    { key: 'pending-approval', label: 'Pending approval' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'booked', label: 'Confirmed' },
+    { key: 'lapsed', label: 'Lapsed' },
+    { key: 'cancelled', label: 'Cancelled' },
+];
+const GROUP_BOOKING_STATUS_KEYS = GROUP_BOOKING_STATUSES.map((s) => s.key);
+const HOLD_STATUS_KEYS = ['tentative', 'pending-approval', 'approved', 'booked'];
+// The tee-sheet prefix a held cell / block carries while the booking is not
+// yet confirmed ("TENTATIVE · IFCA Invitational"); confirmed shows the name.
+const HOLD_STATE_LABELS = {
+    tentative: 'TENTATIVE',
+    'pending-approval': 'PENDING',
+    approved: 'APPROVED',
+    booked: null,
+};
+
 // Refund requests to Finance (slice 4): plain request-and-settle.
 const GROUP_REFUND_STATUSES = [
     { key: 'requested', label: 'Requested' },
@@ -71,6 +107,10 @@ module.exports = {
     GROUP_PLAYER_STATUS_KEYS,
     GROUP_REFUND_STATUSES,
     GROUP_REFUND_STATUS_KEYS,
+    GROUP_BOOKING_STATUSES,
+    GROUP_BOOKING_STATUS_KEYS,
+    HOLD_STATUS_KEYS,
+    HOLD_STATE_LABELS,
     DEFAULT_FLIGHT_CAPACITY,
     MAX_FLIGHTS_PER_DAY,
     MAX_ROSTER,

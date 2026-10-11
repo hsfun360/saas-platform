@@ -29,7 +29,7 @@ const FlightLock = require('./flightLock.model');
 const GroupPlayDay = require('./groupPlayDay.model');
 const GroupFlight = require('./groupFlight.model');
 const { ACTIVE_PLAYER_STATUS_KEYS } = require('./registration.constants');
-const { COURSE_HOLD_FORMATS } = require('./groupBooking.constants');
+const { COURSE_HOLD_FORMATS, HOLD_STATUS_KEYS, HOLD_STATE_LABELS } = require('./groupBooking.constants');
 
 // ---- time helpers ('HH:MM' strings throughout) ----------------------------
 
@@ -165,9 +165,12 @@ async function groupHolds(companyId, playDate, { transaction } = {}) {
         transaction,
     });
     if (!days.length) return { days: [], flights: [], dayById: new Map() };
+    // Every LIVE lifecycle status holds (tentative / pending / approved /
+    // booked - groupBooking.constants HOLD_STATUS_KEYS); lapsed and cancelled
+    // bookings release their space by status alone.
     const profiles = await BookingProfile.findAll({
-        where: { companyId, status: 'booked', id: { [Op.in]: [...new Set(days.map((d) => d.bookingProfileId))] } },
-        attributes: ['id', 'bookingNo', 'groupName', 'bookingType'],
+        where: { companyId, status: { [Op.in]: HOLD_STATUS_KEYS }, id: { [Op.in]: [...new Set(days.map((d) => d.bookingProfileId))] } },
+        attributes: ['id', 'bookingNo', 'groupName', 'bookingType', 'status', 'holdExpiresAt'],
         transaction,
     });
     const profileById = new Map(profiles.map((p) => [p.id, p]));
@@ -189,11 +192,13 @@ function applyGroupBlocks(map, holds, courseById) {
         if (!COURSE_HOLD_FORMATS.includes(day.startFormat)) continue;
         const course = courseById.get(day.courseId);
         if (!course) continue;
+        const state = HOLD_STATE_LABELS[profile.status] || null;
         const block = {
             start: toMinutes(day.startTime),
             end: day.blockUntil ? toMinutes(day.blockUntil) : 24 * 60,
             kind: 'group',
-            label: profile.groupName || profile.bookingNo,
+            label: state ? `${state} · ${profile.groupName || profile.bookingNo}` : (profile.groupName || profile.bookingNo),
+            status: profile.status,
             bookingProfileId: profile.id,
         };
         for (const nineId of [course.firstNineId, course.secondNineId]) {

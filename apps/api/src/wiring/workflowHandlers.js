@@ -179,4 +179,34 @@ purposeRegistry.register('ar-deposit', {
     },
 });
 
+// --- Golf group booking (lifecycle slice 2026-10-11) -------------------------
+// The booking sits 'pending-approval' while the chain runs. Approval snapshots
+// the deposit demand and starts its clock (or confirms outright when nothing
+// is owed); rejection returns it to tentative with the flights RELEASED (the
+// approver refused that take of the tee sheet); a recall returns it to
+// tentative with everything kept and the hold clock restarted.
+purposeRegistry.register('golf-group-booking', {
+    onApproved: async ({ entityId, instance, transaction }) => {
+        const BookingProfile = require('../modules/golf/bookingProfile.model');
+        const lifecycle = require('../modules/golf/groupLifecycle.service');
+        const row = await BookingProfile.findOne({ where: { id: entityId, companyId: instance.companyId, status: 'pending-approval' }, transaction, lock: transaction.LOCK.UPDATE });
+        if (!row) return; // cancelled meanwhile - never fail the approval
+        await lifecycle.applyApproval(row, { transaction, userId: instance.submitterUserId || null });
+    },
+    onRejected: async ({ entityId, instance, transaction }) => {
+        const BookingProfile = require('../modules/golf/bookingProfile.model');
+        const lifecycle = require('../modules/golf/groupLifecycle.service');
+        const row = await BookingProfile.findOne({ where: { id: entityId, companyId: instance.companyId, status: 'pending-approval' }, transaction, lock: transaction.LOCK.UPDATE });
+        if (!row) return;
+        await lifecycle.applyRejection(row, { transaction, userId: instance.submitterUserId || null });
+    },
+    onCancelled: async ({ entityId, instance, transaction }) => {
+        const BookingProfile = require('../modules/golf/bookingProfile.model');
+        const lifecycle = require('../modules/golf/groupLifecycle.service');
+        const row = await BookingProfile.findOne({ where: { id: entityId, companyId: instance.companyId, status: 'pending-approval' }, transaction, lock: transaction.LOCK.UPDATE });
+        if (!row) return;
+        await lifecycle.applyRecall(row, { transaction, userId: instance.submitterUserId || null });
+    },
+});
+
 module.exports = {};

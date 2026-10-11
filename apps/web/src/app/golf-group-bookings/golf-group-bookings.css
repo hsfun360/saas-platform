@@ -76,6 +76,99 @@
   vertical-align: middle;
 }
 
+/* Lifecycle line (2026-10-11): where the booking stands and what happens
+   next - tentative hold expiry, approval, deposit deadline, lapse. */
+.ggb-lifecycle {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  font-size: var(--font-body-2);
+  background: var(--info-surface);
+  border: 1px solid var(--info-border);
+  color: var(--info-text);
+}
+.ggb-lifecycle .material-icons {
+  font-size: var(--icon-md);
+  flex-shrink: 0;
+}
+.ggb-lifecycle--due {
+  background: var(--danger-surface);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+.ggb-lifecycle--ok {
+  background: var(--success-surface);
+  border-color: var(--success-border);
+  color: var(--success-text);
+}
+.ggb-lifecycle--off {
+  background: var(--surface-sunken);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+/* Submit preview: one row per play day with its tee-sheet shares, then the
+   approval steps the booking takes. */
+.ggb-share {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 70px 90px 90px;
+  gap: var(--space-xs) var(--space-sm);
+  align-items: center;
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--border);
+}
+.ggb-share--head {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.ggb-share__num {
+  text-align: right;
+}
+.ggb-chain {
+  margin: var(--space-md) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.ggb-chain li {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: baseline;
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+}
+.ggb-chain__no {
+  flex-shrink: 0;
+  width: var(--icon-lg);
+  height: var(--icon-lg);
+  border-radius: 50%;
+  background: var(--brand-surface, var(--surface-sunken));
+  color: var(--brand-text);
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (max-width: 767px) {
+  .ggb-share {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .ggb-share--head {
+    display: none;
+  }
+}
+
 /* One play day = a bordered block with its flights beneath. */
 .ggb-day {
   border: 1px solid var(--border);
@@ -512,6 +605,9 @@
   margin: var(--space-md) 0 0;
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
+}
+.ggb-preview--warn {
+  color: var(--danger-text);
 }
 .ggb-rline {
   display: grid;

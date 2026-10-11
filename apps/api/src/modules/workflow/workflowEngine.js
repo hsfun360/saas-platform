@@ -258,7 +258,9 @@ async function completeInstance(instance, outcome, transaction) {
                 body: outcome === 'approved'
                     ? 'Your submission was approved and has been processed.'
                     : 'Your submission was rejected - it is back with you to amend and resubmit.',
-                linkRoute: (meta && meta.documentRoute) || '/approvals',
+                linkRoute: meta && meta.documentRoute
+                    ? (meta.entityRouteParam ? `${meta.documentRoute}/${instance.entityId}` : meta.documentRoute)
+                    : '/approvals',
                 transaction,
             });
         } catch (err) {

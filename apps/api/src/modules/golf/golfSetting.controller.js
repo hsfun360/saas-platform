@@ -32,6 +32,7 @@ const DEFAULTS = {
     noShowTransactionTypeId: null, noShowChargeBasis: 'player',
     teeSheetColorBooked: '#2563eb', teeSheetColorRegistered: '#f59e0b',
     teeSheetColorBilled: '#8b5cf6', teeSheetColorSettled: '#16a34a',
+    groupBookingControlEnabled: false, groupTentativeHoldHours: 72, groupDepositDueDays: 7, groupDefaultDepositPct: 30,
 };
 
 function settingDto(row) {
@@ -63,6 +64,10 @@ function settingDto(row) {
         teeSheetColorRegistered: row.teeSheetColorRegistered || DEFAULTS.teeSheetColorRegistered,
         teeSheetColorBilled: row.teeSheetColorBilled || DEFAULTS.teeSheetColorBilled,
         teeSheetColorSettled: row.teeSheetColorSettled || DEFAULTS.teeSheetColorSettled,
+        groupBookingControlEnabled: row.groupBookingControlEnabled === true,
+        groupTentativeHoldHours: row.groupTentativeHoldHours === null || row.groupTentativeHoldHours === undefined ? DEFAULTS.groupTentativeHoldHours : row.groupTentativeHoldHours,
+        groupDepositDueDays: row.groupDepositDueDays === null || row.groupDepositDueDays === undefined ? DEFAULTS.groupDepositDueDays : row.groupDepositDueDays,
+        groupDefaultDepositPct: row.groupDefaultDepositPct === null || row.groupDefaultDepositPct === undefined ? DEFAULTS.groupDefaultDepositPct : row.groupDefaultDepositPct,
         saved: true,
     };
 }
@@ -504,6 +509,15 @@ exports.save = async (req, res) => {
         } else if (noShowControlEnabled) {
             return res.status(400).json({ message: 'Pick the no-show transaction type before switching cancellation & no-show control on.' });
         }
+        // Group booking control (user decisions 2026-10-11): the timers are
+        // stored even while the control is OFF (staging), they only run ON.
+        const groupBookingControlEnabled = req.body.groupBookingControlEnabled === true;
+        const groupTentativeHoldHours = parseIntIn(req.body.groupTentativeHoldHours === undefined ? DEFAULTS.groupTentativeHoldHours : req.body.groupTentativeHoldHours, 0, 720);
+        if (groupTentativeHoldHours === undefined) return res.status(400).json({ message: 'Tentative hold must be a whole number of hours between 0 and 720.' });
+        const groupDepositDueDays = parseIntIn(req.body.groupDepositDueDays === undefined ? DEFAULTS.groupDepositDueDays : req.body.groupDepositDueDays, 0, 365);
+        if (groupDepositDueDays === undefined) return res.status(400).json({ message: 'Deposit due must be a whole number of days between 0 and 365.' });
+        const groupDefaultDepositPct = parseIntIn(req.body.groupDefaultDepositPct === undefined ? DEFAULTS.groupDefaultDepositPct : req.body.groupDefaultDepositPct, 0, 100);
+        if (groupDefaultDepositPct === undefined) return res.status(400).json({ message: 'Default deposit must be a whole percentage between 0 and 100.' });
         const HEX_RE = /^#[0-9a-fA-F]{6}$/;
         const colors = {};
         for (const key of ['teeSheetColorBooked', 'teeSheetColorRegistered', 'teeSheetColorBilled', 'teeSheetColorSettled']) {
@@ -530,6 +544,7 @@ exports.save = async (req, res) => {
                 guestControlEnabled, allowGuestWeekday, allowMemberGuestWeekday, allowGuestWeekend, allowMemberGuestWeekend,
                 handicapControlEnabled, juniorBookingControlEnabled,
                 noShowControlEnabled, cancellationNoticeHours, lateCancellationAction, noShowTransactionTypeId, noShowChargeBasis,
+                groupBookingControlEnabled, groupTentativeHoldHours, groupDepositDueDays, groupDefaultDepositPct,
                 ...colors,
             };
             if (existing) {

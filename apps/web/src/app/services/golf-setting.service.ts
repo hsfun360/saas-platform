@@ -109,6 +109,12 @@ export interface GolfSettingDoc {
     teeSheetColorRegistered: string;
     teeSheetColorBilled: string;
     teeSheetColorSettled: string;
+    // Group booking control (2026-10-11): the sales-club lifecycle switch and
+    // its timers (hold hours, deposit due days, default deposit percentage).
+    groupBookingControlEnabled: boolean;
+    groupTentativeHoldHours: number;
+    groupDepositDueDays: number;
+    groupDefaultDepositPct: number;
     saved: boolean;
   };
   overrides: GolfAdvanceBookingOverride[];
@@ -189,6 +195,10 @@ export class GolfSettingService {
     teeSheetColorRegistered: string;
     teeSheetColorBilled: string;
     teeSheetColorSettled: string;
+    groupBookingControlEnabled: boolean;
+    groupTentativeHoldHours: number;
+    groupDepositDueDays: number;
+    groupDefaultDepositPct: number;
     overrides: GolfAdvanceBookingOverride[];
     minPlayerRules: GolfMinPlayerRule[];
     guestControlRules: GolfGuestControlRule[];

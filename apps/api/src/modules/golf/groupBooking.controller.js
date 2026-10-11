@@ -24,11 +24,13 @@ const { getGolfMemberStanding, getChargeTarget } = require('../../platform/membe
 const { classifyDateRange } = require('../../platform/calendarGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const availability = require('./bookingAvailability.service');
-const { PLAYER_TYPES, PLAYER_TYPE_KEYS, HOLES_OPTIONS, BOOKING_STATUSES } = require('./booking.constants');
+const lifecycle = require('./groupLifecycle.service');
+const workflowGateway = require('../../platform/workflowGateway');
+const { PLAYER_TYPES, PLAYER_TYPE_KEYS, HOLES_OPTIONS } = require('./booking.constants');
 const { ACTIVE_PLAYER_STATUS_KEYS } = require('./registration.constants');
 const {
     GROUP_BOOKING_TYPES, GROUP_BOOKING_TYPE_KEYS, START_FORMATS, START_FORMAT_KEYS, COURSE_HOLD_FORMATS,
-    PLAY_DAY_STATUSES, GROUP_PLAYER_STATUSES, GROUP_PLAYER_STATUS_KEYS,
+    PLAY_DAY_STATUSES, GROUP_PLAYER_STATUSES, GROUP_PLAYER_STATUS_KEYS, GROUP_BOOKING_STATUSES,
     DEFAULT_FLIGHT_CAPACITY, MAX_FLIGHTS_PER_DAY, MAX_ROSTER,
 } = require('./groupBooking.constants');
 const BookingProfile = require('./bookingProfile.model');
@@ -84,6 +86,16 @@ async function findBooking(req, id, { transaction } = {}) {
     });
     if (!profile) return { status: 404, message: 'Group booking not found.' };
     return { companyId, profile };
+}
+
+// The lifecycle policy + the data-scope check, for every amending endpoint:
+// { status, message } when refused, null when allowed.
+async function guardKind(req, found, kind) {
+    const setting = await lifecycle.settingFor(found.companyId);
+    const msg = lifecycle.guardMessage(found.profile, setting, kind);
+    if (msg) return { status: 400, message: msg };
+    if (!(await canModifyRecord(req, found.profile))) return { status: 403, message: 'You are not allowed to amend this booking.' };
+    return null;
 }
 
 async function courseMap(companyId, { transaction } = {}) {
@@ -190,18 +202,21 @@ function headerDto(profile, extra) {
         status: profile.status,
         cancelReason: profile.cancelReason,
         canModify: profile.get ? profile.get('canModify') : undefined,
+        lifecycle: extra && extra.setting ? lifecycle.lifecycleDto(profile, extra.setting) : undefined,
         ...(extra || {}),
+        setting: undefined,
     };
 }
 
 // The full booking: header + days (with flights + drawn players) + roster.
 async function fullDto(req, companyId, profile, { transaction } = {}) {
-    const [days, flights, roster, records, maps] = await Promise.all([
+    const [days, flights, roster, records, maps, setting] = await Promise.all([
         GroupPlayDay.findAll({ where: { bookingProfileId: profile.id }, order: [['playDate', 'ASC']], transaction }),
         GroupFlight.findAll({ where: { bookingProfileId: profile.id }, order: [['sortOrder', 'ASC'], ['teeTime', 'ASC']], transaction }),
         GroupPlayer.findAll({ where: { bookingProfileId: profile.id }, order: [['sortOrder', 'ASC'], ['createdAt', 'ASC']], transaction }),
         Player.findAll({ where: { bookingProfileId: profile.id }, order: [['createdAt', 'ASC']], transaction }),
         courseMap(companyId, { transaction }),
+        lifecycle.settingFor(companyId, { transaction }),
     ]);
     const firsts = records.filter((r) => Number(r.secondNineFlag) === 0);
     const crossByFirst = new Map(records.filter((r) => Number(r.secondNineFlag) === 1).map((r) => [r.firstNinePlayerId, r]));
@@ -231,6 +246,7 @@ async function fullDto(req, companyId, profile, { transaction } = {}) {
     }
     const listed = roster.filter((p) => p.status === 'listed').length;
     return headerDto(profile, {
+        setting,
         bookerMemberNo,
         days: days.map((d) => dayDto(d, flightsByDay.get(d.id), maps.nineById, maps.courseById.get(d.courseId))),
         roster: roster.map((p) => rosterDto(p, drawnByPlayer.get(p.id))),
@@ -266,7 +282,7 @@ exports.getMeta = async (req, res) => {
             holdFormats: COURSE_HOLD_FORMATS,
             playerTypes: PLAYER_TYPES,
             holesOptions: HOLES_OPTIONS,
-            statuses: BOOKING_STATUSES,
+            statuses: GROUP_BOOKING_STATUSES,
             playDayStatuses: PLAY_DAY_STATUSES,
             rosterStatuses: GROUP_PLAYER_STATUSES,
             defaultCapacity: DEFAULT_FLIGHT_CAPACITY,
@@ -315,6 +331,7 @@ exports.list = async (req, res) => {
         const rows = await BookingProfile.findAll({ where, order: [['playDate', 'DESC'], ['bookingNo', 'DESC']], limit: 500 });
         await annotateCanModify(req, rows);
         const ids = rows.map((r) => r.id);
+        const setting = await lifecycle.settingFor(companyId);
         const [days, roster, maps] = ids.length ? await Promise.all([
             GroupPlayDay.findAll({ where: { bookingProfileId: { [Op.in]: ids } }, order: [['playDate', 'ASC']] }),
             GroupPlayer.findAll({ where: { bookingProfileId: { [Op.in]: ids }, status: 'listed' }, attributes: ['bookingProfileId'] }),
@@ -329,6 +346,7 @@ exports.list = async (req, res) => {
         for (const p of roster) rosterCount.set(p.bookingProfileId, (rosterCount.get(p.bookingProfileId) || 0) + 1);
         res.status(200).json({
             bookings: rows.map((b) => headerDto(b, {
+                setting,
                 dayCount: (daysByBooking.get(b.id) || []).length,
                 courses: [...new Set((daysByBooking.get(b.id) || []).map((d) => {
                     const c = maps.courseById.get(d.courseId);
@@ -337,7 +355,8 @@ exports.list = async (req, res) => {
                 rosterCount: rosterCount.get(b.id) || 0,
             })),
             bookingTypes: GROUP_BOOKING_TYPES,
-            statuses: BOOKING_STATUSES,
+            statuses: GROUP_BOOKING_STATUSES,
+            controlOn: setting.controlOn,
         });
     } catch (error) {
         console.error('Error listing group bookings:', error);
@@ -461,6 +480,7 @@ exports.create = async (req, res) => {
             return res.status(400).json({ message: 'Expected players must be 1 to 999.' });
         }
         const stamps = await callerStamps(req);
+        const initialStatus = await lifecycle.initialStatus(companyId);
 
         const result = await sequelize.transaction(async (transaction) => {
             const organiser = await resolveOrganiser(companyId, req.body, stamps, transaction);
@@ -490,7 +510,7 @@ exports.create = async (req, res) => {
                 contactMobile: str(req.body.contactMobile, 30),
                 expectedPlayers,
                 remarks: str(req.body.remarks, 255),
-                status: 'booked',
+                status: initialStatus,
                 ...stamps,
             }, { transaction });
             for (const d of days) {
@@ -516,8 +536,8 @@ exports.update = async (req, res) => {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
         const { companyId, profile } = found;
-        if (profile.status !== 'booked') return res.status(400).json({ message: 'A cancelled booking cannot be edited.' });
-        if (!(await canModifyRecord(req, profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const guard = await guardKind(req, found, 'header');
+        if (guard) return res.status(guard.status).json({ message: guard.message });
         const bookingType = String(req.body.bookingType || profile.bookingType);
         if (!GROUP_BOOKING_TYPE_KEYS.includes(bookingType)) return res.status(400).json({ message: 'Pick Group or Tournament.' });
         const groupName = str(req.body.groupName, 150);
@@ -562,11 +582,14 @@ exports.cancel = async (req, res) => {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
         const { profile } = found;
-        if (profile.status !== 'booked') return res.status(400).json({ message: 'Only a booked booking can be cancelled.' });
-        if (!(await canModifyRecord(req, profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const guard = await guardKind(req, found, 'cancel');
+        if (guard) return res.status(guard.status).json({ message: guard.message });
         const callerId = getUserContext(req).userId;
         const reason = str(req.body.reason, 255);
         await sequelize.transaction(async (transaction) => {
+            // A booking awaiting approval withdraws its run first (the
+            // workflow's recall handler would otherwise flip it back later).
+            if (profile.status === 'pending-approval') await workflowGateway.cancelForEntity(lifecycle.ENTITY_TYPE, profile.id, transaction);
             profile.status = 'cancelled';
             profile.cancelledAt = new Date();
             profile.cancelledBy = callerId;
@@ -581,6 +604,93 @@ exports.cancel = async (req, res) => {
         res.status(200).json({ message: `Group booking ${profile.bookingNo} cancelled.` });
     } catch (error) {
         console.error('Error cancelling group booking:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// ---------------------------------------------------------------------------
+// Lifecycle (user decisions 2026-10-11) - see groupLifecycle.service.
+
+// GET /api/golf/group-bookings/:id/submit-preview - what Submit will do: the
+// per-day tee-sheet shares, the deposit demand, the chain it takes.
+exports.submitPreview = async (req, res) => {
+    try {
+        const found = await findBooking(req, req.params.id);
+        if (!found.profile) return res.status(found.status).json({ message: found.message });
+        res.status(200).json({ preview: await lifecycle.submitPreview(req, found.profile) });
+    } catch (error) {
+        console.error('Error previewing group booking submit:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/golf/group-bookings/:id/submit - submit the tentative booking for
+// approval (no chain = approved at once; nothing owed = confirmed at once).
+exports.submit = async (req, res) => {
+    try {
+        const found = await findBooking(req, req.params.id);
+        if (!found.profile) return res.status(found.status).json({ message: found.message });
+        if (!(await canModifyRecord(req, found.profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const result = await lifecycle.submit(req, found.profile);
+        if (result.fail) return res.status(400).json({ message: result.fail });
+        const name = found.profile.groupName || found.profile.bookingNo;
+        const message = result.outcome === 'pending'
+            ? `${name} submitted for approval - its flights stay held while the approvers decide.`
+            : result.outcome === 'approved'
+                ? `${name} approved - the deposit is due by the pay-by date; the booking confirms when it is received.`
+                : `${name} confirmed.`;
+        res.status(200).json({ message, booking: await fullDto(req, found.companyId, result.profile) });
+    } catch (error) {
+        console.error('Error submitting group booking:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/golf/group-bookings/:id/recall - withdraw the pending approval.
+exports.recall = async (req, res) => {
+    try {
+        const found = await findBooking(req, req.params.id);
+        if (!found.profile) return res.status(found.status).json({ message: found.message });
+        if (!(await canModifyRecord(req, found.profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const result = await lifecycle.recall(req, found.profile);
+        if (result.fail) return res.status(400).json({ message: result.fail });
+        res.status(200).json({ message: `${found.profile.groupName || found.profile.bookingNo} recalled - it is tentative again and its hold clock restarted.`, booking: await fullDto(req, found.companyId, result.profile) });
+    } catch (error) {
+        console.error('Error recalling group booking:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/golf/group-bookings/:id/reopen - back to tentative for amendment.
+exports.reopen = async (req, res) => {
+    try {
+        const found = await findBooking(req, req.params.id);
+        if (!found.profile) return res.status(found.status).json({ message: found.message });
+        if (!(await canModifyRecord(req, found.profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const result = await lifecycle.reopen(req, found.profile);
+        if (result.fail) return res.status(400).json({ message: result.fail });
+        res.status(200).json({ message: `${found.profile.groupName || found.profile.bookingNo} reopened - amend it and submit it for approval again.`, booking: await fullDto(req, found.companyId, result.profile) });
+    } catch (error) {
+        console.error('Error reopening group booking:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /api/golf/group-bookings/:id/extend-deposit { depositDueDate, reason }
+exports.extendDeposit = async (req, res) => {
+    try {
+        const found = await findBooking(req, req.params.id);
+        if (!found.profile) return res.status(found.status).json({ message: found.message });
+        if (!(await canModifyRecord(req, found.profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const depositDueDate = str(req.body.depositDueDate, 10);
+        if (!depositDueDate || !DATE_RE.test(depositDueDate)) return res.status(400).json({ message: 'Pick the new pay-by date.' });
+        const reason = str(req.body.reason, 255);
+        if (!reason) return res.status(400).json({ message: 'Give the reason for extending the deposit deadline.' });
+        const result = await lifecycle.extendDeposit(req, found.profile, { depositDueDate, reason });
+        if (result.fail) return res.status(400).json({ message: result.fail });
+        res.status(200).json({ message: `Deposit deadline extended to ${depositDueDate}.`, booking: await fullDto(req, found.companyId, result.profile) });
+    } catch (error) {
+        console.error('Error extending group booking deposit deadline:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -615,8 +725,8 @@ exports.addDay = async (req, res) => {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
         const { companyId, profile } = found;
-        if (profile.status !== 'booked') return res.status(400).json({ message: 'A cancelled booking cannot be edited.' });
-        if (!(await canModifyRecord(req, profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const guard = await guardKind(req, found, 'structure');
+        if (guard) return res.status(guard.status).json({ message: guard.message });
         const { courseById } = await courseMap(companyId);
         const parsed = parseDay(req.body, courseById);
         if (parsed.error) return res.status(400).json({ message: parsed.error });
@@ -642,8 +752,8 @@ exports.updateDay = async (req, res) => {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
         const { companyId, profile } = found;
-        if (profile.status !== 'booked') return res.status(400).json({ message: 'A cancelled booking cannot be edited.' });
-        if (!(await canModifyRecord(req, profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const guard = await guardKind(req, found, 'structure');
+        if (guard) return res.status(guard.status).json({ message: guard.message });
         const day = await GroupPlayDay.findOne({ where: { bookingProfileId: profile.id, id: req.params.dayId } });
         if (!day) return res.status(404).json({ message: 'Play day not found.' });
         if (day.status !== 'planned') return res.status(400).json({ message: 'Only a planned play day can be changed.' });
@@ -687,8 +797,8 @@ exports.removeDay = async (req, res) => {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
         const { companyId, profile } = found;
-        if (profile.status !== 'booked') return res.status(400).json({ message: 'A cancelled booking cannot be edited.' });
-        if (!(await canModifyRecord(req, profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const guard = await guardKind(req, found, 'structure');
+        if (guard) return res.status(guard.status).json({ message: guard.message });
         const day = await GroupPlayDay.findOne({ where: { bookingProfileId: profile.id, id: req.params.dayId } });
         if (!day) return res.status(404).json({ message: 'Play day not found.' });
         const count = await GroupPlayDay.count({ where: { bookingProfileId: profile.id } });
@@ -844,8 +954,8 @@ exports.generateFlights = async (req, res) => {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
         const { companyId, profile } = found;
-        if (profile.status !== 'booked') return res.status(400).json({ message: 'A cancelled booking cannot be edited.' });
-        if (!(await canModifyRecord(req, profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const guard = await guardKind(req, found, 'structure');
+        if (guard) return res.status(guard.status).json({ message: guard.message });
         const day = await GroupPlayDay.findOne({ where: { bookingProfileId: profile.id, id: req.params.dayId } });
         if (!day) return res.status(404).json({ message: 'Play day not found.' });
         if (day.status !== 'planned') return res.status(400).json({ message: 'Only a planned play day takes flights.' });
@@ -915,6 +1025,7 @@ exports.generateFlights = async (req, res) => {
                     ...stamps,
                 }, { transaction });
             }
+            await lifecycle.onFlightsReserved(profile, { transaction });
             return { count: built.rows.length };
         });
         if (result.fail) return res.status(result.status).json({ message: result.fail });
@@ -935,8 +1046,8 @@ exports.removeFlight = async (req, res) => {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
         const { companyId, profile } = found;
-        if (profile.status !== 'booked') return res.status(400).json({ message: 'A cancelled booking cannot be edited.' });
-        if (!(await canModifyRecord(req, profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const guard = await guardKind(req, found, 'structure');
+        if (guard) return res.status(guard.status).json({ message: guard.message });
         const flight = await GroupFlight.findOne({ where: { bookingProfileId: profile.id, groupPlayDayId: req.params.dayId, id: req.params.flightId } });
         if (!flight) return res.status(404).json({ message: 'Flight not found.' });
         const drawn = await Player.count({ where: { groupFlightId: flight.id, secondNineFlag: 0, status: { [Op.in]: ACTIVE_PLAYER_STATUS_KEYS } } });
@@ -991,8 +1102,8 @@ exports.addPlayers = async (req, res) => {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
         const { companyId, profile } = found;
-        if (profile.status !== 'booked') return res.status(400).json({ message: 'A cancelled booking cannot be edited.' });
-        if (!(await canModifyRecord(req, profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const guard = await guardKind(req, found, 'roster');
+        if (guard) return res.status(guard.status).json({ message: guard.message });
         const raw = Array.isArray(req.body.players) ? req.body.players : [];
         if (!raw.length) return res.status(400).json({ message: 'Key in at least one player.' });
         const existing = await GroupPlayer.count({ where: { bookingProfileId: profile.id } });
@@ -1029,8 +1140,8 @@ exports.updatePlayer = async (req, res) => {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
         const { companyId, profile } = found;
-        if (profile.status !== 'booked') return res.status(400).json({ message: 'A cancelled booking cannot be edited.' });
-        if (!(await canModifyRecord(req, profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const guard = await guardKind(req, found, 'roster');
+        if (guard) return res.status(guard.status).json({ message: guard.message });
         const row = await GroupPlayer.findOne({ where: { bookingProfileId: profile.id, id: req.params.playerId } });
         if (!row) return res.status(404).json({ message: 'Roster player not found.' });
         const stamps = await callerStamps(req);
@@ -1065,8 +1176,8 @@ exports.removePlayer = async (req, res) => {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
         const { companyId, profile } = found;
-        if (profile.status !== 'booked') return res.status(400).json({ message: 'A cancelled booking cannot be edited.' });
-        if (!(await canModifyRecord(req, profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const guard = await guardKind(req, found, 'roster');
+        if (guard) return res.status(guard.status).json({ message: guard.message });
         const row = await GroupPlayer.findOne({ where: { bookingProfileId: profile.id, id: req.params.playerId } });
         if (!row) return res.status(404).json({ message: 'Roster player not found.' });
         const registered = await Player.count({ where: { groupPlayerId: row.id, status: { [Op.ne]: 'booked' } } });
@@ -1110,8 +1221,8 @@ exports.draw = async (req, res) => {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
         const { companyId, profile } = found;
-        if (profile.status !== 'booked') return res.status(400).json({ message: 'A cancelled booking cannot be edited.' });
-        if (!(await canModifyRecord(req, profile))) return res.status(403).json({ message: 'You are not allowed to amend this booking.' });
+        const guard = await guardKind(req, found, 'draw');
+        if (guard) return res.status(guard.status).json({ message: guard.message });
         const day = await GroupPlayDay.findOne({ where: { bookingProfileId: profile.id, id: req.params.dayId } });
         if (!day) return res.status(404).json({ message: 'Play day not found.' });
         if (day.status !== 'planned') return res.status(400).json({ message: 'Only a planned play day can be drawn.' });

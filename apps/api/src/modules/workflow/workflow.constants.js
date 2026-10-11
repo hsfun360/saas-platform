@@ -97,6 +97,36 @@ const PURPOSES = [
             { name: 'debtorNo', label: 'Debtor number', type: 'string' },
         ],
     },
+    // Group / tournament booking (user decisions 2026-10-11): with Group
+    // booking control ON, Submit routes the TENTATIVE booking here; approval
+    // starts the deposit clock (or confirms when nothing is owed), rejection
+    // returns it to tentative with its flights released. The context carries
+    // the tee-sheet consumption and the pricing an approver decides on.
+    // `entityRouteParam` appends the booking id to documentRoute so the
+    // outcome bell opens the booking's own page.
+    {
+        key: 'golf-group-booking',
+        name: 'Golf group booking',
+        entityType: 'GolfGroupBooking',
+        documentRoute: '/golf/group-bookings',
+        entityRouteParam: true,
+        contextFields: [
+            { name: 'bookingType', label: 'Booking type (group | tournament)', type: 'string' },
+            { name: 'dayType', label: 'Day type of the play days (weekday | weekend - any weekend or holiday day counts)', type: 'string' },
+            { name: 'playDays', label: 'Number of play days', type: 'number' },
+            { name: 'totalFlights', label: 'Reserved flights (all days)', type: 'number' },
+            { name: 'totalSeats', label: 'Reserved seats (all days)', type: 'number' },
+            { name: 'maxDaySharePct', label: 'Highest share of a day\'s tee times this booking takes (%)', type: 'number' },
+            { name: 'groupSharePct', label: 'Highest share of a day\'s tee times held by ALL groups after this booking (%)', type: 'number' },
+            { name: 'startFormat', label: 'Start format (sequential | shotgun - any shotgun day counts)', type: 'string' },
+            { name: 'amount', label: 'Group bill total', type: 'number' },
+            { name: 'manualPriceCount', label: 'Bill lines with a manually keyed price', type: 'number' },
+            { name: 'perPlayerAmount', label: 'Bill total per expected player', type: 'number' },
+            { name: 'depositRequired', label: 'Deposit demanded', type: 'number' },
+            { name: 'depositPct', label: 'Deposit demanded as % of the bill total', type: 'number' },
+            { name: 'organiserType', label: 'Organiser account (city-ledger | member | cash)', type: 'string' },
+        ],
+    },
 ];
 const PURPOSE_KEYS = PURPOSES.map((p) => p.key);
 

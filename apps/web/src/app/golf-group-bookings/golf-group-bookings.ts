@@ -16,10 +16,11 @@ import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { MembershipStatusOption } from '../models/auth.models';
 import { MoneyInputDirective } from '../shared/money-input.directive';
+import { MoneyPipe } from '../shared/money.pipe';
 import {
   GolfFolio, GolfFolioDeposit, GolfFolioPaymentLine, GolfFolioRefund, GolfFolioTile, GolfGroupBooking, GolfGroupBookingMeta, GolfGroupBookingRow, GolfGroupBookingService,
   GolfGroupDayPayload, GolfGroupFlight, GolfGroupHeaderPayload, GolfOrganiserKind as GolfGroupOrganiserKind, GolfGroupPlayDay,
-  GolfGroupRosterLine, GolfGroupRosterPlayer, GolfStartFormat,
+  GolfGroupRosterLine, GolfGroupRosterPlayer, GolfStartFormat, GolfGroupAbilities, GolfGroupSubmitPreview,
 } from '../services/golf-group-booking.service';
 
 // Golf Management → Group Bookings (/golf/group-bookings; user decisions
@@ -69,7 +70,7 @@ function localDate(d: Date): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ConfirmDialogComponent, 
     CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective,
-    DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective, LocalDatePipe, MoneyInputDirective,
+    DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective, LocalDatePipe, MoneyInputDirective, MoneyPipe,
     PhoneInputComponent,
   ],
   templateUrl: './golf-group-bookings.html',
@@ -257,6 +258,30 @@ export class GolfGroupBookingsComponent implements OnInit {
   readonly cancelTarget = signal<GolfGroupBookingRow | GolfGroupBooking | null>(null);
   readonly cancelReason = signal('');
 
+  // ---- lifecycle (2026-10-11): submit for approval (with its preview),
+  // recall, reopen, extend the deposit deadline ----
+  readonly submitOpen = signal(false);
+  readonly submitPreview = signal<GolfGroupSubmitPreview | null>(null);
+  readonly submitLoading = signal(false);
+  readonly extendOpen = signal(false);
+  readonly extendForm = this.fb.nonNullable.group({
+    depositDueDate: ['', Validators.required],
+    reason: ['', [Validators.required, Validators.maxLength(255)]],
+  });
+
+  // The server's policy for the open booking's status (groupLifecycle.service
+  // abilities). A booking served before the lifecycle shipped has no block:
+  // fall back to the old "booked" rule.
+  can(key: keyof GolfGroupAbilities, b: { status: string; lifecycle?: { can: GolfGroupAbilities } } | null = this.booking()): boolean {
+    if (!b) return false;
+    if (b.lifecycle) return b.lifecycle.can[key];
+    return b.status === 'booked';
+  }
+
+  controlOn(): boolean {
+    return this.booking()?.lifecycle?.controlOn === true;
+  }
+
   // ---- remove confirms (day / flight / player) ----
 
   ngOnInit(): void {
@@ -331,7 +356,159 @@ export class GolfGroupBookingsComponent implements OnInit {
   }
 
   statusLabel(status: string): string {
-    return status === 'booked' ? 'BOOKED' : 'CANCELLED';
+    const found = this.meta()?.statuses.find((s) => s.key === status);
+    return (found ? found.label : status).toUpperCase();
+  }
+
+  // Chip colour by lifecycle state: confirmed is on; the deposit-pending
+  // approval is the one outstanding demand (danger, like an unpaid deposit);
+  // tentative and pending are in flight (info); lapsed and cancelled are off.
+  statusClass(status: string): string {
+    switch (status) {
+      case 'booked': return 'status-chip--on';
+      case 'approved': return 'status-chip--danger';
+      case 'tentative':
+      case 'pending-approval': return 'status-chip--info';
+      default: return 'status-chip--off';
+    }
+  }
+
+  // One line that says where the booking stands in its lifecycle.
+  lifecycleLine(b: GolfGroupBookingRow | GolfGroupBooking): string {
+    const l = b.lifecycle;
+    if (!l) return '';
+    switch (b.status) {
+      case 'tentative':
+        return l.holdExpiresAt
+          ? `Tentative - the reserved flights are held until ${formatLocalDate(l.holdExpiresAt, 'datetime')} unless submitted for approval.`
+          : (l.controlOn ? 'Tentative - reserve the flights and submit for approval.' : 'Tentative - submit to confirm.');
+      case 'pending-approval':
+        return `Awaiting approval since ${formatLocalDate(l.submittedAt, 'datetime')} - the flights stay held while the approvers decide.`;
+      case 'approved': {
+        const due = l.depositDueAt ? ` by ${formatLocalDate(l.depositDueAt, 'datetime')}` : '';
+        const ext = l.depositDueExtendedAt ? ` (deadline extended: ${l.depositDueExtensionReason})` : '';
+        return `Approved ${formatLocalDate(l.approvedAt, 'datetime')} - deposit of ${(l.depositRequiredAmount || 0).toFixed(2)} due${due}; the booking confirms when it is received${ext}.`;
+      }
+      case 'booked':
+        return l.confirmedAt ? `Confirmed ${formatLocalDate(l.confirmedAt, 'datetime')}.` : 'Confirmed.';
+      case 'lapsed':
+        return `Lapsed ${formatLocalDate(l.lapsedAt, 'datetime')}: ${l.lapseReason || 'the deposit was not received in time'}`;
+      default:
+        return '';
+    }
+  }
+
+  // The short countdown on a listing card ("Hold expires 14 Oct, 09:00").
+  lifecycleShort(b: GolfGroupBookingRow): string {
+    const l = b.lifecycle;
+    if (!l || !l.controlOn) return '';
+    if (b.status === 'tentative' && l.holdExpiresAt) return `Hold expires ${formatLocalDate(l.holdExpiresAt, 'datetime')}`;
+    if (b.status === 'approved' && l.depositDueAt) return `Deposit ${(l.depositRequiredAmount || 0).toFixed(2)} due ${formatLocalDate(l.depositDueAt, 'datetime')}`;
+    if (b.status === 'pending-approval') return 'Awaiting approval';
+    return '';
+  }
+
+  // ---------- lifecycle actions ----------
+
+  openSubmit(): void {
+    const b = this.booking();
+    if (!b) return;
+    this.clearMessages();
+    this.submitPreview.set(null);
+    this.submitOpen.set(true);
+    this.submitLoading.set(true);
+    this.service.submitPreview(b.id).subscribe({
+      next: (res) => { this.submitPreview.set(res.preview); this.submitLoading.set(false); },
+      error: (err) => { this.submitLoading.set(false); this.submitOpen.set(false); this.errorMessage.set(err.error?.message || 'The submission could not be prepared.'); },
+    });
+  }
+
+  // What pressing Submit does, stated before it happens.
+  submitOutcome(): string {
+    const p = this.submitPreview();
+    if (!p) return '';
+    if (p.missingFlights.length) return `Reserve flights for ${p.missingFlights.map((d) => formatLocalDate(d)).join(', ')} first - the approver decides on the tee sheet the booking takes.`;
+    if (!p.controlOn) return 'Group booking control is off for this club - submitting confirms the booking at once.';
+    const deposit = p.depositRequired > p.depositHeld
+      ? `A deposit of ${p.depositRequired.toFixed(2)} (${p.depositHeld.toFixed(2)} already held) will be due ${p.depositDueDays} day(s) after approval; the booking confirms when it is received.`
+      : 'No deposit is outstanding, so approval confirms the booking at once.';
+    if (!p.chain || !p.chain.steps.length) return `No approval chain applies - the booking is approved as soon as you submit. ${deposit}`;
+    return `The booking goes to ${p.chain.steps.length} approval step(s); its flights stay held meanwhile. ${deposit}`;
+  }
+
+  submitLabel(): string {
+    const p = this.submitPreview();
+    if (!p || !p.controlOn) return 'Submit';
+    return p.chain && p.chain.steps.length ? 'Submit for approval' : (p.depositRequired > p.depositHeld ? 'Approve and demand deposit' : 'Approve and confirm');
+  }
+
+  confirmSubmit(): void {
+    const b = this.booking();
+    if (!b) return;
+    this.working.set(true);
+    this.service.submit(b.id).subscribe({
+      next: (res) => { this.working.set(false); this.submitOpen.set(false); this.successMessage.set(res.message); this.applyBooking(res.booking); this.loadFolio(b.id); },
+      error: (err) => { this.working.set(false); this.errorMessage.set(err.error?.message || 'The booking could not be submitted.'); },
+    });
+  }
+
+  askRecall(): void {
+    const b = this.booking();
+    if (!b) return;
+    this.confirmAction.set({
+      title: 'Recall from approval',
+      message: `Take ${b.groupName} (${b.bookingNo}) back from the approvers? It becomes tentative again with everything kept, and the hold clock on its flights restarts.`,
+      confirmLabel: 'Recall booking',
+      danger: false,
+      run: () => { this.confirmAction.set(null); this.performLifecycle(this.service.recall(b.id)); },
+    });
+  }
+
+  askReopen(): void {
+    const b = this.booking();
+    if (!b) return;
+    const lapsed = b.status === 'lapsed';
+    this.confirmAction.set({
+      title: lapsed ? 'Reopen lapsed booking' : 'Reopen for amendment',
+      message: lapsed
+        ? `Reopen ${b.groupName} (${b.bookingNo})? It becomes tentative with no flights - reserve them again and submit it for approval.`
+        : `Reopen ${b.groupName} (${b.bookingNo})? Its days, flights and charges become editable again and it must be submitted for approval once more. Any held deposit keeps the flights from expiring.`,
+      confirmLabel: 'Reopen booking',
+      danger: false,
+      run: () => { this.confirmAction.set(null); this.performLifecycle(this.service.reopen(b.id)); },
+    });
+  }
+
+  openExtend(): void {
+    const b = this.booking();
+    if (!b) return;
+    this.clearMessages();
+    const current = b.lifecycle?.depositDueAt ? new Date(b.lifecycle.depositDueAt) : new Date();
+    const next = new Date(current.getTime() + 7 * 86400000);
+    this.extendForm.reset({ depositDueDate: localDate(next), reason: '' });
+    this.extendOpen.set(true);
+  }
+
+  confirmExtend(): void {
+    const b = this.booking();
+    if (!b) return;
+    if (this.extendForm.invalid) { this.extendForm.markAllAsTouched(); return; }
+    const v = this.extendForm.getRawValue();
+    this.working.set(true);
+    this.service.extendDeposit(b.id, { depositDueDate: v.depositDueDate, reason: v.reason.trim() }).subscribe({
+      next: (res) => { this.working.set(false); this.extendOpen.set(false); this.successMessage.set(res.message); this.applyBooking(res.booking); this.loadFolio(b.id); },
+      error: (err) => { this.working.set(false); this.errorMessage.set(err.error?.message || 'The deadline could not be extended.'); },
+    });
+  }
+
+  private performLifecycle(req: Observable<{ message: string; booking: GolfGroupBooking }>): void {
+    const b = this.booking();
+    if (!b) return;
+    this.working.set(true);
+    req.subscribe({
+      next: (res) => { this.working.set(false); this.successMessage.set(res.message); this.applyBooking(res.booking); this.loadFolio(b.id); },
+      error: (err) => { this.working.set(false); this.errorMessage.set(err.error?.message || 'The action was refused.'); },
+    });
   }
 
   dateRange(b: GolfGroupBookingRow | GolfGroupBooking): string {
@@ -392,9 +569,10 @@ export class GolfGroupBookingsComponent implements OnInit {
         depositDueDate: f.bill && f.bill.depositDueDate ? f.bill.depositDueDate : '',
       });
     }
-    // Terms are editable only while the group bill is open (reactive-forms
-    // way: disable the controls, never the DOM attribute).
-    if (this.billOpen()) this.proformaForm.enable({ emitEvent: false });
+    // Terms are editable only while the group bill is open AND the booking's
+    // shape may still change (reactive-forms way: disable the controls, never
+    // the DOM attribute).
+    if (this.itemsEditable()) this.proformaForm.enable({ emitEvent: false });
     else this.proformaForm.disable({ emitEvent: false });
   }
 
@@ -409,21 +587,21 @@ export class GolfGroupBookingsComponent implements OnInit {
     this.errorMessage.set(err.error?.message || fallback);
   };
 
-  // The folio stays workable on a CANCELLED booking while its group bill is
-  // open (a cancellation charge is billed and settled by the deposit); only
-  // a booked booking takes new items on an empty folio or new deposits.
+  // The group bill is open (or does not exist yet). Every folio action also
+  // needs the lifecycle's say-so (groupLifecycle.service abilities): items
+  // and terms change while the shape may still change; the proforma issues
+  // and deposits land once approved; the final bill, voids and refunds run
+  // once confirmed - and on a cancelled or lapsed booking whose deposit money
+  // still has to go somewhere.
   readonly billOpen = computed(() => {
     const f = this.folio();
-    const b = this.booking();
-    if (!b) return false;
-    if (f?.bill) return f.bill.status === 'open';
-    return b.status === 'booked';
+    if (!this.booking()) return false;
+    return f?.bill ? f.bill.status === 'open' : true;
   });
-
-  readonly canDeposit = computed(() => {
-    const b = this.booking();
-    return !!b && b.status === 'booked';
-  });
+  readonly itemsEditable = computed(() => this.billOpen() && this.can('editStructure'));
+  readonly canIssueProforma = computed(() => this.billOpen() && this.can('issueProforma'));
+  readonly canSettle = computed(() => this.billOpen() && this.can('settle'));
+  readonly canDeposit = computed(() => this.can('deposit'));
 
   setAddItemType(id: string): void {
     this.addItemTypeId.set(id);
@@ -1262,7 +1440,7 @@ export class GolfGroupBookingsComponent implements OnInit {
     // keep their flight so Save sends the whole picture).
     for (const k of Object.keys(this.drawForm.controls)) this.drawForm.removeControl(k, { emitEvent: false });
     if (b) for (const p of b.roster) this.drawForm.addControl(p.id, new FormControl(edits[p.id] || '', { nonNullable: true }), { emitEvent: false });
-    if (b && day && b.status === 'booked' && day.status === 'planned') this.drawForm.enable({ emitEvent: false });
+    if (b && day && this.can('draw', b) && day.status === 'planned') this.drawForm.enable({ emitEvent: false });
     else this.drawForm.disable({ emitEvent: false });
     this.drawForm.markAsPristine();
   }

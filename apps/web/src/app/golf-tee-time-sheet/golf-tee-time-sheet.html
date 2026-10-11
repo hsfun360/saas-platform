@@ -96,13 +96,17 @@
                 <section class="fd-group" [attr.data-return-id]="'group|' + g.bookingProfileId">
                   <div class="fd-group__head">
                     <span class="material-icons" aria-hidden="true">{{ g.bookingType === 'tournament' ? 'emoji_events' : 'groups' }}</span>
-                    <span class="fd-group__title">{{ g.groupName }} <span class="fd-group__no">({{ g.bookingNo }})</span></span>
+                    <span class="fd-group__title">{{ g.groupName }} <span class="fd-group__no">({{ g.bookingNo }})</span>
+                      @if (g.holdState) { <span class="status-chip status-chip--info">{{ g.holdState }}</span> }
+                    </span>
                     <span class="fd-group__meta">
                       {{ formatLabel(g.startFormat) }} · {{ g.holes }}H ·
                       @if (g.hold) { {{ g.startTime }}–{{ g.blockUntil }} held } @else { from {{ g.startTime }} }
                       · {{ g.drawn }} drawn · {{ g.registered }} registered{{ g.settled ? ' · ' + g.settled + ' settled' : '' }}
                     </span>
-                    @if (g.booked > 0) {
+                    @if (g.status !== 'booked') {
+                      <span class="fd-group__done fd-group__done--wait">Not confirmed yet</span>
+                    } @else if (g.booked > 0) {
                       <button *appCan="'create'" type="button" class="btn btn--primary btn--sm fd-group__register"
                               (click)="registerGroup(g)" [disabled]="registeringGroup() === g.bookingProfileId">
                         <span class="material-icons" aria-hidden="true">how_to_reg</span>

@@ -21,6 +21,7 @@ const billing = require('./billing.service');
 const { PACKAGE_CHARGE_TYPE_KEY, DEPOSIT_CHARGE_TYPE_KEY, GOLFER_TYPES } = require('./transactionType.constants');
 const { ACCOUNT_PAYMENT_CLASSES } = require('./paymentType.constants');
 const { GROUP_BOOKING_TYPE_KEYS, GROUP_REFUND_STATUS_KEYS } = require('./groupBooking.constants');
+const lifecycle = require('./groupLifecycle.service');
 const BookingProfile = require('./bookingProfile.model');
 const GroupPlayDay = require('./groupPlayDay.model');
 const GroupRefund = require('./groupRefund.model');
@@ -252,9 +253,15 @@ exports.getFolio = async (req, res) => {
 // still open (`allowCancelled`): a cancellation charge is billed on the folio
 // and settled by the deposit, the remainder refunded (user decision
 // 2026-10-07). New deposits on a cancelled booking are refused.
-async function guardAmend(req, found, { allowCancelled = false } = {}) {
+// `kind` is the lifecycle policy's key (groupLifecycle.service abilities):
+// 'structure' for bill items and proforma terms, 'issueProforma', 'deposit',
+// 'settle' (final bill, void, refunds - allowed on cancelled and lapsed
+// bookings too, whose deposit money still has to go somewhere).
+async function guardAmend(req, found, { kind = 'structure' } = {}) {
     const { profile } = found;
-    if (profile.status !== 'booked' && !allowCancelled) return { status: 400, message: 'A cancelled booking cannot be billed.' };
+    const setting = await lifecycle.settingFor(found.companyId);
+    const msg = lifecycle.guardMessage(profile, setting, kind);
+    if (msg) return { status: 400, message: msg };
     if (!(await canModifyRecord(req, profile))) return { status: 403, message: 'You are not allowed to amend this booking.' };
     return null;
 }
@@ -399,7 +406,7 @@ exports.issueProforma = async (req, res) => {
     try {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
-        const guard = await guardAmend(req, found);
+        const guard = await guardAmend(req, found, { kind: 'issueProforma' });
         if (guard) return res.status(guard.status).json({ message: guard.message });
         const { companyId, profile } = found;
         const bill = await groupBillOf(companyId, profile);
@@ -546,7 +553,7 @@ exports.recordDeposit = async (req, res) => {
     try {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
-        const guard = await guardAmend(req, found);
+        const guard = await guardAmend(req, found, { kind: 'deposit' });
         if (guard) return res.status(guard.status).json({ message: guard.message });
         const { companyId, profile } = found;
         const amount = round2(Number(req.body.amount));
@@ -625,9 +632,10 @@ exports.recordDeposit = async (req, res) => {
             bill.updatedBy = stamps.updatedBy;
             await bill.save({ transaction });
         });
+        const confirmed = await lifecycle.refreshConfirmation(profile, { userId: stamps.updatedBy });
         const how = ar ? `charged to ${profile.organiserName} (${ar.docNo})` : `received by ${tender.paymentType}`;
         res.status(201).json({
-            message: `Deposit bill ${bill.billNo} for ${total.toFixed(2)} ${how}.`,
+            message: `Deposit bill ${bill.billNo} for ${total.toFixed(2)} ${how}.${confirmed ? ' The deposit is met - the booking is confirmed.' : ''}`,
             folio: await folioDto(req, companyId, profile, await groupBillOf(companyId, profile)),
         });
     } catch (error) {
@@ -643,7 +651,7 @@ exports.voidDeposit = async (req, res) => {
     try {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
-        const guard = await guardAmend(req, found);
+        const guard = await guardAmend(req, found, { kind: 'deposit' });
         if (guard) return res.status(guard.status).json({ message: guard.message });
         const { companyId, profile } = found;
         const bill = await Bill.findOne({ where: { companyId, bookingProfileId: profile.id, billType: 'deposit', id: req.params.billId } });
@@ -732,7 +740,7 @@ exports.settleGroupBill = async (req, res) => {
     try {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
-        const guard = await guardAmend(req, found, { allowCancelled: true });
+        const guard = await guardAmend(req, found, { kind: 'settle' });
         if (guard) return res.status(guard.status).json({ message: guard.message });
         const { companyId, profile } = found;
         const bill = await groupBillOf(companyId, profile);
@@ -845,7 +853,7 @@ exports.voidGroupBill = async (req, res) => {
     try {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
-        const guard = await guardAmend(req, found, { allowCancelled: true });
+        const guard = await guardAmend(req, found, { kind: 'settle' });
         if (guard) return res.status(guard.status).json({ message: guard.message });
         const { companyId, profile } = found;
         const bill = await groupBillOf(companyId, profile);
@@ -879,7 +887,7 @@ exports.requestRefund = async (req, res) => {
     try {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
-        const guard = await guardAmend(req, found, { allowCancelled: true });
+        const guard = await guardAmend(req, found, { kind: 'settle' });
         if (guard) return res.status(guard.status).json({ message: guard.message });
         const { companyId, profile } = found;
         const amount = round2(Number(req.body.amount));
@@ -932,7 +940,7 @@ exports.payRefund = async (req, res) => {
     try {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
-        const guard = await guardAmend(req, found, { allowCancelled: true });
+        const guard = await guardAmend(req, found, { kind: 'settle' });
         if (guard) return res.status(guard.status).json({ message: guard.message });
         const refund = await findRefund(req, found);
         if (!refund) return res.status(404).json({ message: 'Refund request not found.' });
@@ -960,7 +968,7 @@ exports.declineRefund = async (req, res) => {
     try {
         const found = await findBooking(req, req.params.id);
         if (!found.profile) return res.status(found.status).json({ message: found.message });
-        const guard = await guardAmend(req, found, { allowCancelled: true });
+        const guard = await guardAmend(req, found, { kind: 'settle' });
         if (guard) return res.status(guard.status).json({ message: guard.message });
         const refund = await findRefund(req, found);
         if (!refund) return res.status(404).json({ message: 'Refund request not found.' });

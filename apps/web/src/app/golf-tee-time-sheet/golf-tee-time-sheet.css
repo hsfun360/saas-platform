@@ -363,6 +363,14 @@
   text-transform: uppercase;
   color: var(--success-text);
 }
+/* An unconfirmed group (tentative / pending / approved): nothing to register. */
+.fd-group__done--wait {
+  color: var(--text-muted);
+}
+.fd-group__title .status-chip {
+  margin-left: var(--space-xs);
+  vertical-align: middle;
+}
 .fd-group__flights {
   display: flex;
   flex-direction: column;

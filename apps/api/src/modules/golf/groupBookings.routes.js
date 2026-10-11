@@ -12,6 +12,13 @@ router.get('/:id', controller.get);
 router.put('/:id', controller.update);
 router.post('/:id/cancel', controller.cancel);
 
+// --- Lifecycle (2026-10-11): submit for approval, recall, reopen, extend ---
+router.get('/:id/submit-preview', controller.submitPreview);
+router.post('/:id/submit', controller.submit);
+router.post('/:id/recall', controller.recall);
+router.post('/:id/reopen', controller.reopen);
+router.post('/:id/extend-deposit', controller.extendDeposit);
+
 router.post('/:id/days', controller.addDay);
 router.put('/:id/days/:dayId', controller.updateDay);
 router.delete('/:id/days/:dayId', controller.removeDay);

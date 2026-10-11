@@ -88,11 +88,21 @@ async function companyTimezone(req) {
     return (c && c.timezone) || 'UTC';
 }
 
+// The same, keyed by company id - for background work (the outbox worker's
+// lifecycle scans, workflow completion handlers) that has no request.
+async function companyTimezoneById(companyId) {
+    if (!companyId) return 'UTC';
+    const Company = require('../modules/saas/company.model');
+    const c = await Company.findByPk(companyId, { attributes: ['timezone'] });
+    return (c && c.timezone) || 'UTC';
+}
+
 module.exports = {
     companyDayContext,
     classifyDateRange,
     isoDayOfWeek,
     companyTimezone,
+    companyTimezoneById,
     // Re-exported so a future split can read the peer URL from one import site.
     internalServiceUrl,
 };

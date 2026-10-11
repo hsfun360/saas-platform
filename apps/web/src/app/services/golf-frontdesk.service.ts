@@ -95,6 +95,10 @@ export interface FrontDeskGroupBlock {
   bookingNo: string;
   bookingType: string;
   groupName: string;
+  // Lifecycle (2026-10-11): only a CONFIRMED ('booked') booking registers;
+  // `holdState` names the state otherwise (TENTATIVE / PENDING / APPROVED).
+  status: string;
+  holdState: string | null;
   groupPlayDayId: string;
   startFormat: string;
   hold: boolean;

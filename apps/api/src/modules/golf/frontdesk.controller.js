@@ -23,6 +23,7 @@ const { classifyDateRange } = require('../../platform/calendarGateway');
 const arGateway = require('../../platform/arGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const availability = require('./bookingAvailability.service');
+const lifecycle = require('./groupLifecycle.service');
 const { PLAYER_TYPES, PLAYER_TYPE_KEYS, HOLES_OPTIONS } = require('./booking.constants');
 const { PLAYER_STATUSES, BILL_STATUSES, ACTIVE_PLAYER_STATUS_KEYS } = require('./registration.constants');
 const { PACKAGE_CHARGE_TYPE_KEY, GOLFER_TYPES } = require('./transactionType.constants');
@@ -277,7 +278,7 @@ exports.getDay = async (req, res) => {
             const open = Math.max(0, f.capacity - drawn);
             if (!open) continue;
             const key = availability.nineKey(f.unitCourseId, f.teeTime);
-            const cur = reservedByCell.get(key) || { seats: 0, label: entry.profile.groupName || entry.profile.bookingNo };
+            const cur = reservedByCell.get(key) || { seats: 0, label: holdLabel(entry.profile) };
             cur.seats += open;
             reservedByCell.set(key, cur);
         }
@@ -303,6 +304,13 @@ exports.getDay = async (req, res) => {
             const b = (blocks || []).find((x) => x.kind === 'group' && x.start !== null && t >= x.start && t < x.end);
             return b ? b.label : null;
         };
+        // "TENTATIVE · IFCA Invitational" until the booking is confirmed
+        // (groupLifecycle.holdState), then just the name.
+        function holdLabel(profile) {
+            const state = lifecycle.holdState(profile.status);
+            const name = profile.groupName || profile.bookingNo;
+            return state ? `${state} · ${name}` : name;
+        }
 
         const consumed = new Set();
         const sheets = [];
@@ -400,6 +408,10 @@ exports.getDay = async (req, res) => {
                     bookingNo: profile.bookingNo,
                     bookingType: profile.bookingType,
                     groupName: profile.groupName || profile.bookingNo,
+                    // Lifecycle (2026-10-11): the desk registers CONFIRMED
+                    // bookings only; the block names the state otherwise.
+                    status: profile.status,
+                    holdState: lifecycle.holdState(profile.status),
                     groupPlayDayId: gday.id,
                     startFormat: gday.startFormat,
                     hold,
@@ -455,7 +467,7 @@ exports.registerGroup = async (req, res) => {
         if (!DATE_RE.test(playDate) || !profileId) return res.status(400).json({ message: 'Pick the group to register.' });
         const profile = await BookingProfile.findOne({ where: { companyId, id: profileId, bookingType: { [Op.in]: GROUP_BOOKING_TYPE_KEYS } } });
         if (!profile) return res.status(404).json({ message: 'Group booking not found.' });
-        if (profile.status !== 'booked') return res.status(400).json({ message: 'This group booking is cancelled.' });
+        if (profile.status !== 'booked') return res.status(400).json({ message: profile.status === 'cancelled' ? 'This group booking is cancelled.' : `This group booking is ${profile.status.replace('-', ' ')} - players register once it is confirmed.` });
         const stamps = await callerStamps(req);
         const candidates = await Player.findAll({
             where: { companyId, playDate, bookingProfileId: profile.id, secondNineFlag: 0, status: 'booked' },

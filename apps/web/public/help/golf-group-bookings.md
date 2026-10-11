@@ -14,13 +14,27 @@ Registering the players on the day and billing each player's own extras happen o
 The deposit flow is deliberately simple for Finance: a deposit is a golf bill, never a deposit document in Account Receivable.
 Account Receivable only ever sees normal invoices from golf: one when a deposit is charged to the organiser's account, and one for the balance when the final bill is charged to it.
 
+### Two ways a club runs group bookings
+
+How a booking moves from enquiry to confirmed depends on **Enable group booking control** under Golf Specification → Group Bookings.
+
+- **Control off** (a committee club keying its own Monthly Medal): a new booking is **Confirmed** the moment it is created, nothing expires, nothing needs approval, and no deposit deadline runs.
+- **Control on** (a club whose sales team sells group days): a new booking is **Tentative**.
+  Its reserved flights hold the tee sheet only for the tentative hold period; submit it for approval before that runs out or the flights are released.
+  Once submitted it is **Pending approval** and frozen; the approvers decide from the share of the tee sheet it takes and the charges on its bill.
+  Approval makes it **Approved** and starts the deposit clock; the booking becomes **Confirmed** when the deposit is in, or **Lapsed** when the pay-by date passes without it.
+  Players are drawn into flights, registered and settled only once the booking is Confirmed.
+
+The status chip on every card and page tells you where a booking stands, and the line under the booking's name says what happens next and when.
+
 ## The screen at a glance
 
 [Screenshot: Group Bookings list]
 
 - Two date fields filter by play dates; the range reaches 31 days back and 180 days ahead.
-- A **Status** filter narrows to **Booked** or **Cancelled**; a search box filters the loaded list by group name, booking number, organiser or course.
+- A **Status** filter narrows to one state (Tentative, Pending approval, Approved, Confirmed, Lapsed or Cancelled); a search box filters the loaded list by group name, booking number, organiser or course.
 - Each booking is a card: the group name as the title, a **Group** or **Tournament** chip, the booking number, the play dates and courses, then the organiser, the number of days and the roster count against the expected players.
+  With group booking control on, a line such as "Hold expires 14 Oct, 09:00" or "Deposit 3,000.00 due 18 Oct, 23:59" shows the clock that is running.
 - **Open** goes to the booking's own page; the ⋮ menu holds **Cancel booking**.
 - **New group booking** sits bottom-right.
 
@@ -28,7 +42,8 @@ Account Receivable only ever sees normal invoices from golf: one when a deposit 
 
 The booking's page is a stack of collapsible section cards:
 
-1. **Header** - name, type, organiser and billing party, contact, expected players, remarks, with **Edit details** and the ⋮ menu's **Cancel booking**.
+1. **Header** - the status chip, the lifecycle line, then name, type, organiser and billing party, contact, expected players and remarks.
+   The visible button is the booking's next step (**Submit for approval**, or **Recall from approval** while it is pending; **Confirm booking** when control is off), and the ⋮ menu holds **Edit details**, **Extend deposit deadline**, **Reopen** and **Cancel booking** as the state allows.
 2. **Play days & flights** - one block per play day with its course, start format and window, the reserved flights as tiles, and **Reserve flights**.
 3. **Roster** - one row per person for the whole booking, with **Add players**.
 4. **Flight draw** - a play-day picker and one flight select per listed player, with **Fill in roster order**, **Clear** and **Save draw**.
@@ -68,6 +83,47 @@ Reserved flights hold the tee sheet at once.
 A traditional or two-tee flight holds its tee-time cell at full capacity, crossover included, and the tee sheet shows its seats as reserved for the group.
 A shotgun day holds both nines of the course for the whole window, and the tee sheet reads "HELD · <group>" on every row inside it.
 Reserving again replaces the day's flights; it is refused while players are drawn into them.
+
+With group booking control on, the tee sheet names the state as well ("TENTATIVE · <group>", "PENDING · <group>", "APPROVED · <group>") until the booking is confirmed.
+A tentative booking's flights are held only for the tentative hold period set in Golf Specification; reserving again restarts that clock, and the lifecycle line on the header shows when it runs out.
+If it runs out before you submit, the flights are released, you receive a notification, and the booking stays tentative without flights - reserve them again when you are ready.
+
+### Submit for approval
+
+[Screenshot: Submit for approval dialog with the per-day shares and the approval steps]
+
+Group booking control on only.
+
+1. Reserve flights for every play day and key the group bill and the proforma terms (the approvers decide on them).
+2. On the header, click **Submit for approval**.
+3. Read the preview: for each play day the number of flights, the share of that day's tee times this booking takes, and the share all groups hold once it is in; the bill total, the price per player, any manually keyed prices, and the deposit demanded against what is already held; then the approval steps and who decides each one.
+   The last line states the outcome: who it goes to, or that it is approved at once because no chain applies, and when the deposit falls due.
+4. Click **Submit for approval** (or **Approve and demand deposit** / **Approve and confirm** when no chain applies).
+
+While the booking is pending, its flights stay held and nothing on it can change; **Recall from approval** takes it back to tentative with everything kept.
+When the approvers approve, the booking becomes Approved: the proforma can be issued, deposits recorded, and the deposit must be in by the pay-by date.
+If a deposit is not needed (the proforma states 0.00, or the default deposit percentage is 0), approval confirms the booking at once.
+When they reject it, the booking returns to tentative and its flights are released - amend the charges or the shape, reserve the flights again, and resubmit.
+With control off, the same button reads **Confirm booking** and simply confirms a tentative booking.
+
+### Extend the deposit deadline
+
+1. On an Approved booking, open the ⋮ menu and click **Extend deposit deadline**.
+2. Pick the new pay-by date (later than the current one) and give the reason.
+3. Click **Extend to <date>**.
+
+A deadline can be extended once per booking.
+When the pay-by date passes with the deposit short, the booking lapses: its flights are released, the reason is recorded on the header, and whoever created it is notified.
+
+### Reopen a booking
+
+1. On an Approved, Confirmed or Lapsed booking, open the ⋮ menu and click **Reopen for amendment** (or **Reopen lapsed booking**).
+2. Confirm.
+
+The booking becomes tentative again so its days, flights and charges can change, and it must be submitted for approval once more.
+Any deposit already held keeps its flights from expiring.
+A lapsed booking reopens without flights - reserve them again.
+A booking whose players are already registered can no longer be reopened.
 
 ### Key the roster
 
@@ -220,9 +276,17 @@ Changing a day's date, course, holes, format or times drops its reserved flights
 - **Set up a payment type of class Deposit** - applying a held deposit at settlement needs a Payment Type of class **Deposit**.
 - **The proforma does not open** - the document opens in a new browser tab; allow pop-ups for the site, then use **Open proforma**.
 - **The Tee Time Sheet shows the players** - register them there with **Register group**; their own extras are billed on their player bill, where no green fee is charged because the package sits on this folio.
+- **"This booking is awaiting approval - recall it to make changes"** - a pending booking is frozen; **Recall from approval** brings it back, or wait for the decision.
+- **"The booking is approved - reopen it to change its days, flights or charges"** - the approvers decided on the current shape; **Reopen** puts it back to tentative and it goes through approval again.
+- **"Deposits are recorded once the booking is approved"** / **"The proforma is issued once the booking is approved"** - submit the booking for approval first.
+- **"Players are drawn into flights once the booking is confirmed"** - the deposit is still outstanding; record it (or extend the deadline) and the booking confirms.
+- **"Reserve flights for <dates> before submitting"** - every play day needs its flights before the approvers can judge what the booking takes.
+- **The tee sheet shows "Not confirmed yet" on a group** - the booking is tentative, pending or awaiting its deposit; players register once it is confirmed.
+- **A booking shows Lapsed** - its deposit was not in by the pay-by date; the reason is on the header. Reopen it to start again, or request a refund of any deposit it does hold.
 
 ## Related options
 
 - [Tee Time Sheet](golf-tee-time-sheet.md) - register the group on the day and bill each player's extras.
 - [Transaction Type](golf-transaction-types.md) - the packages, charges and the Deposit item.
-- [Golf Specification](golf-settings.md) - the club-wide booking rules.
+- [Golf Specification](golf-settings.md) - the club-wide booking rules, including the Group Bookings control, hold period and deposit terms.
+- Workflow → Approval Setup - the approval chain for the purpose **Golf group booking**; its step conditions can test the tee-sheet share, the bill total, the deposit percentage or the organiser's account type.

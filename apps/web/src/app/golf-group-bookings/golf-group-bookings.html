@@ -81,8 +81,9 @@
                   <div class="meta"><dt>Days</dt><dd>{{ b.dayCount }}</dd></div>
                   <div class="meta"><dt>Roster</dt><dd>{{ b.rosterCount }}{{ b.expectedPlayers ? ' of ' + b.expectedPlayers : '' }}</dd></div>
                 </dl>
+                @if (lifecycleShort(b); as line) { <div class="data-card__desc">{{ line }}</div> }
               </div>
-              <span class="data-row__badge status-chip" [class.status-chip--on]="b.status === 'booked'" [class.status-chip--off]="b.status !== 'booked'">
+              <span [class]="'data-row__badge status-chip ' + statusClass(b.status)">
                 {{ statusLabel(b.status) }}
               </span>
               <div class="data-row__actions">
@@ -90,7 +91,7 @@
                   <span class="material-icons" aria-hidden="true">open_in_new</span>
                   Open
                 </button>
-                @if (b.status === 'booked' && b.canModify !== false) {
+                @if (can('cancel', b) && b.canModify !== false) {
                   <app-overflow-menu [label]="'More actions for ' + b.groupName" *appCan="'edit'">
                     <button type="button" appMenuItem (click)="openCancel(b)">
                       <span class="material-icons" aria-hidden="true">cancel</span>
@@ -128,7 +129,7 @@
         <button type="button" class="settings-header settings-header--button" (click)="toggleSection('header')" [attr.aria-expanded]="isExpanded('header')">
           <span class="settings-header__text">
             <span class="settings-header__title">{{ b.groupName }} <span class="ggb-type" [class.ggb-type--tournament]="b.bookingType === 'tournament'">{{ typeLabel(b.bookingType) }}</span>
-              <span class="status-chip" [class.status-chip--on]="b.status === 'booked'" [class.status-chip--off]="b.status !== 'booked'">{{ statusLabel(b.status) }}</span>
+              <span [class]="'status-chip ' + statusClass(b.status)">{{ statusLabel(b.status) }}</span>
             </span>
             <span class="settings-header__sub">{{ b.bookingNo }} · {{ b.playDate | localDate }}@if (b.playDateTo && b.playDateTo !== b.playDate) { – {{ b.playDateTo | localDate }}} · {{ organiserLine(b) }}</span>
           </span>
@@ -136,6 +137,12 @@
         </button>
         @if (isExpanded('header')) {
           <div class="settings-body">
+            @if (lifecycleLine(b); as line) {
+              <p class="ggb-lifecycle" [class.ggb-lifecycle--due]="b.status === 'approved'" [class.ggb-lifecycle--ok]="b.status === 'booked'" [class.ggb-lifecycle--off]="b.status === 'lapsed'" role="status">
+                <span class="material-icons" aria-hidden="true">{{ b.status === 'booked' ? 'check_circle' : b.status === 'approved' ? 'schedule' : b.status === 'lapsed' ? 'history_toggle_off' : b.status === 'pending-approval' ? 'hourglass_top' : 'timer' }}</span>
+                <span>{{ line }}</span>
+              </p>
+            }
             <dl class="data-card__meta ggb-meta">
               <div class="meta"><dt>Organiser</dt><dd>{{ b.organiserName || '—' }}</dd></div>
               <div class="meta"><dt>Billing party</dt><dd>{{ b.debtorType === 'other' ? 'City ledger (Other Debtor)' : (b.debtorType ? 'Member account' : 'Cash only - no account') }}</dd></div>
@@ -145,17 +152,50 @@
               @if (b.remarks) { <div class="meta"><dt>Remarks</dt><dd>{{ b.remarks }}</dd></div> }
               @if (b.status === 'cancelled') { <div class="meta"><dt>Cancelled</dt><dd>{{ b.cancelReason || '—' }}</dd></div> }
             </dl>
-            @if (b.status === 'booked' && b.canModify !== false) {
+            @if (b.canModify !== false && (can('editHeader') || can('submit') || can('recall') || can('reopen') || can('cancel'))) {
               <div class="ggb-actions" *appCan="'edit'">
-                <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(b)">
-                  <span class="material-icons" aria-hidden="true">edit</span>
-                  Edit details
-                </button>
-                <app-overflow-menu [label]="'More actions for ' + b.groupName">
-                  <button type="button" appMenuItem (click)="openCancel(b)">
-                    <span class="material-icons" aria-hidden="true">cancel</span>
-                    Cancel booking
+                <!-- ONE visible primary (the lifecycle's next step when there is one, else Edit) + the kebab. -->
+                @if (can('submit')) {
+                  <button type="button" class="btn btn--primary btn--sm" (click)="openSubmit()" [disabled]="working()">
+                    <span class="material-icons" aria-hidden="true">send</span>
+                    {{ controlOn() ? 'Submit for approval' : 'Confirm booking' }}
                   </button>
+                } @else if (can('recall')) {
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="askRecall()" [disabled]="working()">
+                    <span class="material-icons" aria-hidden="true">undo</span>
+                    Recall from approval
+                  </button>
+                } @else if (can('editHeader')) {
+                  <button type="button" class="btn btn--secondary btn--sm" (click)="openEdit(b)">
+                    <span class="material-icons" aria-hidden="true">edit</span>
+                    Edit details
+                  </button>
+                }
+                <app-overflow-menu [label]="'More actions for ' + b.groupName">
+                  @if (can('submit') && can('editHeader')) {
+                    <button type="button" appMenuItem (click)="openEdit(b)">
+                      <span class="material-icons" aria-hidden="true">edit</span>
+                      Edit details
+                    </button>
+                  }
+                  @if (can('extendDeposit')) {
+                    <button type="button" appMenuItem (click)="openExtend()">
+                      <span class="material-icons" aria-hidden="true">more_time</span>
+                      Extend deposit deadline
+                    </button>
+                  }
+                  @if (can('reopen')) {
+                    <button type="button" appMenuItem (click)="askReopen()">
+                      <span class="material-icons" aria-hidden="true">lock_open</span>
+                      {{ b.status === 'lapsed' ? 'Reopen lapsed booking' : 'Reopen for amendment' }}
+                    </button>
+                  }
+                  @if (can('cancel')) {
+                    <button type="button" appMenuItem (click)="openCancel(b)">
+                      <span class="material-icons" aria-hidden="true">cancel</span>
+                      Cancel booking
+                    </button>
+                  }
                 </app-overflow-menu>
               </div>
             }
@@ -194,7 +234,7 @@
                     </div>
                   </div>
                   <span class="data-row__badge status-chip" [class.status-chip--on]="d.status === 'planned'" [class.status-chip--off]="d.status !== 'planned'">{{ d.status }}</span>
-                  @if (b.status === 'booked' && d.status === 'planned' && b.canModify !== false) {
+                  @if (can('editStructure') && d.status === 'planned' && b.canModify !== false) {
                     <div class="data-row__actions" *appCan="'edit'">
                       <button type="button" class="btn btn--primary btn--sm" (click)="openFlights(d)">
                         <span class="material-icons" aria-hidden="true">event_seat</span>
@@ -222,7 +262,7 @@
                           <span>{{ f.teeTime }}</span>
                           @if (flightNine(f, d); as nine) { <span class="data-card__reg">{{ nine }}</span> }
                           <span class="ggb-flight__seats">{{ f.players.length }}/{{ f.capacity }}</span>
-                          @if (f.players.length === 0 && b.status === 'booked' && b.canModify !== false) {
+                          @if (f.players.length === 0 && can('editStructure') && b.canModify !== false) {
                             <button type="button" class="btn btn--danger btn--sm" (click)="askRemoveFlight(d, f)" [attr.aria-label]="'Release flight ' + f.flightLabel" *appCan="'edit'">
                               <span class="material-icons" aria-hidden="true">close</span>
                             </button>
@@ -237,7 +277,7 @@
                 }
               </div>
             }
-            @if (b.status === 'booked' && b.canModify !== false) {
+            @if (can('editStructure') && b.canModify !== false) {
               <button type="button" class="btn btn--secondary btn--sm" (click)="openAddDay()" *appCan="'edit'">
                 <span class="material-icons" aria-hidden="true">add</span>
                 Add play day
@@ -274,7 +314,7 @@
                     <span>{{ p.teamName || '—' }}</span>
                     <span class="ggb-roster__drawn">{{ p.status === 'withdrawn' ? 'Withdrawn' : drawnSummary(p) }}</span>
                     <span class="ggb-roster__actions">
-                      @if (b.status === 'booked' && b.canModify !== false) {
+                      @if (can('editRoster') && b.canModify !== false) {
                         <app-overflow-menu [label]="'More actions for ' + p.playerName" *appCan="'edit'">
                           <button type="button" appMenuItem (click)="openEditPlayer(p)">
                             <span class="material-icons" aria-hidden="true">edit</span>
@@ -302,7 +342,7 @@
                 }
               </div>
             }
-            @if (b.status === 'booked' && b.canModify !== false) {
+            @if (can('editRoster') && b.canModify !== false) {
               <button type="button" class="btn btn--secondary btn--sm" (click)="openAddPlayers()" *appCan="'edit'">
                 <span class="material-icons" aria-hidden="true">person_add</span>
                 Add players
@@ -346,6 +386,9 @@
                 } @else if (!b.roster.length) {
                   <p class="cell-subtle">Add players to the roster before drawing.</p>
                 } @else {
+                  @if (!can('draw') && day.status === 'planned' && b.status !== 'cancelled' && b.status !== 'lapsed') {
+                    <p class="cell-subtle">Players are drawn into flights once the booking is confirmed.</p>
+                  }
                   <!-- Reactive group keyed by roster player (house standard); form.dirty gates Save. -->
                   <div class="ggb-draw" [formGroup]="drawForm">
                     @for (p of b.roster; track p.id) {
@@ -366,7 +409,7 @@
                       }
                     }
                   </div>
-                  @if (b.status === 'booked' && day.status === 'planned' && b.canModify !== false) {
+                  @if (can('draw') && day.status === 'planned' && b.canModify !== false) {
                     <div class="ggb-actions" *appCan="'edit'">
                       <button type="button" class="btn btn--secondary btn--sm" (click)="autoFill()">
                         <span class="material-icons" aria-hidden="true">auto_fix_high</span>
@@ -404,6 +447,9 @@
             @if (folioLoading() && !folio()) {
               <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading the group bill…</p></div>
             } @else if (folio(); as f) {
+              @if (!itemsEditable() && billOpen() && b.status !== 'cancelled' && b.status !== 'lapsed') {
+                <p class="ggb-note">{{ b.status === 'pending-approval' ? 'The bill is frozen while the booking awaits approval.' : 'The bill is frozen - the booking was approved on these charges. Reopen the booking to change them.' }}</p>
+              }
               @if (f.bill && f.bill.items.length) {
                 <div class="ggb-items">
                   <div class="ggb-item ggb-item--head" aria-hidden="true">
@@ -415,15 +461,15 @@
                         @if (i.packageRole) { <span class="ggb-tag">package</span> }
                         @if (i.priceOverridden) { <span class="ggb-tag">amended</span> }
                       </span>
-                      @if (billOpen() && !i.packageGroupId) {
+                      @if (itemsEditable() && !i.packageGroupId) {
                         <input type="number" inputmode="numeric" min="1" max="999" [value]="i.quantity" (change)="setItemQty(i.id, $any($event.target).value)" [disabled]="folioBusy()" [attr.aria-label]="'Quantity of ' + i.description" />
                       } @else { <span>{{ i.quantity }}</span> }
-                      @if (billOpen() && itemTypeAllowsPrice(i)) {
+                      @if (itemsEditable() && itemTypeAllowsPrice(i)) {
                         <input type="number" inputmode="decimal" min="0" step="0.01" appMoney [moneyValue]="i.unitAmount" (change)="setItemPrice(i.id, $any($event.target).value)" [disabled]="folioBusy()" [attr.aria-label]="'Unit price of ' + i.description" />
                       } @else { <span>{{ i.unitAmount.toFixed(2) }}</span> }
                       <span>{{ i.taxAmount.toFixed(2) }}</span>
                       <span class="ggb-item__payable">{{ i.payable.toFixed(2) }}</span>
-                      @if (billOpen()) {
+                      @if (itemsEditable()) {
                         <button type="button" class="btn btn--danger btn--sm" (click)="removeFolioItem(i.id)" [disabled]="folioBusy()" [attr.aria-label]="'Remove ' + i.description" *appCan="'edit'">
                           <span class="material-icons" aria-hidden="true">close</span>
                         </button>
@@ -440,7 +486,7 @@
                 <p class="cell-subtle">No packages or charges keyed yet. Add the first item below - the group bill is created with it.</p>
               }
 
-              @if (billOpen()) {
+              @if (itemsEditable()) {
                 <div class="ggb-additem" *appCan="'edit'">
                   <div class="form-group">
                     <label for="ggbAddItem">Billing item</label>
@@ -483,12 +529,16 @@
                 </div>
               </form>
               <div class="ggb-actions">
-                @if (billOpen()) {
+                @if (itemsEditable()) {
                   <button type="submit" form="ggbProforma" class="btn btn--secondary btn--sm" [disabled]="folioBusy() || !proformaForm.dirty" *appCan="'edit'">Save terms</button>
+                }
+                @if (canIssueProforma()) {
                   <button type="button" class="btn btn--primary btn--sm" (click)="issueProforma()" [disabled]="folioBusy() || proformaForm.dirty || !f.bill?.items?.length" *appCan="'edit'">
                     <span class="material-icons" aria-hidden="true">print</span>
                     {{ f.bill?.proformaNo ? 'Re-issue and print' : 'Issue proforma' }}
                   </button>
+                } @else if (controlOn() && billOpen() && (b.status === 'tentative' || b.status === 'pending-approval')) {
+                  <span class="cell-subtle">The proforma is issued once the booking is approved.</span>
                 }
                 @if (f.bill?.proformaNo) {
                   <button type="button" class="btn btn--secondary btn--sm" (click)="openProforma()">
@@ -511,7 +561,7 @@
                 </div>
               } @else if (f.bill?.items?.length) {
                 <p class="cell-subtle">Settling draws the held deposits first ({{ f.depositUnapplied.toFixed(2) }} held); the balance is paid by any tender, and a City Ledger or Member tender charges the organiser's account for the balance only.</p>
-                @if (billOpen()) {
+                @if (canSettle()) {
                   <div class="ggb-actions" *appCan="'edit'">
                     <button type="button" class="btn btn--primary btn--sm" (click)="openSettle()" [disabled]="folioBusy()">
                       <span class="material-icons" aria-hidden="true">point_of_sale</span>
@@ -578,7 +628,7 @@
                             <span class="material-icons" aria-hidden="true">print</span>
                             Print
                           </button>
-                          @if (d.status !== 'voided' && !d.onAccount && d.appliedAmount === 0 && billOpen()) {
+                          @if (d.status !== 'voided' && !d.onAccount && d.appliedAmount === 0 && canDeposit()) {
                             <app-overflow-menu [label]="'More actions for deposit ' + d.billNo" *appCan="'edit'">
                               <button type="button" appMenuItem (click)="askVoidDeposit(d)">
                                 <span class="material-icons" aria-hidden="true">block</span>
@@ -600,6 +650,8 @@
                 @if (!f.depositType) {
                   <p class="cell-subtle">Set up a transaction type with charge type Deposit first (Golf Management → Transaction Type).</p>
                 }
+              } @else if (controlOn() && (b.status === 'tentative' || b.status === 'pending-approval')) {
+                <p class="cell-subtle">Deposits are recorded once the booking is approved.</p>
               }
             }
           </div>
@@ -1127,10 +1179,75 @@
     </app-dialog>
   }
 
+  <!-- ============ Submit for approval (centred - states the outcome) ============ -->
+  @if (submitOpen()) {
+    <app-dialog #subDlg [title]="controlOn() ? 'Submit for approval' : 'Confirm booking'" [busy]="working() || submitLoading()" (close)="submitOpen.set(false)">
+      @if (submitLoading() && !submitPreview()) {
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Working out what this booking takes…</p></div>
+      } @else if (submitPreview(); as p) {
+        <p class="cell-subtle" style="margin-top: 0;">What the approver sees: the share of each day's tee times this booking takes, the share held by all groups once it is in, and the charges.</p>
+        <div class="ggb-share ggb-share--head" aria-hidden="true">
+          <span>Play day</span><span>Course</span><span class="ggb-share__num">Flights</span><span class="ggb-share__num">This group</span><span class="ggb-share__num">All groups</span>
+        </div>
+        @for (d of p.days; track d.playDate) {
+          <div class="ggb-share">
+            <span>{{ d.playDate | localDate:'weekday' }}@if (d.dayType === 'weekend') { <span class="data-card__reg">weekend / holiday</span> }</span>
+            <span>{{ d.courseCode || '—' }} · {{ formatLabel(d.startFormat) }}</span>
+            <span class="ggb-share__num">{{ d.flights }}</span>
+            <span class="ggb-share__num">{{ d.sharePct }}%</span>
+            <span class="ggb-share__num">{{ d.groupSharePct }}%</span>
+          </div>
+        }
+        <dl class="data-card__meta" style="margin-top: var(--space-md);">
+          <div class="meta"><dt>Group bill</dt><dd>{{ (p.context['amount'] | money) }}{{ p.context['manualPriceCount'] ? ' · ' + p.context['manualPriceCount'] + ' manual price(s)' : '' }}</dd></div>
+          <div class="meta"><dt>Per player</dt><dd>{{ p.context['perPlayerAmount'] | money }}</dd></div>
+          <div class="meta"><dt>Deposit</dt><dd>{{ p.depositRequired | money }} ({{ p.context['depositPct'] }}%) · {{ p.depositHeld | money }} held</dd></div>
+        </dl>
+        @if (p.chain && p.chain.steps.length) {
+          <ol class="ggb-chain" aria-label="Approval steps">
+            @for (s of p.chain.steps; track s.stepNo) {
+              <li><span class="ggb-chain__no">{{ s.stepNo }}</span><span><strong>{{ s.name }}</strong> · {{ s.approvers.length ? s.approvers.join(', ') : 'nobody resolves - the step is skipped' }}{{ s.approvalMode === 'all' ? ' (everyone)' : s.approvalMode === 'count' ? ' (' + s.requiredApprovals + ' needed)' : '' }}</span></li>
+            }
+          </ol>
+        }
+        <p class="ggb-preview" [class.ggb-preview--warn]="p.missingFlights.length"><span class="material-icons" aria-hidden="true">{{ p.missingFlights.length ? 'warning' : 'info' }}</span> {{ submitOutcome() }}</p>
+      }
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="subDlg.requestClose()" [disabled]="working()">Cancel</button>
+        <button type="button" class="btn btn--primary" (click)="confirmSubmit()" [disabled]="working() || submitLoading() || !submitPreview() || !!submitPreview()?.missingFlights?.length">{{ working() ? 'Submitting…' : submitLabel() }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Extend the deposit deadline (centred - the one extension) ============ -->
+  @if (extendOpen()) {
+    <app-dialog #extDlg title="Extend deposit deadline" [busy]="working()" [dirty]="extendForm.dirty" (close)="extendOpen.set(false)">
+      <p>The deposit of <strong>{{ (booking()?.lifecycle?.depositRequiredAmount || 0) | money }}</strong> is due {{ booking()?.lifecycle?.depositDueAt | localDate:'datetime' }}. A deadline can be extended once; after the new date passes the booking lapses and its flights are released.</p>
+      <form id="ggbExtend" [formGroup]="extendForm" (ngSubmit)="confirmExtend()" class="saas-form" style="padding: 0;">
+        <div class="ggb-grid">
+          <div class="form-group">
+            <label for="ggbExtDate">New pay-by date <span class="required">*</span></label>
+            <input id="ggbExtDate" type="date" formControlName="depositDueDate" [attr.aria-invalid]="showError(extendForm.controls.depositDueDate)" aria-describedby="ggbExtDateErr" />
+            @if (showError(extendForm.controls.depositDueDate)) { <p class="field-error" role="alert" id="ggbExtDateErr">Pick the new date.</p> }
+          </div>
+          <div class="form-group">
+            <label for="ggbExtReason">Reason <span class="required">*</span></label>
+            <textarea id="ggbExtReason" rows="2" wrap="off" formControlName="reason" maxlength="255" [attr.aria-invalid]="showError(extendForm.controls.reason)" aria-describedby="ggbExtReasonErr"></textarea>
+            @if (showError(extendForm.controls.reason)) { <p class="field-error" role="alert" id="ggbExtReasonErr">Give the reason.</p> }
+          </div>
+        </div>
+      </form>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="extDlg.requestClose()" [disabled]="working()">Cancel</button>
+        <button type="submit" form="ggbExtend" class="btn btn--primary" [disabled]="working() || extendForm.invalid">{{ working() ? 'Saving…' : 'Extend to ' + (extendForm.controls.depositDueDate.value | localDate) }}</button>
+      </ng-container>
+    </app-dialog>
+  }
+
   <!-- ============ Cancel confirmation (centred) ============ -->
   @if (cancelTarget(); as target) {
     <app-dialog title="Cancel group booking" [busy]="working()" (close)="cancelTarget.set(null)">
-      <p>Cancel <strong>{{ target.groupName }}</strong> ({{ target.bookingNo }})? Every play day's hold is released and all booked players come off the tee sheet. Registered players stay on record.</p>
+      <p>Cancel <strong>{{ target.groupName }}</strong> ({{ target.bookingNo }})? Every play day's hold is released and all booked players come off the tee sheet. Registered players stay on record.@if (target.status === 'pending-approval') { The pending approval is withdrawn. }</p>
       <div class="form-group">
         <label for="ggbCancelReason">Reason</label>
         <textarea id="ggbCancelReason" rows="2" wrap="off" [value]="cancelReason()" (input)="cancelReason.set($any($event.target).value)"></textarea>

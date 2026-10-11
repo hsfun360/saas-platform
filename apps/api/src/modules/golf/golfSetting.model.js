@@ -219,6 +219,39 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: 'player',
     },
+    // Group booking control (user decisions 2026-10-11) - the master switch
+    // for the SALES-club lifecycle (groupBooking.constants). OFF = a group
+    // booking is booked at creation, nothing expires, no approval, no deposit
+    // clock (the committee club keying its Monthly Medal). ON = tentative
+    // holds expire, Submit routes through the 'golf-group-booking' approval
+    // chain (none configured = auto-approve), approval starts the deposit
+    // clock and the booking confirms when the deposit is met.
+    groupBookingControlEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
+    // How long reserved flights of a TENTATIVE booking hold the tee sheet
+    // before the worker releases them (0 = until submitted, no expiry).
+    groupTentativeHoldHours: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 72,
+    },
+    // Days after approval the deposit must be in (the proforma's pay-by date
+    // defaults to this; 0 = the day of approval).
+    groupDepositDueDays: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 7,
+    },
+    // The deposit demanded when the proforma states none: this percentage of
+    // the group bill total (0 = no deposit, approval confirms at once).
+    groupDefaultDepositPct: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 30,
+    },
     // Merge booking (club-wide, user decision 2026-09-19). OFF = exclusive
     // flights: the first confirmed booking claims the whole flight, extra
     // players join only that same booking. ON = shared flights: bookings

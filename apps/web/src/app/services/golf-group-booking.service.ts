@@ -96,6 +96,56 @@ export interface GolfGroupRosterPlayer {
   drawn: Record<string, string>;
 }
 
+// The lifecycle (2026-10-11): tentative -> pending-approval -> approved ->
+// booked (confirmed), with lapsed and cancelled as the ends. `can` is the
+// server's policy for THIS status under the club's control mode - the screen
+// shows exactly the actions the API would accept.
+export type GolfGroupStatus = 'tentative' | 'pending-approval' | 'approved' | 'booked' | 'lapsed' | 'cancelled';
+
+export interface GolfGroupAbilities {
+  editStructure: boolean;
+  editHeader: boolean;
+  editRoster: boolean;
+  draw: boolean;
+  deposit: boolean;
+  issueProforma: boolean;
+  settle: boolean;
+  submit: boolean;
+  recall: boolean;
+  reopen: boolean;
+  extendDeposit: boolean;
+  cancel: boolean;
+}
+
+export interface GolfGroupLifecycle {
+  controlOn: boolean;
+  workflowInstanceId: string | null;
+  holdExpiresAt: string | null;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  depositDueAt: string | null;
+  depositRequiredAmount: number | null;
+  confirmedAt: string | null;
+  lapsedAt: string | null;
+  lapseReason: string | null;
+  depositDueExtendedAt: string | null;
+  depositDueExtensionReason: string | null;
+  can: GolfGroupAbilities;
+}
+
+// What Submit will do (show expected results): the tee-sheet share per day,
+// the deposit demand, and the approval chain it takes (null = none set up).
+export interface GolfGroupSubmitPreview {
+  controlOn: boolean;
+  context: Record<string, string | number>;
+  days: { playDate: string; dayType: string; courseCode: string | null; startFormat: string; flights: number; seats: number; slots: number; sharePct: number; groupSharePct: number }[];
+  depositRequired: number;
+  depositHeld: number;
+  depositDueDays: number;
+  missingFlights: string[];
+  chain: { definitionName: string; version: number; steps: { stepNo: number; name: string; approvalMode: string; requiredApprovals: number | null; approvers: string[] }[] } | null;
+}
+
 export interface GolfGroupBookingHeader {
   id: string;
   bookingNo: string;
@@ -111,9 +161,10 @@ export interface GolfGroupBookingHeader {
   playDate: string;
   playDateTo: string | null;
   remarks: string | null;
-  status: string;
+  status: GolfGroupStatus;
   cancelReason: string | null;
   canModify?: boolean;
+  lifecycle?: GolfGroupLifecycle;
 }
 
 export interface GolfGroupBookingRow extends GolfGroupBookingHeader {
@@ -311,12 +362,34 @@ export class GolfGroupBookingService {
     return this.http.get<GolfGroupBookingMeta>(`${this.base}/meta`);
   }
 
-  list(filter: { dateFrom?: string; dateTo?: string; status?: string }): Observable<{ bookings: GolfGroupBookingRow[]; bookingTypes: MembershipStatusOption[]; statuses: MembershipStatusOption[] }> {
+  list(filter: { dateFrom?: string; dateTo?: string; status?: string }): Observable<{ bookings: GolfGroupBookingRow[]; bookingTypes: MembershipStatusOption[]; statuses: MembershipStatusOption[]; controlOn: boolean }> {
     let params = new HttpParams();
     if (filter.dateFrom) params = params.set('dateFrom', filter.dateFrom);
     if (filter.dateTo) params = params.set('dateTo', filter.dateTo);
     if (filter.status) params = params.set('status', filter.status);
-    return this.http.get<{ bookings: GolfGroupBookingRow[]; bookingTypes: MembershipStatusOption[]; statuses: MembershipStatusOption[] }>(this.base, { params });
+    return this.http.get<{ bookings: GolfGroupBookingRow[]; bookingTypes: MembershipStatusOption[]; statuses: MembershipStatusOption[]; controlOn: boolean }>(this.base, { params });
+  }
+
+  // ---- lifecycle (2026-10-11) ----
+
+  submitPreview(id: string): Observable<{ preview: GolfGroupSubmitPreview }> {
+    return this.http.get<{ preview: GolfGroupSubmitPreview }>(`${this.base}/${id}/submit-preview`);
+  }
+
+  submit(id: string): Observable<Saved> {
+    return this.http.post<Saved>(`${this.base}/${id}/submit`, {});
+  }
+
+  recall(id: string): Observable<Saved> {
+    return this.http.post<Saved>(`${this.base}/${id}/recall`, {});
+  }
+
+  reopen(id: string): Observable<Saved> {
+    return this.http.post<Saved>(`${this.base}/${id}/reopen`, {});
+  }
+
+  extendDeposit(id: string, payload: { depositDueDate: string; reason: string }): Observable<Saved> {
+    return this.http.post<Saved>(`${this.base}/${id}/extend-deposit`, payload);
   }
 
   get(id: string): Observable<{ booking: GolfGroupBooking }> {

@@ -25,6 +25,19 @@ const MODE = process.env.WORKER_MODE === 'drain' ? 'drain' : 'poll';
 const { startWorker, drainOutbox } = require('./src/modules/notification/notification.worker');
 const { scanSlaReminders } = require('./src/modules/workflow/workflow.reminders');
 
+// Golf group-booking lifecycle (2026-10-11): tentative holds past their expiry
+// release their flights; approved bookings past their deposit date lapse.
+// Time-driven, so it lives on the worker tick beside the workflow SLA scan.
+async function scanGroupLifecycle() {
+    try {
+        const { scanGroupLifecycle: scan } = require('./src/modules/golf/groupLifecycle.service');
+        return await scan();
+    } catch (err) {
+        console.error('[GOLF GROUP] lifecycle scan failed:', err);
+        return null;
+    }
+}
+
 // AR statement runs: the ar.StatementRun table is itself the job queue
 // (status 'queued' = pending work; see arStatement.service.processActiveRuns).
 // Each drain advances active runs inside a time budget that stays well under
@@ -53,6 +66,7 @@ if (MODE === 'drain') {
                 // (SLA scan enqueues to the outbox; the drain below sends it).
                 if (url.searchParams.get('sweep')) {
                     await scanSlaReminders().catch((err) => console.error('[WORKFLOW SLA] Unhandled scan error:', err));
+                    await scanGroupLifecycle();
                     // AR nightly reconciliation (report-only; drift goes to the
                     // logs for ops). Gated to the 03:00 MYT hour (19:00 UTC) -
                     // the 5-min sweep re-runs it a few times that hour, which
@@ -100,6 +114,7 @@ if (MODE === 'drain') {
     // time every 5 minutes (the scan enqueues to the outbox; the poller above
     // dispatches). Time-driven workflow work lives HERE, never in an API request.
     setInterval(() => scanSlaReminders().catch((err) => console.error('[WORKFLOW SLA] Unhandled scan error:', err)), 5 * 60 * 1000);
+    setInterval(() => scanGroupLifecycle(), 5 * 60 * 1000);
 
     // 4. AR statement runs (poll mode): check for queued/expired-lease runs
     // every 30s. Overlapping ticks are safe - the run lease makes a busy run
