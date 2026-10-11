@@ -160,9 +160,29 @@
   align-items: center;
   justify-content: center;
 }
+/* Mobile: the two text cells span the row, the three numbers sit beneath
+   with their own captions (the head row is hidden). */
+.ggb-share__k {
+  display: none;
+}
 @media (max-width: 767px) {
   .ggb-share {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ggb-share > :nth-child(1),
+  .ggb-share > :nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .ggb-share__num {
+    text-align: left;
+  }
+  .ggb-share__k {
+    display: block;
+    font-size: var(--font-caption);
+    font-weight: var(--weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
   }
   .ggb-share--head {
     display: none;

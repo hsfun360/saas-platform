@@ -1193,9 +1193,9 @@
           <div class="ggb-share">
             <span>{{ d.playDate | localDate:'weekday' }}@if (d.dayType === 'weekend') { <span class="data-card__reg">weekend / holiday</span> }</span>
             <span>{{ d.courseCode || '—' }} · {{ formatLabel(d.startFormat) }}</span>
-            <span class="ggb-share__num">{{ d.flights }}</span>
-            <span class="ggb-share__num">{{ d.sharePct }}%</span>
-            <span class="ggb-share__num">{{ d.groupSharePct }}%</span>
+            <span class="ggb-share__num"><span class="ggb-share__k">Flights</span>{{ d.flights }}</span>
+            <span class="ggb-share__num"><span class="ggb-share__k">This group</span>{{ d.sharePct }}%</span>
+            <span class="ggb-share__num"><span class="ggb-share__k">All groups</span>{{ d.groupSharePct }}%</span>
           </div>
         }
         <dl class="data-card__meta" style="margin-top: var(--space-md);">

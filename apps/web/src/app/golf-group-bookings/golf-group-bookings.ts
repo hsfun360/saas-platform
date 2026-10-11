@@ -378,10 +378,14 @@ export class GolfGroupBookingsComponent implements OnInit {
     const l = b.lifecycle;
     if (!l) return '';
     switch (b.status) {
-      case 'tentative':
-        return l.holdExpiresAt
-          ? `Tentative - the reserved flights are held until ${formatLocalDate(l.holdExpiresAt, 'datetime')} unless submitted for approval.`
-          : (l.controlOn ? 'Tentative - reserve the flights and submit for approval.' : 'Tentative - submit to confirm.');
+      case 'tentative': {
+        if (l.holdExpiresAt) return `Tentative - the reserved flights are held until ${formatLocalDate(l.holdExpiresAt, 'datetime')} unless submitted for approval.`;
+        if (!l.controlOn) return 'Tentative - submit to confirm.';
+        const hasFlights = 'days' in b && b.days.some((d) => d.flights.length > 0);
+        return hasFlights
+          ? 'Tentative - the reserved flights are held without expiry (a deposit is held); submit for approval when ready.'
+          : 'Tentative - reserve the flights and submit for approval.';
+      }
       case 'pending-approval':
         return `Awaiting approval since ${formatLocalDate(l.submittedAt, 'datetime')} - the flights stay held while the approvers decide.`;
       case 'approved': {
@@ -748,7 +752,9 @@ export class GolfGroupBookingsComponent implements OnInit {
       amount: Number(v.amount), paymentTypeId: v.paymentTypeId,
       reference: v.reference.trim() || undefined, remarks: v.remarks.trim() || undefined,
     }).subscribe({
-      next: (res) => { this.depositDialogOpen.set(false); this.folioDone(res); },
+      // A deposit that meets the demand CONFIRMS an approved booking (the
+      // lifecycle flips on the server), so the booking reloads with the folio.
+      next: (res) => { this.depositDialogOpen.set(false); this.folioDone(res); this.loadDetail(b.id); },
       error: this.folioFail('The deposit could not be recorded.'),
     });
   }
