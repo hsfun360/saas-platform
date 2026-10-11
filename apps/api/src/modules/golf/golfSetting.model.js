@@ -252,6 +252,28 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: 30,
     },
+    // Share caps (user decisions 2026-10-11): the HARD ceiling on the share of
+    // a course's tee times on one day that ALL group bookings together may
+    // hold, per day type (percent, 0 = no cap). Reserve flights refuses past
+    // it; club events are exempt and do not count. Protects members' tee
+    // times whatever the approver decides.
+    groupShareCapWeekday: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    },
+    groupShareCapWeekend: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    },
+    // Hoarding cap: how many TENTATIVE bookings with reserved flights one
+    // user may hold at a time (0 = no cap).
+    groupMaxTentativePerUser: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    },
     // Merge booking (club-wide, user decision 2026-09-19). OFF = exclusive
     // flights: the first confirmed booking claims the whole flight, extra
     // players join only that same booking. ON = shared flights: bookings

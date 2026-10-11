@@ -20,7 +20,7 @@ import { MoneyPipe } from '../shared/money.pipe';
 import {
   GolfFolio, GolfFolioDeposit, GolfFolioPaymentLine, GolfFolioRefund, GolfFolioTile, GolfGroupBooking, GolfGroupBookingMeta, GolfGroupBookingRow, GolfGroupBookingService,
   GolfGroupDayPayload, GolfGroupFlight, GolfGroupHeaderPayload, GolfOrganiserKind as GolfGroupOrganiserKind, GolfGroupPlayDay,
-  GolfGroupRosterLine, GolfGroupRosterPlayer, GolfStartFormat, GolfGroupAbilities, GolfGroupSubmitPreview,
+  GolfGroupRosterLine, GolfGroupRosterPlayer, GolfStartFormat, GolfGroupAbilities, GolfGroupSubmitPreview, GolfGroupDayShare,
 } from '../services/golf-group-booking.service';
 
 // Golf Management → Group Bookings (/golf/group-bookings; user decisions
@@ -201,6 +201,9 @@ export class GolfGroupBookingsComponent implements OnInit {
     contactMobile: ['', Validators.maxLength(30)],
     expectedPlayers: ['' as string | number],
     remarks: ['', Validators.maxLength(255)],
+    // The club's own event (Golf Specification holders only): exempt from
+    // the share caps and the approval chain.
+    isClubEvent: [false],
   });
   readonly dayLines = this.fb.array<DayGroup>([]);
 
@@ -211,6 +214,9 @@ export class GolfGroupBookingsComponent implements OnInit {
 
   // ---- flights dialog (reserve flights for a day) ----
   readonly flightsDay = signal<GolfGroupPlayDay | null>(null);
+  // The day's share picture (what other groups hold, the cap) - loaded when
+  // the dialog opens so the preview can say whether the reservation fits.
+  readonly flightShare = signal<GolfGroupDayShare | null>(null);
   readonly flightsForm = this.fb.nonNullable.group({
     count: [10, [Validators.min(1), Validators.max(80)]],
     capacity: [4, [Validators.required, Validators.min(1), Validators.max(6)]],
@@ -433,6 +439,7 @@ export class GolfGroupBookingsComponent implements OnInit {
     if (!p) return '';
     if (p.missingFlights.length) return `Reserve flights for ${p.missingFlights.map((d) => formatLocalDate(d)).join(', ')} first - the approver decides on the tee sheet the booking takes.`;
     if (!p.controlOn) return 'Group booking control is off for this club - submitting confirms the booking at once.';
+    if (p.clubEvent) return 'A club event needs no approval - it is approved as soon as you submit' + (p.depositRequired > p.depositHeld ? `, with a deposit of ${p.depositRequired.toFixed(2)} due ${p.depositDueDays} day(s) later.` : ' and confirmed at once.');
     const deposit = p.depositRequired > p.depositHeld
       ? `A deposit of ${p.depositRequired.toFixed(2)} (${p.depositHeld.toFixed(2)} already held) will be due ${p.depositDueDays} day(s) after approval; the booking confirms when it is received.`
       : 'No deposit is outstanding, so approval confirms the booking at once.';
@@ -1035,7 +1042,7 @@ export class GolfGroupBookingsComponent implements OnInit {
     this.headerMode.set('create');
     this.headerForm.reset({
       bookingType: 'group', groupName: '', organiserKind: 'other', otherDebtorId: '', memberNo: '', organiserName: '',
-      contactPerson: '', contactMobile: '', expectedPlayers: '', remarks: '',
+      contactPerson: '', contactMobile: '', expectedPlayers: '', remarks: '', isClubEvent: false,
     });
     this.dayLines.clear();
     this.dayLines.push(this.newDayGroup());
@@ -1052,7 +1059,7 @@ export class GolfGroupBookingsComponent implements OnInit {
       otherDebtorId: kind === 'other' ? (b.debtorSourceId || '') : '',
       memberNo: b.bookerMemberNo || '', organiserName: kind === 'none' ? (b.organiserName || '') : '',
       contactPerson: b.contactPerson || '', contactMobile: b.contactMobile || '',
-      expectedPlayers: b.expectedPlayers === null ? '' : b.expectedPlayers, remarks: b.remarks || '',
+      expectedPlayers: b.expectedPlayers === null ? '' : b.expectedPlayers, remarks: b.remarks || '', isClubEvent: b.isClubEvent === true,
     });
     this.dayLines.clear();
     this.headerDialogOpen.set(true);
@@ -1092,6 +1099,8 @@ export class GolfGroupBookingsComponent implements OnInit {
       contactMobile: v.contactMobile.trim() || undefined,
       expectedPlayers: v.expectedPlayers === '' || v.expectedPlayers === null ? null : Number(v.expectedPlayers),
       remarks: v.remarks.trim() || undefined,
+      // Sent only when this user may set it; otherwise the server keeps the flag.
+      isClubEvent: this.meta()?.clubEventAllowed ? v.isClubEvent : undefined,
     };
   }
 
@@ -1279,6 +1288,18 @@ export class GolfGroupBookingsComponent implements OnInit {
     const listed = b ? b.roster.filter((p) => p.status === 'listed').length : 0;
     const want = Math.max(1, Math.ceil((listed || b?.expectedPlayers || 16) / (this.meta()?.defaultCapacity || 4)));
     this.flightsForm.reset({ count: Math.min(want, 80), capacity: this.meta()?.defaultCapacity || 4, doubleHoles: '', waveGapMinutes: 120 });
+    this.flightShare.set(null);
+    if (b) this.service.dayShare(b.id, d.id).subscribe({ next: (res) => this.flightShare.set(res.share), error: () => this.flightShare.set(null) });
+  }
+
+  // How many flights the dialog's numbers produce.
+  private flightsCount(): number {
+    const d = this.flightsDay();
+    if (!d) return 0;
+    const v = this.flightsForm.getRawValue();
+    if (!this.isHold(d.startFormat)) return Number(v.count) || 0;
+    const holes = d.startFormat === 'modified-shotgun' && d.startHoles ? d.startHoles.length : (d.holes === 9 ? 9 : 18);
+    return (holes + this.parseHoles(v.doubleHoles).length) * d.waves;
   }
 
   flightsPreview(): string {
@@ -1290,6 +1311,24 @@ export class GolfGroupBookingsComponent implements OnInit {
     const doubles = this.parseHoles(v.doubleHoles).length;
     const perWave = holes + doubles;
     return `${perWave} flight(s) per wave × ${d.waves} wave(s) = ${perWave * d.waves} flights · ${perWave * d.waves * Number(v.capacity)} seats`;
+  }
+
+  // The share line of the Reserve dialog: what other groups hold of the
+  // course that day, what this reservation adds, and the cap it meets. A
+  // shotgun day's share is its hold window, not its flight count, so only
+  // the sequential case can be previewed exactly.
+  sharePreview(): { text: string; over: boolean } | null {
+    const s = this.flightShare();
+    const d = this.flightsDay();
+    if (!s || !d || !s.slots) return null;
+    const dayLabel = s.dayType === 'weekend' ? 'weekend / holiday' : 'weekday';
+    const held = `Other groups hold ${s.groupSharePct}% of this course's ${s.slots} tee times (${dayLabel})`;
+    if (s.clubEvent) return { text: `${held}. A club event is exempt from the cap.`, over: false };
+    const capText = s.cap > 0 ? `; the cap is ${s.cap}%` : '; no cap applies';
+    if (this.isHold(d.startFormat)) return { text: `${held}${capText}. A shotgun day counts its whole hold window.`, over: false };
+    const after = Math.min(100, Math.round(((s.groupCells + this.flightsCount()) / s.slots) * 100));
+    const over = s.cap > 0 && after > s.cap;
+    return { text: `${held}${capText}. After this reservation: ${after}%${over ? ' - over the cap, the reservation will be refused' : ''}.`, over };
   }
 
   private parseHoles(s: string): number[] {

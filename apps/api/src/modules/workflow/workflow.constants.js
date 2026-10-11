@@ -120,6 +120,8 @@ const PURPOSES = [
             { name: 'groupSharePct', label: 'Highest share of a day\'s tee times held by ALL groups after this booking (%)', type: 'number' },
             { name: 'startFormat', label: 'Start format (sequential | shotgun - any shotgun day counts)', type: 'string' },
             { name: 'amount', label: 'Group bill total', type: 'number' },
+            { name: 'catalogAmount', label: 'Catalog value of the same lines (manual prices re-quoted from the rate card)', type: 'number' },
+            { name: 'discountPct', label: 'Discount against catalog (%)', type: 'number' },
             { name: 'manualPriceCount', label: 'Bill lines with a manually keyed price', type: 'number' },
             { name: 'perPlayerAmount', label: 'Bill total per expected player', type: 'number' },
             { name: 'depositRequired', label: 'Deposit demanded', type: 'number' },

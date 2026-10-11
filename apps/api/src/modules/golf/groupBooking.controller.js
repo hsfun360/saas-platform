@@ -202,6 +202,7 @@ function headerDto(profile, extra) {
         status: profile.status,
         cancelReason: profile.cancelReason,
         canModify: profile.get ? profile.get('canModify') : undefined,
+        isClubEvent: profile.isClubEvent === true,
         lifecycle: extra && extra.setting ? lifecycle.lifecycleDto(profile, extra.setting) : undefined,
         ...(extra || {}),
         setting: undefined,
@@ -296,6 +297,9 @@ exports.getMeta = async (req, res) => {
                 secondNineCode: maps.nineById.get(c.secondNineId) ? maps.nineById.get(c.secondNineId).unitCourseCode : null,
             })),
             otherDebtors: others.map((o) => ({ id: o.id, code: o.code, name: o.name })),
+            // Whether THIS caller may flag a booking as the club's own event
+            // (exempt from the share caps and the approval chain).
+            clubEventAllowed: await lifecycle.mayFlagClubEvent(req),
         });
     } catch (error) {
         console.error('Error loading group booking meta:', error);
@@ -481,6 +485,8 @@ exports.create = async (req, res) => {
         }
         const stamps = await callerStamps(req);
         const initialStatus = await lifecycle.initialStatus(companyId);
+        const isClubEvent = req.body.isClubEvent === true;
+        if (isClubEvent && !(await lifecycle.mayFlagClubEvent(req))) return res.status(403).json({ message: 'Only a user who holds Golf Specification can flag a booking as the club\'s own event.' });
 
         const result = await sequelize.transaction(async (transaction) => {
             const organiser = await resolveOrganiser(companyId, req.body, stamps, transaction);
@@ -510,6 +516,7 @@ exports.create = async (req, res) => {
                 contactMobile: str(req.body.contactMobile, 30),
                 expectedPlayers,
                 remarks: str(req.body.remarks, 255),
+                isClubEvent,
                 status: initialStatus,
                 ...stamps,
             }, { transaction });
@@ -548,9 +555,16 @@ exports.update = async (req, res) => {
             return res.status(400).json({ message: 'Expected players must be 1 to 999.' });
         }
         const stamps = await callerStamps(req);
+        // The club-event flag changes hands only through Golf Specification
+        // holders; everyone else's edits leave it as it is.
+        const wantsClubEvent = req.body.isClubEvent === undefined ? profile.isClubEvent === true : req.body.isClubEvent === true;
+        if (wantsClubEvent !== (profile.isClubEvent === true) && !(await lifecycle.mayFlagClubEvent(req))) {
+            return res.status(403).json({ message: 'Only a user who holds Golf Specification can change the club-event flag.' });
+        }
         const result = await sequelize.transaction(async (transaction) => {
             const organiser = await resolveOrganiser(companyId, req.body, stamps, transaction);
             if (organiser.error) return { fail: organiser.error, status: 400 };
+            profile.isClubEvent = wantsClubEvent;
             profile.bookingType = bookingType;
             profile.groupName = groupName;
             profile.organiserName = organiser.organiserName;
@@ -985,6 +999,13 @@ exports.generateFlights = async (req, res) => {
         }
         const stamps = await callerStamps(req);
         const dayType = await dayTypeOf(req, String(day.playDate));
+        const setting = await lifecycle.settingFor(companyId);
+        // Hoarding cap (2026-10-11): a tentative booking counts against its
+        // creator's allowance the moment it holds flights.
+        if (profile.status === 'tentative') {
+            const hoard = await lifecycle.hoardingCheck(profile, getUserContext(req).userId, setting);
+            if (hoard) return res.status(400).json({ message: hoard.fail });
+        }
 
         const result = await sequelize.transaction(async (transaction) => {
             await advisoryLock(transaction, companyId, String(day.playDate));
@@ -1016,6 +1037,13 @@ exports.generateFlights = async (req, res) => {
                 built = shotgunFlights({ day, course, holesInUse, doubleHoles, capacity, waveGap });
             }
             if (built.error) return { fail: built.error, status: 409 };
+            // Share cap (2026-10-11): the HARD ceiling on what all groups
+            // together may hold of this course's day - checked under the same
+            // lock, against the other live groups (own old flights are gone).
+            const slots = (ctx.byCourse.get(course.id) || { slots: [] }).slots;
+            const newCells = lifecycle.cellsOfDay(day, built.rows.length, slots);
+            const capped = lifecycle.capCheck({ profile, day, course, ctx, newCells, dayType, setting });
+            if (capped) return { fail: capped.fail, status: 409 };
             for (const row of built.rows) {
                 await GroupFlight.create({
                     companyId, groupPlayDayId: day.id, bookingProfileId: profile.id,
@@ -1035,6 +1063,22 @@ exports.generateFlights = async (req, res) => {
         });
     } catch (error) {
         console.error('Error generating group flights:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// GET /api/golf/group-bookings/:id/days/:dayId/share - the day's group share
+// picture for the Reserve flights preview: what other groups hold of the
+// course that day, the cap that applies, whether this booking is exempt.
+exports.dayShare = async (req, res) => {
+    try {
+        const found = await findBooking(req, req.params.id);
+        if (!found.profile) return res.status(found.status).json({ message: found.message });
+        const day = await GroupPlayDay.findOne({ where: { bookingProfileId: found.profile.id, id: req.params.dayId } });
+        if (!day) return res.status(404).json({ message: 'Play day not found.' });
+        res.status(200).json({ share: await lifecycle.dayShare(req, found.profile, day) });
+    } catch (error) {
+        console.error('Error computing group day share:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };

@@ -18,12 +18,14 @@
 
 const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
-const { getUserContext } = require('../../platform/serviceContext');
+const { getUserContext, holdsMenu } = require('../../platform/serviceContext');
 const { classifyDateRange, companyTimezone, companyTimezoneById } = require('../../platform/calendarGateway');
 const workflowGateway = require('../../platform/workflowGateway');
 const { notifyUser } = require('../../platform/notificationGateway');
 const availability = require('./bookingAvailability.service');
-const { round2 } = require('./billing.service');
+const billing = require('./billing.service');
+const { round2 } = billing;
+const GolfTransactionType = require('./transactionType.model');
 const {
     GROUP_BOOKING_TYPES, GROUP_BOOKING_TYPE_KEYS, COURSE_HOLD_FORMATS, HOLD_STATE_LABELS,
 } = require('./groupBooking.constants');
@@ -44,15 +46,126 @@ const GROUP_ROUTE = '/golf/group-bookings';
 // ---------------------------------------------------------------------------
 // Settings
 
-// The lifecycle knobs of a company: { controlOn, holdHours, depositDays, depositPct }.
+// The lifecycle knobs of a company: { controlOn, holdHours, depositDays,
+// depositPct, capWeekday, capWeekend, maxTentative } (caps 0 = none).
 async function settingFor(companyId, { transaction } = {}) {
     const row = await GolfSetting.findOne({ where: { companyId }, transaction });
+    const int = (v, dflt) => (Number.isInteger(v) ? v : dflt);
     return {
         controlOn: !!(row && row.groupBookingControlEnabled === true),
-        holdHours: row && Number.isInteger(row.groupTentativeHoldHours) ? row.groupTentativeHoldHours : 72,
-        depositDays: row && Number.isInteger(row.groupDepositDueDays) ? row.groupDepositDueDays : 7,
-        depositPct: row && Number.isInteger(row.groupDefaultDepositPct) ? row.groupDefaultDepositPct : 30,
+        holdHours: row ? int(row.groupTentativeHoldHours, 72) : 72,
+        depositDays: row ? int(row.groupDepositDueDays, 7) : 7,
+        depositPct: row ? int(row.groupDefaultDepositPct, 30) : 30,
+        capWeekday: row ? int(row.groupShareCapWeekday, 0) : 0,
+        capWeekend: row ? int(row.groupShareCapWeekend, 0) : 0,
+        maxTentative: row ? int(row.groupMaxTentativePerUser, 0) : 0,
     };
+}
+
+// Flagging a booking as the club's own event needs the management screen.
+async function mayFlagClubEvent(req) {
+    return holdsMenu(req, '/golf/settings');
+}
+
+// ---------------------------------------------------------------------------
+// Tee-sheet share (the numbers behind the caps and the approval context)
+
+// The slots of a course's grid inside a time window [start, end).
+function slotsInWindow(slots, startTime, blockUntil) {
+    const start = availability.toMinutes(startTime);
+    const end = blockUntil ? availability.toMinutes(blockUntil) : 24 * 60;
+    return slots.filter((s) => { const t = availability.toMinutes(s.teeTime); return t >= start && t < end; }).length;
+}
+
+// How many of the course's tee-time cells a play day takes: its flights on a
+// sequential day, the whole hold window on a shotgun day.
+function cellsOfDay(day, flightCount, slots) {
+    if (COURSE_HOLD_FORMATS.includes(day.startFormat)) return slots.length ? slotsInWindow(slots, day.startTime, day.blockUntil) : 0;
+    return flightCount;
+}
+
+function pctOf(cells, slots) {
+    return slots ? Math.min(100, Math.round((cells / slots) * 100)) : 0;
+}
+
+// The share of `courseId`'s tee times on `playDate` held by group bookings:
+// { slots, groupCells, groupSharePct } over every LIVE group booking except
+// club events (the club's own events are not "groups" against members) and
+// the excluded booking (the one being reserved - its new cells are added by
+// the caller). `ctx` is an availability.dayContext for the date.
+function courseShare(ctx, courseId, { excludeBookingId = null } = {}) {
+    const entry = ctx.byCourse.get(courseId);
+    const slots = entry ? entry.slots : [];
+    let groupCells = 0;
+    for (const { day, profile } of ctx.holds.days) {
+        if (day.courseId !== courseId) continue;
+        if (profile.id === excludeBookingId) continue;
+        if (profile.isClubEvent === true) continue;
+        const flights = ctx.holds.flights.filter((f) => f.groupPlayDayId === day.id).length;
+        groupCells += cellsOfDay(day, flights, slots);
+    }
+    return { slots: slots.length, groupCells, groupSharePct: pctOf(groupCells, slots.length) };
+}
+
+// Pure: does adding `newCells` to `groupCells` of `slots` break `capPct`?
+// Returns the resulting share, or null when within the cap (or no cap).
+function shareExceeds({ newCells, groupCells, slots, capPct }) {
+    if (!(capPct > 0) || !slots) return null;
+    const pct = pctOf(groupCells + newCells, slots);
+    return pct > capPct ? pct : null;
+}
+
+// The cap for a day type.
+function capFor(setting, dayType) {
+    return dayType === 'weekend' ? setting.capWeekend : setting.capWeekday;
+}
+
+// Refuse a reservation that would push the day's group share past the cap.
+// Club events are exempt. Returns { fail } or null.
+function capCheck({ profile, day, course, ctx, newCells, dayType, setting }) {
+    if (profile.isClubEvent === true) return null;
+    const cap = capFor(setting, dayType);
+    const share = courseShare(ctx, day.courseId, { excludeBookingId: profile.id });
+    const pct = shareExceeds({ newCells, groupCells: share.groupCells, slots: share.slots, capPct: cap });
+    if (pct === null) return null;
+    const held = share.groupSharePct;
+    return {
+        fail: `That would put group bookings at ${pct}% of ${course.courseCode}'s tee times on ${day.playDate} - the ${dayType === 'weekend' ? 'weekend' : 'weekday'} cap is ${cap}% (${held}% held by other groups already). Reserve fewer flights, pick another day, or ask management to change the cap.`,
+    };
+}
+
+// Hoarding: a user may hold at most `maxTentative` TENTATIVE bookings with
+// reserved flights (this one excluded). Returns { fail } or null.
+async function hoardingCheck(profile, userId, setting, { transaction } = {}) {
+    if (!(setting.maxTentative > 0) || !userId) return null;
+    const mine = await BookingProfile.findAll({
+        where: { companyId: profile.companyId, bookingType: { [Op.in]: GROUP_BOOKING_TYPE_KEYS }, status: 'tentative', createdBy: userId, id: { [Op.ne]: profile.id } },
+        attributes: ['id'],
+        transaction,
+    });
+    if (!mine.length) return null;
+    const withFlights = await GroupFlight.findAll({
+        where: { bookingProfileId: { [Op.in]: mine.map((p) => p.id) } },
+        attributes: ['bookingProfileId'],
+        group: ['bookingProfileId'],
+        transaction,
+    });
+    const held = withFlights.length;
+    if (held < setting.maxTentative) return null;
+    return { fail: `You already hold ${held} tentative booking(s) with reserved flights - the limit is ${setting.maxTentative}. Submit one for approval or release its flights first.` };
+}
+
+// The share picture for ONE play day, for the Reserve flights dialog (show
+// expected results): { dayType, slots, groupCells, groupSharePct, cap,
+// clubEvent }. The day's own cells are excluded (they are being replaced).
+async function dayShare(req, profile, day) {
+    const setting = await settingFor(profile.companyId);
+    const playDate = String(day.playDate);
+    const rows = await classifyDateRange(req, playDate, playDate);
+    const dayType = rows.length ? rows[0].dayType : 'weekday';
+    const ctx = await availability.dayContext(profile.companyId, playDate, dayType);
+    const share = courseShare(ctx, day.courseId, { excludeBookingId: profile.id });
+    return { dayType, ...share, cap: capFor(setting, dayType), clubEvent: profile.isClubEvent === true, controlOn: setting.controlOn };
 }
 
 // ---------------------------------------------------------------------------
@@ -233,38 +346,37 @@ async function submitContext(req, profile, { days, flights, bill, items, rosterC
         const course = ctx.byCourse.get(d.courseId) || null;
         const slots = course ? course.slots : [];
         const mine = flights.filter((f) => f.groupPlayDayId === d.id);
-        const hold = COURSE_HOLD_FORMATS.includes(d.startFormat);
-        // Cells this day takes: its flights on a sequential day; on a shotgun
-        // day the whole hold window (every slot inside it).
-        let cells = mine.length;
-        if (hold && slots.length) {
-            const start = availability.toMinutes(d.startTime);
-            const end = d.blockUntil ? availability.toMinutes(d.blockUntil) : 24 * 60;
-            cells = slots.filter((s) => { const t = availability.toMinutes(s.teeTime); return t >= start && t < end; }).length;
-        }
-        const sharePct = slots.length ? Math.min(100, Math.round((cells / slots.length) * 100)) : 0;
-        // Every held group on this course and date (this booking included).
-        const holds = ctx.holds || await availability.groupHolds(companyId, playDate);
-        let groupCells = 0;
-        for (const { day: gd } of holds.days) {
-            if (gd.courseId !== d.courseId) continue;
-            if (gd.bookingProfileId === profile.id) { groupCells += cells; continue; }
-            if (COURSE_HOLD_FORMATS.includes(gd.startFormat) && slots.length) {
-                const start = availability.toMinutes(gd.startTime);
-                const end = gd.blockUntil ? availability.toMinutes(gd.blockUntil) : 24 * 60;
-                groupCells += slots.filter((s) => { const t = availability.toMinutes(s.teeTime); return t >= start && t < end; }).length;
-            } else {
-                groupCells += holds.flights.filter((f) => f.groupPlayDayId === gd.id).length;
-            }
-        }
-        const groupSharePct = slots.length ? Math.min(100, Math.round((groupCells / slots.length) * 100)) : 0;
+        const cells = cellsOfDay(d, mine.length, slots);
+        const sharePct = pctOf(cells, slots.length);
+        // Every held group on this course and date, this booking included
+        // (club events excluded - see courseShare).
+        const others = courseShare(ctx, d.courseId, { excludeBookingId: profile.id });
+        const groupCells = others.groupCells + (profile.isClubEvent === true ? 0 : cells);
         perDay.push({
             playDate, dayType, courseId: d.courseId, courseCode: course ? course.course.courseCode : null,
             startFormat: d.startFormat, flights: mine.length, seats: mine.reduce((s, f) => s + f.capacity, 0),
-            slots: slots.length, sharePct, groupSharePct,
+            slots: slots.length, sharePct, groupSharePct: pctOf(groupCells, slots.length), cap: capFor(setting, dayType),
         });
     }
     const amount = bill ? round2(Number(bill.totalAmount)) : 0;
+    // Catalog value of the bill: lines priced by hand are re-quoted from the
+    // rate card in force on the bill date, so the approver sees the discount.
+    let catalogAmount = amount;
+    if (bill && (items || []).some((i) => i.priceOverridden === true)) {
+        const firstDay = planned[0] || null;
+        const holes = firstDay ? Number(firstDay.holes) : 18;
+        const billDayType = firstDay ? (dayTypeOf.get(String(firstDay.playDate)) || 'weekday') : 'weekday';
+        let catalog = 0;
+        for (const i of items) {
+            if (i.priceOverridden !== true) { catalog += Number(i.amount); continue; }
+            const type = await GolfTransactionType.findOne({ where: { id: i.transactionTypeId }, attributes: ['id', 'chargeType'] });
+            const rate = type ? await billing.rateFor(type.id, String(bill.billDate)) : null;
+            const unit = type ? billing.unitPriceOf(type, rate, billDayType, holes) : null;
+            catalog += unit === null ? Number(i.amount) : round2(unit * Number(i.quantity));
+        }
+        catalogAmount = round2(catalog);
+    }
+    const discountPct = catalogAmount > 0 && catalogAmount > amount ? Math.round(((catalogAmount - amount) / catalogAmount) * 100) : 0;
     const totalSeats = perDay.reduce((s, d) => s + d.seats, 0);
     const heads = profile.expectedPlayers || rosterCount || totalSeats || 0;
     const depositRequired = requiredDepositOf(bill, setting);
@@ -279,6 +391,9 @@ async function submitContext(req, profile, { days, flights, bill, items, rosterC
             groupSharePct: perDay.reduce((m, d) => Math.max(m, d.groupSharePct), 0),
             startFormat: perDay.some((d) => COURSE_HOLD_FORMATS.includes(d.startFormat)) ? 'shotgun' : 'sequential',
             amount,
+            catalogAmount,
+            discountPct,
+            clubEvent: profile.isClubEvent === true ? 'yes' : 'no',
             manualPriceCount: (items || []).filter((i) => i.priceOverridden === true).length,
             perPlayerAmount: heads ? round2(amount / heads) : 0,
             depositRequired,
@@ -312,10 +427,12 @@ async function submitPreview(req, profile) {
     const shape = await loadShape(profile);
     const missing = shape.days.filter((d) => d.status === 'planned' && !shape.flights.some((f) => f.groupPlayDayId === d.id));
     const built = await submitContext(req, profile, { ...shape, setting });
-    const chain = setting.controlOn ? await workflowGateway.previewChain(req, PURPOSE, built.context) : null;
+    // A club event skips the chain (it is the club's own decision).
+    const chain = setting.controlOn && profile.isClubEvent !== true ? await workflowGateway.previewChain(req, PURPOSE, built.context) : null;
     const held = await depositsHeld(profile);
     return {
         controlOn: setting.controlOn,
+        clubEvent: profile.isClubEvent === true,
         context: built.context,
         days: built.days,
         depositRequired: built.depositRequired,
@@ -352,7 +469,8 @@ async function submit(req, profile) {
             await fresh.save({ transaction });
             return { outcome: 'booked', profile: fresh };
         }
-        const wf = await workflowGateway.startWorkflow(req, PURPOSE, {
+        // The club's own event is exempt from the approval chain.
+        const wf = fresh.isClubEvent === true ? null : await workflowGateway.startWorkflow(req, PURPOSE, {
             entityId: fresh.id,
             entityLabel: `${typeLabel(fresh.bookingType)} ${fresh.groupName || fresh.bookingNo} (${fresh.bookingNo}) — ${built.context.playDays} day(s), ${built.context.totalFlights} flight(s), ${built.context.amount.toFixed(2)}`,
             context: built.context,
@@ -613,6 +731,7 @@ function lifecycleDto(profile, setting) {
         depositDueExtendedAt: profile.depositDueExtendedAt || null,
         depositDueExtensionReason: profile.depositDueExtensionReason || null,
         can: abilities(profile.status, { controlOn: setting.controlOn, depositDueExtendedAt: profile.depositDueExtendedAt }),
+        isClubEvent: profile.isClubEvent === true,
     };
 }
 
@@ -620,6 +739,14 @@ module.exports = {
     PURPOSE,
     ENTITY_TYPE,
     settingFor,
+    mayFlagClubEvent,
+    cellsOfDay,
+    courseShare,
+    shareExceeds,
+    capFor,
+    capCheck,
+    hoardingCheck,
+    dayShare,
     abilities,
     refusal,
     guardMessage,

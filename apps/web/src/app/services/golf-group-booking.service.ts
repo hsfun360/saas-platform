@@ -35,6 +35,20 @@ export interface GolfGroupBookingMeta {
   maxFlightsPerDay: number;
   courses: GolfGroupCourseOption[];
   otherDebtors: { id: string; code: string; name: string }[];
+  // Whether this user may flag a booking as the club's own event (needs
+  // Golf Specification): exempt from the share caps and the approval chain.
+  clubEventAllowed: boolean;
+}
+
+// The share picture of one play day for the Reserve flights preview.
+export interface GolfGroupDayShare {
+  dayType: string;
+  slots: number;
+  groupCells: number;
+  groupSharePct: number;
+  cap: number;
+  clubEvent: boolean;
+  controlOn: boolean;
 }
 
 export interface GolfGroupFlightPlayer {
@@ -137,8 +151,9 @@ export interface GolfGroupLifecycle {
 // the deposit demand, and the approval chain it takes (null = none set up).
 export interface GolfGroupSubmitPreview {
   controlOn: boolean;
+  clubEvent: boolean;
   context: Record<string, string | number>;
-  days: { playDate: string; dayType: string; courseCode: string | null; startFormat: string; flights: number; seats: number; slots: number; sharePct: number; groupSharePct: number }[];
+  days: { playDate: string; dayType: string; courseCode: string | null; startFormat: string; flights: number; seats: number; slots: number; sharePct: number; groupSharePct: number; cap: number }[];
   depositRequired: number;
   depositHeld: number;
   depositDueDays: number;
@@ -164,6 +179,7 @@ export interface GolfGroupBookingHeader {
   status: GolfGroupStatus;
   cancelReason: string | null;
   canModify?: boolean;
+  isClubEvent?: boolean;
   lifecycle?: GolfGroupLifecycle;
 }
 
@@ -203,6 +219,7 @@ export interface GolfGroupHeaderPayload {
   expectedPlayers?: number | null;
   remarks?: string;
   bookingNo?: string;
+  isClubEvent?: boolean;
 }
 
 export interface GolfGroupRosterLine {
@@ -418,6 +435,10 @@ export class GolfGroupBookingService {
 
   removeDay(id: string, dayId: string): Observable<Saved> {
     return this.http.delete<Saved>(`${this.base}/${id}/days/${dayId}`);
+  }
+
+  dayShare(id: string, dayId: string): Observable<{ share: GolfGroupDayShare }> {
+    return this.http.get<{ share: GolfGroupDayShare }>(`${this.base}/${id}/days/${dayId}/share`);
   }
 
   // Sequential formats: { count }; shotgun formats: { doubleHoles, waveGapMinutes }.

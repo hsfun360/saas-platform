@@ -115,6 +115,12 @@ export interface GolfSettingDoc {
     groupTentativeHoldHours: number;
     groupDepositDueDays: number;
     groupDefaultDepositPct: number;
+    // Share caps (% of a course's tee times all groups may hold on a day,
+    // 0 = none) and the hoarding cap (tentative bookings with flights per
+    // user, 0 = none).
+    groupShareCapWeekday: number;
+    groupShareCapWeekend: number;
+    groupMaxTentativePerUser: number;
     saved: boolean;
   };
   overrides: GolfAdvanceBookingOverride[];
@@ -199,6 +205,9 @@ export class GolfSettingService {
     groupTentativeHoldHours: number;
     groupDepositDueDays: number;
     groupDefaultDepositPct: number;
+    groupShareCapWeekday: number;
+    groupShareCapWeekend: number;
+    groupMaxTentativePerUser: number;
     overrides: GolfAdvanceBookingOverride[];
     minPlayerRules: GolfMinPlayerRule[];
     guestControlRules: GolfGuestControlRule[];

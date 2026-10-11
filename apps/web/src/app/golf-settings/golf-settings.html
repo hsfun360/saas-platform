@@ -661,6 +661,41 @@
                 <p class="gs-preview">{{ preview }}</p>
               }
             }
+
+            <h3 class="gs-hc-title">Share caps</h3>
+            <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">The hard ceiling on the share of a course's tee times that all group bookings together may hold on one day - whatever an approver decides. Reserve flights refuses past it. Club events are exempt and do not count. 0 = no cap.</p>
+            <div class="gs-grid">
+              <div class="form-group">
+                <label for="gsCapWd">Weekday Group Share Cap (%) <span class="required">*</span></label>
+                <input id="gsCapWd" type="number" inputmode="numeric" min="0" max="100" step="1" formControlName="groupShareCapWeekday"
+                       [attr.aria-invalid]="showError(form.controls.groupShareCapWeekday)" aria-describedby="gsCapWdErr" />
+                @if (showError(form.controls.groupShareCapWeekday)) {
+                  <p id="gsCapWdErr" class="field-error" role="alert">Enter a whole number between 0 and 100.</p>
+                }
+              </div>
+              <div class="form-group">
+                <label for="gsCapWe">Weekend &amp; Holiday Group Share Cap (%) <span class="required">*</span></label>
+                <input id="gsCapWe" type="number" inputmode="numeric" min="0" max="100" step="1" formControlName="groupShareCapWeekend"
+                       [attr.aria-invalid]="showError(form.controls.groupShareCapWeekend)" aria-describedby="gsCapWeErr" />
+                @if (showError(form.controls.groupShareCapWeekend)) {
+                  <p id="gsCapWeErr" class="field-error" role="alert">Enter a whole number between 0 and 100.</p>
+                }
+              </div>
+              @if (groupControlOn()) {
+                <div class="form-group">
+                  <label for="gsMaxTent">Tentative Bookings per User <span class="required">*</span></label>
+                  <input id="gsMaxTent" type="number" inputmode="numeric" min="0" max="50" step="1" formControlName="groupMaxTentativePerUser"
+                         [attr.aria-invalid]="showError(form.controls.groupMaxTentativePerUser)" aria-describedby="gsMaxTentErr" />
+                  @if (showError(form.controls.groupMaxTentativePerUser)) {
+                    <p id="gsMaxTentErr" class="field-error" role="alert">Enter a whole number between 0 and 50.</p>
+                  }
+                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">How many tentative bookings with reserved flights one user may hold at a time - stops a salesperson parking the best days. 0 = no limit.</p>
+                </div>
+              }
+            </div>
+            @if (capPreview(); as preview) {
+              <p class="gs-preview">{{ preview }}</p>
+            }
           </div>
         }
       </div>

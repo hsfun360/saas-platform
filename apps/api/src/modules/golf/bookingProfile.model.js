@@ -106,6 +106,15 @@ const BookingProfile = sequelize.define('GolfBookingProfile', {
         defaultValue: 'booked',
     },
     // ---- group lifecycle (user decisions 2026-10-11) ----
+    // The club's OWN event (Monthly Medal, captain's day): exempt from the
+    // group share caps and from the approval chain, and not counted as a
+    // "group" against members' tee times. Set only by a caller who holds
+    // Golf Specification (the management screen).
+    isClubEvent: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
     // The live approval run (workflow.WorkflowInstance) while pending; kept
     // afterwards as the pointer to the decision.
     workflowInstanceId: {

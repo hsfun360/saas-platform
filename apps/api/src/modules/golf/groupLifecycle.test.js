@@ -7,6 +7,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const {
     abilities, guardMessage, requiredDepositOf, endOfDayInZone, zoneOffsetMinutes, holdExpiry, holdState,
+    cellsOfDay, courseShare, shareExceeds, capFor, capCheck,
 } = require('./groupLifecycle.service');
 
 const ON = { controlOn: true, holdHours: 72, depositDays: 7, depositPct: 30 };
@@ -112,6 +113,68 @@ test('hold expiry: hours from now while the control is on, none for 0 hours', ()
     const from = new Date('2026-10-11T02:00:00Z');
     assert.equal(holdExpiry(ON, from).toISOString(), '2026-10-14T02:00:00.000Z');
     assert.equal(holdExpiry({ ...ON, holdHours: 0 }, from), null);
+});
+
+// ---- share caps (2026-10-11) ----
+
+const slots = (times) => times.map((teeTime) => ({ teeTime }));
+const GRID = slots(['07:00', '07:08', '07:16', '07:24', '07:32', '07:40', '07:48', '07:56', '08:04', '08:12']); // 10 cells
+
+test('cellsOfDay: flights on a sequential day, the hold window on a shotgun day', () => {
+    assert.equal(cellsOfDay({ startFormat: 'traditional' }, 3, GRID), 3);
+    assert.equal(cellsOfDay({ startFormat: 'shotgun', startTime: '07:00', blockUntil: '07:30' }, 18, GRID), 4, 'four slots inside 07:00-07:30');
+    assert.equal(cellsOfDay({ startFormat: 'shotgun', startTime: '07:00', blockUntil: null }, 18, GRID), 10, 'no end = the rest of the day');
+    assert.equal(cellsOfDay({ startFormat: 'modified-shotgun', startTime: '07:00', blockUntil: '07:30' }, 5, []), 0, 'no grid, no cells');
+});
+
+function ctxWith(days, flights) {
+    return {
+        byCourse: new Map([['C1', { slots: GRID }]]),
+        holds: { days, flights },
+    };
+}
+
+test('courseShare counts every live group on the course except club events and the excluded booking', () => {
+    const ctx = ctxWith([
+        { day: { id: 'd1', courseId: 'C1', startFormat: 'traditional' }, profile: { id: 'A', isClubEvent: false } },
+        { day: { id: 'd2', courseId: 'C1', startFormat: 'shotgun', startTime: '07:00', blockUntil: '07:16' }, profile: { id: 'B', isClubEvent: false } },
+        { day: { id: 'd3', courseId: 'C1', startFormat: 'traditional' }, profile: { id: 'M', isClubEvent: true } },
+        { day: { id: 'd4', courseId: 'C2', startFormat: 'traditional' }, profile: { id: 'X', isClubEvent: false } },
+    ], [
+        { groupPlayDayId: 'd1' }, { groupPlayDayId: 'd1' }, // A: 2 flights
+        { groupPlayDayId: 'd3' }, { groupPlayDayId: 'd3' }, { groupPlayDayId: 'd3' }, // club event: ignored
+        { groupPlayDayId: 'd4' }, // another course: ignored
+    ]);
+    const share = courseShare(ctx, 'C1');
+    assert.deepEqual(share, { slots: 10, groupCells: 4, groupSharePct: 40 }, 'A 2 + B 2 window cells');
+    assert.equal(courseShare(ctx, 'C1', { excludeBookingId: 'A' }).groupCells, 2);
+});
+
+test('shareExceeds: null within the cap or with no cap, the resulting share past it', () => {
+    assert.equal(shareExceeds({ newCells: 2, groupCells: 2, slots: 10, capPct: 40 }), null);
+    assert.equal(shareExceeds({ newCells: 3, groupCells: 2, slots: 10, capPct: 40 }), 50);
+    assert.equal(shareExceeds({ newCells: 9, groupCells: 2, slots: 10, capPct: 0 }), null, 'cap 0 = no cap');
+    assert.equal(shareExceeds({ newCells: 9, groupCells: 2, slots: 0, capPct: 10 }), null, 'no grid, nothing to cap');
+});
+
+test('capFor picks the cap by day type', () => {
+    const setting = { capWeekday: 50, capWeekend: 20 };
+    assert.equal(capFor(setting, 'weekday'), 50);
+    assert.equal(capFor(setting, 'weekend'), 20);
+});
+
+test('capCheck refuses past the cap with the share and the cap in the message', () => {
+    const setting = { capWeekday: 50, capWeekend: 20 };
+    const ctx = ctxWith([
+        { day: { id: 'd1', courseId: 'C1', startFormat: 'traditional' }, profile: { id: 'A', isClubEvent: false } },
+    ], [{ groupPlayDayId: 'd1' }, { groupPlayDayId: 'd1' }]);
+    const day = { courseId: 'C1', startFormat: 'traditional', playDate: '2026-11-21' };
+    const course = { courseCode: 'E1' };
+    const refused = capCheck({ profile: { id: 'B', isClubEvent: false }, day, course, ctx, newCells: 2, dayType: 'weekend', setting });
+    assert.ok(refused && /40% of E1's tee times on 2026-11-21 - the weekend cap is 20% \(20% held by other groups already\)/.test(refused.fail), refused && refused.fail);
+    assert.equal(capCheck({ profile: { id: 'B', isClubEvent: false }, day, course, ctx, newCells: 2, dayType: 'weekday', setting }), null, 'within the 50% weekday cap');
+    assert.equal(capCheck({ profile: { id: 'M', isClubEvent: true }, day, course, ctx, newCells: 8, dayType: 'weekend', setting }), null, 'club events are exempt');
+    assert.equal(capCheck({ profile: { id: 'A', isClubEvent: false }, day, course, ctx, newCells: 2, dayType: 'weekend', setting }), null, 'own old flights are excluded: 0 + 2 of 10 = 20%');
 });
 
 test('club-local end of day: Kuala Lumpur (UTC+8) ends 15:59:59Z, UTC ends at 23:59:59Z', () => {

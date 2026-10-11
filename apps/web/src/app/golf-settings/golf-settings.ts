@@ -98,6 +98,9 @@ export class GolfSettingsComponent implements OnInit {
     groupTentativeHoldHours: [72, [Validators.required, Validators.min(0), Validators.max(720)]],
     groupDepositDueDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
     groupDefaultDepositPct: [30, [Validators.required, Validators.min(0), Validators.max(100)]],
+    groupShareCapWeekday: [0, [Validators.required, Validators.min(0), Validators.max(100)]],
+    groupShareCapWeekend: [0, [Validators.required, Validators.min(0), Validators.max(100)]],
+    groupMaxTentativePerUser: [0, [Validators.required, Validators.min(0), Validators.max(50)]],
     // The six rule editors (see the *Group types at the top of the file).
     overrides: this.fb.array<OvGroup>([]),
     minPlayerRules: this.fb.array<MpGroup>([]),
@@ -198,6 +201,18 @@ export class GolfSettingsComponent implements OnInit {
     return `${holdText} ${depText}`;
   }
 
+  // The share caps in words (they apply in BOTH club modes).
+  capPreview(): string {
+    const c = this.form.controls;
+    if (c.groupShareCapWeekday.invalid || c.groupShareCapWeekend.invalid || c.groupMaxTentativePerUser.invalid) return '';
+    const wd = Number(c.groupShareCapWeekday.value) || 0;
+    const we = Number(c.groupShareCapWeekend.value) || 0;
+    const max = Number(c.groupMaxTentativePerUser.value) || 0;
+    const cap = (n: number, label: string) => (n > 0 ? `on a ${label} all groups together may hold at most ${n}% of a course's tee times` : `no ${label} cap`);
+    const hoard = max > 0 ? ` A user may hold at most ${max} tentative booking(s) with reserved flights at a time.` : '';
+    return `Reserve flights refuses past the cap: ${cap(wd, 'weekday')}, ${cap(we, 'weekend or holiday')}. Club events are exempt and do not count.${hoard}`;
+  }
+
   setNoShowType(value: string): void {
     this.form.controls.noShowTransactionTypeId.setValue(value || '');
     this.form.controls.noShowTransactionTypeId.markAsDirty();
@@ -260,6 +275,9 @@ export class GolfSettingsComponent implements OnInit {
           groupTentativeHoldHours: doc.setting.groupTentativeHoldHours ?? 72,
           groupDepositDueDays: doc.setting.groupDepositDueDays ?? 7,
           groupDefaultDepositPct: doc.setting.groupDefaultDepositPct ?? 30,
+          groupShareCapWeekday: doc.setting.groupShareCapWeekday ?? 0,
+          groupShareCapWeekend: doc.setting.groupShareCapWeekend ?? 0,
+          groupMaxTentativePerUser: doc.setting.groupMaxTentativePerUser ?? 0,
         });
         this.fill(this.overrides, doc.overrides, (r) => this.newOverride(r));
         this.fill(this.minPlayerRules, doc.minPlayerRules ?? [], (r) => this.newMinPlayerRule(r));
@@ -492,6 +510,9 @@ export class GolfSettingsComponent implements OnInit {
       groupTentativeHoldHours: v.groupTentativeHoldHours,
       groupDepositDueDays: v.groupDepositDueDays,
       groupDefaultDepositPct: v.groupDefaultDepositPct,
+      groupShareCapWeekday: v.groupShareCapWeekday,
+      groupShareCapWeekend: v.groupShareCapWeekend,
+      groupMaxTentativePerUser: v.groupMaxTentativePerUser,
       overrides: rows,
       minPlayerRules: rules,
       guestControlRules: guestRules,

@@ -33,6 +33,7 @@ const DEFAULTS = {
     teeSheetColorBooked: '#2563eb', teeSheetColorRegistered: '#f59e0b',
     teeSheetColorBilled: '#8b5cf6', teeSheetColorSettled: '#16a34a',
     groupBookingControlEnabled: false, groupTentativeHoldHours: 72, groupDepositDueDays: 7, groupDefaultDepositPct: 30,
+    groupShareCapWeekday: 0, groupShareCapWeekend: 0, groupMaxTentativePerUser: 0,
 };
 
 function settingDto(row) {
@@ -68,6 +69,9 @@ function settingDto(row) {
         groupTentativeHoldHours: row.groupTentativeHoldHours === null || row.groupTentativeHoldHours === undefined ? DEFAULTS.groupTentativeHoldHours : row.groupTentativeHoldHours,
         groupDepositDueDays: row.groupDepositDueDays === null || row.groupDepositDueDays === undefined ? DEFAULTS.groupDepositDueDays : row.groupDepositDueDays,
         groupDefaultDepositPct: row.groupDefaultDepositPct === null || row.groupDefaultDepositPct === undefined ? DEFAULTS.groupDefaultDepositPct : row.groupDefaultDepositPct,
+        groupShareCapWeekday: row.groupShareCapWeekday || 0,
+        groupShareCapWeekend: row.groupShareCapWeekend || 0,
+        groupMaxTentativePerUser: row.groupMaxTentativePerUser || 0,
         saved: true,
     };
 }
@@ -518,6 +522,12 @@ exports.save = async (req, res) => {
         if (groupDepositDueDays === undefined) return res.status(400).json({ message: 'Deposit due must be a whole number of days between 0 and 365.' });
         const groupDefaultDepositPct = parseIntIn(req.body.groupDefaultDepositPct === undefined ? DEFAULTS.groupDefaultDepositPct : req.body.groupDefaultDepositPct, 0, 100);
         if (groupDefaultDepositPct === undefined) return res.status(400).json({ message: 'Default deposit must be a whole percentage between 0 and 100.' });
+        const groupShareCapWeekday = parseIntIn(req.body.groupShareCapWeekday === undefined ? 0 : req.body.groupShareCapWeekday, 0, 100);
+        if (groupShareCapWeekday === undefined) return res.status(400).json({ message: 'The weekday group share cap must be a whole percentage between 0 and 100.' });
+        const groupShareCapWeekend = parseIntIn(req.body.groupShareCapWeekend === undefined ? 0 : req.body.groupShareCapWeekend, 0, 100);
+        if (groupShareCapWeekend === undefined) return res.status(400).json({ message: 'The weekend group share cap must be a whole percentage between 0 and 100.' });
+        const groupMaxTentativePerUser = parseIntIn(req.body.groupMaxTentativePerUser === undefined ? 0 : req.body.groupMaxTentativePerUser, 0, 50);
+        if (groupMaxTentativePerUser === undefined) return res.status(400).json({ message: 'The tentative bookings per user cap must be a whole number between 0 and 50.' });
         const HEX_RE = /^#[0-9a-fA-F]{6}$/;
         const colors = {};
         for (const key of ['teeSheetColorBooked', 'teeSheetColorRegistered', 'teeSheetColorBilled', 'teeSheetColorSettled']) {
@@ -545,6 +555,7 @@ exports.save = async (req, res) => {
                 handicapControlEnabled, juniorBookingControlEnabled,
                 noShowControlEnabled, cancellationNoticeHours, lateCancellationAction, noShowTransactionTypeId, noShowChargeBasis,
                 groupBookingControlEnabled, groupTentativeHoldHours, groupDepositDueDays, groupDefaultDepositPct,
+                groupShareCapWeekday, groupShareCapWeekend, groupMaxTentativePerUser,
                 ...colors,
             };
             if (existing) {

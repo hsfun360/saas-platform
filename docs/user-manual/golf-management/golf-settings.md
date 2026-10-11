@@ -104,9 +104,13 @@ Charges are posted to the booker's member account and can be followed up on the 
 2. Enter the **Tentative Hold (hours)** - how long a tentative booking's reserved flights hold the tee sheet before they are released if the booking has not been submitted for approval (`72` for three days; `0` holds them until submitted).
 3. Enter the **Deposit Due (days after approval)** - the proforma's pay-by date defaults to this many days after approval.
 4. Enter the **Default Deposit (% of the group bill)** - the deposit demanded when the proforma does not state one (`0` means no deposit, so approval confirms the booking at once).
-5. Read the preview sentence, then click **Save**.
+5. Under **Share caps**, enter the **Weekday Group Share Cap** and the **Weekend & Holiday Group Share Cap** - the most of a course's tee times on one day that all group bookings together may hold, in percent (`0` means no cap).
+   These apply whether the control is on or off, and a reservation that would push groups past the cap is refused with the numbers; the club's own events (flagged as club events on the booking) are exempt and do not count.
+6. With the control on, enter **Tentative Bookings per User** - how many tentative bookings with reserved flights one user may hold at a time (`0` means no limit).
+7. Read the preview sentences, then click **Save**.
 
 The approval chain itself is set up under Workflow → Approval Setup for the purpose **Golf group booking**; with no chain, submitting a booking approves it at once.
+Its step conditions can test, among others, the share of the day a booking takes, the share all groups hold after it, the bill total, the discount against catalog and the deposit percentage.
 The clocks run on the server: a tentative booking whose hold runs out loses its flights, and an approved booking whose deposit is not in by the pay-by date lapses; whoever created the booking is notified either way.
 
 ### Change the tee-sheet colours
@@ -192,6 +196,9 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 | **Tentative Hold (hours)** | Yes (while on) | How long a tentative booking's reserved flights hold the tee sheet before they are released unless it is submitted, e.g. `72`; `0` = no expiry. | Whole number from 0 to 720. |
 | **Deposit Due (days after approval)** | Yes (while on) | The default pay-by date of the deposit, counted from approval, e.g. `7`. | Whole number from 0 to 365; a manager may extend a booking's date once. |
 | **Default Deposit (% of the group bill)** | Yes (while on) | The deposit demanded when the proforma does not state one, e.g. `30`; `0` = none, approval confirms at once. | Whole number from 0 to 100. |
+| **Weekday Group Share Cap (%)** | Yes | The most of a course's tee times all groups together may hold on a weekday, e.g. `40`; `0` = no cap. | Whole number from 0 to 100; applies in both modes; club events are exempt. |
+| **Weekend & Holiday Group Share Cap (%)** | Yes | The same for weekends and public holidays, e.g. `25`. | Whole number from 0 to 100. |
+| **Tentative Bookings per User** | Yes (while on) | How many tentative bookings with reserved flights one user may hold at a time, e.g. `3`; `0` = no limit. | Whole number from 0 to 50. |
 
 ### Tee Sheet
 

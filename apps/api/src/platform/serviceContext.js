@@ -251,6 +251,30 @@ function requireMenuAction(menuRoute) {
     };
 }
 
+// Does the caller hold (may view) the menu at `menuRoute` in the active
+// workspace? For in-handler checks that gate ONE FIELD or sub-action on a
+// management screen's grant (e.g. flagging a group booking as the club's own
+// event needs Golf Specification) - the same ladder as requireMenuAction:
+// platform admins and Tenant Admins pass, an uncatalogued route enforces
+// nothing.
+async function holdsMenu(req, menuRoute) {
+    const { userId, companyId, isSystemAdmin } = getUserContext(req);
+    if (isSystemAdmin) return true;
+    if (!userId) return false;
+    const CompanyUser = require('../modules/saas/companyUser.model');
+    const Role = require('../modules/saas/role.model');
+    const Menu = require('../modules/saas/menu.model');
+    const RoleMenu = require('../modules/saas/roleMenu.model');
+    const membership = await CompanyUser.findOne({ where: { userId, companyId: companyId || null, isActive: true }, attributes: ['roleId'] });
+    if (!membership || !membership.roleId) return false;
+    const role = await Role.findByPk(membership.roleId, { attributes: ['id', 'name'] });
+    if (!role) return false;
+    if (role.name === 'Tenant Admin') return true;
+    const menu = await Menu.findOne({ where: { route: menuRoute }, attributes: ['id'] });
+    if (!menu) return true;
+    return !!(await RoleMenu.findOne({ where: { roleId: role.id, menuId: menu.id }, attributes: ['id'] }));
+}
+
 // A screen-agnostic variant for endpoints SHARED by several screens (e.g. the
 // Business Insights drill list, reachable from both analysis pages): the caller
 // passes if ANY of the given menu routes grants them the action. Same
@@ -774,6 +798,7 @@ module.exports = {
     requireModule,
     requireMenuAction,
     requireAnyMenuAction,
+    holdsMenu,
     getAccessContext,
     getCallerPlacement,
     canModifyRecord,

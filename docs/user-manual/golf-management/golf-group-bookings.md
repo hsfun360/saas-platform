@@ -84,6 +84,10 @@ A traditional or two-tee flight holds its tee-time cell at full capacity, crosso
 A shotgun day holds both nines of the course for the whole window, and the tee sheet reads "HELD · <group>" on every row inside it.
 Reserving again replaces the day's flights; it is refused while players are drawn into them.
 
+The dialog also states what other groups already hold of that course's tee times on the day, the share cap that applies, and the share after this reservation.
+Management sets the caps under Golf Specification → Group Bookings; a reservation that would push all groups past the cap is refused with the numbers, and a club event is exempt.
+With the tentative-bookings-per-user cap on, you may hold only that many tentative bookings with reserved flights at a time - submit one or release its flights before reserving more.
+
 With group booking control on, the tee sheet names the state as well ("TENTATIVE · <group>", "PENDING · <group>", "APPROVED · <group>") until the booking is confirmed.
 A tentative booking's flights are held only for the tentative hold period set in Golf Specification; reserving again restarts that clock, and the lifecycle line on the header shows when it runs out.
 If it runs out before you submit, the flights are released, you receive a notification, and the booking stays tentative without flights - reserve them again when you are ready.
@@ -233,6 +237,7 @@ The folio stays workable on a cancelled booking while its group bill is open; no
 | **Organiser name** | With No account | The organiser's name. | |
 | **Contact person**, **Contact mobile** | No | Who to call. | Print on the proforma. |
 | **Expected players** | No | The size the organiser quoted. | 1 to 999; shown against the roster count. |
+| **Club event** | No | Tick for the club's own event (Monthly Medal, captain's day). | Shown only to users who hold Golf Specification; exempt from the share caps and the approval chain, and not counted as a group against members' tee times. |
 
 ### Play day
 
@@ -281,6 +286,9 @@ Changing a day's date, course, holes, format or times drops its reserved flights
 - **"Deposits are recorded once the booking is approved"** / **"The proforma is issued once the booking is approved"** - submit the booking for approval first.
 - **"Players are drawn into flights once the booking is confirmed"** - the deposit is still outstanding; record it (or extend the deadline) and the booking confirms.
 - **"Reserve flights for <dates> before submitting"** - every play day needs its flights before the approvers can judge what the booking takes.
+- **"That would put group bookings at 45% of E1's tee times... the weekend cap is 40%"** - the day is nearly full of groups; reserve fewer flights, pick another day or course, or ask management to change the cap. The club's own events are flagged as club events and do not count.
+- **"You already hold 3 tentative booking(s) with reserved flights"** - submit one of them for approval or release its flights, then reserve again.
+- **The Submit preview shows "Against catalog ... 12% off"** - some lines carry a manually keyed price; the approvers see the discount against the rate card.
 - **The tee sheet shows "Not confirmed yet" on a group** - the booking is tentative, pending or awaiting its deposit; players register once it is confirmed.
 - **A booking shows Lapsed** - its deposit was not in by the pay-by date; the reason is on the header. Reopen it to start again, or request a refund of any deposit it does hold.
 

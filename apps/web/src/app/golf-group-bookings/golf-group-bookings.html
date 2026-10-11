@@ -72,6 +72,7 @@
                 <div class="data-card__title">{{ b.groupName }}</div>
                 <div class="data-card__subline">
                   <span class="ggb-type" [class.ggb-type--tournament]="b.bookingType === 'tournament'">{{ typeLabel(b.bookingType) }}</span>
+                  @if (b.isClubEvent) { <span class="ggb-type ggb-type--club">Club event</span> }
                   <span class="data-card__reg">({{ b.bookingNo }})</span>
                   <span>{{ b.playDate | localDate }}@if (b.playDateTo && b.playDateTo !== b.playDate) { – {{ b.playDateTo | localDate }}}</span>
                   <span class="data-card__reg">{{ b.courses.join(', ') }}</span>
@@ -129,6 +130,7 @@
         <button type="button" class="settings-header settings-header--button" (click)="toggleSection('header')" [attr.aria-expanded]="isExpanded('header')">
           <span class="settings-header__text">
             <span class="settings-header__title">{{ b.groupName }} <span class="ggb-type" [class.ggb-type--tournament]="b.bookingType === 'tournament'">{{ typeLabel(b.bookingType) }}</span>
+              @if (b.isClubEvent) { <span class="ggb-type ggb-type--club">Club event</span> }
               <span [class]="'status-chip ' + statusClass(b.status)">{{ statusLabel(b.status) }}</span>
             </span>
             <span class="settings-header__sub">{{ b.bookingNo }} · {{ b.playDate | localDate }}@if (b.playDateTo && b.playDateTo !== b.playDate) { – {{ b.playDateTo | localDate }}} · {{ organiserLine(b) }}</span>
@@ -954,6 +956,15 @@
             <label for="ggbRemarks">Remarks</label>
             <textarea id="ggbRemarks" rows="2" wrap="off" formControlName="remarks" maxlength="255"></textarea>
           </div>
+          @if (meta()?.clubEventAllowed) {
+            <div class="form-group ggb-check-group">
+              <label class="ggb-check">
+                <input type="checkbox" formControlName="isClubEvent" />
+                <span>Club event (the club's own Monthly Medal, captain's day…)</span>
+              </label>
+              <p class="cell-subtle">Exempt from the group share caps and from the approval chain, and not counted as a group against members' tee times.</p>
+            </div>
+          }
         </div>
 
         @if (headerMode() === 'create') {
@@ -1120,6 +1131,9 @@
           </div>
         </div>
         <p class="ggb-preview"><span class="material-icons" aria-hidden="true">event_seat</span> {{ flightsPreview() }}</p>
+        @if (sharePreview(); as share) {
+          <p class="ggb-preview ggb-preview--share" [class.ggb-preview--warn]="share.over"><span class="material-icons" aria-hidden="true">{{ share.over ? 'warning' : 'pie_chart' }}</span> {{ share.text }}</p>
+        }
       </form>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="flDlg.requestClose()" [disabled]="saving()">Cancel</button>
@@ -1195,11 +1209,17 @@
             <span>{{ d.courseCode || '—' }} · {{ formatLabel(d.startFormat) }}</span>
             <span class="ggb-share__num"><span class="ggb-share__k">Flights</span>{{ d.flights }}</span>
             <span class="ggb-share__num"><span class="ggb-share__k">This group</span>{{ d.sharePct }}%</span>
-            <span class="ggb-share__num"><span class="ggb-share__k">All groups</span>{{ d.groupSharePct }}%</span>
+            <span class="ggb-share__num"><span class="ggb-share__k">All groups</span>{{ d.groupSharePct }}%@if (d.cap > 0) { <span class="data-card__reg">cap {{ d.cap }}%</span> }</span>
           </div>
         }
         <dl class="data-card__meta" style="margin-top: var(--space-md);">
           <div class="meta"><dt>Group bill</dt><dd>{{ (p.context['amount'] | money) }}{{ p.context['manualPriceCount'] ? ' · ' + p.context['manualPriceCount'] + ' manual price(s)' : '' }}</dd></div>
+          @if (p.context['discountPct']) {
+            <div class="meta"><dt>Against catalog</dt><dd>{{ p.context['catalogAmount'] | money }} · {{ p.context['discountPct'] }}% off</dd></div>
+          }
+          @if (p.clubEvent) {
+            <div class="meta"><dt>Club event</dt><dd>Exempt from the share caps and the approval chain</dd></div>
+          }
           <div class="meta"><dt>Per player</dt><dd>{{ p.context['perPlayerAmount'] | money }}</dd></div>
           <div class="meta"><dt>Deposit</dt><dd>{{ p.depositRequired | money }} ({{ p.context['depositPct'] }}%) · {{ p.depositHeld | money }} held</dd></div>
         </dl>

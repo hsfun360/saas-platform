@@ -170,7 +170,7 @@ async function groupHolds(companyId, playDate, { transaction } = {}) {
     // bookings release their space by status alone.
     const profiles = await BookingProfile.findAll({
         where: { companyId, status: { [Op.in]: HOLD_STATUS_KEYS }, id: { [Op.in]: [...new Set(days.map((d) => d.bookingProfileId))] } },
-        attributes: ['id', 'bookingNo', 'groupName', 'bookingType', 'status', 'holdExpiresAt'],
+        attributes: ['id', 'bookingNo', 'groupName', 'bookingType', 'status', 'holdExpiresAt', 'isClubEvent'],
         transaction,
     });
     const profileById = new Map(profiles.map((p) => [p.id, p]));
