@@ -241,6 +241,9 @@ exports.validateOptionCreate = validate({ body: optionBody });
 exports.validateOptionUpdate = validate({ params: idParams, body: optionEditBody });
 exports.validateSetActive = validate({ params: idParams, body: activeBody });
 exports.validateCopy = validate({ body: copyBody });
+// The copy-candidates read keys the SOURCE company by id (ownership is
+// checked in the handler; the boundary only bounds the shape).
+exports.validateCopySource = validate({ params: z.object({ companyId: fields.uuid }) });
 
 // GET /api/dimension - the whole setup (categories + options + the module
 // ticks) in one read, plus the modules this company MAY tick.

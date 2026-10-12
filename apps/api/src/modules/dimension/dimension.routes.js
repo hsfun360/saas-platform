@@ -22,7 +22,7 @@ router.use(verifyToken);
 router.get('/', requireMenuAction('/ar/analysis'), controller.list);
 // Copy from another company (before the parameterized routes).
 router.get('/copy-sources', requireMenuAction('/ar/analysis'), controller.listCopySources);
-router.get('/copy-sources/:companyId', requireMenuAction('/ar/analysis'), controller.listCopyCandidates);
+router.get('/copy-sources/:companyId', requireMenuAction('/ar/analysis'), controller.validateCopySource, controller.listCopyCandidates);
 router.post('/copy', requireMenuAction('/ar/analysis'), controller.validateCopy, controller.copyFrom);
 router.post('/categories', requireMenuAction('/ar/analysis'), controller.validateCategoryCreate, controller.createCategory);
 router.put('/categories/:id', requireMenuAction('/ar/analysis'), controller.validateCategoryUpdate, controller.updateCategory);
