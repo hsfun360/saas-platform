@@ -1,26 +1,31 @@
 // Golf Front Desk routes (mounted at /api/golf/front-desk behind
 // requireMenuAction('/golf/tee-time-sheet') - the Tee Time Sheet menu, see
 // golf.routes.js).
+// Every route that reads a request part validates it at the boundary
+// (platform/validate, schemas in frontdesk.schemas.js - the standing rule,
+// mounted 2026-10-12); /meta reads nothing and stays bare.
 const express = require('express');
+const { validate } = require('../../platform/validate');
 
 const router = express.Router();
 const controller = require('./frontdesk.controller');
+const s = require('./frontdesk.schemas');
 
-router.get('/day', controller.getDay);
+router.get('/day', validate(s.day), controller.getDay);
 router.get('/meta', controller.getMeta);
-router.post('/registrations', controller.register);
-router.post('/register-flight', controller.registerFlight);
+router.post('/registrations', validate(s.register), controller.register);
+router.post('/register-flight', validate(s.registerFlight), controller.registerFlight);
 // Group booking (2026-10-07): every still-booked player of a group on the date.
-router.post('/register-group', controller.registerGroup);
-router.post('/registrations/:id/cancel', controller.cancelRegistration);
-router.get('/no-shows', controller.getNoShows);
-router.post('/no-shows', controller.confirmNoShows);
-router.post('/registrations/:id/bills', controller.openBill);
-router.get('/bills/:billId', controller.getBill);
-router.post('/bills/:billId/items', controller.addItem);
-router.put('/bills/:billId/items/:itemId', controller.updateItem);
-router.delete('/bills/:billId/items/:itemId', controller.removeItem);
-router.post('/bills/:billId/settle', controller.settleBill);
-router.post('/bills/:billId/void', controller.voidBill);
+router.post('/register-group', validate(s.registerGroup), controller.registerGroup);
+router.post('/registrations/:id/cancel', validate(s.cancelRegistration), controller.cancelRegistration);
+router.get('/no-shows', validate(s.noShows), controller.getNoShows);
+router.post('/no-shows', validate(s.confirmNoShows), controller.confirmNoShows);
+router.post('/registrations/:id/bills', validate(s.openBill), controller.openBill);
+router.get('/bills/:billId', validate(s.bill), controller.getBill);
+router.post('/bills/:billId/items', validate(s.addItem), controller.addItem);
+router.put('/bills/:billId/items/:itemId', validate(s.updateItem), controller.updateItem);
+router.delete('/bills/:billId/items/:itemId', validate(s.item), controller.removeItem);
+router.post('/bills/:billId/settle', validate(s.settle), controller.settleBill);
+router.post('/bills/:billId/void', validate(s.voidBill), controller.voidBill);
 
 module.exports = router;

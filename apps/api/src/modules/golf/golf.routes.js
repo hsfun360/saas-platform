@@ -1,6 +1,6 @@
 // src/modules/golf/golf.routes.js
 //
-// Golf Management — core product service.
+// Golf Management - core product service.
 // Owns the `/api/golf` gateway seam and wires the standard contract:
 // verify JWT (who) + require the module subscription (entitlement).
 // Spec: docs/systems/golf-management.md
@@ -12,7 +12,7 @@ const unitCourseRoutes = require('./unitCourse.routes');
 const courseRoutes = require('./course.routes');
 const transactionTypesRoutes = require('./transactionTypes.routes');
 
-// Liveness probe — unauthenticated, so the gateway/monitoring can check the seam.
+// Liveness probe - unauthenticated, so the gateway/monitoring can check the seam.
 router.get('/health', (req, res) => res.json({ service: 'golf', status: 'ok' }));
 
 // Everything below requires a valid token and an entitled, active workspace.
@@ -30,18 +30,21 @@ router.use('/payment-types', requireMenuAction('/golf/payment-types'), require('
 
 // --- Golfers master (handicap index + status maintenance; user decisions
 // 2026-09-29 - the fields the handicap-control rules read) ---
+const { validate } = require('../../platform/validate');
 const golferController = require('./golfer.controller');
+const golferSchemas = require('./golfer.schemas');
 router.get('/golfers', requireMenuAction('/golf/golfers'), golferController.list);
-router.patch('/golfers/:id', requireMenuAction('/golf/golfers'), golferController.update);
+router.patch('/golfers/:id', requireMenuAction('/golf/golfers'), validate(golferSchemas.update), golferController.update);
 
 // --- Golf Specification (per-company settings singleton + advance-booking
 // overrides; user decisions 2026-09-17) ---
 const golfSettingController = require('./golfSetting.controller');
+const golfSettingSchemas = require('./golfSetting.schemas');
 router.get('/settings', requireMenuAction('/golf/settings'), golfSettingController.get);
 router.get('/settings/membership-types', requireMenuAction('/golf/settings'), golfSettingController.getMembershipTypes);
 router.get('/settings/courses', requireMenuAction('/golf/settings'), golfSettingController.getCourses);
 router.get('/settings/no-show-types', requireMenuAction('/golf/settings'), golfSettingController.getNoShowTypes);
-router.put('/settings', requireMenuAction('/golf/settings'), golfSettingController.save);
+router.put('/settings', requireMenuAction('/golf/settings'), validate(golfSettingSchemas.save), golfSettingController.save);
 
 // --- Booking (dynamic tee sheet: availability + flight locks + bookings;
 // user decisions 2026-09-20) ---

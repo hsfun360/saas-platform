@@ -3,17 +3,20 @@
 
 const express = require('express');
 const multer = require('multer');
+const { validate } = require('../../platform/validate');
 const router = express.Router();
 const controller = require('./paymentType.controller');
+const s = require('./paymentType.schemas');
 
 // In-memory upload (Cloud Run is stateless) for the settlement-tile icon, 2 MB cap.
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
 router.get('/meta', controller.getMeta);
 router.get('/', controller.list);
-router.post('/', controller.create);
+router.post('/', validate(s.create), controller.create);
+// The icon upload reads only req.file (multipart) - no request part to validate.
 router.post('/icon', upload.single('icon'), controller.uploadIcon);
-router.put('/:id', controller.update);
-router.patch('/:id', controller.setActive);
+router.put('/:id', validate(s.update), controller.update);
+router.patch('/:id', validate(s.setActive), controller.setActive);
 
 module.exports = router;

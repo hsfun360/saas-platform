@@ -1,27 +1,31 @@
 const express = require('express');
+const { validate } = require('../../platform/validate');
 const router = express.Router();
 const controller = require('./unitCourse.controller');
 const holeController = require('./unitCourseHole.controller');
 const teeBoxController = require('./unitCourseTeeBox.controller');
+const s = require('./unitCourse.schemas');
+const hs = require('./unitCourseHole.schemas');
+const ts = require('./unitCourseTeeBox.schemas');
 
 // Mounted at /api/golf/unit-courses. The parent golf router already applies
 // verifyToken (who) + requireModule('GOLF') (entitled), so these
 // handlers only deal with the active company's unit-course master file.
 router.get('/meta', controller.getMeta);
 router.get('/', controller.listUnitCourses);
-router.post('/', controller.createUnitCourse);
-router.patch('/:id', controller.updateUnitCourse);
-router.delete('/:id', controller.deleteUnitCourse);
+router.post('/', validate(s.create), controller.createUnitCourse);
+router.patch('/:id', validate(s.update), controller.updateUnitCourse);
+router.delete('/:id', validate(s.id), controller.deleteUnitCourse);
 
 // Hole Setup (spec 2.2.2) - child rows of a unit course; numbering is fixed by
 // the course type, the user maintains par / stroke index / remarks.
-router.get('/:id/holes', holeController.listHoles);
-router.put('/:id/holes', holeController.saveHoles);
+router.get('/:id/holes', validate(hs.id), holeController.listHoles);
+router.put('/:id/holes', validate(hs.saveHoles), holeController.saveHoles);
 
 // Tee Box Setup (spec 2.2.3) - user-defined tee boxes per unit course, each
 // with per-gender course/slope rating rows.
-router.get('/:id/tee-boxes', teeBoxController.listTeeBoxes);
-router.put('/:id/tee-boxes', teeBoxController.saveTeeBoxes);
+router.get('/:id/tee-boxes', validate(ts.id), teeBoxController.listTeeBoxes);
+router.put('/:id/tee-boxes', validate(ts.saveTeeBoxes), teeBoxController.saveTeeBoxes);
 
 // Closure plans moved to /api/golf/closures (2026-09-30): Course Closure is
 // its own menu, grantable without the Unit Course setup grant.
