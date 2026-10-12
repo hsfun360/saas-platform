@@ -17,10 +17,14 @@ const otherDebtorController = require('./otherDebtor.controller');
 const documentController = require('./arDocument.controller');
 const periodicController = require('./arPeriodic.controller');
 const { validate } = require('../../platform/validate');
-// Every DOCUMENT route validates its request parts at the boundary (platform/
-// validate, schemas in arDocument.schemas.js - the standing rule, mounted
-// 2026-10-12). The other AR screens' routes are still to follow.
+// Every AR route validates its request parts at the boundary (platform/
+// validate - the standing rule). Schemas live beside their controller:
+// documents (mounted 2026-10-12), then the debtor, transaction-type and
+// periodic screens (same day). Exchange rates validate inside their controller.
 const s = require('./arDocument.schemas');
+const ds = require('./debtor.schemas');
+const ts = require('./transactionType.schemas');
+const ps = require('./arPeriodic.schemas');
 
 // Menus whose screens open the shared entry dialogs (debtor picker + entry
 // meta). Extend as each per-document transaction slice lands.
@@ -40,12 +44,12 @@ router.use(requireModule('AR'));
 // --- Debtor Listing (shared across membership / member / other debtors) ---
 // Other Debtors are managed FROM this screen, so both mounts gate on its menu.
 router.get('/debtors/meta', requireMenuAction('/ar/debtors'), debtorController.getMeta);
-router.post('/reconcile', requireMenuAction('/ar/debtors'), debtorController.reconcile);
-router.get('/debtors', requireMenuAction('/ar/debtors'), debtorController.listDebtors);
-router.patch('/debtors/:id', requireMenuAction('/ar/debtors'), debtorController.updateDebtor);
-router.get('/other-debtors/:id', requireMenuAction('/ar/debtors'), otherDebtorController.getOtherDebtor);
-router.post('/other-debtors', requireMenuAction('/ar/debtors'), otherDebtorController.createOtherDebtor);
-router.patch('/other-debtors/:id', requireMenuAction('/ar/debtors'), otherDebtorController.updateOtherDebtor);
+router.post('/reconcile', requireMenuAction('/ar/debtors'), validate(ds.reconcile), debtorController.reconcile);
+router.get('/debtors', requireMenuAction('/ar/debtors'), validate(ds.list), debtorController.listDebtors);
+router.patch('/debtors/:id', requireMenuAction('/ar/debtors'), validate(ds.updateDebtor), debtorController.updateDebtor);
+router.get('/other-debtors/:id', requireMenuAction('/ar/debtors'), validate(ds.id), otherDebtorController.getOtherDebtor);
+router.post('/other-debtors', requireMenuAction('/ar/debtors'), validate(ds.createOtherDebtor), otherDebtorController.createOtherDebtor);
+router.patch('/other-debtors/:id', requireMenuAction('/ar/debtors'), validate(ds.updateOtherDebtor), otherDebtorController.updateOtherDebtor);
 
 // --- Debtor account (documents + entry + void) - the listing's detail
 // surface, same menu. POST maps to the menu's Create action, void PATCHes to
@@ -95,7 +99,7 @@ router.patch('/deposits/:id/void', requireAnyMenuAction(['/ar/debtors', '/ar/dep
 // keeps working account-first under '/ar/debtors'.) ---
 // The debtor picker inside each entry dialog reuses the Debtor Listing search,
 // gated on ANY of the transaction menus (grows as each slice lands).
-router.get('/debtor-options', requireAnyMenuAction(AR_TXN_META_MENUS), debtorController.listDebtors);
+router.get('/debtor-options', requireAnyMenuAction(AR_TXN_META_MENUS), validate(ds.list), debtorController.listDebtors);
 // Invoice (menu '/ar/invoices'): cross-debtor listing + the Save->Submit
 // lifecycle (draft entry/edit, submit-to-post-or-approval, draft-only void).
 // Submit is reachable from BOTH doors (the account screen creates invoice
@@ -158,14 +162,14 @@ const transactionTypeController = require('./transactionType.controller');
 // Copy from another company (2026-09-05): sources = companies the CALLER
 // holds an active membership in; POST maps to the menu's Create action.
 router.get('/transaction-types/copy-sources', requireMenuAction('/ar/transaction-types'), transactionTypeController.listCopySources);
-router.get('/transaction-types/copy-sources/:companyId', requireMenuAction('/ar/transaction-types'), transactionTypeController.listCopyCandidates);
-router.post('/transaction-types/copy', requireMenuAction('/ar/transaction-types'), transactionTypeController.copyFrom);
+router.get('/transaction-types/copy-sources/:companyId', requireMenuAction('/ar/transaction-types'), validate(ts.copyCandidates), transactionTypeController.listCopyCandidates);
+router.post('/transaction-types/copy', requireMenuAction('/ar/transaction-types'), validate(ts.copyFrom), transactionTypeController.copyFrom);
 router.get('/transaction-types/meta', requireMenuAction('/ar/transaction-types'), transactionTypeController.getMeta);
 router.get('/transaction-types/tax-schemes', requireMenuAction('/ar/transaction-types'), transactionTypeController.getTaxSchemes);
 router.get('/transaction-types', requireMenuAction('/ar/transaction-types'), transactionTypeController.list);
-router.post('/transaction-types', requireMenuAction('/ar/transaction-types'), transactionTypeController.create);
-router.put('/transaction-types/:id', requireMenuAction('/ar/transaction-types'), transactionTypeController.update);
-router.patch('/transaction-types/:id', requireMenuAction('/ar/transaction-types'), transactionTypeController.setActive);
+router.post('/transaction-types', requireMenuAction('/ar/transaction-types'), validate(ts.create), transactionTypeController.create);
+router.put('/transaction-types/:id', requireMenuAction('/ar/transaction-types'), validate(ts.update), transactionTypeController.update);
+router.patch('/transaction-types/:id', requireMenuAction('/ar/transaction-types'), validate(ts.setActive), transactionTypeController.setActive);
 
 // (Analysis dimensions moved to the shared Dimension capability 2026-08-25:
 // setup CRUD lives at /api/dimension; AR consumes entry meta + selection
@@ -195,42 +199,42 @@ router.use(
 // --- Interest run (its own screen/menu: /ar/interest-generation) ---
 // NOTE: /meta must register BEFORE /:id or 'meta' would match as an id.
 router.get('/interest-generations/meta', requireMenuAction('/ar/interest-generation'), periodicController.runMeta);
-router.get('/interest-generations', requireMenuAction('/ar/interest-generation'), periodicController.list);
-router.post('/interest-generations', requireMenuAction('/ar/interest-generation'), periodicController.generate);
+router.get('/interest-generations', requireMenuAction('/ar/interest-generation'), validate(ps.list), periodicController.list);
+router.post('/interest-generations', requireMenuAction('/ar/interest-generation'), validate(ps.generate), periodicController.generate);
 // The drill-down read is shared with the Interest documents listing's
 // breakdown viewer (2026-09-04) - either menu opens it (read-only).
-router.get('/interest-generations/:id', requireAnyMenuAction(['/ar/interest-generation', '/ar/interests']), periodicController.get);
+router.get('/interest-generations/:id', requireAnyMenuAction(['/ar/interest-generation', '/ar/interests']), validate(ps.id), periodicController.get);
 // Posted Interest documents listing (docType 'interest', menu '/ar/interests'
 // - READ-ONLY: the run screen creates them, a Credit Note corrects them).
 router.get('/interests', requireMenuAction('/ar/interests'), validate(s.list), documentController.listInterestDocuments);
-router.patch('/interest-generations/:id/details/:detailId', requireMenuAction('/ar/interest-generation'), periodicController.setDetailExcluded);
-router.post('/interest-generations/confirm', requireMenuAction('/ar/interest-generation'), periodicController.confirm);
-router.post('/interest-generations/:id/cancel', requireMenuAction('/ar/interest-generation'), periodicController.cancel);
+router.patch('/interest-generations/:id/details/:detailId', requireMenuAction('/ar/interest-generation'), validate(ps.setDetailExcluded), periodicController.setDetailExcluded);
+router.post('/interest-generations/confirm', requireMenuAction('/ar/interest-generation'), validate(ps.confirm), periodicController.confirm);
+router.post('/interest-generations/:id/cancel', requireMenuAction('/ar/interest-generation'), validate(ps.id), periodicController.cancel);
 
 // --- AR Specification (its own screen/menu: /ar/settings) ---
 // The per-company AR options singleton (statement cutoff day + aging
 // boundaries). Reads are shared with Statement Generation (its date auto-fill
 // needs the cutoff), writes belong to the Specification screen alone.
 router.get('/settings', requireAnyMenuAction(['/ar/settings', '/ar/statement-generation']), periodicController.getArSetting);
-router.put('/settings', requireMenuAction('/ar/settings'), periodicController.saveArSetting);
+router.put('/settings', requireMenuAction('/ar/settings'), validate(ps.saveSetting), periodicController.saveArSetting);
 // Saved layout options rendered on a dummy statement (screen preview).
 router.get('/settings/statement-preview', requireMenuAction('/ar/settings'), periodicController.getStatementLayoutPreview);
 
 // --- Statement Generation (its own screen/menu: /ar/statement-generation) ---
 // Runs are BACKGROUND jobs: submit queues the run for the outbox worker; the
 // screen polls the run row for progress and can cancel/resume any time.
-router.post('/statement-runs/preview', requireMenuAction('/ar/statement-generation'), periodicController.previewStatementRun);
-router.post('/statement-runs', requireMenuAction('/ar/statement-generation'), periodicController.createStatementRun);
-router.get('/statement-runs/:id', requireMenuAction('/ar/statement-generation'), periodicController.getStatementRun);
-router.post('/statement-runs/:id/resume', requireMenuAction('/ar/statement-generation'), periodicController.resumeStatementRun);
-router.post('/statement-runs/:id/cancel', requireMenuAction('/ar/statement-generation'), periodicController.cancelStatementRun);
+router.post('/statement-runs/preview', requireMenuAction('/ar/statement-generation'), validate(ps.statementRun), periodicController.previewStatementRun);
+router.post('/statement-runs', requireMenuAction('/ar/statement-generation'), validate(ps.statementRun), periodicController.createStatementRun);
+router.get('/statement-runs/:id', requireMenuAction('/ar/statement-generation'), validate(ps.id), periodicController.getStatementRun);
+router.post('/statement-runs/:id/resume', requireMenuAction('/ar/statement-generation'), validate(ps.id), periodicController.resumeStatementRun);
+router.post('/statement-runs/:id/cancel', requireMenuAction('/ar/statement-generation'), validate(ps.id), periodicController.cancelStatementRun);
 router.get('/statement-runs', requireMenuAction('/ar/statement-generation'), periodicController.listStatementRuns);
 
 // --- Statement Listing (its own screen/menu: /ar/statements) ---
-router.get('/statements', requireMenuAction('/ar/statements'), periodicController.listStatements);
-router.get('/statements/:id', requireMenuAction('/ar/statements'), periodicController.getStatement);
-router.get('/statements/:id/pdf', requireMenuAction('/ar/statements'), periodicController.getStatementPdf);
-router.patch('/statements/:id/void', requireMenuAction('/ar/statements'), periodicController.voidStatement);
+router.get('/statements', requireMenuAction('/ar/statements'), validate(ps.listStatements), periodicController.listStatements);
+router.get('/statements/:id', requireMenuAction('/ar/statements'), validate(ps.id), periodicController.getStatement);
+router.get('/statements/:id/pdf', requireMenuAction('/ar/statements'), validate(ps.id), periodicController.getStatementPdf);
+router.patch('/statements/:id/void', requireMenuAction('/ar/statements'), validate(ps.id), periodicController.voidStatement);
 
 // Not-yet-built areas of the service 501 rather than 404, so a caller can tell
 // "wrong URL" from "planned but not implemented".
