@@ -1,5 +1,5 @@
 const UnitCourse = require('./unitCourse.model');
-const { getUserContext } = require('../../platform/serviceContext');
+const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
 const { COURSE_TYPES, COURSE_TYPE_KEYS, MEASUREMENT_UNITS } = require('./unitCourse.constants');
 const { DAY_SCOPES } = require('./courseTeeTime.constants');
 
@@ -73,6 +73,8 @@ exports.createUnitCourse = async (req, res) => {
         const existing = await UnitCourse.findOne({ where: { companyId, unitCourseCode } });
         if (existing) return res.status(409).json({ message: `Unit course '${unitCourseCode}' already exists.` });
 
+        const callerId = getUserContext(req).userId;
+        const placement = await getCallerPlacement(req);
         const unitCourse = await UnitCourse.create({
             companyId,
             unitCourseCode,
@@ -84,6 +86,9 @@ exports.createUnitCourse = async (req, res) => {
             hasFloodlight,
             // Lead time only means something on a floodlit nine.
             floodlightLeadMinutes: hasFloodlight ? lead.value : null,
+            createdBy: callerId,
+            createdByDepartmentId: placement.departmentId,
+            updatedBy: callerId,
         });
         res.status(201).json({ message: 'Unit course created.', unitCourse });
     } catch (error) {
@@ -140,6 +145,7 @@ exports.updateUnitCourse = async (req, res) => {
         if (!unitCourse.hasFloodlight) unitCourse.floodlightLeadMinutes = null;
         if (typeof req.body.isActive === 'boolean') unitCourse.isActive = req.body.isActive;
 
+        unitCourse.updatedBy = getUserContext(req).userId;
         await unitCourse.save();
         res.status(200).json({ message: 'Unit course updated.', unitCourse });
     } catch (error) {

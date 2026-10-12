@@ -16,7 +16,7 @@ const companyMailer = require('./companyMailer');
 
 // Dispatch a rendered ('EmailQueued') email. If it was sent on behalf of a
 // company that has its OWN active SMTP config, it MUST go through that server
-// (and from that address) — on failure we record the error and rethrow so it
+// (and from that address) - on failure we record the error and rethrow so it
 // retries / fails, never falling back to the platform mailer. Emails with no
 // company context (or whose company has no SMTP config) use the platform mailer.
 async function dispatchEmail(payload) {
@@ -130,7 +130,7 @@ async function sendCollaboratorInviteEmail(toEmail, payload) {
                 <h2 style="color: #1e3a8a;">You've been invited to collaborate</h2>
                 <p>You've been invited to join <strong>${company}</strong>${subscriber} as a collaborator.</p>
                 ${roleLine}
-                <p>Sign in to review and accept the invitation. If you don't have an account yet, you can create one with this email address — your invitation will be waiting on your dashboard.</p>
+                <p>Sign in to review and accept the invitation. If you don't have an account yet, you can create one with this email address - your invitation will be waiting on your dashboard.</p>
                 <a href="${payload.acceptLink}" style="display: inline-block; padding: 12px 24px; background-color: #16a34a; color: white; text-decoration: none; border-radius: 5px; margin-top: 15px; font-weight: bold;">
                     Review Invitation
                 </a>
@@ -139,7 +139,7 @@ async function sendCollaboratorInviteEmail(toEmail, payload) {
                     ${payload.acceptLink}
                 </p>
                 <p style="margin-top: 20px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 10px;">
-                    If you weren't expecting this, you can safely ignore this email — no access is granted unless you accept.
+                    If you weren't expecting this, you can safely ignore this email - no access is granted unless you accept.
                 </p>
             </div>
         `

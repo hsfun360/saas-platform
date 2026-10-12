@@ -70,6 +70,10 @@ const UnitCourse = sequelize.define('UnitCourse', {
         allowNull: false,
         defaultValue: true,
     },
+    // Ownership stamps (RBAC data scope).
+    createdBy: { type: DataTypes.UUID, allowNull: true },
+    createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },
+    updatedBy: { type: DataTypes.UUID, allowNull: true },
 }, {
     // Owned by the Golf service -> its own Postgres schema, so the whole service
     // extracts as `pg_dump --schema=golf`. See platform/schemas.js.

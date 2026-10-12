@@ -604,7 +604,7 @@ exports.recordDeposit = async (req, res) => {
         if (target) {
             const posted = await billing.postChargeToAccount(req, {
                 bill, target, amount: total,
-                description: `Deposit ${bill.billNo} — ${profile.groupName || profile.bookingNo}`,
+                description: `Deposit ${bill.billNo} - ${profile.groupName || profile.bookingNo}`,
                 stamps, enforceCredit: true,
             });
             if (posted.error) {
@@ -793,7 +793,7 @@ exports.settleGroupBill = async (req, res) => {
             for (const line of accountLines) {
                 const posted = await billing.postChargeToAccount(req, {
                     bill, target: t.target, amount: line.amount,
-                    description: `Group bill ${bill.billNo} — ${profile.groupName || profile.bookingNo}`,
+                    description: `Group bill ${bill.billNo} - ${profile.groupName || profile.bookingNo}`,
                     stamps, enforceCredit: true,
                 });
                 if (posted.error) return res.status(400).json({ message: `The balance could not be charged to account: ${posted.error}` });

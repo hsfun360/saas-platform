@@ -15,7 +15,7 @@ const { pingOutboxWorker } = require('../../platform/outboxWorkerPing');
 // Enqueue a templated email as part of `transaction`. Returns false when the
 // template is disabled (no email sent); true when a message was queued.
 // Never let a template lookup/render abort the caller's business transaction is
-// the caller's decision — this throws on a missing template so producers can
+// the caller's decision - this throws on a missing template so producers can
 // choose to swallow it if email is non-critical.
 // `companyId` drives BOTH the branding (header/colour/logo, resolved now) and the
 // worker's SMTP selection. `forcePlatformSender` decouples them: the email is still

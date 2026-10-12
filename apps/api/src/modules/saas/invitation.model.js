@@ -6,8 +6,8 @@ const { sequelize } = require('../../platform/db');
 // This is the consent-based bridge for the Global Identity paradigm: a Tenant
 // Admin invites an email, and the invited identity ACCEPTS to gain access. The
 // CompanyUser (collaborator) row is only created on acceptance, so one admin can
-// never staple an outsider — e.g. a freelancer already working for another
-// subscriber — into their tenant without that person's consent.
+// never staple an outsider - e.g. a freelancer already working for another
+// subscriber - into their tenant without that person's consent.
 const Invitation = sequelize.define('Invitation', {
     id: {
         type: DataTypes.UUID,

@@ -7,9 +7,14 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken, getUserContext } = require('../../platform/serviceContext');
+const { validate, z, fields } = require('../../platform/validate');
 const Notification = require('./notification.model');
 
 router.use(verifyToken);
+
+// The two id-keyed doors bound the id at the boundary: a non-UUID used to reach
+// the database as a cast error (500) instead of this 400 (2026-10-12).
+const idParam = validate({ params: z.object({ id: fields.uuid }) });
 
 // GET /api/notifications/my - latest notifications + unread count.
 router.get('/my', async (req, res) => {
@@ -42,7 +47,7 @@ router.get('/my', async (req, res) => {
 });
 
 // PATCH /api/notifications/:id/read - settle one.
-router.patch('/:id/read', async (req, res) => {
+router.patch('/:id/read', idParam, async (req, res) => {
     try {
         const { userId } = getUserContext(req);
         const row = await Notification.findOne({ where: { id: req.params.id, userId } });
@@ -72,7 +77,7 @@ router.post('/read-all', async (req, res) => {
 
 // PATCH /api/notifications/:id/dismiss - remove one from the bell (soft-delete;
 // an unread one settles at the same time so the badge never counts a hidden row).
-router.patch('/:id/dismiss', async (req, res) => {
+router.patch('/:id/dismiss', idParam, async (req, res) => {
     try {
         const { userId } = getUserContext(req);
         const row = await Notification.findOne({ where: { id: req.params.id, userId } });

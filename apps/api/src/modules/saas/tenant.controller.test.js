@@ -1,4 +1,4 @@
-// Unit tests for the addCollaborator SAME-ACCOUNT guard — a Tenant Admin may only
+// Unit tests for the addCollaborator SAME-ACCOUNT guard - a Tenant Admin may only
 // directly add a person who already belongs to their own subscriber account, and
 // the "not addable" response is identical whether the email is unknown or belongs
 // to another account (so it can't be used to enumerate platform users).

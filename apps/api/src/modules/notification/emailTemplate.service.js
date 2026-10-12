@@ -82,7 +82,7 @@ async function resolveTemplate(templateKey, accountId, companyId = null) {
             });
             if (forCompany) return forCompany;
         }
-        // companyId: null is significant — it must NOT match a company row.
+        // companyId: null is significant - it must NOT match a company row.
         const forAccount = await EmailTemplate.findOne({
             where: { accountId, companyId: null, templateKey, isActive: true },
         });

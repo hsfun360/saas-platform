@@ -28,7 +28,7 @@ exports.seedLanguages = async (req, res) => {
     }
 };
 
-// GET /api/admin/languages  (System Admin maintenance — every language)
+// GET /api/admin/languages  (System Admin maintenance - every language)
 exports.listAllLanguages = async (req, res) => {
     try {
         const languages = await Language.findAll({ order: [['name', 'ASC']] });
@@ -91,7 +91,7 @@ exports.deleteLanguage = async (req, res) => {
     }
 };
 
-// GET /api/languages  (any authenticated user — active languages for pickers)
+// GET /api/languages  (any authenticated user - active languages for pickers)
 exports.listActiveLanguages = async (req, res) => {
     try {
         const languages = await Language.findAll({

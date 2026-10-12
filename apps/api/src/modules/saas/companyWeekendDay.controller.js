@@ -1,6 +1,6 @@
 const { sequelize } = require('../../platform/db');
 const CompanyWeekendDay = require('./companyWeekendDay.model');
-const { hasTenantAdminRole } = require('./tenant');
+const { canAdministerCompany } = require('./tenant');
 
 // CompanyWeekendDay - company-level weekend/rest-day setup. Maintenance is
 // Tenant-Admin per company under /auth/companies/:companyId/weekend-days
@@ -9,11 +9,12 @@ const { hasTenantAdminRole } = require('./tenant');
 // workspace user under /api/weekend-days for THEIR company. A company with no
 // rows is "not configured" - consumers get [] and weekend pricing never applies.
 
-// Same guard as the SMTP endpoints: the caller must hold Tenant Admin for the
-// TARGET company (not merely for their active one).
+// Same guard as the SMTP endpoints: the caller must be able to administer the
+// TARGET company (their own, admitted by the Companies menu gate, or another
+// company of the subscriber they hold Tenant Admin or ownership for).
 async function requireAdminFor(req, companyId) {
     if (!companyId) return { status: 400, message: 'No company specified.' };
-    const allowed = await hasTenantAdminRole(req.user.id, companyId);
+    const allowed = await canAdministerCompany(req, companyId);
     if (!allowed) return { status: 403, message: "You don't have admin rights for that company." };
     return { companyId };
 }

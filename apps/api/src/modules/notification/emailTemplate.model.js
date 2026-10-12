@@ -82,7 +82,7 @@ const EmailTemplate = sequelize.define('EmailTemplate', {
         allowNull: true,
     },
     // When true, the SENDING company's logo (Company.logo) is centred in the header
-    // band. No logo is stored here — it always comes from the company at render.
+    // band. No logo is stored here - it always comes from the company at render.
     includeLogo: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

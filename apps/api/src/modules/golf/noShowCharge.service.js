@@ -98,7 +98,7 @@ async function quote(req, cfg, playDate, quantity, { transaction } = {}) {
     }
     return {
         type,
-        description: `${type.transactionType}${type.description ? ' — ' + type.description : ''}`,
+        description: `${type.transactionType}${type.description ? ' - ' + type.description : ''}`,
         quantity: qty,
         unitAmount: unit,
         amount,
@@ -179,7 +179,7 @@ async function postPending(req, row) {
                 trxDate: String(row.playDate),
                 transactionTypeId: arType.id,
                 isInterestChargeable: arType.isInterestChargeable === true,
-                description: `${reasonText} charge — booking ${row.bookingNo} (${String(row.playDate)})`,
+                description: `${reasonText} charge - booking ${row.bookingNo} (${String(row.playDate)})`,
                 incurredByMemberId: resolved.target.incurredByMemberId,
                 sourceModule: 'golf',
                 sourceRef: row.id,

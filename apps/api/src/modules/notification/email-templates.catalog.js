@@ -13,12 +13,12 @@
 // Branding is applied AUTOMATICALLY at render (emailBrand.applyBrandToHtml): the
 // brand-colour header band (with the company logo when enabled) is prepended, and
 // CTA buttons are recoloured to the brand colour. Bodies therefore don't need to
-// reference brand variables — which is what lets branding work on older/customised
+// reference brand variables - which is what lets branding work on older/customised
 // templates without a "reset to default". Keep buttons as normal styled <a>s.
 
 // Bodies are CONTENT ONLY. The surrounding card (border, padding, rounded corners),
 // the brand header band, and the CTA button colour are all applied automatically at
-// render time (see emailBrand.applyBrandToHtml) — which is what makes branding work
+// render time (see emailBrand.applyBrandToHtml) - which is what makes branding work
 // on older/customised templates too, without a "reset to default". Kept as a helper
 // so the catalogue entries stay tidy and consistent.
 const card = (content) => content.trim();
@@ -170,14 +170,14 @@ module.exports = [
             <h2 style="color: #1e3a8a; margin-top: 0;">You've been invited to collaborate</h2>
             <p>You've been invited to join <strong>{{#if companyName}}{{companyName}}{{else}}a company{{/if}}</strong>{{#if subscriberName}} ({{subscriberName}}){{/if}} as a collaborator.</p>
             {{#if roleName}}<p>You'll join with the role: <strong>{{roleName}}</strong>.</p>{{/if}}
-            <p>Sign in to review and accept the invitation. If you don't have an account yet, you can create one with this email address — your invitation will be waiting on your dashboard.</p>
+            <p>Sign in to review and accept the invitation. If you don't have an account yet, you can create one with this email address - your invitation will be waiting on your dashboard.</p>
             ${button('{{acceptLink}}', 'Review Invitation')}
             <p style="margin-top: 20px; font-size: 12px; color: #777;">
                 If the button doesn't work, copy and paste this link into your browser:<br>
                 {{acceptLink}}
             </p>
             <p style="margin-top: 20px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 10px;">
-                If you weren't expecting this, you can safely ignore this email — no access is granted unless you accept.
+                If you weren't expecting this, you can safely ignore this email - no access is granted unless you accept.
             </p>
         `),
     },
@@ -445,12 +445,12 @@ module.exports = [
         ],
         sample: {
             bookingNo: 'B260900001', playDateText: '27 Sept 2026',
-            teeTime: '08:05', crossTime: '10:05', courseName: 'WEST — West Course', holes: 18,
+            teeTime: '08:05', crossTime: '10:05', courseName: 'WEST - West Course', holes: 18,
             playersTable: '<table style="border-collapse: collapse; width: 100%;"><tr><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">1</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">Ahmad Faizal</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">A0018</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">Member</td></tr></table>',
             companyName: 'Kuala Lumpur Golf & Country Club',
         },
         fromName: null,
-        subject: 'Booking {{bookingNo}} confirmed — {{playDateText}} {{teeTime}}',
+        subject: 'Booking {{bookingNo}} confirmed - {{playDateText}} {{teeTime}}',
         bodyHtml: card(`
             <h2 style="color: #1e293b; margin-top: 0;">Tee time confirmed</h2>
             <p>Dear Player(s),</p>
@@ -481,12 +481,12 @@ module.exports = [
         ],
         sample: {
             bookingNo: 'B260900001', playDateText: '27 Sept 2026',
-            teeTime: '08:05', courseName: 'WEST — West Course', cancelReason: 'Course maintenance',
+            teeTime: '08:05', courseName: 'WEST - West Course', cancelReason: 'Course maintenance',
             playersTable: '<table style="border-collapse: collapse; width: 100%;"><tr><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">1</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">Ahmad Faizal</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">A0018</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">Member</td></tr></table>',
             companyName: 'Kuala Lumpur Golf & Country Club',
         },
         fromName: null,
-        subject: 'Booking {{bookingNo}} cancelled — {{playDateText}} {{teeTime}}',
+        subject: 'Booking {{bookingNo}} cancelled - {{playDateText}} {{teeTime}}',
         bodyHtml: card(`
             <h2 style="color: #1e293b; margin-top: 0;">Booking cancelled</h2>
             <p>Dear Player(s),</p>
@@ -525,11 +525,11 @@ module.exports = [
         sample: {
             bookerName: 'Ahmad Faizal', bookingNo: 'B260900001', playDateText: '27 Sept 2026',
             reasonLabel: 'No show', isLateCancel: false, playerNames: 'Ahmad Faizal, Guest One',
-            description: 'NOSHOW — No-show charge', quantity: 2, unitAmount: '80.00', taxAmount: '12.80', totalAmount: '172.80',
+            description: 'NOSHOW - No-show charge', quantity: 2, unitAmount: '80.00', taxAmount: '12.80', totalAmount: '172.80',
             arDocNo: 'INV-000123', companyName: 'Kuala Lumpur Golf & Country Club',
         },
         fromName: null,
-        subject: '{{reasonLabel}} charge {{totalAmount}} — booking {{bookingNo}} ({{playDateText}})',
+        subject: '{{reasonLabel}} charge {{totalAmount}} - booking {{bookingNo}} ({{playDateText}})',
         bodyHtml: card(`
             <h2 style="color: #1e293b; margin-top: 0;">{{#if isLateCancel}}Late cancellation charge{{else}}No-show charge{{/if}}</h2>
             <p>Dear {{bookerName}},</p>

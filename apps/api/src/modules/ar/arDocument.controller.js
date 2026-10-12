@@ -852,7 +852,7 @@ function makeSubmit(lk) {
         await sequelize.transaction(async (t) => {
             const wf = await workflowGateway.startWorkflow(req, lk.workflowPurpose, {
                 entityId: row.id,
-                entityLabel: `${lk.label} ${row.docNo || 'draft'} — ${who.name || who.no || 'debtor'} (${posting.money(posting.cents(row.grossAmount))})`,
+                entityLabel: `${lk.label} ${row.docNo || 'draft'} - ${who.name || who.no || 'debtor'} (${posting.money(posting.cents(row.grossAmount))})`,
                 context: {
                     amount: Number(row.grossAmount),
                     debtorType: debtor.debtorType,
@@ -1388,7 +1388,7 @@ exports.submitRefund = async (req, res) => {
             await sequelize.transaction(async (t) => {
                 const wf = await workflowGateway.startWorkflow(req, 'ar-refund', {
                     entityId: row.id,
-                    entityLabel: `Refund ${row.docNo || 'draft'} — ${who.name || who.no || 'debtor'} (${posting.money(posting.cents(row.amount))})`,
+                    entityLabel: `Refund ${row.docNo || 'draft'} - ${who.name || who.no || 'debtor'} (${posting.money(posting.cents(row.amount))})`,
                     context: {
                         amount: Number(row.amount),
                         refundMode: row.refundMode,
@@ -1670,7 +1670,7 @@ exports.submitDeposit = async (req, res) => {
             await sequelize.transaction(async (t) => {
                 const wf = await workflowGateway.startWorkflow(req, 'ar-deposit', {
                     entityId: row.id,
-                    entityLabel: `Deposit ${row.docNo || 'draft'} — ${who.name || who.no || 'debtor'} (${posting.money(posting.cents(row.amount))})`,
+                    entityLabel: `Deposit ${row.docNo || 'draft'} - ${who.name || who.no || 'debtor'} (${posting.money(posting.cents(row.amount))})`,
                     context: {
                         amount: Number(row.amount),
                         debtorType: debtor.debtorType,

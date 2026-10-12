@@ -1,4 +1,4 @@
-// Unit tests for tenant role administration — updateTenantRole and deleteTenantRole.
+// Unit tests for tenant role administration - updateTenantRole and deleteTenantRole.
 // Covers: the system-managed "Tenant Admin" role is read-only, permission edits
 // diff to the minimal add/remove, and a role still assigned to users can't be
 // deleted. Models are stubbed; no database connection is made.
@@ -39,7 +39,7 @@ function fakeTx() {
     return { finished: false, commit: fn(async () => {}), rollback: fn(async () => {}) };
 }
 
-// admin-1 owns account acct-X, which owns company-A — so they administer it.
+// admin-1 owns account acct-X, which owns company-A - so they administer it.
 const REQ = (extra) => ({ user: { id: 'admin-1', companyId: 'company-A', email: 'admin@acme.test' }, ...extra });
 
 let tx;

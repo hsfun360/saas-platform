@@ -4,7 +4,7 @@
 //
 // Today everything runs in one process (modular monolith). The core product
 // services (membership, golf, facility) must NOT reach into the Control Plane's
-// models directly — they depend on THIS thin contract instead. When a service is
+// models directly - they depend on THIS thin contract instead. When a service is
 // split out into its own deployment, only the implementations in this file change
 // (in-process lookup -> HTTP call / signed claim); the callers never change.
 //

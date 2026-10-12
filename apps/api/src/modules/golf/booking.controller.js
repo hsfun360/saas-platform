@@ -133,7 +133,7 @@ function playersTableHtml(players) {
     const rows = players.map((p, i) => `<tr>`
         + `<td style="${td}">${p.sortOrder || i + 1}</td>`
         + `<td style="${td}">${escapeHtml(p.playerName)}</td>`
-        + `<td style="${td}">${p.memberNo ? escapeHtml(p.memberNo) : '—'}</td>`
+        + `<td style="${td}">${p.memberNo ? escapeHtml(p.memberNo) : '-'}</td>`
         + `<td style="${td}">${PLAYER_TYPE_LABELS.get(p.playerType) || p.playerType}</td>`
         + `</tr>`).join('');
     return `<table style="border-collapse: collapse; width: 100%; margin-top: 8px;">`
@@ -168,7 +168,7 @@ async function describeDayBookings(companyId, profiles, { transaction } = {}) {
         if (!timeByProfile.has(f.bookingProfileId)) timeByProfile.set(f.bookingProfileId, availability.hhmm(f.teeTime));
     }
     return profiles
-        .map((r) => `${timeByProfile.get(r.id) || '—'} (${codeById.get(r.courseId) || 'course'}, ${r.bookingNo})`)
+        .map((r) => `${timeByProfile.get(r.id) || '-'} (${codeById.get(r.courseId) || 'course'}, ${r.bookingNo})`)
         .join(', ');
 }
 
@@ -871,7 +871,7 @@ exports.create = async (req, res) => {
                     playDateText: playDateText(playDate),
                     teeTime: startTime,
                     crossTime: crossTime || '',
-                    courseName: `${course.courseCode}${course.description ? ' — ' + course.description : ''}`,
+                    courseName: `${course.courseCode}${course.description ? ' - ' + course.description : ''}`,
                     holes,
                     playersTable: playersTableHtml(lines),
                 },
@@ -1076,7 +1076,7 @@ exports.cancel = async (req, res) => {
                     bookingNo: profile.bookingNo,
                     playDateText: playDateText(String(profile.playDate)),
                     teeTime: startTime,
-                    courseName: course ? `${course.courseCode}${course.description ? ' — ' + course.description : ''}` : '',
+                    courseName: course ? `${course.courseCode}${course.description ? ' - ' + course.description : ''}` : '',
                     cancelReason: profile.cancelReason || '',
                     playersTable: playersTableHtml(firsts),
                 },

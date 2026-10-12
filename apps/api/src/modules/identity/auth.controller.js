@@ -18,7 +18,7 @@ const CompanyModule = require('../saas/companyModule.model');
 const RoleMenu = require('../saas/roleMenu.model');
 const { isUserSystemAdmin } = require('../saas/systemAdmin');
 const { getOwnedAccountIds, isAccountAdminForCompany } = require('../saas/account');
-const { hasTenantAdminRole } = require('../saas/tenant');
+const { hasTenantAdminRole, canAdministerCompany } = require('../saas/tenant');
 const { provisionTenant, listEntitlableModules } = require('../saas/provisioning.service');
 const { isPasswordBreached, BREACHED_PASSWORD_MESSAGE } = require('../../platform/passwordBreach');
 const { isDisposableEmail, DISPOSABLE_EMAIL_MESSAGE } = require('../../platform/disposableEmail');
@@ -537,7 +537,7 @@ async function buildWorkspaceMenus(roleId, companyId) {
         : [];
 
     if (roleName === 'Tenant Admin') {
-        // All entitled menus with implicit full access — parent sections are
+        // All entitled menus with implicit full access - parent sections are
         // already part of the set.
         return { roleName, menus: entitled.map(m => mapMenuItem(m, true)) };
     }
@@ -588,7 +588,7 @@ async function resolveWorkspaceContext(userId, companyId) {
 // Persist the workspace a user just entered, so the NEXT login can skip the
 // selection page (see the Scenario B auto-resume below). Stores the companyId,
 // or the 'SYSTEM' sentinel for the System Administration workspace. Remembering
-// is a convenience only — never block or fail a login on it.
+// is a convenience only - never block or fail a login on it.
 async function rememberLastWorkspace(userId, companyId) {
     try {
         await User.update(
@@ -953,7 +953,7 @@ exports.googleLogin = async (req, res) => {
 };
 
 // POST /api/auth/google/exchange   Body: { code, redirectUri }
-// Exchanges a Google authorization code (from the in-app redirect flow —
+// Exchanges a Google authorization code (from the in-app redirect flow -
 // google.accounts.oauth2.initCodeClient with ux_mode:'redirect') for an access
 // token, which the frontend then uses with /api/auth/google exactly like the old
 // popup token flow. This keeps the Google sign-in logic (incl. the 206
@@ -1988,7 +1988,7 @@ exports.getAvailableMenus = async (req, res) => {
         // Menus depend on the company's subscribed modules. companyId may be given
         // explicitly (Role Management picker) or default to the active company.
         const companyId = req.query.companyId || req.user.companyId;
-        if (!companyId || !(await hasTenantAdminRole(req.user.id, companyId))) {
+        if (!(await canAdministerCompany(req, companyId))) {
             return res.status(403).json({ message: "You don't have admin rights for that company." });
         }
 
@@ -2014,7 +2014,7 @@ exports.createRole = async (req, res) => {
     // A role is account-level. The caller names a company (explicitly, or their active
     // one) they can administer; the role is created under THAT company's account.
     const companyId = req.body.companyId || req.user.companyId;
-    if (!companyId || !(await hasTenantAdminRole(req.user.id, companyId))) {
+    if (!(await canAdministerCompany(req, companyId))) {
         return res.status(403).json({ message: "You don't have admin rights for that company." });
     }
 

@@ -37,7 +37,7 @@ const AR_TXN_META_MENUS = ['/ar/debtors', ...AR_TXN_MENUS, '/ar/interests'];
 router.get('/health', (req, res) => res.json({ service: 'ar', status: 'ok' }));
 
 // Everything below requires a valid token and an entitled, active workspace.
-// The Module row must be named EXACTLY 'Account Receivable' (Modules & Menus).
+// Entitlement is keyed by the frozen Module.code 'AR', never the display name.
 router.use(verifyToken);
 router.use(requireModule('AR'));
 
@@ -103,11 +103,13 @@ router.get('/debtor-options', requireAnyMenuAction(AR_TXN_META_MENUS), validate(
 // Invoice (menu '/ar/invoices'): cross-debtor listing + the Save->Submit
 // lifecycle (draft entry/edit, submit-to-post-or-approval, draft-only void).
 // Submit is reachable from BOTH doors (the account screen creates invoice
-// drafts through the shared dialog too), hence the any-of gate.
+// drafts through the shared dialog too), hence the any-of gate - but ONLY the
+// document's own menu or the account door: the broad viewer set let a grant on
+// Interests alone submit every document kind (closed 2026-10-12).
 router.get('/invoices', requireMenuAction('/ar/invoices'), validate(s.list), documentController.listInvoices);
 router.post('/invoices', requireMenuAction('/ar/invoices'), validate(s.createLedger), documentController.postInvoice);
 router.patch('/invoices/:id', requireMenuAction('/ar/invoices'), validate(s.updateLedger), documentController.updateInvoiceDraft);
-router.post('/invoices/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), validate(s.id), documentController.submitInvoice);
+router.post('/invoices/:id/submit', requireAnyMenuAction(['/ar/debtors', '/ar/invoices']), validate(s.id), documentController.submitInvoice);
 router.patch('/invoices/:id/void', requireMenuAction('/ar/invoices'), validate(s.voidWithReason), documentController.voidInvoice);
 // Debit Note (menu '/ar/debit-notes', last ledger slice 2026-09-01): same
 // Save->Submit lifecycle as the invoice - a DN charges the debtor more, so a
@@ -116,7 +118,7 @@ router.patch('/invoices/:id/void', requireMenuAction('/ar/invoices'), validate(s
 router.get('/debit-notes', requireMenuAction('/ar/debit-notes'), validate(s.list), documentController.listDebitNotes);
 router.post('/debit-notes', requireMenuAction('/ar/debit-notes'), validate(s.createLedger), documentController.postDebitNote);
 router.patch('/debit-notes/:id', requireMenuAction('/ar/debit-notes'), validate(s.updateLedger), documentController.updateDebitNoteDraft);
-router.post('/debit-notes/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), validate(s.id), documentController.submitDebitNote);
+router.post('/debit-notes/:id/submit', requireAnyMenuAction(['/ar/debtors', '/ar/debit-notes']), validate(s.id), documentController.submitDebitNote);
 router.patch('/debit-notes/:id/void', requireMenuAction('/ar/debit-notes'), validate(s.voidWithReason), documentController.voidDebitNote);
 // Credit Note (menu '/ar/credit-notes'): same Save->Submit lifecycle; the
 // draft carries its allocation intent (apply-against target), resolved at
@@ -124,7 +126,7 @@ router.patch('/debit-notes/:id/void', requireMenuAction('/ar/debit-notes'), vali
 router.get('/credit-notes', requireMenuAction('/ar/credit-notes'), validate(s.list), documentController.listCreditNotes);
 router.post('/credit-notes', requireMenuAction('/ar/credit-notes'), validate(s.createLedger), documentController.postCreditNote);
 router.patch('/credit-notes/:id', requireMenuAction('/ar/credit-notes'), validate(s.updateLedger), documentController.updateCreditNoteDraft);
-router.post('/credit-notes/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), validate(s.id), documentController.submitCreditNote);
+router.post('/credit-notes/:id/submit', requireAnyMenuAction(['/ar/debtors', '/ar/credit-notes']), validate(s.id), documentController.submitCreditNote);
 router.patch('/credit-notes/:id/void', requireMenuAction('/ar/credit-notes'), validate(s.voidWithReason), documentController.voidCreditNote);
 // Official Receipt (menu '/ar/receipts'): Save->Submit lifecycle, but Submit
 // posts DIRECTLY - collections carry no approval chain (user rule
@@ -133,7 +135,7 @@ router.patch('/credit-notes/:id/void', requireMenuAction('/ar/credit-notes'), va
 router.get('/receipts', requireMenuAction('/ar/receipts'), validate(s.list), documentController.listReceipts);
 router.post('/receipts', requireMenuAction('/ar/receipts'), validate(s.createReceipt), documentController.createReceipt);
 router.patch('/receipts/:id', requireMenuAction('/ar/receipts'), validate(s.updateReceipt), documentController.updateReceiptDraft);
-router.post('/receipts/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), validate(s.id), documentController.submitReceipt);
+router.post('/receipts/:id/submit', requireAnyMenuAction(['/ar/debtors', '/ar/receipts']), validate(s.id), documentController.submitReceipt);
 // Refund (menu '/ar/refunds', refund slice 2026-08-31): Save->Submit
 // lifecycle; Submit routes through the ar-refund approval chain when one is
 // active (refunds move money OUT), else posts directly. Three modes: deposit
@@ -143,7 +145,7 @@ router.post('/receipts/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), val
 router.get('/refunds', requireMenuAction('/ar/refunds'), validate(s.list), documentController.listRefunds);
 router.post('/refunds', requireMenuAction('/ar/refunds'), validate(s.createRefund), documentController.createRefund);
 router.patch('/refunds/:id', requireMenuAction('/ar/refunds'), validate(s.updateRefund), documentController.updateRefundDraft);
-router.post('/refunds/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), validate(s.id), documentController.submitRefund);
+router.post('/refunds/:id/submit', requireAnyMenuAction(['/ar/debtors', '/ar/refunds']), validate(s.id), documentController.submitRefund);
 router.patch('/refunds/:id/void', requireAnyMenuAction(['/ar/debtors', '/ar/refunds']), validate(s.voidWithReason), documentController.voidRefundDraft);
 // Deposit (menu '/ar/deposits', deposit slice 2026-09-01): Save->Submit
 // lifecycle; Submit routes through the ar-deposit approval chain when one is
@@ -153,7 +155,7 @@ router.patch('/refunds/:id/void', requireAnyMenuAction(['/ar/debtors', '/ar/refu
 router.get('/deposits', requireMenuAction('/ar/deposits'), validate(s.list), documentController.listDeposits);
 router.post('/deposits', requireMenuAction('/ar/deposits'), validate(s.createDeposit), documentController.createDeposit);
 router.patch('/deposits/:id', requireMenuAction('/ar/deposits'), validate(s.updateDeposit), documentController.updateDepositDraft);
-router.post('/deposits/:id/submit', requireAnyMenuAction(AR_TXN_META_MENUS), validate(s.id), documentController.submitDeposit);
+router.post('/deposits/:id/submit', requireAnyMenuAction(['/ar/debtors', '/ar/deposits']), validate(s.id), documentController.submitDeposit);
 
 // --- Transaction Type master (AR-owned catalog since 2026-08-15; its own
 // screen/menu '/ar/transaction-types'). Membership reads it READ-ONLY through

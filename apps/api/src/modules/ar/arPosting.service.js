@@ -636,7 +636,7 @@ async function postDraftRefund({ companyId, debtor, row, issueDocNo, issueCnDocN
             issueDocNo: issueCnDocNo,
             docDate: row.docDate, trxDate: row.trxDate,
             transactionTypeId: conversionType.id,
-            description: `Refund ${row.docNo} — deposit ${deposit.docNo} applied to outstanding`,
+            description: `Refund ${row.docNo} - deposit ${deposit.docNo} applied to outstanding`,
             sourceModule: 'ar', sourceRef: row.id,
             amounts: { netC: amountC, taxC: 0, grossC: amountC, taxSchemeCode: null, taxRate: null },
             fx: row.exchangeRate ? { currencyCode: row.currencyCode, exchangeRate: Number(row.exchangeRate), isBase: Number(row.exchangeRate) === 1 } : null,

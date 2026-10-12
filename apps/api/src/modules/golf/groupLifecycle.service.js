@@ -475,7 +475,7 @@ async function submit(req, profile) {
         // The club's own event is exempt from the approval chain.
         const wf = fresh.isClubEvent === true ? null : await workflowGateway.startWorkflow(req, PURPOSE, {
             entityId: fresh.id,
-            entityLabel: `${typeLabel(fresh.bookingType)} ${fresh.groupName || fresh.bookingNo} (${fresh.bookingNo}) — ${built.context.playDays} day(s), ${built.context.totalFlights} flight(s), ${built.context.amount.toFixed(2)}`,
+            entityLabel: `${typeLabel(fresh.bookingType)} ${fresh.groupName || fresh.bookingNo} (${fresh.bookingNo}) - ${built.context.playDays} day(s), ${built.context.totalFlights} flight(s), ${built.context.amount.toFixed(2)}`,
             context: built.context,
             transaction,
         });

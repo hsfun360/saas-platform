@@ -79,6 +79,10 @@ const Course = sequelize.define('Course', {
         allowNull: false,
         defaultValue: true,
     },
+    // Ownership stamps (RBAC data scope).
+    createdBy: { type: DataTypes.UUID, allowNull: true },
+    createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },
+    updatedBy: { type: DataTypes.UUID, allowNull: true },
 }, {
     schema: GOLF_SCHEMA,
     tableName: 'Course',

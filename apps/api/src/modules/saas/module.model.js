@@ -20,7 +20,7 @@ const Module = sequelize.define('Module', {
     },
     name: {
         type: DataTypes.STRING,
-        allowNull: false // e.g., "Golf Management" — base/English name + fallback.
+        allowNull: false // e.g., "Golf Management" - base/English name + fallback.
         // DISPLAY ONLY since `code` became the identity - renamable at will.
         // Unique PER AUDIENCE (composite index below), not globally: the tenant
         // and platform catalogues are separate worlds and may reuse a name

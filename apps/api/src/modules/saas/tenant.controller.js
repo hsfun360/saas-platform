@@ -17,7 +17,7 @@ const Department = require('./department.model');
 const Position = require('./position.model');
 const bcrypt = require('bcryptjs');
 const { sequelize } = require('../../platform/db');
-const { hasTenantAdminRole } = require('./tenant');
+const { canAdministerCompany } = require('./tenant');
 const { isAccountOwner } = require('./account');
 const CompanySmtpConfig = require('./companySmtpConfig.model');
 const secretbox = require('../../platform/secretbox');
@@ -47,7 +47,7 @@ async function resolveTargetCompany(req, explicitCompanyId) {
     if (!companyId) {
         return { status: 400, message: "No company specified." };
     }
-    const allowed = await hasTenantAdminRole(req.user.id, companyId);
+    const allowed = await canAdministerCompany(req, companyId);
     if (!allowed) {
         return { status: 403, message: "You don't have admin rights for that company." };
     }
@@ -213,7 +213,7 @@ exports.deleteTenantRole = async (req, res) => {
 };
 
 // ============================================================================
-// ACCOUNT-LEVEL ROLES (RBAC) — a Role is an account-wide named set of menu
+// ACCOUNT-LEVEL ROLES (RBAC) - a Role is an account-wide named set of menu
 // permissions, NOT tied to a company. Company enters only at entitlement
 // (module subscription) and assignment (CompanyUser.roleId). All scoped to the
 // caller's account (derived from req.user.companyId).
@@ -912,7 +912,7 @@ exports.updateTenantUserProfile = async (req, res) => {
 // GET /api/auth/account/users  -> account-wide, person-centric view for the
 // redesigned User Management screen. Returns the companies the caller may
 // administer (each with its roles), every person who is a member of any of those
-// companies (with their per-company role), and pending invitations — everything
+// companies (with their per-company role), and pending invitations - everything
 // the UI needs to manage "who is in which company as what role" in one payload.
 exports.listAccountUsers = async (req, res) => {
     try {
@@ -1289,7 +1289,7 @@ exports.updateCompany = async (req, res) => {
                 company[f] = v === '' ? null : v;
             }
         }
-        // timezone is NOT NULL — never let it be cleared.
+        // timezone is NOT NULL - never let it be cleared.
         if (!company.timezone) company.timezone = 'Asia/Kuala_Lumpur';
 
         // e-Invoice codes are stored uppercase (matching the reference tables).
@@ -1373,7 +1373,7 @@ exports.addCollaborator = async (req, res) => {
         }
 
         // ONE generic outcome whether the email is unknown OR belongs to another
-        // account — so this endpoint can't be used to probe which emails exist on
+        // account - so this endpoint can't be used to probe which emails exist on
         // the platform. Both cases route the admin to the consent-based invite.
         if (!user || !sharesAccount) {
             await transaction.rollback();
@@ -1412,10 +1412,10 @@ exports.addCollaborator = async (req, res) => {
 };
 
 // ==========================================
-// COMPANY SMTP (outgoing email server) — Tenant Admin, per company
+// COMPANY SMTP (outgoing email server) - Tenant Admin, per company
 // ==========================================
 
-// Shape a config for the client — never includes the password.
+// Shape a config for the client - never includes the password.
 function presentSmtp(cfg) {
     if (!cfg) return { configured: false };
     return {

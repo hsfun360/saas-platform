@@ -259,7 +259,7 @@ Company.belongsToMany(User, { through: CompanyUser, foreignKey: 'companyId', as:
 Module.hasMany(Menu, { foreignKey: 'moduleId', as: 'Menus' });
 Menu.belongsTo(Module, { foreignKey: 'moduleId', as: 'Module' });
 
-// 3b. Menu tree (adjacency list) — a menu may nest under another menu in the
+// 3b. Menu tree (adjacency list) - a menu may nest under another menu in the
 // same module, to arbitrary depth. Deleting a parent lifts its children up a
 // level (SET NULL), it never cascade-deletes them.
 Menu.hasMany(Menu, { foreignKey: 'parentId', as: 'Children', onDelete: 'SET NULL' });
@@ -269,7 +269,7 @@ Menu.belongsTo(Menu, { foreignKey: 'parentId', as: 'Parent' });
 Company.belongsToMany(Module, { through: CompanyModule, foreignKey: 'companyId', as: 'SubscribedModules' });
 Module.belongsToMany(Company, { through: CompanyModule, foreignKey: 'moduleId', as: 'SubscribedCompanies' });
 
-// 5. Roles (Account Level) — a Role is an account-wide named set of menu
+// 5. Roles (Account Level) - a Role is an account-wide named set of menu
 // permissions, owned by an Account (accountId NULL = platform/system role). The
 // legacy Company<->Role link was removed with the companyId column (2026-07-10);
 // keeping the belongsTo would re-add companyId as a Role attribute on every SELECT.

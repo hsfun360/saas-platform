@@ -31,7 +31,7 @@ exports.seedCurrencies = async (req, res) => {
     }
 };
 
-// GET /api/admin/currencies  (System Admin maintenance — every currency)
+// GET /api/admin/currencies  (System Admin maintenance - every currency)
 exports.listAllCurrencies = async (req, res) => {
     try {
         const currencies = await Currency.findAll({ order: [['code', 'ASC']] });
@@ -103,7 +103,7 @@ exports.deleteCurrency = async (req, res) => {
     }
 };
 
-// GET /api/currencies  (any authenticated user — active currencies for pickers)
+// GET /api/currencies  (any authenticated user - active currencies for pickers)
 exports.listActiveCurrencies = async (req, res) => {
     try {
         const currencies = await Currency.findAll({

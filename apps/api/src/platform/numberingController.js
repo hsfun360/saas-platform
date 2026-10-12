@@ -21,9 +21,16 @@ function makeNumberingRouter({ model, purposes }) {
         RESET_RULE_KEYS,
     } = require('../modules/saas/numberingScheme.constants');
     const purposeKeys = purposes.map((p) => p.key);
+    const { getUserContext, getCallerPlacement } = require('./serviceContext');
     const router = express.Router();
 
     const companyIdOf = (req) => (req.user && req.user.companyId ? req.user.companyId : null);
+    // Ownership stamps (RBAC data scope) for the rows this router creates.
+    const stampsFor = async (req) => {
+        const callerId = getUserContext(req).userId;
+        const placement = await getCallerPlacement(req);
+        return { createdBy: callerId, createdByDepartmentId: placement.departmentId, updatedBy: callerId };
+    };
 
     const toDto = (row) => ({
         id: row.id,
@@ -75,7 +82,7 @@ function makeNumberingRouter({ model, purposes }) {
             const existing = await model.findOne({ where: { companyId, purpose } });
             if (existing) return res.status(409).json({ message: 'A numbering scheme for this purpose already exists.' });
 
-            const row = await model.create({ companyId, purpose, ...parsed.value });
+            const row = await model.create({ companyId, purpose, ...parsed.value, ...(await stampsFor(req)) });
             res.status(201).json({ message: 'Numbering scheme created.', scheme: toDto(row) });
         } catch (error) {
             console.error('Error creating numbering scheme:', error);
@@ -203,6 +210,7 @@ function makeNumberingRouter({ model, purposes }) {
             const { sequelize } = require('./db');
             const created = [];
             const skipped = [];
+            const stamps = await stampsFor(req);
             await sequelize.transaction(async (t) => {
                 for (const src of rows) {
                     if (!purposeKeys.includes(src.purpose)) continue;
@@ -220,6 +228,7 @@ function makeNumberingRouter({ model, purposes }) {
                         currentNumber: 0,
                         currentPeriod: null,
                         isActive: true,
+                        ...stamps,
                     }, { transaction: t });
                     created.push(src.purpose);
                     existingPurposes.add(src.purpose);
@@ -247,7 +256,7 @@ function makeNumberingRouter({ model, purposes }) {
             const parsed = normalizeConfig(req.body);
             if (parsed.error) return res.status(400).json({ message: parsed.error });
 
-            Object.assign(row, parsed.value);
+            Object.assign(row, parsed.value, { updatedBy: getUserContext(req).userId });
             await row.save();
             res.status(200).json({ message: 'Numbering scheme updated.', scheme: toDto(row) });
         } catch (error) {

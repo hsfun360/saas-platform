@@ -98,7 +98,7 @@ exports.syncCountries = async (req, res) => {
     }
 };
 
-// GET /api/admin/countries  (System Admin maintenance — every country)
+// GET /api/admin/countries  (System Admin maintenance - every country)
 exports.listAllCountries = async (req, res) => {
     try {
         const countries = await Country.findAll({ order: [['name', 'ASC']] });
@@ -147,7 +147,7 @@ exports.updateCountry = async (req, res) => {
     }
 };
 
-// GET /api/countries  (any authenticated user — active countries for pickers)
+// GET /api/countries  (any authenticated user - active countries for pickers)
 exports.listActiveCountries = async (req, res) => {
     try {
         const countries = await Country.findAll({

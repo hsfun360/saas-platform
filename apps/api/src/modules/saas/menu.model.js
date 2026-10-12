@@ -9,7 +9,7 @@ const Menu = sequelize.define('Menu', {
     },
     name: {
         type: DataTypes.STRING,
-        allowNull: false // e.g., "Tee Time Setup" — base/English name + fallback
+        allowNull: false // e.g., "Tee Time Setup" - base/English name + fallback
     },
     // Localized names keyed by language code, e.g. { en: 'Companies', ms: 'Syarikat' }.
     // Edited in the Modules & Menus screen; resolved to the active language at
@@ -19,7 +19,7 @@ const Menu = sequelize.define('Menu', {
         allowNull: false,
         defaultValue: {},
     },
-    // One-liner explaining what the screen does — shown under the menu name in
+    // One-liner explaining what the screen does - shown under the menu name in
     // the role permission picker so a role builder understands each option.
     description: {
         type: DataTypes.STRING(255),

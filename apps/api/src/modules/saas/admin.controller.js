@@ -447,7 +447,7 @@ exports.updateModule = async (req, res) => {
 // DELETE /api/admin/modules/:moduleId
 // Blocked while any company still subscribes to the module (remove it from those
 // companies first). Otherwise cascade-removes the module's menus and any RoleMenu
-// grants to those menus, then the module itself — all in one transaction.
+// grants to those menus, then the module itself - all in one transaction.
 exports.deleteModule = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
@@ -1169,7 +1169,7 @@ exports.updateSubscription = async (req, res) => {
                 }
                 if (timezone !== undefined) {
                     const v = typeof timezone === 'string' ? timezone.trim() : timezone;
-                    // timezone is NOT NULL — keep the existing value if cleared.
+                    // timezone is NOT NULL - keep the existing value if cleared.
                     company.timezone = v ? v : (company.timezone || 'Asia/Kuala_Lumpur');
                 }
                 await company.save({ transaction });

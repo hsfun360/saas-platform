@@ -30,7 +30,7 @@ const positionController = require('../saas/position.controller');
 const publicHolidayController = require('../saas/publicHoliday.controller');
 const weekendDayController = require('../saas/companyWeekendDay.controller');
 const userFavoriteController = require('../saas/userFavorite.controller');
-const { hasTenantAdminRole } = require('../saas/tenant');
+const { requireMenuAction, requireAnyMenuAction } = require('../../platform/serviceContext');
 
 // Test Route to verify that the auth routes are working
 // --- Middleware to verify the JWT (Must be defined here to work in this file) ---
@@ -171,7 +171,7 @@ router.get('/mfa/status', authenticateToken, authController.mfaStatus);
 router.post('/mfa/disable', authenticateToken, validate(schemas.mfaCode), authController.mfaDisable);
 // Refresh (httpOnly cookie -> fresh 1h access token) + sign out.
 router.post('/refresh', loginLimiter(), authController.refreshSession);
-router.post('/logout', authController.logout);
+router.post('/logout', loginLimiter(), authController.logout);
 
 // --- Updated Profile Route with Transactional Outbox ---
 router.put('/profile', authenticateToken, async (req, res) => {
@@ -275,60 +275,55 @@ const requireSystemAdmin = (req, res, next) => {
     next();
 };
 
-// Guard for tenant administration (must hold the Tenant Admin role for this company)
-const requireTenantAdmin = async (req, res, next) => {
-    try {
-        const isAdmin = await hasTenantAdminRole(req.user?.id, req.user?.companyId);
-        if (!isAdmin) {
-            return res.status(403).json({ message: "Access denied: Tenant Administrators only." });
-        }
-        next();
-    } catch (error) {
-        console.error("Tenant Admin Auth Error:", error);
-        res.status(500).json({ message: "Internal server error during authorization check." });
-    }
-};
+// Tenant administration gates on the seeded System Setup MENUS (requireMenuAction,
+// 2026-10-12), not on the 'Tenant Admin' role name: a custom role granted
+// Role Management or Companies may now administer them, exactly as the sidebar
+// promises. Tenant Admin keeps implicit full access inside requireMenuAction.
+// Cross-company targets (?companyId= on the account-wide screens) stay with
+// canAdministerCompany in modules/saas/tenant.js.
 
 // --- SECURE SAAS ROUTES ---
-// Notice how we stack the middleware:
+// The middleware stack on every tenant-administration route:
 // 1. authenticateToken checks if they are logged in at all.
 // 2. requireTenant checks if they actually belong to a Company workspace.
-router.get('/company/menus', authenticateToken, requireTenant, requireTenantAdmin, authController.getAvailableMenus);
-router.post('/company/roles', authenticateToken, requireTenant, requireTenantAdmin, authController.createRole);
+// 3. requireMenuAction('<System Setup menu>') checks the role's grant on the
+//    screen that owns the route (view / create / edit / delete by method).
+router.get('/company/menus', authenticateToken, requireTenant, requireMenuAction('/admin/roles'), authController.getAvailableMenus);
+router.post('/company/roles', authenticateToken, requireTenant, requireMenuAction('/admin/roles'), authController.createRole);
 
 // (Numbering Control moved 2026-08-05: per-module tables + screens - see
 // /api/membership/numbering-schemes and /api/ar/numbering-schemes.)
 
 // --- TENANT USER MANAGEMENT (Tenant Admin only) ---
-router.get('/company/roles', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listTenantRoles);
-router.get('/company/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.getTenantRole);
-router.put('/company/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateTenantRole);
-router.delete('/company/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.deleteTenantRole);
-router.get('/company/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listTenantUsers);
-router.post('/company/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createTenantUser);
-router.patch('/company/users/:userId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateTenantUserProfile);
-router.post('/company/users/:userId/mfa/reset', authenticateToken, requireTenant, requireTenantAdmin, tenantController.resetTenantUserMfa);
-router.post('/company/users/assign-role', authenticateToken, requireTenant, requireTenantAdmin, tenantController.assignTenantUserRole);
-router.post('/company/users/revoke', authenticateToken, requireTenant, requireTenantAdmin, tenantController.revokeTenantUser);
+router.get('/company/roles', authenticateToken, requireTenant, requireMenuAction('/admin/roles'), tenantController.listTenantRoles);
+router.get('/company/roles/:roleId', authenticateToken, requireTenant, requireMenuAction('/admin/roles'), tenantController.getTenantRole);
+router.put('/company/roles/:roleId', authenticateToken, requireTenant, requireMenuAction('/admin/roles'), tenantController.updateTenantRole);
+router.delete('/company/roles/:roleId', authenticateToken, requireTenant, requireMenuAction('/admin/roles'), tenantController.deleteTenantRole);
+router.get('/company/users', authenticateToken, requireTenant, requireMenuAction('/admin/users'), tenantController.listTenantUsers);
+router.post('/company/users', authenticateToken, requireTenant, requireMenuAction('/admin/users'), tenantController.createTenantUser);
+router.patch('/company/users/:userId', authenticateToken, requireTenant, requireMenuAction('/admin/users'), tenantController.updateTenantUserProfile);
+router.post('/company/users/:userId/mfa/reset', authenticateToken, requireTenant, requireMenuAction('/admin/users'), tenantController.resetTenantUserMfa);
+router.post('/company/users/assign-role', authenticateToken, requireTenant, requireMenuAction('/admin/users'), tenantController.assignTenantUserRole);
+router.post('/company/users/revoke', authenticateToken, requireTenant, requireMenuAction('/admin/users'), tenantController.revokeTenantUser);
 // Account-wide, person-centric view for the redesigned User Management screen.
-router.get('/account/users', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listAccountUsers);
+router.get('/account/users', authenticateToken, requireTenant, requireMenuAction('/admin/users'), tenantController.listAccountUsers);
 // Tenant-scoped audit view: entries made by the account's staff in the
 // account's workspaces (platform entries + the User table excluded).
-router.get('/account/audit-log', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listAccountAuditLog);
+router.get('/account/audit-log', authenticateToken, requireTenant, requireMenuAction('/admin/account-audit-log'), tenantController.listAccountAuditLog);
 
 // --- ACCOUNT-LEVEL ROLES & MENU CATALOGUE (RBAC; a Role is a named set of menu
 // permissions, not tied to a company). ---
-router.get('/account/menus', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listAccountMenus);
-router.get('/account/roles', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listAccountRoles);
-router.get('/account/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.getAccountRole);
-router.post('/account/roles', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createAccountRole);
-router.put('/account/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateAccountRole);
-router.delete('/account/roles/:roleId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.deleteAccountRole);
+router.get('/account/menus', authenticateToken, requireTenant, requireMenuAction('/admin/roles'), tenantController.listAccountMenus);
+router.get('/account/roles', authenticateToken, requireTenant, requireMenuAction('/admin/roles'), tenantController.listAccountRoles);
+router.get('/account/roles/:roleId', authenticateToken, requireTenant, requireMenuAction('/admin/roles'), tenantController.getAccountRole);
+router.post('/account/roles', authenticateToken, requireTenant, requireMenuAction('/admin/roles'), tenantController.createAccountRole);
+router.put('/account/roles/:roleId', authenticateToken, requireTenant, requireMenuAction('/admin/roles'), tenantController.updateAccountRole);
+router.delete('/account/roles/:roleId', authenticateToken, requireTenant, requireMenuAction('/admin/roles'), tenantController.deleteAccountRole);
 
 // --- SUBSCRIBER LANGUAGE SELECTION (Tenant Admin self-service) ---
 // The subscriber's chosen language subset + default, from their own account.
-router.get('/account/languages', authenticateToken, requireTenant, requireTenantAdmin, accountLanguageController.getAccountLanguages);
-router.put('/account/languages', authenticateToken, requireTenant, requireTenantAdmin, accountLanguageController.updateAccountLanguages);
+router.get('/account/languages', authenticateToken, requireTenant, requireMenuAction('/admin/account-languages'), accountLanguageController.getAccountLanguages);
+router.put('/account/languages', authenticateToken, requireTenant, requireMenuAction('/admin/account-languages'), accountLanguageController.updateAccountLanguages);
 
 // --- PER-USER PREFERRED LANGUAGE (any authenticated user) ---
 // The languages the user may pick from (their active account's set) + their pick.
@@ -338,22 +333,22 @@ router.patch('/me/language', authenticateToken, accountLanguageController.setMyL
 // --- SUBSCRIBER CURRENCY SELECTION (Tenant Admin self-service) ---
 // The subscriber's chosen currency subset + default, from their own account. Also
 // read by the Companies screen to populate a company's default-currency picker.
-router.get('/account/currencies', authenticateToken, requireTenant, requireTenantAdmin, accountCurrencyController.getAccountCurrencies);
-router.put('/account/currencies', authenticateToken, requireTenant, requireTenantAdmin, accountCurrencyController.updateAccountCurrencies);
+router.get('/account/currencies', authenticateToken, requireTenant, requireAnyMenuAction(['/admin/account-currencies', '/admin/companies']), accountCurrencyController.getAccountCurrencies);
+router.put('/account/currencies', authenticateToken, requireTenant, requireMenuAction('/admin/account-currencies'), accountCurrencyController.updateAccountCurrencies);
 
 // --- SUBSCRIBER INDUSTRY TYPES (Tenant Admin self-service) ---
 // Subscriber-owned industry taxonomy, shared by every company in the account and
 // consumed across products (Membership / Golf) via /api/industry-types.
-router.get('/account/industry-types', authenticateToken, requireTenant, requireTenantAdmin, industryTypeController.listIndustryTypes);
-router.post('/account/industry-types', authenticateToken, requireTenant, requireTenantAdmin, industryTypeController.createIndustryType);
-router.patch('/account/industry-types/:id', authenticateToken, requireTenant, requireTenantAdmin, industryTypeController.updateIndustryType);
+router.get('/account/industry-types', authenticateToken, requireTenant, requireMenuAction('/admin/industry-types'), industryTypeController.listIndustryTypes);
+router.post('/account/industry-types', authenticateToken, requireTenant, requireMenuAction('/admin/industry-types'), industryTypeController.createIndustryType);
+router.patch('/account/industry-types/:id', authenticateToken, requireTenant, requireMenuAction('/admin/industry-types'), industryTypeController.updateIndustryType);
 
 // --- SUBSCRIBER SALUTATIONS (Tenant Admin self-service) ---
 // Subscriber-owned salutation list (Mr/Mrs/Datuk/...), shared by every company in
 // the account and consumed across products via /api/salutations.
-router.get('/account/salutations', authenticateToken, requireTenant, requireTenantAdmin, salutationController.listSalutations);
-router.post('/account/salutations', authenticateToken, requireTenant, requireTenantAdmin, salutationController.createSalutation);
-router.patch('/account/salutations/:id', authenticateToken, requireTenant, requireTenantAdmin, salutationController.updateSalutation);
+router.get('/account/salutations', authenticateToken, requireTenant, requireMenuAction('/admin/salutations'), salutationController.listSalutations);
+router.post('/account/salutations', authenticateToken, requireTenant, requireMenuAction('/admin/salutations'), salutationController.createSalutation);
+router.patch('/account/salutations/:id', authenticateToken, requireTenant, requireMenuAction('/admin/salutations'), salutationController.updateSalutation);
 
 // --- SUBSCRIBER NATIONALITIES (Tenant Admin self-service) ---
 // Subscriber-owned nationality list, each entry optionally anchored to a platform
@@ -362,67 +357,67 @@ router.patch('/account/salutations/:id', authenticateToken, requireTenant, requi
 router.get('/my/favorites', authenticateToken, userFavoriteController.listMyFavorites);
 router.put('/my/favorites', authenticateToken, userFavoriteController.replaceMyFavorites);
 
-router.get('/account/nationalities', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.listNationalities);
-router.post('/account/nationalities', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.createNationality);
-router.patch('/account/nationalities/:id', authenticateToken, requireTenant, requireTenantAdmin, nationalityController.updateNationality);
+router.get('/account/nationalities', authenticateToken, requireTenant, requireMenuAction('/admin/nationalities'), nationalityController.listNationalities);
+router.post('/account/nationalities', authenticateToken, requireTenant, requireMenuAction('/admin/nationalities'), nationalityController.createNationality);
+router.patch('/account/nationalities/:id', authenticateToken, requireTenant, requireMenuAction('/admin/nationalities'), nationalityController.updateNationality);
 
 // --- SUBSCRIBER RACES (Tenant Admin self-service) ---
 // Subscriber-owned race/ethnicity list, shared account-wide and consumed across
 // products via /api/races. Pure demographic vocabulary - linked to nothing else.
-router.get('/account/races', authenticateToken, requireTenant, requireTenantAdmin, raceController.listRaces);
-router.post('/account/races', authenticateToken, requireTenant, requireTenantAdmin, raceController.createRace);
-router.patch('/account/races/:id', authenticateToken, requireTenant, requireTenantAdmin, raceController.updateRace);
+router.get('/account/races', authenticateToken, requireTenant, requireMenuAction('/admin/races'), raceController.listRaces);
+router.post('/account/races', authenticateToken, requireTenant, requireMenuAction('/admin/races'), raceController.createRace);
+router.patch('/account/races/:id', authenticateToken, requireTenant, requireMenuAction('/admin/races'), raceController.updateRace);
 
 // --- SUBSCRIBER TITLES / HONORIFICS (Tenant Admin self-service) ---
 // Subscriber-owned honorific list (Datuk/Tan Sri/Sir/...), each optionally
 // country-bound (Country.alpha2; NULL = universal). Consumed via /api/titles.
-router.get('/account/titles', authenticateToken, requireTenant, requireTenantAdmin, titleController.listTitles);
-router.post('/account/titles', authenticateToken, requireTenant, requireTenantAdmin, titleController.createTitle);
-router.patch('/account/titles/:id', authenticateToken, requireTenant, requireTenantAdmin, titleController.updateTitle);
+router.get('/account/titles', authenticateToken, requireTenant, requireMenuAction('/admin/titles'), titleController.listTitles);
+router.post('/account/titles', authenticateToken, requireTenant, requireMenuAction('/admin/titles'), titleController.createTitle);
+router.patch('/account/titles/:id', authenticateToken, requireTenant, requireMenuAction('/admin/titles'), titleController.updateTitle);
 
 // --- SUBSCRIBER DEPARTMENTS (Tenant Admin self-service) ---
 // Subscriber-owned department list, shared account-wide, assigned to users per
 // company (CompanyUser.departmentId) and consumed via /api/departments.
 // Feeds the RBAC data-scope rule (Phase 3).
-router.get('/account/departments', authenticateToken, requireTenant, requireTenantAdmin, departmentController.listDepartments);
-router.post('/account/departments', authenticateToken, requireTenant, requireTenantAdmin, departmentController.createDepartment);
-router.patch('/account/departments/:id', authenticateToken, requireTenant, requireTenantAdmin, departmentController.updateDepartment);
+router.get('/account/departments', authenticateToken, requireTenant, requireMenuAction('/admin/departments'), departmentController.listDepartments);
+router.post('/account/departments', authenticateToken, requireTenant, requireMenuAction('/admin/departments'), departmentController.createDepartment);
+router.patch('/account/departments/:id', authenticateToken, requireTenant, requireMenuAction('/admin/departments'), departmentController.updateDepartment);
 
 // --- SUBSCRIBER POSITIONS (Tenant Admin self-service) ---
 // Subscriber-owned position ladder with a seniority `rank` (higher = more
 // senior; drives the Phase-3 "senior may amend subordinate's record" rule).
 // Assigned per company (CompanyUser.positionId), consumed via /api/positions.
-router.get('/account/positions/defaults', authenticateToken, requireTenant, requireTenantAdmin, positionController.getDefaultPositions);
-router.post('/account/positions/seed', authenticateToken, requireTenant, requireTenantAdmin, positionController.seedPositions);
-router.get('/account/positions', authenticateToken, requireTenant, requireTenantAdmin, positionController.listPositions);
-router.post('/account/positions', authenticateToken, requireTenant, requireTenantAdmin, positionController.createPosition);
-router.patch('/account/positions/:id', authenticateToken, requireTenant, requireTenantAdmin, positionController.updatePosition);
+router.get('/account/positions/defaults', authenticateToken, requireTenant, requireMenuAction('/admin/positions'), positionController.getDefaultPositions);
+router.post('/account/positions/seed', authenticateToken, requireTenant, requireMenuAction('/admin/positions'), positionController.seedPositions);
+router.get('/account/positions', authenticateToken, requireTenant, requireMenuAction('/admin/positions'), positionController.listPositions);
+router.post('/account/positions', authenticateToken, requireTenant, requireMenuAction('/admin/positions'), positionController.createPosition);
+router.patch('/account/positions/:id', authenticateToken, requireTenant, requireMenuAction('/admin/positions'), positionController.updatePosition);
 
 // --- SUBSCRIBER PUBLIC HOLIDAYS (Tenant Admin self-service) ---
 // Subscriber-owned holiday calendar, scoped by country (the countries the
 // account's companies operate in); consumed via /api/public-holidays.
-router.get('/account/public-holidays/countries', authenticateToken, requireTenant, requireTenantAdmin, publicHolidayController.listHolidayCountries);
-router.get('/account/public-holidays', authenticateToken, requireTenant, requireTenantAdmin, publicHolidayController.listPublicHolidays);
-router.post('/account/public-holidays', authenticateToken, requireTenant, requireTenantAdmin, publicHolidayController.createPublicHoliday);
-router.patch('/account/public-holidays/:id', authenticateToken, requireTenant, requireTenantAdmin, publicHolidayController.updatePublicHoliday);
+router.get('/account/public-holidays/countries', authenticateToken, requireTenant, requireMenuAction('/admin/public-holidays'), publicHolidayController.listHolidayCountries);
+router.get('/account/public-holidays', authenticateToken, requireTenant, requireMenuAction('/admin/public-holidays'), publicHolidayController.listPublicHolidays);
+router.post('/account/public-holidays', authenticateToken, requireTenant, requireMenuAction('/admin/public-holidays'), publicHolidayController.createPublicHoliday);
+router.patch('/account/public-holidays/:id', authenticateToken, requireTenant, requireMenuAction('/admin/public-holidays'), publicHolidayController.updatePublicHoliday);
 
 // --- SUBSCRIBER EMAIL TEMPLATES (Tenant Admin self-service) ---
 // A subscriber's own versions of the platform templates flagged tenant-overridable.
-router.get('/account/email-templates', authenticateToken, requireTenant, requireTenantAdmin, accountEmailTemplateController.listOverridable);
-router.get('/account/email-templates/:key', authenticateToken, requireTenant, requireTenantAdmin, accountEmailTemplateController.getForAccount);
-router.put('/account/email-templates/:key', authenticateToken, requireTenant, requireTenantAdmin, accountEmailTemplateController.upsertOverride);
-router.delete('/account/email-templates/:key', authenticateToken, requireTenant, requireTenantAdmin, accountEmailTemplateController.removeOverride);
-router.post('/account/email-templates/:key/preview', authenticateToken, requireTenant, requireTenantAdmin, accountEmailTemplateController.previewOverride);
-router.post('/account/email-templates/:key/test', authenticateToken, requireTenant, requireTenantAdmin, accountEmailTemplateController.sendTest);
+router.get('/account/email-templates', authenticateToken, requireTenant, requireMenuAction('/admin/account-email-templates'), accountEmailTemplateController.listOverridable);
+router.get('/account/email-templates/:key', authenticateToken, requireTenant, requireMenuAction('/admin/account-email-templates'), accountEmailTemplateController.getForAccount);
+router.put('/account/email-templates/:key', authenticateToken, requireTenant, requireMenuAction('/admin/account-email-templates'), accountEmailTemplateController.upsertOverride);
+router.delete('/account/email-templates/:key', authenticateToken, requireTenant, requireMenuAction('/admin/account-email-templates'), accountEmailTemplateController.removeOverride);
+router.post('/account/email-templates/:key/preview', authenticateToken, requireTenant, requireMenuAction('/admin/account-email-templates'), accountEmailTemplateController.previewOverride);
+router.post('/account/email-templates/:key/test', authenticateToken, requireTenant, requireMenuAction('/admin/account-email-templates'), accountEmailTemplateController.sendTest);
 
 // Add an EXISTING same-account user as a collaborator on the caller's company.
-router.post('/company/collaborators', authenticateToken, requireTenant, requireTenantAdmin, tenantController.addCollaborator);
+router.post('/company/collaborators', authenticateToken, requireTenant, requireMenuAction('/admin/users'), tenantController.addCollaborator);
 
 // --- COLLABORATOR INVITATIONS (consent-based cross-tenant bridge) ---
 // Admin side (Tenant Admin within their company):
-router.post('/company/invitations', authenticateToken, requireTenant, requireTenantAdmin, invitationController.createInvitation);
-router.get('/company/invitations', authenticateToken, requireTenant, requireTenantAdmin, invitationController.listCompanyInvitations);
-router.post('/company/invitations/:id/revoke', authenticateToken, requireTenant, requireTenantAdmin, invitationController.revokeInvitation);
+router.post('/company/invitations', authenticateToken, requireTenant, requireMenuAction('/admin/users'), invitationController.createInvitation);
+router.get('/company/invitations', authenticateToken, requireTenant, requireMenuAction('/admin/users'), invitationController.listCompanyInvitations);
+router.post('/company/invitations/:id/revoke', authenticateToken, requireTenant, requireMenuAction('/admin/users'), invitationController.revokeInvitation);
 // Invitee side (any logged-in user, matched by their own email):
 router.get('/invitations', authenticateToken, invitationController.listMyInvitations);
 router.post('/invitations/:id/accept', authenticateToken, invitationController.acceptInvitation);
@@ -437,21 +432,21 @@ router.post('/switch-workspace', authenticateToken, authController.switchWorkspa
 // --- COMPANY (BUSINESS ENTITY) MANAGEMENT (Tenant Admin only) ---
 // A subscriber's Tenant Admin can create additional companies under their account
 // and choose which modules each company needs.
-router.get('/company/available-modules', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listAvailableModules);
-router.get('/companies', authenticateToken, requireTenant, requireTenantAdmin, tenantController.listCompanies);
-router.post('/companies', authenticateToken, requireTenant, requireTenantAdmin, tenantController.createCompany);
-router.post('/company/logo', authenticateToken, requireTenant, requireTenantAdmin, upload.single('logo'), authController.uploadCompanyLogo);
-router.put('/companies/:companyId/modules', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateCompanyModules);
+router.get('/company/available-modules', authenticateToken, requireTenant, requireMenuAction('/admin/companies'), tenantController.listAvailableModules);
+router.get('/companies', authenticateToken, requireTenant, requireMenuAction('/admin/companies'), tenantController.listCompanies);
+router.post('/companies', authenticateToken, requireTenant, requireMenuAction('/admin/companies'), tenantController.createCompany);
+router.post('/company/logo', authenticateToken, requireTenant, requireMenuAction('/admin/companies'), upload.single('logo'), authController.uploadCompanyLogo);
+router.put('/companies/:companyId/modules', authenticateToken, requireTenant, requireMenuAction('/admin/companies'), tenantController.updateCompanyModules);
 // Per-company outgoing SMTP (the specific /smtp/test route is before /:companyId catch-alls).
-router.get('/companies/:companyId/smtp', authenticateToken, requireTenant, requireTenantAdmin, tenantController.getCompanySmtp);
-router.put('/companies/:companyId/smtp', authenticateToken, requireTenant, requireTenantAdmin, tenantController.upsertCompanySmtp);
-router.delete('/companies/:companyId/smtp', authenticateToken, requireTenant, requireTenantAdmin, tenantController.deleteCompanySmtp);
-router.post('/companies/:companyId/smtp/test', authenticateToken, requireTenant, requireTenantAdmin, tenantController.testCompanySmtp);
+router.get('/companies/:companyId/smtp', authenticateToken, requireTenant, requireMenuAction('/admin/companies'), tenantController.getCompanySmtp);
+router.put('/companies/:companyId/smtp', authenticateToken, requireTenant, requireMenuAction('/admin/companies'), tenantController.upsertCompanySmtp);
+router.delete('/companies/:companyId/smtp', authenticateToken, requireTenant, requireMenuAction('/admin/companies'), tenantController.deleteCompanySmtp);
+router.post('/companies/:companyId/smtp/test', authenticateToken, requireTenant, requireMenuAction('/admin/companies'), tenantController.testCompanySmtp);
 // Per-company weekend/rest-day setup (drives weekday/weekend pricing, e.g. golf
 // green fees); consumed via /api/weekend-days. Like SMTP, the controller
 // re-checks admin rights against the TARGET company, not just the active one.
-router.get('/companies/:companyId/weekend-days', authenticateToken, requireTenant, requireTenantAdmin, weekendDayController.getCompanyWeekendDays);
-router.put('/companies/:companyId/weekend-days', authenticateToken, requireTenant, requireTenantAdmin, weekendDayController.setCompanyWeekendDays);
-router.put('/companies/:companyId', authenticateToken, requireTenant, requireTenantAdmin, tenantController.updateCompany);
+router.get('/companies/:companyId/weekend-days', authenticateToken, requireTenant, requireMenuAction('/admin/companies'), weekendDayController.getCompanyWeekendDays);
+router.put('/companies/:companyId/weekend-days', authenticateToken, requireTenant, requireMenuAction('/admin/companies'), weekendDayController.setCompanyWeekendDays);
+router.put('/companies/:companyId', authenticateToken, requireTenant, requireMenuAction('/admin/companies'), tenantController.updateCompany);
 
 module.exports = router;

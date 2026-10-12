@@ -92,7 +92,7 @@ async function nextSortOrder(billId, transaction) {
 }
 
 function typeDescription(type) {
-    return `${type.transactionType}${type.description ? ' — ' + type.description : ''}`;
+    return `${type.transactionType}${type.description ? ' - ' + type.description : ''}`;
 }
 
 // Add ONE ordinary (non-package) item. `play` = { playDate, holes }. A keyed

@@ -1,7 +1,7 @@
 // src/modules/saas/account.js
 //
 // Account-level authorization. The subscriber's SuperUser is the account owner
-// (Account.ownerUserId) — they administer EVERY company under the account, not
+// (Account.ownerUserId) - they administer EVERY company under the account, not
 // just the companies they hold a per-company membership in. This is the seam
 // that turns a per-company "Tenant Admin" into a subscriber-wide admin.
 

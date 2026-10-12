@@ -3,7 +3,7 @@ const { sequelize } = require('../../platform/db');
 
 // A company's own SMTP server for OUTGOING email. When a company has an active
 // config, emails sent on its behalf (e.g. collaborator invitations) go through
-// THIS server and from THIS address — never the platform mailer, and (per the
+// THIS server and from THIS address - never the platform mailer, and (per the
 // chosen policy) with no fallback if the server fails. Platform/security emails
 // (activation, password reset) always use the platform mailer regardless.
 //

@@ -52,7 +52,7 @@ const departmentRoutes = require('./modules/saas/department.routes');
 const positionRoutes = require('./modules/saas/position.routes');
 const publicHolidayRoutes = require('./modules/saas/publicHoliday.routes');
 const weekendDayRoutes = require('./modules/saas/companyWeekendDay.routes');
-// Product tier (core systems) — stubs reserving the gateway seam. See
+// Product tier (core systems) - stubs reserving the gateway seam. See
 // docs/systems/ for each service's spec and the cross-service rules.
 const membershipRoutes = require('./modules/membership/membership.routes');
 const golfRoutes = require('./modules/golf/golf.routes');
@@ -150,7 +150,9 @@ function createApp() {
     app.use('/api/weekend-days', weekendDayRoutes);
     // Public (unauthenticated) active-languages list, for the login screen's
     // language switcher (no user/subscriber context exists yet before login).
-    app.get('/api/public/languages', languageController.listActiveLanguages);
+    // Unauthenticated = per-IP limited like every other public door (2026-10-12).
+    const { publicConfigLimiter } = require('./platform/rateLimits');
+    app.get('/api/public/languages', publicConfigLimiter(), languageController.listActiveLanguages);
     // Product tier (core systems):
     app.use('/api/membership', membershipRoutes);
     app.use('/api/golf', golfRoutes);
@@ -861,9 +863,9 @@ async function initializeDB() {
 
         // Module names are unique PER AUDIENCE since 2026-08-10 (the tenant and
         // platform catalogues may reuse a name, e.g. "Account Receivable").
-        // Drop every legacy single-column unique on Modules.name — plural
+        // Drop every legacy single-column unique on Modules.name - plural
         // because historic sequelize alter runs are known to duplicate unique
-        // constraints — the model's composite UX_Module_name_audience replaces
+        // constraints - the model's composite UX_Module_name_audience replaces
         // them. Idempotent: no-op once none remain.
         await sequelize.query(`
             DO $$
@@ -908,11 +910,11 @@ async function initializeDB() {
         }
 
         // Ensure the platform email-template defaults exist (idempotent, always
-        // runs — unlike the RUN_SEED-gated demo seeder — so emails never break).
+        // runs - unlike the RUN_SEED-gated demo seeder - so emails never break).
         await require('./modules/notification/emailTemplate.service').seedPlatformDefaults();
         console.log('Email template defaults ensured.');
 
-        // Stamp the system modules (Module.isSystem) — idempotent, keyed by
+        // Stamp the system modules (Module.isSystem) - idempotent, keyed by
         // the frozen Module.code, so the mandatory-entitlement rule survives a
         // fresh DB, a row created before the flag existed, and any display
         // rename.
@@ -942,7 +944,7 @@ async function initializeDB() {
 
 // --- DATABASE SEEDER ---
 // ⚠️ DESTRUCTIVE: this wipes Roles/Menus/Modules before re-creating them.
-// It must NEVER run automatically on Cloud Run — each autoscaled instance boot
+// It must NEVER run automatically on Cloud Run - each autoscaled instance boot
 // would otherwise wipe runtime data. It only runs when explicitly requested via
 // RUN_SEED=true (see `npm run seed`), intended for a fresh/dev database.
 async function seedDatabase() {

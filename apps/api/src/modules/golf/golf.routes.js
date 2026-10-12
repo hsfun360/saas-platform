@@ -20,8 +20,16 @@ router.use(verifyToken);
 router.use(requireModule('GOLF'));
 
 // --- Master File Setup ---
-router.use('/unit-courses', unitCourseRoutes);
-router.use('/courses', courseRoutes);
+// The two master files are menu-gated like every other golf route (2026-10-12;
+// they were entitlement-only before). The Courses screen reads the nines for
+// its pickers, so unit-course READS pass on either menu; writes need their own.
+const { requireAnyMenuAction } = require('../../platform/serviceContext');
+router.use('/unit-courses', (req, res, next) => (
+    req.method === 'GET'
+        ? requireAnyMenuAction(['/golf/unit-courses', '/golf/courses'])(req, res, next)
+        : requireMenuAction('/golf/unit-courses')(req, res, next)
+), unitCourseRoutes);
+router.use('/courses', requireMenuAction('/golf/courses'), courseRoutes);
 // Course Closure is a standalone menu (2026-09-30): closure keying is
 // grantable without the Unit Course setup grant.
 router.use('/closures', requireMenuAction('/golf/closures'), require('./closures.routes'));

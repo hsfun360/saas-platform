@@ -3,7 +3,7 @@
 // Builds the branded email header from a TEMPLATE's brand settings (accent colour
 // + include-logo flag) and the SENDING company's logo. The colour is configured
 // per template (EmailTemplate.brandColor); the logo is never stored on the
-// template — it always comes from Company.logo at render, and only when the
+// template - it always comes from Company.logo at render, and only when the
 // template's includeLogo flag is on. Emitted as {{{brandHeaderHtml}}} + {{brandColor}}.
 
 // Fallback accent when a template has no colour set (or a company-less platform
@@ -22,7 +22,7 @@ function safeUrl(value) {
 
 // The full-bleed header band that becomes the top of the branded card. The card's
 // overflow:hidden clips its top corners round. Returns '' when there is nothing to
-// brand (no colour and no shown logo). The logo has NO background of its own — a
+// brand (no colour and no shown logo). The logo has NO background of its own - a
 // transparent PNG blends with the band; a logo saved with a white background will
 // still show that white (that lives in the image file, not here).
 function buildHeaderHtml({ brandColor, logoUrl, showLogo }) {
@@ -67,12 +67,12 @@ function buildBrand({ brandColor = null, includeLogo = false, companyLogoUrl = n
 // Apply the brand to an already-compiled email body AUTOMATICALLY, so branding
 // works on ANY template body without it needing to reference {{brandColor}} or
 // {{{brandHeaderHtml}}} (older/customised bodies don't). Steps:
-//   1. Recolour CTA buttons — any styled <a> with an inline background — to the
+//   1. Recolour CTA buttons - any styled <a> with an inline background - to the
 //      brand colour (only when a colour was explicitly set).
 //   2. Rebuild into ONE clean card: strip the body's own outer card wrapper (so we
 //      don't nest a card in a card), then wrap the content in a bordered, rounded
 //      card whose ROUNDED TOP is the header band. The band sits INSIDE the card
-//      (full-bleed), matching the in-app preview — not a separate strip above it.
+//      (full-bleed), matching the in-app preview - not a separate strip above it.
 function applyBrandToHtml(compiledHtml, brand) {
     let html = compiledHtml || '';
     if (brand.brandColorSet) {

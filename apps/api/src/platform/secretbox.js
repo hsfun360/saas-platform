@@ -7,7 +7,7 @@
 //
 // Key: SMTP_ENCRYPTION_KEY, a 32-byte key as 64 hex chars OR base64. Set it on
 // BOTH login-api (encrypt on save / decrypt for test) and the worker (decrypt to
-// send). Without it, encrypt/decrypt throw loudly — the SMTP feature is inert but
+// send). Without it, encrypt/decrypt throw loudly - the SMTP feature is inert but
 // nothing else is affected.
 
 const crypto = require('crypto');

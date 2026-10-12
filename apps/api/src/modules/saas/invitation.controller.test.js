@@ -1,4 +1,4 @@
-// Unit tests for the invitation CONSENT GATE — the rule that only the invited
+// Unit tests for the invitation CONSENT GATE - the rule that only the invited
 // identity can act on an invitation, and that a non-addressee is indistinguishable
 // from a missing invitation (so invitation IDs can't be probed).
 //
@@ -78,7 +78,7 @@ test('accept: the addressed identity becomes a collaborator with the invited rol
     CompanyUser.create = fn(async () => ({}));
     Company.findByPk = fn(async () => ({ id: 'company-1', name: 'Company One' }));
 
-    // Email match is case-insensitive — caller's casing differs on purpose.
+    // Email match is case-insensitive - caller's casing differs on purpose.
     const req = { params: { id: 'inv-1' }, user: { id: 'user-1', email: 'Owner@Example.com' } };
     const res = mockRes();
 

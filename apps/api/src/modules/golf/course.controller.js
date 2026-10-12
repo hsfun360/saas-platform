@@ -1,7 +1,7 @@
 const { Storage } = require('@google-cloud/storage');
 const Course = require('./course.model');
 const UnitCourse = require('./unitCourse.model');
-const { getUserContext } = require('../../platform/serviceContext');
+const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
 
 // Public image uploads go to the per-environment bucket named by ASSETS_BUCKET
 // (12-factor - the old hardcoded avatars bucket died with the old GCP project).
@@ -125,6 +125,8 @@ exports.createCourse = async (req, res) => {
         const existing = await Course.findOne({ where: { companyId, courseCode } });
         if (existing) return res.status(409).json({ message: `Course '${courseCode}' already exists.` });
 
+        const callerId = getUserContext(req).userId;
+        const placement = await getCallerPlacement(req);
         const course = await Course.create({
             companyId,
             courseCode,
@@ -133,6 +135,9 @@ exports.createCourse = async (req, res) => {
             ...nines.values,
             crossOverMinutes: crossOverMinutes.value,
             photo,
+            createdBy: callerId,
+            createdByDepartmentId: placement.departmentId,
+            updatedBy: callerId,
         });
         res.status(201).json({ message: 'Course created.', course });
     } catch (error) {
@@ -191,6 +196,7 @@ exports.updateCourse = async (req, res) => {
 
         if (typeof req.body.isActive === 'boolean') course.isActive = req.body.isActive;
 
+        course.updatedBy = getUserContext(req).userId;
         await course.save();
         res.status(200).json({ message: 'Course updated.', course });
     } catch (error) {

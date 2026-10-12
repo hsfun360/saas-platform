@@ -1513,7 +1513,7 @@ exports.settleBill = async (req, res) => {
                     trxDate: String(bill.billDate),
                     transactionTypeId: arType.id,
                     isInterestChargeable: arType.isInterestChargeable === true,
-                    description: `Golf bill ${bill.billNo} — ${registration.playerName}`,
+                    description: `Golf bill ${bill.billNo} - ${registration.playerName}`,
                     incurredByMemberId: target.incurredByMemberId,
                     sourceModule: 'golf',
                     sourceRef: bill.id,

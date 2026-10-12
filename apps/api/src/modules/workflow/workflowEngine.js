@@ -184,7 +184,7 @@ async function activateNextStep(instance, fromStepNo, transaction) {
                     companyId: instance.companyId,
                     type: 'workflow-task',
                     title: `Approval needed: ${instance.entityLabel || instance.entityType}`,
-                    body: `${meta ? meta.name : instance.purpose} — step "${step.name}" is waiting for your decision.`,
+                    body: `${meta ? meta.name : instance.purpose} - step "${step.name}" is waiting for your decision.`,
                     linkRoute: '/approvals',
                     transaction,
                 });

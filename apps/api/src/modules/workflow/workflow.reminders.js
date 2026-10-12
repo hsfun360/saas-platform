@@ -115,7 +115,7 @@ async function scanSlaReminders() {
                                 companyId: task.companyId,
                                 type: 'workflow-task',
                                 title: `Reminder: ${instance.entityLabel || instance.entityType} still needs your approval`,
-                                body: `${purposeName.get(instance.purpose) || instance.purpose} — step "${task.stepName}" has passed its deadline.`,
+                                body: `${purposeName.get(instance.purpose) || instance.purpose} - step "${task.stepName}" has passed its deadline.`,
                                 linkRoute: '/approvals',
                                 transaction,
                             });

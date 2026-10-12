@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const { sequelize } = require('../../platform/db');
-const { getActiveAccountId, listSubscriptionCompanies } = require('../../platform/serviceContext');
+const { getActiveAccountId, listSubscriptionCompanies, getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
 const TaxScheme = require('./taxScheme.model');
 const TaxRate = require('./taxRate.model');
 const { resolveScheme } = require('./taxResolver');
@@ -214,6 +214,8 @@ exports.createScheme = async (req, res) => {
         const existing = await TaxScheme.findOne({ where: { accountId, countryCode, taxSchemeCode } });
         if (existing) return res.status(409).json({ message: `Tax scheme '${taxSchemeCode}' already exists for ${countryCode}.` });
 
+        const callerId = getUserContext(req).userId;
+        const placement = await getCallerPlacement(req);
         const scheme = await sequelize.transaction(async (t) => {
             const created = await TaxScheme.create({
                 accountId,
@@ -224,6 +226,9 @@ exports.createScheme = async (req, res) => {
                 ieFlag,
                 taxClass,
                 isActive: typeof req.body.isActive === 'boolean' ? req.body.isActive : true,
+                createdBy: callerId,
+                createdByDepartmentId: placement.departmentId,
+                updatedBy: callerId,
             }, { transaction: t });
 
             if (parsedRates.length) {
@@ -276,6 +281,7 @@ exports.updateScheme = async (req, res) => {
         }
         if (typeof req.body.isActive === 'boolean') scheme.isActive = req.body.isActive;
 
+        scheme.updatedBy = getUserContext(req).userId;
         await scheme.save();
         const full = await TaxScheme.findByPk(scheme.id, { include: [{ model: TaxRate, as: 'Rates' }] });
         res.status(200).json({ message: 'Tax scheme updated.', scheme: toSchemeDto(full) });
@@ -496,6 +502,8 @@ exports.loadDefaults = async (req, res) => {
 
         let created = 0;
         let skipped = 0;
+        const callerId = getUserContext(req).userId;
+        const placement = await getCallerPlacement(req);
         await sequelize.transaction(async (t) => {
             for (const src of platformSchemes) {
                 const key = `${src.countryCode}|${src.taxSchemeCode}`;
@@ -514,6 +522,9 @@ exports.loadDefaults = async (req, res) => {
                     taxClass: src.taxClass,
                     sourceTemplateId: src.id,
                     isActive: true,
+                    createdBy: callerId,
+                    createdByDepartmentId: placement.departmentId,
+                    updatedBy: callerId,
                 }, { transaction: t });
 
                 if (src.Rates && src.Rates.length) {

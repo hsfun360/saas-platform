@@ -4,6 +4,7 @@ const TaxScheme = require('./taxScheme.model');
 const CompanyTaxScheme = require('./companyTaxScheme.model');
 const CompanyTaxAccount = require('./companyTaxAccount.model');
 const { resolveScheme } = require('./taxResolver');
+const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
 
 // Per-company adoption of subscriber tax schemes, for the ACTIVE company (workspace).
 // A Tenant Admin, in a company's context, disables schemes that company does not use
@@ -86,14 +87,20 @@ exports.setAdoption = async (req, res) => {
             .map(([taxCode, gl]) => ({ taxCode: String(taxCode).trim(), glAccountCode: typeof gl === 'string' ? gl.trim() : '' }))
             .filter((r) => r.taxCode && r.glAccountCode);
 
+        const callerId = getUserContext(req).userId;
+        const placement = await getCallerPlacement(req);
         await sequelize.transaction(async (t) => {
             const [adoption] = await CompanyTaxScheme.findOrCreate({
                 where: { companyId, taxSchemeId: scheme.id },
-                defaults: { companyId, taxSchemeId: scheme.id, isEnabled },
+                defaults: {
+                    companyId, taxSchemeId: scheme.id, isEnabled,
+                    createdBy: callerId, createdByDepartmentId: placement.departmentId, updatedBy: callerId,
+                },
                 transaction: t,
             });
-            if (adoption.isEnabled !== isEnabled) {
+            if (adoption.isEnabled !== isEnabled || adoption.updatedBy !== callerId) {
                 adoption.isEnabled = isEnabled;
+                adoption.updatedBy = callerId;
                 await adoption.save({ transaction: t });
             }
             // Replace the GL overrides wholesale (simplest correct semantics).

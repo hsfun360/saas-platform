@@ -1,6 +1,6 @@
 // src/modules/saas/invitation.controller.js
 //
-// Consent-based collaborator invitations — the bridge that lets one Global
+// Consent-based collaborator invitations - the bridge that lets one Global
 // Identity work for multiple subscribers without an admin being able to attach
 // an outsider unilaterally.
 //
@@ -24,7 +24,7 @@ const User = require('../identity/user.model');
 const OutboxMessage = require('../../platform/outboxMessage.model');
 const { enqueueEmail } = require('../notification/emailOutbox');
 const { sequelize } = require('../../platform/db');
-const { hasTenantAdminRole } = require('./tenant');
+const { canAdministerCompany } = require('./tenant');
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:4200';
@@ -38,7 +38,7 @@ async function resolveAccountId(companyId, transaction) {
 // POST /api/auth/company/invitations  { email, roleId, companyId? }
 exports.createInvitation = async (req, res) => {
     const companyId = req.body.companyId || req.user.companyId;
-    if (!companyId || !(await hasTenantAdminRole(req.user.id, companyId))) {
+    if (!(await canAdministerCompany(req, companyId))) {
         return res.status(403).json({ message: "You don't have admin rights for that company." });
     }
 
@@ -69,7 +69,7 @@ exports.createInvitation = async (req, res) => {
         }
 
         // Safe-to-reveal checks (they concern only THIS company, which the admin
-        // already sees) — never disclose anything about other accounts.
+        // already sees) - never disclose anything about other accounts.
         const existingUser = await User.findOne({ where: { email: rawEmail }, attributes: ['id'], transaction });
         if (existingUser) {
             const already = await CompanyUser.findOne({ where: { userId: existingUser.id, companyId }, transaction });
@@ -102,7 +102,7 @@ exports.createInvitation = async (req, res) => {
         const account = await Account.findByPk(accountId, { attributes: ['subscriberName'], transaction });
 
         // Email via the transactional outbox (rendered from the subscriber's
-        // effective template — their override if set, else the platform default).
+        // effective template - their override if set, else the platform default).
         // The deep link nudges brand-new users to sign up; existing users simply
         // accept in-app from their invitations list.
         await enqueueEmail({
@@ -139,7 +139,7 @@ exports.createInvitation = async (req, res) => {
 exports.listCompanyInvitations = async (req, res) => {
     try {
         const companyId = req.query.companyId || req.user.companyId;
-        if (!companyId || !(await hasTenantAdminRole(req.user.id, companyId))) {
+        if (!(await canAdministerCompany(req, companyId))) {
             return res.status(403).json({ message: "You don't have admin rights for that company." });
         }
         const invitations = await Invitation.findAll({
@@ -170,7 +170,7 @@ exports.revokeInvitation = async (req, res) => {
         if (!invitation) {
             return res.status(404).json({ message: "Invitation not found." });
         }
-        if (!(await hasTenantAdminRole(req.user.id, invitation.companyId))) {
+        if (!(await canAdministerCompany(req, invitation.companyId))) {
             return res.status(403).json({ message: "You don't have admin rights for that company." });
         }
         if (invitation.status !== 'pending') {

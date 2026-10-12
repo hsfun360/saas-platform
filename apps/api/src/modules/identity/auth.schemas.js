@@ -18,11 +18,17 @@ const registerUser = {
     }),
 };
 
+// The workspace picked on the 206 picker: a company id, or the 'SYSTEM'
+// sentinel the API itself emits for the platform workspace (companyId NULL).
+// A uuid-only rule here rejected every System Administration login from the
+// picker with a 400 (2026-07-29 to 2026-10-12).
+const selectedWorkspace = z.union([fields.uuid, z.literal('SYSTEM')]).nullish();
+
 const login = {
     body: z.object({
         email: fields.email,
         password: fields.existingPassword,
-        selectedCompanyId: fields.uuid.nullish(),
+        selectedCompanyId: selectedWorkspace,
         rememberMe: z.boolean().optional(),
     }),
 };
@@ -64,7 +70,7 @@ const activateAccount = {
 const googleLogin = {
     body: z.object({
         accessToken: z.string('No token provided').min(10, 'No token provided').max(8192),
-        selectedCompanyId: fields.uuid.nullish(),
+        selectedCompanyId: selectedWorkspace,
     }),
 };
 
@@ -75,10 +81,11 @@ const googleExchangeCode = {
     }),
 };
 
+// The Microsoft handler reads only the token (the web never sends a workspace
+// pick on this door), so the schema declares exactly that.
 const microsoftLogin = {
     body: z.object({
         accessToken: z.string('No token provided').min(10, 'No token provided').max(8192),
-        selectedCompanyId: fields.uuid.nullish(),
     }),
 };
 
