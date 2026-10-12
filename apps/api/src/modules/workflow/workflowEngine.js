@@ -18,7 +18,8 @@ const WorkflowTask = require('./workflowTask.model');
 const { PURPOSES } = require('./workflow.constants');
 const purposeRegistry = require('./purposeRegistry');
 const { resolveApprovers } = require('../../platform/serviceContext');
-const { enqueueEmail } = require('../notification/emailOutbox');
+const { getUser } = require('../../platform/identityGateway');
+const { emailAddress } = require('../../platform/notificationGateway');
 
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:4200';
 
@@ -157,7 +158,7 @@ async function activateNextStep(instance, fromStepNo, transaction) {
             // Email is nice-to-have: never let a disabled template / render issue
             // abort the business transaction - the task itself is the inbox.
             try {
-                await enqueueEmail({
+                await emailAddress({
                     templateKey: 'workflow.task.assigned',
                     accountId: instance.accountId,
                     companyId: instance.companyId,
@@ -169,7 +170,8 @@ async function activateNextStep(instance, fromStepNo, transaction) {
                         purposeName: meta ? meta.name : instance.purpose,
                         approvalsLink: `${FRONTEND_BASE_URL}/approvals`,
                     },
-                }, transaction);
+                    transaction,
+                });
             } catch (err) {
                 console.warn(`[WORKFLOW] Could not queue assignment email for ${approver.email}: ${err.message}`);
             }
@@ -223,23 +225,23 @@ async function completeInstance(instance, outcome, transaction) {
     // Submitter outcome email (not for a self-inflicted cancel).
     if (outcome !== 'cancelled' && instance.createdBy) {
         try {
-            const User = require('../identity/user.model');
-            const submitter = await User.findByPk(instance.createdBy, { attributes: ['full_name', 'email'] });
+            const submitter = await getUser(instance.createdBy);
             if (submitter) {
                 const meta = purposeMeta(instance.purpose);
-                await enqueueEmail({
+                await emailAddress({
                     templateKey: 'workflow.completed',
                     accountId: instance.accountId,
                     companyId: instance.companyId,
                     to: submitter.email,
                     data: {
-                        submitterName: submitter.full_name || submitter.email,
+                        submitterName: submitter.name,
                         documentLabel: instance.entityLabel || instance.entityType,
                         purposeName: meta ? meta.name : instance.purpose,
                         outcome,
                         approved: outcome === 'approved',
                     },
-                }, transaction);
+                    transaction,
+                });
             }
         } catch (err) {
             console.warn(`[WORKFLOW] Could not queue completion email: ${err.message}`);

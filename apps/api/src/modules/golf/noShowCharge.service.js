@@ -26,7 +26,7 @@ const { getUserContext, getCompanyProfile } = require('../../platform/serviceCon
 const { getGolfMemberStanding, getChargeTarget } = require('../../platform/membershipGateway');
 const { quoteTax } = require('../../platform/taxGateway');
 const arGateway = require('../../platform/arGateway');
-const { enqueueEmail } = require('../notification/emailOutbox');
+const { emailAddress } = require('../../platform/notificationGateway');
 const availability = require('./bookingAvailability.service');
 
 function round2(n) {
@@ -224,7 +224,7 @@ async function queueChargedEmail(row, standing) {
     if (!standing || !standing.email) return;
     try {
         const company = await getCompanyProfile(row.companyId);
-        await enqueueEmail({
+        await emailAddress({
             templateKey: 'golf.noshow.charged',
             accountId: company ? company.accountId : null,
             companyId: row.companyId,

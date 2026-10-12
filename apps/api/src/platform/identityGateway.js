@@ -1,11 +1,13 @@
 // src/platform/identityGateway.js
 //
-// INTER-SERVICE CONTRACT SEAM for the Identity service's writes.
+// INTER-SERVICE CONTRACT SEAM for the Identity service's writes and reads.
 //
 // The Identity service owns the `User` table and token minting (golden rule:
 // one owner per table). A product service that needs a user account created -
 // today the Membership service's member-portal self-registration - must NOT
-// require the User model; it calls this gateway instead.
+// require the User model; it calls this gateway instead. The same goes for
+// READS: product tables carry user ids as plain UUIDs (createdBy, a workflow
+// task's assignee) and resolve them to a display name + address here.
 //
 // IN-PROCESS IMPLEMENTATION (monolith): lazy require of the identity model.
 // WHEN SPLIT: POST {identity}/api/auth/portal-users and the callers never change.
@@ -52,4 +54,34 @@ function issueLoginToken(userId, email) {
     );
 }
 
-module.exports = { provisionPortalUser, issueLoginToken };
+// --- Reads -------------------------------------------------------------------
+
+function toUserDto(u) {
+    return { id: u.id, name: u.full_name || u.email, email: u.email };
+}
+
+// Resolve a batch of user ids to { id, name, email } (name = full name, falling
+// back to the address). Returns a Map keyed by id; ids with no user are simply
+// absent. `transaction` joins the caller's transaction when the read must see
+// its own uncommitted rows or hold its locks (the worker's SLA scan).
+// WHEN SPLIT: GET {identity}/internal/users?ids=... and the callers never change.
+async function lookupUsers(ids, { transaction } = {}) {
+    const byId = new Map();
+    const unique = [...new Set((Array.isArray(ids) ? ids : []).filter(Boolean))];
+    if (!unique.length) return byId;
+    const User = require('../modules/identity/user.model');
+    const rows = await User.findAll({ where: { id: unique }, attributes: ['id', 'full_name', 'email'], transaction });
+    for (const u of rows) byId.set(u.id, toUserDto(u));
+    return byId;
+}
+
+// One user as { id, name, email }, or null when the id is unknown.
+// WHEN SPLIT: GET {identity}/internal/users/:id
+async function getUser(id, { transaction } = {}) {
+    if (!id) return null;
+    const User = require('../modules/identity/user.model');
+    const u = await User.findByPk(id, { attributes: ['id', 'full_name', 'email'], transaction });
+    return u ? toUserDto(u) : null;
+}
+
+module.exports = { provisionPortalUser, issueLoginToken, lookupUsers, getUser };

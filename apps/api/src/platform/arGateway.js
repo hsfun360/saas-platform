@@ -107,6 +107,35 @@ async function getTransactionType(companyId, id, { module = null } = {}) {
     return row.toJSON();
 }
 
+// --- AR-owned Other Debtor party master ------------------------------------
+// The city-ledger organisers a producer screen picks from (golf group
+// bookings: travel agents, societies, corporates). Active rows only, in the
+// minimal shape a picker needs, ordered by name. Read-only.
+// WHEN SPLIT: GET {internalServiceUrl('ar')}/internal/other-debtors
+async function listOtherDebtors(companyId) {
+    const OtherDebtor = require('../modules/ar/otherDebtor.model');
+    const rows = await OtherDebtor.findAll({
+        where: { companyId, isActive: true },
+        attributes: ['id', 'code', 'name'],
+        order: [['name', 'ASC']],
+    });
+    return rows.map((o) => ({ id: o.id, code: o.code, name: o.name }));
+}
+
+// One ACTIVE Other Debtor of the company as { id, code, name }, or null.
+// `transaction` joins the caller's business transaction (a booking save
+// resolving its organiser inside the same tx as the header write).
+// WHEN SPLIT: GET {internalServiceUrl('ar')}/internal/other-debtors/:id
+async function getOtherDebtor(companyId, id, { transaction } = {}) {
+    const OtherDebtor = require('../modules/ar/otherDebtor.model');
+    const row = await OtherDebtor.findOne({
+        where: { companyId, id, isActive: true },
+        attributes: ['id', 'code', 'name'],
+        transaction,
+    });
+    return row ? { id: row.id, code: row.code, name: row.name } : null;
+}
+
 // Is Membership billing through AR for this company? (AR Specification's
 // membershipIntegration flag - fee/standing-charge runs check it before
 // generating, and postCharge enforces it for membership-sourced documents.)
@@ -262,5 +291,7 @@ module.exports = {
     getDocumentStanding,
     listTransactionTypes,
     getTransactionType,
+    listOtherDebtors,
+    getOtherDebtor,
     isMembershipIntegrationEnabled,
 };

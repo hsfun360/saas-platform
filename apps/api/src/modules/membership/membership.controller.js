@@ -24,7 +24,7 @@ const {
     canModifyRecord,
     annotateCanModify,
 } = require('../../platform/serviceContext');
-const { enqueueEmail } = require('../notification/emailOutbox');
+const { emailAddress } = require('../../platform/notificationGateway');
 const arProvisioning = require('./arProvisioning');
 const { signRegistrationToken } = require('./memberPortal.controller');
 const { Storage } = require('@google-cloud/storage');
@@ -961,7 +961,7 @@ exports.createMembership = async (req, res) => {
                         const portalRegisterLink = individualMember
                             ? `${FRONTEND_BASE_URL}/portal/register?token=${signRegistrationToken(individualMember)}`
                             : null;
-                        await enqueueEmail({
+                        await emailAddress({
                             templateKey: 'membership.welcome',
                             accountId: company ? company.accountId : null,
                             companyId,
@@ -977,7 +977,8 @@ exports.createMembership = async (req, res) => {
                                 joinDate: v.joinDate,
                                 portalRegisterLink,
                             },
-                        }, t);
+                            transaction: t,
+                        });
                     } catch (err) {
                         console.error(`Welcome email for membership ${membershipNo} not queued:`, err.message);
                     }

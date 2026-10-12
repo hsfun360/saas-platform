@@ -82,7 +82,7 @@ router.use(
     requireMenuAction('/golf/numbering'),
     makeNumberingRouter({
         model: require('./numberingScheme.model'),
-        purposes: require('../saas/numberingScheme.constants').GOLF_NUMBERING_PURPOSES,
+        purposes: require('../../platform/numberingGateway').purposesFor('golf'),
     }),
 );
 

@@ -194,7 +194,7 @@ router.use(
     requireMenuAction('/ar/numbering'),
     makeNumberingRouter({
         model: require('./numberingScheme.model'),
-        purposes: require('../../modules/saas/numberingScheme.constants').AR_NUMBERING_PURPOSES,
+        purposes: require('../../platform/numberingGateway').purposesFor('ar'),
     }),
 );
 

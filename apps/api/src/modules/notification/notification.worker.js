@@ -36,12 +36,12 @@ async function dispatchEmail(payload) {
     await sendMail({ to: payload.to, from: payload.from, subject: payload.subject, html: payload.html });
 }
 
-// Human-readable party label for AR debtor-provisioning notifications, built
-// from the event payload alone (event-carried state - no membership reads).
-function debtorLabel(payload) {
-    const kind = payload.debtorType === 'member' ? 'nominee' : 'membership';
-    return payload.sourceNo ? `${kind} ${payload.sourceNo}` : `a ${kind}`;
-}
+// Message types owned by a PRODUCT service (AR debtor provisioning, credit
+// limit sync) are dispatched to the handlers registered at composition time
+// in src/wiring/outboxHandlers.js - the worker never requires a product
+// module itself. `debtorLabel` is shared with the terminal-failure bell below.
+const outboxHandlers = require('../../wiring/outboxHandlers');
+const { debtorLabel } = outboxHandlers;
 
 // 2. The Email Sending for User Registration (Activation Link)
 async function sendActivationEmail(toEmail, activationLink) {
@@ -191,6 +191,14 @@ async function sendAccountActivationEmail(toEmail, companyName, activationLink) 
     await transporter.sendMail(mailOptions);
 }
 
+// The registered handler for a product-owned message type, or undefined.
+// Keys of the registry ARE outbox message types (PascalCase event names); the
+// shared `debtorLabel` helper exported beside them is not one.
+function handlerFor(type) {
+    if (type === 'debtorLabel') return undefined;
+    return Object.prototype.hasOwnProperty.call(outboxHandlers, type) ? outboxHandlers[type] : undefined;
+}
+
 // 6. The Polling Logic
 // Claims up to one batch of pending messages and processes them. Returns the
 // number of messages CLAIMED (0 = queue empty), so drainOutbox() can loop
@@ -272,42 +280,11 @@ async function processOutboxSafely() {
                     await sendCollaboratorInviteEmail(msg.payload.email, msg.payload);
                     console.log(`[OUTBOX WORKER] Collaborator invitation email sent to ${msg.payload.email}`);
                 }
-                else if (msg.type === 'DebtorProvisionRequested') {
-                    // AR ledger-account provisioning (event-carried state from the
-                    // producer via platform/arGateway.js). Idempotent find-or-create,
-                    // so retries/replays are safe. Lazy require keeps the notification
-                    // worker's cross-module surface explicit; when AR splits, this
-                    // message type routes to the AR service's own consumer instead.
-                    const { provisionDebtor } = require('../ar/debtorProvisioning.service');
-                    const { debtor, created } = await provisionDebtor(msg.payload);
-                    console.log(`[OUTBOX WORKER] Debtor provisioned (${msg.payload.debtorType}/${msg.payload.sourceId}) -> ${debtor.id}${created ? '' : ' (existing)'}`);
-                    // Bell the saver when the account actually OPENED (replays /
-                    // re-activations found an existing row and stay silent).
-                    // Best-effort: a notification hiccup must not fail the event.
-                    if (created && msg.payload.requestedBy) {
-                        try {
-                            const { notifyUser } = require('../../platform/notificationGateway');
-                            await notifyUser({
-                                userId: msg.payload.requestedBy,
-                                companyId: msg.payload.companyId,
-                                type: 'ar.debtor-provisioned',
-                                title: 'AR Account Successfully Replicated',
-                                body: `The AR debtor account for ${debtorLabel(msg.payload)} is ready to use.`,
-                                linkRoute: `/ar/debtors/${debtor.id}`,
-                            });
-                        } catch (nerr) {
-                            console.warn('[OUTBOX WORKER] Debtor-provisioned notification failed:', nerr.message);
-                        }
-                    }
-                }
-                else if (msg.type === 'DebtorCreditLimitSyncRequested') {
-                    // Credit-limit ownership split (2026-09-27): Membership owns
-                    // member-account limits and pushes edits into the AR pool.
-                    // No ledger account yet = silent no-op (provisioning seeds
-                    // the value later); replays are idempotent.
-                    const { syncCreditLimit } = require('../ar/debtorProvisioning.service');
-                    const result = await syncCreditLimit(msg.payload);
-                    console.log(`[OUTBOX WORKER] Credit limit sync (${msg.payload.debtorType}/${msg.payload.sourceId}) -> ${result.synced ? result.creditLimit : `skipped (${result.reason})`}`);
+                else if (typeof handlerFor(msg.type) === 'function') {
+                    // A product service's message type (DebtorProvisionRequested,
+                    // DebtorCreditLimitSyncRequested, ...) - handled by the
+                    // composition-time registry in src/wiring/outboxHandlers.js.
+                    await handlerFor(msg.type)(msg.payload, { transaction });
                 }
 
                 // Mark as done

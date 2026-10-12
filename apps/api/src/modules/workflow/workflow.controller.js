@@ -15,6 +15,7 @@ const {
     listSubscriptionCompanies,
     resolveApprovers,
 } = require('../../platform/serviceContext');
+const { lookupUsers } = require('../../platform/identityGateway');
 const WorkflowDefinition = require('./workflowDefinition.model');
 const WorkflowStep = require('./workflowStep.model');
 const WorkflowInstance = require('./workflowInstance.model');
@@ -355,13 +356,10 @@ exports.listMyTasks = async (req, res) => {
             order: [['createdAt', 'ASC']],
         });
 
-        // Submitter names in one batch (identity lookup, plain UUID reference).
-        const User = require('../identity/user.model');
+        // Submitter names in one batch (identity seam, plain UUID reference).
         const submitterIds = [...new Set(tasks.map((t) => t.Instance?.createdBy).filter(Boolean))];
-        const submitters = submitterIds.length
-            ? await User.findAll({ where: { id: submitterIds }, attributes: ['id', 'full_name', 'email'] })
-            : [];
-        const nameById = new Map(submitters.map((u) => [u.id, u.full_name || u.email]));
+        const submitters = await lookupUsers(submitterIds);
+        const nameById = new Map([...submitters.values()].map((u) => [u.id, u.name]));
 
         const purposeName = new Map(PURPOSES.map((p) => [p.key, p.name]));
         res.status(200).json(tasks.map((t) => ({
@@ -445,16 +443,13 @@ exports.listEntityInstances = async (req, res) => {
             order: [['createdAt', 'DESC'], [{ model: WorkflowTask, as: 'Tasks' }, 'stepNo', 'ASC'], [{ model: WorkflowTask, as: 'Tasks' }, 'createdAt', 'ASC']],
         });
 
-        const User = require('../identity/user.model');
         const userIds = new Set();
         for (const inst of instances) {
             if (inst.createdBy) userIds.add(inst.createdBy);
             for (const t of inst.Tasks) userIds.add(t.assigneeUserId);
         }
-        const users = userIds.size
-            ? await User.findAll({ where: { id: [...userIds] }, attributes: ['id', 'full_name', 'email'] })
-            : [];
-        const nameById = new Map(users.map((u) => [u.id, u.full_name || u.email]));
+        const users = await lookupUsers([...userIds]);
+        const nameById = new Map([...users.values()].map((u) => [u.id, u.name]));
 
         res.status(200).json(instances.map((inst) => ({
             id: inst.id,

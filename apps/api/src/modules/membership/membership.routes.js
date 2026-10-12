@@ -56,7 +56,7 @@ router.use(
     requireMenuAction('/membership/numbering'),
     makeNumberingRouter({
         model: require('./numberingScheme.model'),
-        purposes: require('../saas/numberingScheme.constants').MEMBERSHIP_NUMBERING_PURPOSES,
+        purposes: require('../../platform/numberingGateway').purposesFor('membership'),
     }),
 );
 

@@ -14,7 +14,6 @@
 //   agents         Membership.salesAgentId -> SalesAgent.agentKind/Agency
 
 const { Op, fn, col, literal } = require('sequelize');
-const { sequelize } = require('../../platform/db');
 const Membership = require('./membership.model');
 const Member = require('./member.model');
 const MembershipStatus = require('./membershipStatus.model');
@@ -23,24 +22,14 @@ const SalesAgent = require('./salesAgent.model');
 const SalesAgency = require('./salesAgency.model');
 const { getUserContext } = require('../../platform/serviceContext');
 const { MEMBER_KIND_KEYS } = require('./member.constants');
+// The raw-SQL aggregates and the age-band vocabulary (one definition).
+const dashboard = require('./dashboard.service');
+const { AGE_BANDS, AGE_BAND_KEYS, UNKNOWN, ageBandCondition } = dashboard;
 
 const DRILL_LIMIT = 50;
 
-// Age bands - stable keys the web maps to labels. 'unknown' = no birthDate.
-const AGE_BANDS = [
-    { key: 'under21', label: 'Under 21', min: null, max: 20 },
-    { key: '21-30', label: '21-30', min: 21, max: 30 },
-    { key: '31-40', label: '31-40', min: 31, max: 40 },
-    { key: '41-50', label: '41-50', min: 41, max: 50 },
-    { key: '51-60', label: '51-60', min: 51, max: 60 },
-    { key: 'over60', label: 'Over 60', min: 61, max: null },
-];
-const AGE_BAND_KEYS = AGE_BANDS.map((b) => b.key).concat('unknown');
-
 // Membership status classes counted as "active" for the KPI.
 const ACTIVE_CLASSES = ['active', 'active-absent'];
-
-const UNKNOWN = 'unknown';
 
 // --- helpers ---------------------------------------------------------------
 
@@ -70,19 +59,6 @@ function getClassFilter(req) {
 function getKindFilter(req) {
     const k = typeof req.query.kind === 'string' ? req.query.kind.trim() : '';
     return MEMBER_KIND_KEYS.includes(k) ? k : null;
-}
-
-// Age in whole years from a DATEONLY birthDate, as SQL (Postgres).
-const AGE_SQL = 'date_part(\'year\', age(current_date, m."birthDate"))';
-
-function ageBandCondition(bandKey) {
-    if (bandKey === UNKNOWN) return 'm."birthDate" IS NULL';
-    const band = AGE_BANDS.find((b) => b.key === bandKey);
-    if (!band) return null;
-    const parts = ['m."birthDate" IS NOT NULL'];
-    if (band.min !== null) parts.push(`${AGE_SQL} >= ${band.min}`);
-    if (band.max !== null) parts.push(`${AGE_SQL} <= ${band.max}`);
-    return parts.join(' AND ');
 }
 
 // --- meta ------------------------------------------------------------------
@@ -192,25 +168,7 @@ exports.getMovement = async (req, res) => {
         const { from, to } = getPeriod(req);
         const membershipClass = getClassFilter(req);
 
-        const classSql = membershipClass ? 'AND "membershipClass" = :membershipClass' : '';
-        const replacements = { companyId, from, to, membershipClass };
-
-        const [joins, expiries] = await Promise.all([
-            sequelize.query(
-                `SELECT to_char(date_trunc('month', "joinDate"), 'YYYY-MM') AS month, COUNT(*)::int AS count
-                 FROM membership."Membership"
-                 WHERE "companyId" = :companyId AND "joinDate" BETWEEN :from AND :to ${classSql}
-                 GROUP BY 1`,
-                { replacements, type: sequelize.QueryTypes.SELECT }
-            ),
-            sequelize.query(
-                `SELECT to_char(date_trunc('month', "expiryDate"), 'YYYY-MM') AS month, COUNT(*)::int AS count
-                 FROM membership."Membership"
-                 WHERE "companyId" = :companyId AND "expiryDate" BETWEEN :from AND :to ${classSql}
-                 GROUP BY 1`,
-                { replacements, type: sequelize.QueryTypes.SELECT }
-            ),
-        ]);
+        const { joins, expiries } = await dashboard.monthlyMovement(companyId, { from, to, membershipClass });
 
         const joinMap = new Map(joins.map((r) => [r.month, r.count]));
         const expiryMap = new Map(expiries.map((r) => [r.month, r.count]));
@@ -267,44 +225,12 @@ exports.getBreakdown = async (req, res) => {
             });
         }
 
-        // Member-grouped dimensions - raw SQL (age CASE / address join), always
-        // joined to Membership so the class filter applies uniformly.
-        const memberDims = {
-            memberStatus: 'm."memberStatusId"',
-            nationality: `COALESCE(m."nationalityCode", '${UNKNOWN}')`,
-            // Case-normalized: stored codes vary in case; Country.alpha2 is upper.
-            country: `COALESCE(UPPER(a."countryCode"), '${UNKNOWN}')`,
-            ageBand: `CASE
-                WHEN m."birthDate" IS NULL THEN '${UNKNOWN}'
-                ${AGE_BANDS.map((b) => {
-                    const conds = [];
-                    if (b.min !== null) conds.push(`${AGE_SQL} >= ${b.min}`);
-                    if (b.max !== null) conds.push(`${AGE_SQL} <= ${b.max}`);
-                    return `WHEN ${conds.join(' AND ')} THEN '${b.key}'`;
-                }).join('\n                ')}
-                ELSE '${UNKNOWN}' END`,
-        };
-        const keyExpr = memberDims[dimension];
-        if (!keyExpr) return res.status(400).json({ message: 'Unknown dimension.' });
+        // Member-grouped dimensions (memberStatus / ageBand / country /
+        // nationality) - the service's raw aggregate.
+        const result = await dashboard.memberBreakdown(companyId, { dimension, membershipClass, kind });
+        if (result.error) return res.status(400).json({ message: result.error });
 
-        const countryJoin = dimension === 'country'
-            ? 'LEFT JOIN membership."Address" a ON a."memberId" = m."id" AND a."addressType" = \'residential\''
-            : '';
-        const classSql = membershipClass ? 'AND ms."membershipClass" = :membershipClass' : '';
-        const kindSql = kind ? 'AND m."memberKind" = :kind' : '';
-
-        const rows = await sequelize.query(
-            `SELECT ${keyExpr} AS key, COUNT(*)::int AS count
-             FROM membership."Member" m
-             JOIN membership."Membership" ms ON ms."id" = m."membershipId"
-             ${countryJoin}
-             WHERE m."companyId" = :companyId ${classSql} ${kindSql}
-             GROUP BY 1
-             ORDER BY count DESC`,
-            { replacements: { companyId, membershipClass, kind }, type: sequelize.QueryTypes.SELECT }
-        );
-
-        res.status(200).json({ dimension, buckets: rows });
+        res.status(200).json({ dimension, buckets: result.rows });
     } catch (error) {
         console.error('Error loading dashboard breakdown:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -329,20 +255,7 @@ exports.getAgentPerformance = async (req, res) => {
         const where = { companyId, joinDate: { [Op.between]: [from, to] } };
         if (membershipClass) where.membershipClass = membershipClass;
 
-        const classSql = membershipClass ? 'AND ms."membershipClass" = :membershipClass' : '';
-        const monthlyRows = await sequelize.query(
-            `SELECT to_char(date_trunc('month', ms."joinDate"), 'YYYY-MM') AS month,
-                    CASE WHEN sa."id" IS NULL THEN 'none'
-                         WHEN sa."agentKind" = 'internal' THEN 'internal'
-                         WHEN sa."agentKind" = 'external' THEN 'external'
-                         ELSE 'agency' END AS channel,
-                    COUNT(*)::int AS count
-             FROM membership."Membership" ms
-             LEFT JOIN membership."SalesAgent" sa ON sa."id" = ms."salesAgentId"
-             WHERE ms."companyId" = :companyId AND ms."joinDate" BETWEEN :from AND :to ${classSql}
-             GROUP BY 1, 2`,
-            { replacements: { companyId, from, to, membershipClass }, type: sequelize.QueryTypes.SELECT }
-        );
+        const monthlyRows = await dashboard.monthlyClosingsByChannel(companyId, { from, to, membershipClass });
         const monthMap = new Map();
         for (const r of monthlyRows) {
             const entry = monthMap.get(r.month) || { internal: 0, external: 0, agency: 0, none: 0 };

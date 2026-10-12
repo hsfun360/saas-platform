@@ -89,6 +89,20 @@ function numberingMeta() {
     return { resetRules: RESET_RULES, tokens: FORMAT_TOKENS };
 }
 
+// The purpose vocabulary a product's own numbering screen offers (its
+// `*_NUMBERING_PURPOSES` list, owned by the Control Plane's constants). Product
+// routers mount their numbering router with this instead of requiring the
+// saas constants file. `moduleKey`: 'membership' | 'ar' | 'golf'.
+function purposesFor(moduleKey) {
+    const constants = require('../modules/saas/numberingScheme.constants');
+    switch (moduleKey) {
+        case 'membership': return constants.MEMBERSHIP_NUMBERING_PURPOSES;
+        case 'ar': return constants.AR_NUMBERING_PURPOSES;
+        case 'golf': return constants.GOLF_NUMBERING_PURPOSES;
+        default: throw new Error(`numberingGateway.purposesFor: unknown module '${moduleKey}'.`);
+    }
+}
+
 // The full scheme config for a purpose in the caller's active company, or null.
 async function getScheme(req, purpose) {
     const { companyId } = getUserContext(req);
@@ -124,4 +138,4 @@ function previewScheme(draft, opts = {}) {
     }, { typeCode: typeof opts.typeCode === 'string' ? opts.typeCode : undefined });
 }
 
-module.exports = { getMode, issueNumber, issueNumberForCompany, numberingMeta, getScheme, saveScheme, previewScheme, modelForPurpose };
+module.exports = { getMode, issueNumber, issueNumberForCompany, numberingMeta, purposesFor, getScheme, saveScheme, previewScheme, modelForPurpose };

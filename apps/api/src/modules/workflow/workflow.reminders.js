@@ -25,7 +25,8 @@ const { sequelize } = require('../../platform/db');
 const WorkflowInstance = require('./workflowInstance.model');
 const WorkflowTask = require('./workflowTask.model');
 const { PURPOSES } = require('./workflow.constants');
-const { enqueueEmail } = require('../notification/emailOutbox');
+const { getUser } = require('../../platform/identityGateway');
+const { emailAddress } = require('../../platform/notificationGateway');
 
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:4200';
 
@@ -48,7 +49,6 @@ async function scanSlaReminders() {
             return;
         }
 
-        const User = require('../identity/user.model');
         const purposeName = new Map(PURPOSES.map((p) => [p.key, p.name]));
 
         // Escalation is a per-STEP decision - group the claimed tasks so one
@@ -93,21 +93,22 @@ async function scanSlaReminders() {
 
                 // --- Reminder path (email + bell, exactly once) --------------
                 for (const task of tasks) {
-                    const assignee = await User.findByPk(task.assigneeUserId, { attributes: ['full_name', 'email'], transaction });
+                    const assignee = await getUser(task.assigneeUserId, { transaction });
                     if (assignee) {
-                        await enqueueEmail({
+                        await emailAddress({
                             templateKey: 'workflow.task.reminder',
                             accountId: task.accountId,
                             companyId: task.companyId,
                             to: assignee.email,
                             data: {
-                                assigneeName: assignee.full_name || assignee.email,
+                                assigneeName: assignee.name,
                                 stepName: task.stepName,
                                 documentLabel: instance.entityLabel || instance.entityType,
                                 purposeName: purposeName.get(instance.purpose) || instance.purpose,
                                 approvalsLink: `${FRONTEND_BASE_URL}/approvals`,
                             },
-                        }, transaction);
+                            transaction,
+                        });
                         try {
                             const { notifyUser } = require('../../platform/notificationGateway');
                             await notifyUser({

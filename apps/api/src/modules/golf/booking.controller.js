@@ -18,7 +18,7 @@ const {
     getUserContext, getCallerPlacement, annotateCanModify, canModifyRecord, getCompanyProfile,
 } = require('../../platform/serviceContext');
 const { getGolfMemberStanding } = require('../../platform/membershipGateway');
-const { enqueueEmail } = require('../notification/emailOutbox');
+const { emailAddress } = require('../../platform/notificationGateway');
 const { classifyDateRange, companyTimezone } = require('../../platform/calendarGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const availability = require('./bookingAvailability.service');
@@ -107,13 +107,14 @@ async function queueBookingEmail({ companyId, templateKey, recipients, data, tra
     }
     if (!to.length) return;
     try {
-        await enqueueEmail({
+        await emailAddress({
             templateKey,
             accountId: company ? company.accountId : null,
             companyId,
             to: to.join(', '),
             data: { companyName: company ? company.name : '', ...data },
-        }, transaction);
+            transaction,
+        });
     } catch (error) {
         console.error(`Error queueing ${templateKey} email:`, error);
     }

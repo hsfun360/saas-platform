@@ -23,6 +23,7 @@ const {
 const { getGolfMemberStanding, getChargeTarget } = require('../../platform/membershipGateway');
 const { classifyDateRange } = require('../../platform/calendarGateway');
 const numberingGateway = require('../../platform/numberingGateway');
+const arGateway = require('../../platform/arGateway');
 const availability = require('./bookingAvailability.service');
 const lifecycle = require('./groupLifecycle.service');
 const workflowGateway = require('../../platform/workflowGateway');
@@ -283,14 +284,8 @@ exports.getMeta = async (req, res) => {
             courseMap(companyId),
         ]);
         // Other Debtors = the city-ledger organisers (travel agents, societies,
-        // corporates). Read through the AR model directly for now - the seam
-        // split moves this behind arGateway with the rest of the AR reads.
-        const OtherDebtor = require('../ar/otherDebtor.model');
-        const others = await OtherDebtor.findAll({
-            where: { companyId, isActive: true },
-            attributes: ['id', 'code', 'name'],
-            order: [['name', 'ASC']],
-        });
+        // corporates), read through the AR seam (active rows, by name).
+        const others = await arGateway.listOtherDebtors(companyId);
         res.status(200).json({
             bookingTypes: GROUP_BOOKING_TYPES,
             startFormats: START_FORMATS,
@@ -403,8 +398,7 @@ exports.get = async (req, res) => {
 async function resolveOrganiser(companyId, body, stamps, transaction) {
     const kind = String(body.organiserKind || 'none');
     if (kind === 'other') {
-        const OtherDebtor = require('../ar/otherDebtor.model');
-        const od = await OtherDebtor.findOne({ where: { companyId, id: String(body.otherDebtorId || ''), isActive: true }, transaction });
+        const od = await arGateway.getOtherDebtor(companyId, String(body.otherDebtorId || ''), { transaction });
         if (!od) return { error: 'Pick the organiser\'s Other Debtor account.' };
         return { organiserName: od.name, debtorType: 'other', debtorSourceId: od.id, bookerGolferId: null };
     }

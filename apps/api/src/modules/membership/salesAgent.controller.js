@@ -11,7 +11,7 @@ const {
     canModifyRecord,
     annotateCanModify,
 } = require('../../platform/serviceContext');
-const { enqueueEmail } = require('../notification/emailOutbox');
+const { emailAddress } = require('../../platform/notificationGateway');
 const { AGENT_KINDS, AGENT_KIND_KEYS } = require('./salesAgent.constants');
 const { signAgentRegistrationToken } = require('./agentPortal.controller');
 const { getSettings, enabledAgentKinds } = require('./membershipSetting.service');
@@ -258,7 +258,7 @@ exports.invite = async (req, res) => {
             ? await SalesAgency.findByPk(row.salesAgencyId, { attributes: ['agencyName'] })
             : null;
         const link = `${FRONTEND_BASE_URL}/agent/register?token=${signAgentRegistrationToken(row)}`;
-        const queued = await enqueueEmail({
+        const queued = await emailAddress({
             templateKey: 'sales-agent.invite',
             accountId: company ? company.accountId : null,
             companyId,
