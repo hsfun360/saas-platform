@@ -1024,11 +1024,8 @@
     max-width: 42vw;
   }
 
-  /* With email/role hidden, drop the divider in front of the icon group. */
-  .header-actions {
-    border-left: none;
-    padding-left: 0;
-  }
+  /* (The divider in front of the icon group is dropped by the 1023px rule
+     that follows the base .header-actions rule further down.) */
 
   /* The avatar must never be squeezed off-screen. */
   .avatar-wrapper {
@@ -1067,10 +1064,6 @@
 @media (max-width: 1023px) {
   .topbar-user {
     display: none;
-  }
-  .header-actions {
-    border-left: none;
-    padding-left: 0;
   }
   margin-top: var(--space-xs);
 }
@@ -1117,6 +1110,15 @@
   gap: var(--space-sm);
   border-left: 1px solid var(--bar-divider);
   padding-left: var(--space-md);
+}
+/* With the email/role block hidden (tablet and below) the divider in front of
+   the icon group goes too. Placed AFTER the base rule: same specificity, so
+   source order decides (two earlier copies sat before it and never applied). */
+@media (max-width: 1023px) {
+  .header-actions {
+    border-left: none;
+    padding-left: 0;
+  }
 }
 .icon-btn .material-icons,
 .menu-btn .material-icons {
