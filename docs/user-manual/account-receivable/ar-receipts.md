@@ -38,18 +38,20 @@ Receipts never go through an approval chain; posting is immediate.
 1. Click **New Official Receipt**.
 2. Find the debtor: type part of the account number, name or code and click the row.
    Each row shows the current outstanding amount, so you can check it against the payment.
-3. The form opens with the debtor shown in a band at the top; click **Change** if you picked the wrong one.
+   Only active debtor accounts are offered; when nothing matches the list reads "No active debtors match. Refine the search."
+3. The form opens with the debtor shown in a band at the top (with a "<CCY> account" tag, for example "USD account", when the account is in a foreign currency); click **Change** if you picked the wrong one.
 
 [Screenshot: New Official Receipt dialog entry form]
 
 4. Check **Receipt no.**.
    With automatic numbering it reads "Issued on save"; with manual numbering you must key it.
+   When no numbering scheme is active for receipts, the field shows "Auto if left blank": key a number or leave it empty for one to be issued automatically.
 5. Pick the **Payment method**, for example `CASH` or `CHQ`.
    The choices are the Receipt-class entries of the Transaction Type master; if the list is empty, create them there first.
 6. Confirm the **Document date** (the day the money was received) and **Transaction date (period)**.
 7. Enter the **Amount** received.
 8. Add the **Payment reference**: the cheque number, bank reference or slip number.
-9. On a foreign-currency account, check the **Exchange rate** on the day of collection; the approximate base-currency amount collected shows underneath.
+9. On a foreign-currency account, check the **Exchange rate** on the day of collection; the hint underneath shows the base-currency amount as "≈ 2125.00 MYR collected".
 10. If the debtor has a billed deposit still to be collected, a **Collect deposit** field appears.
     Pick the deposit to pay it in first; whatever remains settles open items oldest first.
 11. Add a **Description** if useful.
@@ -86,7 +88,7 @@ If you leave without saving, the system asks whether to discard your changes or 
 
 1. Open the ⋮ menu and click **Void**.
 2. Enter the compulsory **Void reason**.
-3. Click **Void**.
+3. Click **Void <receipt no.>** (the button reads **Void Draft** when no number has been issued yet).
 
 The draft never posted, so nothing reverses; the number stays consumed and the record remains as Void with your reason for the audit trail.
 A posted receipt can only be voided from the debtor's account page, and only while none of its money has been allocated.
@@ -108,7 +110,7 @@ The viewer lists each document the money went to ("Applied to Invoice INV-000031
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Receipt no.** | Only with manual numbering | The receipt number, when your company keys numbers by hand. | Up to 30 characters; must not already be in use. With automatic numbering the number is issued on save and cannot be changed. |
+| **Receipt no.** | Only with manual numbering | The receipt number, when your company keys numbers by hand. | Up to 30 characters; must not already be in use. With automatic numbering the number is issued on save and cannot be changed; with no active scheme the field reads "Auto if left blank" and a blank is numbered automatically. |
 | **Payment method** | Yes | How the money arrived, for example `CASH - Cash` or `CHQ - Cheque`. | Receipt-class, active entries of the Transaction Type master only. |
 | **Document date** | Yes | The day the payment was received. | Defaults to today. |
 | **Transaction date (period)** | Yes | The accounting period the receipt belongs to. | Defaults to the document date; change only when back-keying into a closed month. |

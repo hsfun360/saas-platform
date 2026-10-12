@@ -57,14 +57,15 @@ After saving or posting, the page reloads with the new document in its section.
 
 ### Void a document from the account page
 
-- **Documents**: an Open invoice, debit note or credit note shows **Void**; enter the reason and confirm.
-  A posted credit note that has not been applied yet also shows **Void**; the system posts a reversal against it.
-  Posted invoices, debit notes and interest charges never show Void; correct them with a Credit Note.
-- **Receipts & refunds**: an Open receipt, or a posted receipt none of whose money has been allocated, shows **Void**.
+- **Documents**: an Open invoice, debit note or credit note offers **Void** in its ⋮ menu; enter the reason and confirm.
+  A posted credit note that has not been applied yet also offers **Void**; the system posts a reversal against it.
+  Posted invoices, debit notes and interest charges never offer Void; correct them with a Credit Note.
+- **Receipts & refunds**: an Open receipt, or a posted receipt none of whose money has been allocated, offers **Void** in its ⋮ menu.
   Refunds are never voided here.
-- **Deposits**: a posted deposit that has not been collected shows **Void** in its ⋮ menu.
+- **Deposits**: an Open deposit, or a posted deposit that has not been collected, offers **Void** in its ⋮ menu.
 
-The confirmation states what will happen, and Open drafts require a void reason that is kept for audit.
+The **Confirm void** dialog states what will happen; Open drafts require a **Void reason** that is kept for audit.
+Click **Void document** to proceed, or **Cancel** to keep it.
 
 ### Edit an account's credit terms
 

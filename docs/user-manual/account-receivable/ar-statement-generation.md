@@ -50,6 +50,7 @@ When it completes, a message reports how many statements were generated and how 
 ### Cancel a run
 
 Click **Cancel run** on the progress panel, or **Cancel** in the row's ⋮ menu.
+The **Cancel statement run** confirmation names the month and states that statements already produced stay and the rest can be resumed later; click **Cancel run** to proceed.
 The run stops at the end of its current batch; statements already generated stay.
 
 ### Resume a failed or cancelled run

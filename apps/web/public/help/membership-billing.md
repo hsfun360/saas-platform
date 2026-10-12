@@ -17,7 +17,7 @@ Staff come here once a month, type by type, and return to post items that were h
 
 [Screenshot: Billing Schedules list with the Generate a month card]
 
-- A collapsible **Generate a month** card at the top (shown when you may create runs) with **Billing type**, **Month**, **Document date**, **Transaction date (period)** and a **Generate** button.
+- A collapsible **Generate a month** card at the top (shown when you may create runs) with **Billing type**, **Month**, **Document date**, **Transaction date (period)** and a **Generate for <Month Year>** button (it reads plain **Generate** until a month is picked).
 - A **Month** picker above the list filters the schedules shown; it starts on the current month.
 - Each schedule is a card: the billing type as the title, then the item count, the net total and the document date.
 - A status chip top-right reads **pending**, **partially-posted**, **posted** or **cancelled**.
@@ -40,7 +40,7 @@ Staff come here once a month, type by type, and return to post items that were h
 1. Expand **Generate a month** if it is folded.
 2. Pick the **Billing type** - Membership Fee or Subscription Fee.
 3. Pick the **Month**; the **Document date** and **Transaction date (period)** fill with the last day of that month and can be changed.
-4. Click **Generate**.
+4. Click **Generate for <Month Year>** (for example "Generate for Oct 2026").
 
 The system confirms "N item(s) generated - total X." and lists any warnings - memberships that were skipped and why (for example "M-0012: no membership fee assigned").
 The new schedule appears in the list for that month with status **pending**.
@@ -67,6 +67,7 @@ Posted items are never changed here; corrections are made in Account Receivable.
 ### Cancel a schedule
 
 - Open the pending schedule's ⋮ menu and click **Cancel**.
+  The **Cancel billing schedule** confirmation names the billing type, month and item count and states that no invoices are posted; click **Cancel schedule** to proceed.
   This is possible only while nothing has posted; afterwards the Invoices are voided in Account Receivable instead.
   After cancelling, the month can be generated again.
 

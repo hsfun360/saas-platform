@@ -7,7 +7,7 @@
 ## What this option is for
 
 The Golf Specification holds the club-wide golf rules that the Booking and Front Desk screens apply automatically.
-There is one specification per club (company): how far in advance members may book, how many players a booking must bring, when guests are allowed, handicap limits, the cancellation notice and no-show penalty, and the colours of the Front Desk tee sheet.
+There is one specification per club (company): how far in advance members may book, how many players a booking must bring, when guests are allowed, handicap limits, the cancellation notice and no-show penalty, whether group bookings go through holds, approval and a deposit deadline, and the colours of the Front Desk tee sheet.
 Staff come here when the club changes a policy - the next booking or registration follows the new rule straight away.
 Nothing here edits existing bookings; the rules are read at the moment a booking is made, cancelled or registered.
 
@@ -15,7 +15,7 @@ Nothing here edits existing bookings; the rules are read at the moment a booking
 
 [Screenshot: Golf Specification screen with all sections expanded]
 
-- The screen is one form made of six collapsible sections: **Booking Rules**, **Minimum Players**, **Guest Control**, **Handicap Control**, **Cancellation & No-show** and **Tee Sheet**.
+- The screen is one form made of seven collapsible sections: **Booking Rules**, **Minimum Players**, **Guest Control**, **Handicap Control**, **Cancellation & No-show**, **Group Bookings** and **Tee Sheet**.
 - Click a section's header band to fold it away or open it again; folding never loses what you typed.
 - Each section mixes plain fields with switches (tick boxes); some switches reveal more fields when turned on.
 - Several sections carry an exception table (**Add exception**, **Add limit**, **Add rule**, **Add session**, **Add override**) - rows you add, edit in place and remove with the red cross.
@@ -32,6 +32,7 @@ Nothing here edits existing bookings; the rules are read at the moment a booking
 4. Click **Save**.
 
 If certain membership types may book earlier than everyone else, tick **Allow Membership Type to override the advance booking days**, click **Add override**, pick the membership type and enter its own number of days.
+A membership type without golfing rights is listed with the suffix "(no golfing right)" so you can tell it apart.
 Override lines are kept even while the switch is off, but only take effect while it is on.
 
 ### Limit how many bookings a member may hold
@@ -101,14 +102,16 @@ Charges are posted to the booker's member account and can be followed up on the 
 
 1. Open **Group Bookings** and tick **Enable group booking control**.
    Leave it off if the club only keys its own events (a committee club's Monthly Medal): a group booking is then confirmed the moment it is created.
+   Turning it on reveals five more fields: three timers directly underneath, and two more under **Share caps**.
 2. Enter the **Tentative Hold (hours)** - how long a tentative booking's reserved flights hold the tee sheet before they are released if the booking has not been submitted for approval (`72` for three days; `0` holds them until submitted).
 3. Enter the **Deposit Due (days after approval)** - the proforma's pay-by date defaults to this many days after approval.
 4. Enter the **Default Deposit (% of the group bill)** - the deposit demanded when the proforma does not state one (`0` means no deposit, so approval confirms the booking at once).
-5. Under **Share caps**, enter the **Weekday Group Share Cap** and the **Weekend & Holiday Group Share Cap** - the most of a course's tee times on one day that all group bookings together may hold, in percent (`0` means no cap).
-   These apply whether the control is on or off, and a reservation that would push groups past the cap is refused with the numbers; the club's own events (flagged as club events on the booking) are exempt and do not count.
+   A preview sentence restates the three timers in words, for example "Reserved flights of a tentative booking are released after 72 hour(s) unless it is submitted for approval. Unless the proforma states otherwise, the deposit is 30% of the group bill, due 7 day(s) after approval; a booking whose deposit is not in by then lapses and its flights are released."
+5. Under the **Share caps** sub-heading ("The hard ceiling on the share of a course's tee times that all group bookings together may hold on one day - whatever an approver decides. Reserve flights refuses past it. Club events are exempt and do not count. 0 = no cap."), enter the **Weekday Group Share Cap (%)** and the **Weekend & Holiday Group Share Cap (%)**.
+   These two fields are always visible and apply whether the control is on or off; a reservation that would push groups past the cap is refused with the numbers.
 6. With the control on, enter **Tentative Bookings per User** - how many tentative bookings with reserved flights one user may hold at a time (`0` means no limit).
 7. With the control on, enter **Next in Line (hours)** - when a held day frees up, how long the first group on its waitlist has to reserve it before the offer passes to the next group.
-8. Read the preview sentences, then click **Save**.
+8. Read the second preview sentence under the caps, for example "Reserve flights refuses past the cap: on a weekday all groups together may hold at most 40% of a course's tee times, on a weekend or holiday all groups together may hold at most 25% of a course's tee times. Club events are exempt and do not count. A user may hold at most 3 tentative booking(s) with reserved flights at a time.", then click **Save**.
 
 The approval chain itself is set up under Workflow → Approval Setup for the purpose **Golf group booking**; with no chain, submitting a booking approves it at once.
 Its step conditions can test, among others, the share of the day a booking takes, the share all groups hold after it, the bill total, the discount against catalog and the deposit percentage.
@@ -193,11 +196,11 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Enable group booking control** | No | The master switch; off = a group booking is confirmed at creation with no holds, approval or deposit clock. | Reveals the three timers below; they are kept while off. |
+| **Enable group booking control** | No | The master switch; off = a group booking is confirmed at creation with no holds, approval or deposit clock. | Reveals the three timers below and the two per-user fields under Share caps; all five are kept while off. |
 | **Tentative Hold (hours)** | Yes (while on) | How long a tentative booking's reserved flights hold the tee sheet before they are released unless it is submitted, e.g. `72`; `0` = no expiry. | Whole number from 0 to 720. |
 | **Deposit Due (days after approval)** | Yes (while on) | The default pay-by date of the deposit, counted from approval, e.g. `7`. | Whole number from 0 to 365; a manager may extend a booking's date once. |
 | **Default Deposit (% of the group bill)** | Yes (while on) | The deposit demanded when the proforma does not state one, e.g. `30`; `0` = none, approval confirms at once. | Whole number from 0 to 100. |
-| **Weekday Group Share Cap (%)** | Yes | The most of a course's tee times all groups together may hold on a weekday, e.g. `40`; `0` = no cap. | Whole number from 0 to 100; applies in both modes; club events are exempt. |
+| **Weekday Group Share Cap (%)** | Yes | The most of a course's tee times all groups together may hold on a weekday, e.g. `40`; `0` = no cap. | Whole number from 0 to 100; always visible and applies in both modes; club events are exempt. |
 | **Weekend & Holiday Group Share Cap (%)** | Yes | The same for weekends and public holidays, e.g. `25`. | Whole number from 0 to 100. |
 | **Tentative Bookings per User** | Yes (while on) | How many tentative bookings with reserved flights one user may hold at a time, e.g. `3`; `0` = no limit. | Whole number from 0 to 50. |
 | **Next in Line (hours)** | Yes (while on) | The exclusive window the first group on a day's waitlist has to reserve it once the day frees up, e.g. `24`. | Whole number from 1 to 168; other groups are refused meanwhile, members never. |
@@ -212,6 +215,9 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 
 - The **Save** button stays grey until you change something; after a successful save the screen reloads with the saved values.
 - If you see "Define at least one session before limiting bookings per session", add at least one row under **Sessions** or set the limit back to per day.
+- If you see "Every session needs a name.", "Session 'Morning' needs both From and Until times." or "Session 'Morning': the From time must be before the Until time.", complete that session row before saving.
+- If you see "Every override line needs a membership type.", pick a type on each override row or remove the empty row.
+- If you see "A minimum-player rule needs both From and To times - or neither for the whole day." (or the guest, handicap or accompaniment version) or "...From time must be before its To time.", fix the time band on that row.
 - If you see "Sessions 'Morning' and 'Afternoon' overlap", adjust the times so each band ends where the next begins.
 - If you see "A membership type can only have one override line", remove the duplicate line.
 - If you see "Two minimum-player rules cover the same course and day scope for the whole day" or "...have overlapping time bands", two exceptions compete for the same slot - merge them or narrow one.

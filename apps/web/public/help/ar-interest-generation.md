@@ -18,7 +18,7 @@ Posting creates one interest document per debtor, which then appears on the Inte
 
 [Screenshot: Interest Generation with the run card, the month filter and the holding list]
 
-- The **Generate a month** card at the top holds the run form: Month, Cutoff date, Rate, Grace days, any analysis dimension pickers, and the **Generate** button.
+- The **Generate a month** card at the top holds the run form: Month, Cutoff date, Rate, Grace days, any analysis dimension pickers, and the **Generate for <Month Year>** button (it reads plain **Generate** until a month is picked).
   The card folds away once you are reviewing.
 - A **Month** filter above the list chooses which month's holding list to show.
 - When pending lines exist, a **Select all pending** box and a **Post N interest documents - total** button appear, the total being the sum of the selected lines (listed per currency, never added across currencies).
@@ -37,7 +37,7 @@ Posting creates one interest document per debtor, which then appears on the Inte
 2. Enter the **Rate (% flat)**, the monthly percentage applied once to each overdue balance, for example `1.5`.
 3. Enter **Grace days** if overdue items get a few days before interest starts.
 4. If analysis dimension pickers appear, choose the values every document of this run should carry; starred dimensions are compulsory.
-5. Click **Generate**.
+5. Click **Generate for <Month Year>** (for example "Generate for Oct 2026").
 
 The message reports how many debtors were generated, the total per currency, and how many debtors already had a run for the month and were skipped.
 The list switches to that month so you can review.
@@ -71,6 +71,7 @@ If some lines fail, the message names each debtor and the reason; the rest still
 ### Cancel a debtor's line
 
 Open the ⋮ menu on a pending line and click **Cancel**.
+The **Cancel interest generation** confirmation names the debtor and states that nothing has been posted; click **Cancel generation** to proceed.
 The line is kept as cancelled for the record, and the debtor can be generated again for the same month.
 
 ## Field reference

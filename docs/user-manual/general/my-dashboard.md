@@ -8,7 +8,7 @@
 
 My Dashboard is your personal home page.
 It is the same page whichever system you are working in, and it is the first place you land to start your day.
-It gathers three things in one view: **Quick access** (screens you pinned with the star), **Continue where you left off** (screens you visited recently), and **Help & guides** (screens that have a built-in user guide).
+It gathers four things in one view: **My tasks** (the approvals waiting for your decision), **Quick access** (screens you pinned with the star), **Continue where you left off** (screens you visited recently), and **Help & guides** (screens that have a built-in user guide).
 Your pinned screens are saved to your account, so the same Quick access follows you on your office computer, laptop and phone.
 
 ## The screen at a glance
@@ -16,6 +16,11 @@ Your pinned screens are saved to your account, so the same Quick access follows 
 [Screenshot: My Dashboard with pinned screens in two system groups]
 
 - A greeting with your name, your company and your role.
+- **My tasks** - the approval tasks assigned to you in this company, with a count badge in the heading.
+  Each line names the document, the document type and step, when it was submitted and by whom, and its due date when the step has a deadline ("due <date>", highlighted when the deadline has passed).
+  Click a line, or **Open My Approvals to decide** (which reads **View all N approvals waiting for you** when more tasks exist than the card shows), to go to My Approvals.
+  With nothing waiting the card reads "You're all caught up - nothing is waiting for your approval."; while it loads it reads "We are still loading your task(s)".
+  On a phone or tablet the card disappears when the inbox is empty, to save space; on a desktop it stays beside Quick access.
 - **Quick access** - your pinned screens as cards, grouped under a heading per system (for example SYSTEM ADMINISTRATION, GOLF MANAGEMENT).
   Each heading shows the system icon, a count of pinned screens inside, and an arrow to fold the group.
   The eye icon beside the "Quick access" title hides or shows the whole section.
@@ -26,6 +31,14 @@ Your pinned screens are saved to your account, so the same Quick access follows 
   Open one of them and use the book icon in the top bar to read its guide.
 
 ## Common tasks
+
+### Act on an approval waiting for you
+
+1. Look at the **My tasks** card; the badge on its heading is the number of documents waiting for your decision.
+2. Click the task line (or **Open My Approvals to decide**).
+3. On My Approvals, click **Approve** or **Reject** on the task and confirm in the dialog (a rejection needs a comment).
+
+The card only ever shows tasks assigned to you in the company you are working in; switch company in the header to see the others.
 
 ### Pin a screen to Quick access
 
@@ -87,4 +100,5 @@ Screens cannot be dragged from one system into another - each screen belongs to 
 ## Related options
 
 - Every screen's title carries the **star** used for pinning.
-- Each system also has its own landing page (via the apps switcher in the top bar) listing all screens of that system - Quick access is your personal shortlist, the landing page is the full catalogue.
+- [My Approvals](approvals.md) - the full approval inbox the **My tasks** card links to, where you approve or reject.
+- Switching system in the apps switcher (top bar) swaps the side menu to that system's screens and lands you back on this same page - the side menu is the full catalogue, Quick access is your personal shortlist.

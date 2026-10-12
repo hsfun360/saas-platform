@@ -38,14 +38,15 @@ A posted invoice is never edited or voided; if it is wrong, you raise a Credit N
 1. Click **New Invoice**.
 2. Find the debtor: type part of the account number, name or code and click the row.
    Each row shows the number, the name, the account type and the current outstanding amount.
-   Only active debtor accounts are offered.
-3. The form opens with the debtor shown in a band at the top; click **Change** if you picked the wrong one.
+   Only active debtor accounts are offered; when nothing matches the list reads "No active debtors match. Refine the search."
+3. The form opens with the debtor shown in a band at the top (with a "<CCY> account" tag, for example "USD account", when the account is in a foreign currency); click **Change** if you picked the wrong one.
 
 [Screenshot: New Invoice dialog entry form]
 
 4. Check **Invoice no.**.
    With automatic numbering it reads "Issued on save" and the number is assigned when you save.
    With manual numbering you must key it.
+   When no numbering scheme is active for invoices, the field shows "Auto if left blank": key a number to use it, or leave it empty and one is issued automatically.
 5. Pick the **Transaction type** (the billing item).
    Only Invoice-class items from the Transaction Type master are offered.
    Tax, if any, comes from the item's tax scheme and is added on top of the amount you enter.
@@ -54,9 +55,9 @@ A posted invoice is never edited or voided; if it is wrong, you raise a Credit N
    Change only the transaction date when you are back-keying a document into a closed accounting month.
 7. Enter the **Amount** before tax.
 8. On a foreign-currency account, check the **Exchange rate**.
-   It defaults from the Exchange Rates table at the document date and shows the approximate base-currency value underneath.
+   It defaults from the Exchange Rates table at the document date, and the hint underneath shows the base-currency value as "≈ 1062.50 MYR (before tax)".
 9. Add a **Description** if useful.
-10. If the Analysis Dimensions section appears, pick a value for each dimension that matters; dimensions marked with a star are compulsory.
+10. If the **Analysis Dimensions** section appears (a collapsible card subtitled "Tag this document for financial-analysis reporting."), pick a value for each dimension that matters; dimensions marked with a star are compulsory.
     Choosing a child value fills in its parent automatically, and changing the parent clears a child that no longer belongs under it.
 11. Click **Save** to keep the invoice as an Open draft, or **Post invoice** / **Submit for Approval** to make it financial straight away.
 
@@ -88,7 +89,7 @@ If you leave without saving, the system asks whether to discard your changes or 
 1. Open the ⋮ menu and click **Void**.
 2. Enter the **Void reason**.
    It is compulsory and is kept for audit.
-3. Click **Void**.
+3. Click **Void <invoice no.>** (the button reads **Void Draft** when no number has been issued yet).
 
 The draft never posted, so nothing reverses.
 The number stays consumed and the record remains in the list as Void with your reason, so the auditor can explain the gap in the sequence.
@@ -122,7 +123,7 @@ If nothing has been applied yet the viewer says so.
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Invoice no.** | Only with manual numbering | The invoice number, when your company keys numbers by hand. | Up to 30 characters; must not already be in use. With automatic numbering the number is issued on save and cannot be changed. |
+| **Invoice no.** | Only with manual numbering | The invoice number, when your company keys numbers by hand. | Up to 30 characters; must not already be in use. With automatic numbering the number is issued on save and cannot be changed; with no active scheme the field reads "Auto if left blank" and a blank is numbered automatically. |
 | **Transaction type** | Yes | The billing item, for example `OTH - Miscellaneous Fee`. Its tax scheme decides the tax added. | Invoice-class, active items only. |
 | **Document date** | Yes | The date the invoice is raised, picked from the calendar. Drives the due date and aging. | Defaults to today. |
 | **Transaction date (period)** | Yes | The accounting period the invoice belongs to. | Defaults to the document date; change it only when back-keying into a closed month. |

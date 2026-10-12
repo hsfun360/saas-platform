@@ -64,7 +64,7 @@ Joining fees are the one-time charges billed when a new member joins under this 
 1. Open the card's ⋮ menu and click **Joining fees**.
 2. Click **Add fee** for each charge.
 3. On each row pick the **Transaction type** (its tax scheme shows underneath), optionally type a **Description**, pick the **Currency** (your company's default currency is pre-filled) and enter the **Amount**.
-4. Use **Remove** on a row to drop it.
+4. Click the red ✕ at the end of a row to drop it (an icon-only button; nothing changes until you save).
 5. Click **Save**.
 
 The whole list is replaced by what you saved; the card's "Joining fees" count updates.
@@ -79,7 +79,7 @@ Standing charges are recurring charges raised from the member's status at the ti
 2. Click **Add charge** for each charge.
 3. On each row pick the **Membership status** the charge applies to and the **Transaction type** (its tax scheme shows underneath), optionally type a **Description**, pick the **Currency** and enter the **Amount**.
 4. Pick the **Frequency**: Monthly, Annually, or Fixed Month - for Fixed Month also pick the **Month** it is billed in.
-5. Use **Remove** on a row to drop it.
+5. Click the red ✕ at the end of a row to drop it (an icon-only button; nothing changes until you save).
 6. Click **Save**.
 
 ### Disable / enable a type

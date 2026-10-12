@@ -36,22 +36,24 @@ A credit note follows the same life as an invoice: Open draft, submitted for pos
 
 1. Click **New Credit Note**.
 2. Find the debtor: type part of the account number, name or code and click the row.
-3. The form opens with the debtor shown in a band at the top; click **Change** if you picked the wrong one.
+   Only active debtor accounts are offered; when nothing matches the list reads "No active debtors match. Refine the search."
+3. The form opens with the debtor shown in a band at the top (with a "<CCY> account" tag on a foreign-currency account); click **Change** if you picked the wrong one.
 
 [Screenshot: New Credit Note dialog entry form]
 
 4. Check **Credit Note no.**.
    With automatic numbering it reads "Issued on save"; with manual numbering you must key it.
+   When no numbering scheme is active for credit notes, the field shows "Auto if left blank": key a number or leave it empty for one to be issued automatically.
 5. Pick the **Transaction type**.
    Only Credit Note-class items from the Transaction Type master are offered; the item's tax scheme decides the tax included.
 6. Confirm the **Document date** and **Transaction date (period)**; both default to today.
 7. Enter the **Amount** before tax.
-8. On a foreign-currency account, check the **Exchange rate**.
+8. On a foreign-currency account, check the **Exchange rate**; the hint underneath shows the base-currency value as "≈ <amount> <base currency> (before tax)".
 9. Choose what to **Apply against**.
    The list shows the debtor's open invoices and debit notes with their open balance.
-   Leave it as "Leave as available credit" to keep the amount on the account for later use.
+   Leave it as "Leave as available credit" to keep the amount on the account for later use; the hint reads "No target - the amount stays on the account as available credit."
 10. Add a **Description** if useful.
-11. If the Analysis Dimensions section appears, pick a value for each dimension that matters; starred dimensions are compulsory.
+11. If the **Analysis Dimensions** section appears (a collapsible card subtitled "Tag this document for financial-analysis reporting."), pick a value for each dimension that matters; starred dimensions are compulsory.
 12. Click **Save** to keep an Open draft, or **Post credit note** / **Submit for Approval**.
 
 The apply-against choice is an intention recorded on the draft and carried out at posting.
@@ -86,7 +88,7 @@ If you leave without saving, the system asks whether to discard your changes or 
 
 1. Open the ⋮ menu and click **Void**.
 2. Enter the compulsory **Void reason**.
-3. Click **Void**.
+3. Click **Void <credit note no.>** (the button reads **Void Draft** when no number has been issued yet).
 
 The number stays consumed and the record remains as Void with your reason.
 A posted credit note cannot be voided from this screen; a posted but still unapplied credit note can be reversed from the debtor's account page.
@@ -108,7 +110,7 @@ If nothing has been applied yet the viewer says so.
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Credit Note no.** | Only with manual numbering | The number, when your company keys numbers by hand. | Up to 30 characters; must not already be in use. With automatic numbering the number is issued on save and cannot be changed. |
+| **Credit Note no.** | Only with manual numbering | The number, when your company keys numbers by hand. | Up to 30 characters; must not already be in use. With automatic numbering the number is issued on save and cannot be changed; with no active scheme the field reads "Auto if left blank" and a blank is numbered automatically. |
 | **Transaction type** | Yes | The credit item, for example `DISC - Goodwill discount`. | Credit Note-class, active items only. |
 | **Document date** | Yes | The date the note is raised. | Defaults to today. |
 | **Transaction date (period)** | Yes | The accounting period the note belongs to. | Defaults to the document date; change only when back-keying into a closed month. |

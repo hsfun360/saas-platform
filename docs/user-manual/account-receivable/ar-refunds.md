@@ -41,33 +41,37 @@ A posted refund is never voided: the money has already left, so bring it back wi
 
 1. Click **New Refund**.
 2. Find the debtor: type part of the account number, name or code and click the row.
-3. Choose **Deposit refund**.
+   Only active debtor accounts are offered; when nothing matches the list reads "No active debtors match. Refine the search."
+3. The next step is headed "what is being refunded?" with the hint "Pick what this refund does - it decides which fields the form shows."; choose **Deposit refund**.
    Each kind states its consequence before you pick it.
-4. The form opens with **Refund of** showing the kind you chose.
+4. The form opens with the debtor in a band at the top (with a "<CCY> account" tag on a foreign-currency account) and **Refund of** showing the kind you chose.
    **Change** lets you re-pick while the form is still untouched.
 
 [Screenshot: New Refund dialog entry form for a deposit refund]
 
 5. Check **Refund no.**.
    With automatic numbering it reads "Issued on save"; with manual numbering you must key it.
+   When no numbering scheme is active for refunds, the field shows "Auto if left blank": key a number or leave it empty for one to be issued automatically.
 6. Confirm the **Document date** and **Transaction date (period)**.
 7. Pick the deposit in **From deposit**.
-   Only posted deposits with a held balance are offered, each labelled with the amount held.
-8. Enter the **Amount**, up to the deposit's held balance.
+   Only posted deposits with a held balance are offered, each labelled with the amount held; when there is none the hint reads "No deposit on this debtor has a held balance to draw on."
+8. Enter the **Amount**; the hint reads "Up to the deposit's held balance."
 9. Pick the **Payment method** (a Refund-class entry such as `BANKOUT`) and add the **Payment reference**.
-10. On a foreign-currency account, check the **Exchange rate**.
+   With no Refund-class entries yet, the hint under the field says to create payout methods (e.g. BANKOUT) on the AR Transaction Type master.
+10. On a foreign-currency account, check the **Exchange rate**; the hint underneath shows the base-currency amount as "≈ <amount> <base currency> paid out".
 11. Add a **Description** if useful.
 12. Click **Save** to keep an Open draft, or **Post refund** / **Submit for Approval**.
 
 ### Pay back an overpayment
 
 Follow the same steps and choose **Excess payment refund**.
-There is no deposit to pick: the amount is funded from the debtor's unallocated receipt credit, oldest first, and cannot exceed what is available.
+There is no deposit to pick: the Amount hint reads "Funded from unallocated receipt credit, oldest first.", and the amount cannot exceed what is available.
 A payment method and reference are required because money leaves the bank.
 
 ### Apply a deposit to what the debtor owes
 
 Follow the same steps and choose **Deposit to outstanding**.
+The **Refund of** field carries the hint "No money moves - a Credit Note posts with the refund and settles open items, oldest first."
 Pick the deposit in **From deposit** and enter the amount to apply.
 No payment method is asked for, because no money moves.
 When the refund posts, the system also posts a Credit Note for the same amount under the deposit-conversion entry set in AR Specification, and that credit note settles the debtor's open items oldest first.
@@ -98,7 +102,7 @@ The message names the shortfall so you can adjust and resubmit.
 
 1. Open the ⋮ menu and click **Void**.
 2. Enter the compulsory **Void reason**.
-3. Click **Void**.
+3. Click **Void <refund no.>** (the button reads **Void Draft** when no number has been issued yet).
 
 The number stays consumed and the record remains as Void with your reason for the audit trail.
 
@@ -128,7 +132,7 @@ On the Deposits screen, the same viewer follows a "Deposit to outstanding" refun
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
 | **Refund of** | Yes | The kind chosen in the previous step; shown read-only. | **Change** is available only while the form is untouched and the refund is new. |
-| **Refund no.** | Only with manual numbering | The refund number, when your company keys numbers by hand. | Up to 30 characters; must not already be in use. With automatic numbering the number is issued on save and cannot be changed. |
+| **Refund no.** | Only with manual numbering | The refund number, when your company keys numbers by hand. | Up to 30 characters; must not already be in use. With automatic numbering the number is issued on save and cannot be changed; with no active scheme the field reads "Auto if left blank" and a blank is numbered automatically. |
 | **Document date** | Yes | The date of the refund. | Defaults to today. |
 | **Transaction date (period)** | Yes | The accounting period the refund belongs to. | Defaults to the document date; change only when back-keying into a closed month. |
 | **From deposit** | Yes for Deposit refund and Deposit to outstanding | The posted deposit the refund draws on, shown with its held balance. | Only deposits with a held balance are offered. Not shown for Excess payment refund. |

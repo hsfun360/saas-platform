@@ -5,13 +5,14 @@ Each manual is also published as an in-app guide: a static copy lives at `apps/w
 
 ## General (every user)
 
-- [My Dashboard](general/my-dashboard.md) - the personal home page: star-pinned Quick access grouped by system, recent screens, and guides.
+- [My Dashboard](general/my-dashboard.md) - the personal home page: the My tasks approval card, star-pinned Quick access grouped by system, recent screens, and guides.
+- [My Approvals](general/approvals.md) - the personal approval inbox: the tasks waiting for you with Overdue/Pending chips, the Approve / Reject decision dialog (comment required on reject) and the outcome messages.
 
 ## SaaS Administration
 
 - [Countries](saas-administration/countries.md) - the country reference list behind every country picker.
 - [Subscriber Management](saas-administration/admin-subscribers.md) - Provision subscribers with their first Tenant Admin, plan and modules; edit name, plan, status and timezone; recover a company's Tenant Admin.
-- [Platform Users](saas-administration/admin-platform-users.md) - Local sign-in accounts for platform staff: create, edit, activate or deactivate (roles are granted on Assign Role).
+- [Platform Users](saas-administration/admin-platform-users.md) - Local sign-in accounts for platform staff: create, edit, enable or disable (roles are granted on Assign Role).
 - [System Roles](saas-administration/admin-system-roles.md) - Platform access levels: menu permissions with Create/Edit/Delete flags and a data scope, built with the shared permission picker.
 - [Assign Role](saas-administration/admin-system-setup.md) - Grant one system role to a platform user and review current assignments.
 - [Unverified Registrations](saas-administration/admin-unverified-users.md) - Review and permanently delete registrations that never activated, freeing their email addresses; stale ones pre-selected, protected ones skipped.
@@ -73,7 +74,7 @@ Each manual is also published as an in-app guide: a static copy lives at `apps/w
 
 ## Golf Management
 
-- [Unit Courses](golf-management/golf-unit-courses.md) - the 9-hole building blocks: holes (par/HCP) and tee boxes (colours + per-hole distances).
+- [Unit Courses](golf-management/golf-unit-courses.md) - the 9-hole building blocks: holes (par/HCP) and tee boxes (colours + per-hole distances), with Edit plus the Holes / Tees / Enable / Disable / Delete menu.
 - [Golf Specification](golf-management/golf-settings.md) - the club-wide golf rules: advance window, booking limits and sessions, minimum players, guest control, handicap control, cancellation notice + no-show penalty, tee-sheet colours.
 - [No-show Charges](golf-management/golf-no-show-charges.md) - the penalties raised against bookers for no-shows and late cancellations: post pending charges to the account or waive them.
 - [Transaction Type](golf-management/golf-transaction-types.md) - the golf billing-item catalog: charge types, tax scheme, Default Price cards, golfer-type defaults, packages and their eligibility conditions.

@@ -17,11 +17,17 @@ Bookings are made elsewhere (Golf Booking); this screen is where the day actuall
 - **Play date** picks the day; today is selected by default.
 - The search box highlights the flights holding a matching golfer (name, member no, booking no or registration no) and dims the rest; the first match scrolls into view.
 - **No-shows** (today and past dates only) opens the review of booked players who did not register.
-- A legend shows the four dot colours (set on Golf Specification): **Booked**, **Registered**, **Billed**, **Settled**; a blank outline is an available seat.
+- A legend shows the four dot colours (set on Golf Specification): **Booked**, **Registered**, **Billed**, **Settled**, plus **Available** for the blank outline of a free seat.
 - One card per course, headed by the course code, description and its nine rotation (e.g. "E1 → E2"); click the header to fold or unfold the card.
-- Each flight row shows the tee time, one dot per seat, the players (name, type, member no, holes) and tags: **CLOSED** (course closure), **HELD · <group>** (a group's shotgun window), **RESERVED · <group>** (a group's flight with no players drawn yet; its seats show as dashed dots), **X-OVER** (a crossover-only time - no new tee-offs), **OFF GRID** (players on a time no longer in the tee-time set), **9H only** (18 holes not possible from here) and **↷n** (n players crossing over onto this nine at this time).
-- A group or tournament play day on the course shows as a block above the flight rows: the group name, booking number, start format, window and counts, with **Register group (n)**. A shotgun-format day lists its flights inside the block by hole and nine; a traditional or two-tee day keeps its players in the normal rows, tagged with the group name and flight label.
-- Clicking a flight opens the flight workspace in a drawer; closed and crossover-only rows do not open.
+  A course that has no tee-time set covering the day but still carries a group hold is shown with a **not operating** tag.
+  When no course operates at all on the chosen date, the screen says so instead of showing cards.
+- Each flight row shows the tee time, one dot per seat, the players (name, type, member no, holes) and tags: **CLOSED** (course closure), **HELD · <group>** (a group's shotgun window; while the group is not yet confirmed the tag names its state as well, for example **HELD · TENTATIVE · <group>**, **HELD · PENDING · <group>** or **HELD · APPROVED · <group>**), **RESERVED · <group>** (a group's flight with no players drawn yet; its seats show as dashed dots), **X-OVER** (a crossover-only time - no new tee-offs), **OFF GRID** (players on a time no longer in the tee-time set), **9H only** (18 holes not possible from here) and **↷n** (n players crossing over onto this nine at this time).
+  Hovering a dot names its state ("Reserved for <group>" on a dashed dot).
+- A group or tournament play day on the course shows as a block above the flight rows: the group name, booking number, a hold-state chip (**TENTATIVE**, **PENDING** or **APPROVED**) while the booking is not yet confirmed, then the start format, holes, the held window, and the drawn / registered / settled counts.
+  On the right the block shows **Register group (n)** for a confirmed group with players still to register, **All registered** once they all are, **No players drawn yet** when the draw is empty, or **Not confirmed yet** for a group that is still tentative, pending approval or awaiting its deposit.
+  A shotgun-format day lists its flights inside the block by hole and nine; a flight with no players drawn is greyed out and does not open.
+  A traditional or two-tee day keeps its players in the normal rows, tagged with the group name and flight label.
+- Clicking a flight opens the flight workspace in a drawer titled with the course code and tee time (a group flight is titled with the group name and flight label); closed and crossover-only rows do not open.
 - The **Walk-in** button at the bottom right registers a golfer on any free flight.
 
 ## Common tasks
@@ -43,6 +49,7 @@ A name-only guest on a booking is registered as a guest; their identity can be c
 [Screenshot: Group block with Register group]
 
 1. In the group's block, click **Register group (n)** - n is the number of drawn players not yet registered.
+   The button is offered only once the group booking is **Confirmed**; a block that reads **Not confirmed yet** belongs to a booking that is still tentative, pending approval or awaiting its deposit, and its players register once it confirms on Group Bookings.
 2. Read the result: how many were registered and who was skipped, with the reason.
 
 Every drawn player of the group on that date is registered in one go, whichever flight or nine they are in.
@@ -55,8 +62,8 @@ A group player's own bill opens empty - the package is billed on the group's fol
 
 Two ways:
 
-- From a flight with a free seat: click **+ Add walk-in** in the free slot, pick the **Player Type** and **No of Holes**, enter the **Member No** (member or member-as-guest) or the **Guest Name** with optional **Identity / Passport No.** and **Mobile**, then click **Register walk-in**.
-- From the **Walk-in** button: additionally pick the **Course** and **Flight Time**.
+- From a flight with a free seat: click **+ Add walk-in** in the first free slot (the other free seats read **Available**), pick the **Player Type** and **No of Holes**, enter the **Member No** (member or member-as-guest) or the **Guest Name** with optional **Identity / Passport No.** and **Mobile** (pick the country code, then type the number), then click **Register walk-in**.
+- From the **Walk-in** button: the **Walk-in registration** drawer additionally asks for the **Course** and **Flight Time**.
 
 A walk-in takes a seat only on a flight that is on the tee sheet, open for new tee-offs (not crossover-only, not closed) and not full; an 18-hole walk-in also needs a free, open crossover flight.
 Returning guests are matched by identity number, then mobile, so one guest profile is kept.
@@ -66,6 +73,7 @@ Returning guests are matched by identity number, then mobile, so one guest profi
 [Screenshot: Bill drawer with items and tiles]
 
 1. In the flight workspace click **Bill** on a registered player (or **View** on a settled one).
+   The drawer is titled **Bill <bill no.>** and carries an **OPEN** or **SETTLED** chip beside the player's name and bill date.
 2. A new bill auto-charges the green fee for the player's category (members with golfing right pay none); any missing price shows as a warning.
 3. Click a **tile** to add an item: matrix items price by holes and day type, flat items by their amount, packages explode into their element lines plus the balance line.
    Tiles the player's category may not be billed are not shown; a package the player does not qualify for is greyed out with the reason.
@@ -78,7 +86,7 @@ Returning guests are matched by identity number, then mobile, so one guest profi
 
 [Screenshot: Settle view with two payment lines]
 
-1. Click **Add payment** for each tender: pick the **payment type**, enter the **amount** and an optional **reference** (card slip, voucher no).
+1. The drawer switches to **Settle bill <bill no.>**; click **Add payment** for each tender: pick the **payment type**, enter the **amount** and an optional **reference** (card slip, voucher no).
 2. The **Remaining** figure must reach 0.00 - payments must equal the bill total exactly.
 3. Click **Settle bill**.
 
@@ -88,7 +96,7 @@ A settled bill shows its payments and can only be viewed.
 ### Cancel a registration or void a bill
 
 - In the flight workspace, open the player's ⋮ menu and click **Cancel registration** (a registration without a bill) or **Void bill** (an open bill).
-- Confirm in the drawer with an optional **Reason**.
+- The drawer switches to a view titled **Cancel registration** or **Void bill** that states what happens; add an optional **Reason** and click the red **Cancel registration** / **Void bill** button, or **Keep** to back out.
 
 Cancelling a booked player's registration puts them back to Booked - the booking keeps the seat; cancelling a walk-in frees the seat.
 Voiding a bill discards its items; the registration stays, and a new bill can be opened.
@@ -98,9 +106,12 @@ A registration with a bill must have the bill voided first.
 
 [Screenshot: No-shows review]
 
-1. On today or a past date click **No-shows**; the review lists every booking with players still booked whose tee time has passed, grouped by booking with the booker.
-2. With the Cancellation & No-show rule on, each booking shows the charge to the booker; untick **Record booking ... as no-show** to leave a booking out, or tick **Waive the charge** and give the reason.
-3. Click **Record n no-shows · charge x.xx**.
+1. On today or a past date click **No-shows**; the **No-shows** drawer lists every booking with players still booked whose tee time has passed, grouped by booking with the booker.
+   When nothing is outstanding it reads "Nothing to record - every booked player whose tee time has passed is registered or cancelled."
+2. With the Cancellation & No-show rule on, each booking shows the charge to the booker (item, quantity × price, tax and total); untick the booking's tick box to leave it out, or tick **Waive the charge** and type the **Waive reason (required)** in the box that appears.
+   A non-member booker is flagged "Not a member - recorded as pending for collection at the counter."; a charge that cannot be priced reads "Cannot be charged: <reason> - the no-show is recorded without a charge."
+   With the rule off, the header reads "No-show charges are off (Golf Specification)" and no charge lines appear.
+3. Click **Record n no-shows · charge x.xx** (the charge part is omitted when nothing is charged).
 
 The players are recorded as no-shows and each charge posts to the booker's account (or waits as Pending on the No-show Charges screen when it cannot post - for example a non-member booker).
 With the rule off, no-shows are recorded without charges.
@@ -118,7 +129,7 @@ With the rule off, no-shows are recorded without charges.
 | **Member No** | Member / Member as Guest: Yes | The member's number, e.g. `A0018`. | The member must exist; a barred member cannot register. |
 | **Guest Name** | Guest: Yes | The visitor's name. | Up to 100 characters. |
 | **Identity / Passport No.** | No | Used to recognise a returning guest. | Up to 50 characters. |
-| **Mobile** | No | Also used to recognise a returning guest. | Up to 30 characters. |
+| **Mobile** | No | Also used to recognise a returning guest; pick the country code, then type the number. | Up to 30 characters. |
 
 ### Bill line
 
@@ -140,6 +151,14 @@ With the rule off, no-shows are recorded without charges.
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
 | **Reason** | No | Why the registration is cancelled or the bill voided. | Kept on the record. |
+
+### No-shows review (per booking)
+
+| Field | Required | What to enter | Rules |
+| --- | --- | --- | --- |
+| **Record booking ... as no-show** (tick box) | - | Tick to include the booking in the recording; untick to leave it out this time. | Ticked by default. |
+| **Waive the charge** | No | Tick to record the no-show without charging the booker. | Shown only while the no-show rule is on and the charge could be priced. |
+| **Waive reason (required)** | Yes when waiving | Why the charge is waived. | Up to 255 characters; kept on the charge record. |
 
 ## Tips & troubleshooting
 

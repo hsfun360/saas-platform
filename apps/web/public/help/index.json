@@ -2,6 +2,9 @@
   "home": {
     "title": "My Dashboard"
   },
+  "approvals": {
+    "title": "My Approvals"
+  },
   "admin-companies": {
     "title": "Companies"
   },

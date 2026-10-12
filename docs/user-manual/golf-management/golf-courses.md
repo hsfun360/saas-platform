@@ -75,8 +75,8 @@ Changing the set's header later does not regenerate the flights - open Flight ti
 
 - Click **Edit** to change any course field; the Course code is stored in capitals.
 - Open the ⋮ menu and click **Disable** to take a course off the tee sheet while keeping its history, or **Enable** to bring it back.
-- Open the ⋮ menu and click **Delete** only for a course keyed by mistake: the confirmation names the course and warns that its tee-time sets are removed with it.
-  Click **Delete** to confirm or **Keep** to back out.
+- Open the ⋮ menu and click **Delete** only for a course keyed by mistake: the **Delete course** confirmation names the course and warns that its tee-time sets are removed with it and that this cannot be undone.
+  Click **Delete course** to confirm or **Cancel** to back out.
   A course that already has bookings or player records cannot be deleted; disable it instead.
 
 ### Edit, disable or enable a tee-time set

@@ -41,16 +41,19 @@ Held deposit money is paid back, or applied to what the debtor owes, through the
 
 1. Click **New Deposit**.
 2. Find the debtor: type part of the account number, name or code and click the row.
-3. The form opens with the debtor shown in a band at the top; click **Change** if you picked the wrong one.
+   Only active debtor accounts are offered; when nothing matches the list reads "No active debtors match. Refine the search."
+3. The form opens with the debtor shown in a band at the top (with a "<CCY> account" tag on a foreign-currency account); click **Change** if you picked the wrong one.
 
 [Screenshot: New Deposit dialog entry form]
 
 4. Check **Deposit no.**.
    With automatic numbering it reads "Issued on save"; with manual numbering you must key it.
+   When no numbering scheme is active for deposits, the field shows "Auto if left blank": key a number or leave it empty for one to be issued automatically.
 5. Enter the **Required amount**.
 6. Confirm the **Document date** and **Transaction date (period)**.
-7. On a foreign-currency account, check the **Exchange rate**.
+7. On a foreign-currency account, check the **Exchange rate**; the hint underneath shows the base-currency amount as "≈ <amount> <base currency> required".
 8. Add a **Description** if useful.
+   A note under the form reminds you that collection happens through an Official Receipt against this deposit once it is posted.
 9. Click **Save** to keep an Open draft, or **Post deposit** / **Submit for Approval**.
 
 The button label tells you what Submit will do: **Post deposit** opens the deposit for collection now, while **Submit for Approval** sends it into the approval chain and it opens automatically once approved.
@@ -84,7 +87,7 @@ If you leave without saving, the system asks whether to discard your changes or 
 
 1. Open the ⋮ menu and click **Void**.
 2. Enter the compulsory **Void reason**.
-3. Click **Void**.
+3. Click **Void <deposit no.>** (the button reads **Void Draft** when no number has been issued yet).
 
 The number stays consumed and the record remains as Void with your reason for the audit trail.
 A posted deposit can only be voided from the debtor's account page, and only before its first collection.
@@ -107,7 +110,7 @@ For a "Deposit to outstanding" refund it goes one step further: under the draw i
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Deposit no.** | Only with manual numbering | The deposit number, when your company keys numbers by hand. | Up to 30 characters; must not already be in use. With automatic numbering the number is issued on save and cannot be changed. |
+| **Deposit no.** | Only with manual numbering | The deposit number, when your company keys numbers by hand. | Up to 30 characters; must not already be in use. With automatic numbering the number is issued on save and cannot be changed; with no active scheme the field reads "Auto if left blank" and a blank is numbered automatically. |
 | **Required amount** | Yes | The collateral the debtor must lodge, for example `5000.00`. | Greater than zero; always shown with two decimals. |
 | **Document date** | Yes | The date the deposit is billed. | Defaults to today. |
 | **Transaction date (period)** | Yes | The accounting period the deposit belongs to. | Defaults to the document date; change only when back-keying into a closed month. |

@@ -45,7 +45,8 @@ The file is named after the statement number and renders the same frozen data; a
 ### Void a statement
 
 1. Open the row's ⋮ menu and click **Void**.
-2. The statement is marked void at once and stays in the list for the record.
+2. The **Void statement** confirmation names the statement and states that it stays on file as voided and no longer counts as issued; click **Void statement** to proceed, or **Cancel** to keep it.
+3. The statement is marked void and stays in the list for the record.
 
 Void a statement that was issued in error, then regenerate the month on Statement Generation if a corrected one is needed; a void statement does not block regeneration.
 

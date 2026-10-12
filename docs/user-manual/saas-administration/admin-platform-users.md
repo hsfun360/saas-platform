@@ -3,7 +3,7 @@
 > **Where:** SaaS Administration → Access → Platform Users (shown in the sidebar as **Users**)
 >
 > **Who can use it:** platform (system) administrators whose role includes the SaaS Administration module.
-> **Create user** needs the Create permission, and **Edit** and **Activate/Deactivate** need the Edit permission; a role without a permission simply does not see that button.
+> **Create user** needs the Create permission, and **Edit** and **Enable/Disable** need the Edit permission; a role without a permission simply does not see that button.
 
 ## What this option is for
 
@@ -19,7 +19,7 @@ Staff come here to onboard a new platform colleague, correct their details, or d
 - A search box filters the list as you type; it matches the email, the full name and the sign-in method (e.g. `google`).
 - One card per user showing the email on the title line (with a Google or Microsoft logo in front of it when the person signs in with that provider) and the full name underneath.
 - A status chip on the right shows **Active** (can sign in) or **Inactive** (sign-in blocked).
-- Each card has an **Edit** button and a ⋮ menu holding **Activate** or **Deactivate**.
+- Each card has an **Edit** button and a ⋮ menu holding **Enable** or **Disable**.
 - The **Create user** button floats at the bottom right.
 
 ## Common tasks
@@ -48,13 +48,13 @@ It holds no role yet: go to Assign Role to grant one, or the person will sign in
 
 If you try to leave either dialog with unsaved changes (Cancel, ✕, Esc or the browser back button), the system asks whether to discard your changes or keep editing.
 
-### Deactivate / activate a user
+### Disable / enable a user
 
-- Open the ⋮ menu on the card and click **Deactivate** to block the person from signing in to the platform workspace.
+- Open the ⋮ menu on the card and click **Disable** to block the person from signing in to the platform workspace.
   Their account and history are kept; they are simply marked **Inactive**.
-- Open the ⋮ menu and click **Activate** to let them sign in again.
+- Open the ⋮ menu and click **Enable** to let them sign in again.
 
-You cannot deactivate your own account.
+You cannot disable your own account.
 
 ### Find a user
 
@@ -98,8 +98,8 @@ You cannot deactivate your own account.
 - If you see "You cannot deactivate your own account." ask another administrator to do it.
 - If you see "Platform user not found." or "User not found." the account no longer exists; refresh the list.
 - If you see "Failed to create user.", "Failed to update user." or "Failed to update user status." something went wrong on the server; try again, and contact support if it persists.
-- Accounts that sign in with Google or Microsoft are created when the person first signs in that way, not here; you can still edit their name and deactivate them on this screen.
-- Deactivate rather than expecting to delete: the person's actions in the audit trail must keep pointing at a real account.
+- Accounts that sign in with Google or Microsoft are created when the person first signs in that way, not here; you can still edit their name and disable them on this screen.
+- Disable rather than expecting to delete: the person's actions in the audit trail must keep pointing at a real account.
 
 ## Related options
 

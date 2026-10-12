@@ -9,7 +9,8 @@
 
 The Golf Booking screen is where staff take advance tee-time bookings for members.
 A booking is made in three steps: key in the member who is booking and check their standing, search the available flights nearest the time they want, then hold a flight while you key in the players and confirm.
-The available flights are computed live from the Course setup, the Course Closure plans and the booking rules in Golf Specification (advance window, merge rule, minimum players, guest control, booking limits, handicap and junior control), so what the screen offers is what the club allows.
+The available flights are computed live from the Course setup, the Course Closure plans, the holds of group bookings and the booking rules in Golf Specification (advance window, merge rule, minimum players, guest control, booking limits, handicap and junior control), so what the screen offers is what the club allows.
+A group's shotgun window blocks the course's nines like a closure, and a group's reserved flight holds its whole tee-time cell, so neither is ever offered here.
 Staff also come here to cancel a booking; the confirmation tells you beforehand whether the cancellation is inside the notice period and what charge, if any, the booker will bear.
 Group and tournament bookings are made on the Group Bookings screen, and same-day walk-ins are registered at the Tee Time Sheet.
 
@@ -18,6 +19,7 @@ Group and tournament bookings are made on the Group Bookings screen, and same-da
 [Screenshot: Golf Booking day list]
 
 - A **Play date** field at the top filters the list; it starts on today.
+  With nothing on that date the screen reads "No bookings for <date> yet. Use 'New booking' to make the first one."
 - Each booking is a card titled with the tee time and the course, then the booking number, the holes (9 or 18), the crossover time for an 18-hole flight, the contact mobile, and the players ("3 player(s): Ahmad Faizal, Lim Wei, Guest").
 - A status chip at the top right shows **BOOKED** (green), **CANCELLED** or **NO SHOW** (grey); NO SHOW appears when every player of the booking was recorded as a no-show at the front desk.
 - A booked card has a ⋮ menu holding **Cancel booking**.
@@ -32,22 +34,24 @@ Group and tournament bookings are made on the Group Bookings screen, and same-da
 1. Click **New booking**.
 2. Key in the **Member No** of the member making the booking and click **Check** (leaving the box also checks).
    A card shows the member's name, membership category, status, whether golfing rights are held ("No golfing right - member rate applies" means they may book and are charged the member green fee), and the dates they **Can book**.
-   A member whose status carries a warning shows the warning; a barred member cannot search.
-3. Pick the **Date** (the calendar is limited to the member's booking window and starts on its last day), optionally a **Course** (or leave **All courses**), the **Preferred Time**, the **Number of Players** and the **No of Holes**.
+   A member whose status carries a warning shows "Member status '<status>' carries a warning - proceed with care." (and the card turns amber); a barred member cannot search.
+3. Pick the **Date** (the calendar is limited to the member's booking window and starts on its last day), optionally a **Course** (or leave **All courses**), the **Preferred Time**, the **Number of Players** (starts at 4) and the **No of Holes**.
 4. Click **Search flights**.
 
 [Screenshot: Available flights]
 
 5. The dialog lists, per course, the five flights nearest the preferred time that can take the party.
    Each row shows the tee time, seats left, how many players are already booked on it, the crossover time, the minimum players for that flight and whether it is a front-desk time.
+   When nothing fits it reads "No available flight matches this search - try another time, date or course."
    Use **Refresh** to recheck, or **« Back** to change the search.
 6. Click **Book** on the flight you want.
 
 [Screenshot: Key in players with the hold countdown]
 
 7. The flight is now held for you: the banner reads "Flight held - confirm within m:ss" (the hold length comes from Golf Specification; five minutes unless changed).
+   A summary underneath names the course, date, tee time, crossover time and holes, and "n player(s) already booked on this flight" when you are joining others.
    If the countdown runs out the hold is released and you are returned to the flight list.
-8. Player 1 is the booker and is fixed.
+8. Player 1 is the booker and is fixed; its line carries a **Booker** tag instead of a remove button.
    For each other line pick the **Type** - **Member**, **Member as Guest** or **Guest** - and key in the **Member ID** or the **Guest Name** (a plain `Guest` is accepted; the guest's details are captured at registration).
    Use **Add player** (up to the seats left) and the ✕ button to adjust the lines.
 9. Optionally enter the **Contact Mobile** and **Remarks**.
@@ -62,12 +66,13 @@ Clicking **« Back** on the players step releases the hold; closing the dialog b
 [Screenshot: Cancel booking dialog]
 
 1. Open the booked card's ⋮ menu and click **Cancel booking**.
-2. Read the confirmation; it names the booking, tee time, date and course, and states that the flight is freed.
-   While the Cancellation & No-show rules are switched on, the dialog also checks the notice period:
-   - **Within the notice period, charge** - an amber notice states the hours of notice, when the period ended and the late-cancellation charge that will be posted to the booker (quantity × price plus tax).
+2. Read the confirmation; it names the booking, tee time, date and course, and states that the flight is freed for other bookings.
+   While the Cancellation & No-show rules are switched on, the dialog also checks the notice period ("Checking the cancellation notice…"):
+   - **Within the notice period, charge** - an amber notice reads "Within the 24-hour notice (ended <date> <time>). A late-cancellation charge of 84.00 (1 × 80.00 + 4.00 tax) will be posted to <booker> (<member no>)."
      Tick **Waive the late-cancellation charge** and give a **Waive reason** to cancel without charging.
-     If the booker is not a member, the charge is recorded as pending for collection at the counter.
-   - **Within the notice period, refuse** - a red notice states that the booking cannot be cancelled now; only **Keep booking** is offered, and players who do not turn up are recorded as no-shows at the front desk.
+     If the booker is not a member, the notice adds "The booker is not a member - the charge is recorded as pending for collection at the counter."
+     When the penalty cannot be priced it reads "The charge cannot be priced: <reason>" and the cancel button stays greyed out until the setup is fixed or the charge is waived.
+   - **Within the notice period, refuse** - a red notice reads "Bookings need 24 hours' notice to cancel - the notice period ended <date> <time>. This booking cannot be cancelled now; players who do not turn up are recorded as no-shows."; only **Keep booking** is offered.
    - Otherwise the cancellation is free.
 3. Optionally enter a **Reason**.
 4. Click the red button; it reads **Cancel booking**, **Cancel and charge 84.00** or **Cancel and waive charge** according to the outcome, or **Keep booking** to back out.
@@ -86,7 +91,7 @@ A posted charge is shown on the No-show Charges screen.
 | **Date** | Yes | The play date. | Must fall inside the window shown on the member card; the window follows Golf Specification (advance days, early opening hours, same-day booking, per-membership-type overrides). |
 | **Course** | No | One course, or **All courses** to search every active course. | Type to filter the list. |
 | **Preferred Time** | Yes | The tee time the member would like, e.g. `08:00`; the search returns the nearest flights around it. | A time of day; starts at 08:00. |
-| **Number of Players** | Yes | How many will play, including the booker; it decides which flights have room and pre-creates that many player lines. | 1 to 8. |
+| **Number of Players** | Yes | How many will play, including the booker; it decides which flights have room and pre-creates that many player lines. | 1 to 8; starts at 4. |
 | **No of Holes** | Yes | **9 holes** or **18 holes**. An 18-hole booking occupies the start flight on the first nine and the crossover flight on the second nine. | Starts at 18. 9-hole play is not offered on flights where 18 holes are still mandatory. |
 
 ### Step 3 - Key in players
@@ -117,7 +122,8 @@ A posted charge is shown on the No-show Charges screen.
 - If you see "That flight was just taken - refresh the available times." another booking claimed the flight while you were looking; the list refreshes.
 - If you see "The flight lock expired - pick a flight again." the hold ran out before you confirmed; click **Book** on a flight again.
 - If you see "The flight no longer has room for these players." or "The crossover flight no longer has room for these players." reduce the party or pick another flight.
-- If you see "The flight is now blocked by a course closure." a closure was saved while you were keying players; choose another time.
+- If you see "The flight is now blocked by a course closure." a closure plan, or a group booking's shotgun hold on that course, was saved while you were keying players; choose another time.
+- If you see "That flight time is reserved for front-desk registration - it cannot be booked in advance." or "That flight time is closed for crossover - no new tee-offs." the tee-time set marks that time as a Front desk or X-over slot; the list refreshes and you pick another flight.
 - If you see "This flight needs at least n player(s)." add players, or join a flight that already has players so the flight total meets the minimum.
 - If you see "Guests are not allowed on this flight (guest control)." or "Members as guests are not allowed on this flight (guest control)." the club's guest rules forbid that player type at this course, day or time.
 - If you see "Membership type X can bring up to n guest(s) per booking - this booking has m (members as guests count)." or "Membership type X cannot bring guests." the booker's membership type caps guests; the quota is set on the Membership Type master.

@@ -3,7 +3,7 @@
 > **Where:** System Setup → Workflow Setup
 >
 > **Who can use it:** users whose role includes the System Setup module (your organization's administrators, including the Tenant Admin).
-> The New workflow, Edit and Enable/Disable controls only appear when the role also has the matching Create and Edit permissions on this screen.
+> The New workflow button needs the Create permission; **Edit** and the whole ⋮ menu (including **Preview**) need the Edit permission on this screen.
 
 ## What this option is for
 
@@ -21,7 +21,8 @@ Staff come here when Finance or Membership wants a document type to go through a
 - A search box filters the list as you type; it matches the workflow name, the document type and the scope.
 - Each workflow is a card showing its name as the title, with the document type, the scope (**All companies** or the company name) and its version underneath, plus the number of steps.
 - A status chip at the top right of each card shows **Active** or **Disabled**; active workflows are listed first, by name.
-- Each card has an **Edit** button and a **⋮** menu (More actions) holding **Preview** and **Enable** or **Disable**.
+- Each card has an **Edit** button and a **⋮** menu (More actions) holding **Preview** and **Enable** or **Disable**; both need the Edit permission.
+- With no workflows yet the screen reads "No approval workflows yet. Use "New workflow" to route a document type (e.g. membership applications) through an approval chain."; a search that matches nothing offers **Clear search**.
 - The **New workflow** button sits at the bottom right of the screen.
 
 ## Common tasks
@@ -34,8 +35,9 @@ Staff come here when Finance or Membership wants a document type to go through a
 2. Choose the **Document type** and, under **Applies to**, leave **All companies** or pick one company.
 3. Enter the **Workflow name** and optionally a **Description**.
 4. Click **Add step** and fill in the step (see below); click **Add step** in the footer to return to the list of steps.
-   Repeat for each step in the chain.
-5. Drag the grip handle on a step to reorder; use a step's **Edit** button or its **⋮** menu's **Remove** to change or drop it.
+   Repeat for each step in the chain; until the first one exists the list reads "No steps yet. A workflow needs at least one approval step."
+5. Each step row shows its number, name and a summary line: the approver ("Role: Finance Manager", "Finance · Manager" or "Finance (any position)", or the person's name), the quorum ("First decision counts", "All must approve" or "2 approvals needed"), then "Only when Amount ≥ 5000" for a conditional step and "Remind after 48h" or "Escalate after 48h" when a deadline is set.
+   Drag the grip handle on a step to reorder; use a step's **Edit** button or its **⋮** menu's **Remove** to change or drop it.
 6. Click **Save**.
 
 The workflow is active immediately: new submissions of that document type now route through it.
@@ -49,8 +51,9 @@ The workflow is active immediately: new submissions of that document type now ro
    - **Anyone holding a role** - then pick the **Role**.
    - **A department (optionally one position)** - then pick the **Department** and, if only one level should approve, the **Position**.
    - **A specific person** - then pick the **Person**.
-3. Under **When several people are assigned**, choose whether the first decision counts, all must approve, or a set number of approvals is enough (then enter **Approvals needed**).
+3. Under **When several people are assigned**, choose whether the first decision counts, all must approve, or a set number of approvals is enough (then enter **Approvals needed**, which starts at 2).
 4. Optionally tick **Only run this step under a condition** and set the **Field**, **Operator** and **Value** - for example only when the invoice amount is 5000 or more.
+   The operators are shown as symbols: **=**, **≠**, **>**, **≥**, **<**, **≤** and **is one of**; the operator starts at **≥**.
    When the condition is not met the step is skipped.
 5. Optionally enter **If not decided within (hours)**.
    Without escalation, the pending approvers get one reminder (email and bell) when the deadline passes.
@@ -65,7 +68,7 @@ Use **Back** to return to the workflow without keeping the step.
 
 1. Open the workflow's **⋮** menu and click **Preview**.
 2. The dialog lists each step with the names of the people who would be assigned if a document were submitted in your active company today.
-   A step that matches nobody is flagged as one that would be skipped.
+   A step that matches nobody reads "Nobody matches this rule in your active company - this step would be skipped."; when no step at all resolves, the dialog says so and asks you to check the approver rules.
 3. Click **Close**.
 
 Use this after changing roles, departments or positions on User Management to confirm the chain still reaches someone.
@@ -107,9 +110,9 @@ If you leave the dialog with unsaved changes (Cancel, ✕, Esc, or the browser b
 | **Position** | No | Narrow a department step to one position, or leave **Any position**. | From Positions. |
 | **Person** | Yes for a person step | The specific user who approves. | From the people in your organization. |
 | **When several people are assigned** | No | **First decision counts**, **All must approve**, or **A number of approvals is enough**. | Defaults to first decision counts. |
-| **Approvals needed** | Yes when "a number" is chosen | How many approvals complete the step. | A whole number, 1 or more. |
+| **Approvals needed** | Yes when "a number" is chosen | How many approvals complete the step. | A whole number, 1 or more; starts at 2. |
 | **Only run this step under a condition** | No | Tick to make the step conditional. | - |
-| **Field / Operator / Value** | Yes when conditional | The document fact to test (for example the amount or the debtor type), the comparison (=, not equal, greater, greater or equal, less, less or equal, **is one of**), and the value. | A numeric field needs a number; **is one of** takes comma-separated values, e.g. `corporate, individual`. |
+| **Field / Operator / Value** | Yes when conditional | The document fact to test (for example the amount or the debtor type), the comparison (**=**, **≠**, **>**, **≥**, **<**, **≤** or **is one of**), and the value. | The operator starts at **≥**. A numeric field needs a number; **is one of** takes comma-separated values, e.g. `corporate, individual`. |
 | **If not decided within (hours)** | No | The deadline for the step's approvers. | A whole number of hours, 1 or more; blank means no deadline. |
 | **Escalate to the next step** | No | Tick to move the document to the next step when the deadline passes instead of reminding the same approvers. | Needs the hours deadline set; the last step always reminds. |
 
@@ -127,7 +130,7 @@ If you leave the dialog with unsaved changes (Cancel, ✕, Esc, or the browser b
 
 ## Related options
 
-- **My Approvals** (My Dashboard → My tasks) - where approvers act on the tasks these workflows create.
+- [My Approvals](../general/approvals.md) (My Dashboard → My tasks) - where approvers act on the tasks these workflows create.
 - **Role Management**, **Departments**, **Positions** and **User Management** (System Setup) - the people and groupings a step can be routed to.
 - **Email Templates** (System Setup → Email Templates) - the wording of the approval task and reminder emails.
 - **AR Transactions** (Account Receivable) and **Memberships** (Membership Management) - the documents that are submitted for approval.

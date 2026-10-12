@@ -47,7 +47,7 @@ Use this for someone who keeps their own identity - an external consultant, or a
 
 1. Click **Invite collaborator**.
 2. Enter the **Email**, pick the **Company** and optionally the **Role** they will join with.
-3. Click **Send**.
+3. Click **Send invitation**.
 
 An invitation email is sent and the invitation appears under **Pending Invitations**; it is valid for 7 days.
 Once accepted, the person appears in the People list with that company and role.
@@ -80,7 +80,7 @@ Each company row is saved separately with its own Update button.
 
 1. In the Companies & placement drawer, scroll to **Add to another company** (shown only when there are companies the person is not yet in).
 2. Pick the **Company** and optionally the **Role**.
-3. Click **Add**.
+3. Click **Add to company**.
 
 ### Remove a person from a company
 

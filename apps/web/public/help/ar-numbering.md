@@ -59,7 +59,7 @@ If you leave without saving, the system asks whether to discard your changes or 
 ### Disable or enable a scheme
 
 - Open the ⋮ menu and click **Disable** to stop the series.
-  The scheme keeps its counter; while it is disabled the series behaves as if no scheme existed, so documents of that kind ask for a manual number.
+  The scheme keeps its counter; while it is disabled the series behaves as if no scheme existed: the document's number field reads "Auto if left blank", a number you key is used as it is, and a blank is numbered automatically outside the series.
 - Click **Enable** to resume it.
 
 ### Copy series from another company

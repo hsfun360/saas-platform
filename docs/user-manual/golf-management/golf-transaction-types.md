@@ -64,6 +64,7 @@ At most one active item per charge type may be the default for a category.
 
 On a play date the system uses the active price card with the latest effective date on or before that date; weekend prices also apply on public holidays; amounts exclude tax.
 A scheduled card can be edited, disabled or deleted; a card already in force is history - disable it instead of deleting.
+**Delete** in a card's ⋮ menu switches the drawer to a **Delete price - <code>** view that names the effective date and warns that bills already raised keep their amounts and that this cannot be undone; click **Delete price** to confirm or **Keep** to go back to the price cards.
 
 ### Set up a package
 

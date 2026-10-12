@@ -36,20 +36,21 @@ If it is wrong, raise a Credit Note against it.
 
 1. Click **New Debit Note**.
 2. Find the debtor: type part of the account number, name or code and click the row.
-   Only active debtor accounts are offered.
-3. The form opens with the debtor shown in a band at the top; click **Change** if you picked the wrong one.
+   Only active debtor accounts are offered; when nothing matches the list reads "No active debtors match. Refine the search."
+3. The form opens with the debtor shown in a band at the top (with a "<CCY> account" tag on a foreign-currency account); click **Change** if you picked the wrong one.
 
 [Screenshot: New Debit Note dialog entry form]
 
 4. Check **Debit Note no.**.
    With automatic numbering it reads "Issued on save"; with manual numbering you must key it.
+   When no numbering scheme is active for debit notes, the field shows "Auto if left blank": key a number or leave it empty for one to be issued automatically.
 5. Pick the **Transaction type**.
    Only Debit Note-class items from the Transaction Type master are offered, and the item's tax scheme decides the tax added on top.
 6. Confirm the **Document date** and **Transaction date (period)**; both default to today.
 7. Enter the **Amount** before tax.
-8. On a foreign-currency account, check the **Exchange rate**.
+8. On a foreign-currency account, check the **Exchange rate**; the hint underneath shows the base-currency value as "≈ <amount> <base currency> (before tax)".
 9. Add a **Description** if useful.
-10. If the Analysis Dimensions section appears, pick a value for each dimension that matters; starred dimensions are compulsory.
+10. If the **Analysis Dimensions** section appears (a collapsible card subtitled "Tag this document for financial-analysis reporting."), pick a value for each dimension that matters; starred dimensions are compulsory.
 11. Click **Save** to keep an Open draft, or **Post debit note** / **Submit for Approval** to make it financial.
 
 The button label tells you what Submit will do: **Post debit note** posts immediately, while **Submit for Approval** sends it into the approval chain and it posts automatically once approved.
@@ -77,7 +78,7 @@ If you leave without saving, the system asks whether to discard your changes or 
 
 1. Open the ⋮ menu and click **Void**.
 2. Enter the compulsory **Void reason**.
-3. Click **Void**.
+3. Click **Void <debit note no.>** (the button reads **Void Draft** when no number has been issued yet).
 
 The number stays consumed and the record remains as Void with your reason for the audit trail.
 A posted debit note cannot be voided; correct it with a Credit Note.
@@ -106,7 +107,7 @@ Open the ⋮ menu and click **Allocations** to list each receipt or credit note 
 
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
-| **Debit Note no.** | Only with manual numbering | The number, when your company keys numbers by hand. | Up to 30 characters; must not already be in use. With automatic numbering the number is issued on save and cannot be changed. |
+| **Debit Note no.** | Only with manual numbering | The number, when your company keys numbers by hand. | Up to 30 characters; must not already be in use. With automatic numbering the number is issued on save and cannot be changed; with no active scheme the field reads "Auto if left blank" and a blank is numbered automatically. |
 | **Transaction type** | Yes | The adjustment item, for example `SURCH - Late registration surcharge`. | Debit Note-class, active items only. |
 | **Document date** | Yes | The date the note is raised. Drives the due date and aging. | Defaults to today. |
 | **Transaction date (period)** | Yes | The accounting period the note belongs to. | Defaults to the document date; change only when back-keying into a closed month. |
