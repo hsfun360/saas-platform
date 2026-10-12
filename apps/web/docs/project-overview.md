@@ -169,7 +169,7 @@ The header tile (`.saas-icon`, 52px/28px glyph) and the 48px empty-state glyph a
 
 The app ships **light and dark themes**, chosen via a **3-mode** control in Settings → Appearance: **System** (follows the OS `prefers-color-scheme`, live), **Light**, or **Dark**.
 `ThemeService` (`src/app/services/theme.service.ts`) resolves the mode, persists it, and stamps `data-theme="light|dark"` on `<html>`; a tiny inline script in `index.html` applies it before first paint (no flash), and an `APP_INITIALIZER` re-applies on boot.
-Default is **Light** for now — flip the `ThemeService` default to `'system'` once every surface is verified in dark.
+Default is **Light** for now - flip the `ThemeService` default to `'system'` once every surface is verified in dark.
 
 **The rule: colour comes from semantic tokens, never hard-coded hex.**
 Every colour in CSS or an inline `style=` must reference a `var(--token)` from the set below (defined in `src/styles.css` under `:root` for light and `:root[data-theme="dark"]` for dark).
