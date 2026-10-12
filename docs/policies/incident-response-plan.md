@@ -22,8 +22,8 @@ Examples: credential compromise, data exposure across tenant boundaries, ransomw
 
 ## 3. Detection sources
 
-- Cloud Monitoring alerts (backup failure today; the alert set grows with the platform).
-- Cloud Logging for `login-api`, `login-web`, the worker, and the `db-backup` job.
+- Cloud Monitoring alerts (the alert set grows with the platform; a Cloud SQL backup-failure alert is still to be configured).
+- Cloud Logging for `platform-api`, `platform-web` and the worker (`platform-api-outboxworker`).
 - The append-only audit trail (`audit."AuditLog"`) with per-tenant and platform viewers.
 - Dependabot and Artifact Registry vulnerability findings.
 - Reports from subscribers or team members (treat every report as real until triaged).
@@ -36,7 +36,7 @@ Examples: credential compromise, data exposure across tenant boundaries, ransomw
    - Compromised secret: add a new Secret Manager version, redeploy api/worker, disable the old version; rotate downstream credentials it protected.
    - Compromised platform admin: remove from `ADMIN_EMAILS` and redeploy; review the audit log for their actions.
    - Active abuse of public endpoints: rate limits and backoff are always on; if insufficient, restrict ingress at Cloud Run while mitigating.
-   - Database at risk: take an immediate ad-hoc backup if integrity allows (`gcloud run jobs execute db-backup ... --wait`); if integrity is suspect, preserve the newest good dump instead (bucket history is write-protected from the job path).
+   - Database at risk: take an immediate on-demand Cloud SQL backup if integrity allows; if integrity is suspect, note the last known-good instant so a point-in-time clone can recover to it (the automated backups and the transaction-log window stay with the instance - never delete the instance during an incident).
 3. **Assess impact.** Use the audit log and Cloud Logging to determine which accounts, tenants, and data classes were touched, and the time window.
 4. **Eradicate and recover.** Patch the vulnerability, deploy, and where data integrity was affected restore per [docs/ops/db-backup-restore.md](../ops/db-backup-restore.md).
 5. **Notify.** For any confirmed exposure of a subscriber's data, inform the affected subscriber(s) without undue delay with facts, impact, and remediation; check applicable breach-notification law (Malaysia PDPA and any contract terms) for timing obligations.

@@ -27,7 +27,7 @@
 ## 3. Residency and location
 
 - Application and backups: Google Cloud `asia-southeast1` (Singapore).
-- Database: self-hosted host in a Southeast Asia region (Azure-hosted Windows server).
+- Database: Cloud SQL for PostgreSQL in the Google Cloud `asia-southeast3` region (one instance per environment).
 - Subscribers with residency requirements are handled contractually; the current footprint is single-region by design.
 
 ## 4. Retention
@@ -46,7 +46,7 @@
 - Account-level deletion (subscription termination) removes tenant data on request after any contractual export; deletion actions themselves are audit-logged.
 - Unverified-user cleanup re-validates server-side (still unverified, zero workspaces, not break-glass) before deleting, and frees the email address.
 - Backup copies age out automatically through lifecycle rules; no manual purge path exists, so accidental or malicious mass deletion of history is not possible via the application or the backup job.
-- Media disposal for the self-hosted database host is the host administrator's responsibility and follows the provider's decommissioning process.
+- Media disposal for the managed database is Google Cloud's responsibility under its data deletion commitments; deleting a Cloud SQL instance or backup removes the data on the provider's schedule.
 
 ## 6. Privacy notes
 

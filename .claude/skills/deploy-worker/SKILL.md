@@ -24,7 +24,8 @@ The old `membership-project-199610` / `login-api-outboxworker` was **decommissio
 
 ## What it is
 
-- Entry point `outboxworker.js` -> `startWorker()` in `src/modules/notification/notification.worker.js`: claims queued `OutboxMessage` rows and sends the emails.
+- Entry point `outboxworker.js` -> `startWorker()` / `drainOutbox()` in `src/modules/notification/notification.worker.js`: claims queued `OutboxMessage` rows and sends the emails.
+- The same process owns the platform's time-driven work, which never runs inside an API request: the workflow SLA reminder scan (`src/modules/workflow/workflow.reminders.js`), the golf group-booking lifecycle scan (`scanGroupLifecycle` in `src/modules/golf/groupLifecycle.service.js`, since 2026-10-11: 24-hour hold and deposit warnings, tentative holds past their expiry release their flights, approved bookings past the deposit date lapse, and the waitlist moves the next-in-line offer on), the AR statement runs (`processActiveRuns`, the `ar.StatementRun` table is the queue) and, in the 19:00 UTC hour, the report-only AR reconciliation.
 - **Reuses the SAME image as the API**, with a different command (`node outboxworker.js` instead of `node server.js`). There is **no separate build** - ship worker code by pushing a new API image (the `deploy-api` skill), then redeploying this service.
 - **Standing convention: the worker deploys BEFORE the api**, so outbox/template changes are live in the sender before producers start writing them. The pipeline already orders it this way.
 - It does not verify JWTs, so it needs no JWT keys.
@@ -38,6 +39,9 @@ The old `membership-project-199610` / `login-api-outboxworker` was **decommissio
 | `SMTP_ENCRYPTION_KEY` | secret | Decrypts per-company SMTP passwords. **Must match the environment the data came from**, or sends fail to decrypt. |
 | `EMAIL_USER` | plain | Sender address. Dev: `hsfun360@gmail.com`. |
 | `WORKER_MODE` | plain | `drain` for every new environment (see below). |
+| `FRONTEND_BASE_URL` | plain | The WEB service URL; the statement-run completion emails render their links worker-side (added 2026-08-08). |
+| `OUTBOX_WORKER_URL` | plain | The worker's OWN URL: a statement run that exhausts its time budget with work left fires a kick-and-detach self-ping (`fireDrainPing`) so it keeps slicing without waiting for the sweep. The compute SA it runs as already holds `run.invoker` on the worker. |
+| `EMAIL_FROM_NAME` | plain | Default From display name on platform emails when a template sets none (`mailer.js`); defaults to `Your App Name` when unset. Not in the recorded dev wiring. |
 
 Per-company SMTP configs are what actually send for tenants; there is no fallback if a tenant's config is broken.
 
@@ -49,7 +53,11 @@ No background loop.
 Two triggers, one for speed and one for the guarantee:
 
 1. The api's best-effort post-commit ping (`src/platform/outboxWorkerPing.js`), enabled by setting `OUTBOX_WORKER_URL` **on the API service**. OIDC token via the metadata server, so the api's runtime SA needs `roles/run.invoker` on the worker. Delivers in seconds.
-2. Cloud Scheduler `outbox-sweep` every 5 min hitting `POST /drain?sweep=1`, which **also runs the workflow SLA scan**. This is the delivery guarantee if a ping is lost.
+2. Cloud Scheduler `outbox-sweep` every 5 min hitting `POST /drain?sweep=1`.
+   This is the delivery guarantee if a ping is lost, and the sweep flag is what runs the time-driven scans: the **workflow SLA scan**, the **golf group lifecycle scan** (`scanGroupLifecycle`: hold/deposit warnings, tentative-hold release, lapse, waitlist next-in-line offers) and, when the UTC hour is 19 (03:00 MYT), the **AR reconciliation** (report-only, drift goes to the logs).
+   Every drain, pinged or swept, then sends the outbox, advances active AR statement runs and sends again so their completion emails leave in the same invocation.
+
+In `poll` mode the same scans run on timers: SLA and group lifecycle every 5 minutes, statement runs every 30 seconds.
 
 Deploy flags: `--min-instances 0`, CPU throttling left ON (bills only while draining), `--no-allow-unauthenticated` (required for the IAM auth to mean anything), plus the Cloud SQL connector.
 

@@ -13,22 +13,25 @@ Single production environment on Google Cloud Run behind Cloud Armor WAF and an 
 | Web app (SPA) | Angular 20, zoneless, served by nginx | Public |
 | API | Node.js / Express 5, Sequelize ORM | Public |
 | Outbox worker (email) | Node.js | Internal-only ingress (out of scope, listed for completeness) |
-| Database | PostgreSQL 18, self-hosted | Not directly reachable; reached only via the API |
+| Database | PostgreSQL 18 on Cloud SQL (`platform-db-dev` / `platform-db-staging`; the production instance is not provisioned yet) | Not directly reachable; reached only via the API through the Cloud Run connector |
 | Identity | Local (bcrypt + optional TOTP MFA) plus Google & Microsoft SSO; RS256 JWT (1 h) + rotating httpOnly refresh cookies | |
 
 ## 2. Target URLs
 
-Production domain (single-host, same-origin, live 2026-07-29):
+Production domain (single-host, same-origin; the future production host - the domain has been dark since the old edge was decommissioned on 2026-08-01 and comes back when the production load balancer is built, see [`dev-environment.md`](dev-environment.md)):
 
 - Web app: `https://www.myeasysoft.com` (apex `https://myeasysoft.com` redirects/serves the same app)
 - API: `https://www.myeasysoft.com/api` (path-routed to the API behind the same load balancer and Cloud Armor WAF)
 
-All traffic terminates on a global external HTTPS load balancer with Cloud Armor WAF (SQLi enforced; XSS monitored) in front of both backends. HTTP redirects to HTTPS.
+All traffic will terminate on a global external HTTPS load balancer with Cloud Armor WAF (SQLi enforced; XSS monitored) in front of both backends.
+HTTP redirects to HTTPS.
 
-Direct Cloud Run URLs (origin servers behind the load balancer; **out of scope** as test targets - test via the domain so the WAF and LB are exercised):
+Direct Cloud Run URLs of the live environments today (dev and staging, region `asia-southeast3`, no load balancer in front; nginx in the web service proxies `/api/*` to the API):
 
-- `https://login-web-148523901156.asia-southeast1.run.app`
-- `https://login-api-148523901156.asia-southeast1.run.app`
+- dev: `https://platform-web-855636431759.asia-southeast3.run.app` and `https://platform-api-855636431759.asia-southeast3.run.app`
+- staging: `https://platform-web-640963543517.asia-southeast3.run.app` and `https://platform-api-640963543517.asia-southeast3.run.app`
+
+The production services' direct Cloud Run URLs (origin servers behind the load balancer) will be **out of scope** as test targets - test via the domain so the WAF and LB are exercised.
 
 ## 3. Test type and scope
 
@@ -61,7 +64,7 @@ Out of scope:
 - Denial of service and volumetric testing.
 - Social engineering, phishing, physical access.
 - Third-party infrastructure itself (Google Cloud, Azure, GoDaddy DNS, SSO IdPs, subscriber SMTP servers).
-- The internal-only outbox worker and the nightly backup job (no public surface).
+- The internal-only outbox worker and the Cloud SQL automated backups (no public surface).
 - Destructive testing against non-test tenants (production is shared; see rules of engagement).
 
 ## 3a. Required named abuse-case scenarios (leaked-credential threat model)
@@ -119,7 +122,7 @@ To be added before the window (need product records set up first): a **portal me
 
 - Test window: `[START DATE]` to `[END DATE]`, `[N]` tester-days.
 - Testing is against production infrastructure with test tenants; **do not modify or read real subscriber tenants** - any accidental access to non-test tenant data is an immediate stop-and-report finding.
-- A fresh database backup is taken immediately before the window (ad-hoc `db-backup` job run); the platform team is on call during the window.
+- A fresh database backup is taken immediately before the window (an on-demand Cloud SQL backup of the instance, see [`db-backup-restore.md`](db-backup-restore.md)); the platform team is on call during the window.
 - Source IPs: vendor supplies tester IPs in advance; they are exempted from per-IP rate limiting for the window so throttling does not consume tester-days (rate-limit behaviour itself is verified separately at the end of the window from a non-exempt IP).
 - Findings channel: `[SECURE CHANNEL]`; Critical/High findings are reported within 24 hours of discovery, not held for the report.
 - Emergency contact both directions: `[NAME / PHONE / EMAIL]`.

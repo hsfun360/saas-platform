@@ -89,6 +89,17 @@ Already attached to dev; listed so a new environment can be wired from scratch.
 | `PORT` | auto | Set by Cloud Run; `server.js` reads it. |
 | `RUN_SEED` | 🚫 never | Gates a destructive wipe+reseed, and it fires on EVERY cold start while set. Used once on a fresh DB, then removed. |
 
+Optional vars the code reads with a built-in default (none is in the recorded dev wiring; set only when the default is wrong for an environment):
+
+| Var | Kind | Purpose |
+| --- | --- | --- |
+| `DB_POOL_MAX` | plain | Sequelize pool `max` per API instance (`src/platform/db.js`), default `10`; `min` is fixed at 0. Total connections = max instances x this, plus the worker's pool - keep the sum under the Cloud SQL instance's `max_connections`. |
+| `DB_SSL` | plain | TLS to Postgres (`src/platform/db.js`): `require` = encrypted, server cert not verified; `verify` = encrypted and chain-verified (needs a CA Node trusts); unset = no TLS. Dev and staging connect over the Cloud SQL unix socket and leave it unset. |
+| `EMAIL_FROM_NAME` | plain | Default From display name for platform emails when the template sets no `fromName` (`src/modules/notification/mailer.js`, also the `brandName` template variable in `emailTemplate.service.js`); default `Your App Name`. The address is always `EMAIL_USER`. Read by the worker (sender) and by the API's send-test previews, so set it on both. |
+| `MFA_ISSUER` | plain | Issuer label shown in the authenticator app for TOTP enrolment (`src/modules/identity/mfa.service.js`); default `ClubSaaS`. |
+| `MFA_ENCRYPTION_KEY` | secret | 32-byte key (64 hex chars or base64) that encrypts stored TOTP secrets (`platform/secretbox.js` via `mfa.service.js`); has NO default and MFA enrolment throws without it. Its own key, so rotating it never touches `SMTP_ENCRYPTION_KEY`. Not in the dev wiring list in `dev-environment.md` - confirm with the env-name describe command below. |
+| `JWT_PRIVATE_KEY_PATH` / `JWT_PUBLIC_KEY_PATH` | plain | Second resolution step in `src/platform/jwt.keys.js`: a FILE PATH to the PEM, used only when `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` are absent; default `apps/api/keys/private.pem` / `public.pem` (git-ignored and `.dockerignore`d, so they do not exist in the image). Cloud Run uses the PEM secrets and never sets these. |
+
 ## Schema & data migrations
 
 - **Schema changes auto-apply on boot.** `app.js` runs `sequelize.sync({ alter: true })` under an advisory lock.

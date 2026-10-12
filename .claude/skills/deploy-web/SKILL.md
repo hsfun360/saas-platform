@@ -30,6 +30,7 @@ Multi-stage `apps/web/Dockerfile`: **Node build -> nginx serve**.
 
 - `npm run build -- --configuration production` emits static files to **`dist/Login/browser`**.
 - `nginx.conf` is copied to `/etc/nginx/templates/default.conf.template`; the nginx image's envsubst step expands **`${PORT}`** and **`${API_HOST}`** at container start.
+- `docker-entrypoint.d/05-require-api-host.sh` is copied into the image and runs BEFORE envsubst (the nginx entrypoint runs `/docker-entrypoint.d/*.sh` in lexical order under `set -e`): it aborts startup with `FATAL: API_HOST is not set.` when the var is missing, so the container never renders a config with an empty upstream.
 - **SPA fallback** (`try_files … /index.html`) so deep links like `/admin/roles` return 200 on refresh.
 
 ### The API URL is same-origin, not baked in
@@ -37,7 +38,8 @@ Multi-stage `apps/web/Dockerfile`: **Node build -> nginx serve**.
 `environment.ts` sets `apiUrl: '/api'` (relative).
 The app never names an API host - it calls `/api` on its own origin, and something in front resolves it:
 
-- **dev / staging:** nginx reverse-proxies `/api/*` to `https://${API_HOST}` (`nginx.conf:31-37`). This is why `API_HOST` is a **runtime env var** on the service, and how these environments get same-origin cookie/CORS behaviour with no load balancer.
+- **dev / staging:** nginx reverse-proxies `/api/*` to `https://${API_HOST}` (the `location /api/` block in `nginx.conf`).
+  This is why `API_HOST` is a **runtime env var** on the service, and how these environments get same-origin cookie/CORS behaviour with no load balancer.
 - **future prod:** the load balancer answers `/api/*` before traffic reaches nginx, so the nginx location is dormant there.
 
 To repoint the app at a different API, set `API_HOST` - **no rebuild needed**:
@@ -46,9 +48,10 @@ gcloud run services update platform-web --region asia-southeast3 --project my-ea
   --account admin@myeasysoft.com --update-env-vars API_HOST=<api-host-without-scheme>
 ```
 
-> ⚠️ `apps/web/Dockerfile` still defaults `ENV API_HOST=login-api-148523901156.asia-southeast1.run.app` - a service **deleted on 2026-08-01**.
-> Dev and staging override it, so they are fine, but a NEW environment that forgets the override will silently proxy `/api` to a dead host.
-> Always set `API_HOST` explicitly when standing up an environment.
+> ⚠️ `API_HOST` has **no default** in `apps/web/Dockerfile` (the old default pointed at the prod API host deleted on 2026-08-01, and a wrong default silently proxies one environment's `/api` to another's data).
+> `docker-entrypoint.d/05-require-api-host.sh` aborts container startup with `FATAL: API_HOST is not set.` when it is missing, so a NEW environment that forgets the var fails its first revision loudly instead of serving a dead proxy.
+> Set `API_HOST` on the service at the first deploy (`--set-env-vars API_HOST=<api-host-without-scheme>` on `gcloud run deploy`, or the `--update-env-vars` form above); it persists across image-only deploys afterwards.
+> Behind a future load balancer that answers `/api/*` itself the value must still be set - the location stays dormant, but nginx needs it to render the config.
 
 ## Prerequisites
 - **Docker Desktop RUNNING** (`docker info` succeeds).

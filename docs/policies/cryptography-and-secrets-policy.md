@@ -12,7 +12,7 @@
 - All user-facing traffic terminates on HTTPS (TLS managed by Google Cloud Run) for the web app and the API.
 - The outbox worker's ingress is restricted to internal traffic; it is not reachable from the internet.
 - SMTP sending uses the transport security configured per company mail server.
-- **Planned:** the API-to-database connection is not yet TLS-encrypted because the self-hosted PostgreSQL server runs with `ssl` off.
+- **To confirm per environment:** the API-to-database connection to Cloud SQL is TLS-encrypted only when the API's `DB_SSL` variable is set (`require` or `verify`); the setting of each environment must be checked and recorded here.
   The client side is already implemented (`DB_SSL` in `apps/api/src/platform/db.js`); enabling server TLS and setting `DB_SSL=require` on api and worker is a tracked infrastructure task.
 
 ## 2. Encryption at rest
@@ -20,7 +20,7 @@
 - Google-managed encryption at rest covers Cloud Storage (backups), Artifact Registry (images), Secret Manager, and Cloud Logging.
 - Application-layer encryption protects the most sensitive stored fields over and above disk encryption: per-company SMTP passwords (AES-256-GCM under `SMTP_ENCRYPTION_KEY`) and TOTP MFA secrets (encrypted under `MFA_ENCRYPTION_KEY`).
 - Password and token material is stored only as hashes: user passwords (bcrypt), refresh tokens, password-reset and email-verification tokens (SHA-256), and MFA recovery codes.
-- **To confirm:** full-disk encryption status of the self-hosted database host must be verified with its administrator and recorded here.
+- Data at rest in Cloud SQL is encrypted by Google-managed keys by default; a customer-managed key is not configured.
 
 ## 3. Key and secret management
 

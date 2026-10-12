@@ -19,7 +19,7 @@ The model files are the source of truth; the doc is a curated map, never an inve
    Read it fully, including comments: they record the microservice seams, the deliberate NON-associations (cross-service UUID value refs), and cascade decisions.
 2. **Entity inventory**: glob `apps/api/src/modules/**/*.model.js` plus `apps/api/src/platform/outboxMessage.model.js`.
    Do NOT enumerate entities from `associations.js` alone - standalone singletons (e.g. `MembershipSetting`, `PlatformProfile`) are not required there.
-3. **Physical schemas**: `apps/api/src/platform/schemas.js` - which Postgres schema each product service owns (`membership`, `golf`, `tax`; platform tables stay in `public`).
+3. **Physical schemas**: `apps/api/src/platform/schemas.js` - which Postgres schema each service owns: the products `membership`, `golf`, `ar` (and `facility`, defined but reserved - it is not in `PRODUCT_SCHEMAS` yet), the shared capabilities `tax`, `dimension`, `workflow`, and `audit` for the append-only trail; platform tables (identity, saas, notification, outbox) stay in `public`.
 4. **Business context**: `apps/api/docs/systems/*.md` - the service map, golden rules, and vocabulary.
    Use its service names and terminology in the doc.
 
@@ -42,7 +42,7 @@ The model files are the source of truth; the doc is a curated map, never an inve
 1. Header note: maintained by this skill, sources of truth, last-refreshed date.
 2. **Conventions** - the schema-wide rules (one owner per table, UUID value refs across seams, Postgres schema per product service, platform NULL-discriminator (`accountId NULL` = platform row), money `numeric(21,2)`, RBAC record stamps).
 3. **Domain & schema map** - one table: module folder, Postgres schema, service doc, entities (flag standalone ones).
-4. **ERDs** - one `erDiagram` per domain group; currently: Control Plane & Identity, Membership, Golf, Tax & platform services.
+4. **ERDs** - one `erDiagram` per domain group, in the doc's order: Control Plane & Identity, Membership, Golf (two diagrams: master files, then booking / front desk / group bookings), Account Receivable, Workflow, Dimension, Tax & platform services.
    Add a group when a new module lands its first associated models.
 
 ## Writing rules

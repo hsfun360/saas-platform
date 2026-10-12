@@ -23,7 +23,7 @@
 
 ## 3. Infrastructure logs
 
-- Cloud Run captures stdout/stderr for `login-api`, `login-web`, the outbox worker, and the `db-backup` job into Cloud Logging with Google-managed retention.
+- Cloud Run captures stdout/stderr for `platform-api`, `platform-web` and the outbox worker (`platform-api-outboxworker`) into Cloud Logging with Google-managed retention; Cloud SQL backup runs are recorded by Cloud SQL itself.
 - JWTs, passwords, and secrets are never written to logs (enforced coding standard).
 - Clock synchronization is inherited from the cloud platform (Cloud Run) and the database host's OS time service; audit timestamps come from the API host.
 

@@ -31,8 +31,8 @@ Keep it that way: when an auditor (or a pen tester) checks a claim, the claim mu
 
 These are acknowledged in the relevant policies and tracked as roadmap items rather than hidden:
 
-- Database connections are not yet TLS-encrypted (server-side `ssl` is off on the self-hosted Postgres host).
+- Database connection TLS to Cloud SQL depends on the API's `DB_SSL` setting; the value of each environment must be confirmed and recorded.
   Client support is already coded; enabling is a pending infrastructure task.
 - No WAF / custom domain yet; parked as one pre-launch milestone (Cloud Armor + external HTTPS LB + domain).
 - External penetration test scheduled after the WAF milestone so it exercises the production topology.
-- Full-disk encryption status of the self-hosted database host must be confirmed with its administrator.
+- Data at rest in Cloud SQL is encrypted with Google-managed keys by default; no customer-managed key is configured.

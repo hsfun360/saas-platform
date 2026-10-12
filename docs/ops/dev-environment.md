@@ -26,7 +26,8 @@ A staging project (`my-easy-software-staging`) exists but is not provisioned yet
 ## Same-origin /api without a load balancer
 
 Dev has no HTTPS LB.
-Instead, the web container's nginx now reverse-proxies `/api/*` to the API service (see `apps/web/nginx.conf`), controlled by the `API_HOST` env var (default in `apps/web/Dockerfile` = the old prod API host; the dev service overrides it).
+Instead, the web container's nginx now reverse-proxies `/api/*` to the API service (see `apps/web/nginx.conf`), controlled by the `API_HOST` env var.
+`API_HOST` has NO default: `apps/web/docker-entrypoint.d/05-require-api-host.sh` aborts container startup with a FATAL message when it is unset, so a new environment fails loudly instead of proxying to another environment's API (the image used to default to the old prod host until that was removed).
 This keeps the app same-origin with the API, so cookies (refresh token, trusted device) and CORS behave exactly like prod behind the LB.
 In prod the LB answers `/api/*` before traffic reaches nginx, so the location is dormant there.
 

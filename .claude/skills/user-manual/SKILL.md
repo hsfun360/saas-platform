@@ -20,7 +20,7 @@ Every fact in the manual must be grounded in the actual code; never invent field
 
 For each screen ("option/menu") being documented, read these sources in order:
 
-1. **Route + access**: `apps/web/src/main.ts` - find the route, its component, and `data.systemModule` (that module name tells you which system the option belongs to and who can access it).
+1. **Route + access**: `apps/web/src/main.ts` - find the route, its component, and `data.moduleCode` (the frozen `Module.code` - `MEMBERSHIP`, `GOLF`, `AR`, `TENANT_ADMIN` for System Setup, `PLATFORM_ADMIN` for SaaS Administration - tells you which system the option belongs to and who can access it; routes with no `moduleCode` are open to every user).
 2. **The screen itself**: the component folder `apps/web/src/app/<screen>/` - the `.html` for layout, dialogs, buttons, badges and empty states; the `.ts` for the reactive form (controls + validators), signals, and action handlers.
 3. **Server rules**: the matching module in `apps/api/src/modules/<module>/` - the model (DB constraints, uniqueness, defaults) and controller (validation messages, side effects like "cannot delete when referenced").
 4. **Business context**: `apps/api/docs/systems/<system>.md` - why the feature exists, business rules, and vocabulary. Use the business language from these docs in the manual.
@@ -53,7 +53,8 @@ Voice and style:
 Every manual is written twice - the git source of truth, and the in-app copy that lights up the header's Book icon:
 
 1. **Source of truth**: `docs/user-manual/<system-slug>/<screen-slug>.md` (e.g. `docs/user-manual/membership-management/membership-fee.md`).
-   System slugs follow the systems catalog: `saas-administration`, `system-setup`, `membership-management`, `golf-management`, `facility-management`.
+   System slugs are the existing folders under `docs/user-manual/`: `general` (screens every user has, such as My Dashboard), `saas-administration`, `system-setup`, `account-receivable`, `golf-management`, `membership-management`.
+   Add a folder only when a new system ships its first screen (Facility Management has none yet).
    Maintain `docs/user-manual/README.md` as the index: one line per manual, grouped by system. Create it on first use; add new manuals every time.
 2. **In-app guide (this is how the option links to its manual)**: copy the same content to `apps/web/public/help/<route-slug>.md` and add the slug to `apps/web/public/help/index.json` as `"<route-slug>": { "title": "<Screen name>" }`.
    The route slug is the screen's route with slashes turned into hyphens: `/admin/countries` -> `admin-countries`, `/membership/fees` -> `membership-fees`.

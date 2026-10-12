@@ -47,9 +47,9 @@
 
 ## 6. Privileged and break-glass access
 
-- The break-glass System Admin allowlist is the `ADMIN_EMAILS` environment variable on `login-api`; changes to it are deployments and therefore leave an audit trail in Cloud Run revision history.
+- The break-glass System Admin allowlist is the `ADMIN_EMAILS` environment variable on `platform-api`; changes to it are deployments and therefore leave an audit trail in Cloud Run revision history.
 - Direct database access is limited to the platform team via the connection credential in Secret Manager; there is no application path to raw SQL.
-- Cloud resources are administered through the Google Cloud project with provider IAM; service accounts run with least privilege (for example, the backup job's service account can only create objects in the backup bucket, not read or delete them).
+- Cloud resources are administered through the Google Cloud project with provider IAM; service accounts run with least privilege (for example, the CI deployer service account can be impersonated only by this repository's GitHub workflows through Workload Identity Federation, with no key file anywhere).
 
 ## 7. Joiners, movers, leavers
 

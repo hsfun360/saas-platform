@@ -14,9 +14,9 @@ Management is committed to providing the resources needed to operate these contr
 
 ## 2. Scope
 
-- The multi-tenant SaaS platform in the `saas-platform` monorepo: the Angular frontend (`login-web`), the Node/Express API (`login-api`), and the outbox worker (`login-api-outboxworker`), all deployed on Google Cloud Run.
-- The PostgreSQL database holding all platform and tenant data, currently self-hosted on a dedicated Windows host.
-- Supporting cloud services: Google Secret Manager, Artifact Registry, Cloud Storage (backups), Cloud Scheduler, Cloud Logging/Monitoring.
+- The multi-tenant SaaS platform in the `saas-platform` monorepo: the Angular frontend (`platform-web`), the Node/Express API (`platform-api`), and the outbox worker (`platform-api-outboxworker`), all deployed on Google Cloud Run.
+- The PostgreSQL database holding all platform and tenant data, on Cloud SQL (one instance per environment, with Cloud SQL automated backups and point-in-time recovery).
+- Supporting cloud services: Google Secret Manager, Artifact Registry, Cloud SQL, Cloud Storage (application assets), Cloud Scheduler, Cloud Logging/Monitoring.
 - All personnel and AI-assisted development sessions that change or operate the platform.
 
 ## 3. Security objectives

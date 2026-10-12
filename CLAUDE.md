@@ -5,8 +5,10 @@ Shared, cross-cutting rules live here at the root; app-specific docs live in eac
 
 ## Layout
 
-- `apps/web` - Angular frontend (deployed as Cloud Run service `login-web`). See [`apps/web/CLAUDE.md`](apps/web/CLAUDE.md).
-- `apps/api` - Node/Express backend (deployed as `login-api`, plus the `login-api-outboxworker`). See [`apps/api/CLAUDE.md`](apps/api/CLAUDE.md).
+- `apps/web` - Angular frontend (deployed as Cloud Run service `platform-web`).
+  See [`apps/web/CLAUDE.md`](apps/web/CLAUDE.md).
+- `apps/api` - Node/Express backend (deployed as `platform-api`, plus the `platform-api-outboxworker`).
+  See [`apps/api/CLAUDE.md`](apps/api/CLAUDE.md).
 - `packages/` - shared libraries (added when services are split out of `apps/api`).
 
 ## Deploy skills
