@@ -53,7 +53,10 @@ Before an action runs - especially one that creates, copies, applies, or changes
 - **Three responsive tiers** (see "Responsive strategy" below): mobile (< 768px),
   tablet (768-1023px), desktop (≥ 1024px). Test every screen at all three - e.g.
   360px, 800px, 1280px.
-- Touch targets minimum 44x44px
+- Touch targets minimum 44x44px.
+  Fields included: every `.form-group` input and select and the combobox input carry a global `min-height: 44px` (2026-10-12; padding plus font alone measured 39-41px), textareas are taller by their rows, checkboxes and radios keep their intrinsic box.
+  The kebab trigger is a 44px square (`min-width` on `.overflow-menu__trigger`).
+  The ONE documented exemption is a dense tee-sheet grid's CLOSED rows (`.fd-flight--closed`, 32px): they are disabled, not interactive, so the target rule does not apply.
 - Use relative units (rem, %, vh/vw) instead of fixed pixels
 - Stack layouts vertically on mobile, horizontal on desktop
 - Body/primary text is min 16px on mobile (`--font-body`). Secondary text follows
@@ -89,9 +92,14 @@ the numbers are repeated literally, but always these numbers.
   media queries.
 - **Grids:** 1 col mobile → 2 col tablet → (optionally) 3 col desktop. Use the
   **`.grid-3`** utility (in `styles.css`) for dense listing/card grids that want a
-  3rd column on desktop. **Forms stay 2-column** (an inline `minmax(0,1fr)
-  minmax(0,1fr)` grid, which the global `@media (max-width:767px)` rule collapses to
-  1 column on mobile) - do NOT force a 3rd column on a form.
+  3rd column on desktop. **Forms stay 2-column** via the global **`.form-grid`**
+  utility (`minmax(0,1fr) minmax(0,1fr)`, collapsing to 1 column on mobile from the
+  class) - do NOT force a 3rd column on a form, and do not inline the grid: the 89
+  inline copies were promoted on 2026-10-12. Its two companions are **`.saas-form--dialog`**
+  (a form inside `<app-dialog>` runs flush, the dialog body already pads) and
+  **`.field-hint`** (the hint paragraph under a control, composed with `.cell-subtle`);
+  an inline `style="margin: var(--space-xs) 0 0"` or `style="padding: 0"` on those
+  elements is the drift this replaced.
 - **Spacing scales up per tier** - the shell's `.content-area` gutter is `--space-md`
   (mobile) → `--space-lg` (tablet) → `--space-xl` (desktop), so content breathes more
   as the viewport grows without any per-screen work.
@@ -942,6 +950,7 @@ The split is intentional and load-bearing: **header = global chrome (who/where),
 - Left: the hamburger (drawer / pin toggle) and the **workspace (company) switcher** - a dropdown when the user belongs to multiple companies, a static company label when single - plus the red MASTER ADMIN chip for system admins.
 - Right: user email/role, the Language quick-switch, the Apps (systems) grid, and the avatar menu (Profile / Settings / Sign out).
   Settings lives ONLY in the avatar menu - never re-add a separate header gear.
+  The email/role block (`.topbar-user`) is **desktop-only** (≥ 1024px): on a tablet it does not fit beside the switcher and the icon group and overflowed the bar (fixed 2026-10-12), so the `@media (max-width: 1023px)` rule hides it and drops the divider in front of the icons; the Language label and the admin chip hide at the mobile tier (`.hide-mobile`, no `!important` - nothing hidden carries an inline display).
 - Every header dropdown uses the shared token-based **`.menu-pop`** system, so they follow all 3 appearance modes.
   The bar itself stays branded (blue; red for system admins) in both themes - the one deliberate always-dark surface.
 - The **module title does NOT belong here** (moved to the sidebar 2026-07-23; it used to truncate to "SYSTEM ADM..." on phones). Don't re-add it.
