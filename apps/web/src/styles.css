@@ -117,6 +117,10 @@ textarea[aria-invalid='true'] {
   --danger-text: #b91c1c;
   --danger-border: #fecaca;
   --danger-surface: #fef2f2;
+  /* Count badge on the branded bar (notification bell): a red that keeps
+     white text at AA in BOTH themes - --danger-text lightens in dark mode
+     and dropped the badge to 2.8:1 there. */
+  --badge-count-surface: #dc2626;
   --success-text: #166534;
   --success-surface: #dcfce7;
   --success-border: #bbf7d0;
@@ -167,6 +171,7 @@ textarea[aria-invalid='true'] {
   --danger-text: #f87171;
   --danger-border: #7f1d1d;
   --danger-surface: #2a1416;
+  --badge-count-surface: #dc2626;
   --success-text: #4ade80;
   --success-surface: #14321f;
   --success-border: #14532d;
@@ -438,7 +443,9 @@ body {
   display: inline-flex;
 }
 .overflow-menu__trigger {
-  /* icon-only: square-ish, still ≥44px via .btn */
+  /* icon-only: a 44px square (the 2026-10-12 sweep measured ~36px wide
+     with padding alone) */
+  min-width: 44px;
   padding-left: var(--space-sm);
   padding-right: var(--space-sm);
 }
@@ -639,7 +646,7 @@ body {
    component rules cannot reach (style encapsulation) - that gap left the
    Golf Spec Course pickers looking disabled (user report 2026-10-05). */
 .combo input {
-  min-height: 40px;
+  min-height: 44px; /* the touch-target floor, like every .form-group field */
   padding: var(--space-xs) var(--space-sm);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
@@ -675,6 +682,13 @@ body {
    browsers), keep a comfortable line height, and scroll vertically past 2
    lines / horizontally past the field width (no soft wrap - lines break only
    on Enter). The user may still drag it taller (resize: vertical). */
+/* Every field meets the 44px touch target (the 2026-10-12 sweep measured
+   39-41px from padding + font alone); textareas are taller by their rows,
+   checkboxes and radios keep their intrinsic box. */
+.form-group input:not([type='checkbox']):not([type='radio']),
+.form-group select {
+  min-height: 44px;
+}
 .form-group textarea {
   resize: vertical;
   font-family: inherit;

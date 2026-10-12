@@ -40,6 +40,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+  flex-wrap: wrap; /* two dates + a separator overflow a phone-width card otherwise */
 }
 
 /* Producer chip for system-generated documents (fee runs, interest, …) */

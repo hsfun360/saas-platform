@@ -74,7 +74,7 @@
 
     <div class="topbar-right" style="display: flex; align-items: center; gap: var(--space-md); height: 100%;">
 
-      <div class="hide-mobile" style="display: flex; flex-direction: column; text-align: right; justify-content: center;">
+      <div class="topbar-user">
         <span class="topbar-user__email">
           {{ loggedInUser }}
         </span>
@@ -143,7 +143,7 @@
              (the bell must stay visible and Apps is core navigation; language
              switching remains available in Settings via the avatar menu). -->
         @if (languageOptions().length > 1) {
-          <div class="hide-mobile" style="position: relative; display: flex; align-items: center;">
+          <div class="hide-mobile topbar-lang">
             <button class="icon-btn" [title]="'language.switch' | t" [attr.aria-label]="'language.switch' | t"
                     aria-haspopup="true" [attr.aria-expanded]="isLanguageDropdownOpen"
                     (click)="toggleLanguageDropdown($event)">

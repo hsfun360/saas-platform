@@ -293,7 +293,7 @@
   height: 16px;
   padding: 0 4px;
   border-radius: 8px;
-  background: var(--danger-text);
+  background: var(--badge-count-surface);
   color: var(--text-on-brand);
   font-size: var(--font-overline);
   font-weight: var(--weight-bold);
@@ -974,12 +974,32 @@
 /* (Settings now lives in the avatar dropdown).                   */
 /* ============================================================== */
 .hide-mobile {
-  /* visible by default; hidden on mobile below */
+  /* visible by default; hidden on mobile below (no !important needed since
+     2026-10-12: no hidden element carries an inline display any more) */
+}
+/* The language quick-switch wrapper (anchors its dropdown). */
+.topbar-lang {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Tablet and below: the email/role block does not fit beside the switcher and
+   the icon group (the 2026-10-12 sweep saw it overflow the bar at 768-1023),
+   so it is desktop-only; the divider in front of the icon group goes with it. */
+@media (max-width: 1023px) {
+  .topbar-user {
+    display: none;
+  }
+  .header-actions {
+    border-left: none;
+    padding-left: 0;
+  }
 }
 
 @media (max-width: 767px) {
   .hide-mobile {
-    display: none !important;
+    display: none;
   }
 
   /* Hamburger flush to the left edge; a little room on the right for the avatar. */
@@ -1030,6 +1050,12 @@
 }
 /* ---- Header user block + hamburger: text ON the branded bar is always the
    on-brand token (the bar is dark blue / dark red in both themes). ---- */
+.topbar-user {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: right;
+}
 .topbar-user__email {
   color: var(--text-on-brand);
   font-size: var(--font-body);
