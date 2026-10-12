@@ -11,6 +11,10 @@ const express = require('express');
 const router = express.Router();
 const { requireMenuAction, requireAnyMenuAction } = require('../../platform/serviceContext');
 const controller = require('./dashboard.controller');
+// Query filters are validated at the boundary after the RBAC gate
+// (platform/validate, schemas in dashboard.schemas.js - the standing rule).
+const { validate } = require('../../platform/validate');
+const s = require('./dashboard.schemas');
 
 const ANALYSIS_MENU = '/membership/membership-analysis';
 const AGENTS_MENU = '/membership/agent-performance';
@@ -20,10 +24,10 @@ const agentsOnly = requireMenuAction(AGENTS_MENU);
 const eitherScreen = requireAnyMenuAction([ANALYSIS_MENU, AGENTS_MENU]);
 
 router.get('/meta', eitherScreen, controller.getMeta);
-router.get('/summary', analysisOnly, controller.getSummary);
-router.get('/movement', analysisOnly, controller.getMovement);
-router.get('/breakdown', analysisOnly, controller.getBreakdown);
-router.get('/agents', agentsOnly, controller.getAgentPerformance);
-router.get('/drill', eitherScreen, controller.drill);
+router.get('/summary', analysisOnly, validate(s.summary), controller.getSummary);
+router.get('/movement', analysisOnly, validate(s.movement), controller.getMovement);
+router.get('/breakdown', analysisOnly, validate(s.breakdown), controller.getBreakdown);
+router.get('/agents', agentsOnly, validate(s.agents), controller.getAgentPerformance);
+router.get('/drill', eitherScreen, validate(s.drill), controller.drill);
 
 module.exports = router;

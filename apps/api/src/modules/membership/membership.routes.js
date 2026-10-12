@@ -1,6 +1,6 @@
 // src/modules/membership/membership.routes.js
 //
-// Membership Management — core product service.
+// Membership Management - core product service.
 // Reserves the `/api/membership` gateway seam and wires the standard contract:
 // verify JWT (who) + require the module subscription (entitlement). Feature
 // sub-routers mount below as the service is built.
@@ -26,7 +26,7 @@ const membershipImportsRoutes = require('./membershipImports.routes');
 const membershipTypeImportsRoutes = require('./membershipTypeImports.routes');
 const dashboardRoutes = require('./dashboard.routes');
 
-// Liveness probe — unauthenticated, so the gateway/monitoring can check the seam.
+// Liveness probe - unauthenticated, so the gateway/monitoring can check the seam.
 router.get('/health', (req, res) => res.json({ service: 'membership', status: 'ok' }));
 
 // --- Member Portal (the member's own surface, NOT staff) ---
@@ -91,12 +91,16 @@ router.use('/tax', membershipTaxRoutes);
 // Producer-owned staged runs posting Invoices into AR; menu granted to
 // Finance via cross-module RBAC.
 const billingController = require('./billing.controller');
-router.post('/billing-schedules', requireMenuAction('/membership/billing'), billingController.generate);
-router.get('/billing-schedules', requireMenuAction('/membership/billing'), billingController.list);
-router.get('/billing-schedules/:id', requireMenuAction('/membership/billing'), billingController.get);
-router.post('/billing-schedules/:id/post', requireMenuAction('/membership/billing'), billingController.post);
-router.post('/billing-schedules/:id/cancel', requireMenuAction('/membership/billing'), billingController.cancel);
-router.patch('/billing-schedule-items/:id', requireMenuAction('/membership/billing'), billingController.setItemStatus);
+// Request parts are validated at the boundary after the RBAC gate
+// (platform/validate, schemas in billing.schemas.js - the standing rule).
+const { validate } = require('../../platform/validate');
+const billingSchemas = require('./billing.schemas');
+router.post('/billing-schedules', requireMenuAction('/membership/billing'), validate(billingSchemas.generate), billingController.generate);
+router.get('/billing-schedules', requireMenuAction('/membership/billing'), validate(billingSchemas.list), billingController.list);
+router.get('/billing-schedules/:id', requireMenuAction('/membership/billing'), validate(billingSchemas.id), billingController.get);
+router.post('/billing-schedules/:id/post', requireMenuAction('/membership/billing'), validate(billingSchemas.post), billingController.post);
+router.post('/billing-schedules/:id/cancel', requireMenuAction('/membership/billing'), validate(billingSchemas.id), billingController.cancel);
+router.patch('/billing-schedule-items/:id', requireMenuAction('/membership/billing'), validate(billingSchemas.setItemStatus), billingController.setItemStatus);
 
 // --- AR debtor backfill (producer-side utility) ---
 // Enqueues provisioning for every currently-active contract/nominee, for data

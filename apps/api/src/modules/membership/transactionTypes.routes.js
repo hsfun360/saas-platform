@@ -6,8 +6,10 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('./transactionType.controller');
+const { validate } = require('../../platform/validate');
+const s = require('./transactionType.schemas');
 
-router.get('/', controller.list);
+router.get('/', validate(s.list), controller.list);
 
 // The old write endpoints are permanently gone - point callers at the AR master.
 router.use((req, res) => res.status(410).json({
