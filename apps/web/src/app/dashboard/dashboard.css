@@ -984,19 +984,6 @@
   align-items: center;
 }
 
-/* Tablet and below: the email/role block does not fit beside the switcher and
-   the icon group (the 2026-10-12 sweep saw it overflow the bar at 768-1023),
-   so it is desktop-only; the divider in front of the icon group goes with it. */
-@media (max-width: 1023px) {
-  .topbar-user {
-    display: none;
-  }
-  .header-actions {
-    border-left: none;
-    padding-left: 0;
-  }
-}
-
 @media (max-width: 767px) {
   .hide-mobile {
     display: none;
@@ -1070,6 +1057,21 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   line-height: 1.2;
+}
+/* Tablet and below: the email/role block does not fit beside the switcher and
+   the icon group (the 2026-10-12 sweep saw it overflow the bar at 768-1023),
+   so it is desktop-only; the divider in front of the icon group goes with it.
+   This block sits AFTER the base .topbar-user rule on purpose: same
+   specificity, so source order decides (the first attempt sat before it and
+   never applied). */
+@media (max-width: 1023px) {
+  .topbar-user {
+    display: none;
+  }
+  .header-actions {
+    border-left: none;
+    padding-left: 0;
+  }
   margin-top: var(--space-xs);
 }
 .menu-btn {
