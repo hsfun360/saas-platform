@@ -153,7 +153,7 @@
                 discardTitle="Discard this new subscriber?"
                 discardMessage="You have started entering a new subscriber. Leaving now will discard it."
                 (close)="cancelCreate()">
-      <form id="createSubscriberForm" [formGroup]="createForm" (ngSubmit)="onSubmit()" class="saas-form" style="padding: 0;">
+      <form id="createSubscriberForm" [formGroup]="createForm" (ngSubmit)="onSubmit()" class="saas-form saas-form--dialog">
         <div class="form-row">
           <div class="form-group">
             <label for="email">Email <span class="required">*</span></label>
@@ -272,7 +272,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
                 (close)="cancelEdit()">
-      <form id="editSubscriberForm" [formGroup]="editForm" (ngSubmit)="onUpdate()" class="saas-form" style="padding: 0;">
+      <form id="editSubscriberForm" [formGroup]="editForm" (ngSubmit)="onUpdate()" class="saas-form saas-form--dialog">
         <div class="form-row">
           <div class="form-group">
             <label for="eName">Subscriber / Company Name <span class="required">*</span></label>

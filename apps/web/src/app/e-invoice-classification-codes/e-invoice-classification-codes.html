@@ -124,7 +124,7 @@
                 discardTitle="Discard this new e-Invoice classification code?"
                 discardMessage="You have started entering a new e-Invoice classification code. Leaving now will discard it."
                 (close)="closeAdd()">
-      <form id="addEInvoiceClassificationCodeForm" [formGroup]="addForm" (ngSubmit)="onSaveAdd()" class="saas-form" style="padding: 0;">
+      <form id="addEInvoiceClassificationCodeForm" [formGroup]="addForm" (ngSubmit)="onSaveAdd()" class="saas-form saas-form--dialog">
         <div class="form-row">
           <div class="form-group">
             <label for="aCode">Code <span class="required">*</span></label>
@@ -166,7 +166,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
                 (close)="closeEdit()">
-      <form id="editEInvoiceClassificationCodeForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
+      <form id="editEInvoiceClassificationCodeForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form saas-form--dialog">
         <div class="form-row">
           <div class="form-group">
             <label for="eCode">Code</label>

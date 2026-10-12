@@ -143,10 +143,10 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this membership type. Leaving now will discard them."
                 (close)="closeDialog()">
-      <form id="typeForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+      <form id="typeForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
 
         <!-- Category + class -->
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div class="form-grid">
           <div class="form-group">
             <label for="tCat">Membership Type <span class="required">*</span></label>
             <input id="tCat" type="text" formControlName="category" placeholder="e.g. ORD" autocomplete="off" maxlength="30"
@@ -218,7 +218,7 @@
         </details>
 
         <!-- Defaults -->
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div class="form-grid">
           <div class="form-group">
             <label for="tStatus">Default membership status</label>
             <app-combobox inputId="tStatus" formControlName="defaultMembershipStatusId"
@@ -235,7 +235,7 @@
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div class="form-grid">
           <div class="form-group">
             <label for="tAr">A/R debtor type</label>
             <input id="tAr" type="text" formControlName="arDebtorType" placeholder="e.g. MEMBER" maxlength="50" autocomplete="off" />
@@ -292,7 +292,7 @@
         @if (!isPersonal()) {
           <details class="dlg-sec" open>
             <summary><h3 class="dlg-section">Corporate</h3></summary>
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-grid">
               <div class="form-group">
                 <label for="tNoNom">No. of nominee</label>
                 <input id="tNoNom" type="number" inputmode="numeric" formControlName="noOfNominee" min="0" step="1" />
@@ -326,7 +326,7 @@
                 (close)="closeFees()">
       <!-- Reactive FormArray editor (house standard): rows live in `feeLines`, its dirty state feeds the guard, Enter submits. -->
       <form id="mtFees" [formGroup]="feesForm" (ngSubmit)="saveFees()">
-      <div class="saas-form" style="padding: 0;" formArrayName="fees">
+      <div class="saas-form saas-form--dialog" formArrayName="fees">
         <p class="mt-hint" style="margin: 0 0 var(--space-sm);">One-time charges billed when someone joins as a new member under this type. A type can carry more than one (e.g. processing fee + entrance fee).</p>
         @if (joiningFeeTxTypes().length === 0) {
           <p class="mt-hint" style="margin: 0 0 var(--space-sm);"><span class="material-icons inline-icon" aria-hidden="true">warning</span> No usable transaction types yet — set them up in the Transaction Type master first (Membership Fee and Absentee Fee types are not offered here).</p>
@@ -346,7 +346,7 @@
                   <span class="material-icons" aria-hidden="true">close</span>
                 </button>
               </div>
-              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-grid">
                 <div class="form-group">
                   <label [for]="'flType' + i">Transaction type <span class="required">*</span></label>
                   <app-combobox [inputId]="'flType' + i" formControlName="transactionType"
@@ -354,7 +354,7 @@
                                 [allowEmpty]="false"
                                 placeholder="Select a transaction type…" />
                   @if (g.controls.transactionType.value) {
-                    <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Tax: {{ txTaxLabel(g.controls.transactionType.value) }}</p>
+                    <p class="cell-subtle field-hint">Tax: {{ txTaxLabel(g.controls.transactionType.value) }}</p>
                   }
                 </div>
                 <div class="form-group">
@@ -363,7 +363,7 @@
                          placeholder="Optional summary" maxlength="200" />
                 </div>
               </div>
-              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-grid">
                 <div class="form-group">
                   <label [for]="'flCur' + i">Currency <span class="required">*</span></label>
                   <app-combobox [inputId]="'flCur' + i" formControlName="currencyCode"
@@ -400,7 +400,7 @@
                 (close)="closeCharges()">
       <!-- Reactive FormArray editor (house standard): rows live in `standingRows`, its dirty state feeds the guard, Enter submits. -->
       <form id="mtCharges" [formGroup]="chargesForm" (ngSubmit)="saveCharges()">
-      <div class="saas-form" style="padding: 0;" formArrayName="charges">
+      <div class="saas-form saas-form--dialog" formArrayName="charges">
         <p class="mt-hint" style="margin: 0 0 var(--space-sm);">Recurring charges raised from the member's status at the point the charge is billed. Use "Add charge" per charge — a status can carry more than one, and statuses you never charge (deceased, terminated, resigned, …) simply have no rows.</p>
         @if (standingTxTypes().length === 0) {
           <p class="mt-hint" style="margin: 0 0 var(--space-sm);"><span class="material-icons inline-icon" aria-hidden="true">warning</span> No transaction types with charge type "Standing Charges" yet — set them up in the Transaction Type master first.</p>
@@ -420,7 +420,7 @@
                   <span class="material-icons" aria-hidden="true">close</span>
                 </button>
               </div>
-              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-grid">
                 <div class="form-group">
                   <label [for]="'scStatus' + i">Membership status <span class="required">*</span></label>
                   <app-combobox [inputId]="'scStatus' + i" formControlName="membershipStatusId"
@@ -435,11 +435,11 @@
                                 [allowEmpty]="false"
                                 placeholder="Select a transaction type…" />
                   @if (g.controls.transactionType.value) {
-                    <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Tax: {{ txTaxLabel(g.controls.transactionType.value) }}</p>
+                    <p class="cell-subtle field-hint">Tax: {{ txTaxLabel(g.controls.transactionType.value) }}</p>
                   }
                 </div>
               </div>
-              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-grid">
                 <div class="form-group">
                   <label [for]="'scDesc' + i">Description</label>
                   <input [id]="'scDesc' + i" type="text" formControlName="description"
@@ -453,7 +453,7 @@
                                 placeholder="Type to search…" />
                 </div>
               </div>
-              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-grid">
                 <div class="form-group">
                   <label [for]="'scAmt' + i">Amount <span class="required">*</span></label>
                   <input [id]="'scAmt' + i" type="number" inputmode="decimal" appMoney formControlName="amount" min="0" step="0.01" />
@@ -469,7 +469,7 @@
                 </div>
               </div>
               @if (g.controls.frequency.value === 'fixed-month') {
-                <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                <div class="form-grid">
                   <div class="form-group">
                     <label [for]="'scMonth' + i">Month <span class="required">*</span></label>
                     <select [id]="'scMonth' + i" formControlName="fixedMonth">

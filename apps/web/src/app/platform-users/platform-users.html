@@ -113,7 +113,7 @@
                 discardTitle="Discard this new user?"
                 discardMessage="You have started entering a new user. Leaving now will discard it."
                 (close)="cancelCreate()">
-      <form id="createPlatformUserForm" [formGroup]="createForm" (ngSubmit)="onCreate()" class="saas-form" style="padding: 0;">
+      <form id="createPlatformUserForm" [formGroup]="createForm" (ngSubmit)="onCreate()" class="saas-form saas-form--dialog">
         <div class="form-row">
           <div class="form-group">
             <label for="uEmail">Email <span class="required">*</span></label>
@@ -179,7 +179,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
                 (close)="cancelEdit()">
-      <form id="editPlatformUserForm" [formGroup]="editForm" (ngSubmit)="onUpdate()" class="saas-form" style="padding: 0;">
+      <form id="editPlatformUserForm" [formGroup]="editForm" (ngSubmit)="onUpdate()" class="saas-form saas-form--dialog">
         <div class="form-row">
           <div class="form-group">
             <label for="eEmail">Email <span class="required">*</span></label>

@@ -124,7 +124,7 @@
       @if (dialogView() === 'class') {
         <!-- Step 1 (create only): pick the document class - it decides which
              fields the form shows at all. -->
-        <div class="saas-form" style="padding: 0;">
+        <div class="saas-form saas-form--dialog">
           <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Pick the document class this item belongs to — it decides which fields the form shows.</p>
           <div style="display: grid; gap: var(--space-sm);">
             @for (c of trxClasses(); track c.key) {
@@ -136,7 +136,7 @@
           </div>
         </div>
       } @else {
-      <form id="attForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+      <form id="attForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
         <div class="form-row">
           <div class="form-group">
             <label for="attClass">Transaction Class</label>
@@ -177,7 +177,7 @@
                             [options]="taxSchemeOptions()"
                             [allowEmpty]="true" emptyLabel="— None —"
                             placeholder="Type to search…" />
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The single source of tax for this item — every consumer inherits it.</p>
+              <p class="cell-subtle field-hint">The single source of tax for this item — every consumer inherits it.</p>
             </div>
           </div>
         }
@@ -225,7 +225,7 @@
                               [options]="einvComboOptions()"
                               [allowEmpty]="true" emptyLabel="— Select —"
                               placeholder="Type to search…" />
-                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Snapshotted onto document lines for the e-Invoice submission. Maintain the list under e-Invoice Classifications.</p>
+                <p class="cell-subtle field-hint">Snapshotted onto document lines for the e-Invoice submission. Maintain the list under e-Invoice Classifications.</p>
               }
             </div>
           </div>

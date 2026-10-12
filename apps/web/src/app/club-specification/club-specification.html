@@ -200,7 +200,7 @@
               Nominee and dependent numbers are derived from their principal's number plus a suffix.
               Letters fill the first free slot; numeric styles always count upward and never reuse a removed number.
             </p>
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-grid">
               <div class="form-group">
                 <label for="csNomSep">Nominee suffix</label>
                 <div style="display: flex; gap: var(--space-sm);">
@@ -248,8 +248,8 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to the number format. Leaving now will discard them."
                 (close)="configOpen.set(false)">
-      <form id="csConfigForm" [formGroup]="configForm" (ngSubmit)="saveConfig()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+      <form id="csConfigForm" [formGroup]="configForm" (ngSubmit)="saveConfig()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
           <div class="form-group">
             <label for="csPrefix">Prefix</label>
             <input id="csPrefix" type="text" formControlName="prefix" placeholder="e.g. M" maxlength="20" autocomplete="off" />
@@ -281,7 +281,7 @@
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div class="form-grid">
           <div class="form-group">
             <label for="csPad">Sequence digits</label>
             <input id="csPad" type="number" inputmode="numeric" formControlName="seqPadLength" min="0" max="12" step="1" />

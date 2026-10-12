@@ -92,8 +92,8 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this numbering scheme. Leaving now will discard them."
                 (close)="closeDialog()">
-      <form id="numberingForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+      <form id="numberingForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
           <div class="form-group">
             <label for="nPurpose">Numbers</label>
             <select id="nPurpose" formControlName="purpose" [attr.disabled]="editId() ? true : null">
@@ -115,7 +115,7 @@
         @if (form.controls.mode.value === 'manual') {
           <p class="nb-hint">Staff key the number in on the document's own screen (e.g. from a pre-printed card). The system only checks it isn't already used.</p>
         } @else {
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-grid">
             <div class="form-group">
               <label for="nPrefix">Prefix</label>
               <input id="nPrefix" type="text" formControlName="prefix" placeholder="e.g. M" maxlength="20" autocomplete="off" />
@@ -147,7 +147,7 @@
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-grid">
             <div class="form-group">
               <label for="nPad">Sequence digits</label>
               <input id="nPad" type="number" inputmode="numeric" formControlName="seqPadLength" min="0" max="12" step="1" />

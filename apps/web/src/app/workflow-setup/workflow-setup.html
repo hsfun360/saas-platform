@@ -112,7 +112,7 @@
 
         <!-- ================= DEFINITION VIEW ================= -->
         @case ('definition') {
-          <form id="workflowForm" [formGroup]="form" (ngSubmit)="onSaveDefinition()" class="saas-form" style="padding: 0;">
+          <form id="workflowForm" [formGroup]="form" (ngSubmit)="onSaveDefinition()" class="saas-form saas-form--dialog">
             <div class="form-row">
               <div class="form-group">
                 <label for="wfPurpose">Document type <span class="required">*</span></label>
@@ -201,7 +201,7 @@
 
         <!-- ================= STEP VIEW ================= -->
         @case ('step') {
-          <form id="workflowStepForm" [formGroup]="stepForm" (ngSubmit)="saveStep()" class="saas-form" style="padding: 0;">
+          <form id="workflowStepForm" [formGroup]="stepForm" (ngSubmit)="saveStep()" class="saas-form saas-form--dialog">
             <!-- Step validation errors use the screen's global .flash snackbar
                  (it floats above the dialog) - never an in-dialog error bar. -->
             <div class="form-row">

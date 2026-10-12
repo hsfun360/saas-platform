@@ -120,8 +120,8 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this payment type. Leaving now will discard them."
                 (close)="closeDialog()">
-      <form id="gptForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+      <form id="gptForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
           <div class="form-group">
             <label for="gptCode">Payment Type <span class="required">*</span></label>
             <input id="gptCode" type="text" formControlName="paymentType" placeholder="e.g. CASH" autocomplete="off" maxlength="50"
@@ -169,7 +169,7 @@
                 <button type="button" class="btn btn--danger btn--sm" (click)="removeIcon()" [disabled]="uploading()">Remove</button>
               }
             </div>
-            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Shown on the front-desk settlement tiles (square images look best, up to 2 MB).</p>
+            <p class="cell-subtle field-hint">Shown on the front-desk settlement tiles (square images look best, up to 2 MB).</p>
           </div>
         </div>
       </form>

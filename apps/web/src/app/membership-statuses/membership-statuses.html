@@ -118,8 +118,8 @@
                 discardTitle="Discard this new membership status?"
                 discardMessage="You have started entering a new membership status. Leaving now will discard it."
                 (close)="closeAdd()">
-      <form id="addStatusForm" [formGroup]="addForm" (ngSubmit)="onSaveAdd()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+      <form id="addStatusForm" [formGroup]="addForm" (ngSubmit)="onSaveAdd()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
           <div class="form-group">
             <label for="aCode">Membership status <span class="required">*</span></label>
             <input id="aCode" type="text" formControlName="membershipStatus" placeholder="e.g. Active" autocomplete="off" maxlength="255"
@@ -148,7 +148,7 @@
             <textarea id="aDesc" formControlName="description" rows="2" wrap="off" placeholder="Optional summary" maxlength="255"></textarea>
           </div>
         </div>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div class="form-grid">
           <div class="form-group">
             <label for="aAction">Action control <span class="required">*</span></label>
             <select id="aAction" formControlName="actionControl"
@@ -158,7 +158,7 @@
                 <option [value]="ctrl.key">{{ ctrl.label }}</option>
               }
             </select>
-            <p id="aActionHint" class="cell-subtle" style="margin: var(--space-xs) 0 0;">Frontend registration and booking. Warning proceeds with an alert.</p>
+            <p id="aActionHint" class="cell-subtle field-hint">Frontend registration and booking. Warning proceeds with an alert.</p>
             @if (showError(addForm.controls.actionControl)) {
               <p id="aActionErr" class="field-error" role="alert">Action control is required.</p>
             }
@@ -172,7 +172,7 @@
                 <option [value]="ctrl.key">{{ ctrl.label }}</option>
               }
             </select>
-            <p id="aChargeHint" class="cell-subtle" style="margin: var(--space-xs) 0 0;">Charge to account at settlement. Warning alerts but still posts.</p>
+            <p id="aChargeHint" class="cell-subtle field-hint">Charge to account at settlement. Warning alerts but still posts.</p>
             @if (showError(addForm.controls.chargeControl)) {
               <p id="aChargeErr" class="field-error" role="alert">Charge control is required.</p>
             }
@@ -204,8 +204,8 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
                 (close)="closeEdit()">
-      <form id="editStatusForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+      <form id="editStatusForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
           <div class="form-group">
             <label for="eCode">Membership status <span class="required">*</span></label>
             <input id="eCode" type="text" formControlName="membershipStatus" autocomplete="off" maxlength="255"
@@ -233,7 +233,7 @@
             <textarea id="eDesc" formControlName="description" rows="2" wrap="off" placeholder="Optional summary" maxlength="255"></textarea>
           </div>
         </div>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div class="form-grid">
           <div class="form-group">
             <label for="eAction">Action control <span class="required">*</span></label>
             <select id="eAction" formControlName="actionControl"
@@ -243,7 +243,7 @@
                 <option [value]="ctrl.key">{{ ctrl.label }}</option>
               }
             </select>
-            <p id="eActionHint" class="cell-subtle" style="margin: var(--space-xs) 0 0;">Frontend registration and booking. Warning proceeds with an alert.</p>
+            <p id="eActionHint" class="cell-subtle field-hint">Frontend registration and booking. Warning proceeds with an alert.</p>
             @if (showError(editForm.controls.actionControl)) {
               <p id="eActionErr" class="field-error" role="alert">Action control is required.</p>
             }
@@ -257,7 +257,7 @@
                 <option [value]="ctrl.key">{{ ctrl.label }}</option>
               }
             </select>
-            <p id="eChargeHint" class="cell-subtle" style="margin: var(--space-xs) 0 0;">Charge to account at settlement. Warning alerts but still posts.</p>
+            <p id="eChargeHint" class="cell-subtle field-hint">Charge to account at settlement. Warning alerts but still posts.</p>
             @if (showError(editForm.controls.chargeControl)) {
               <p id="eChargeErr" class="field-error" role="alert">Charge control is required.</p>
             }
@@ -288,7 +288,7 @@
     <app-dialog [title]="'Copy membership statuses'" [busy]="copySaving()" (close)="closeCopy()">
       <!-- Native form so Enter submits (keyboard-only entry standard); the footer button targets it via form="msCopy". -->
       <form id="msCopy" (submit)="$event.preventDefault(); onCopy()">
-      <div class="saas-form" style="padding: 0;">
+      <div class="saas-form saas-form--dialog">
         @if (copyLoading()) {
           <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading companies…</p></div>
         } @else if (copySources().length === 0) {

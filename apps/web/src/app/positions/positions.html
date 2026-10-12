@@ -116,7 +116,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this position. Leaving now will discard them."
                 (close)="closeDialog()">
-      <form id="positionForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+      <form id="positionForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
         <div class="form-row">
           <div class="form-group">
             <label for="posCode">Position code <span class="required">*</span></label>
@@ -146,7 +146,7 @@
             <label for="posRank">Rank <span class="required">*</span></label>
             <input id="posRank" type="number" formControlName="rank" inputmode="numeric" step="1" placeholder="e.g. 30"
                    [attr.aria-invalid]="showError(form.controls.rank)" aria-describedby="posRankErr posRankHint" />
-            <p id="posRankHint" class="cell-subtle" style="margin: var(--space-xs) 0 0;">
+            <p id="posRankHint" class="cell-subtle field-hint">
               Higher = more senior. A senior can be allowed to amend a junior's records in the same department; equal ranks are peers.
             </p>
             @if (showError(form.controls.rank)) {

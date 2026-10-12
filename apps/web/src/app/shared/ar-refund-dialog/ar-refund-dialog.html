@@ -63,8 +63,8 @@
       @if (metaLoading()) {
         <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading entry options…</p></div>
       } @else {
-        <form id="arRefundForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <form id="arRefundForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+          <div class="form-grid">
             <div class="form-group">
               <label for="rfKind">Refund of</label>
               <input id="rfKind" type="text" disabled [value]="kindLabel()" />
@@ -88,7 +88,7 @@
               }
             </div>
           </div>
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-grid">
             <div class="form-group">
               <label for="rfDocDate">Document date <span class="required">*</span></label>
               <input id="rfDocDate" type="date" formControlName="docDate" />
@@ -100,7 +100,7 @@
             </div>
           </div>
           @if (needsDeposit()) {
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-grid">
               <div class="form-group">
                 <label for="rfDeposit">From deposit <span class="required">*</span></label>
                 <app-combobox inputId="rfDeposit" formControlName="collectDepositId"
@@ -126,7 +126,7 @@
               </div>
             </div>
           } @else {
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-grid">
               <div class="form-group">
                 <label for="rfAmount">Amount <span class="required">*</span></label>
                 <input id="rfAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount"
@@ -139,7 +139,7 @@
             </div>
           }
           @if (bankFacing()) {
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-grid">
               <div class="form-group">
                 <label for="rfMethod">Payment method <span class="required">*</span></label>
                 <!-- Constrained combobox (house standard); Refund-class
@@ -164,7 +164,7 @@
           }
           @if (isForeign()) {
             <!-- Multicurrency: the rate at payout, frozen on the row. -->
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-grid">
               <div class="form-group">
                 <label for="rfRate">Exchange rate <span class="required">*</span></label>
                 <input id="rfRate" type="text" inputmode="decimal" formControlName="exchangeRate" autocomplete="off" maxlength="22"

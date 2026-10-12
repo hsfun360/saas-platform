@@ -50,8 +50,8 @@
       @if (metaLoading()) {
         <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading entry options…</p></div>
       } @else {
-        <form id="arLedgerForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <form id="arLedgerForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+          <div class="form-grid">
             <div class="form-group">
               <label for="ldNo">{{ kindLabel() }} no.
                 @if (numberingMode() === 'manual') { <span class="required">*</span> }
@@ -77,7 +77,7 @@
               }
             </div>
           </div>
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-grid">
             <div class="form-group">
               <label for="ldDocDate">Document date <span class="required">*</span></label>
               <input id="ldDocDate" type="date" formControlName="docDate" />
@@ -88,7 +88,7 @@
               <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Accounting period — differs from the document date only when back-keying into a closed month.</p>
             </div>
           </div>
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-grid">
             <div class="form-group">
               <label for="ldAmount">Amount <span class="required">*</span></label>
               <input id="ldAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount"
@@ -121,7 +121,7 @@
             }
           </div>
           @if (kind() === 'credit-note') {
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-grid">
               <div class="form-group">
                 <label for="ldTarget">Apply against</label>
                 @if (targetLocked()) {
@@ -161,7 +161,7 @@
               </button>
               @if (anaOpen()) {
                 <div class="settings-body">
-                  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+                  <div class="form-grid">
                     @for (dim of orderedAnalysisMeta(); track dim.categoryId) {
                       <div class="form-group">
                         <label [for]="'ldAna' + dim.dimensionNo">{{ dim.name }}@if (dim.isRequired) { <span class="required">*</span> }</label>

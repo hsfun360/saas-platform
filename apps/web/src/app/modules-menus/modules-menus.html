@@ -285,16 +285,16 @@
       <!-- Standard .form-group fields (no inline field styles): the global
            field rules own the look, focus highlight and the disabled
            display-only treatment (the frozen Code in edit mode). -->
-      <form id="moduleForm" [formGroup]="moduleForm" (ngSubmit)="saveModule()" class="saas-form" style="padding: 0;">
+      <form id="moduleForm" [formGroup]="moduleForm" (ngSubmit)="saveModule()" class="saas-form saas-form--dialog">
         <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
           <div class="form-group">
             <label for="mod-code">Code <span class="required">*</span></label>
             <input id="mod-code" type="text" formControlName="code" placeholder="e.g. GOLF" maxlength="30"
                    autocomplete="off" style="text-transform: uppercase;">
             @if (editingModuleId()) {
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The code is the module's frozen identity (entitlements, licensing) and cannot be changed.</p>
+              <p class="cell-subtle field-hint">The code is the module's frozen identity (entitlements, licensing) and cannot be changed.</p>
             } @else {
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Machine identity, set once: letters, digits and underscores (e.g. GOLF). Names below stay freely renamable.</p>
+              <p class="cell-subtle field-hint">Machine identity, set once: letters, digits and underscores (e.g. GOLF). Names below stay freely renamable.</p>
             }
             @if (moduleForm.controls.code.touched && moduleForm.controls.code.invalid) {
               <p class="field-error" role="alert">A code is required: letters/digits/underscores, starting with a letter.</p>
@@ -377,7 +377,7 @@
                 discardTitle="Discard your changes?" discardMessage="You have unsaved changes to this form. Leaving now will discard them." (close)="cancelMenuEdit()">
       <!-- Standard .form-group fields (no inline field styles) - see the
            module dialog note above. -->
-      <form id="menuForm" [formGroup]="menuForm" (ngSubmit)="saveMenu()" class="saas-form" style="padding: 0;">
+      <form id="menuForm" [formGroup]="menuForm" (ngSubmit)="saveMenu()" class="saas-form saas-form--dialog">
         <div class="form-row" style="grid-template-columns: minmax(0, 1fr);">
           <div class="form-group">
             <label for="menu-name">Name <span class="required">*</span></label>
@@ -403,7 +403,7 @@
             <label for="menu-description">Description <span style="font-weight: var(--weight-regular); color: var(--text-muted);">(optional — what the screen is for)</span></label>
             <textarea id="menu-description" formControlName="description" rows="2" wrap="off" maxlength="255" placeholder="e.g. Define the bookable tee time slots per course"
                       [attr.aria-invalid]="showError(menuForm.controls.description)" aria-describedby="menu-description-err"></textarea>
-            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Shown under the menu name when assigning role permissions.</p>
+            <p class="cell-subtle field-hint">Shown under the menu name when assigning role permissions.</p>
             @if (showError(menuForm.controls.description)) {
               <p id="menu-description-err" class="field-error" role="alert">Description is too long (max 255 characters).</p>
             }
@@ -424,7 +424,7 @@
                           [options]="parentComboOptions()"
                           [allowEmpty]="true" emptyLabel="Top level (no parent)"
                           placeholder="Type to search…" />
-            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">A menu with children shows as a collapsible section in the sidebar.</p>
+            <p class="cell-subtle field-hint">A menu with children shows as a collapsible section in the sidebar.</p>
           </div>
         </div>
 

@@ -93,10 +93,10 @@
   @if (dialogOpen()) {
     <app-dialog #dlg variant="drawer" [title]="editRow() ? 'Edit agency' : 'New agency'" [busy]="saving()"
                 [dirty]="form.dirty" (close)="close()">
-      <form id="agencyForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+      <form id="agencyForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
         <details class="dlg-sec" open>
         <summary><h3 class="dlg-section">Agency</h3></summary>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div class="form-grid">
           <div class="form-group">
             <label for="agCode">Agency code <span class="required">*</span></label>
             <input id="agCode" type="text" formControlName="agencyCode" autocomplete="off" maxlength="30"
@@ -118,7 +118,7 @@
             <input id="agRegNo" type="text" formControlName="registrationNo" autocomplete="off" maxlength="100" />
           </div>
         </div>
-        <div formGroupName="address" style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div formGroupName="address" class="form-grid">
           <div class="form-group" style="grid-column: 1 / -1;">
             <label for="agAddrLine">Address</label>
             <input id="agAddrLine" type="text" formControlName="address" autocomplete="off" maxlength="255" />
@@ -147,7 +147,7 @@
 
         <details class="dlg-sec" open>
         <summary><h3 class="dlg-section">Contact</h3></summary>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div class="form-grid">
           <div class="form-group">
             <label for="agContact">Contact person</label>
             <input id="agContact" type="text" formControlName="contactPerson" autocomplete="off" maxlength="255" />

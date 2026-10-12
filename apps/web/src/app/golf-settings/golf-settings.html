@@ -30,7 +30,7 @@
   @if (loading()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading golf specification…</p></div>
   } @else {
-    <form [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+    <form [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
 
       <!-- ============ Booking Rules ============ -->
       <div class="settings-card">
@@ -52,7 +52,7 @@
                 @if (showError(form.controls.advanceBookingDays)) {
                   <p id="gsDaysErr" class="field-error" role="alert">Enter a whole number between 0 and 365.</p>
                 }
-                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The general rule for everyone — members and public golfers.</p>
+                <p class="cell-subtle field-hint">The general rule for everyone — members and public golfers.</p>
               </div>
               <div class="form-group">
                 <label for="gsHours">Advance Booking Hours <span class="required">*</span></label>
@@ -61,7 +61,7 @@
                 @if (showError(form.controls.advanceBookingHours)) {
                   <p id="gsHoursErr" class="field-error" role="alert">Enter a whole number between 0 and 23.</p>
                 }
-                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Opens the daily window this many hours before midnight — no need to wait for 12:00am.</p>
+                <p class="cell-subtle field-hint">Opens the daily window this many hours before midnight — no need to wait for 12:00am.</p>
               </div>
             </div>
             @if (windowPreview(); as preview) {
@@ -73,7 +73,7 @@
                 <input type="checkbox" formControlName="allowMembershipTypeOverride" />
                 <span>Allow Membership Type to override the advance booking days</span>
               </label>
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Grants selected membership types the privilege to book earlier than the general rule. The hours above always apply club-wide.</p>
+              <p class="cell-subtle field-hint">Grants selected membership types the privilege to book earlier than the general rule. The hours above always apply club-wide.</p>
             </div>
 
             @if (overridesOn()) {
@@ -107,7 +107,7 @@
                   Add override
                 </button>
                 @if (overrides.length === 0) {
-                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No overrides yet — every membership type follows the general days.</p>
+                  <p class="cell-subtle field-hint">No overrides yet — every membership type follows the general days.</p>
                 }
               </div>
             }
@@ -120,7 +120,7 @@
                 @if (showError(form.controls.bookingLockMinutes)) {
                   <p id="gsLockErr" class="field-error" role="alert">Enter a whole number between 1 and 60.</p>
                 }
-                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">A selected flight is held this long while the player list is keyed — a countdown shows on the booking screen.</p>
+                <p class="cell-subtle field-hint">A selected flight is held this long while the player list is keyed — a countdown shows on the booking screen.</p>
               </div>
             </div>
 
@@ -129,7 +129,7 @@
                 <input type="checkbox" formControlName="allowBookingMerge" />
                 <span>Allow merge booking — a flight may be shared by players from different bookings</span>
               </label>
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">When off, the first confirmed booking claims the whole flight; more players can only be added to that same booking.</p>
+              <p class="cell-subtle field-hint">When off, the first confirmed booking claims the whole flight; more players can only be added to that same booking.</p>
             </div>
 
             <div class="gs-grid" style="margin-top: var(--space-md);">
@@ -150,7 +150,7 @@
                 </select>
               </div>
             </div>
-            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Counted as the booking maker or a Member player line; playing as a member-guest is not counted. Per day prompts at search which flight is already booked; per session hides the already-booked sessions' flights.</p>
+            <p class="cell-subtle field-hint">Counted as the booking maker or a Member player line; playing as a member-guest is not counted. Per day prompts at search which flight is already booked; per session hides the already-booked sessions' flights.</p>
 
             <!-- Golf Sessions: the named day parts the per-session limit uses
                  (and future session analysis). Stored even while no limit uses
@@ -159,7 +159,7 @@
                  interleaved columns on wide screens (user report 2026-10-05). -->
             <div class="gs-sessions" style="margin-top: var(--space-md);">
               <label style="font-weight: var(--weight-semibold);">Sessions</label>
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">
+              <p class="cell-subtle field-hint">
                 The club's day parts — e.g. Morning, Afternoon, Evening. "One booking per session" allows one booking in each;
                 a tee time outside every session is unrestricted.
                 @if (sessionLimitOn() && sessions.length === 0) {
@@ -198,7 +198,7 @@
                 <input type="checkbox" formControlName="allowSameDayBooking" />
                 <span>Allow same-day booking — today's flights can be booked</span>
               </label>
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">When off, bookings start from tomorrow up to the advance window — golfers take today's flights by registering at the front desk.</p>
+              <p class="cell-subtle field-hint">When off, bookings start from tomorrow up to the advance window — golfers take today's flights by registering at the front desk.</p>
             </div>
 
             <div class="form-row" style="margin-top: var(--space-md);">
@@ -206,7 +206,7 @@
                 <input type="checkbox" formControlName="juniorBookingControlEnabled" />
                 <span>Junior booking control — a junior must play with their principal (parent)</span>
               </label>
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">A junior member (a dependent whose relationship is son, daughter or ward) may not be in a booking unless their principal is also a player — or, if no principal is on record, at least one adult member. The booking refuses; the front desk registers with a warning.</p>
+              <p class="cell-subtle field-hint">A junior member (a dependent whose relationship is son, daughter or ward) may not be in a booking unless their principal is also a player — or, if no principal is on record, at least one adult member. The booking refuses; the front desk registers with a warning.</p>
             </div>
           </div>
         }
@@ -287,7 +287,7 @@
                 Add exception
               </button>
               @if (minPlayerRules.length === 0) {
-                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No exceptions — every flight follows the two general minimums. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a time band (empty times = whole day); the most specific rule wins.</p>
+                <p class="cell-subtle field-hint">No exceptions — every flight follows the two general minimums. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a time band (empty times = whole day); the most specific rule wins.</p>
               }
             </div>
           </div>
@@ -311,7 +311,7 @@
                 <input type="checkbox" formControlName="guestControlEnabled" />
                 <span>Enable guest control — restrict when a booking may bring guests</span>
               </label>
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Off means no restriction anywhere: guests are always welcome.</p>
+              <p class="cell-subtle field-hint">Off means no restriction anywhere: guests are always welcome.</p>
             </div>
 
             @if (guestControlOn()) {
@@ -386,7 +386,7 @@
                   Add exception
                 </button>
                 @if (guestRules.length === 0) {
-                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No exceptions — the weekday and weekend answers above apply everywhere. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a flight-time band; the most specific rule wins.</p>
+                  <p class="cell-subtle field-hint">No exceptions — the weekday and weekend answers above apply everywhere. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a flight-time band; the most specific rule wins.</p>
                 }
               </div>
             }
@@ -411,7 +411,7 @@
                 <input type="checkbox" formControlName="handicapControlEnabled" />
                 <span>Enable handicap control — bookings refuse violations; the front desk registers with a warning</span>
               </label>
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Golfers with no handicap recorded are exempt from the limits; only golfers marked Beginner or Provisional need accompanying.</p>
+              <p class="cell-subtle field-hint">Golfers with no handicap recorded are exempt from the limits; only golfers marked Beginner or Provisional need accompanying.</p>
             </div>
 
             @if (handicapControlOn()) {
@@ -469,7 +469,7 @@
                 Add limit
               </button>
               @if (limitRules.length === 0) {
-                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No limits — any handicap may play any time. Add one per gender/day, e.g. Men 36.0 and Ladies 40.0 on weekdays for 18 holes.</p>
+                <p class="cell-subtle field-hint">No limits — any handicap may play any time. Add one per gender/day, e.g. Men 36.0 and Ladies 40.0 on weekdays for 18 holes.</p>
               }
 
               <p class="gs-hc-title" style="margin-top: var(--space-lg);">Beginner &amp; provisional accompaniment</p>
@@ -536,7 +536,7 @@
                 Add rule
               </button>
               @if (accRules.length === 0) {
-                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">No rules — beginners and provisional golfers play unaccompanied. A rule requires the flight to carry at least the given number of Established golfers under the per-gender handicap caps; the companion is checked across the whole flight.</p>
+                <p class="cell-subtle field-hint">No rules — beginners and provisional golfers play unaccompanied. A rule requires the flight to carry at least the given number of Established golfers under the per-gender handicap caps; the companion is checked across the whole flight.</p>
               }
             }
           </div>
@@ -560,7 +560,7 @@
                 <input type="checkbox" formControlName="noShowControlEnabled" />
                 <span>Enable cancellation &amp; no-show control</span>
               </label>
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The front desk reviews and confirms the day's no-shows before anything is charged; late cancellations are priced on the Bookings screen before the cancel is confirmed. Charges post to the booker's member account.</p>
+              <p class="cell-subtle field-hint">The front desk reviews and confirms the day's no-shows before anything is charged; late cancellations are priced on the Bookings screen before the cancel is confirmed. Charges post to the booker's member account.</p>
             </div>
 
             @if (noShowControlOn()) {
@@ -572,7 +572,7 @@
                   @if (showError(form.controls.cancellationNoticeHours)) {
                     <p id="gsNoticeHoursErr" class="field-error" role="alert">Enter a whole number between 0 and 720.</p>
                   }
-                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">A cancel less than this many hours before the booking's first tee time is a late cancellation. 0 = no notice rule.</p>
+                  <p class="cell-subtle field-hint">A cancel less than this many hours before the booking's first tee time is a late cancellation. 0 = no notice rule.</p>
                 </div>
                 <div class="form-group">
                   <label for="gsLateAction">Late Cancellation</label>
@@ -581,7 +581,7 @@
                       <option [value]="a.key">{{ a.label }}</option>
                     }
                   </select>
-                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Charging frees the flight for others; refusing keeps the booking, and players who do not turn up are recorded as no-shows.</p>
+                  <p class="cell-subtle field-hint">Charging frees the flight for others; refusing keeps the booking, and players who do not turn up are recorded as no-shows.</p>
                 </div>
               </div>
               <div class="gs-grid" style="margin-top: var(--space-md);">
@@ -590,7 +590,7 @@
                   <app-combobox inputId="gsNoShowType" [value]="form.controls.noShowTransactionTypeId.value" (valueChange)="setNoShowType($event)"
                                 [options]="noShowTypeOptions()" [allowEmpty]="true" emptyLabel="— Select —"
                                 placeholder="Type to search…" />
-                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">A No Show Charges transaction type — its flat price and tax scheme set the penalty (e.g. 80.00 + 5% tax). Maintained under Transaction Type.</p>
+                  <p class="cell-subtle field-hint">A No Show Charges transaction type — its flat price and tax scheme set the penalty (e.g. 80.00 + 5% tax). Maintained under Transaction Type.</p>
                 </div>
                 <div class="form-group">
                   <label for="gsChargeBasis">Charge Basis</label>
@@ -599,7 +599,7 @@
                       <option [value]="b.key">{{ b.label }}</option>
                     }
                   </select>
-                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Per player multiplies the price by the number of no-show players; per booking charges it once.</p>
+                  <p class="cell-subtle field-hint">Per player multiplies the price by the number of no-show players; per booking charges it once.</p>
                 </div>
               </div>
             }
@@ -624,7 +624,7 @@
                 <input type="checkbox" formControlName="groupBookingControlEnabled" />
                 <span>Enable group booking control</span>
               </label>
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Off: a group booking is confirmed the moment it is created - the committee club keying its own events. On: a new booking is tentative, its reserved flights expire unless it is submitted for approval, approval starts the deposit clock, and the booking is confirmed when the deposit is received. The approval chain itself is set up under Workflow (purpose Golf group booking); with no chain, submitting approves at once.</p>
+              <p class="cell-subtle field-hint">Off: a group booking is confirmed the moment it is created - the committee club keying its own events. On: a new booking is tentative, its reserved flights expire unless it is submitted for approval, approval starts the deposit clock, and the booking is confirmed when the deposit is received. The approval chain itself is set up under Workflow (purpose Golf group booking); with no chain, submitting approves at once.</p>
             </div>
 
             @if (groupControlOn()) {
@@ -636,7 +636,7 @@
                   @if (showError(form.controls.groupTentativeHoldHours)) {
                     <p id="gsGroupHoldErr" class="field-error" role="alert">Enter a whole number between 0 and 720.</p>
                   }
-                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">How long reserved flights hold the tee sheet while the booking is still tentative. 0 = no expiry.</p>
+                  <p class="cell-subtle field-hint">How long reserved flights hold the tee sheet while the booking is still tentative. 0 = no expiry.</p>
                 </div>
                 <div class="form-group">
                   <label for="gsGroupDue">Deposit Due (days after approval) <span class="required">*</span></label>
@@ -645,7 +645,7 @@
                   @if (showError(form.controls.groupDepositDueDays)) {
                     <p id="gsGroupDueErr" class="field-error" role="alert">Enter a whole number between 0 and 365.</p>
                   }
-                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The proforma's pay-by date defaults to this many days after approval. A manager may extend it once.</p>
+                  <p class="cell-subtle field-hint">The proforma's pay-by date defaults to this many days after approval. A manager may extend it once.</p>
                 </div>
                 <div class="form-group">
                   <label for="gsGroupPct">Default Deposit (% of the group bill) <span class="required">*</span></label>
@@ -654,7 +654,7 @@
                   @if (showError(form.controls.groupDefaultDepositPct)) {
                     <p id="gsGroupPctErr" class="field-error" role="alert">Enter a whole number between 0 and 100.</p>
                   }
-                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Used when the proforma does not state a deposit. 0 = no deposit, approval confirms at once.</p>
+                  <p class="cell-subtle field-hint">Used when the proforma does not state a deposit. 0 = no deposit, approval confirms at once.</p>
                 </div>
               </div>
               @if (groupPreview(); as preview) {
@@ -689,7 +689,7 @@
                   @if (showError(form.controls.groupMaxTentativePerUser)) {
                     <p id="gsMaxTentErr" class="field-error" role="alert">Enter a whole number between 0 and 50.</p>
                   }
-                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">How many tentative bookings with reserved flights one user may hold at a time - stops a salesperson parking the best days. 0 = no limit.</p>
+                  <p class="cell-subtle field-hint">How many tentative bookings with reserved flights one user may hold at a time - stops a salesperson parking the best days. 0 = no limit.</p>
                 </div>
                 <div class="form-group">
                   <label for="gsNextInLine">Next in Line (hours) <span class="required">*</span></label>
@@ -698,7 +698,7 @@
                   @if (showError(form.controls.groupNextInLineHours)) {
                     <p id="gsNextInLineErr" class="field-error" role="alert">Enter a whole number between 1 and 168.</p>
                   }
-                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">When a held day frees up, the first group on its waitlist has this long to reserve it before the offer passes to the next; members' own bookings are never blocked.</p>
+                  <p class="cell-subtle field-hint">When a held day frees up, the first group on its waitlist has this long to reserve it before the offer passes to the next; members' own bookings are never blocked.</p>
                 </div>
               }
             </div>

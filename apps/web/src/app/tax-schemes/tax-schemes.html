@@ -244,7 +244,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."
                 (close)="closeSchemeDialog()">
-      <form id="schemeForm" [formGroup]="schemeForm" (ngSubmit)="onSaveScheme()" class="saas-form" style="padding: 0;">
+      <form id="schemeForm" [formGroup]="schemeForm" (ngSubmit)="onSaveScheme()" class="saas-form saas-form--dialog">
         <div class="tx-form-grid">
           <!-- Country: hidden entirely when adding and the subscriber operates in one
                country (it's defaulted in the background). Shown read-only when editing,
@@ -328,7 +328,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."
                 (close)="closeRateDialog()">
-      <form id="rateForm" [formGroup]="rateForm" (ngSubmit)="onSaveRate()" class="saas-form" style="padding: 0;">
+      <form id="rateForm" [formGroup]="rateForm" (ngSubmit)="onSaveRate()" class="saas-form saas-form--dialog">
         <div class="tx-form-grid">
           <div class="form-group">
             <label for="rCode">Tax code</label>
@@ -433,7 +433,7 @@
   <!-- ============ Load platform defaults dialog (preview + multi-select) ============ -->
   @if (loadDialogOpen()) {
     <app-dialog [title]="'Load platform defaults'" [busy]="loadSaving()" (close)="closeLoadDefaults()">
-      <div class="saas-form" style="padding: 0;">
+      <div class="saas-form saas-form--dialog">
         <p class="cell-subtle" style="margin: 0 0 var(--space-md);">
           Pick the schemes to copy into your catalog. You own and can edit them afterwards.
           Schemes you already have are marked and left out.

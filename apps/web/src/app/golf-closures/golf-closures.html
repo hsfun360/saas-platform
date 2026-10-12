@@ -110,7 +110,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved closure changes. Leaving now will discard them."
                 (close)="closeDialog()">
-      <div class="saas-form" style="padding: 0;">
+      <div class="saas-form saas-form--dialog">
         @switch (mode) {
 
           @case ('form') {
@@ -144,7 +144,7 @@
                   }
                 </div>
               </div>
-              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-grid">
                 <div class="form-group">
                   <label for="gclScope">Day scope <span class="required">*</span></label>
                   <select id="gclScope" formControlName="dayScope" aria-describedby="gclScopeHint">
@@ -155,7 +155,7 @@
                   <p id="gclScopeHint" class="gcl-hint">Public holidays count as weekends.</p>
                 </div>
               </div>
-              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-grid">
                 <div class="form-group">
                   <label for="gclFrom">Start date <span class="required">*</span></label>
                   <input id="gclFrom" type="date" formControlName="dateFrom"
@@ -173,7 +173,7 @@
                   }
                 </div>
               </div>
-              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-grid">
                 <div class="form-group">
                   <label for="gclStart">Closed from</label>
                   <input id="gclStart" type="time" formControlName="startTime" aria-describedby="gclTimeHint" />

@@ -142,7 +142,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this public holiday. Leaving now will discard them."
                 (close)="closeDialog()">
-      <form id="publicHolidayForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+      <form id="publicHolidayForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
         <!-- Country: hidden and defaulted when the subscriber operates in a single country -->
         @if (multiCountry()) {
           <div class="form-row">

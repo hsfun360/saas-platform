@@ -118,8 +118,8 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."
                 (close)="closeDialog()">
-      <form id="feeForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+      <form id="feeForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
           <div class="form-group">
             <label for="fCode">Membership fee code <span class="required">*</span></label>
             <input id="fCode" type="text" formControlName="membershipFeeCode" placeholder="e.g. ANNUAL"
@@ -192,7 +192,7 @@
         </div>
 
         @if (form.controls.allowInstallment.value) {
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-grid">
             <div class="form-group">
               <label for="fNo">No. of installments <span class="required">*</span></label>
               <input id="fNo" type="number" inputmode="numeric" formControlName="noOfInstallment" min="1" max="120" step="1"

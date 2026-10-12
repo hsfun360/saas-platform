@@ -199,7 +199,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
                 (close)="closeEdit()">
-      <form id="editDebtorForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
+      <form id="editDebtorForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form saas-form--dialog">
         <p class="cell-subtle" style="margin-top: 0;">
           {{ editRow()?.name }} — {{ typeLabel(editRow()?.debtorType || '') }}.
           @if (editIsMemberAccount()) {
@@ -208,7 +208,7 @@
             Credit terms are maintained here; the party profile stays with its master record.
           }
         </p>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div class="form-grid">
           <div class="form-group">
             <label for="edTerms">Terms (days)</label>
             <input id="edTerms" type="number" inputmode="numeric" min="0" max="3650" step="1" formControlName="terms" placeholder="Immediate" autocomplete="off" />
@@ -221,7 +221,7 @@
             }
           </div>
         </div>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div class="form-grid">
           <div class="form-group">
             <label for="edStatus">Status</label>
             <select id="edStatus" formControlName="status">
@@ -260,8 +260,8 @@
       @if (otherLoading()) {
         <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
       } @else {
-        <form id="otherDebtorForm" [formGroup]="otherForm" (ngSubmit)="onSaveOther()" class="saas-form" style="padding: 0;">
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <form id="otherDebtorForm" [formGroup]="otherForm" (ngSubmit)="onSaveOther()" class="saas-form saas-form--dialog">
+          <div class="form-grid">
             <div class="form-group">
               <label for="odCode">Debtor code @if (otherMode() === 'create' && !autoOtherCode()) { <span class="required">*</span> }</label>
               @if (otherMode() === 'create') {
@@ -284,14 +284,14 @@
             </div>
           </div>
           @if (multiCurrency()) {
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-grid">
               <div class="form-group">
                 <label for="odCurrency">Account currency</label>
                 <app-combobox inputId="odCurrency" formControlName="currencyCode"
                               [options]="currencyOptions()"
                               [allowEmpty]="false"
                               placeholder="Type to search…" />
-                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">
+                <p class="cell-subtle field-hint">
                   @if (otherCurrencyLocked()) {
                     Locked — this account already has documents. Open a separate Other Debtor for another currency.
                   } @else {
@@ -301,7 +301,7 @@
               </div>
             </div>
           }
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-grid">
             <div class="form-group">
               <label for="odReg">Registration no.</label>
               <input id="odReg" type="text" formControlName="registrationNo" autocomplete="off" maxlength="255" />
@@ -311,7 +311,7 @@
               <input id="odTax" type="text" formControlName="taxNo" autocomplete="off" maxlength="255" />
             </div>
           </div>
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-grid">
             <div class="form-group">
               <label for="odContact">Contact person</label>
               <input id="odContact" type="text" formControlName="contactPerson" autocomplete="off" maxlength="255" />
@@ -325,7 +325,7 @@
               }
             </div>
           </div>
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-grid">
             <div class="form-group">
               <label for="odPhone">Phone</label>
               <app-phone-input formControlName="phone" inputId="odPhone" placeholder="Optional"></app-phone-input>
@@ -343,7 +343,7 @@
               <input type="text" formControlName="address3" autocomplete="off" placeholder="Line 3" aria-label="Address line 3" style="margin-top: var(--space-xs);" />
             </div>
           </div>
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-grid">
             <div class="form-group">
               <label for="odCity">City</label>
               <input id="odCity" type="text" formControlName="city" autocomplete="off" />
@@ -353,7 +353,7 @@
               <input id="odState" type="text" formControlName="state" autocomplete="off" />
             </div>
           </div>
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-grid">
             <div class="form-group">
               <label for="odPostcode">Postcode</label>
               <input id="odPostcode" type="text" formControlName="postcode" autocomplete="off" maxlength="20" />
@@ -375,7 +375,7 @@
 
           @if (otherMode() === 'create') {
             <p class="cell-subtle">Ledger account — editable later via the debtor's Edit button.</p>
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-grid">
               <div class="form-group">
                 <label for="odTerms">Terms (days)</label>
                 <input id="odTerms" type="number" inputmode="numeric" min="0" max="3650" step="1" formControlName="terms" placeholder="Immediate" autocomplete="off" />

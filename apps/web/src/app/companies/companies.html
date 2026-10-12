@@ -119,7 +119,7 @@
                 discardTitle="Discard this new company?"
                 discardMessage="You have started entering a new company. Leaving now will discard it."
                 (close)="cancelCreate()">
-      <form id="companyCreateForm" [formGroup]="form" (ngSubmit)="onSubmit()" class="saas-form" style="padding: 0;">
+      <form id="companyCreateForm" [formGroup]="form" (ngSubmit)="onSubmit()" class="saas-form saas-form--dialog">
         <!-- Company logo (used on printed documents/reports). -->
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
           <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Company logo</label>
@@ -318,7 +318,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this company. Leaving now will discard them."
                 (close)="cancelEditProfile()">
-      <form id="companyDetailsForm" [formGroup]="profileForm" (ngSubmit)="onSaveProfile(pid)" class="saas-form" style="padding: 0;">
+      <form id="companyDetailsForm" [formGroup]="profileForm" (ngSubmit)="onSaveProfile(pid)" class="saas-form saas-form--dialog">
         <!-- Company logo (used on printed documents/reports). -->
         <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md);">
           <label style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary);">Company logo</label>

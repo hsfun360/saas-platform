@@ -50,8 +50,8 @@
       @if (metaLoading()) {
         <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading entry options…</p></div>
       } @else {
-        <form id="arReceiptForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <form id="arReceiptForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+          <div class="form-grid">
             <div class="form-group">
               <label for="rcNo">Receipt no.
                 @if (numberingMode() === 'manual') { <span class="required">*</span> }
@@ -80,7 +80,7 @@
               }
             </div>
           </div>
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-grid">
             <div class="form-group">
               <label for="rcDocDate">Document date <span class="required">*</span></label>
               <input id="rcDocDate" type="date" formControlName="docDate" />
@@ -91,7 +91,7 @@
               <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Accounting period — differs from the document date only when back-keying into a closed month.</p>
             </div>
           </div>
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-grid">
             <div class="form-group">
               <label for="rcAmount">Amount <span class="required">*</span></label>
               <input id="rcAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount"
@@ -109,7 +109,7 @@
           @if (isForeign()) {
             <!-- Multicurrency (step 3): the rate at collection, frozen on the
                  row. A RATE, not money - typed as a decimal, never stepped. -->
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-grid">
               <div class="form-group">
                 <label for="rcRate">Exchange rate <span class="required">*</span></label>
                 <input id="rcRate" type="text" inputmode="decimal" formControlName="exchangeRate" autocomplete="off" maxlength="22"
@@ -126,7 +126,7 @@
             </div>
           }
           @if (openDeposits().length > 0) {
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-grid">
               <div class="form-group">
                 <label for="rcDeposit">Collect deposit</label>
                 <app-combobox inputId="rcDeposit" formControlName="collectDepositId"

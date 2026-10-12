@@ -109,8 +109,8 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this title. Leaving now will discard them."
                 (close)="closeDialog()">
-      <form id="titleForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+      <form id="titleForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
           <div class="form-group">
             <label for="titleCode">Title code <span class="required">*</span></label>
             <input id="titleCode" type="text" formControlName="titleCode" placeholder="e.g. DATUK"

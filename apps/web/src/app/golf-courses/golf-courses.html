@@ -141,8 +141,8 @@
                 [discardTitle]="editId() ? 'Discard your changes?' : 'Discard this new course?'"
                 discardMessage="You have unsaved changes on this course. Leaving now will discard them."
                 (close)="closeDialog()">
-      <form id="golfCourseForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+      <form id="golfCourseForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
           <div class="form-group">
             <label for="gcCode">Course code <span class="required">*</span></label>
             <input id="gcCode" type="text" formControlName="courseCode" placeholder="e.g. ELS" autocomplete="off"
@@ -167,7 +167,7 @@
             <textarea id="gcDesc" formControlName="description" rows="2" wrap="off" placeholder="e.g. Els Course" maxlength="255"></textarea>
           </div>
         </div>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div class="form-grid">
           <div class="form-group">
             <label for="gcFirst">First nine <span class="required">*</span></label>
             <app-combobox inputId="gcFirst" formControlName="firstNineId"
@@ -191,7 +191,7 @@
             }
           </div>
         </div>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div class="form-grid">
           <div class="form-group">
             <label for="gcAlternate">Alternate nine</label>
             <app-combobox inputId="gcAlternate" formControlName="alternateNineId"
@@ -256,7 +256,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved tee-time changes. Leaving now will discard them."
                 (close)="closeTeeTimes()">
-      <div class="saas-form" style="padding: 0;">
+      <div class="saas-form saas-form--dialog">
         @switch (ttMode()) {
 
           @case ('list') {
@@ -314,7 +314,7 @@
 
           @case ('form') {
             <form id="ttSetForm" [formGroup]="ttForm" (ngSubmit)="onSaveSet()">
-              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-grid">
                 <div class="form-group">
                   <label for="ttScope">Day scope <span class="required">*</span></label>
                   <select id="ttScope" formControlName="dayScope" aria-describedby="ttScopeHint">
@@ -339,7 +339,7 @@
                   <textarea id="ttDesc" formControlName="description" rows="2" wrap="off" placeholder="e.g. Summer schedule" maxlength="255"></textarea>
                 </div>
               </div>
-              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-grid">
                 <div class="form-group">
                   <label for="ttFirst">First tee-off <span class="required">*</span></label>
                   <input id="ttFirst" type="time" formControlName="firstTeeTime"
@@ -357,7 +357,7 @@
                   }
                 </div>
               </div>
-              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-grid">
                 <div class="form-group">
                   <label for="ttInterval">Flight interval (minutes) <span class="required">*</span></label>
                   <input id="ttInterval" type="number" inputmode="numeric" formControlName="intervalMinutes" min="1" max="120" step="1"
@@ -375,7 +375,7 @@
                   }
                 </div>
               </div>
-              <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+              <div class="form-grid">
                 <div class="form-group">
                   <label for="tt18">Must play 18 holes until</label>
                   <input id="tt18" type="time" formControlName="mustPlay18Until" />

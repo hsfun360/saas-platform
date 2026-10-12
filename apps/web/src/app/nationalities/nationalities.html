@@ -107,7 +107,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this nationality. Leaving now will discard them."
                 (close)="closeDialog()">
-      <form id="nationalityForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+      <form id="nationalityForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
         <div class="form-row">
           <div class="form-group">
             <label for="natCode">Nationality code <span class="required">*</span></label>

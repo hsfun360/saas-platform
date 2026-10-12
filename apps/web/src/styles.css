@@ -610,6 +610,17 @@ body {
 /* screens that import it; that copy is pending removal.)           */
 /* ============================================================== */
 .saas-form { padding: 0 var(--space-lg) var(--space-lg); }
+/* Inside <app-dialog> the dialog body already pads, so the form runs flush. */
+.saas-form--dialog { padding: 0; }
+/* The two-column field grid every form composes (promoted from 89 inline
+   copies on 2026-10-12); collapses to one column on mobile below. */
+.form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-sm);
+}
+/* A hint line under a control: sits one xs step below the field. */
+.field-hint { margin: var(--space-xs) 0 0; }
 
 .form-row {
   display: grid;
@@ -1326,6 +1337,9 @@ textarea:disabled {
      it to the available width and the long content scrolls/ellipsizes inside. */
   [style*="grid-template-columns"] {
     grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   /* Full-width primary buttons and form submits on mobile. */

@@ -128,8 +128,8 @@
                 discardTitle="Discard this new e-Invoice MSIC code?"
                 discardMessage="You have started entering a new e-Invoice MSIC code. Leaving now will discard it."
                 (close)="closeAdd()">
-      <form id="addEInvoiceMsicCodeForm" [formGroup]="addForm" (ngSubmit)="onSaveAdd()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+      <form id="addEInvoiceMsicCodeForm" [formGroup]="addForm" (ngSubmit)="onSaveAdd()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
           <div class="form-group">
             <label for="aCode">Code <span class="required">*</span></label>
             <input id="aCode" type="text" formControlName="code" placeholder="e.g. 01111"
@@ -174,8 +174,8 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
                 (close)="closeEdit()">
-      <form id="editEInvoiceMsicCodeForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+      <form id="editEInvoiceMsicCodeForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
           <div class="form-group">
             <label for="eCode">Code</label>
             <input id="eCode" type="text" [value]="editingCode()" disabled />

@@ -107,7 +107,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this department. Leaving now will discard them."
                 (close)="closeDialog()">
-      <form id="departmentForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+      <form id="departmentForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
         <div class="form-row">
           <div class="form-group">
             <label for="deptCode">Department code <span class="required">*</span></label>

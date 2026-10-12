@@ -152,8 +152,8 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this transaction type. Leaving now will discard them."
                 (close)="closeDialog()">
-      <form id="gttForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+      <form id="gttForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
           <div class="form-group">
             <label for="gttCode">Transaction Type <span class="required">*</span></label>
             <input id="gttCode" type="text" formControlName="transactionType" placeholder="e.g. GF18" autocomplete="off" maxlength="50"
@@ -190,9 +190,9 @@
                 }
               </select>
               @if (form.controls.chargeType.value === 'green-fee') {
-                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Optional: makes this the green fee auto-charged at registration for that golfer type (one active default each). Leave as None for manual items like group-booking or tournament green fees. Members with golfing right are never auto-charged; Member prices members without the right.</p>
+                <p class="cell-subtle field-hint">Optional: makes this the green fee auto-charged at registration for that golfer type (one active default each). Leave as None for manual items like group-booking or tournament green fees. Members with golfing right are never auto-charged; Member prices members without the right.</p>
               } @else {
-                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Optional: makes this the only {{ form.controls.chargeType.value === 'buggy-fee' ? 'buggy' : 'caddy' }} tile that golfer type sees on the bill (one active default each) — e.g. a member rate and a visitor rate resolve by the player being billed. Leave as None for an item every golfer may be billed.</p>
+                <p class="cell-subtle field-hint">Optional: makes this the only {{ form.controls.chargeType.value === 'buggy-fee' ? 'buggy' : 'caddy' }} tile that golfer type sees on the bill (one active default each) — e.g. a member rate and a visitor rate resolve by the player being billed. Leave as None for an item every golfer may be billed.</p>
               }
             </div>
           </div>
@@ -211,9 +211,9 @@
                           [allowEmpty]="true" emptyLabel="— None —"
                           placeholder="Type to search…" />
             @if (isPackageForm()) {
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Applied to EVERY bill line generated from this package (element lines and the auto balance line) — the elements' own tax schemes are ignored for package billing.</p>
+              <p class="cell-subtle field-hint">Applied to EVERY bill line generated from this package (element lines and the auto balance line) — the elements' own tax schemes are ignored for package billing.</p>
             } @else {
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The single source of tax for this billing item — green-fee and charge setups inherit it.</p>
+              <p class="cell-subtle field-hint">The single source of tax for this billing item — green-fee and charge setups inherit it.</p>
             }
           </div>
         </div>
@@ -225,7 +225,7 @@
                             [options]="elementComboOptions()"
                             [allowEmpty]="true" emptyLabel="— Select —"
                             placeholder="Type to search…" />
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Billing adds an automatic line to this transaction type for the balance: package price minus the elements total (e.g. PAK1 450.00 − 169.00 → GF1 281.00).</p>
+              <p class="cell-subtle field-hint">Billing adds an automatic line to this transaction type for the balance: package price minus the elements total (e.g. PAK1 450.00 − 169.00 → GF1 281.00).</p>
             </div>
           </div>
           <div class="form-row">
@@ -268,7 +268,7 @@
                   <span class="pkg-sum">Elements total: <strong>{{ fmt(pkgSum()) }}</strong></span>
                 }
               </div>
-              <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The package's own selling price is set under Default Price — the elements total shows how it breaks down (e.g. Twin Package 200.00 = 1 × buggy 100.00 + 2 × caddy 50.00).</p>
+              <p class="cell-subtle field-hint">The package's own selling price is set under Default Price — the elements total shows how it breaks down (e.g. Twin Package 200.00 = 1 × buggy 100.00 + 2 × caddy 50.00).</p>
             </div>
           </div>
           <div class="form-row">
@@ -357,7 +357,7 @@
             <input type="checkbox" formControlName="allowPriceOverride" />
             <span>Allow manual price change at billing</span>
           </label>
-          <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">When off, the pre-set price from Pricing is binding at the point of charge.</p>
+          <p class="cell-subtle field-hint">When off, the pre-set price from Pricing is binding at the point of charge.</p>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -375,7 +375,7 @@
                 <button type="button" class="btn btn--danger btn--sm" (click)="removeIcon()" [disabled]="uploading()">Remove</button>
               }
             </div>
-            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Shown on the front-desk billing tiles (square images look best, up to 2 MB).</p>
+            <p class="cell-subtle field-hint">Shown on the front-desk billing tiles (square images look best, up to 2 MB).</p>
           </div>
         </div>
       </form>
@@ -395,7 +395,7 @@
                 [discardTitle]="prEditId() ? 'Discard your changes?' : 'Discard this new price?'"
                 discardMessage="You have unsaved price changes. Leaving now will discard them."
                 (close)="closePricing()">
-      <div class="saas-form" style="padding: 0;">
+      <div class="saas-form saas-form--dialog">
         @switch (prMode()) {
 
           @case ('delete') {
@@ -492,7 +492,7 @@
                   @if (showError(rateForm.controls.effectiveDate)) {
                     <p id="prEffDateErr" class="field-error" role="alert">The effective date is required.</p>
                   }
-                  <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Use a future date to pre-set a price change.</p>
+                  <p class="cell-subtle field-hint">Use a future date to pre-set a price change.</p>
                 </div>
               </div>
 

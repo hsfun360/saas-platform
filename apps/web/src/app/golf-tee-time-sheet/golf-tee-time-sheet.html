@@ -343,7 +343,7 @@
 
         <!-- ---- Free-form walk-in registration (the FAB) ---- -->
         @case ('walkin') {
-          <form id="fdWalkin" [formGroup]="walkinForm" (ngSubmit)="submitWalkIn()" class="saas-form" style="padding: 0;">
+          <form id="fdWalkin" [formGroup]="walkinForm" (ngSubmit)="submitWalkIn()" class="saas-form saas-form--dialog">
             <p class="cell-subtle" style="margin: 0 0 var(--space-md);">Registers directly on {{ listDate() | localDate }} — the desk needs only a free seat on the flight.</p>
             <div class="fd-grid">
               <div class="form-group">

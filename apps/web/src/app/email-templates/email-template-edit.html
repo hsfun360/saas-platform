@@ -68,7 +68,7 @@
               </div>
             </div>
           </div>
-          <p class="et-hint" style="margin: var(--space-xs) 0 0;">
+          <p class="et-hint field-hint">
             The logo is the platform's own logo (Platform Profile → Logo). Tick to centre it in the brand-colour header band.
           </p>
         </div>
@@ -89,7 +89,7 @@
         <div class="et-field">
           <label id="et-body-label">Body</label>
           <app-email-html-editor formControlName="bodyHtml" [variables]="variables()" aria-labelledby="et-body-label"></app-email-html-editor>
-          <p class="et-hint" style="margin: var(--space-xs) 0 0;">
+          <p class="et-hint field-hint">
             Add merge fields with <strong>Insert&nbsp;variable</strong>. Use <code>{{ '{{#if x}}' }}…{{ '{{/if}}' }}</code>
             for optional blocks, and <strong>&lt;/&gt;</strong> to edit the raw HTML.
           </p>
@@ -124,7 +124,7 @@
               {{ testing() ? 'Queuing…' : 'Send test' }}
             </button>
           </div>
-          <p class="et-hint" style="margin: var(--space-xs) 0 0;">Uses the current (unsaved) content and sample data. Delivered via the outbox worker.</p>
+          <p class="et-hint field-hint">Uses the current (unsaved) content and sample data. Delivered via the outbox worker.</p>
         </div>
       </form>
 

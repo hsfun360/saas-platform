@@ -143,8 +143,8 @@
                 [discardTitle]="editId() ? 'Discard your changes?' : 'Discard this new unit course?'"
                 discardMessage="You have unsaved changes on this unit course. Leaving now will discard them."
                 (close)="closeDialog()">
-      <form id="unitCourseForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+      <form id="unitCourseForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
           <div class="form-group">
             <label for="ucCode">Unit course code <span class="required">*</span></label>
             <input id="ucCode" type="text" formControlName="unitCourseCode" placeholder="e.g. OZ" autocomplete="off"
@@ -171,7 +171,7 @@
             }
           </div>
         </div>
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div class="form-grid">
           <div class="form-group">
             <label for="ucSeq">Number</label>
             <input id="ucSeq" type="number" inputmode="numeric" formControlName="seq" min="0" max="9999" step="1"
@@ -241,7 +241,7 @@
                 (close)="closeHoles()">
       <!-- Reactive FormArray editor (house standard): rows live in `holeRows`, its dirty state feeds the guard, Enter submits. -->
       <form id="ucHoles" [formGroup]="holesForm" (ngSubmit)="onSaveHoles()">
-      <div class="saas-form" style="padding: 0;" formArrayName="holes">
+      <div class="saas-form saas-form--dialog" formArrayName="holes">
         @if (holesLoading()) {
           <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading holes…</p></div>
         } @else {
@@ -293,7 +293,7 @@
       <!-- Reactive FormArray editor (house standard): rows live in `teeRows` with a nested
            distances group per tee; the array's dirty state feeds the guard, Enter submits. -->
       <form id="ucTees" [formGroup]="teesForm" (ngSubmit)="onSaveTees()">
-      <div class="saas-form" style="padding: 0;" formArrayName="tees">
+      <div class="saas-form saas-form--dialog" formArrayName="tees">
         @if (teesLoading()) {
           <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading tee boxes…</p></div>
         } @else {

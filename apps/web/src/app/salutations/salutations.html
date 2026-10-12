@@ -107,7 +107,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this salutation. Leaving now will discard them."
                 (close)="closeDialog()">
-      <form id="salutationForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
+      <form id="salutationForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
         <div class="form-row">
           <div class="form-group">
             <label for="salCode">Salutation code <span class="required">*</span></label>

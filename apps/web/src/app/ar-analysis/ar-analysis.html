@@ -164,8 +164,8 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this dimension. Leaving now will discard them."
                 (close)="catOpen.set(false)">
-      <form id="anaCatForm" [formGroup]="catForm" (ngSubmit)="onSaveCategory()" class="saas-form" style="padding: 0;">
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+      <form id="anaCatForm" [formGroup]="catForm" (ngSubmit)="onSaveCategory()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
           <div class="form-group">
             <label for="anaCatName">Name <span class="required">*</span></label>
             <input id="anaCatName" type="text" formControlName="name" placeholder="e.g. Department, Project" autocomplete="off" maxlength="100"
@@ -182,7 +182,7 @@
                 <option [value]="s.n" [disabled]="!!s.holder">Dimension {{ s.n }}@if (s.holder) { — taken by {{ s.holder }}}</option>
               }
             </select>
-            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">The analysis column (1-6) this dimension stamps into on documents. Once documents use it, it can no longer change.</p>
+            <p class="cell-subtle field-hint">The analysis column (1-6) this dimension stamps into on documents. Once documents use it, it can no longer change.</p>
           </div>
         </div>
         <div class="form-row">
@@ -194,7 +194,7 @@
             @if (showError(catForm.controls.displaySeq)) {
               <p id="anaCatSeqErr" class="field-error" role="alert">Enter a whole number from 1 to 999.</p>
             }
-            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">
+            <p class="cell-subtle field-hint">
               Where this dimension's picker appears on entry screens — lower numbers first. Leave
               blank for automatic order (a parent renders before its children).
             </p>
@@ -205,7 +205,7 @@
                           [options]="parentChoiceOptions()"
                           [allowEmpty]="true" emptyLabel="— Standalone dimension —"
                           placeholder="Type to search…" />
-            <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">
+            <p class="cell-subtle field-hint">
               Makes this a level under another dimension, e.g. Department under Division. Both are
               stamped on the document, so picking the child fills in its parent. Independent of the
               Analysis Dimension number.
@@ -277,7 +277,7 @@
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this option. Leaving now will discard them."
                 (close)="optOpen.set(false)">
-      <form id="anaOptForm" [formGroup]="optForm" (ngSubmit)="onSaveOption()" class="saas-form" style="padding: 0;">
+      <form id="anaOptForm" [formGroup]="optForm" (ngSubmit)="onSaveOption()" class="saas-form saas-form--dialog">
         @if (selected()?.parentCategoryId) {
           <div class="form-row">
             <div class="form-group">
@@ -290,12 +290,12 @@
               @if (showError(optForm.controls.parentOptionId)) {
                 <p id="anaOptParentErr" class="field-error" role="alert">Pick the {{ parentCategoryName() }} this option belongs to.</p>
               } @else {
-                <p class="cell-subtle" style="margin: var(--space-xs) 0 0;">Until this is set, the option stays off every entry screen.</p>
+                <p class="cell-subtle field-hint">Until this is set, the option stays off every entry screen.</p>
               }
             </div>
           </div>
         }
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <div class="form-grid">
           <div class="form-group">
             <label for="anaOptCode">Code <span class="required">*</span></label>
             <input id="anaOptCode" type="text" formControlName="code" placeholder="e.g. FNB" autocomplete="off" maxlength="30"

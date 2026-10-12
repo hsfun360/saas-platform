@@ -38,7 +38,7 @@
     </button>
     @if (runOpen()) {
     <div class="settings-body">
-      <form [formGroup]="runForm" (ngSubmit)="onGenerate()" class="saas-form" style="padding: 0;">
+      <form [formGroup]="runForm" (ngSubmit)="onGenerate()" class="saas-form saas-form--dialog">
         <div class="asg-run">
           <div class="form-group">
             <label for="asgMonth">Statement Month <span class="required">*</span></label>

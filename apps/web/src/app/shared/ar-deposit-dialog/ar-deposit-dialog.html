@@ -50,8 +50,8 @@
       @if (metaLoading()) {
         <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading entry options…</p></div>
       } @else {
-        <form id="arDepositForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form" style="padding: 0;">
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+        <form id="arDepositForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+          <div class="form-grid">
             <div class="form-group">
               <label for="dpNo">Deposit no.
                 @if (numberingMode() === 'manual') { <span class="required">*</span> }
@@ -73,7 +73,7 @@
               }
             </div>
           </div>
-          <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+          <div class="form-grid">
             <div class="form-group">
               <label for="dpDocDate">Document date <span class="required">*</span></label>
               <input id="dpDocDate" type="date" formControlName="docDate" />
@@ -86,7 +86,7 @@
           </div>
           @if (isForeign()) {
             <!-- Multicurrency: the rate at billing, frozen on the row. -->
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-grid">
               <div class="form-group">
                 <label for="dpRate">Exchange rate <span class="required">*</span></label>
                 <input id="dpRate" type="text" inputmode="decimal" formControlName="exchangeRate" autocomplete="off" maxlength="22"

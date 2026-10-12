@@ -812,7 +812,7 @@
   @if (refundDialogOpen()) {
     <app-dialog #rfdlg title="Request refund" [busy]="folioBusy()" [dirty]="refundForm.dirty" (close)="refundDialogOpen.set(false)">
       <p>The folio holds <strong>{{ (folio()?.depositUnapplied || 0).toFixed(2) }}</strong> in deposits not applied to the final bill. The request goes to Finance, who pay it out or decline it; the amount is reserved until then.</p>
-      <form id="ggbRefund" [formGroup]="refundForm" (ngSubmit)="requestRefund()" class="saas-form" style="padding: 0;">
+      <form id="ggbRefund" [formGroup]="refundForm" (ngSubmit)="requestRefund()" class="saas-form saas-form--dialog">
         <div class="ggb-grid">
           <div class="form-group">
             <label for="ggbRfAmount">Amount <span class="required">*</span></label>
@@ -837,7 +837,7 @@
     <app-dialog #rfDlg [title]="a.kind === 'pay' ? 'Record refund payout' : 'Decline refund'" [busy]="folioBusy()" [dirty]="a.kind === 'pay' ? refundPayForm.dirty : !!refundDeclineReason()" (close)="refundAction.set(null)">
       @if (a.kind === 'pay') {
         <p>Refund <strong>{{ a.refund.refundNo }}</strong> of <strong>{{ a.refund.amount.toFixed(2) }}</strong> - record how Finance paid it. For a deposit that was charged to account, "Credit note" is the usual answer.</p>
-        <form id="ggbRfPay" [formGroup]="refundPayForm" (ngSubmit)="confirmRefundAction()" class="saas-form" style="padding: 0;">
+        <form id="ggbRfPay" [formGroup]="refundPayForm" (ngSubmit)="confirmRefundAction()" class="saas-form saas-form--dialog">
           <div class="ggb-grid">
             <div class="form-group">
               <label for="ggbRfMethod">Paid by <span class="required">*</span></label>
@@ -870,7 +870,7 @@
   <!-- ============ Record deposit (centred - states the outcome) ============ -->
   @if (depositDialogOpen()) {
     <app-dialog #depdlg title="Record deposit" [busy]="folioBusy()" [dirty]="depositForm.dirty" (close)="depositDialogOpen.set(false)">
-      <form id="ggbDeposit" [formGroup]="depositForm" (ngSubmit)="recordDeposit()" class="saas-form" style="padding: 0;">
+      <form id="ggbDeposit" [formGroup]="depositForm" (ngSubmit)="recordDeposit()" class="saas-form saas-form--dialog">
         <div class="ggb-grid">
           <div class="form-group">
             <label for="ggbDepAmount">Amount received <span class="required">*</span></label>
@@ -920,7 +920,7 @@
   @if (headerDialogOpen()) {
     <app-dialog #hdlg variant="drawer" [title]="headerMode() === 'create' ? 'New group booking' : 'Edit group booking'"
                 [busy]="saving()" [dirty]="headerDirty()" (close)="headerDialogOpen.set(false)">
-      <form id="ggbHeader" [formGroup]="headerForm" (ngSubmit)="saveHeader()" class="saas-form" style="padding: 0;">
+      <form id="ggbHeader" [formGroup]="headerForm" (ngSubmit)="saveHeader()" class="saas-form saas-form--dialog">
         <div class="ggb-grid">
           <div class="form-group">
             <label for="ggbType">Booking type <span class="required">*</span></label>
@@ -1069,7 +1069,7 @@
   <!-- ============ Day dialog (add / edit one play day) ============ -->
   @if (dayDialogOpen()) {
     <app-dialog #ddlg variant="drawer" [title]="dayEditing() ? 'Edit play day' : 'Add play day'" [busy]="saving()" [dirty]="dayForm.dirty" (close)="dayDialogOpen.set(false)">
-      <form id="ggbDay" [formGroup]="dayForm" (ngSubmit)="saveDay()" class="saas-form" style="padding: 0;">
+      <form id="ggbDay" [formGroup]="dayForm" (ngSubmit)="saveDay()" class="saas-form saas-form--dialog">
         @if (dayEditing()?.flights?.length) {
           <p class="ggb-note">Changing the date, course, holes, format or times drops this day's reserved flights - reserve them again afterwards. A day with drawn players cannot change structure.</p>
         }
@@ -1134,7 +1134,7 @@
       <p>{{ formatLabel(d.startFormat) }} on <strong>{{ d.courseLabel }}</strong>, {{ d.holes }} holes, {{ dayWindow(d) }}.
         @if (d.flights.length) { The {{ d.flights.length }} flight(s) already reserved are replaced. }
       </p>
-      <form id="ggbFlights" [formGroup]="flightsForm" (ngSubmit)="reserveFlights()" class="saas-form" style="padding: 0;">
+      <form id="ggbFlights" [formGroup]="flightsForm" (ngSubmit)="reserveFlights()" class="saas-form saas-form--dialog">
         <div class="ggb-grid">
           @if (!isHold(d.startFormat)) {
             <div class="form-group">
@@ -1175,7 +1175,7 @@
   <!-- ============ Roster dialog (add many / edit one) ============ -->
   @if (rosterDialogOpen()) {
     <app-dialog #rdlg variant="drawer" [title]="rosterEditing() ? 'Edit player' : 'Add players'" [busy]="saving()" [dirty]="rosterLines.dirty" (close)="rosterDialogOpen.set(false)">
-      <form id="ggbRoster" [formGroup]="rosterForm" (ngSubmit)="savePlayers()" class="saas-form" style="padding: 0;">
+      <form id="ggbRoster" [formGroup]="rosterForm" (ngSubmit)="savePlayers()" class="saas-form saas-form--dialog">
         @if (!rosterEditing()) {
           <p class="cell-subtle">Members by member number (the name comes from the membership record); guests by name. Blank rows are ignored.</p>
         }
@@ -1273,7 +1273,7 @@
   @if (extendOpen()) {
     <app-dialog #extDlg title="Extend deposit deadline" [busy]="working()" [dirty]="extendForm.dirty" (close)="extendOpen.set(false)">
       <p>The deposit of <strong>{{ (booking()?.lifecycle?.depositRequiredAmount || 0) | money }}</strong> is due {{ booking()?.lifecycle?.depositDueAt | localDate:'datetime' }}. A deadline can be extended once; after the new date passes the booking lapses and its flights are released.</p>
-      <form id="ggbExtend" [formGroup]="extendForm" (ngSubmit)="confirmExtend()" class="saas-form" style="padding: 0;">
+      <form id="ggbExtend" [formGroup]="extendForm" (ngSubmit)="confirmExtend()" class="saas-form saas-form--dialog">
         <div class="ggb-grid">
           <div class="form-group">
             <label for="ggbExtDate">New pay-by date <span class="required">*</span></label>
