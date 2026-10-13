@@ -1,4 +1,5 @@
-You are an expert in TypeScript, Angular, and scalable web application development. You write functional, maintainable, performant, and accessible code following Angular and TypeScript best practices.
+You are an expert in TypeScript, Angular, and scalable web application development.
+You write functional, maintainable, performant, and accessible code following Angular and TypeScript best practices.
 
 ## TypeScript Best Practices
 
@@ -12,9 +13,12 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Always set `standalone: true` explicitly inside Angular component decorators.
 - Use signals for state management
 - Implement lazy loading for feature routes
-- Do NOT use the `@HostBinding` and `@HostListener` decorators. Put host bindings inside the `host` object of the `@Component` or `@Directive` decorator instead
+- Do NOT use the `@HostBinding` and `@HostListener` decorators.
+  Put host bindings inside the `host` object of the `@Component` or `@Directive` decorator instead
 - Use `NgOptimizedImage` for all static images.
   - `NgOptimizedImage` does not work for inline base64 images.
+  - The rule has no consumer today: every `<img>` in the app binds an uploaded picture (company and platform logos, course and payment-type icons, member photos, avatars) or a data URL (the MFA QR codes, upload previews), and the Profile picture's bundled default is only the fallback behind a dynamic binding.
+    Keep the rule for the first genuinely static image.
 
 ## Accessibility Requirements
 
@@ -23,10 +27,14 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 
 ### Per-component checklist (apply to every component)
 
-- **Keyboard:** every interactive control is a native `<button>` or `<a routerLink>` - never a clickable `<div>`/`<li>`/`<span>`. It must be reachable with Tab and operable with Enter/Space, with no keyboard trap.
-- **Accessible name:** icon-only controls have an `aria-label` (not just `title`). Images use a meaningful `alt`, or `alt=""` when decorative.
-- **Colour contrast:** text ≥ 4.5:1 against its background (≥ 3:1 for text ≥ 24px, or bold ≥ ~18.7px). Do not use grey lighter than `#767676` for text on white (e.g. `#94a3b8`/`#9aa0a6` fail).
-- **Focus management:** dialogs, menus, dropdowns and the mobile drawer move focus in on open, keep focus within while open, return focus to the trigger on close, and close on `Esc`. Keep a visible focus indicator - never `outline: none` without a replacement.
+- **Keyboard:** every interactive control is a native `<button>` or `<a routerLink>` - never a clickable `<div>`/`<li>`/`<span>`.
+  It must be reachable with Tab and operable with Enter/Space, with no keyboard trap.
+- **Accessible name:** icon-only controls have an `aria-label` (not just `title`).
+  Images use a meaningful `alt`, or `alt=""` when decorative.
+- **Colour contrast:** text ≥ 4.5:1 against its background (≥ 3:1 for text ≥ 24px, or bold ≥ ~18.7px).
+  Do not use grey lighter than `#767676` for text on white (e.g. `#94a3b8`/`#9aa0a6` fail).
+- **Focus management:** dialogs, menus, dropdowns and the mobile drawer move focus in on open, keep focus within while open, return focus to the trigger on close, and close on `Esc`.
+  Keep a visible focus indicator - never `outline: none` without a replacement.
 - **Forms:** every input has an associated `<label for>`; validation errors are announced via `role="alert"` / `aria-live` and linked with `aria-describedby`.
 - **Semantics:** use landmarks (`<header> <nav> <main> <aside>`) and a logical heading order (one `<h1>` per page, no skipped levels).
 - **Targets:** interactive targets are ≥ 44×44px.
@@ -34,7 +42,9 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 ### Running the audit
 
 - `npm run build`, then in one terminal `npm run a11y:serve` and in another `npm run a11y` (pa11y-ci → WCAG2AA via axe + HTML_CodeSniffer; config in `.pa11yci.json`).
-- Automated tools catch only ~30–40% of issues (mostly contrast, names, roles). **Authenticated screens** (the dashboard) and **keyboard/focus behaviour** also require a manual pass: Tab through every screen, and verify with a screen reader. To audit logged-in routes, add a pa11y `actions` login step (or inject a JWT) and append those URLs to `.pa11yci.json`.
+- Automated tools catch only ~30-40% of issues (mostly contrast, names, roles).
+  **Authenticated screens** (the dashboard) and **keyboard/focus behaviour** also require a manual pass: Tab through every screen, and verify with a screen reader.
+  To audit logged-in routes, add a pa11y `actions` login step (or inject a JWT) and append those URLs to `.pa11yci.json`.
 
 ### Components
 
@@ -43,10 +53,15 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Use `computed()` for derived state
 - Set `changeDetection: ChangeDetectionStrategy.OnPush` in `@Component` decorator
 - Prefer inline templates for small components
-- **Use Reactive Forms for every data-entry form** — see the "Forms" section below. Do NOT use template-driven `[(ngModel)]` forms for new screens.
+- **Use Reactive Forms for every data-entry form** - see the "Forms" section below.
+  Do NOT use template-driven `[(ngModel)]` forms for new screens.
 - Do NOT use `ngClass`, use `class` bindings instead
 - Do NOT use `ngStyle`, use `style` bindings instead
-- **All colours come from the theme tokens** (`var(--surface-*)`, `--text-*`, `--border*`, `--brand*`, state/`--info`/`--accent`), so every screen works in **all 3 appearance modes** (System / Light / Dark). Never hard-code a `#hex` / `rgb()` in a component - a raw colour won't flip in dark mode. If the palette lacks a colour, add a token (a light value **and** a dark value) in `styles.css` rather than hard-coding. Any new screen/component/option must be built on the tokens + the shared theme-aware building blocks and verified in all three modes. See project-overview.md → "Colour tokens & appearance (3 modes)".
+- **All colours come from the theme tokens** (`var(--surface-*)`, `--text-*`, `--border*`, `--brand*`, state/`--info`/`--accent`), so every screen works in **all 3 appearance modes** (System / Light / Dark).
+  Never hard-code a `#hex` / `rgb()` in a component - a raw colour won't flip in dark mode.
+  If the palette lacks a colour, add a token (a light value **and** a dark value) in `styles.css` rather than hard-coding.
+  Any new screen/component/option must be built on the tokens + the shared theme-aware building blocks and verified in all three modes.
+  See project-overview.md → "Colour tokens & appearance (3 modes)".
 - When using external templates/styles, use paths relative to the component TS file.
 
 ## Forms
@@ -84,7 +99,7 @@ Template-driven forms have no reliable central dirty/validity signal, which is e
   Never use Angular's `| date` (it formats en-US for everyone via the compile-time `LOCALE_ID`) and never render a raw ISO string.
   `<input type="date">` fields already localize natively - keep the model value ISO.
   The same formatting is available to TypeScript for dialog titles, confirm messages, aria-labels and flash text: `formatLocalDate(value, style)` (styles add `'dayMonth'` → "14 Nov" and `'monthYear'` → "Nov 2026"), `monthYearLabel('2026-11')`, and `localDateOnly()` for "today" as `YYYY-MM-DD` - never `new Date().toISOString().slice(0, 10)`, which is the UTC date (yesterday in Malaysia until 8am) and never a hard-coded English month table.
-- **Money displays through the shared `money` pipe** (`shared/money.pipe.ts`): `{{ row.amount | money }}` renders the app-wide plain two-decimal string ("1234.50", no thousands separator - what the API returns), `| money:'—'` for an empty placeholder.
+- **Money displays through the shared `money` pipe** (`shared/money.pipe.ts`): `{{ row.amount | money }}` renders the app-wide plain two-decimal string ("1234.50", no thousands separator - what the API returns), `| money:'-'` for an empty placeholder (a plain hyphen; UI copy never uses an em dash).
   Never Angular's `| number:'1.2-2'` (locale-bound like `| date`) and never `toLocaleString` (groups digits differently per device); `toFixed(2)` in TypeScript is the same convention and stays acceptable.
 - **Accessibility:** render each control's error in a `role="alert"` element linked via `aria-describedby`, set `[attr.aria-invalid]` once the control is touched, and reveal errors only after touch or submit (a small `showError(control)` helper).
 

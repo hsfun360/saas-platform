@@ -1,8 +1,7 @@
-# Frontend Login App - Instructions Index
+# Web App (Angular frontend) - Instructions Index
 
-Project documentation lives under [`docs/`](docs/) and is imported below. To
-split it further in the future, add a new file under `docs/` and reference it
-here with an `@`-import line.
+Project documentation lives under [`docs/`](docs/) and is imported below.
+To split it further in the future, add a new file under `docs/` and reference it here with an `@`-import line.
 
 ## Documentation
 

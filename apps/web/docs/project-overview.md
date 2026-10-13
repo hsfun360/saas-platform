@@ -1,40 +1,54 @@
-# Project Context & Engineering Standards - Frontend Login App
+# Project Context & Engineering Standards - Web App (Angular frontend)
 
 ## 🎯 Project Overview
-- **Tech Stack:** Angular v21.2.4 (Zoneless, Standalone Components, Signals).
+- **Tech Stack:** Angular 21 (Zoneless, Standalone Components, Signals).
+  The installed major is what matters; the exact patch moves with `ng update` and is not recorded here.
 - **Core Functionality:** User authentication UI, registration flow, and JWT token storage.
 
 ## 🛠️ Development Workflows
 - Start dev server: `ng serve`
 - Production build: `ng build --configuration production`
-- Run unit tests: `ng test`
-- Lint code: `ng lint`
+- Run unit tests: `npx ng test --watch=false` runs the vitest suite (the `@angular/build:unit-test` builder with `src/test-setup.ts` as its setup file).
+  The test rules live in coding-standards.md under "Unit tests".
+- Lint: linting is not set up.
+  There is no `lint` target in `angular.json` and no eslint dependency; do not document an `ng lint` step until one exists.
 
 ## 📦 Dependencies & npm audit
 
 - After `npm ci`/`npm install`, npm prints a vulnerability count (currently ~17).
   Every advisory is inside the Angular framework or its build tooling (`@angular/*`, `@babel/core`, `ajv`, `picomatch`, `undici`, `vite`), not in code or packages we chose directly.
 - Do NOT run `npm audit fix` before starting work.
-  With everything pinned to `^21.0.0` and no patched 21.2.x published yet, plain `npm audit fix` is a no-op, and the audit report has no effect on `ng serve`/`ng build`.
+  Everything is pinned to `^21.x`, so plain `npm audit fix` only moves within the installed major and the audit report has no effect on `ng serve`/`ng build`.
 - NEVER run `npm audit fix --force`.
-  There is no clean patch to land on, so `--force` cross-pins the framework/devkit to a different major or a `-next` release and breaks the build.
+  `--force` cross-pins the framework/devkit to a different major or a `-next` release and breaks the build.
 - The correct fix is a deliberate framework update through Angular's own tooling, run periodically:
   `npx ng update @angular/core @angular/cli`.
-  It only moves to real, compatible releases, so once the Angular team ships a patched 21.2.x the count drops on its own.
+  It only moves to real, compatible releases, so the count drops as the Angular team ships patched builds.
 
 ## 📐 Coding Guidelines & Architecture
-- **State Management:** Use Angular Signals for component state. Use a dedicated `AuthService` (Signals-based) to track login states.
-- **Forms:** Use **Reactive Forms** (`FormGroup` / `FormBuilder`) for all data-entry, each field carrying its correct HTML5 input type. See coding-standards.md → "Forms" for the full standard (canonical reference: `platform-users`). Angular Signal Forms is experimental and not approved for production yet.
-- **Change Detection:** Strictly Zoneless. No dependency on `zone.js`.
+- **State Management:** Use Angular Signals for component state.
+  The dedicated `AuthService` (`src/app/auth.service.ts`) is RxJS-based, not signal-based: it exposes the HTTP calls, owns the token and profile storage, and broadcasts the avatar and full name through two `BehaviorSubject`s (`avatar$`, `fullName$`).
+  Components read it through `inject()` and keep their own state in signals.
+- **Forms:** Use **Reactive Forms** (`FormGroup` / `FormBuilder`) for all data-entry, each field carrying its correct HTML5 input type.
+  See coding-standards.md → "Forms" for the full standard (canonical reference: `platform-users`).
+  Angular Signal Forms is experimental and not approved for production yet.
+- **Change Detection:** Strictly Zoneless.
+  No dependency on `zone.js`: the app relies on Angular 21's zoneless default and ships no zone.js polyfill, so a value set in an HTTP callback only re-renders when it lives in a signal.
 - **Component Design:** Every component must be `standalone: true`.
 - **Naming Conventions:** Angular 20 file style - a component is `name.ts` / `name.html` / `name.css` inside its own folder (`golf-courses/golf-courses.ts`), services are `*.service.ts`, guards `*.guard.ts`, directives `*.directive.ts`, pipes `*.pipe.ts`; no `.component.` infix.
-- **Change detection + DI:** every component declares `changeDetection: ChangeDetectionStrategy.OnPush` and `standalone: true` explicitly, and takes its dependencies with `inject()` (a constructor exists only when it has real body logic; convert the remaining ones when you touch them).
+  A directive that belongs to one shared component sits beside it: the `appMenuItem` directive is `shared/overflow-menu/menu-item.directive.ts` (`MenuItemDirective`), next to `overflow-menu.ts`.
+- **Change detection + DI:** every component declares `changeDetection: ChangeDetectionStrategy.OnPush` and `standalone: true` explicitly, and takes every dependency with `inject()`.
+  Constructor parameter injection is not used; a constructor exists only when it has real body logic.
 
 ## 🛑 Project Constraints & Anti-Patterns
 - **Do NOT:** Implement any hardcoded API fallback keys locally.
 - **Do NOT:** Use legacy `NgModules` or inject `ChangeDetectorRef`.
 - **Security:** Never store raw passwords or sensitive payload structures in local logs.
-- **Type Safety:** Enforce `strictNullChecks`. The `any` type is banned.
+- **Type Safety:** Enforce `strictNullChecks`.
+  The `any` type is banned.
+- **UI copy never uses an em dash.**
+  Wherever copy joins two parts (a class name and its consequence caption, a label and a hint), the separator is a plain hyphen with a space on each side.
+  `docs/working-conventions.md` already bans the em dash in writing; the same rule applies to every template string, placeholder and message (decided 2026-10-12).
 
 ## UI/UX Requirements
 
@@ -50,34 +64,28 @@ Before an action runs - especially one that creates, copies, applies, or changes
 
 - ALL user interfaces MUST be mobile-responsive
 - Use mobile-first design approach
-- **Three responsive tiers** (see "Responsive strategy" below): mobile (< 768px),
-  tablet (768-1023px), desktop (≥ 1024px). Test every screen at all three - e.g.
-  360px, 800px, 1280px.
+- **Three responsive tiers** (see "Responsive strategy" below): mobile (< 768px), tablet (768-1023px), desktop (≥ 1024px).
+  Test every screen at all three - e.g. 360px, 800px, 1280px.
 - Touch targets minimum 44x44px.
   Fields included: every `.form-group` input and select and the combobox input carry a global `min-height: 44px` (2026-10-12; padding plus font alone measured 39-41px), textareas are taller by their rows, checkboxes and radios keep their intrinsic box.
   The kebab trigger is a 44px square (`min-width` on `.overflow-menu__trigger`).
+  The search box's clear button (`.saas-search__clear`) and the flash dismiss button (`.flash-close`) are 44px squares too (2026-10-12); the clear button's hover disc stays the 36px content box through `background-clip: content-box`, and the flash dismiss tucks its extra height into the snackbar padding with negative margins.
   The ONE documented exemption is a dense tee-sheet grid's CLOSED rows (`.fd-flight--closed`, 32px): they are disabled, not interactive, so the target rule does not apply.
 - Use relative units (rem, %, vh/vw) instead of fixed pixels
 - Stack layouts vertically on mobile, horizontal on desktop
-- Body/primary text is min 16px on mobile (`--font-body`). Secondary text follows
-  the type scale - Body-2 14px, Caption 12px, Overline 10px - and must never carry
-  primary reading content. Form inputs are always ≥ 16px (also prevents iOS zoom).
-- Form controls (`input`, `select`, `textarea`) are globally `box-sizing: border-box`
-  + `max-width: 100%` + `font-family: inherit` (in `styles.css`), so their padding sits
-  inside the width, they never overflow their column, and they render in the app font
-  rather than the browser's control font (most visible on date/month inputs and selects) -
-  this holds even for inline-styled inputs (e.g. the Companies dialogs), not only the
-  shared `.form-group` classes. A screen that genuinely wants another font on a control
-  (e.g. Numbering's monospace format field) just declares it - any class-level rule wins.
+- Body/primary text is min 16px on mobile (`--font-body`).
+  Secondary text follows the type scale - Body-2 14px, Caption 12px, Overline 10px - and must never carry primary reading content.
+  Form inputs are always ≥ 16px (also prevents iOS zoom).
+- Form controls (`input`, `select`, `textarea`) are globally `box-sizing: border-box` + `max-width: 100%` + `font-family: inherit` (in `styles.css`), so their padding sits inside the width, they never overflow their column, and they render in the app font rather than the browser's control font (most visible on date/month inputs and selects) - this holds even for inline-styled inputs (e.g. the Companies dialogs), not only the shared `.form-group` classes.
+  A screen that genuinely wants another font on a control (e.g. Numbering's monospace format field) just declares it - any class-level rule wins.
 - Add appropriate viewport meta tags
 - Test all interactive elements for touch accessibility (interactive targets ≥ 44×44px)
 
 ### Responsive strategy (three tiers)
 
-The app targets **three** width tiers. The pixel boundaries (`767 / 768 / 1023 /
-1024`) are the ONE source of truth - reuse exactly these in every `@media`; never
-invent a new breakpoint. Because CSS media queries can't read custom properties,
-the numbers are repeated literally, but always these numbers.
+The app targets **three** width tiers.
+The pixel boundaries (`767 / 768 / 1023 / 1024`) are the ONE source of truth - reuse exactly these in every `@media`; never invent a new breakpoint.
+Because CSS media queries can't read custom properties, the numbers are repeated literally, but always these numbers.
 
 | Tier | Width | Layout | Navigation (shell) | Spacing |
 | --- | --- | --- | --- | --- |
@@ -85,52 +93,37 @@ the numbers are repeated literally, but always these numbers.
 | **Tablet** | `768-1023px` | 2 columns | **collapsible rail** side nav (72px icons; hover / pin expands to 256px overlay); no bottom nav | comfortable (`--space-lg`) |
 | **Desktop** | `≥ 1024px` | multi-column | side nav starts **pinned** (256px, pushes content); the hamburger collapses it to the 72px rail (Gmail-style) | generous (`--space-xl`) |
 
-- **Shell** (`dashboard.css`): the three tiers live here - `@media (max-width: 767px)`
-  (drawer + bottom nav), the base rules (tablet rail), and `@media (min-width: 1024px)`
-  (pinned-by-default sidebar + `.content-area` `--space-xl`). Every screen inherits
-  this by rendering inside `.content-area`, so screens rarely need their own shell
-  media queries.
-- **Grids:** 1 col mobile → 2 col tablet → (optionally) 3 col desktop. Use the
-  **`.grid-3`** utility (in `styles.css`) for dense listing/card grids that want a
-  3rd column on desktop. **Forms stay 2-column** via the global **`.form-grid`**
-  utility (`minmax(0,1fr) minmax(0,1fr)`, collapsing to 1 column on mobile from the
-  class) - do NOT force a 3rd column on a form, and do not inline the grid: the 89
-  inline copies were promoted on 2026-10-12. Its two companions are **`.saas-form--dialog`**
-  (a form inside `<app-dialog>` runs flush, the dialog body already pads) and
-  **`.field-hint`** (the hint paragraph under a control, composed with `.cell-subtle`);
-  an inline `style="margin: var(--space-xs) 0 0"` or `style="padding: 0"` on those
-  elements is the drift this replaced.
-- **Spacing scales up per tier** - the shell's `.content-area` gutter is `--space-md`
-  (mobile) → `--space-lg` (tablet) → `--space-xl` (desktop), so content breathes more
-  as the viewport grows without any per-screen work.
+- **Shell** (`dashboard.css`): the three tiers live here - `@media (max-width: 767px)` (drawer + bottom nav), the base rules (tablet rail), and `@media (min-width: 1024px)` (pinned-by-default sidebar + `.content-area` `--space-xl`).
+  Every screen inherits this by rendering inside `.content-area`, so screens rarely need their own shell media queries.
+- **Grids:** 1 col mobile → 2 col tablet → (optionally) 3 col desktop.
+  Use the **`.grid-3`** utility (in `styles.css`) for dense listing/card grids that want a 3rd column on desktop.
+  **Forms stay 2-column** via the global **`.form-grid`** utility (`minmax(0,1fr) minmax(0,1fr)`, collapsing to 1 column on mobile from the class) - do NOT force a 3rd column on a form, and do not inline the grid: the 89 inline copies were promoted on 2026-10-12.
+  The older **`.form-row`** two-column grid (roomier `--space-lg` gap and bottom margin) is global too and collapses to one column at the same `767px` boundary.
+  A lone short field that should not stretch across its row composes **`.form-group--narrow`** (280px) or **`.form-group--medium`** (420px) - never an inline `max-width` on a `.form-group` (the last five inline copies were promoted on 2026-10-12).
+  Its two companions are **`.saas-form--dialog`** (a form inside `<app-dialog>` runs flush, the dialog body already pads) and **`.field-hint`** (the hint paragraph under a control, always composed as `class="cell-subtle field-hint"`); an inline `style="margin: var(--space-xs) 0 0"` or `style="padding: 0"` on those elements is the drift this replaced.
+- **Spacing scales up per tier** - the shell's `.content-area` gutter is `--space-md` (mobile) → `--space-lg` (tablet) → `--space-xl` (desktop), so content breathes more as the viewport grows without any per-screen work.
 
 ### Responsive component patterns
 All UI components you generate MUST follow these patterns:
-- **Layout:** Single column on mobile, 2 columns on tablet, multi-column on desktop
-  (see "Responsive strategy" above for the exact tiers).
+- **Layout:** Single column on mobile, 2 columns on tablet, multi-column on desktop (see "Responsive strategy" above for the exact tiers).
 - **Navigation (adaptive - one source of destinations, container changes by width):**
-  - Primary destinations: a **bottom navigation bar** on mobile, a **collapsible rail**
-    side nav on tablet, and a **pinned-by-default** side nav on desktop (the hamburger collapses it to the rail).
-  - Secondary destinations: a **hamburger-toggled drawer** on mobile that becomes the
-    rail/pinned **side nav** on tablet/desktop.
+  - Primary destinations: a **bottom navigation bar** on mobile, a **collapsible rail** side nav on tablet, and a **pinned-by-default** side nav on desktop (the hamburger collapses it to the rail).
+  - Secondary destinations: a **hamburger-toggled drawer** on mobile that becomes the rail/pinned **side nav** on tablet/desktop.
   - Bottom nav is for navigation **destinations only** - use in-page buttons / a FAB for actions, never put actions in the bottom bar.
-- **Buttons:** Use the shared `.btn` system (see "Button system" below). Full-width
-  primary CTAs on mobile (auto/content width on desktop); every button keeps a ≥ 44px
-  touch target at all widths. Do **not** hand-roll one-off inline button styles.
-- **List/card row actions:** Info on the left, action buttons on the right at the same
-  level on desktop; on mobile the actions drop to a full-width row below, right-justified
-  (see "List/card action-row layout" below).
-- **Spacing & font scale:** Use the mobile-first scales below. They are exposed
-  as CSS custom properties in `src/styles.css` (`--font-*`, `--space-*`, `--weight-*`) -
-  prefer those tokens over hard-coded `px` values.
+- **Buttons:** Use the shared `.btn` system (see "Button system" below).
+  Full-width primary CTAs on mobile (auto/content width on desktop); every button keeps a ≥ 44px touch target at all widths.
+  Do **not** hand-roll one-off inline button styles.
+- **List/card row actions:** Info on the left, action buttons on the right at the same level on desktop; on mobile the actions drop to a full-width row below, right-justified (see "List/card action-row layout" below).
+- **Spacing & font scale:** Use the mobile-first scales below.
+  They are exposed as CSS custom properties in `src/styles.css` (`--font-*`, `--space-*`, `--weight-*`) - prefer those tokens over hard-coded `px` values.
 
 #### Typography scale (mobile-first)
 
 | Level | Size | Weight | CSS var | Used for |
 | --- | --- | --- | --- | --- |
-| Display / Hero | 32–40px (2–2.5rem) | Bold/Black | `--font-display` | Login screens, empty states, major headings |
-| H1 - Page title | 24–28px (1.5–1.75rem) | Bold | `--font-h1` | Dashboard, Settings, main screens |
-| H2 - Section header | 20–22px (1.25–1.375rem) | Semibold | `--font-h2` | Card titles, section headers |
+| Display / Hero | 32-40px (2-2.5rem) | Bold/Black | `--font-display` | Login screens, empty states, major headings |
+| H1 - Page title | 24-28px (1.5-1.75rem) | Bold | `--font-h1` | Dashboard, Settings, main screens |
+| H2 - Section header | 20-22px (1.25-1.375rem) | Semibold | `--font-h2` | Card titles, section headers |
 | H3 - Subsection | 18px (1.125rem) | Medium | `--font-h3` | Form labels, list group headers |
 | Body - Primary | 16px (1rem) | Regular | `--font-body` | Main content, paragraphs, buttons (**a11y minimum**) |
 | Body 2 - Secondary | 14px (0.875rem) | Regular | `--font-body-2` | Descriptions, helper text, captions |
@@ -163,12 +156,13 @@ Everything else composes a token (standardized 2026-10-09; the 2px nudges and gl
 | lg | 24px (1.5rem) | `--icon-lg` | Material's default, standalone icon buttons |
 
 Glyphs are intrinsic sizes, not spacing - size a `.material-icons` span with `--icon-*`, never with `--space-*` or a raw `18px`.
+No stylesheet carries a raw glyph size any more: the last ones in `styles.css` took the icon tokens on 2026-10-12.
 The header tile (`.saas-icon`, 52px/28px glyph) and the 48px empty-state glyph are the two fixed exceptions, defined once globally.
 
 #### Colour tokens & appearance (3 modes: System / Light / Dark)
 
 The app ships **light and dark themes**, chosen via a **3-mode** control in Settings → Appearance: **System** (follows the OS `prefers-color-scheme`, live), **Light**, or **Dark**.
-`ThemeService` (`src/app/services/theme.service.ts`) resolves the mode, persists it, and stamps `data-theme="light|dark"` on `<html>`; a tiny inline script in `index.html` applies it before first paint (no flash), and an `APP_INITIALIZER` re-applies on boot.
+`ThemeService` (`src/app/services/theme.service.ts`) resolves the mode, persists it, and stamps `data-theme="light|dark"` on `<html>`; a tiny inline script in `index.html` applies it before first paint (no flash), and a `provideAppInitializer(() => inject(ThemeService).init())` entry in `main.ts` re-applies on boot (the i18n dictionaries load through a sibling `provideAppInitializer` the same way).
 Default is **Light** for now - flip the `ThemeService` default to `'system'` once every surface is verified in dark.
 
 **The rule: colour comes from semantic tokens, never hard-coded hex.**
@@ -182,24 +176,30 @@ A raw `#hex` / `rgb()` in a component is a bug: it won't flip in dark mode.
 | Sidebar groups | `--nav-group-surface` `--nav-group-head-surface` | an expanded menu group's contained block, and the group header's own shape inside it (each a step darker than the sidebar) |
 | Text | `--text-primary` `--text-secondary` `--text-muted` `--text-on-brand` | body, secondary, captions, text on a brand fill |
 | Border | `--border` `--border-strong` | default dividers, input/emphasis borders |
-| Brand | `--brand` `--brand-hover` `--brand-text` `--brand-disabled` | primary button fill, hover, brand text/links, disabled brand button |
+| Brand | `--brand` `--brand-hover` `--brand-text` `--brand-disabled` `--brand-surface` | primary button fill, hover, brand text/links, disabled brand button, the soft brand-tinted fill (screen-header icon tiles, the sidebar module banner, the ENTERPRISE badge) |
 | State | `--danger-*` `--success-*` `--info-*` (each `-text`/`-surface`/`-border`), `--chip-off-surface` `--chip-off-text` | errors, success, info banners; inactive status chip |
-| Accent / misc | `--accent` `--focus-ring` `--overlay` `--shadow` `--shadow-sm` | non-primary accent icons, focus ring, modal scrim, shadows |
+| Count badge | `--badge-count-surface` | the header bell's unread count (`.notif-badge`), red in both themes |
+| QR | `--surface-qr` | the quiet zone behind a QR code (MFA setup, Profile); stays white in BOTH themes so scanners read it |
+| Accent / misc | `--accent` `--focus-ring` `--focus-glow` `--overlay` `--shadow` `--shadow-sm` | non-primary accent icons, the offset focus ring (buttons, links, cards), the blurred focus halo on a field, modal scrim, shadows |
+
+Two shell-local tokens live on the dashboard host, not in `styles.css`: `--bar-brand` (the blue app bar) and `--bar-admin` (the red bar for system admins).
+They are the always-dark exception below and are not for screens.
 
 **Building a NEW screen, component, or option - it MUST work in both themes:**
 - Use the tokens for every colour; never hard-code a `#hex`.
 - Compose the shared, already-theme-aware building blocks - the `.btn` system, `<app-dialog>`, the listing-card standard (`.data-card` / `.status-chip`), and the form-field standard (`.saas-form` / `.form-group`) - rather than styling from scratch.
-- If you genuinely need a colour the palette doesn't have, **add a token** (a light value under `:root` **and** a dark value under `:root[data-theme="dark"]`) and reference it - do not hard-code the colour. Keep both values WCAG-AA against their background.
-- The branded header bar is intentionally dark in both themes - the ONE deliberate exception, not a pattern to copy. (Its dropdowns are NOT part of the exception: they use the token-based `.menu-pop` system and follow the theme.)
+- If you genuinely need a colour the palette doesn't have, **add a token** (a light value under `:root` **and** a dark value under `:root[data-theme="dark"]`) and reference it - do not hard-code the colour.
+  Keep both values WCAG-AA against their background.
+- The branded header bar is intentionally dark in both themes - the ONE deliberate exception, not a pattern to copy.
+  (Its dropdowns are NOT part of the exception: they use the token-based `.menu-pop` system and follow the theme.)
 - Verify the screen in **all three modes** (System resolves to your OS) before shipping; a third-party widget in an iframe (e.g. TinyMCE) needs its own dark config, it won't inherit the tokens.
 
 Reference: `styles.css` (token definitions), `theme.service.ts`, and the Settings Appearance control (`dashboard/settings`).
 
 #### Button system (shared component)
 
-There is **one** button component, defined globally in `src/styles.css`. Always use it
-instead of inline-styling a `<button>` - this keeps every screen visually consistent,
-guarantees the a11y touch target, and means a future restyle is a one-file change.
+There is **one** button component, defined globally in `src/styles.css`.
+Always use it instead of inline-styling a `<button>` - this keeps every screen visually consistent, guarantees the a11y touch target, and means a future restyle is a one-file change.
 
 | Class | Use for |
 | --- | --- |
@@ -213,31 +213,24 @@ guarantees the a11y touch target, and means a future restyle is a one-file chang
 | `.btn--block` | Modifier: full width (primary CTAs, esp. on mobile). |
 
 Rules:
-- Compose a base + one colour + optional modifiers, e.g.
-  `class="btn btn--secondary btn--sm"` or `class="btn btn--primary btn--block"`.
+- Compose a base + one colour + optional modifiers, e.g. `class="btn btn--secondary btn--sm"` or `class="btn btn--primary btn--block"`.
 - Pick the colour by **intent**, not by look: destructive actions are always `.btn--danger`.
-- **Enable / Disable toggles read as a colour pair app-wide:** the **Disable** action is always `.btn--danger` (red) and the **Enable** action is always `.btn--success` (green), so status is legible at a glance on every reference-data / listing screen. For a single button whose label flips, bind the colour to state (`[class.btn--danger]="isActive"` / `[class.btn--success]="!isActive"`).
-- Icon-in-button: put a `<span class="material-icons" aria-hidden="true">…</span>` inside;
-  `.btn` already spaces it. Icon-only buttons still need an `aria-label`.
+- **Enable / Disable toggles read as a colour pair app-wide:** the **Disable** action is always `.btn--danger` (red) and the **Enable** action is always `.btn--success` (green), so status is legible at a glance on every reference-data / listing screen.
+  For a single button whose label flips, bind the colour to state (`[class.btn--danger]="isActive"` / `[class.btn--success]="!isActive"`).
+- Icon-in-button: put a `<span class="material-icons" aria-hidden="true">…</span>` inside; `.btn` already spaces it.
+  Icon-only buttons still need an `aria-label`.
 - `button[type="submit"]` and `.btn--block` go full-width on mobile automatically.
-- The auth screens use the SAME system (`.btn .btn--primary .btn--block` for the card's
-  CTA, `.btn--secondary .btn--block` for the SSO and workspace buttons); the old scoped
-  single-dash `.btn-primary` copies were deleted on 2026-10-10 - see "Auth card" below.
+- Every `<button>` that is not the form's submit control carries `type="button"` explicitly (164 buttons in 85 templates were stamped on 2026-10-12), so a button inside a `<form>` never submits it by accident.
+- The auth screens use the SAME system (`.btn .btn--primary .btn--block` for the card's CTA, `.btn--secondary .btn--block` for the SSO and workspace buttons); the old scoped single-dash `.btn-primary` copies were deleted on 2026-10-10 - see "Auth card" below.
 
 #### Auth card - the ONE layout outside the shell
 
-Every screen outside the shell (login, register, forgot / reset / setup password, verify email,
-MFA enrolment, member and agent portal registration) composes **`shared/auth-card.css`**
-(imported via `styleUrls`) plus the global primitives - never its own card, button or field copy:
-`.auth-page` > `.auth-card` (440px, `--shadow-sm`) > `<h1 class="auth-title">` + `.auth-lead`,
-global `.form-group` fields with `.field-error` + `aria-describedby`, `.btn btn--primary btn--block`,
-`.auth-links` footer. Outcome cards (`.auth-alert--success/--danger/--neutral` with a
-`.auth-alert__icon` Material glyph) are the documented in-card exception to the flash snackbar.
+Every screen outside the shell (login, register, forgot / reset / setup password, verify email, MFA enrolment, member and agent portal registration) composes **`shared/auth-card.css`** (imported via `styleUrls`) plus the global primitives - never its own card, button or field copy:
+`.auth-page` > `.auth-card` (440px, `--shadow-sm`) > `<h1 class="auth-title">` + `.auth-lead`, global `.form-group` fields with `.field-error` + `aria-describedby`, `.btn btn--primary btn--block`, `.auth-links` footer.
+Outcome cards (`.auth-alert--success/--danger/--neutral` with a `.auth-alert__icon` Material glyph) are the documented in-card exception to the flash snackbar.
 `.auth-greeting` + `.auth-chip` carry the who/where line on the token-driven registrations.
-Only screen-specific pieces stay local (login's password toggle, SSO row and sign-in overlay;
-MFA's QR and recovery grid). All of these screens are signals + OnPush: a plain field set in an
-HTTP callback never re-renders under zoneless (the register-lead and setup-password outcomes
-were invisible until 2026-10-10 for exactly that reason).
+Only screen-specific pieces stay local (login's password toggle, SSO row and sign-in overlay; MFA's QR and recovery grid).
+All of these screens are signals + OnPush: a plain field set in an HTTP callback never re-renders under zoneless (the register-lead and setup-password outcomes were invisible until 2026-10-10 for exactly that reason).
 
 #### Flash messages - ONE floating snackbar standard
 
@@ -250,14 +243,14 @@ Reference implementations: `platform-users.html`, `companies.html` (and nearly e
   <div class="flash flash-success" role="status" aria-live="polite">
     <span class="flash-icon">✅</span>
     <span>{{ successMessage() }}</span>
-    <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
   </div>
 }
 @if (errorMessage()) {
   <div class="flash flash-error" role="alert" aria-live="assertive">
     <span class="flash-icon">❌</span>
     <span>{{ errorMessage() }}</span>
-    <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
   </div>
 }
 ```
@@ -265,9 +258,11 @@ Reference implementations: `platform-users.html`, `companies.html` (and nearly e
 Rules:
 
 - **Copy the markup above verbatim** (icon span, message span, dismiss ✕) - do not restyle a `<div>` with success/danger tokens by hand; that is exactly the drift this standard kills.
+  The dismiss button carries `type="button"` like every non-submit button in the app, so a flash rendered inside a `<form>` can never submit it.
 - **Dialog save errors use the SAME floating snackbar** - `.flash` renders above the dialog overlay by design, so it stays visible while the dialog is open (reference: `platform-users` Create user with a duplicate email).
   Do NOT gate the flash on dialog state and do NOT build an in-dialog error bar (a briefly-lived `<app-dialog>` `[error]` input was removed in favour of this one pattern).
 - **`.flash--static`** (composed on top) is ONLY for permanent contextual notes and multi-line result reports that must stay in the page flow (e.g. the Unverified Registrations deletion report) - never for a plain transient message.
+  **`.flash-info`** is the neutral third colour (info tokens) for notes such as "feature switched off", almost always composed with `.flash--static`.
 - Deliberate exceptions - and the only ones: the auth/portal flows' centred outcome cards (login, forgot-password, member/agent registration "check your email" panels) and field-level `.field-error` / `.field-success` messages, which stay next to their control.
 
 #### Icons - one system, no icon libraries
@@ -282,6 +277,46 @@ Do not add an icon dependency; pick a name from the Material Icons set instead.
 - **Sidebar module/menu icons** are Material Icons names stored in the DB (`Menu.icon`).
 - Keep one concept = one icon app-wide (e.g. every transaction-type master uses `receipt_long`, both email-template screens use `mail`).
 
+#### Other global utilities (styles.css)
+
+Beyond the primitives named in their own sections, `styles.css` holds these small globals; compose them rather than re-declaring them per screen:
+
+- `.spinner` (16px, inherits `currentColor` so it reads inside a primary button) and `.spinner.large` (32px page loader with a `--brand` arc on a `--border` track).
+- `.form-row` - the roomier two-column field grid (`--space-lg` gap and bottom margin) that predates `.form-grid`; both collapse to one column at `767px`.
+- `.inline-icon` - a Material glyph inline with body text (`1.125em`, baseline-nudged); replaced the ⚠️ / ✅ emoji in copy.
+- `.sso-icon` - the small SSO brand mark beside an email (1.05rem, baseline-nudged).
+- `.section-heading` - an H2-sized title above a card list ("Your companies").
+- `.badge` with `.badge-pro` (info tokens) and `.badge-enterprise` (brand tokens) - the plan/category tag; never a record status (that is `.status-chip`).
+- `.flash-info` - the neutral snackbar colour (see "Flash messages").
+- `.sort-menu__dir` (the direction arrow on the sort trigger, `--icon-xs`) and `.overflow-menu__item .sort-menu__indicator` (the active-field mark pinned to the row end, `--brand-text`) - the two extras `<app-sort-menu>` adds on top of the kebab popover classes.
+- `.combo input` - the baseline field chrome for the combobox's inner input (44px, border, input surface) so it reads as a standard field anywhere, including grid-row editors the `.form-group` rules cannot reach.
+- The search clear-button suppression: `input[type='search']::-webkit-search-cancel-button` and `::-webkit-search-decoration` are set to `appearance: none`, because every search box renders the app's own `.saas-search__clear` and the native × only doubled it.
+- `.overflow-menu__pop` (the right-anchored popover at `z-index: 950`, above the FAB and below the drawer) and `.overflow-menu__item` (a 44px full-width row with the icon in `--text-muted`) - the kebab's own chrome, which the sort menu composes.
+
+#### Shared components and helpers (src/app/shared and src/app/i18n)
+
+The shared folder is the first place to look before writing a new piece; each entry below is the ONE implementation of its concern.
+The components with their own sections elsewhere in this document are `<app-dialog>`, `<app-confirm-dialog>`, `<app-combobox>`, `<app-phone-input>`, `<app-overflow-menu>` + `appMenuItem`, `<app-sort-menu>`, `<app-fav-star>`, `<app-help-button>`, the `*appCan` directive, `appMoney`, and the `localDate` and `money` pipes.
+The rest:
+
+- `<app-permission-picker>` (`shared/permission-picker`) - the role builder's module cards, tri-state select-all and menu tree with Create/Edit/Delete flags; used by Role Management and Platform Roles.
+- `<app-ar-ledger-dialog>`, `<app-ar-receipt-dialog>`, `<app-ar-refund-dialog>`, `<app-ar-deposit-dialog>` (`shared/ar-*-dialog`) - the four AR entry dialogs, shared by the AR transaction screens and the debtor account page; the reference implementations for combobox-driven data entry.
+- `<app-email-html-editor>` (`shared/email-html-editor`) - the self-hosted TinyMCE `ControlValueAccessor` for email bodies, variables offered as chips.
+- `<app-variable-menu>` (`shared/variable-menu`) - the compact "Insert variable" dropdown for plain-text fields such as an email Subject; emits the chosen name and the host inserts `{{name}}` at the caret.
+- `<app-approval-history>` (`shared/approval-history`) - the approval-run trail for any document that routes through a workflow (`entityType` + `[entityId]`); renders nothing when the record never entered a workflow, so it is safe to embed unconditionally.
+- `shared/ar-fx.ts` - the multicurrency helpers of the AR dialogs: `AR_RATE_PATTERN`, `arRateForDate`, `arTrimRate`, `arBaseEquivalent`.
+- `shared/address.ts` - `addressLines()`, the app-wide postal address block (postcode + city + state on ONE line, country full name), mirroring `apps/api/src/platform/addressFormat.js`.
+- `shared/countries.ts` - `COUNTRY_TIMEZONES` (curated IANA zones by alpha-2) and `FALLBACK_COUNTRIES`; country NAMES come from the DB `Country` table through `CountryService`.
+- `shared/timezone.ts` - `timezoneOffset()` / `timezoneWithOffset()`, the "(UTC +08:00)" standard.
+  Its `tzLabel` pipe (`shared/timezone-label.pipe.ts`, `TimezoneLabelPipe`) is the template form of the same helper; no template consumes it today, so use the pipe when a screen next shows a timezone rather than re-deriving the offset.
+- `shared/user-identity.ts` - `tokenIdentity()` / `identityKey()`, the JWT-derived `{userId, companyId}` that keys every per-user client cache (favorites, recent screens, view preferences); never key such state by the localStorage email.
+- `shared/open-blob.ts` - `openBlobInNewTab()`, the one way to show a downloaded PDF or file blob in a new tab (added 2026-10-13).
+- `shared/month-options.ts` - `monthComboOptions()` for month pickers (see the combobox section).
+- `i18n/translate.pipe.ts` - the impure `| t` pipe (`'nav.dashboard' | t`, `'greeting' | t: { name }`) that reads the active language signal, so a language switch re-renders zonelessly.
+- `i18n/i18n.service.ts` - the signal-based runtime i18n: flat JSON dictionaries from `public/i18n/<code>.json`, English as the fallback, then the key itself.
+- `i18n/ui-languages.ts` - `SHIPPED_UI_LANGUAGES`, the languages the app ships dictionaries for; the login switcher's fallback before any subscriber context exists.
+- `i18n/screen-title.pipe.ts` / `screen-title.service.ts` - the header title/subtitle and browser-tab title resolution (next section).
+
 #### Screen header title/subtitle - menu-driven and translated
 
 The screen header's title and subtitle come from the **granted Menu record**, not from a hardcoded string, so the header always matches what the user clicked in the sidebar - in the active language.
@@ -295,6 +330,8 @@ Subscribers maintain the per-language texts in Modules & Menus (the Translations
   Screens that aren't menu-backed (samples, portals) just show the fallback; the SaaS Administration set became a real DB Module (boot-seeded, audience 'platform') so platform screens resolve like any other.
 - Route -> menu matching mirrors `PermissionsService`/`HelpService` (exact, then drop trailing segments), and menus come from the login's localStorage cache - a menu rename shows after the next login, like the sidebar.
 - The service also keeps **`document.title`** (the browser tab) in step with the resolved menu name.
+  Routes that are not menus (`home`, `approvals`, `profile`, `settings`) declare a `data.title` on their route in `main.ts`, and the service falls back to it before the app name (`myEasySoft`), so the tab never reads a stale screen name (added 2026-10-13).
+  A new non-menu route sets `data.title` the same way.
 - Dynamic subtitles (e.g. Public Holidays' per-country line) and dictionary-translated screens (Account Languages' `| t` keys) stay as they are - don't double-translate.
 - New screens MUST use the pipes in their header; every existing listing screen already does.
 - The header's chrome is the global **`.saas-header`** block (`styles.css`): `<div class="saas-header"><div class="saas-header-left"><span class="saas-icon material-icons">…</span><div><h1>…<app-fav-star /></h1><p class="saas-subtitle">…</p></div></div></div>`.
@@ -337,27 +374,23 @@ Access is three questions, and the UI reflects two of them per screen (the backe
   - **Edit** and **Enable/Disable** row buttons → `*appCan="'edit'"`
   - **Delete/Remove** row buttons → `*appCan="'delete'"`
   A user without the action simply does not see the button - never show a control that will 403.
-- Where the listing endpoint returns a per-row **`canModify`** flag (data scope), hide the row's Edit/Enable/Disable actions when it is `false`: `@if (row.canModify !== false) { …buttons… }`. Absent flag = allowed (older endpoints).
+- Where the listing endpoint returns a per-row **`canModify`** flag (data scope), hide the row's Edit/Enable/Disable actions when it is `false`: `@if (row.canModify !== false) { …buttons… }`.
+  Absent flag = allowed (older endpoints).
 - Defaults are deliberately permissive: system/tenant admins, menus cached before the flags shipped, and screens not in the menu catalogue all resolve to allowed - gating only engages when a grant explicitly withholds an action.
 
 **Role Management (where grants are made)** presents the same model to the admin: one collapsible card per module (tri-state select-all + "x of y selected"), the real menu tree with grouping menus as non-selectable headings, each selected menu's Create/Edit/Delete toggles (new grants start as full access), a menu search, a Data-scope radio (own / department / all in plain language), and a selection summary before Save.
 
 #### Phone / mobile / fax fields (shared component)
 
-Every phone-type field uses the shared **`<app-phone-input>`** (`src/app/shared/phone-input`) -
-a country dialling-code select (flag + code, e.g. `🇲🇾 +60`) beside the number input.
+Every phone-type field uses the shared **`<app-phone-input>`** (`src/app/shared/phone-input`) - a country dialling-code select (flag + code, e.g. `🇲🇾 +60`) beside the number input.
 Do **not** hand-roll a `<input type="tel">` for phone/mobile/fax.
 
-- It's a `ControlValueAccessor`, so it binds with `formControlName` (reactive forms - the
-  standard) exactly like a native input. It also accepts `[(ngModel)]`, but new screens use
-  Reactive Forms (see coding-standards.md → "Forms").
-- It reads/writes a **single combined string** - dialling code + national number, e.g.
-  `+60123456789` - and splits it back on load by longest-prefix match (default `+60`).
+- It's a `ControlValueAccessor`, so it binds with `formControlName` (reactive forms - the standard) exactly like a native input.
+  It also accepts `[(ngModel)]`, but new screens use Reactive Forms (see coding-standards.md → "Forms").
+- It reads/writes a **single combined string** - dialling code + national number, e.g. `+60123456789` - and splits it back on load by longest-prefix match (default `+60`).
   So the backend/model keeps one `phone` string; no separate country-code column.
-- Pass `inputId="…"` matching the field's `<label for>` (keeps the label associated), and
-  an optional `placeholder`.
-- Country list lives in `src/app/shared/country-codes.ts` (Malaysia first) - add entries
-  there, not per-screen.
+- Pass `inputId="…"` matching the field's `<label for>` (keeps the label associated), and an optional `placeholder`.
+- Country list lives in `src/app/shared/country-codes.ts` (Malaysia first) - add entries there, not per-screen.
 
 ```html
 <label for="uPhone">Phone</label>
@@ -365,8 +398,7 @@ Do **not** hand-roll a `<input type="tel">` for phone/mobile/fax.
 <!-- template-driven (legacy only): <app-phone-input name="uPhone" [(ngModel)]="form.phone" inputId="uPhone"></app-phone-input> -->
 ```
 
-Reference implementations: `platform-users`, `subscribers`, `tenant-users`, `companies`
-(edit details), and `profile` - all bind a single `phone` string.
+Reference implementations: `platform-users`, `subscribers`, `tenant-users`, `companies` (edit details), and `profile` - all bind a single `phone` string.
 
 #### Long reference lists - the shared constrained combobox
 
@@ -387,25 +419,21 @@ Reference implementations: the Analysis Dimension pickers (value-mode) and the T
 
 #### List/card action-row layout (adaptive)
 
-The standard for any list/card where a row has **content + actions** (e.g. Companies,
-Role Management, User Management). One source of truth; the container reflows by width:
+The standard for any list/card where a row has **content + actions** (e.g. Companies, Role Management, User Management).
+One source of truth; the container reflows by width:
 
-- **Desktop (≥ 768px):** content on the left, action buttons on the right **at the same
-  level** as the content.
-- **Mobile (≤ 767px):** the actions drop to a **full-width row below the content,
-  RIGHT-justified** - the same edge as desktop, so the eye finds actions in one
-  place at every width (standardized 2026-08-13; previously left-justified).
+- **Desktop (≥ 768px):** content on the left, action buttons on the right **at the same level** as the content.
+- **Mobile (≤ 767px):** the actions drop to a **full-width row below the content, RIGHT-justified** - the same edge as desktop, so the eye finds actions in one place at every width (standardized 2026-08-13; previously left-justified).
 
-Implement it with a CSS-grid class (named areas), **not** inline styles - the global
-mobile rule collapses any *inline* `grid-template-columns` to one column, so an inline
-grid here would break on desktop. Pattern:
+Implement it with a CSS-grid class (named areas), **not** inline styles - the global mobile rule collapses any *inline* `grid-template-columns` to one column, so an inline grid here would break on desktop.
+Pattern:
 
 ```css
 .row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;  /* see note on minmax below */
   grid-template-areas: "main actions";   /* + "main badge" rows if a status chip is present */
-  align-items: center;
+  align-items: start;                    /* the chip aligns with the headline's first line */
   gap: var(--space-sm);
 }
 .row__main    { grid-area: main; min-width: 0; }          /* min-width:0 lets long text wrap */
@@ -418,28 +446,17 @@ grid here would break on desktop. Pattern:
 ```
 
 Notes:
-- Use **`minmax(0, 1fr)`**, not bare `1fr`, for the main track. A plain `1fr` track has a
-  default minimum of `min-content`, so its content can't shrink past that and **overflows /
-  overlaps the actions cell** on long rows. This bites hardest when the main cell is a
-  `<button>` (e.g. a clickable list item), because a button's intrinsic minimum size
-  **ignores `min-width: 0`** during track sizing - `minmax(0, 1fr)` forces the minimum to 0
-  so the text wraps. Also avoid `width: 100%` on a button in the main cell (it feeds the
-  button's preferred width back into track sizing - let it fill via the default `stretch`).
-- Keep expanding panels / edit forms as **full-width siblings below** the grid row, not
-  inside it, so they span the whole card.
-- Reference implementations: `companies.html` (the global `.data-row--with-badge`, with a
-  status chip), `tax-schemes.html` (a `<button>` main cell inside `.data-row--with-badge`,
-  plus the `.data-card--selected` highlight on the open scheme) and `modules-menus.html` /
-  `items.html` (`<button>` main cell in a `.data-list` of `.data-card`s).
-  **Never write a per-screen row grid**: the last private copies (`.role-*`, `.tx-row*`,
-  `.mm-row*`, `.it-row*`, `.mem-row*`) were folded into the global classes on 2026-10-10;
-  a screen keeps only what is not grid - a reset `__select` button, a text column, an indent.
+- Use **`minmax(0, 1fr)`**, not bare `1fr`, for the main track.
+  A plain `1fr` track has a default minimum of `min-content`, so its content can't shrink past that and **overflows / overlaps the actions cell** on long rows.
+  This bites hardest when the main cell is a `<button>` (e.g. a clickable list item), because a button's intrinsic minimum size **ignores `min-width: 0`** during track sizing - `minmax(0, 1fr)` forces the minimum to 0 so the text wraps.
+  Also avoid `width: 100%` on a button in the main cell (it feeds the button's preferred width back into track sizing - let it fill via the default `stretch`).
+- Keep expanding panels / edit forms as **full-width siblings below** the grid row, not inside it, so they span the whole card.
+- Reference implementations: `companies.html` (the global `.data-row--with-badge`, with a status chip), `tax-schemes.html` (a `<button>` main cell inside `.data-row--with-badge`, plus the `.data-card--selected` highlight on the open scheme) and `modules-menus.html` / `items.html` (`<button>` main cell in a `.data-list` of `.data-card`s).
+  **Never write a per-screen row grid**: the last private copies (`.role-*`, `.tx-row*`, `.mm-row*`, `.it-row*`, `.mem-row*`) were folded into the global classes on 2026-10-10; a screen keeps only what is not grid - a reset `__select` button, a text column, an indent.
 
-**Status chip (active/inactive etc.) is always TOP-RIGHT.** When a record card carries a
-status badge, it is **right-justified** in its own grid area, not inline after the title -
-this is the app-wide standard so every list reads the same way.
-Add a third area to the grid and pin the badge to the end; on mobile the badge **stays
-top-right** while the actions drop to a full-width row below:
+**Status chip (active/inactive etc.) is always TOP-RIGHT.**
+When a record card carries a status badge, it is **right-justified** in its own grid area, not inline after the title - this is the app-wide standard so every list reads the same way.
+Add a third area to the grid and pin the badge to the end; on mobile the badge **stays top-right** while the actions drop to a full-width row below:
 
 ```css
 grid-template-areas:
@@ -449,16 +466,15 @@ grid-template-areas:
 .row__badge { grid-area: badge; justify-self: end; align-self: start; white-space: nowrap; }
 ```
 
-The shared implementation is **`.data-row--with-badge`** (compose as
-`class="data-row data-row--with-badge"`, with a `.data-row__badge` cell), global in
-`styles.css`. Reference implementations: `platform-users.html` (Active/Inactive
-chip + SSO brand icon next to the email) and `companies.html`.
+The shared implementation is **`.data-row--with-badge`** (compose as `class="data-row data-row--with-badge"`, with a `.data-row__badge` cell), global in `styles.css`.
+Reference implementations: `platform-users.html` (Active/Inactive chip + SSO brand icon next to the email) and `companies.html`.
 
 **Rows never show more than TWO action controls: one visible primary + an overflow ("kebab") menu.**
 The visible one is the action users reach for most (usually **Edit**, `.btn--secondary .btn--sm`); **every other action goes in the kebab - even when there is only ONE more** (a lone Enable/Disable still folds in; clarified 2026-08-19 on `ar-transaction-types`).
 A second visible button next to Edit is the drift this standard kills - two rows with "Edit + something" pairs never look consistent across screens.
 Fold the rest into the shared **`<app-overflow-menu>`** (`shared/overflow-menu`) - a `⋮` trigger that opens a token-based popover.
 Project each action as `<button type="button" appMenuItem (click)="…">` (icon span + label; Enable uses `check_circle`, Disable uses `block` - menu items carry intent by icon, not button colour); the component owns the a11y (aria-haspopup/expanded, role=menu, arrow-key focus, Esc-close-and-refocus, outside-click close) and its styles are global in `styles.css` (`.overflow-menu*`).
+The `appMenuItem` directive is `MenuItemDirective` in `shared/overflow-menu/menu-item.directive.ts`, imported separately from the component.
 Pass a per-row accessible label, e.g. `[label]="'More actions for ' + row.name"`.
 **Rolled out app-wide 2026-08-19**: every listing row now shows one visible primary + kebab (Edit on masters; Review/View/Details/Resume on the billing/import/statement screens).
 A 2026-10-09 sweep folded the stragglers (Role Management, Modules & Menus, Tax Setup, Golf Courses tee-time sets, Golf Transaction Type prices, AR deposits); Golf Courses keeps **Flight times** as its visible primary because that is what staff reach for on a tee-time set.
@@ -479,34 +495,25 @@ Screens link to their end-user manual automatically - there is NO per-screen wir
 - Manuals are generated by the `/user-manual` skill: source of truth in `docs/user-manual/<system>/<screen>.md`, plus a published copy at `public/help/<route-slug>.md` and an entry in `public/help/index.json` (the manifest; slug = route with `/` -> `-`, e.g. `/admin/countries` -> `admin-countries`).
 - `HelpService` (`services/help.service.ts`) loads the manifest once and resolves the current router URL to a slug (dropping trailing segments, so `/x/:id` detail routes fall back to `/x`'s manual).
   The manifest is the existence check because the SPA fallback answers 200 for any unknown path.
-- `<app-help-button>` (`shared/help-button/help-button.ts`) sits once in the dashboard header: it shows a Book icon whenever the current route resolves to a manual and opens the guide in a theme-aware slide-over panel (Markdown rendered with the self-hosted `marked`, sanitized by Angular, `[Screenshot: ...]` authoring placeholders hidden).
+- `<app-help-button>` (`shared/help-button/help-button.ts`) sits once in the shell, inside `.content-area` rather than the app bar: `dashboard.css` positions it absolutely at the top-right of the content column (`.content-help`, `z-index: 950`, the gutter scaling with the tier), so the Book icon floats at the end of the screen's title line and the header stays free.
+  It shows the icon whenever the current route resolves to a manual and opens the guide in a theme-aware slide-over panel (Markdown rendered with the self-hosted `marked`, sanitized by Angular, `[Screenshot: ...]` authoring placeholders hidden).
 - Publishing a new manual = writing the two files + manifest entry and running `deploy-web`; the icon appears on that screen automatically.
 
-#### Master–detail screens (sliding pane + URL state)
+#### Master-detail screens (sliding pane + URL state)
 
-For any screen with a **list (master) → item detail (detail)** relationship (e.g. Modules
-& Menus), use the web equivalent of a `SlidingPaneLayout` + `NavigationStack`:
+For any screen with a **list (master) → item detail (detail)** relationship (e.g. Modules & Menus), use the web equivalent of a `SlidingPaneLayout` + `NavigationStack`:
 
-- **Layout (CSS only):** a grid container with two panes - master + detail **side-by-side
-  on desktop**, and **one-at-a-time on mobile**. On mobile the master list shows by default;
-  once an item is open the **detail covers the master**, with a mobile-only "← Back" button
-  that returns to the list. Toggle a container class from the selection state:
-  `<div class="mm-layout" [class.mm-layout--detail]="selectedId()">`.
-- **State (URL is the single source of truth):** put the selected item's id in the **route**
-  (`/section/:id`), not just a signal. Add both `path: 'section'` and `path: 'section/:id'`
-  pointing at the same component; read the param via `route.paramMap` and derive the
-  selection from it; navigate (don't mutate the signal directly) to change selection. This
-  gives **deep linking** and working **browser back/forward** for free. Return to the master
-  list by navigating to the param-less base path.
-- **Return to the row (required):** navigating between the two routes **recreates the
-  component**, so on the way back the master re-renders at the top - on mobile the user
-  who was editing the last card would have to scroll all the way down again. Wire the shared
-  `ScrollReturnService` (`services/scroll-return.service.ts`): tag each master card with
-  `[attr.data-return-id]="row.id"`, call `returnScroll.remember(listPath, id)` when the
-  detail opens (in the `paramMap` subscription), and `returnScroll.consume(listPath, injector)`
-  after the master's list data lands (only when nothing is selected). The service scrolls the
-  card back into view and flashes it (`.return-flash`, theme-aware). Works for the in-app
-  "← Back" and the browser/phone back button alike.
+- **Layout (CSS only):** a grid container with two panes - master + detail **side-by-side on desktop**, and **one-at-a-time on mobile**.
+  On mobile the master list shows by default; once an item is open the **detail covers the master**, with a mobile-only "← Back" button that returns to the list.
+  Toggle a container class from the selection state: `<div class="mm-layout" [class.mm-layout--detail]="selectedId()">`.
+- **State (URL is the single source of truth):** put the selected item's id in the **route** (`/section/:id`), not just a signal.
+  Add both `path: 'section'` and `path: 'section/:id'` pointing at the same component; read the param via `route.paramMap` and derive the selection from it; navigate (don't mutate the signal directly) to change selection.
+  This gives **deep linking** and working **browser back/forward** for free.
+  Return to the master list by navigating to the param-less base path.
+- **Return to the row (required):** navigating between the two routes **recreates the component**, so on the way back the master re-renders at the top - on mobile the user who was editing the last card would have to scroll all the way down again.
+  Wire the shared `ScrollReturnService` (`services/scroll-return.service.ts`): tag each master card with `[attr.data-return-id]="row.id"`, call `returnScroll.remember(listPath, id)` when the detail opens (in the `paramMap` subscription), and `returnScroll.consume(listPath, injector)` after the master's list data lands (only when nothing is selected).
+  The service scrolls the card back into view and flashes it (`.return-flash`, theme-aware).
+  Works for the in-app "← Back" and the browser/phone back button alike.
 
 ```css
 .mm-layout { display: grid; grid-template-columns: minmax(0, 420px) 1fr; gap: var(--space-lg); align-items: start; }
@@ -528,42 +535,29 @@ select(id: string) { this.router.navigate(['/section', id]); }   // never set th
 back()             { this.router.navigate(['/section']); }
 ```
 
-Reference implementation: `modules-menus.ts` + `modules-menus.css` (`.mm-layout`, `.mm-pane--*`,
-`.mm-back`), routed as `modules-menus` and `modules-menus/:moduleId` - including the
-`ScrollReturnService` wiring. `items` is the copyable sample; `tax-schemes` and the two
-email-template screens (list + separate edit component) follow the same pattern.
+Reference implementation: `modules-menus.ts` + `modules-menus.css` (`.mm-layout`, `.mm-pane--*`, `.mm-back`), including the `ScrollReturnService` wiring.
+It is routed four times in `main.ts`: `admin/modules-menus` and `admin/modules-menus/:moduleId` (tenant-audience modules) and `admin/platform-menus` and `admin/platform-menus/:moduleId` (platform audience), the same component with a different `data.audience`.
+`items` is the copyable sample; `tax-schemes` and the two email-template screens (list + separate edit component) follow the same pattern.
 
 **After-save return-to-row applies to DIALOG CRUD listings too (standardized 2026-08-18).**
-A dialog-based listing reloads (and often re-sorts) after Save or Enable/Disable, so the
-record the user just touched can move - losing their place exactly like the master-detail
-recreation case. Wire the same `ScrollReturnService`: tag each card with
-`[attr.data-return-id]="row.id"`, call `remember(listPath, savedId)` in the save/toggle
-success handler BEFORE `load()`, and `consume(listPath, injector)` after the reloaded list
-data lands - the saved card scrolls back into view and flashes (`.return-flash`).
-Reference implementation: `ar-transaction-types`. **Wired on every listing 2026-10-09** - the
-remaining dialog-CRUD masters, the paged lists (Memberships, AR Transactions) and the import
-batches remember the row when its Edit / toggle / Open starts and consume after the first page
-lands (a row on a later page is simply not found - a harmless no-op). Membership Billing's
-Review is a `routerLink` with a `(click)="rememberRow(s.id)"` beside it. Read-only lists
-(Members, Statements, Approvals, Audit Log) have nothing to return to and stay unwired.
+A dialog-based listing reloads (and often re-sorts) after Save or Enable/Disable, so the record the user just touched can move - losing their place exactly like the master-detail recreation case.
+Wire the same `ScrollReturnService`: tag each card with `[attr.data-return-id]="row.id"`, call `remember(listPath, savedId)` in the save/toggle success handler BEFORE `load()`, and `consume(listPath, injector)` after the reloaded list data lands - the saved card scrolls back into view and flashes (`.return-flash`).
+Reference implementation: `ar-transaction-types`.
+**Wired on every listing 2026-10-09** - the remaining dialog-CRUD masters, the paged lists (Memberships, AR Transactions) and the import batches remember the row when its Edit / toggle / Open starts and consume after the first page lands (a row on a later page is simply not found - a harmless no-op).
+Membership Billing's Review is a `routerLink` with a `(click)="rememberRow(s.id)"` beside it.
+Read-only lists (Members, Statements, Approvals, Audit Log) have nothing to return to and stay unwired.
 
 #### Section tabs (responsive strip + URL-driven)
 
-For a screen split into a handful of top-level **sections** (e.g. SaaS Administration:
-New Subscriber / Subscribers / Roles / Users / Assign Role), use an **underline tab strip
-that scrolls horizontally**, with the active tab in the **URL**.
+For a screen split into a handful of top-level **sections** (e.g. SaaS Administration: New Subscriber / Subscribers / Roles / Users / Assign Role), use an **underline tab strip that scrolls horizontally**, with the active tab in the **URL**.
 
-- **Responsive (CSS):** a single-row flex strip with `overflow-x: auto` + `scroll-snap`,
-  hidden scrollbar, and `flex: 0 0 auto` tabs that never shrink - so on a phone you swipe
-  and a partially-visible tab at the edge signals there's more. Active tab = a coloured
-  `border-bottom` (not a pill). Every tab keeps a ≥ 44px touch target and `white-space:
-  nowrap`. **Don't** use a non-wrapping, non-scrolling flex row (it clips on mobile).
-- **URL-driven (same rule as master–detail above):** the active tab is a route segment
-  (`/section/:tab`), so tabs are deep-linkable and survive a refresh. Read it from
-  `route.paramMap`, validate against the known tab ids (fall back to the default), and
-  **navigate** to switch - never set the signal directly.
-- **A11y:** `role="tablist"` on the strip, `role="tab"` + `[attr.aria-selected]` on each
-  native `<button>`.
+- **Responsive (CSS):** a single-row flex strip with `overflow-x: auto` + `scroll-snap`, hidden scrollbar, and `flex: 0 0 auto` tabs that never shrink - so on a phone you swipe and a partially-visible tab at the edge signals there's more.
+  Active tab = a coloured `border-bottom` (not a pill).
+  Every tab keeps a ≥ 44px touch target and `white-space: nowrap`.
+  **Don't** use a non-wrapping, non-scrolling flex row (it clips on mobile).
+- **URL-driven (same rule as master-detail above):** the active tab is a route segment (`/section/:tab`), so tabs are deep-linkable and survive a refresh.
+  Read it from `route.paramMap`, validate against the known tab ids (fall back to the default), and **navigate** to switch - never set the signal directly.
+- **A11y:** `role="tablist"` on the strip, `role="tab"` + `[attr.aria-selected]` on each native `<button>`.
 
 ```css
 .tab-bar { display: flex; gap: var(--space-sm); border-bottom: 1px solid var(--border);
@@ -575,39 +569,28 @@ that scrolls horizontally**, with the active tab in the **URL**.
 .tab-btn.active { border-bottom-color: var(--brand); }
 ```
 
-No screen carries a tab strip today (the System Setup tabs were split into their own
-screens; it is now the single-purpose Assign Role screen with no `:tab` route). The
-pattern above stays the standard for the next multi-section screen; `.tab-bar` /
-`.tab-btn` still live in `system-setup.css` ready to be promoted to `styles.css` when a
-screen first needs them.
+No screen carries a tab strip today (the System Setup tabs were split into their own screens; it is now the single-purpose Assign Role screen with no `:tab` route).
+The pattern above stays the standard for the next multi-section screen; `.tab-bar` / `.tab-btn` still live in `system-setup.css` ready to be promoted to `styles.css` when a screen first needs them.
 
 #### Data listings - card-per-record, never a raw `<table>`
 
 (The one `<table>` in the app is the golf Transaction Type price MATRIX - 9/18 holes by weekday/weekend - which is genuinely tabular data with column and row headers, not a listing; it stays a table with `scope` attributes.)
 
-**Canonical reference: the Companies screen** (`companies.html` / `companies.css`). Every
-listing/CRUD screen should match its shape - copy it rather than inventing a variant.
+**Canonical reference: the Companies screen** (`companies.html` / `companies.css`).
+Every listing/CRUD screen should match its shape - copy it rather than inventing a variant.
 
-For listing records (users, roles, subscribers, etc.) **do not use a plain `<table>`** -
-fixed table columns overflow horizontally and don't fit on mobile. Use a **card-per-record
-list**: each record is a card with its primary value as a **title** and the remaining
-fields as **wrapping label/value pairs** that sit inline on desktop and wrap/stack on
-mobile. No horizontal scroll, reads well at every width.
+For listing records (users, roles, subscribers, etc.) **do not use a plain `<table>`** - fixed table columns overflow horizontally and don't fit on mobile.
+Use a **card-per-record list**: each record is a card with its primary value as a **title** and the remaining fields as **wrapping label/value pairs** that sit inline on desktop and wrap/stack on mobile.
+No horizontal scroll, reads well at every width.
 
-- **No outer card wrapping the whole list.** The screen is, top to bottom: page header →
-  search → the list of **per-record cards** → FAB - all sitting **directly on the page
-  background**, exactly like Companies. Do **not** wrap the search + list in one big
-  surrounding `.card` (it adds a redundant frame, an extra gutter, and a stray section
-  heading). Each *record* is a bordered card; the *page* is not. (The legacy System Setup
-  tabs still use a list-in-a-card layout - they're being migrated to this standard as each
-  tab is split into its own screen; don't copy that pattern for new screens.)
+- **No outer card wrapping the whole list.**
+  The screen is, top to bottom: page header → search → the list of **per-record cards** → FAB - all sitting **directly on the page background**, exactly like Companies.
+  Do **not** wrap the search + list in one big surrounding `.card` (it adds a redundant frame, an extra gutter, and a stray section heading).
+  Each *record* is a bordered card; the *page* is not.
 
-- If a row has an **action** (e.g. Manage / Edit), wrap the content + action in the
-  action-row grid above (`minmax(0, 1fr) auto`, actions right on desktop / full-width
-  below on mobile). Keep any **expanding panel** (inline edit, sub-list) as a full-width
-  sibling **inside** the same card, below the row.
-- Use the field **label** (`dt`) as a small uppercase caption and the **value** (`dd`) as
-  body-2 text, so the card is self-describing without a column header.
+- If a row has an **action** (e.g. Manage / Edit), wrap the content + action in the action-row grid above (`minmax(0, 1fr) auto`, actions right on desktop / full-width below on mobile).
+  Keep any **expanding panel** (inline edit, sub-list) as a full-width sibling **inside** the same card, below the row.
+- Use the field **label** (`dt`) as a small uppercase caption and the **value** (`dd`) as body-2 text, so the card is self-describing without a column header.
 
 ```html
 <div class="data-list">
@@ -623,62 +606,45 @@ mobile. No horizontal scroll, reads well at every width.
 </div>
 ```
 
-These primitives are defined **globally and theme-aware in `styles.css`** - their colours use
-the semantic tokens, so every listing card renders correctly in light **and** dark with no
-per-screen work.
-Compose the shared classes; do **not** hand-roll `.your-screen-card` CSS (that is exactly what
-left the Companies screen unthemed until it was migrated).
+These primitives are defined **globally and theme-aware in `styles.css`** - their colours use the semantic tokens, so every listing card renders correctly in light **and** dark with no per-screen work.
+Compose the shared classes; do **not** hand-roll `.your-screen-card` CSS (that is exactly what left the Companies screen unthemed until it was migrated).
 
 - `.data-list` - the list wrapper.
 - `.data-card` - each record card (surface + border from tokens).
-- `.data-card__title` / `.data-card__subline` (+ `.data-card__reg` for the muted parenthetical) /
-  `.data-card__desc` / `.data-card__meta` (`dt`/`dd`) - the content.
-- `.data-row` + `.data-row--with-badge` (with `.data-row__main` / `__badge` / `__actions`) -
-  the content + status + actions grid.
-- `.data-card--selected` - the open / being-edited record on a master-detail or inline-edit
-  listing (brand border + `--surface-selected` fill); bind it with `[class.data-card--selected]`.
-- `.status-chip` + `.status-chip--on` / `--off` - the compact top-right status pill (green =
-  on, grey = off), replacing per-screen badge classes and inline colours.
+- `.data-card__title` / `.data-card__subline` (+ `.data-card__reg` for the muted parenthetical) / `.data-card__desc` / `.data-card__meta` (`dt`/`dd`) - the content.
+- `.data-row` + `.data-row--with-badge` (with `.data-row__main` / `__badge` / `__actions`) - the content + status + actions grid.
+- `.data-card--selected` - the open / being-edited record on a master-detail or inline-edit listing (brand border + `--surface-selected` fill); bind it with `[class.data-card--selected]`.
+- `.status-chip` + `.status-chip--on` / `--off` - the compact top-right status pill (green = on, grey = off), replacing per-screen badge classes and inline colours.
 
-Reference implementation: **`companies.html`** - the canonical listing, which composes these
-shared global classes directly (`.data-list` → `.data-card` → `.data-row--with-badge` →
-`.status-chip`). `system-setup.html` is a second example. Copy this for new listings.
-**Every listing primitive is global in `styles.css` (2026-10-09):** `.saas-container`,
-`.saas-header*` / `.saas-subtitle`, `.saas-search*`, `.saas-fab`, `.spinner`,
-`.loading-state` / `.empty-state` / `.empty-icon`, `.cell-*`, `.badge` (plan/category tag
-only) and the `.data-*` / `.status-chip` family. `system-setup.css` keeps only the System
-Setup screen's own tab bar, cards and admin panels - a new screen does NOT need to import
-it, and must never copy one of these primitives into its own stylesheet.
+Reference implementation: **`companies.html`** - the canonical listing, which composes these shared global classes directly (`.data-list` → `.data-card` → `.data-row--with-badge` → `.status-chip`).
+Copy this for new listings.
+**Every listing primitive is global in `styles.css` (2026-10-09):** `.saas-container`, `.saas-header*` / `.saas-subtitle`, `.saas-search*`, `.saas-fab`, `.spinner`, `.loading-state` / `.empty-state` / `.empty-icon`, `.cell-*`, `.badge` (plan/category tag only) and the `.data-*` / `.status-chip` family.
+`system-setup.css` keeps only the System Setup screen's own tab bar, cards and admin panels - a new screen does NOT need to import it, and must never copy one of these primitives into its own stylesheet.
 
-**Keep cards compact - roughly three lines of info.** A record card reads best as a
-short stack, not a wall of label/value pairs. The standard shape:
+**Keep cards compact - roughly three lines of info.**
+A record card reads best as a short stack, not a wall of label/value pairs.
+The standard shape:
 
-1. **Title line** - the primary identifier (`.data-card__title`), with the status chip
-   pinned top-right via `.data-row--with-badge` (see the status-chip note above).
-2. **Subline** - secondary identity info with **no captions**: short text and/or chips on
-   one wrapping row (`.data-card__subline`, with muted `.data-card__reg`-style text for
-   the parenthetical bits). E.g. `(REG-12345) ENTERPRISE`. For a single free-text line
-   (e.g. a role description) use `.data-card__desc` instead.
-3. **Meta line** - the rollup fields that genuinely need a caption (`.data-card__meta`
-   with `dt`/`dd`), e.g. counts and dates.
+1. **Title line** - the primary identifier (`.data-card__title`), with the status chip pinned top-right via `.data-row--with-badge` (see the status-chip note above).
+2. **Subline** - secondary identity info with **no captions**: short text and/or chips on one wrapping row (`.data-card__subline`, with muted `.data-card__reg`-style text for the parenthetical bits).
+   E.g. `(REG-12345) ENTERPRISE`.
+   For a single free-text line (e.g. a role description) use `.data-card__desc` instead.
+3. **Meta line** - the rollup fields that genuinely need a caption (`.data-card__meta` with `dt`/`dd`), e.g. counts and dates.
 
-Drop low-value fields rather than captioning them: internal ids, and anything already
-implied by the title. Move the one or two identity fields a user scans for (a
-registration number, a plan) into the caption-less **subline**, and keep only true
-metadata in the captioned meta line. Reference implementation: `subscribers.html`
-(`.data-card__title` → `.data-card__subline` `(reg)` + plan chip → `.data-card__meta`
-Companies/Created), with the `ACTIVE`/`SUSPENDED` status as the top-right badge.
+Drop low-value fields rather than captioning them: internal ids, and anything already implied by the title.
+Move the one or two identity fields a user scans for (a registration number, a plan) into the caption-less **subline**, and keep only true metadata in the captioned meta line.
+Reference implementation: `subscribers.html` (`.data-card__title` → `.data-card__subline` `(reg)` + plan chip → `.data-card__meta` Companies/Created), with the `ACTIVE`/`SUSPENDED` status as the top-right badge.
 
 #### Listing card - the exact visual standard (match the Companies card)
 
-The **Companies card** (`companies.html`) is the canonical listing card; every
-listing/master card uses these exact values so screens don't drift.
+The **Companies card** (`companies.html`) is the canonical listing card; every listing/master card uses these exact values so screens don't drift.
 The shared `.data-card__*` classes implement them - use those, don't hand-roll a card.
 
 - **Headline:** `--font-body` (16px), `--weight-semibold`, colour `#1e293b`.
 - **Detail / subline:** `--font-body-2` (14px), colour `#475569` (the muted `.data-card__reg` tone); no captions on the subline.
 - **Meta caption** (only for true rollups like counts/dates): label `--font-caption`, `--weight-bold`, UPPERCASE, `#64748b`; value `--font-body-2`, `#1e293b`.
-- **Card alignment:** the list adds **no horizontal inset** - cards sit flush to the container gutter (the `.saas-container` / screen wrapper already supplies the page gutter), so every listing reaches the same edge. The shared `.data-list` follows this (no horizontal padding).
+- **Card alignment:** the list adds **no horizontal inset** - cards sit flush to the container gutter (the `.saas-container` / screen wrapper already supplies the page gutter), so every listing reaches the same edge.
+  The shared `.data-list` follows this (no horizontal padding).
 
 **Status chip - the compact overline pill.**
 A record's Active / Inactive / Disabled status is a small pill pinned **top-right**, **inline with the title's first line** - the row grid is `align-items: start` so the chip aligns with the headline, never floating above a vertically-centred title, and never inline after the title text.
@@ -687,8 +653,11 @@ It is the global **`.status-chip`** with ONE state modifier - never a per-screen
 - `status-chip--on` (green) for active / posted / paid; `status-chip--off` (grey, never red) for inactive / disabled / voided.
 - `status-chip--info` (blue) for a pending or partial standing and `status-chip--danger` (red) for an outstanding / overdue one, so multi-state documents compose the same chip (reference: the Group Bookings deposit standing).
 - The look is `--font-overline` (10px), `--weight-bold`, uppercase, `letter-spacing: 0.5px`, `border-radius: 12px`, padding `--space-xs --space-sm`, colours from the `--success-*` / `--chip-off-*` / `--info-*` / `--danger-*` tokens.
-- The legacy `.badge-active` / `.badge-inactive` rules and the private `.it-status` / `.tx-status` / `.ggb-standing` copies were deleted on 2026-10-09 (25 listings migrated). Reference: `companies.html`, `platform-users.html`.
-- **The one exemption: a status whose colour is user data.** Membership and Member statuses carry their own colour in the status master, so they render as the global **`.status-dot`** (a `.status-dot__swatch` bound to the configured colour + the status name, caption size) instead of a chip - the colour must survive as configured, not map onto on/off/info/danger. Two private copies (`.ms-status`, `.md-status`) were folded into it on 2026-10-10; reference: `memberships.html`, `members.html`, `insight-drill.html`.
+- The legacy `.badge-active` / `.badge-inactive` rules and the private `.it-status` / `.tx-status` / `.ggb-standing` copies were deleted on 2026-10-09 (25 listings migrated).
+  Reference: `companies.html`, `platform-users.html`.
+- **The one exemption: a status whose colour is user data.**
+  Membership and Member statuses carry their own colour in the status master, so they render as the global **`.status-dot`** (a `.status-dot__swatch` bound to the configured colour + the status name, caption size) instead of a chip - the colour must survive as configured, not map onto on/off/info/danger.
+  Two private copies (`.ms-status`, `.md-status`) were folded into it on 2026-10-10; reference: `memberships.html`, `members.html`, `insight-drill.html`.
 
 **Master-detail: the record's actions live on the MASTER card, not in the detail.**
 For a list → children master-detail (Modules & Menus, Tax Setup), the record's own actions - **Edit**, and for soft-lifecycle records **Enable/Disable** (never a hard **Delete** where posted data may reference the record) - sit on the master card via the action-row-with-badge grid.
@@ -697,142 +666,84 @@ Don't bury the record's Edit in the detail header.
 
 **Country-scoped records show the country flag as the leading icon.**
 Where a record is tied to a country (e.g. tax schemes), render `Country.flagEmoji` as the card icon (like the module icon in Modules & Menus), resolved from the active-countries list; render nothing if unknown.
+The Countries screen itself renders the stored `Country.flagEmoji` the same way (a plain text span sized `--icon-lg`) - it no longer loads a third-party flag image, so the list never makes a cross-origin request and the glyph follows the OS emoji set like every other flag in the app (2026-10-12).
+Public Holidays composes the same emoji in its per-country subtitle and filter chips.
 
 #### Listing chrome - search on top, "New" as a bottom FAB
 
-For any non-trivial listing (more than a handful of rows), the **add** action and the
-**find** action go in fixed places, not a single top toolbar:
+For any non-trivial listing (more than a handful of rows), the **add** action and the **find** action go in fixed places, not a single top toolbar:
 
-- **Search on top (find).** Put a single search/filter field directly above the list -
-  the primary way users locate a record once scanning fails. Filter the **already-loaded
-  list client-side** (a `computed()` over the data signal) for instant results; don't
-  round-trip the server per keystroke. Match across the visible fields (title + the
-  meta values). Compose the global **`.saas-search`** block (`styles.css`): a native
-  `<input type="search" class="saas-search__input">` with an `aria-label`, a leading
-  `<span class="saas-search__icon material-icons" aria-hidden="true">search</span>` (a
-  Material glyph - the 🔍 emoji was swept out of 41 screens on 2026-10-09), and a
-  `.saas-search__clear` (✕) button shown only when there's text. It is ≥ 44px tall with a
-  ≥ 16px font (so iOS doesn't zoom on focus). Never write a per-screen `.my-search*` copy.
-- **Sort beside the search (order).** Card lists have no column headers to click, so a
-  listing that needs ordering places the shared **`<app-sort-menu>`** (`shared/sort-menu`)
-  to the RIGHT of the search field (one flex row: search flexes, sort keeps its size).
-  The trigger always shows the active field + direction ("Outstanding ↓"); the popover
-  lists the sortable fields; clicking the active field again flips the direction - the
-  grid-header double-click, relocated to one explicit control.
-  Screens pass `[options]` (`{key, label, defaultDir}` - amounts/dates default `desc`,
-  names/codes `asc`), bind `[value]`, and apply the emitted value on `(valueChange)`:
-  client-filtered lists sort inside their existing `computed()`; server-paginated lists
-  send `sort`/`dir` as query params and reload from page one (the API whitelists the
-  keys - reference: `ar-debtors` + `DEBTOR_SORTS` in `apps/api` `debtor.controller.js`).
-  Don't build a clickable fake header row above cards - the labels align with nothing,
-  wrap badly on mobile, and mislead users into expecting a table.
-- **"New" as a bottom FAB (add).** Do **not** put the create CTA in the top toolbar - on
-  a long, scrolled list a top button drifts off-screen. Use a **floating action button**
-  pinned `position: fixed` bottom-right that stays reachable at any scroll position. This
-  is the one place the bottom is for an **action** (the bottom *nav bar* stays
-  destinations-only). Give it an `aria-label` and leave it **in DOM order after the
-  list** so keyboard/screen-reader users still reach it.
+- **Search on top (find).**
+  Put a single search/filter field directly above the list - the primary way users locate a record once scanning fails.
+  Filter the **already-loaded list client-side** (a `computed()` over the data signal) for instant results; don't round-trip the server per keystroke.
+  Match across the visible fields (title + the meta values).
+  Compose the global **`.saas-search`** block (`styles.css`): a native `<input type="search" class="saas-search__input">` with an `aria-label`, a leading `<span class="saas-search__icon material-icons" aria-hidden="true">search</span>` (a Material glyph - the 🔍 emoji was swept out of 41 screens on 2026-10-09), and a `.saas-search__clear` (✕) button shown only when there's text.
+  It is ≥ 44px tall with a ≥ 16px font (so iOS doesn't zoom on focus), and the clear button is itself a 44px target whose hover disc stays 36px (`background-clip: content-box`).
+  Never write a per-screen `.my-search*` copy.
+- **Sort beside the search (order).**
+  Card lists have no column headers to click, so a listing that needs ordering places the shared **`<app-sort-menu>`** (`shared/sort-menu`) to the RIGHT of the search field (one flex row: search flexes, sort keeps its size).
+  The trigger always shows the active field + direction ("Outstanding ↓"); the popover lists the sortable fields; clicking the active field again flips the direction - the grid-header double-click, relocated to one explicit control.
+  Screens pass `[options]` (`{key, label, defaultDir}` - amounts/dates default `desc`, names/codes `asc`), bind `[value]`, and apply the emitted value on `(valueChange)`: client-filtered lists sort inside their existing `computed()`; server-paginated lists send `sort`/`dir` as query params and reload from page one (the API whitelists the keys - reference: `ar-debtors` + `DEBTOR_SORTS` in `apps/api` `debtor.controller.js`).
+  Don't build a clickable fake header row above cards - the labels align with nothing, wrap badly on mobile, and mislead users into expecting a table.
+- **"New" as a bottom FAB (add).**
+  Do **not** put the create CTA in the top toolbar - on a long, scrolled list a top button drifts off-screen.
+  Use a **floating action button** pinned `position: fixed` bottom-right that stays reachable at any scroll position.
+  This is the one place the bottom is for an **action** (the bottom *nav bar* stays destinations-only).
+  Give it an `aria-label` and leave it **in DOM order after the list** so keyboard/screen-reader users still reach it.
   - **ONE class, global: `class="btn btn--primary saas-fab"`** (standardized 2026-10-09).
-    `.saas-fab` lives in `styles.css` next to the `.btn` system, so every screen has it
-    with no import and no per-screen CSS. It composes `.btn .btn--primary` (≥ 44px
-    target, colour, focus ring), rounds to a 28px pill with a soft shadow, pins to the
-    bottom-right **of the content column** (viewport minus the shell-published
-    `--content-sidebar`, centred on the 1140px cap, falling back to the corner gutter on
-    narrow screens), sits at `z-index: 900` (above content, below the shell drawer
-    `1000` / backdrop `999` / header `1100`), and on mobile (≤ 767px) lifts clear of the
-    fixed bottom nav via `calc(var(--bottom-nav-height, 60px) + var(--space-md))`.
-    **Never write a per-screen FAB rule** (`.my-fab`) and never a bare `fab` class: this
-    section once showed a `.fab { … }` snippet to copy per screen, and four golf screens
-    shipped with `class="… fab"` and no rule at all - an inline button at the end of the
-    list instead of a FAB. The snippet is gone; the class is the standard. The only
-    screens with their own rule are the two-FAB clusters (`modules-menus` `.mm-fab-group`,
-    `tenant-users` `.user-fab-group`), which position a pair.
+    `.saas-fab` lives in `styles.css` next to the `.btn` system, so every screen has it with no import and no per-screen CSS.
+    It composes `.btn .btn--primary` (≥ 44px target, colour, focus ring), rounds to a 28px pill with a soft shadow, pins to the bottom-right **of the content column** (viewport minus the shell-published `--content-sidebar`, centred on the 1140px cap, falling back to the corner gutter on narrow screens), sits at `z-index: 900` (above content, below the shell drawer `1000` / backdrop `999` / header `1100`), and on mobile (≤ 767px) lifts clear of the fixed bottom nav via `calc(var(--bottom-nav-height, 60px) + var(--space-md))`.
+    **Never write a per-screen FAB rule** (`.my-fab`) and never a bare `fab` class: this section once showed a `.fab { … }` snippet to copy per screen, and four golf screens shipped with `class="… fab"` and no rule at all - an inline button at the end of the list instead of a FAB.
+    The snippet is gone; the class is the standard.
+    The only screens with their own rule are the two-FAB clusters (`modules-menus` `.mm-fab-group`, `tenant-users` `.user-fab-group`), which position a pair.
   - **Permission-gate it** with `*appCan="'create'"` (see "Permission-gated actions").
-  - **Master–detail screens:** place the FAB **inside the master pane**. On mobile the
-    detail pane sets the master to `display:none`, which hides the FAB's fixed descendant
-    automatically - so no "New" button floats over an edit form. No extra logic needed.
-- **Create/edit open as their own surface, never an inline form on the list.** Tapping the
-  FAB (or a row's Edit) must take the user to a surface they can't miss - **not** an inline
-  form that expands at the top of the list (on a scrolled mobile list it appears off-screen
-  and the user thinks nothing happened). Use one of:
-  - the shared **`<app-dialog>`** (`src/app/shared/dialog`) - a popup that's full-screen on
-    mobile (edge-to-edge, over header + bottom nav); overlay at `z-index: 1200` (above the
-    header). It owns the chrome (title bar, **scrollable body**, **fixed one-line footer**)
-    and the a11y (see below), so screens just project content. **Don't hand-roll a modal** -
-    reuse this. Reference: `companies.ts` (create + edit-modules + edit-details dialogs) and
-    `modules-menus.ts` (module + menu dialogs).
-    - **Desktop presentation is the `[variant]` input, and create/edit FORM dialogs use
-      `variant="drawer"` (standardized 2026-08-19)**: a full-height panel that slides in
-      from the RIGHT edge at the ONE standard width, **800px** (~350px per column for
-      two-field rows), page context dimmed but visible behind. There is deliberately **no
-      per-screen width option** - a `size` input existed briefly and was removed when the
-      user standardized on one width, so drawers never drift (the width is NOT the 1140px
-      content cap on purpose: that would hide the page behind the panel and stretch fields
-      past comfortable reading width). Mobile is unaffected - both variants render the same
-      edge-to-edge full screen. Reference: `ar-transaction-types` and the `ar-debtors`
-      Other Debtor dialog.
-    - The **default `variant="center"`** (centred card) stays for short interrupting
-      decisions and non-form content - confirmations, pickers, result reports - where a
-      slide-in drawer would feel wrong. The in-dialog discard confirmation stays centred in
-      both variants.
-    - **Rolled out app-wide 2026-08-19**: every create/edit/manage form dialog passes
-      `variant="drawer"`. The deliberate centred survivors are the decision/confirm
-      dialogs (approvals decision, Confirm void, Submit for approval, Confirm statement
-      run), the viewers (Statement view, Interest detail, the Memberships "Members"
-      list), and the preview/selection pickers (Load defaults/Copy dialogs,
-      Reconciliation) - when adding a dialog, pick by that same split.
-      Five Group Bookings dialogs (Settle group bill, Request refund, Record refund payout,
-      Record deposit, Reserve flights) contain a few fields but stay **centred on purpose**:
-      each is a show-expected-results decision whose preview line IS the point, not a record
-      form - they are the documented exception, not a precedent for other forms.
-    - **Destructive confirmations use the shared `<app-confirm-dialog>`** (`shared/confirm-dialog`,
-      standardized 2026-10-09): the screen holds `confirmAction = signal<ConfirmRequest | null>`,
-      the row action sets `{ title, message, confirmLabel, run }` (message states the concrete
-      outcome; `danger: false` for a non-destructive but consequential action such as a
-      transfer), and the template renders
-      `@if (confirmAction(); as c) { <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" /> }`.
+  - **Master-detail screens:** place the FAB **inside the master pane**.
+    On mobile the detail pane sets the master to `display:none`, which hides the FAB's fixed descendant automatically - so no "New" button floats over an edit form.
+    No extra logic needed.
+- **Create/edit open as their own surface, never an inline form on the list.**
+  Tapping the FAB (or a row's Edit) must take the user to a surface they can't miss - **not** an inline form that expands at the top of the list (on a scrolled mobile list it appears off-screen and the user thinks nothing happened).
+  Use one of:
+  - the shared **`<app-dialog>`** (`src/app/shared/dialog`) - a popup that's full-screen on mobile (edge-to-edge, over header + bottom nav); overlay at `z-index: 1200` (above the header).
+    It owns the chrome (title bar, **scrollable body**, **fixed one-line footer**) and the a11y (see below), so screens just project content.
+    **Don't hand-roll a modal** - reuse this.
+    Reference: `companies.ts` (create + edit-modules + edit-details dialogs) and `modules-menus.ts` (module + menu dialogs).
+    - **Desktop presentation is the `[variant]` input, and create/edit FORM dialogs use `variant="drawer"` (standardized 2026-08-19)**: a full-height panel that slides in from the RIGHT edge at the ONE standard width, **800px** (~350px per column for two-field rows), page context dimmed but visible behind.
+      There is deliberately **no per-screen width option** - a `size` input existed briefly and was removed when the user standardized on one width, so drawers never drift (the width is NOT the 1140px content cap on purpose: that would hide the page behind the panel and stretch fields past comfortable reading width).
+      Mobile is unaffected - both variants render the same edge-to-edge full screen.
+      Reference: `ar-transaction-types` and the `ar-debtors` Other Debtor dialog.
+    - The **default `variant="center"`** (centred card) stays for short interrupting decisions and non-form content - confirmations, pickers, result reports - where a slide-in drawer would feel wrong.
+      The in-dialog discard confirmation stays centred in both variants.
+    - **Rolled out app-wide 2026-08-19**: every create/edit/manage form dialog passes `variant="drawer"`.
+      The deliberate centred survivors are the decision/confirm dialogs (approvals decision, Confirm void, Submit for approval, Confirm statement run), the viewers (Statement view, Interest detail, the Memberships "Members" list), and the preview/selection pickers (Load defaults/Copy dialogs, Reconciliation) - when adding a dialog, pick by that same split.
+      Five Group Bookings dialogs (Settle group bill, Request refund, Record refund payout, Record deposit, Reserve flights) contain a few fields but stay **centred on purpose**: each is a show-expected-results decision whose preview line IS the point, not a record form - they are the documented exception, not a precedent for other forms.
+    - **Destructive confirmations use the shared `<app-confirm-dialog>`** (`shared/confirm-dialog`, standardized 2026-10-09): the screen holds `confirmAction = signal<ConfirmRequest | null>`, the row action sets `{ title, message, confirmLabel, run }` (message states the concrete outcome; `danger: false` for a non-destructive but consequential action such as a transfer), and the template renders `@if (confirmAction(); as c) { <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" /> }`.
       `run` closes the dialog and starts the call; the row's own busy state shows progress.
-      **Never `window.confirm()`.** A destructive action launched from INSIDE an open drawer
-      (Company SMTP "Remove server", User Management "Remove from company") confirms as a VIEW
-      of that same drawer (mode signal, swapped body + footer) - the single-dialog standard
-      forbids a second `<app-dialog>` on top (Golf Transaction Type's "Delete price" is the
-      third such view, 2026-10-10).
-      **What needs no confirm:** removing a FormArray row (nothing is saved until Save), and
-      removing a line from an OPEN bill (tee-sheet / group-bill items are re-addable from the
-      tiles while the bill is open) - the confirm is for actions that cannot be undone.
-      Every other delete / void / cancel / revoke / clear confirms (third sweep, 2026-10-10:
-      void statement, cancel interest or billing runs, cancel a statement run, delete a rate,
-      course or nine, release flights, remove roster players, clear notifications).
-  - or a **routed screen** (`/section/new`) that the mobile sliding-pane covers the list
-    with - for master–detail screens this falls out of the existing URL-state pattern.
-    Reference: `items.ts` (`/items/new`); for a tabbed screen, jump to the create tab
-    (`system-setup.ts`, FAB → `switchTab('create')`).
-  - **Footer buttons stay on one line.** Title already names the action ("New company"), so
-    the primary button is a plain **"Save"** (not "Create company") next to **"Cancel"**
-    (a dialog with no typeable field - Companies "Edit modules" tick grid, My Dashboard
-    "Manage quick access" drag list - keeps a plain button, since Enter-to-submit has no
-    field to fire from),
-    right-aligned. The global mobile rule forces `button[type="submit"]` to full width -
-    `<app-dialog>` opts out via `.dlg__footer .btn { width: auto }` (in `styles.css`) so
-    they never wrap. The Save button sits in the footer but targets the body `<form>` via
-    `form="…"`, so Enter-to-submit still works.
-  - **A11y (handled by `<app-dialog>`):** focus moves to the first field on open, is
-    **trapped** while open, **Esc** closes, and focus **returns to the trigger** on close.
+      **Never `window.confirm()`.**
+      A destructive action launched from INSIDE an open drawer (Company SMTP "Remove server", User Management "Remove from company") confirms as a VIEW of that same drawer (mode signal, swapped body + footer) - the single-dialog standard forbids a second `<app-dialog>` on top (Golf Transaction Type's "Delete price" is the third such view, 2026-10-10).
+      **What needs no confirm:** removing a FormArray row (nothing is saved until Save), and removing a line from an OPEN bill (tee-sheet / group-bill items are re-addable from the tiles while the bill is open) - the confirm is for actions that cannot be undone.
+      Every other delete / void / cancel / revoke / clear confirms (third sweep, 2026-10-10: void statement, cancel interest or billing runs, cancel a statement run, delete a rate, course or nine, release flights, remove roster players, clear notifications).
+  - or a **routed screen** (`/section/new`) that the mobile sliding-pane covers the list with - for master-detail screens this falls out of the existing URL-state pattern.
+    Reference: `items.ts` (`/items/new`).
+  - **Footer buttons stay on one line.**
+    Title already names the action ("New company"), so the primary button is a plain **"Save"** (not "Create company") next to **"Cancel"** (a dialog with no typeable field - Companies "Edit modules" tick grid, My Dashboard "Manage quick access" drag list - keeps a plain button, since Enter-to-submit has no field to fire from), right-aligned.
+    The global mobile rule forces `button[type="submit"]` to full width - `<app-dialog>` opts out via `.dlg__footer .btn { width: auto }` (in `styles.css`) so they never wrap.
+    The Save button sits in the footer but targets the body `<form>` via `form="…"`, so Enter-to-submit still works.
+  - **A11y (handled by `<app-dialog>`):** focus moves to the first field on open, is **trapped** while open, **Esc** closes, and focus **returns to the trigger** on close.
   - **Unsaved-changes guard (handled by `<app-dialog>`) - never lose a half-entered form.**
     A create/edit dialog must not be abandonable without warning once the user has typed something.
     The shared dialog owns this; each screen only opts in:
     - Bind **`[dirty]="form.dirty"`** (a reactive `FormGroup`; the form stays pristine until the user edits a field), and route the footer **Cancel** through the dialog: `(click)="dlg.requestClose()"` with a `#dlg` template ref - so Cancel passes the same guard as the ✕ and Esc.
     - Optionally set **`discardTitle`** / **`discardMessage`** for wording tailored to new-record vs edit (defaults are generic).
     - **Every** leave path is covered while the form is dirty: **Cancel / ✕ / Esc** and the **browser Back button / mobile back gesture** show a styled in-dialog "Discard changes? / Keep editing" confirmation; a **browser refresh / tab close** fires the native "Leave site?" prompt.
-    - **Keep editing** returns the cursor to the exact field the user left off in (not the first field). A **pristine** form and a **successful Save** never prompt.
+    - **Keep editing** returns the cursor to the exact field the user left off in (not the first field).
+      A **pristine** form and a **successful Save** never prompt.
     - Back is trapped by pushing a same-URL history entry when the dialog opens (the dialog is a signal-toggled modal with no URL of its own), intercepted via `popstate`, and the entry is cleaned up on close - guarded by a history-state marker so a forward navigation can't be yanked backward.
-    - Reference: `platform-users` and `companies` (`[dirty]="form.dirty"`, Cancel → `dlg.requestClose()`). This is the app-wide standard - apply it to every create/edit dialog.
-- **Two distinct empty states.** Separate "the data is empty" from "the search matched
-  nothing":
+    - Reference: `platform-users` and `companies` (`[dirty]="form.dirty"`, Cancel → `dlg.requestClose()`).
+      This is the app-wide standard - apply it to every create/edit dialog.
+- **Two distinct empty states.**
+  Separate "the data is empty" from "the search matched nothing":
   - No records at all → invite creation ("No items yet. Use 'New item'…").
-  - Records exist but the filter excludes them → `search_off` icon + **No items match
-    "{{ query }}"** + a **Clear search** button (a native `<button>`, not just clearing
-    the field), so the user has an obvious way back to the full list.
+  - Records exist but the filter excludes them → `search_off` icon + **No items match "{{ query }}"** + a **Clear search** button (a native `<button>`, not just clearing the field), so the user has an obvious way back to the full list.
 
 ```html
 <!-- after the list, inside the master pane on master-detail screens -->
@@ -852,11 +763,8 @@ readonly filtered = computed(() => {
 clearSearch() { this.search.set(''); }
 ```
 
-Reference implementation: `companies.html` (search + `saas-fab`), and `items.ts` /
-`items.html` (`filteredItems` computed, the `search_off` empty state), routed as `items`
-and `items/:id`. Empty-state icons are Material glyphs too
-(`<span class="material-icons empty-icon" aria-hidden="true">inbox</span>` for "nothing yet",
-`search_off` for "no match"); emoji there were swept out on 2026-10-09.
+Reference implementation: `companies.html` (search + `saas-fab`), and `items.ts` / `items.html` (`filteredItems` computed, the `search_off` empty state), routed as `items` and `items/:id`.
+Empty-state icons are Material glyphs too (`<span class="material-icons empty-icon" aria-hidden="true">inbox</span>` for "nothing yet", `search_off` for "no match"); emoji there were swept out on 2026-10-09.
 
 #### Content width - ONE cap for every listing screen (1140px)
 
@@ -893,8 +801,9 @@ Never hand-roll `fieldset`/`legend` groups or a per-screen `.my-section` copy - 
 #### Dialog class-picker step (create flows) - THE standard
 
 When a create dialog starts by asking the record's CLASS before showing the form (AR Transaction Type, New membership), every picker uses the shared **`.dlg-pick`** option row - global in `styles.css` - so the typography is identical across screens by construction:
-`<button class="btn btn--secondary dlg-pick">` > a leading Material icon > `<span class="dlg-pick__text"><strong>Name</strong> — consequence caption.</span>`.
-The class NAME is semibold (`<strong>`, the same weight as every button label) in `--brand-text`; the em-dash caption is regular weight in `--text-secondary`; everything is `--font-body` from `.btn`.
+`<button type="button" class="btn btn--secondary dlg-pick">` > a leading Material icon > `<span class="dlg-pick__text"><strong>Name</strong> - consequence caption.</span>`.
+The class NAME is semibold (`<strong>`, the same weight as every button label) in `--brand-text`; the caption is regular weight in `--text-secondary`; everything is `--font-body` from `.btn`.
+The separator between the name and the caption is a plain hyphen with a space on each side - never an em dash (the app-wide copy rule decided 2026-10-12; the pickers that still carry the old dash are being swept with the rest of the templates).
 Every option carries a one-line consequence caption (show-expected-results) and an icon; do NOT inline-style these buttons or ship a caption-less picker.
 Mechanics stay per the single-dialog standard: the picker is a VIEW inside the one `<app-dialog>` (mode signal + `@if`/`@switch`), the footer shows Cancel only on the picker step, the chosen class then renders in the form as a disabled input with a Change button gated on pristine forms.
 Reference implementations: `memberships.html` (Individual/Corporate) and `ar-transaction-types.html` (document classes).
@@ -911,49 +820,51 @@ References: Modules & Menus (Code in edit mode), Other Debtor ("Issued automatic
 When a form field (input / select / textarea) receives focus, the highlight sits **on the field itself** and is TWO things together: the **border turns `--brand`** (blue) AND a **soft `--focus-glow` halo** hugs that border.
 The offset `:focus-visible` outline (2px ring floating 2px OUTSIDE the border) is for **buttons, links, cards and upload tiles only** - on a field it reads as a misaligned box and is the inconsistency this standard kills.
 This is enforced by ONE global element-level rule in `styles.css` (`input:not([type='checkbox']):not([type='radio']):focus, select:focus, textarea:focus`), which covers every field wherever it lives - `.form-group` fields, search boxes, dialog rows, inline-styled inputs.
-**The halo is a BLURRED shadow, never a hard `0 0 0 Npx` spread ring** (set 2026-10-05: `box-shadow: 0 0 0 1px var(--focus-glow), 0 0 7px 2px var(--focus-glow)`). A hard-edged ring (zero blur) rasterises into a flat grey offset BOX at fractional display scaling (e.g. 125% Windows scaling) instead of a glow - that cost a long debugging round; keep the blur.
+**The halo is a BLURRED shadow, never a hard `0 0 0 Npx` spread ring** (set 2026-10-05: `box-shadow: 0 0 0 1px var(--focus-glow), 0 0 7px 2px var(--focus-glow)`).
+A hard-edged ring (zero blur) rasterises into a flat grey offset BOX at fractional display scaling (e.g. 125% Windows scaling) instead of a glow - that cost a long debugging round; keep the blur.
 Do NOT write a per-screen `:focus` rule for fields that re-copies the border/glow (they drift - three different blues were found when this was unified), and never a raw rgba glow colour - the tokens are `--focus-glow` (field halo) and `--focus-ring` (offset ring for non-fields).
-**Component-scoped field styling (grid-row editors etc.) MUST restate `border-color: var(--brand)` in its `:focus` rule.** A component rule like `.my-row input { border: 1px solid var(--border-strong) }` is Angular view-encapsulated - Angular appends `[_ngcontent]` to each simple selector, raising that base rule to specificity (0,3,1), a TIE with the global `:focus` rule that the component rule then wins on load order (component CSS loads after global). Without the restated `border-color: var(--brand)` on `:focus`, the grey base border overrides the blue focus border and the field only shows the halo. A screen may also add screen-specific *extras* on focus (e.g. golf hole-grid rows set a background), with a comment pointing at the global rule.
+**Component-scoped field styling (grid-row editors etc.) MUST restate `border-color: var(--brand)` in its `:focus` rule.**
+A component rule like `.my-row input { border: 1px solid var(--border-strong) }` is Angular view-encapsulated - Angular appends `[_ngcontent]` to each simple selector, raising that base rule to specificity (0,3,1), a TIE with the global `:focus` rule that the component rule then wins on load order (component CSS loads after global).
+Without the restated `border-color: var(--brand)` on `:focus`, the grey base border overrides the blue focus border and the field only shows the halo.
+A screen may also add screen-specific *extras* on focus (e.g. golf hole-grid rows set a background), with a comment pointing at the global rule.
 
 #### Screen wrapper padding - no double gutter on mobile
 
-The shell's `.content-area` already adds a ~16px gutter on mobile (`var(--space-md)`),
-so a screen's own top-level wrapper must **not** add a second horizontal gutter on top -
-that's the wasted empty space down both sides. On mobile, drop the wrapper's horizontal
-padding to **0** and let content (cards, lists) run edge-to-edge inside the shell gutter
-(mobile-Gmail style); keep vertical padding for breathing room. Desktop keeps the
-comfortable `var(--space-lg)` padding and the centred `max-width` column.
+The shell's `.content-area` already adds a ~16px gutter on mobile (`var(--space-md)`), so a screen's own top-level wrapper must **not** add a second horizontal gutter on top - that's the wasted empty space down both sides.
+On mobile, drop the wrapper's horizontal padding to **0** and let content (cards, lists) run edge-to-edge inside the shell gutter (mobile-Gmail style); keep vertical padding for breathing room.
+Desktop keeps the comfortable `var(--space-lg)` padding and the centred `max-width` column.
 
-Use the shared **`.screen-pad`** utility (in `styles.css`) on the wrapper, and keep
-`max-width` / `margin: 0 auto` inline for the desktop column:
+Use the shared **`.screen-pad`** utility (in `styles.css`) on the wrapper, and keep `max-width` / `margin: 0 auto` inline for the desktop column (the one 1140px cap, see "Content width"):
 
 ```html
-<section class="screen-pad" style="max-width: 900px; margin: 0 auto;"> … </section>
+<section class="screen-pad" style="max-width: 1140px; margin: 0 auto;"> … </section>
 ```
 ```css
 .screen-pad { padding: var(--space-lg); }
 @media (max-width: 767px) { .screen-pad { padding: var(--space-md) 0; } }
 ```
 
-Screens on the global `.saas-container` get the same
-`@media (max-width: 767px) { padding: var(--space-md) 0 }` from that class instead.
-Don't re-add horizontal padding on the wrapper for mobile - card/list internal padding
-already keeps text off the edge.
+Screens on the global `.saas-container` get the same `@media (max-width: 767px) { padding: var(--space-md) 0 }` from that class instead.
+Don't re-add horizontal padding on the wrapper for mobile - card/list internal padding already keeps text off the edge.
 
 #### Shell anatomy - what lives in the header vs the sidebar
 
 The shell (`dashboard.html`/`.css`) is a branded **app bar** on top, the **sidebar** below-left, and `.content-area` for the routed screen.
-The split is intentional and load-bearing: **header = global chrome (who/where), sidebar = the active module (what system), each screen's own header = what screen.** Nothing module-scoped goes in the app bar.
+The split is intentional and load-bearing: **header = global chrome (who/where), sidebar = the active module (what system), each screen's own header = what screen.**
+Nothing module-scoped goes in the app bar.
 
 **Header (app bar)** - deliberately minimal so it survives mobile widths:
 
 - Left: the hamburger (drawer / pin toggle) and the **workspace (company) switcher** - a dropdown when the user belongs to multiple companies, a static company label when single - plus the red MASTER ADMIN chip for system admins.
-- Right: user email/role, the Language quick-switch, the Apps (systems) grid, and the avatar menu (Profile / Settings / Sign out).
+- Right, in order: the user email/role block, the **notification bell** (`.notif-bell`, with the `.notif-badge` unread count on `--badge-count-surface` and a `.menu-pop` list with Mark all read / Clear all and per-row dismiss; background jobs such as statement runs alert here), the Language quick-switch (only when more than one language is available), the Apps (systems) grid, and the avatar menu (Profile / Settings / Sign out).
   Settings lives ONLY in the avatar menu - never re-add a separate header gear.
   The email/role block (`.topbar-user`) is **desktop-only** (≥ 1024px): on a tablet it does not fit beside the switcher and the icon group and overflowed the bar (fixed 2026-10-12), so the `@media (max-width: 1023px)` rule hides it and drops the divider in front of the icons; the Language label and the admin chip hide at the mobile tier (`.hide-mobile`, no `!important` - nothing hidden carries an inline display).
+  The bell stays visible at every width.
 - Every header dropdown uses the shared token-based **`.menu-pop`** system, so they follow all 3 appearance modes.
-  The bar itself stays branded (blue; red for system admins) in both themes - the one deliberate always-dark surface.
-- The **module title does NOT belong here** (moved to the sidebar 2026-07-23; it used to truncate to "SYSTEM ADM..." on phones). Don't re-add it.
+  The bar itself stays branded (`--bar-brand` blue; `--bar-admin` red for system admins, both shell-local tokens) in both themes - the one deliberate always-dark surface.
+- The **module title does NOT belong here** (moved to the sidebar 2026-07-23; it used to truncate to "SYSTEM ADM..." on phones).
+  Don't re-add it.
+- The help Book icon is NOT in the bar either: `<app-help-button>` renders inside `.content-area`, absolutely positioned top-right (`.content-help`), so it floats at the end of the screen's own title line (see "In-app help").
 
 **Sidebar** - everything module-scoped:
 
@@ -968,48 +879,36 @@ The split is intentional and load-bearing: **header = global chrome (who/where),
 
 #### App bar + mobile drawer layering (z-index & a single header height)
 
-The dashboard shell is a fixed-height **app bar (header)** on top, with a **side nav**
-that becomes an off-canvas **drawer** on mobile (toggled by the hamburger), over a
-dimmed **backdrop**. Two rules keep them from colliding - both were the cause of a
-real bug (the drawer covered the apps switcher / avatar, and dropdowns overlapped the
-header):
+The dashboard shell is a fixed-height **app bar (header)** on top, with a **side nav** that becomes an off-canvas **drawer** on mobile (toggled by the hamburger), over a dimmed **backdrop**.
+Two rules keep them from colliding - both were the cause of a real bug (the drawer covered the apps switcher / avatar, and dropdowns overlapped the header):
 
-- **The header must stack ABOVE the drawer and backdrop.** Give the app bar
-  `position: relative; z-index: <above the drawer>` (drawer is `z-index: 1000`,
-  backdrop `999`, so header is `1100`). Without a `z-index` the header is in normal
-  flow and any positioned `z-index` element (the drawer) paints over it - covering the
-  apps switcher and avatar. The drawer should slide in **under** the app bar (Material
-  "app bar over navigation drawer"), never over it.
-- **One source of truth for the header height.** Everything that must sit *below* the
-  header - the mobile drawer's `top`, the backdrop's `top`, and header dropdowns'
-  `top` (apps/workspace/avatar menus) - must offset by the **same** value. Use a CSS
-  var (`--header-height` on the shell host) and reference it everywhere; never
-  hard-code the pixel number in more than one place. The original bug was exactly this
-  drift: the header grew to 80px but dropdowns were still pinned at `top: 55px`, so
-  they overlapped the header.
+- **The header must stack ABOVE the drawer and backdrop.**
+  Give the app bar `position: relative; z-index: <above the drawer>` (drawer is `z-index: 1000`, backdrop `999`, so header is `1100`).
+  Without a `z-index` the header is in normal flow and any positioned `z-index` element (the drawer) paints over it - covering the apps switcher and avatar.
+  The drawer should slide in **under** the app bar (Material "app bar over navigation drawer"), never over it.
+- **One source of truth for the header height.**
+  Everything that must sit *below* the header - the mobile drawer's `top`, the backdrop's `top`, and header dropdowns' `top` (apps/workspace/avatar menus) - must offset by the **same** value.
+  Use a CSS var (`--header-height` on the shell host) and reference it everywhere; never hard-code the pixel number in more than one place.
+  The original bug was exactly this drift: the header grew to 80px but dropdowns were still pinned at `top: 55px`, so they overlapped the header.
 
-Reference implementation: `dashboard.css` - `:host { --header-height }`,
-`.google-topbar { height: var(--header-height); z-index: 1100 }`, and the mobile
-`.sidebar` / `.sidebar-backdrop` / header dropdowns all offset by `var(--header-height)`.
+Reference implementation: `dashboard.css` - `:host { --header-height }`, `.google-topbar { height: var(--header-height); z-index: 1100 }`, and the mobile `.sidebar` / `.sidebar-backdrop` / header dropdowns all offset by `var(--header-height)`.
 
 #### Frontend access model (route guards)
 
 Access is enforced in **three layers** - and the backend is the only authoritative one:
 
-1. **UI (discovery):** the sidebar + apps switcher are **menu-driven** - built only from
-   the user's granted menus - so users don't *see* systems they can't access.
-2. **Route guard (UX/route safety):** stops a user **URL-hopping** into a system/area
-   they lack (the UI hiding it isn't enough on its own).
-3. **Backend (authoritative):** every data endpoint enforces it server-side -
-   `requireModule('<Module>')` (entitlement) + RBAC (role→menu). Frontend guards are
-   **never** the real protection; they're for UX. A new data endpoint MUST enforce here.
+1. **UI (discovery):** the sidebar + apps switcher are **menu-driven** - built only from the user's granted menus - so users don't *see* systems they can't access.
+2. **Route guard (UX/route safety):** stops a user **URL-hopping** into a system/area they lack (the UI hiding it isn't enough on its own).
+3. **Backend (authoritative):** every data endpoint enforces it server-side - `requireModule('<Module>')` (entitlement) + RBAC (role→menu).
+   Frontend guards are **never** the real protection; they're for UX.
+   A new data endpoint MUST enforce here.
 
-**Auth gate.** The shell is behind `authGuard`, which requires a token that is present
-**and not expired** (it decodes `exp`). HTTP `401`s are also caught by the auth
-interceptor, which clears storage and redirects to `/login`.
+**Auth gate.**
+The shell is behind `authGuard`, which requires a token that is present **and not expired** (it decodes `exp`).
+HTTP `401`s are also caught by the auth interceptor, which clears storage and redirects to `/login`.
 
-**Guarding a new system route.** Opt a route into per-system access with route `data`
-+ the shared guard - never re-implement the check inline:
+**Guarding a new system route.**
+Opt a route into per-system access with route `data` + the shared guard - never re-implement the check inline:
 
 ```ts
 { path: 'golf', component: GolfComponent,
@@ -1017,52 +916,33 @@ interceptor, which clears storage and redirects to `/login`.
   data: { moduleCode: 'GOLF' } }   // the frozen Module.code, never the display name
 ```
 
-`AccessService.canAccessModule(code)` decides: a user can access a module if its
-code is on their granted menus (`MenuItem.moduleCode`; a legacy pre-code cache
-falls back through a name→code map until the next login), plus `TENANT_ADMIN`
-for a Tenant/System Admin and `PLATFORM_ADMIN` for a System Admin. On denial the
-guard redirects to `/access-denied` (`AccessDeniedComponent`, rendered inside the
-shell, "Back to dashboard" returns to the user's own system). Routes that
-everyone may see (`/home`, `/profile`, `/settings`) carry no `moduleCode` and no
-guard.
+`AccessService.canAccessModule(code)` decides: a user can access a module if its code is on their granted menus (`MenuItem.moduleCode`; a legacy pre-code cache falls back through a name→code map until the next login), plus `TENANT_ADMIN` for a Tenant/System Admin and `PLATFORM_ADMIN` for a System Admin.
+On denial the guard redirects to `/access-denied` (`AccessDeniedComponent`, rendered inside the shell, "Back to dashboard" returns to the user's own system).
+Routes that everyone may see (`/home`, `/profile`, `/settings`, `/approvals`) carry no `moduleCode` and no guard; they carry a `data.title` instead (see "Screen header title/subtitle").
 
-Reference: `access.service.ts`, `access.guard.ts`, `access-denied/`, `auth.guard.ts`,
-and the `data.moduleCode` + `canActivate: [systemAccessGuard]` entries in `main.ts`.
+Reference: `access.service.ts`, `access.guard.ts`, `access-denied/`, `auth.guard.ts`, and the `data.moduleCode` + `canActivate: [systemAccessGuard]` entries in `main.ts`.
 
 #### Workspace selection & last-accessed memory
 
-A user can belong to **multiple companies** (`CompanyUser` rows; the System
-Administration workspace is the `companyId = null` membership, surfaced to the UI as the
-`'SYSTEM'` sentinel). Login resolves which workspace to enter:
+A user can belong to **multiple companies** (`CompanyUser` rows; the System Administration workspace is the `companyId = null` membership, surfaced to the UI as the `'SYSTEM'` sentinel).
+Login resolves which workspace to enter:
 
 - **0 memberships →** `403` (no workspace).
 - **exactly 1 →** logged straight in (no picker).
-- **multiple →** historically a `206` with the club list, shown as the selection page on
-  **every** login. That friction is removed by remembering the **last-accessed
-  workspace** (the single authoritative source of "where do I land"):
-  - The backend stores it on the user - **`User.lastWorkspaceId`** (a `companyId`, or the
-    `'SYSTEM'` sentinel; `null` = never chosen). It's written whenever the user enters a
-    workspace: email login, Google login, and **switch-workspace**.
-  - On a multi-company login with no explicit choice, if `lastWorkspaceId` is **still a
-    valid membership**, the backend resolves it and returns `200` (skips the picker). If
-    it's unset or was **revoked**, it's no longer in the membership set, so login falls
-    through to the `206` picker once and re-remembers whatever they pick. The membership
-    re-check is what makes the revoke case "just work" - no separate default to maintain.
-- **Why backend, not localStorage:** it survives the `localStorage.clear()` the auth
-  interceptor does on `401`, works across devices/browsers, and is validated server-side.
+- **multiple →** historically a `206` with the club list, shown as the selection page on **every** login.
+  That friction is removed by remembering the **last-accessed workspace** (the single authoritative source of "where do I land"):
+  - The backend stores it on the user - **`User.lastWorkspaceId`** (a `companyId`, or the `'SYSTEM'` sentinel; `null` = never chosen).
+    It's written whenever the user enters a workspace: email login, Google login, and **switch-workspace**.
+  - On a multi-company login with no explicit choice, if `lastWorkspaceId` is **still a valid membership**, the backend resolves it and returns `200` (skips the picker).
+    If it's unset or was **revoked**, it's no longer in the membership set, so login falls through to the `206` picker once and re-remembers whatever they pick.
+    The membership re-check is what makes the revoke case "just work" - no separate default to maintain.
+- **Why backend, not localStorage:** it survives the `localStorage.clear()` the auth interceptor does on `401`, works across devices/browsers, and is validated server-side.
 
-**Frontend.** The login flow already branches on `200` vs `206`, so the happy path needs
-no change - resumed users sail through. The dashboard header shows the **active company**:
-a **switcher dropdown** when `workspaces().length > 1`, and a **static company label**
-(icon + name, no dropdown) for single-company users so they always see which company
-they're in. The persistent workspace switcher (`/auth/workspaces` + `/auth/switch-workspace`)
-lets multi-company users change company any time; doing so updates the remembered "home".
+**Frontend.**
+The login flow already branches on `200` vs `206`, so the happy path needs no change - resumed users sail through.
+The dashboard header shows the **active company**: a **switcher dropdown** when `workspaces().length > 1`, and a **static company label** (icon + name, no dropdown) for single-company users so they always see which company they're in.
+The persistent workspace switcher (`/auth/workspaces` + `/auth/switch-workspace`) lets multi-company users change company any time; doing so updates the remembered "home".
 
-> Existing multi-company users have `lastWorkspaceId = null` until their **first login
-> after this shipped**, so they see the picker once more, then it sticks.
+> Existing multi-company users have `lastWorkspaceId = null` until their **first login after this shipped**, so they see the picker once more, then it sticks.
 
-Reference: `auth.controller.js` (`rememberLastWorkspace`, `buildResumeLogin`, login /
-google login Scenario B & C, `switchWorkspace`), `user.model.js` (`lastWorkspaceId`),
-and `dashboard.html` / `dashboard.ts` (`.workspace-switcher`, `.workspace-label`,
-`activeCompanyName`).
-
+Reference: `auth.controller.js` (`rememberLastWorkspace`, `buildResumeLogin`, login / google login Scenario B & C, `switchWorkspace`), `user.model.js` (`lastWorkspaceId`), and `dashboard.html` / `dashboard.ts` (the `.workspace-switcher` block whose `.ws-trigger` is the dropdown button, the single-company label as `.ws-trigger.ws-trigger--static`, and `activeCompanyName`).
