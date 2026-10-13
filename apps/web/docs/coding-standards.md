@@ -113,10 +113,17 @@ This supersedes any earlier note that suggested Signal Forms for login/registrat
 
 ## State Management
 
-- Use signals for local component state
-- Use `computed()` for derived state
-- Keep state transformations pure and predictable
-- Do NOT use `mutate` on signals, use `update` or `set` instead
+- **Signals are the ONE state model, in components AND services (standard since 2026-10-13).**
+  Every piece of state a template or another class reads is a `signal`, a `computed` or a `linkedSignal`; a service exposes state as read-only signals (`asReadonly()`) and mutates it through methods.
+- Never introduce a `Subject`, `BehaviorSubject` or `ReplaySubject` for state, and never expose an `Observable` of state from a service.
+  The app has zero of them; a pull request that adds one is drift.
+- RxJS is allowed only where Angular itself speaks it: `HttpClient` observables, reactive-form `valueChanges`, and `Router.events`.
+  Convert such a stream to a signal at the first opportunity: `subscribe` once and `set` a signal in the callback, or wrap it with `toSignal` when the stream is long-lived.
+- A debounced search composes `onDebounced(source, ms, run)` from `shared/debounce.ts`; a derived value is a `computed`, a side effect of state is an `effect`, never a manual subscription chain.
+- Use `computed()` for derived state and keep state transformations pure and predictable.
+- Do NOT use `mutate` on signals, use `update` or `set` instead.
+- Component contracts use the signal APIs (`input()`, `input.required()`, `output()`, `model()`, `viewChild()`), never the `@Input` / `@Output` / `@ViewChild` decorators.
+- Not yet adopted, by decision: `httpResource` (experimental on Angular 21) and Signal Forms stay out of production screens until they are stable; the HTTP `subscribe` and `valueChanges` sites are the sanctioned exceptions above, not a backlog.
 
 ## Templates
 

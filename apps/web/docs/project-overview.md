@@ -26,7 +26,7 @@
   It only moves to real, compatible releases, so the count drops as the Angular team ships patched builds.
 
 ## 📐 Coding Guidelines & Architecture
-- **State Management:** Use Angular Signals for component state.
+- **State Management:** Angular Signals are the one state model for component AND service state; see coding-standards.md -> "State Management" for the rule and the RxJS boundary exceptions.
   The dedicated `AuthService` (`src/app/auth.service.ts`) exposes the HTTP calls, owns the token and profile storage, and publishes the avatar and full name as read-only signals (`avatar()`, `fullName()`); the shell mirrors them with effects.
   No `Subject` or `BehaviorSubject` remains in the app (2026-10-13): component and service state is signals, and RxJS appears only where Angular itself speaks it (HttpClient observables, form `valueChanges`, router events).
   A debounced search composes `onDebounced(source, ms, run)` from `shared/debounce.ts` (an effect plus a cleaned-up timer that skips the initial value) rather than a `Subject` with `debounceTime`.
