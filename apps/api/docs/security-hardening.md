@@ -51,7 +51,7 @@ Implementation lives in `src/modules/identity` (auth.controller.js, mfa.service.
 
 ## Cloud configuration hardening (2026-07-28)
 
-- **All secrets in Secret Manager**: `DATABASE_URL`, `GOOGLE_CLIENT_SECRET`, `MFA_ENCRYPTION_KEY`, `EMAIL_PASS`, `SMTP_ENCRYPTION_KEY` and the JWT keys are secret-backed env vars on login-api and the worker; no plaintext secrets remain in service config.
+- **All secrets in Secret Manager**: `DATABASE_URL`, `GOOGLE_CLIENT_SECRET`, `MFA_ENCRYPTION_KEY`, `EMAIL_PASS`, `SMTP_ENCRYPTION_KEY` and the JWT keys are secret-backed env vars on `platform-api` and `platform-api-outboxworker` (the `login-*` services were decommissioned 2026-08-01); no plaintext secrets remain in service config.
   The dead `JWT_SECRET` was removed, and the worker's missing `SMTP_ENCRYPTION_KEY` (a live per-company-SMTP bug) was fixed in the same pass.
 - **Worker ingress is internal** (it serves no external traffic; health probes bypass ingress).
 - **Container vulnerability scanning** enabled on Artifact Registry (Container Scanning API) - pushed images are scanned automatically.
@@ -66,11 +66,11 @@ Implementation lives in `src/modules/identity` (auth.controller.js, mfa.service.
   It parses the request part, rejects with `400 { message, details }` (first issue in `message`, raw payload never echoed), and REPLACES the part with the parsed result - trimmed, typed, unknown keys stripped - so controllers and Sequelize only ever see the declared shape.
 - **Rules of the layer**: Zod only at system boundaries; no internal function wrapping; validate once, trust afterward.
   Angular form validators remain UX-only; DB constraints remain the final integrity net.
-- **Coverage**: the full unauthenticated auth surface (`auth.schemas.js` - register/login/forgot/reset/verify/lead/activate/SSO/MFA/onboarding), the session-holder password+MFA endpoints, and the public portal registration endpoints (`membership/portal.schemas.js`).
-  The portal endpoints also gained the rate limiters the standing rule requires.
-- **Body cap**: `express.json({ limit: '100kb' })` is now explicit in `app.js`; uploads go through multer with their own limits.
+- **Coverage (as of 2026-10-12)**: the full unauthenticated auth surface (`auth.schemas.js` - register/login/forgot/reset/verify/lead/activate/SSO/MFA/onboarding), the session-holder password+MFA endpoints, the public portal registration endpoints (`membership/portal.schemas.js`, which also gained the rate limiters the standing rule requires), and EVERY product-module route that reads a request part: Membership (15 schema files), Golf (18), AR (4: `arDocument`, `debtor`, `transactionType`, `arPeriodic`; exchange rates validate inside their controller), Tax (`tax.schemas.js`), Workflow (`workflow.schemas.js`) and Dimension (validators exported from its controller), plus the `/api/admin` e-Invoice reference routes.
+  Each schema lists exactly the keys its controller reads (an unlisted key is silently stripped), ids are UUIDs where the model says so, and array bounds sit above the controllers' own ceilings so their friendlier messages still fire.
+- **Body cap**: `express.json({ limit: '100kb' })` is explicit in `app.js`; uploads go through multer with their own limits.
 - **Standing rule**: every NEW endpoint that reads a body/query/params mounts `validate()` with a schema, exactly like the rate-limiter rule above.
-  Remaining rollout (top-down by sensitivity): admin/tenant CRUD bodies, then product-module endpoints.
+  The rollout completed on 2026-10-12: the identity-hosted tenant-admin routes (`/api/auth/company/*`, `/account/*`, `/companies/*`), the `/api/admin` routes, the shared numbering router (`platform/numberingController.js`) and the `/api/notifications` id routes all mount it; the only bare routes left read no request part or take a multipart upload bounded by multer.
 
 ## Parked (deliberate, with triggers)
 

@@ -1,78 +1,89 @@
 # Membership Management
 
-> Status: PLANNED (stub at `src/modules/membership`, gateway seam `/api/membership`
-> reserved). Tier: **Product (core system)**. Fill in as it is built.
+> Status: LIVE (`src/modules/membership`, gateway seam `/api/membership`, own `membership` Postgres schema).
+> Tier: **Product (core system)**.
+> 19 Sequelize models, 16 route files, 15 `*.schemas.js` files.
 
 ## Purpose
-Manage club members: member records, categories/tiers, dues/billing, status
-(active/suspended/expired), dependents, cards. Likely the **identity anchor for the
-other product systems** - Golf and Facility reference a member.
+
+Manage club members: membership contracts, member persons, categories/tiers, dues/billing, status, dependents, sales agents, legacy import.
+The **identity anchor for the other product systems** - Golf and AR reference a member or membership by UUID and read it through `platform/membershipGateway.js`.
 
 ### Target market (direction, 2026-07-14)
-The legacy source system targeted golf clubs; this SaaS deliberately targets ANY
-membership-run business: fitness centers, facility-only clubs, loyalty/rewards
-programs, and golf clubs alike.
-Design rule that follows: **Membership owns the generic lifecycle** (member,
-status, type, fees, billing); **each product module owns what a membership
-entitles you to in that product** (golf rights belong to Golf, court booking to
-Facility, points rules to a future Loyalty module) - attached by
-`membershipTypeId` value reference, shown only when the company subscribes to
-that module.
-Known legacy leak to unwind when a second product needs type-level privileges:
-`MembershipType.isGolfAllow` / `dependentGolfingAllow` / `playTimes` /
-`guestQuota` (2026-09-28: golf guests per booking, NULL = no limit, 0 = none;
-member-as-guest lines count; user chose the Membership Type master as its home,
-enforced at golf booking save via `membershipGateway.getGolfMemberStanding`) are
-golf-specific and should migrate to a golf-side privileges table at that point.
-Triage every remaining SRS item through this lens (e.g. play times -> golf;
-vehicle passes and articles/newsletters -> generic).
 
-### Member self-service portal (direction, 2026-07-14)
-Members themselves log in to the system - for payments, bookings and other
-self-service activities - not only staff.
-Design constraints that follow (bake in when the Member master is built):
-- **One identity, two surfaces:** members authenticate through the SAME Identity
-  service (User table, SSO, reset, invitations); `Member.userId` is a nullable
-  UUID link (no FK - identity seam). One User may map to many Member rows
-  (multi-company, even multi-subscriber), like staff via CompanyUser.
-- **Login branches after auth:** staff memberships (CompanyUser) -> admin shell;
-  member links (Member.userId) -> a member PORTAL surface (own routes, e.g.
-  `/portal/*`); a user who is both gets a choice.
-- **Member authorization is NOT staff RBAC:** no roles/menus for members. Member
-  endpoints sit behind a member-context guard (JWT claim "acting as member X of
-  company Y") that staff middlewares reject and vice versa - a member token must
-  be unusable on `/api/admin/*` by construction.
-- **Runtime policy = master files:** the member's Membership Status controls
-  gate transacting in the portal (`actionControl` for registration/booking,
-  `chargeControl` for charge-to-account); the Membership Type's product
-  privileges gate which activities (golf booking vs facility etc.).
-- Onboarding: "send portal invitation" reuses the existing invitation +
-  setup-password machinery. Members outnumber staff 10-100x; keep portal
-  endpoints read-lean.
+The legacy source system targeted golf clubs; this SaaS deliberately targets ANY membership-run business: fitness centers, facility-only clubs, loyalty/rewards programs, and golf clubs alike.
+Design rule that follows: **Membership owns the generic lifecycle** (member, status, type, fees, billing); **each product module owns what a membership entitles you to in that product** (golf rights belong to Golf, court booking to Facility, points rules to a future Loyalty module) - attached by `membershipTypeId` value reference, shown only when the company subscribes to that module.
+Known legacy leak to unwind when a second product needs type-level privileges: `MembershipType.isGolfAllow` / `dependentGolfingAllow` / `playTimes` / `guestQuota` (2026-09-28: golf guests per booking, NULL = no limit, 0 = none; member-as-guest lines count; user chose the Membership Type master as its home, enforced at golf booking save via `membershipGateway.getGolfMemberStanding`) are golf-specific and should migrate to a golf-side privileges table at that point.
+Triage every remaining SRS item through this lens (e.g. play times -> golf; vehicle passes and articles/newsletters -> generic).
+
+### Member self-service portal (direction, 2026-07-14; Phase 0 built)
+
+Members themselves log in to the system - for payments, bookings and other self-service activities - not only staff.
+Design constraints:
+- **One identity, two surfaces:** members authenticate through the SAME Identity service (User table, SSO, reset, invitations); `Member.userId` is a nullable UUID link (no FK - identity seam), LIVE since the portal registration shipped.
+  One User may map to many Member rows (multi-company, even multi-subscriber), like staff via CompanyUser.
+- **Login branches after auth:** staff memberships (CompanyUser) -> admin shell; member links (Member.userId) -> the member PORTAL surface (`/portal/*`); a user who is both gets a choice.
+- **Member authorization is NOT staff RBAC:** no roles/menus for members.
+  TODAY there is no dedicated member-context guard: the portal endpoints are mounted BEFORE the staff auth wall and `/portal/me` carries plain `verifyToken` only (the member's User holds no workspace, so `requireModule` / `requireMenuAction` never apply, and `/api/admin/*` rejects a workspace-less token at `isPlatformUser`).
+  A JWT claim "acting as member X of company Y" remains the target design for member-facing transactional endpoints.
+- **Runtime policy = master files:** the member's Membership Status controls gate transacting in the portal (`actionControl` for registration/booking, `chargeControl` for charge-to-account); the Membership Type's product privileges gate which activities (golf booking vs facility etc.).
+- Onboarding: the welcome email's portal registration link (below).
+  Members outnumber staff 10-100x; keep portal endpoints read-lean.
 
 ## Owns (data)
-- Master files: `MembershipStatus`, `MembershipFee` (+ `MembershipFeeScheme`), `MembershipType` (+ `MembershipTypeFee`, `MembershipTypeStandingCharge`).
-- CRM core (SRS 2.3 Phase 1): `Membership` (the contract/seat) and `Member` (the person - individual / nominee / dependent). See "Built: Membership / Member CRM" below.
-- References `userId` and `companyId` by **UUID only** (no FK into Identity/Control
-  Plane). A member may or may not map to a login `User` (`Member.userId`, the future portal link).
 
-## Public API (gateway seam: `/api/membership`) - fill in
-- e.g. `GET/POST /members`, `/members/:id`, `/tiers`, `/members/:id/billing`…
+Every table lives in the `membership` schema; `companyId`, `userId` and the subscriber reference codes are UUID / value references (no cross-service FK); intra-service parent-child links are real FKs.
+
+- Master files: `MembershipStatus`, `MembershipFee` (+ `MembershipFeeScheme`), `MembershipType` (+ `MembershipTypeFee`, `MembershipTypeStandingCharge`).
+- CRM core: `Membership` (the contract/seat), `Member` (the person - individual / nominee / dependent), `Address` (the typed address book, owner = exactly one of `membershipId` | `memberId` | `salesAgencyId`).
+- Sales: `SalesAgency`, `SalesAgent`.
+- Settings: `MembershipSetting` (Club Specification singleton), `NumberingScheme` (the `membership` purpose; shared shape from `platform/numberingSchemeDef.js`).
+- Billing: `BillingSchedule`, `BillingScheduleItem` (the fee runs that post into AR).
+- Import staging: `MembershipImportBatch`, `MembershipImportRow`, `MembershipTypeImportBatch`, `MembershipTypeImportRow`.
+- NOT owned any more: the Transaction Type master moved to AR on 2026-08-15 (`ar.TransactionType`; the old `membership."TransactionType"` table was dropped by the boot migration).
+
+## Public API (gateway seam: `/api/membership`)
+
+`GET /health` is unauthenticated; `/portal/*` and `/agent-portal/*` are mounted BEFORE the staff auth wall; everything else sits behind `verifyToken` + `requireModule('MEMBERSHIP')` (the frozen `Module.code`, never the display name) and a per-screen `requireMenuAction`.
+Every route that reads a request part mounts `validate()` with a schema from the `*.schemas.js` file beside its controller (15 files: `membership`, `member`, `membershipStatus`, `membershipFee`, `membershipType`, `membershipSetting`, `membershipTax`, `membershipImport`, `membershipTypeImport`, `salesAgency`, `salesAgent`, `transactionType`, `billing`, `dashboard`, `portal`); upload routes validate after multer.
+
+- `/settings` ('/membership/settings'): `GET /`, `PUT /`, `PUT /numbering`, `GET /numbering/preview`.
+- `/dashboard` (per-endpoint, see Business Insights): `GET /meta`, `/summary`, `/movement`, `/breakdown`, `/agents`, `/drill`.
+- `/numbering-schemes` ('/membership/numbering'): the shared `platform/numberingController.js` factory over `membership.NumberingScheme` with `MEMBERSHIP_NUMBERING_PURPOSES` (`membership`) - `GET /meta`, `GET /`, `POST /`, `PATCH /:id`, `POST /preview`, `GET /copy-sources[/:companyId]`, `POST /copy`.
+- `/statuses` ('/membership/statuses'): `GET /meta`, `GET /copy-sources`, `POST /copy`, `GET /`, `POST /`, `PATCH /:id`.
+- `/fees` ('/membership/fees'): `GET /meta`, `GET /tax-schemes`, `GET /transaction-types`, `GET /`, `POST /`, `PUT /:id`, `PATCH /:id`.
+- `/types` ('/membership/types'): `GET /meta`, `GET /currencies`, `GET /transaction-types`, `GET /`, `POST /`, `PUT /:id`, `PATCH /:id`, `PUT /:id/additional-fees`, `PUT /:id/standing-charges`.
+- `/transaction-types` ('/membership/transaction-types'): `GET /` only (the AR catalog filtered to membership-usable entries); every other method answers `410` pointing at `/ar/transaction-types`.
+- `/sales-agencies` ('/membership/sales-agencies'): `GET /`, `POST /`, `PUT /:id`, `PATCH /:id`.
+- `/sales-agents` ('/membership/sales-agents'): `GET /meta`, `GET /`, `POST /`, `POST /:id/invite`, `PUT /:id`, `PATCH /:id`.
+- `/imports` ('/membership/import') and `/type-imports` ('/membership/type-import'): `GET /template`, `GET /`, `GET /:id`, `POST /` (multipart `file`), `POST /:id/migrate`, `DELETE /:id`.
+- `/memberships` ('/membership/memberships'): `GET /meta`, `GET /options`, `POST /photo`, `GET /`, `POST /`, `GET /:id`, `PUT /:id`, `GET /:id/ar-credit[?memberId=]`, `GET /:id/members/suggest-no`, `POST /:id/members`, `POST /:id/members/:memberId/dependents`, `PUT /:id/members/:memberId`.
+- `/members` ('/membership/members'): `GET /meta`, `GET /`.
+- `/tax` (module gate only): `GET /schemes`, `GET /schemes/:code`, `POST /quote` - reads through `platform/taxGateway.js`.
+- Billing ('/membership/billing'): `POST /billing-schedules` (generate), `GET /billing-schedules`, `GET /billing-schedules/:id`, `POST /billing-schedules/:id/post`, `POST /billing-schedules/:id/cancel`, `PATCH /billing-schedule-items/:id` (skip / restore).
+- `POST /debtor-backfill` (`requireAnyMenuAction(['/ar/debtors'])` - an AR operations task).
+- `/portal` (public + `verifyToken` on `/me`): `GET /register/context`, `POST /register`, `GET /me`.
+- `/agent-portal` (same shape): `GET /register/context`, `POST /register`, `GET /me`.
+- Anything else answers `501`.
 
 ## Depends on
-- Identity (JWT verify) · Control Plane (`requireModule('Membership Management')`,
-  roles/permissions).
-- Notification (outbox): `MemberCreated`, `MembershipRenewed`, `MembershipExpired`.
+
+- Identity (JWT verify; `platform/identityGateway.js` for portal user provisioning + the 24h login token).
+- Control Plane (`requireModule('MEMBERSHIP')`, menus and roles, `serviceContext.listSubscriptionCompanies` / `listAccountCurrencies` / `getActiveCompany`, the subscriber reference codes).
+- Tax (`platform/taxGateway.js`: `listCompanyTaxSchemes` for pickers, `quoteTax` in the billing run).
+- AR (`platform/arGateway.js`: `enqueueDebtorProvisioning`, `enqueueCreditLimitSync`, `getCreditStanding`, `listTransactionTypes` / `getTransactionType`, `isMembershipIntegrationEnabled`, `postCharge` from the billing run).
+- Numbering (`platform/numberingGateway.js`: `issueNumber` inside the creation transaction, `getMode`, `getScheme` / `saveScheme` / `previewScheme` for Club Specification).
+- Notification (outbox, all as `EmailQueued`): `membership.welcome`, `sales-agent.invite`.
+- Outbox events produced: `DebtorProvisionRequested` and `DebtorCreditLimitSyncRequested` (through `arGateway`, from `arProvisioning.js`).
+  There are no `MemberCreated` / `MembershipRenewed` / `MembershipExpired` events.
+- Workflow: the `membership-application` purpose exists in `workflow.constants.js` and `Membership.approvalStatus` is always `approved` today, but no submit flow calls `workflowGateway` and no handler is registered.
 
 ## Consumed by
-- **Golf** and **Facility** (resolve/validate a member, check standing) - via this
-  service's HTTP API (`internalServiceUrl('membership')`), not shared tables.
 
-## Auth & entitlements
-- Valid JWT + active company subscribed to the **Membership Management** module.
-
-## Migration status
-- [ ] Models · [ ] Routes/controllers · [ ] Events · [ ] Own DB · [ ] Own deploy
+The seam is `platform/membershipGateway.js` - nine exports, all in-process reads keyed by `companyId`: `lookupPartyDisplay`, `searchPartyIds`, `getChargeTarget`, `countTransactionTypeReferences`, `listDebtorPersons`, `lookupPartyBilling`, `classifyParties`, `listMembershipTypes`, `getGolfMemberStanding`.
+- **Account Receivable**: party display + search for the Debtor Listing, billing names/addresses and classification for statements, the incurred-by person list, the catalog reference guard.
+- **Golf**: `getGolfMemberStanding` (identity, effective type with `isGolfAllow` / `guestQuota`, `actionControl` / `chargeControl`, gender, birth date, nationality, junior flag + principal) at booking, registration and billing; `getChargeTarget` for charge-to-account; `listMembershipTypes` for the Golf Specification override picker.
+- Facility: not built; will use the same seam.
 
 ## Source specification (legacy system)
 
@@ -80,15 +91,20 @@ The master files and functions below derive from the 2007 Mission Hills SRS: `MH
 Full module inventory from that spec (§ numbers are the spec's):
 
 **§2.1 Master File Setup (主文件设置)** - 17 files:
-system master (2.1.1, global params/default codes - maps to a per-company Membership Settings singleton here; phase 1 BUILT 2026-07-20 as **Club Specification** - see "Built: Club Specification" below), member status (2.1.2, BUILT #1), membership fee (2.1.3, BUILT #2), membership type (2.1.4, BUILT #3), industry type (2.1.5, = our #4), article/club-magazine master (2.1.6), misc-attribute definitions (2.1.7, user-defined fields), hobby (2.1.8), title (2.1.9, BUILT - subscriber-level `Title` with optional country binding; `/admin/titles`, `GET /api/titles`), nationality (2.1.10, = our #6; deliberately NOT country-linked), country (2.1.11, superseded by the platform Country table), race (2.1.12, = our #7), document-numbering control (2.1.13, 凭证控制 - candidate shared capability), survey questionnaire (2.1.14) + survey form (2.1.15), special identity (2.1.16), name format (2.1.17). Salutation (our #5) appears as a field of name format / member profile, not its own file in the spec.
+system master (2.1.1, global params/default codes - maps to a per-company Membership Settings singleton here; phase 1 BUILT 2026-07-20 as **Club Specification** - see "Built: Club Specification" below), member status (2.1.2, BUILT #1), membership fee (2.1.3, BUILT #2), membership type (2.1.4, BUILT #3), industry type (2.1.5, = our #4), article/club-magazine master (2.1.6), misc-attribute definitions (2.1.7, user-defined fields), hobby (2.1.8), title (2.1.9, BUILT - subscriber-level `Title` with optional country binding; `/admin/titles`, `GET /api/titles`), nationality (2.1.10, = our #6; deliberately NOT country-linked), country (2.1.11, superseded by the platform Country table), race (2.1.12, = our #7), document-numbering control (2.1.13, 凭证控制 - built as the per-module Numbering Control), survey questionnaire (2.1.14) + survey form (2.1.15), special identity (2.1.16), name format (2.1.17).
+Salutation (our #5) appears as a field of name format / member profile, not its own file in the spec.
 
 **§2.2 Sales Management (销售管理):** agent type + salesperson maintenance (phase 1 BUILT 2026-07-20 as SalesAgency + SalesAgent with fixed agentKind - see "Built: Sales Agent module" below); income scale, fee scale (commission - needs AR), market source, sales location masters; prospect management (personal + corporate) with follow-up expiry/warning, sales history, remarks; member follow-up (salesperson) transfer - all still pending.
 
 ### Club types (user domain context, 2026-07-20)
 
 Two admission models exist; both are configuration of ONE product, never separate products:
-- **Committee club** (Royal Selangor GC, Royal Lake Club): proposal -> interview -> provision -> full member, with Proposer AND Seconder vouching; a temporary "Committee membership" type held only while serving a committee position. Maps to the `approvalStatus` workflow seam + provisional statuses + Phase 3 category conversion. No sales agents. (Gap noted: we carry `proposer` but no `seconder` yet - committee-club track.)
-- **Commercial club** (KLGCC, Tropicana, fitness clubs): pay-to-join; **Sales Agents** are the acquisition channel - §2.2 is their feature. Proposer/Seconder unused.
+- **Committee club** (Royal Selangor GC, Royal Lake Club): proposal -> interview -> provision -> full member, with Proposer AND Seconder vouching; a temporary "Committee membership" type held only while serving a committee position.
+  Maps to the `approvalStatus` workflow seam + provisional statuses + the category conversion function.
+  No sales agents.
+  (Gap noted: we carry `proposer` but no `seconder` yet - committee-club track.)
+- **Commercial club** (KLGCC, Tropicana, fitness clubs): pay-to-join; **Sales Agents** are the acquisition channel - §2.2 is their feature.
+  Proposer/Seconder unused.
 
 ### Built: Sales Agent module (§2.2 phase 1, 2026-07-20)
 
@@ -98,9 +114,11 @@ Three-tier sales channel (user's model, for fitness/commercial clubs): **Sales A
   The agency's OFFICE ADDRESS (2026-07-20) is a `membership."Address"` row via the table's third owner column `salesAgencyId` (type 'company', one per agency, replace-set on save, cascades with the agency; an empty street line removes it).
   The dialog groups **Agency** (code/name/registration + address - the address belongs to the AGENCY, per the user, never under Contact) and **Contact** (person/email/phone/mobile) as collapsible sections.
 - `membership."SalesAgent"` - ONE table for every salesperson: id, companyId, agentCode (unique/company), name, `agentKind` (FIXED vocabulary `agency-staff` | `external` | `internal` - structural, so not a user-editable master; the spec's "agent type" collapses into it), `salesAgencyId` (required for agency-staff, real intra-service FK, no cascade), identityNo, phone/mobile, email (REQUIRED - the invite target), joinedDate/leftDate, isActive, **userId** (Identity seam - the login link), remarks, RBAC stamps, index on userId.
-- **Login for all kinds** (user requirement): staff sends "Invite to login" (`POST /sales-agents/:id/invite`) -> `sales-agent.invite` email template (tenant-overridable) with a stateless RS256 link (purpose `sales-agent-register`, 30d) -> `/agent/register` sets a password -> `provisionPortalUser` find-or-creates the platform User and stamps `SalesAgent.userId` (an existing account, e.g. internal staff, is linked WITHOUT touching its password).
-- **Cross-club by design** (user requirement): an agency/freelancer serving many clubs - across companies AND subscriber accounts - is a SalesAgent row per club, all linked to ONE User by email; `GET /agent-portal/me` returns every engagement of the login, so `/agent` (outside the staff shell) lists them all. Master data itself stays per-club (no shared agency registry - tenant isolation; identity joins only at the person level).
-- Membership linkage: free-text `salesCode`/`followupSalesCode` REPLACED by `salesAgentId` (closed the sale, future commission driver) + `followupSalesAgentId` (currently servicing; the transfer function reassigns) - plain UUIDs validated in the app; the dialog picks from `GET /memberships/options` `agents`. Old columns dropped 2026-07-20.
+- **Login for all kinds** (user requirement): staff sends "Invite to login" (`POST /sales-agents/:id/invite`) -> `sales-agent.invite` email template (tenant-overridable) with a stateless RS256 link (purpose `sales-agent-register`, 30d) -> `/agent/register` sets a password -> `identityGateway.provisionPortalUser` find-or-creates the platform User and stamps `SalesAgent.userId` (an existing account, e.g. internal staff, is linked WITHOUT touching its password).
+- **Cross-club by design** (user requirement): an agency/freelancer serving many clubs - across companies AND subscriber accounts - is a SalesAgent row per club, all linked to ONE User by email; `GET /agent-portal/me` returns every engagement of the login, so `/agent` (outside the staff shell) lists them all.
+  Master data itself stays per-club (no shared agency registry - tenant isolation; identity joins only at the person level).
+- Membership linkage: free-text `salesCode`/`followupSalesCode` were REPLACED by `Membership.salesAgentId` (closed the sale, future commission driver) + `Membership.followupSalesAgentId` (currently servicing; the transfer function reassigns) - plain UUIDs validated in the app against the company's agents; the dialog picks from `GET /memberships/options` `agents`.
+  Old columns dropped 2026-07-20.
 - API: `/api/membership/sales-agencies` + `/sales-agents` behind `requireMenuAction` (routes `/membership/sales-agencies`, `/membership/sales-agents` - DB menus added by the user); `/api/membership/agent-portal/*` mounted BEFORE the staff auth wall (register public, /me verifyToken-only).
 - NOT in this phase: commission scales (income/fee scale - needs AR), market source, sales location, prospect pipeline, follow-up transfer function.
 
@@ -109,33 +127,43 @@ Three-tier sales channel (user's model, for fitness/commercial clubs): **Sales A
 The membership system master, modernised: the club declares WHAT KIND of club it is, and the entry screens show only the fields that apply (the user's four dimensions: club type, committee vs commercial, sales channels, auto vs manual numbering).
 Like the legacy system master it is modify-only ("设好后不能增加记录，仅能修改记录"): the row is find-or-created with safe defaults on first read - never listed, never deleted, no `isActive`.
 
-- `membership."MembershipSetting"` - per-company SINGLETON (unique `companyId`): `clubType` (`golf` | `leisure` | `others`, fixed vocabulary), `isCommittee`, `creditFacilityEnabled` (can members charge expenses to their account; default true), `salesAgencyEnabled` / `salesExternalEnabled` / `salesInternalEnabled` (forced false while `isCommittee` - committee clubs have no sales agents), RBAC stamps (nullable - the row may be system-created before anyone edits).
+- `membership."MembershipSetting"` - per-company SINGLETON (unique `companyId`): `clubType` (`golf` | `leisure` | `others`, fixed vocabulary), `isCommittee`, `creditFacilityEnabled` (can members charge expenses to their account; default true), `nomineeNoSuffix` / `dependentNoSuffix` (child-number patterns, below), `salesAgencyEnabled` / `salesExternalEnabled` / `salesInternalEnabled` (forced false while `isCommittee` - committee clubs have no sales agents), RBAC stamps (nullable - the row may be system-created before anyone edits).
   Defaults (`golf`, commercial, all channels on) keep every existing club exactly as it behaved before this shipped.
 - Resolution ALWAYS goes through `membershipSetting.service.js` (`getSettings` / `enabledAgentKinds`) so find-or-create stays in one place.
 - **Gating map:** committee -> membership entry shows Proposer, hides both salesperson pickers; commercial -> the reverse, and `GET /memberships/options` ships `settings` + filters `agents` to the enabled kinds; the Sales Agents screen's meta ships only the enabled kinds (existing rows of a since-disabled kind still display via a label fallback); the Membership Type master hides "Golfing access" (and its dependents) unless `clubType = 'golf'` (`/types/meta` ships `settings`).
 - **Credit facility gate (`creditFacilityEnabled`, 2026-08-03):** when off, the membership dialog hides every credit term (credit flag, credit limit, terms, statement, arrears reminders, late-payment interest - the Monthly/Yearly fee flags stay), the nominee credit limit is hidden, and the Membership Type master hides its default credit limit.
   The server enforces it whatever the client sent: `forceCreditTermsOff` on membership create/update stores credit limit 0 (not NULL) with the other terms nulled/false, member create/update forces the member credit limit to 0, and the type's default credit limit is not applied on create.
-  **The Excel import migration applies the same gate (2026-08-21, closing a gap):** legacy spreadsheet credit values are deliberately NOT preserved when the facility is off - they would seed AR's `CreditAccount` at debtor provisioning; a club that later enables the facility maintains credit terms on the AR Debtor screen. Staging validation warns on rows whose credit columns are filled so the review shows they will be ignored.
+  **The Excel import migration applies the same gate (2026-08-21, closing a gap):** legacy spreadsheet credit values are deliberately NOT preserved when the facility is off - they would seed AR's `CreditAccount` at debtor provisioning; a club that later enables the facility maintains credit terms on the AR Debtor screen.
+  Staging validation warns on rows whose credit columns are filled so the review shows they will be ignored.
 - **Credit-limit ownership split (user decision 2026-09-27):** the Membership department OWNS member-account credit limits.
-  A membership save whose credit limit changed (and a nominee save, for their personal account) enqueues `DebtorCreditLimitSyncRequested` through `platform/arGateway.enqueueCreditLimitSync`, pushing the value into AR's `CreditAccount` pool - the limit the credit gate actually enforces - so the two never diverge after provisioning.
+  A membership save whose credit limit changed (and a nominee save, for their personal account) enqueues `DebtorCreditLimitSyncRequested` through `platform/arGateway.enqueueCreditLimitSync` (`arProvisioning.syncContractCreditLimit` / `syncNomineeCreditLimit`), pushing the value into AR's `CreditAccount` pool - the limit the credit gate actually enforces - so the two never diverge after provisioning.
   AR silently no-ops when no ledger account exists yet (provisioning seeds the value later), so producers fire on every change without checking.
-  Finance keeps ONLY Other Debtor limits on the AR Debtor screen (the AR PATCH rejects member-account limit edits).
+  Finance keeps ONLY Other Debtor limits on the AR Debtor screen (the AR `PATCH /debtors/:id` rejects member-account limit edits).
   The membership/nominee dialogs show the live pool beside the credit-limit field (`GET /memberships/:id/ar-credit[?memberId=]` -> `arGateway.getCreditStanding`).
   Repayment terms / reminders / interest stay AR-owned after seeding, unchanged.
-- **`isMembershipAutoNumber` is deliberately NOT a column** - the auto/manual fact is owned by Numbering Control (`NumberingScheme.mode`) and is surfaced/edited through `platform/numberingGateway.js`, keeping a single source of truth with the `/admin/numbering` screen. The gateway grew `numberingMeta` / `getScheme` / `saveScheme` / `previewScheme`, with the config validation extracted to `saas/numberingScheme.service.js` (shared by the tenant-admin controller, so the rules can't drift).
+- **`isMembershipAutoNumber` is deliberately NOT a column** - the auto/manual fact is owned by Numbering Control (`NumberingScheme.mode`) and is surfaced/edited through `platform/numberingGateway.js` (`numberingMeta` / `getScheme` / `saveScheme` / `previewScheme`, with the config validation in `saas/numberingScheme.service.js` so the rules cannot drift from the `/membership/numbering` screen).
 - API `/api/membership/settings` (GET, PUT, PUT `/numbering`, GET `/numbering/preview` - preview is a GET so a view-only grant can render it) behind `requireMenuAction('/membership/settings')`.
-- Screen `/membership/settings` "Club Specification": consequence-captioned option rows (each toggle states what the entry screens will hide - the show-expected-results principle), sales channels section hidden while Committee is on, numbering toggle + "Configure format…" dialog (prefix / format tokens / sequence digits / starting number / reset rule + live next-number preview, mirroring the Numbering Control dialog). Menu row added in the DB by the user.
-- Future §2.1.1 fields (conversion default statuses, nominee expiration days, follow-principal statuses) become MORE columns on this same singleton when Phase 3 lands.
+- Screen `/membership/settings` "Club Specification": consequence-captioned option rows (each toggle states what the entry screens will hide - the show-expected-results principle), sales channels section hidden while Committee is on, numbering toggle + "Configure format" dialog (prefix / format tokens / sequence digits / starting number / reset rule + live next-number preview, mirroring the Numbering Control dialog).
+  Menu row added in the DB by the user.
+- Future §2.1.1 fields (conversion default statuses, nominee expiration days, follow-principal statuses) become MORE columns on this same singleton when the conversions phase lands.
 
 ### Built: Membership import (Excel -> staging -> selective migration, 2026-07-28)
 
 Legacy-data onboarding: a club uploads its existing membership base from a two-sheet Excel workbook, reviews it in a staging "mid-table", and migrates only the records it selects.
 
-- **Template** (downloadable, built with exceljs): sheet `Memberships` (one row per contract - individual AND corporate; class derives from the Type Code) + sheet `Members` (one row per person - individual / nominee / dependent, linked by Membership No, dependents by Principal Member No - renamed from "Parent Member No" 2026-08-20 with the old header kept as a parser alias so downloaded templates never break). Column specs live ONCE in `membershipImport.service.js` and drive both the template and the parser (headers matched case-insensitively via header + aliases, extra/reordered columns tolerated); both sheets carry optional residential + mailing address sets.
-- **Staging**: `membership."MembershipImportBatch"` (per file, counts, RBAC stamps) + `membership."MembershipImportRow"` (per Excel row: rowKind membership|member, rowNo, linking keys, `data` JSONB, `issues` JSONB [{level: error|warning, message}], isValid, migrateStatus pending|migrated, migratedId/At). Real FK batch->rows with CASCADE - deleting a batch clears staging only, never real data.
-- **Validation at upload** (re-checked at migration): unknown type/status/fee/agent codes, vocab (kind, dependent type, gender, marital, credit flag, statement mode), dates, corporate name, duplicate numbers within the file AND against the real tables (**existing numbers block as errors - imports never update existing records**, user decision 2026-07-28), individual membership must have exactly one individual member row, nominee seat caps vs the type, dependent parent resolution, manual-numbering clubs must supply numbers. Errors block; warnings don't. A membership is selectable only when it AND all its member rows are clean.
-- **Migration** (`POST /imports/:id/migrate` with the selected staged membership row ids): the SELECTION UNIT IS THE MEMBERSHIP - contract + its members move together in one transaction per membership (one failure never rolls back the others). Same invariants as manual entry: type defaults for status/fee/credit/term-expiry (day-before-anniversary), statusDate today, approvalStatus approved, addresses to the typed Address book, member numbers derived when blank (individual = membership no; children parent-A/-B...), file numbers win; a blank number on an auto-numbering club issues gaplessly through the numbering gateway INSIDE the tx. **NO welcome/portal emails are sent** (user decision 2026-07-28 - legacy members migrate silently; a per-member portal invite can come later).
-- API `/api/membership/imports` (GET template/list/:id, POST upload multipart 10 MB in-memory / :id/migrate, DELETE :id) behind `requireMenuAction('/membership/import')`; screen `/membership/import` (+`/:id` review, URL-driven): template download + upload, batch cards with progress (Staged/Partial/Completed), review grouped per membership with inline issues and Excel row numbers, valid memberships preselected, "Migrate N membership(s) / M member(s)" button, per-membership failure report, orphan member rows called out. Menu row added in the DB by the user.
+- **Template** (downloadable, built with exceljs): sheet `Memberships` (one row per contract - individual AND corporate; class derives from the Type Code) + sheet `Members` (one row per person - individual / nominee / dependent, linked by Membership No, dependents by Principal Member No - renamed from "Parent Member No" 2026-08-20 with the old header kept as a parser alias so downloaded templates never break).
+  Column specs live ONCE in `membershipImport.service.js` and drive both the template and the parser (headers matched case-insensitively via header + aliases, extra/reordered columns tolerated); both sheets carry optional residential + mailing address sets.
+- **Staging**: `membership."MembershipImportBatch"` (per file: `fileName`, `totalMemberships`, `totalMembers`, RBAC stamps) + `membership."MembershipImportRow"` (per Excel row: `rowKind` membership|member, `rowNo`, linking keys `membershipNo` / `memberNo` / `parentMemberNo`, `data` JSONB, `issues` JSONB [{level: error|warning, message}], `isValid`, `migrateStatus` pending|migrated, `migratedId`/`migratedAt`).
+  Real FK batch->rows with CASCADE - deleting a batch clears staging only, never real data.
+- **Validation at upload** (re-checked at migration): unknown type/status/fee/agent codes, vocab (kind, dependent type, gender, marital, credit flag, statement mode), dates, corporate name, duplicate numbers within the file AND against the real tables (**existing numbers block as errors - imports never update existing records**, user decision 2026-07-28), individual membership must have exactly one individual member row, nominee seat caps vs the type, dependent parent resolution, manual-numbering clubs must supply numbers.
+  Errors block; warnings don't.
+  A membership is selectable only when it AND all its member rows are clean.
+- **Migration** (`POST /imports/:id/migrate` with the selected staged membership row ids): the SELECTION UNIT IS THE MEMBERSHIP - contract + its members move together in one transaction per membership (one failure never rolls back the others).
+  Same invariants as manual entry: type defaults for status/fee/credit/term-expiry (day-before-anniversary), statusDate today, approvalStatus approved, addresses to the typed Address book, member numbers derived when blank (individual = membership no; children per the suffix rules), file numbers win; a blank number on an auto-numbering club issues gaplessly through the numbering gateway INSIDE the tx.
+  **NO welcome/portal emails are sent** (user decision 2026-07-28 - legacy members migrate silently; a per-member portal invite can come later).
+  Active contracts and nominees enqueue `DebtorProvisionRequested` without `requestedBy` (bulk path, no bells).
+- API `/api/membership/imports` (GET template/list/:id, POST upload multipart 10 MB in-memory / :id/migrate, DELETE :id) behind `requireMenuAction('/membership/import')`; screen `/membership/import` (+`/:id` review, URL-driven): template download + upload, batch cards with progress (Staged/Partial/Completed), review grouped per membership with inline issues and Excel row numbers, valid memberships preselected, "Migrate N membership(s) / M member(s)" button, per-membership failure report, orphan member rows called out.
+  Menu row added in the DB by the user.
 
 ### Built: Membership Type import (Excel -> staging -> selective migration, 2026-08-04)
 
@@ -143,10 +171,12 @@ The same staging pattern applied to the Membership Type master: one-sheet workbo
 Joining fees and standing charges are NOT part of the import - they stay maintained through their own dialogs on the Types screen.
 
 - **Template/parse**: column specs live ONCE in `membershipTypeImport.service.js`; the Excel plumbing (cell/number/bool coercion, sheet parsing) is REUSED from `membershipImport.service.js` exports so the rules can never drift.
-- **Staging**: `membership."MembershipTypeImportBatch"` (per file, totalTypes, RBAC stamps) + `membership."MembershipTypeImportRow"` (rowNo, lifted `category` key, `data`/`issues` JSONB, isValid, migrateStatus pending|migrated, migratedId/At), FK batch->rows CASCADE - deleting a batch clears staging only.
+- **Staging**: `membership."MembershipTypeImportBatch"` (per file, `totalTypes`, RBAC stamps) + `membership."MembershipTypeImportRow"` (`rowNo`, lifted `category` key, `data`/`issues` JSONB, `isValid`, `migrateStatus` pending|migrated, `migratedId`/`migratedAt`), FK batch->rows CASCADE - deleting a batch clears staging only.
 - **Validation** mirrors the manual screen's `normalizeTypeBody`: category required/unique-in-file/**existing categories block (imports never update)**, class vocabulary, term months required when Term Membership = Y, integer/money rules, child-age ordering, Default Status / Default Fee resolved against their masters; class- and golf-conditional fields that migration will null raise warnings, not errors.
-- **Type references may point at other rows in the SAME file**: Nominee Category Code and the comma-separated Convert To Codes resolve against existing types OR file rows. Migration is two-pass - pass 1 creates each selected type in its own transaction, pass 2 links the references against everything that now exists; a reference to a not-yet-migrated file row leaves the type created with the result message saying to migrate the referenced type and re-link on the Types screen.
-- API `/api/membership/type-imports` (same endpoint shape as `/imports`) behind `requireMenuAction('/membership/type-import')`; screen `/membership/type-import` (+`/:id`), cloned from the membership import screen (flat row cards instead of groups). Menu row added in the DB by the user.
+- **Type references may point at other rows in the SAME file**: Nominee Category Code and the comma-separated Convert To Codes resolve against existing types OR file rows.
+  Migration is two-pass - pass 1 creates each selected type in its own transaction, pass 2 links the references against everything that now exists; a reference to a not-yet-migrated file row leaves the type created with the result message saying to migrate the referenced type and re-link on the Types screen.
+- API `/api/membership/type-imports` (same endpoint shape as `/imports`) behind `requireMenuAction('/membership/type-import')`; screen `/membership/type-import` (+`/:id`), cloned from the membership import screen (flat row cards instead of groups).
+  Menu row added in the DB by the user.
 
 **§2.3 Membership Management (会籍管理):** member/membership CRM for five member kinds - individual, corporate, nominee (corporate seat), spouse, child - with per-member: dependents, misc attributes, per-member standing-charge overrides (additional/exception on top of the type's standing charges), article subscription, hobbies, vehicle passes; ID (member no.) conversion, category conversion, status conversion (immediate) + scheduled status-conversion plan, membership transfer (with cascade rules driven by status class + system-master default statuses); member surveys.
 
@@ -157,10 +187,10 @@ Joining fees and standing charges are NOT part of the import - they stay maintai
 
 Legacy deltas worth remembering: status class was only Authorized/Unauthorized/Warning (we generalised to 10 classes on the user's requirements, with systemControl carrying the old charges-control values); fee billing intervals were bi-monthly/monthly/quarterly/semi-annually with equal/percentage/manual allocation (we shipped monthly/quarterly/half-yearly/annually + generate-then-edit).
 
-## Master File Setup (planned)
+## Master File Setup
 
-> Status: PLANNED - list captured, per-file requirements to be provided one at a time.
-> These are the configurable lookup/master tables a club sets up before day-to-day membership operations.
+The configurable lookup/master tables a club sets up before day-to-day membership operations.
+All seven are built; four were promoted to the Control Plane.
 
 ### Shared conventions (follow the reference-table pattern)
 - Same shape as the platform reference tables (Country / Currency / Language): a stable `code`, a display `name`, an `isActive` flag, and a sort/order field.
@@ -170,31 +200,20 @@ Legacy deltas worth remembering: status class was only Authorized/Unauthorized/W
 - Where a master file overlaps an existing platform reference table, reference it rather than duplicating it (see notes below).
 
 ### RBAC (this module is the reference implementation)
-The three built masters (#1-#3) carry the full three-layer authorization model -
-copy this wiring for every new Membership screen:
-- **Route wiring** (`membership.routes.js`): each screen's sub-router mounts
-  behind `requireMenuAction('<screen route>')` on top of the module-wide
-  `requireModule('Membership Management')` - the HTTP method maps to the role's
-  per-menu Create/Edit/Delete grant flags.
-- **Ownership stamps** (all three models): `createdBy`,
-  `createdByDepartmentId` (creator's department at creation), `updatedBy`
-  (every save). Create/copy paths stamp them from
-  `getCallerPlacement()` + `getUserContext()`.
-- **Data-scope enforcement**: every update/enable-disable path checks
-  `canModifyRecord(req, row)` (403 when the caller's role data scope -
-  own / department / all - does not cover the record); list responses carry a
-  per-row `canModify` from `annotateCanModify()` so the frontend hides
-  Edit/Enable/Disable on rows the caller cannot touch.
-- **Frontend**: the screens wrap their New-FAB / Edit / Enable / Disable
-  buttons in `*appCan` (menu-action gating) and honour `canModify` per row.
+The three built masters (#1-#3) carry the full three-layer authorization model - copy this wiring for every new Membership screen:
+- **Route wiring** (`membership.routes.js`): each screen's sub-router mounts behind `requireMenuAction('<screen route>')` on top of the module-wide `requireModule('MEMBERSHIP')` - the HTTP method maps to the role's per-menu Create/Edit/Delete grant flags.
+- **Ownership stamps** (all models): `createdBy`, `createdByDepartmentId` (creator's department at creation), `updatedBy` (every save).
+  Create/copy paths stamp them from `getCallerPlacement()` + `getUserContext()`.
+- **Data-scope enforcement**: every update/enable-disable path checks `canModifyRecord(req, row)` (403 when the caller's role data scope - own / department / all - does not cover the record); list responses carry a per-row `canModify` from `annotateCanModify()` so the frontend hides Edit/Enable/Disable on rows the caller cannot touch.
+- **Frontend**: the screens wrap their New-FAB / Edit / Enable / Disable buttons in `*appCan` (menu-action gating) and honour `canModify` per row.
 Full model + rule definitions: [system-administration.md](system-administration.md).
 
-### The files (develop one by one)
-| # | Master file | Intended purpose (to confirm) | Notes |
+### The files
+| # | Master file | Intended purpose | Notes |
 | --- | --- | --- | --- |
-| 1 | Membership Status | Lifecycle state of a member (e.g. Active, Suspended, Expired, Resigned). | **BUILT** - see below. Drives entitlement/standing checks used by Golf and Facility. |
-| 2 | Membership Fee | Fee/dues definitions applied to membership (amount, cycle, currency). | **BUILT** - see below. Header + installment schedule; references a Tax Scheme via the tax seam. |
-| 3 | Membership Type | Category/tier of membership (e.g. Ordinary, Corporate, Life, Term). | **BUILT** - all 3 phases (main table + Additional Fees + Standing Charges). |
+| 1 | Membership Status | Lifecycle state of a member (e.g. Active, Suspended, Expired, Resigned). | **BUILT** - see below. Drives entitlement/standing checks used by Golf and AR. |
+| 2 | Membership Fee | Fee/dues definitions applied to membership (amount, cycle). | **BUILT** - see below. Header + installment schedule; references an AR transaction type by id and a Tax Scheme by code via the tax seam. |
+| 3 | Membership Type | Category/tier of membership (e.g. Ordinary, Corporate, Life, Term). | **BUILT** - all 3 phases (main table + Joining Fees + Standing Charges). |
 | 4 | Industry Type | Member's industry/business sector, for corporate members and reporting. | **PROMOTED to subscriber level + BUILT** (2026-07-14). Control-Plane `IndustryType` (accountId-scoped, one taxonomy per subscription, shared across products). Maintenance: `/auth/account/industry-types` (Tenant Admin) + screen `/admin/industry-types` (System Setup). Consumers (Membership/Golf pickers): `GET /api/industry-types` (active list, any workspace user) - store `industryTypeCode` as a value reference. |
 | 5 | Salutation | Title prefix for a person (e.g. Mr, Mrs, Ms, Dr, Datuk). | **PROMOTED to subscriber level + BUILT** (2026-07-14). Control-Plane `Salutation` (accountId-scoped). Maintenance: `/auth/account/salutations` (Tenant Admin) + screen `/admin/salutations` (System Setup). Consumers: `GET /api/salutations` (active list) - store `salutationCode` as a value reference. |
 | 6 | Nationality | Member's nationality. | **PROMOTED to subscriber level + BUILT** (2026-07-14). Control-Plane `Nationality` (accountId-scoped): plain code + demonym. **Deliberately NOT linked to Country** - Country is address data; a person's residential country cannot be translated to their nationality (living in Malaysia does not make someone Malaysian). Maintenance: `/auth/account/nationalities` + screen `/admin/nationalities` (System Setup). Consumers: `GET /api/nationalities` - store `nationalityCode` as a value reference. |
@@ -204,118 +223,150 @@ Full model + rule definitions: [system-administration.md](system-administration.
 
 Every Membership Management table lives in the dedicated **`membership`** Postgres schema (e.g. `membership."MembershipStatus"`), not `public`.
 This is the physical half of the microservice seam: the service extracts later with a clean `pg_dump --schema=membership` into its own database, with no table renames and no app changes.
-Implemented via `schema: MEMBERSHIP_SCHEMA` on each model (see `src/platform/schemas.js`); the schema is created before `sequelize.sync()` in `app.js`.
-Golf and Facility follow the same pattern (`golf`, `facility`) as they are built; platform / control-plane tables stay in `public` for now.
+Implemented via `schema: MEMBERSHIP_SCHEMA` on each model (see `src/platform/schemas.js`); the schema is created before the fingerprint-gated `sequelize.sync()` in `app.js`.
+Golf (`golf`) and AR (`ar`) follow the same pattern; platform / control-plane tables stay in `public` for now.
 
 ### Built: Membership Status (#1)
 
-Per-company master file. Owner table `membership."MembershipStatus"` (references `companyId` by UUID, no FK).
+Per-company master file.
+Owner table `membership."MembershipStatus"` (references `companyId` by UUID, no FK).
 
-Fields: `membershipStatus` (the status value, unique per company - the legacy code-base "status code", renamed since the PK is the UUID `id`), `statusClass` (fixed vocabulary), `description`, `actionControl` + `chargeControl` (fixed vocabularies, see below), `statusColor` (hex, new-record default black), `isActive` (enable/disable, no hard delete).
+Fields: `membershipStatus` (the status value, unique per company - the legacy code-base "status code", renamed since the PK is the UUID `id`), `statusClass` (fixed vocabulary), `description`, `actionControl` + `chargeControl` (fixed vocabularies, see below), `statusColor` (hex, new-record default black), `isActive` (enable/disable, no hard delete), stamps.
 
 Fixed vocabularies (stored as the `key`, served to the UI via `/meta` so dropdowns never drift from server validation) - defined in `membershipStatus.constants.js`:
 - **Status class:** active, provisional, resigned, decease, terminate, absent, suspend, defaulter, expired, active-absent.
-- **Action control** (frontend registration/booking/check-in): allow, warning, barred. Warning proceeds with an operator alert.
-- **Charge control** (charge-to-account at settlement; cash/card settlement is never checked): allow, warning, barred. Warning alerts the operator but still posts - the advisory stage before the club converts the member to a truly barred status (user decision 2026-08-09); the AR credit-headroom check runs AFTER charge control, in the `authorizeCharge` seam. Billing runs (membership fee / subscription) deliberately do NOT check charge control - billing reality is never blocked.
+- **Action control** (frontend registration/booking/check-in): allow, warning, barred.
+  Warning proceeds with an operator alert.
+- **Charge control** (charge-to-account at settlement; cash/card settlement is never checked): allow, warning, barred.
+  Warning alerts the operator but still posts - the advisory stage before the club converts the member to a truly barred status (user decision 2026-08-09); the AR credit-headroom check runs AFTER charge control, in the `authorizeCharge` / `postCharge({ enforceCredit })` seam.
+  Billing runs (membership fee / subscription) deliberately do NOT check charge control - billing reality is never blocked.
 
-**`systemControl` SPLIT 2026-08-09** into the two columns above (the composite 'warning-no-charge' value conflated the axes). A boot backfill mapped legacy values (allow -> allow/allow, warning -> warning/warning since the legacy field WAS the charges control, warning-no-charge -> warning/barred, barred -> barred/barred) on dev and staging, then the column was RETIRED same day: removed from the model, backfill removed, physical column dropped manually per environment once its API ran the new image (staging's drop happens at its next promotion if not already done). No consumer ever read `systemControl`, so nothing else changed.
+**`systemControl` SPLIT 2026-08-09** into the two columns above (the composite 'warning-no-charge' value conflated the axes).
+A boot backfill mapped legacy values (allow -> allow/allow, warning -> warning/warning since the legacy field WAS the charges control, warning-no-charge -> warning/barred, barred -> barred/barred) on dev and staging, then the column was RETIRED same day: removed from the model, backfill removed, physical column dropped manually per environment once its API ran the new image.
+No consumer ever read `systemControl`, so nothing else changed.
 
-API (all behind `verifyToken` + `requireModule('Membership Management')`):
-- `GET /api/membership/statuses/meta` - the two option lists for the dropdowns.
+API (all behind `verifyToken` + `requireModule('MEMBERSHIP')` + `requireMenuAction('/membership/statuses')`):
+- `GET /api/membership/statuses/meta` - the option lists for the dropdowns.
 - `GET /api/membership/statuses` - every status for the active company.
 - `POST /api/membership/statuses` - create.
 - `PATCH /api/membership/statuses/:id` - edit fields or toggle `isActive`.
 - `GET /api/membership/statuses/copy-sources` - sibling companies in the **same subscription** (same Account) that have statuses, each with its statuses (for a selectable copy list).
-- `POST /api/membership/statuses/copy` - clone selected statuses from a sibling company. Guards: target company must be **empty** (first-time setup only) and the source must be in the same subscription.
+- `POST /api/membership/statuses/copy` - clone selected statuses from a sibling company.
+  Guards: target company must be **empty** (first-time setup only) and the source must be in the same subscription.
 
 Copy uses `serviceContext.listSubscriptionCompanies(req)` - the seam that resolves the Account's companies (in-process now, a Control-Plane call once split), so `MembershipStatus` stays keyed by `companyId` only, with **no denormalized `accountId`** (Account<->Company grouping stays owned by the Control Plane).
 
-Web: screen at route `/membership/statuses` (`membership-statuses` component), guarded by `systemModule: 'Membership Management'`.
+Web: screen at route `/membership/statuses` (`membership-statuses` component), guarded by the Membership module.
 
 **Activation (DB, done by admin - menus are maintained in the DB, not hardcoded):**
-1. Ensure a **Module** named exactly `Membership Management` exists, and the club's Company is subscribed to it (`CompanyModule`).
+1. Ensure the **Module** with code `MEMBERSHIP` exists, and the club's Company is subscribed to it (`CompanyModule`).
 2. Add a **Menu** under that module - name `Membership Status`, route `/membership/statuses`, an icon (e.g. `label`); optionally nest it under a `Master File Setup` parent menu.
 3. Grant the club's role access to that menu (`RoleMenu`).
 
 ### Built: Membership Fee (#2)
 
 Two tables in the `membership` schema, header + detail (a real intra-service association):
-- `membership."MembershipFee"` (header, per company): `membershipFeeCode` (unique/company), `description`, `taxSchemeCode` (optional ref), `amount`, `allowInstallment`, `noOfInstallment`, `installmentInterval` (monthly/quarterly/half-yearly/annually), `isActive`.
-- `membership."MembershipFeeScheme"` (detail): `membershipFeeId` (FK, cascade), `stageNo`, `amount`, `isPosted`. The fee amount is split into `noOfInstallment` stages; `isPosted` is set later by billing and preserved (by stage number) across schedule edits.
+- `membership."MembershipFee"` (header, per company): `membershipFeeCode` (unique/company), `description`, `taxSchemeCode` (optional ref), `transactionTypeId` (the AR catalog entry the fee run posts under - explicit since 2026-08-15, backfilled from the old auto-pick), `amount`, `allowInstallment`, `noOfInstallment`, `installmentInterval` (monthly/quarterly/half-yearly/annually), `isActive`, stamps.
+- `membership."MembershipFeeScheme"` (detail): `membershipFeeId` (FK, cascade), `stageNo`, `amount`, `isPosted`.
+  The fee amount is split into `noOfInstallment` stages; `isPosted` is set later by billing and preserved (by stage number) across schedule edits.
 
-Tax Scheme is referenced **by code** and resolved through `platform/taxGateway.js` (`listCompanyTaxSchemes`) - the company-aware picker filtered by the company's country + adoption. No direct dependency on the Tax module (golden rule #4). A fee with no tax stores `taxSchemeCode = null`.
+Tax Scheme is referenced **by code** and resolved through `platform/taxGateway.js` (`listCompanyTaxSchemes`) - the company-aware picker filtered by the company's country + adoption.
+No direct dependency on the Tax module (golden rule #4).
+A fee with no tax stores `taxSchemeCode = null`.
+The transaction-type picker (`GET /fees/transaction-types`) reads the AR catalog through `arGateway.listTransactionTypes({ module: 'membership', trxClass: 'invoice' })`.
 
 Installment schedule = **generate then edit**: the UI splits the amount equally into N stages (remainder on the last), the stages are editable, and the server rejects a save whose stages do not total the fee amount.
 
-API (behind `verifyToken` + `requireModule('Membership Management')`):
+API (behind `verifyToken` + `requireModule('MEMBERSHIP')` + `requireMenuAction('/membership/fees')`):
 - `GET /api/membership/fees/meta` - installment interval options.
 - `GET /api/membership/fees/tax-schemes` - the active company's tax schemes (via the tax seam) for the picker.
+- `GET /api/membership/fees/transaction-types` - the membership-usable invoice-class AR catalog entries.
 - `GET /api/membership/fees` - fees with their stages.
 - `POST /api/membership/fees` - create (header + stages, atomic).
 - `PUT /api/membership/fees/:id` - full update (replaces the schedule; preserves `isPosted` per stage).
 - `PATCH /api/membership/fees/:id` - toggle `isActive`.
 
-Web: screen at `/membership/fees`. Needs the same DB activation as #1 (a Menu under Membership Management pointing at `/membership/fees`).
+Web: screen at `/membership/fees`.
+Needs the same DB activation as #1 (a Menu under the Membership module pointing at `/membership/fees`).
 
-### Building: Membership Type (#3) - phased
-
-Three tables planned (main + two children). **Phase 1 (main table) is built**; Phases 2-3 pending.
+### Built: Membership Type (#3) - all three phases
 
 **Phase 1 - `membership."MembershipType"`** (main / type details + default rights, per company):
-`category` (the membership type code, unique/company; UI label is "Membership Type" - 2026-07-16 naming standardisation), `description`, `membershipClass` (individual | corporate - the discriminator; key migrated from the legacy `personal` on 2026-07-16, data updated in the same release), rights `isGolfAllow` (renamed from `golfingAllow` 2026-07-16; the golfing-access gate - golf settings apply/show only when true) / `dependentGolfingAllow` / `votingRight` / `transferRight`, term `isTermMembership` + `termMonths` (fixed period in MONTHS, 18 = 1.5 years, per the KLGCC term catalog; false = lifetime), `conversionTargetIds` (uuid[] of other types it can convert to), personal-only `childAgeFrom` / `childAgeTo` / `playTimes` (playTimes also requires `isGolfAllow`), corporate-only `noOfNominee` / `nomineeCategoryId`, defaults `defaultMembershipStatusId` (→ Status master) / `defaultMembershipFeeId` (→ Fee master) / `arDebtorType` (free text for now) / `creditLimit`, `isActive`.
-Cross-refs are plain UUIDs validated against the company's own status/fee/type rows. Class-conditional fields are nulled server-side for the other class; golf-conditional and term-conditional fields likewise.
-API under `/api/membership/types` (meta, list, POST, PUT, PATCH toggle). Screen `/membership/types` (Reactive Forms + dialog unsaved-changes guard).
+`category` (the membership type code, unique/company; UI label is "Membership Type" - 2026-07-16 naming standardisation), `description`, `membershipClass` (individual | corporate - the discriminator; key migrated from the legacy `personal` on 2026-07-16, data updated in the same release), rights `isGolfAllow` (renamed from `golfingAllow` 2026-07-16; the golfing-access gate - golf settings apply/show only when true) / `dependentGolfingAllow` / `guestQuota` / `votingRight` / `transferRight`, term `isTermMembership` + `termMonths` (fixed period in MONTHS, 18 = 1.5 years, per the KLGCC term catalog; false = lifetime), `conversionTargetIds` (uuid[] of other types it can convert to), personal-only `childAgeFrom` / `childAgeTo` / `playTimes` (playTimes also requires `isGolfAllow`), corporate-only `noOfNominee` / `nomineeCategoryId`, defaults `defaultMembershipStatusId` (-> Status master) / `defaultMembershipFeeId` (-> Fee master) / `arDebtorType` (free text for now) / `creditLimit`, `isActive`, stamps.
+Cross-refs are plain UUIDs validated against the company's own status/fee/type rows.
+Class-conditional fields are nulled server-side for the other class; golf-conditional and term-conditional fields likewise.
+API under `/api/membership/types` (meta, currencies, transaction-types, list, POST, PUT, PATCH toggle).
+Screen `/membership/types` (Reactive Forms + dialog unsaved-changes guard).
 
-**Phase 2 (BUILT) - Additional Fees** child `membership."MembershipTypeFee"`: `membershipTypeId` (FK, cascade), `transactionType` (free text), `description`, `taxSchemeCode` (OUTPUT-only, picker via the tax seam), `currencyCode` (subscriber's currency set via `serviceContext.listAccountCurrencies`, falling back to all active), `amount`.
+**Phase 2 (BUILT) - Joining fees** child `membership."MembershipTypeFee"`: `membershipTypeId` (FK, cascade), `transactionType` (an AR catalog CODE - the single source of the line's tax and description), `description`, `currencyCode` (subscriber's currency set via `serviceContext.listAccountCurrencies`, falling back to all active), `amount`.
+There is NO `taxSchemeCode` on this row (dropped 2026-07-16 - tax is single-sourced from the transaction type).
 Since 2026-07-16 these are the type's **"Joining fees"** (one-time charges billed when a new member joins - processing/entrance/...; a type can carry several) and are maintained from their OWN dialog on the listing card, saved via `PUT /api/membership/types/:id/additional-fees` (replaced wholesale - pure setup data); the type form itself no longer carries them.
 Extra endpoint: `GET /api/membership/types/currencies`.
-**Phase 3 (BUILT) - Standing Charges** child `membership."MembershipTypeStandingCharge"`: `membershipTypeId` (FK, cascade), `membershipStatusId` (non-unique - a status may carry several charges since 2026-07-16), `description`, `transactionType` (Transaction Type master code - carries the tax AND the billing-line description), `currencyCode`, `amount`, `frequency` (monthly | annually | fixed-month), `fixedMonth` (1-12, required for fixed-month).
-Dropped columns (2026-07-16, user decision): `taxSchemeCode` (tax single-sourced from the Transaction Type master), `transactionDescription` (redundant with the master's description) and `chargesControl` (drove nothing yet - reintroduce with its own master when the billing/posting engine defines posting-control rules).
+**Phase 3 (BUILT) - Standing Charges** child `membership."MembershipTypeStandingCharge"`: `membershipTypeId` (FK, cascade), `membershipStatusId` (non-unique - a status may carry several charges since 2026-07-16), `description`, `transactionType` (AR catalog code - carries the tax AND the billing-line description), `currencyCode`, `amount`, `frequency` (monthly | annually | fixed-month), `fixedMonth` (1-12, required for fixed-month).
+Dropped columns (2026-07-16, user decision): `taxSchemeCode` (tax single-sourced from the transaction type), `transactionDescription` (redundant with the master's description) and `chargesControl` (drove nothing yet - reintroduce with its own master when the billing/posting engine defines posting-control rules).
 Standing charges are raised from the member's status at the point the charge is billed; statuses a club never charges (deceased/terminated/resigned/...) simply have no row.
 Since 2026-07-16 they are maintained from their OWN dialog on the listing card ("Standing charges" button), saved via `PUT /api/membership/types/:id/standing-charges` (replaced wholesale); `frequencies` served via `/types/meta`.
 UX rework (same day, user direction): NO pre-populated per-status grid - charges are added explicitly ("Add charge", like joining fees), each row picks its Membership Status AND transaction type, and a status may carry MULTIPLE charges (the unique `(membershipTypeId, membershipStatusId)` index was dropped and recreated non-unique); statuses never charged simply have no rows.
+The picker for both dialogs is `GET /api/membership/types/transaction-types` (avoids cross-menu RBAC on the AR master) - the AR catalog filtered to membership-usable entries through `arGateway`.
 
-### Built: Transaction Type master (2026-07-16)
+### Transaction Type master - MOVED TO AR (2026-08-15)
 
-`membership."TransactionType"` - per-company billing-item catalog: `transactionType` (code, unique per company), `chargeType` (fixed vocabulary via `/meta`: membership-fee | standing-charges | membership-transfer | absentee-fee | miscellaneous), `description`, `taxSchemeCode` (Tax service value reference BY CODE via the tax seam - the code is the scheme's stable business identity across effective-dated versions/reseeds, so consumers never store the tax row's UUID), `isActive`, RBAC stamps.
-**The transaction type is the SINGLE SOURCE of tax** for a billing item (user decision): the Joining fees and Standing charges rows dropped their own `taxSchemeCode` columns and instead PICK a transaction type from this master - the Joining fees dropdown HIDES **membership-fee + absentee-fee** (user clarification 2026-07-16, "filter out" = don't show: those items are billed by the Membership Fee master / absentee function, never as joining fees; everything else, including standing-charges items like a first-month subscription, may be billed at joining), Standing charges shows standing-charges only (server re-validates active + charge type on save); the row's tax shows read-only from the picked type.
-API `/api/membership/transaction-types` (meta / tax-schemes / list / POST / PUT / PATCH toggle) behind `requireMenuAction('/membership/transaction-types')`; picker for the Types screen served at `GET /api/membership/types/transaction-types` (avoids cross-menu RBAC). Screen `/membership/transaction-types` (menu row added by the user in the DB).
+The per-company billing-item catalog that was `membership."TransactionType"` (2026-07-16) is now `ar.TransactionType` - see [account-receivable.md](account-receivable.md) "Transaction Type catalog".
+What remains on the membership side:
+- `GET /api/membership/transaction-types` (behind `/membership/transaction-types`) is a READ-ONLY view of the entries whose `usableInModules` contains `membership`, through `arGateway.listTransactionTypes`; every write method answers `410` pointing at `/ar/transaction-types`.
+- There is no `chargeType` any more: joining fees, standing charges and fee masters pick any membership-usable invoice-class entry; the old `membership-fee | standing-charges | membership-transfer | absentee-fee | miscellaneous` vocabulary is gone.
+- Fee masters reference the catalog by ID (`MembershipFee.transactionTypeId`), joining fees and standing charges by CODE; `membershipGateway.countTransactionTypeReferences` lets the AR master refuse to remove `membership` usability while setups still reference a type.
+- The boot migration copied the rows id-preserving (trxClass mapped by code), backfilled the fee masters and the AR Setting rows, then dropped the membership table.
 
-Deferred masters: A/R debtor type stays **free text** until its master file exists; Charges control was removed from the screens entirely (2026-07-16) and returns with its own master when billing/posting is designed.
+Deferred masters: A/R debtor type stays **free text** on the type until its master file exists; Charges control was removed from the screens entirely (2026-07-16) and returns with its own master when billing/posting is designed.
 
 ## Built: Membership / Member CRM (SRS 2.3 Phase 1, 2026-07-15)
 
 The domain model (user-defined) splits the CONTRACT from the PEOPLE:
 
 - `membership."Membership"` - the contract/seat a company sells.
-  `membershipClass` `individual` | `corporate` is copied from the Membership Type and immutable (category conversion is a Phase 3 function).
-  Owns the commercial side: status (+ `statusDate`), fee, join/billing dates, credit (`creditFlag` personal|combined, `creditLimit`, `terms`, `statementMode` individual|combined, reminder/interest/monthly/yearly flags), document references (`certificateNo`/`applicationNo`/`reference`/`proposer`), sales codes (free text until §2.2 Sales Management exists), the corporate company profile (name/registration/tax/contact/address), a mailing-address set, `approvalStatus` (workflow seam - always `approved` today, the planned workflow module will create `pending` and flip it), and ownership stamps (`createdBy`/`createdByDepartmentId`/`updatedBy`).
+  `membershipClass` `individual` | `corporate` is copied from the Membership Type and immutable (category conversion is a conversions-phase function).
+  Owns the commercial side: `membershipTypeId`, `membershipStatusId` (+ `statusDate`), `membershipFeeId`, `joinDate`, `expiryDate`, `billingDate`, credit (`creditFlag` personal|combined, `creditLimit`, `terms`, `statementMode` individual|combined, `sendReminders`, `chargeInterest`, `monthlyFee`, `yearlyFee`, `nomineeSubscriptionBorneByCompany`), document references (`certificateNo`/`applicationNo`/`reference`/`proposer`), `salesAgentId` / `followupSalesAgentId` (UUIDs into `SalesAgent`), the corporate company profile (`corporateName`, `registrationNo`, `taxNo`, `contactPerson`, `contactDesignation`, phone/fax/mobile/email, `industryTypeCode`), `approvalStatus` (+ `approvedAt`/`approvedBy`; the workflow seam - always `approved` today, the `membership-application` purpose is declared but not wired), `remarks`, and ownership stamps (`createdBy`/`createdByDepartmentId`/`updatedBy`).
   Unique `(companyId, membershipNo)`; the number comes from **Numbering Control** (`numberingGateway.issueNumber`, purpose `membership`, `{TYPE}` = the type's category) in auto mode, or is keyed in (manual / no scheme).
   **Gapless auto numbering (2026-07-20):** the issue runs INSIDE the creation transaction (`issueNumber(..., { transaction })` -> `numberingGenerator.issue` uses the caller's tx instead of its own).
   No duplicates: the `SELECT ... FOR UPDATE` row lock on the scheme serialises concurrent creates per (company, purpose) across ALL instances (lock lives in Postgres), with the unique `(companyId, membershipNo)` index as backstop.
   No skipped numbers: any failure - including the in-tx clash guards for a sequence colliding with a legacy manual number, thrown as `httpError(409/400)` and mapped after rollback - rewinds the counter with the rollback, so the number is re-issued to the next create.
   Trade-off: the scheme row stays locked until commit, briefly queueing simultaneous creates in the same club - negligible at membership volumes and the standard gapless-numbering pattern.
-  Manual-mode validation stays PRE-transaction (a rejection burns nothing by definition). Proven by test: 12 fully parallel issues -> distinct consecutive 1..12; an issue inside a rolled-back tx is re-issued next.
-- `membership."Member"` - a person. ONE table, three kinds (`memberKind`):
+  Manual-mode validation stays PRE-transaction (a rejection burns nothing by definition).
+  Proven by test: 12 fully parallel issues -> distinct consecutive 1..12; an issue inside a rolled-back tx is re-issued next.
+- `membership."Member"` - a person.
+  ONE table, three kinds (`memberKind`):
   `individual` (THE member of an individual membership - **auto-created in the same transaction** as the membership, member number = membership number, status mirrors the contract),
-  `nominee` (a corporate seat - created under a corporate membership, capped by the type's `noOfNominee`),
+  `nominee` (a corporate seat - created under a corporate membership, capped by the type's `noOfNominee`; `membershipTypeId` is a nominee-only OVERRIDE, NULL = the contract's type; `subscriptionBorneBy`),
   `dependent` (`dependentType` spouse|son|daughter|ward, `principalMemberId` -> its individual member OR nominee; only son/daughter/ward carry `expiryDate` - feeds §2.4 child expiry later).
-  **Terminology standard (user decision 2026-08-20): the individual member or nominee that dependents belong to is THE PRINCIPAL** - "principal" (not "parent member") in every user-facing label, message, template header and doc, matching `principalMemberId`. The import's "Parent Member No" header was renamed to "Principal Member No" (old header kept as a parser alias).
-  **Terminology standard (user decision 2026-08-20): user-facing text NEVER says "contract" - the front desk speaks "Membership No" / "Member No".** The dialog section is "Membership", the AR debtor split reads "Membership debtor / Personal debtor", insight notes say "memberships per type" / "term expiries". "Contract" remains valid in INTERNAL docs/comments/identifiers describing the Membership-vs-Member domain split, and in the CONTROL PLANE where the subscriber's plan genuinely is a contract.
-  Owns the person profile: salutation/title/nationality/race/industry codes (subscriber reference-data value refs), names (first/middle/last, name-on-card, `localName` native script), gender/birth/identity no/marital (+date), contacts, employment, resident + mailing addresses, `joinDate`, per-person `memberStatusId` (+ `statusDate` - the Phase 3 cascade rules depend on each person carrying their own status), nominee `creditLimit`, and `userId` (nullable portal identity link, no FK).
+  **Terminology standard (user decision 2026-08-20): the individual member or nominee that dependents belong to is THE PRINCIPAL** - "principal" (not "parent member") in every user-facing label, message, template header and doc, matching `principalMemberId`.
+  The import's "Parent Member No" header was renamed to "Principal Member No" (old header kept as a parser alias).
+  **Terminology standard (user decision 2026-08-20): user-facing text NEVER says "contract" - the front desk speaks "Membership No" / "Member No".**
+  The dialog section is "Membership", the AR debtor split reads "Membership debtor / Nominee debtor", insight notes say "memberships per type" / "term expiries".
+  "Contract" remains valid in INTERNAL docs/comments/identifiers describing the Membership-vs-Member domain split, and in the CONTROL PLANE where the subscriber's plan genuinely is a contract.
+  Owns the person profile: `salutationCode`/`titleCode`/`nationalityCode`/`raceCode`/`industryTypeCode` (subscriber reference-data value refs), names (`firstName`/`middleName`/`lastName`, `nameOnCard`, `localName` native script), `gender`/`birthDate`/`identityNo`/`maritalStatus` (+`maritalDate`), contacts (phone/mobile/fax/email), employment (`employerName`/`designation`), `joinDate`, per-person `memberStatusId` (+ `statusDate` - the conversions-phase cascade rules depend on each person carrying their own status), nominee `creditLimit`, `photoUrl`, `userId` (the LIVE portal identity link, no FK), `remarks`, stamps.
   Unique `(companyId, memberNo)` across all kinds; nominee/dependent numbers derive from the principal's number plus a CLUB-CONFIGURED suffix (server-suggested, editable).
   **Child-number suffix rules (2026-08-21, `childNumbering.js`):** Club Specification stores one pattern per kind (`MembershipSetting.nomineeNoSuffix` / `dependentNoSuffix`, default `-A`) = one separator character (non-alphanumeric; `% _ \` excluded as LIKE hazards) + a form token `A` (letters) or `1|01|001|0001` (numeric, zero-padding is a MINIMUM width - 100 follows 099).
   Nominees suffix off the membership number, dependents off their principal's member number, so mixed styles compose (`CORP-0003.001-01`).
   Allocation: letters = first free A..Z (past 26 falls to a plain number); numeric = **strictly increasing** (max+1, a freed number is never reissued - user rule 2026-08-21).
   Pattern changes affect only FUTURE suggestions (numbers never rewrite; the scan keys on the configured separator, so old-pattern children never block a new series).
-  The interactive suggest endpoint infers the kind server-side (corporate + principalNo == membershipNo -> nominee, else dependent); the import's derivation uses the same module. Screen: separator + style selects per kind on the Membership number card with a live first-numbers preview.
+  The interactive suggest endpoint infers the kind server-side (corporate + principalNo == membershipNo -> nominee, else dependent); the import's derivation uses the same module.
+  Screen: separator + style selects per kind on the Membership number card with a live first-numbers preview.
   Intra-service REAL FKs: `Member.membershipId` -> Membership (no cascade delete), `Member.principalMemberId` self-FK.
   Deliberately NOT stored: raw credit-card numbers (PCI - a payment token comes with payments work); signature waits for its own flow (`signatureUrl` later).
-  **Member photo (2026-07-17):** `photoUrl` (500) holds the public URL of an image in the shared GCS bucket (`membership-app-avatars-123`, same as company/platform logos and golf-course photos).
+  **Member photo (2026-07-17):** `photoUrl` (500) holds the public URL of an image in the shared GCS bucket (per-env `ASSETS_BUCKET`, same as company/platform logos and golf-course photos).
   `POST /api/membership/memberships/photo` (multipart field `photo`, multer in-memory, 2 MB, images only) uploads and returns the URL; the member create/update then stores it via `normalizeMemberProfile` (http(s)-validated, so a stored value can never inject markup).
   Uploader lives in the shared person-profile form (all member kinds, create + edit); avatars render on the Members flat listing, the member tree dialog, and the portal home card (`/portal/me` ships `photoUrl`).
 
 Status sync (individual class): changing the membership status updates the individual member's `memberStatusId` and vice versa, in one transaction.
+
+### AR provisioning (`arProvisioning.js`)
+
+The ONE place the membership side talks to AR about ledger accounts, through `platform/arGateway.js`:
+- `onMembershipStatus(membership, status, tx, requestedBy)` / `onMemberStatus(member, membership, status, tx, requestedBy)` - when a contract or nominee reaches an ACTIVE-class status (create, status change, import migration), enqueue `DebtorProvisionRequested` with event-carried state (`debtorType`, `sourceId`, `sourceNo`, the display name, `terms`, `creditLimit`, `sendReminders`, `chargeInterest`, `requestedBy` for interactive saves only).
+  Individual members never get their own account; dependents never do.
+- `syncContractCreditLimit` / `syncNomineeCreditLimit` - enqueue `DebtorCreditLimitSyncRequested` when the limit changed (the ownership split above).
+- `backfillCompanyDebtors(companyId)` - the `POST /debtor-backfill` utility for data that predates AR (no `requestedBy`, no bells).
 
 ### Contract expiry date (2026-07-18)
 
@@ -325,25 +376,30 @@ Lifetime memberships never carry one in-system - fixed-horizon cases like KLGCC'
 The dialog therefore shows the Expiry field only for term types (the edit-mode "record already carries a date" fallback is purely a data-integrity guard, not a lifetime-with-horizon feature).
 Defaulting (user-chosen convention): on CREATE, when none is sent and the type `isTermMembership` with `termMonths`, the server sets join + termMonths **minus one day** - the term runs THROUGH the day before the anniversary - with month-end clamped (`defaultTermExpiry`; 2026-01-31 + 1 month -> 2026-02-27).
 The dialog pre-fills the same value into an editable Expiry date field (recomputes when type/join changes, but never clobbers a staff-entered date; the frontend reads the type via the control's value, NOT the msValue() signal - a child control's valueChanges fires before the parent form's, so the signal is stale inside the handler).
-Validation: expiry must be after join. The listing card shows "Expires". `Member.expiryDate` stays dependent-only (a different fact).
+Validation: expiry must be after join.
+The listing card shows "Expires".
+`Member.expiryDate` stays dependent-only (a different fact).
 NOT yet built: nothing flips the status automatically - the future expiry/renewal cycle consumes this date (the Expired status now has its driver-to-be).
 
 ### Typed address book (2026-07-17 normalization)
 
 `membership."Address"` replaced the four inline address blocks (member resident + mailing, membership company + mailing) and the `mailingSource` columns - the address shape was stamped out 4x across the two tables, the one genuine value-object duplication (a shared Profile table was considered and REJECTED: Membership describes the organization, Member the person; the column overlap was schema-level only, and contacts stay one-value-per-channel columns).
 
-- Columns: id, companyId, `membershipId` XOR `memberId` (real intra-service FKs, cascade with the owner; model-level exactly-one validation), `addressType` (`residential` | `mailing` | `company` | `other` - user vocabulary: "company", not "business"), address (required, 255), `city` (NEW - the old blocks had none), postcode, state, countryCode (alpha2 value ref), RBAC stamps.
-- Unique per (owner, addressType) via two unique indexes (`IDX_Address_Member_Type`, `IDX_Address_Membership_Type`; Postgres NULLS-distinct keeps them from colliding across owner kinds).
-- **Mail resolution rule** (replaces mailingSource, no flag, no duplicated copy): mail goes to the `mailing` row when one exists, else falls back to `residential` (member) / `company` (contract). "Same as home" = simply no mailing row.
+- Columns: id, companyId, the owner - exactly ONE of `membershipId` | `memberId` | `salesAgencyId` (real intra-service FKs, cascade with the owner; model-level exactly-one validation), `addressType` (`residential` | `mailing` | `company` | `other` - user vocabulary: "company", not "business"), `address` (required, 255), `city`, `postcode`, `state`, `countryCode` (alpha2 value ref), RBAC stamps.
+- Unique per (owner, addressType) via unique indexes per owner column (Postgres NULLS-distinct keeps them from colliding across owner kinds).
+- **Mail resolution rule** (replaces mailingSource, no flag, no duplicated copy): mail goes to the `mailing` row when one exists, else falls back to `residential` (member) / `company` (contract).
+  "Same as home" = simply no mailing row.
+  AR's statement generation reads the same rule through `membershipGateway.lookupPartyBilling`.
 - API: create/update endpoints accept an `addresses` array (contract book on the corporate membership body; person book on the member/profile body), validated by `normalizeAddresses` (one per type) and persisted wholesale by `replaceAddresses` inside the business tx; DTOs return `addresses` on the membership and each member (batch-loaded by `loadAddressBooks`).
 - **Per-book vocabulary (2026-08-03):** the corporate CONTRACT book takes `company` + `mailing` only (`CONTRACT_ADDRESS_TYPE_KEYS` - Residential/Other describe people, not a company); person books keep all four.
   `/memberships/meta` ships `contractAddressTypes` alongside `addressTypes`; the web's contract type-select offers the narrow list plus the row's own legacy type (so a pre-existing Residential contract row - e.g. from an import - stays visible and correctable), and the Excel import now lands the corporate sheet's residential columns as the Company address.
 - Web: one `#addressBook` ng-template (type select + address/city/postcode/state/country + add/remove rows) bound to an `addresses` FormArray inside each form, replacing the repeated blocks in both dialogs.
-- Migration `npm run migrate:addresses` (scripts/migrate-addresses.js): creates the table, backfills the old blocks (mailing rows only where `mailingSource='other'`), drops the 18 replaced columns. Run 2026-07-17 before deploying.
+- Migration `npm run migrate:addresses` (scripts/migrate-addresses.js): created the table, backfilled the old blocks (mailing rows only where `mailingSource='other'`), dropped the 18 replaced columns.
+  Run 2026-07-17 before deploying.
 
 ### Welcome email on creation (2026-07-17)
 
-Creating a membership queues a **welcome email** through the notification outbox (`enqueueEmail`, template `membership.welcome`, tenant-overridable) INSIDE the creation transaction - but only when no approval is needed (`approvalStatus === 'approved'`, which is always true today; the future approval workflow creates `pending` memberships, which skip this branch, so the approval transition MUST send it instead).
+Creating a membership queues a **welcome email** through the notification outbox (`enqueueEmail`, template `membership.welcome`, tenant-overridable; the outbox row type is `EmailQueued`) INSIDE the creation transaction - but only when no approval is needed (`approvalStatus === 'approved'`, which is always true today; a future approval workflow would create `pending` memberships, which skip this branch, so the approval transition MUST send it instead).
 Recipient: individual class -> the member profile's email; corporate class -> the corporate contact email; no email on file -> silently skipped.
 Variables passed: `memberName` (person name, or contact person / company name for corporate), `membershipNo`, `membershipTypeName` (the type's category label), `companyName` + `accountId` via the `getActiveCompany` seam (serviceContext), `joinDate`.
 The enqueue is wrapped in try/catch (a template problem logs and never blocks the creation; safe because `renderEmail`'s reads run off-transaction).
@@ -354,10 +410,10 @@ Because the payload carries `companyId`, the mail goes out via the club's own SM
 The welcome email additionally carries a **portal registration link** - only for the individual class, where the recipient IS the member (a corporate contact is not a member; nominees get a per-member "Invite to portal" action later).
 The link is `{FRONTEND_BASE_URL}/portal/register?token=...` with a **stateless signed RS256 token** (`memberPortal.controller.signRegistrationToken`: purpose `member-portal-register`, memberId + companyId, 30-day expiry - same pattern as workspace activation, so nothing extra is stored; a used link is inert because `Member.userId` is set).
 
-Endpoints (`memberPortal.routes.js`, mounted at `/api/membership/portal` BEFORE the staff auth wall - a portal member has no workspace, so `requireModule`/`requireMenuAction` must not gate these):
+Endpoints (`memberPortal.routes.js`, mounted at `/api/membership/portal` BEFORE the staff auth wall - a portal member has no workspace, so `requireModule`/`requireMenuAction` must not gate these; rate-limited and validated through `portal.schemas.js`):
 - `GET /register/context?token=` (public) - who/where greeting data for the register page ({memberName, memberNo, email, companyName, alreadyRegistered}).
-- `POST /register` (public; body {token, password}) - provisions the platform User via the **`identityGateway` seam** (`platform/identityGateway.js`; Identity owns the User table, so membership never touches the model): no user with the member's email -> create verified local user + auto-login token; user already exists -> link `Member.userId` WITHOUT touching that account's password (`linked: true`; same trust basis as password reset - control of the mailbox) and route them to normal login.
-- `GET /me` (verifyToken only) - every Member row linked to the caller's userId (one person can hold memberships at several clubs), shaped as portal cards (member no/name/kind, club name via `getCompanyProfile` seam, membership no, type, status name+colour, join date).
+- `POST /register` (public; body {token, password}) - provisions the platform User via the **`identityGateway` seam** (`platform/identityGateway.js`; Identity owns the User table, so membership never touches the model): no user with the member's email -> create verified local user + a 24h auto-login token (`identityGateway.issueLoginToken`); user already exists -> link `Member.userId` WITHOUT touching that account's password (`linked: true`; same trust basis as password reset - control of the mailbox) and route them to normal login.
+- `GET /me` (`verifyToken` only) - every Member row linked to the caller's userId (one person can hold memberships at several clubs), shaped as portal cards (member no/name/kind, club name via `getCompanyProfile` seam, membership no, type, status name+colour, join date, `photoUrl`).
 
 Web (both routes OUTSIDE the dashboard shell, lazy):
 - `/portal/register` - public set-password page (greeting card, password + confirm, already-registered and linked-to-existing-account states).
@@ -365,21 +421,30 @@ Web (both routes OUTSIDE the dashboard shell, lazy):
 
 Gotcha: the `membership.welcome` platform template row was already seeded before the link block existed; seeding never overwrites, so shipping this required a one-off `resetPlatformDefault('membership.welcome')` (any subscriber override created before it would need its own reset).
 
-API (behind `verifyToken` + `requireModule('Membership Management')`):
-- `/api/membership/memberships` (+ `requireMenuAction('/membership/memberships')`): `GET /meta` (vocabularies + numbering mode), `GET /options` (type/status/fee pickers in one call - avoids cross-menu RBAC on the other masters' endpoints), `GET /?q=&class=&status=&limit=&offset=` (SERVER-SIDE search + pagination, 2026-07-17 - slim list rows + aggregate total/class counts, `q` matches membership no / corporate name / individual member name via an EXISTS probe; default page 50, max 200; RBAC row flags computed per page), `POST /` (create; individual requires a nested `member` profile), `GET /:id` (detail + member tree - the Edit/Members dialogs fetch this since the list rows are slim), `PUT /:id` (contract edit; number/class/type immutable), `GET /:id/members/suggest-no`, `POST /:id/members` (nominee, seat-capped), `POST /:id/members/:memberId/dependents`, `PUT /:id/members/:memberId`.
+API (behind `verifyToken` + `requireModule('MEMBERSHIP')`):
+- `/api/membership/memberships` (+ `requireMenuAction('/membership/memberships')`): `GET /meta` (vocabularies + numbering mode), `GET /options` (type/status/fee/agent pickers in one call - avoids cross-menu RBAC on the other masters' endpoints), `GET /?q=&class=&status=&limit=&offset=` (SERVER-SIDE search + pagination, 2026-07-17 - slim list rows + aggregate total/class counts, `q` matches membership no / corporate name / individual member name via an EXISTS probe; default page 50, max 200; RBAC row flags computed per page), `POST /` (create; individual requires a nested `member` profile), `GET /:id` (detail + member tree - the Edit/Members dialogs fetch this since the list rows are slim), `PUT /:id` (contract edit; number/class/type immutable), `GET /:id/ar-credit`, `GET /:id/members/suggest-no`, `POST /:id/members` (nominee, seat-capped), `POST /:id/members/:memberId/dependents`, `PUT /:id/members/:memberId`.
 - `/api/membership/members` (+ `requireMenuAction('/membership/members')`): `GET /meta`, `GET /?q=&kind=&status=&offset=` - flat read-only server-side search across every person (member no / name / IC / email), paged 200 at a time ("Load more").
 - Scale: both listings are paginated + server-filtered so a club with tens of thousands of members never ships more than one page to the browser; fuzzy `%q%` search is backed by **pg_trgm GIN indexes** (`*_trgm` on Membership.membershipNo/corporateName and Member.memberNo/firstName/lastName/identityNo/email - created by manual migration, deliberately NOT in the Sequelize models).
 
 Web: `/membership/memberships` (list with class filter chips + coloured status dot; class-aware create/edit dialog - the picked type drives individual-vs-corporate sections and defaults; a Members dialog manages the people tree with New nominee / Add dependent / Edit) and `/membership/members` (flat search screen, server-side debounced).
-Both need DB Menus under Membership Management (routes `/membership/memberships`, `/membership/members`) + role grants.
+Both need DB Menus under the Membership module (routes `/membership/memberships`, `/membership/members`) + role grants.
 
-Phase 2 (planned): per-member standing-charge overrides (additional/exception), hobbies / misc attributes / article subscriptions as their §2.1 masters get built.
-Phase 3 (planned): ID conversion, category conversion, status conversion (immediate + scheduled plan), membership transfer - each with follow-the-principal cascades; requires the §2.1.1 Membership Settings singleton (No Conversion / Category Conversion / Transfer Resigned default statuses).
+Still to build in the CRM: per-member standing-charge overrides (additional/exception), hobbies / misc attributes / article subscriptions as their §2.1 masters get built; and the conversions phase - ID conversion, category conversion, status conversion (immediate + scheduled plan), membership transfer - each with follow-the-principal cascades, which needs the §2.1.1 default-status columns on Club Specification.
 Cascade vocabulary decision pending user confirmation: cascades follow `actionControl != 'barred'` (the generalisation of legacy Authorized/Warning-follow, Unauthorized-skip; updated for the 2026-08-09 control split).
 
+## Built: Billing schedules (fee runs, 2026-08-06)
+
+Membership is a PRODUCER into AR: staged runs that post one invoice per member charge through `arGateway.postCharge` (`sourceModule 'membership'`), gated on the AR Specification's `membershipIntegration` switch.
+
+- `membership."BillingSchedule"` - the run header: `companyId`, `billingType` (`membership-fee` | `subscription-fee`), `periodMonth` (first-of-month key), `docDate` (the document date the posted invoices carry), `trxDate` (accounting-period date, defaults to `docDate`), `totalAmount` (NET sum of non-skipped items), `itemCount`, `status` (`pending` | `partially-posted` | `posted` | `cancelled`; a partial unique keeps one non-cancelled run per company, type and month), stamps.
+- `membership."BillingScheduleItem"` - one row per charge, a permanent audit row: `billingScheduleId`, `membershipId`, `memberId`, `incurredByMemberId` (the person whose charge it is), `debtorTarget` (`membership` or `member` - the one-debtor routing), `transactionTypeId` (the AR catalog entry), `description`, `amount`, `status` (`pending` | `posted` | `skipped` | `failed`), `postedLedgerId` + `postedDocNo` (the AR invoice), `issue` (why a post failed), stamps.
+- Flow: `POST /billing-schedules` refuses early unless `arGateway.isMembershipIntegrationEnabled`, then generates the staged NET items for a month (membership fees from the fee master's installment stages; subscription fees from the type's standing charges by the member's status and frequency, routed to the contract debtor or, for a nominee whose subscription is not borne by the company, the nominee's own account); the review unticks items (`PATCH /billing-schedule-items/:id` toggles `pending` <-> `skipped`); `POST /billing-schedules/:id/post` posts the selected pending items one by one - each item is tax-quoted at posting through `taxGateway.quoteTax` on the transaction type's scheme at the run's `docDate`, then handed to `arGateway.postCharge` with the quote (its own AR transaction; a refusal marks the item `failed` with the reason in `issue`, never rolls back the others; the header becomes `partially-posted` or `posted`); `POST /billing-schedules/:id/cancel` cancels a run with no posted items.
+  Billing runs deliberately do NOT check `chargeControl` or the credit limit (`enforceCredit: false`) - billing reality is never blocked.
+- Gate: `requireMenuAction('/membership/billing')` - typically granted to Finance (cross-module RBAC).
+- Business Insights' "Expired" movement and the future renewal cycle will consume the same tables.
+
 ### Open questions (resolve per file as requirements arrive)
-- Which of these are truly tenant-scoped vs. shared platform reference data (Nationality clearly leans platform; Race/Salutation lean locale-curated).
-- Whether Membership Fee is a simple lookup or a richer pricing rule (proration, tax, currency) - may outgrow a plain master file.
+- Whether Membership Fee is a simple lookup or a richer pricing rule (proration, currency) - may outgrow a plain master file.
 - Default seed sets per file, and whether any are locale-dependent (Salutation, Race).
 
 ## Built: Business Insights (analytics, 2026-07-22)
@@ -390,9 +455,9 @@ Split into two screens deliberately: lighter page load, and per-screen RBAC so a
 - `/membership/membership-analysis` - KPI row (total/active/new joins/expired/net/people), monthly movement chart (joins vs contractual expiries), status donut (membership OR member status, coloured by `MembershipStatus.statusColor`), and type / age-band / residential-country / nationality bars.
 - `/membership/agent-performance` - channel KPI row, monthly closings stacked by channel (internal | external | agency | unattributed), and a channel -> agent leaderboard.
 
-API base `/api/membership/dashboard` (`dashboard.controller.js` + `dashboard.routes.js`): `meta`, `summary`, `movement`, `breakdown?dimension=`, `agents`, `drill`.
+API base `/api/membership/dashboard` (`dashboard.controller.js` + `dashboard.routes.js`, validated through `dashboard.schemas.js`): `meta`, `summary`, `movement`, `breakdown?dimension=`, `agents`, `drill`.
 No new tables - live company-scoped `GROUP BY` over the CRM base.
-RBAC is per endpoint: summary/movement/breakdown require the membership-analysis menu, agents requires agent-performance, and meta + drill pass with EITHER grant via the `requireAnyMenuAction(routes[])` seam added to `platform/serviceContext.js`.
+RBAC is per endpoint: summary/movement/breakdown require the membership-analysis menu, agents requires agent-performance, and meta + drill pass with EITHER grant via the `requireAnyMenuAction(routes[])` seam in `platform/serviceContext.js`.
 
 Semantics decided with the user:
 - "Expired" movement counts `Membership.expiryDate` in the period (contractual - nothing flips status automatically yet), not status changes.
