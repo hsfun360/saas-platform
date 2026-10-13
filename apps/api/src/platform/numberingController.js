@@ -4,9 +4,13 @@
 // instance over ITS OWN NumberingScheme table with ITS OWN purpose list, so
 // the maintenance screens split per module (/membership/numbering,
 // /ar/numbering) while the validation/preview/DTO logic stays one copy.
-// Auth/entitlement/menu gating is applied by the mounting router.
+// Auth/entitlement/menu gating is applied by the mounting router; the request
+// shapes are bounded here (validate() from numbering.schemas.js, 2026-10-12)
+// so every mount gets the same boundary.
 
 const express = require('express');
+const { validate } = require('./validate');
+const schemas = require('./numbering.schemas');
 
 // Build a router serving: GET /meta, GET /, POST /, PATCH /:id, POST /preview.
 // `model` = the module's NumberingScheme; `purposes` = the [{key,label}] list
@@ -69,7 +73,7 @@ function makeNumberingRouter({ model, purposes }) {
         }
     });
 
-    router.post('/', async (req, res) => {
+    router.post('/', validate(schemas.create), async (req, res) => {
         try {
             const companyId = companyIdOf(req);
             if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
@@ -91,7 +95,7 @@ function makeNumberingRouter({ model, purposes }) {
     });
 
     // Draft preview (unsaved config) - registered before /:id so the path wins.
-    router.post('/preview', (req, res) => {
+    router.post('/preview', validate(schemas.preview), (req, res) => {
         try {
             const draft = {
                 prefix: typeof req.body.prefix === 'string' ? req.body.prefix : '',
@@ -156,7 +160,7 @@ function makeNumberingRouter({ model, purposes }) {
         }
     });
 
-    router.get('/copy-sources/:companyId', async (req, res) => {
+    router.get('/copy-sources/:companyId', validate(schemas.copyCandidates), async (req, res) => {
         try {
             const companyId = companyIdOf(req);
             if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
@@ -192,7 +196,7 @@ function makeNumberingRouter({ model, purposes }) {
         }
     });
 
-    router.post('/copy', async (req, res) => {
+    router.post('/copy', validate(schemas.copy), async (req, res) => {
         try {
             const companyId = companyIdOf(req);
             if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
@@ -245,7 +249,7 @@ function makeNumberingRouter({ model, purposes }) {
     });
 
     // Config fields only - never the counter or the purpose.
-    router.patch('/:id', async (req, res) => {
+    router.patch('/:id', validate(schemas.update), async (req, res) => {
         try {
             const companyId = companyIdOf(req);
             if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });

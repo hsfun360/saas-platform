@@ -23,6 +23,13 @@ const { verifyToken } = require('../../platform/auth.middleware');
 const { isPlatformUser } = require('./rbac.middleware');
 const { requireMenuAction, requireAnyMenuAction } = require('../../platform/serviceContext');
 const { validate, fields, z } = require('../../platform/validate');
+const adminSchemas = require('./admin.schemas');
+const emailTemplateSchemas = require('../notification/emailTemplate.schemas');
+const taxSchemas = require('../tax/tax.schemas');
+const platformProfileSchemas = require('./platformProfile.schemas');
+const countrySchemas = require('./country.schemas');
+const languageSchemas = require('./language.schemas');
+const currencySchemas = require('./currency.schemas');
 
 // Authorization is two layers, mirroring the tenant side:
 //   1. isPlatformUser - the caller holds an ACTIVE system-level membership
@@ -73,11 +80,13 @@ const audienceOfMenuParam = async (req) => {
 };
 
 // Role Management (the Roles screen; GET /roles also feeds Assign Role)
-router.post('/roles', requireMenuAction('/admin/system-roles'), adminController.createRole);
+// Every route that reads a request part mounts validate() AFTER its gate (the
+// Zod boundary seam, schemas in admin.schemas.js); list/meta reads stay bare.
+router.post('/roles', requireMenuAction('/admin/system-roles'), validate(adminSchemas.createRole), adminController.createRole);
 router.get('/roles', requireAnyMenuAction(['/admin/system-roles', '/admin/system-setup']), adminController.getRoles);
-router.get('/roles/:id', requireMenuAction('/admin/system-roles'), adminController.getRoleDetail);
-router.put('/roles/:id', requireMenuAction('/admin/system-roles'), adminController.updateRole);
-router.delete('/roles/:id', requireMenuAction('/admin/system-roles'), adminController.deleteRole);
+router.get('/roles/:id', requireMenuAction('/admin/system-roles'), validate(adminSchemas.roleId), adminController.getRoleDetail);
+router.put('/roles/:id', requireMenuAction('/admin/system-roles'), validate(adminSchemas.updateRole), adminController.updateRole);
+router.delete('/roles/:id', requireMenuAction('/admin/system-roles'), validate(adminSchemas.roleId), adminController.deleteRole);
 // The role builder's permission catalogue (platform-audience menus only).
 router.get('/menus', requireMenuAction('/admin/system-roles'), adminController.listMenus);
 // Module list feeds the Subscribers entitlement picker AND both catalogue screens.
@@ -85,34 +94,36 @@ router.get('/modules', requireAnyMenuAction(['/admin/subscribers', '/admin/modul
 
 // Modules & Menus Maintenance (master–detail catalogue management) - gated by
 // the screen matching the TARGET's audience (see requireCatalogueAction above).
-router.post('/modules', requireCatalogueAction(audienceOfBody), adminController.createModule);
-router.put('/modules/:moduleId', requireCatalogueAction(audienceOfModuleParam), adminController.updateModule);
-router.delete('/modules/:moduleId', requireCatalogueAction(audienceOfModuleParam), adminController.deleteModule);
-router.get('/modules/:moduleId/menus', requireCatalogueAction(audienceOfModuleParam), adminController.listModuleMenus);
-router.put('/modules/:moduleId/menus/order', requireCatalogueAction(audienceOfModuleParam), adminController.reorderMenus); // sibling drag-reorder
-router.post('/menus', requireCatalogueAction(audienceOfBodyModule), adminController.createMenu);
-router.put('/menus/:menuId', requireCatalogueAction(audienceOfMenuParam), adminController.updateMenu);
-router.delete('/menus/:menuId', requireCatalogueAction(audienceOfMenuParam), adminController.deleteMenu);
+// The gate resolves the audience from the RAW request part; validate() then
+// replaces the part with the parsed shape before the handler.
+router.post('/modules', requireCatalogueAction(audienceOfBody), validate(adminSchemas.createModule), adminController.createModule);
+router.put('/modules/:moduleId', requireCatalogueAction(audienceOfModuleParam), validate(adminSchemas.updateModule), adminController.updateModule);
+router.delete('/modules/:moduleId', requireCatalogueAction(audienceOfModuleParam), validate(adminSchemas.moduleId), adminController.deleteModule);
+router.get('/modules/:moduleId/menus', requireCatalogueAction(audienceOfModuleParam), validate(adminSchemas.moduleId), adminController.listModuleMenus);
+router.put('/modules/:moduleId/menus/order', requireCatalogueAction(audienceOfModuleParam), validate(adminSchemas.reorderMenus), adminController.reorderMenus); // sibling drag-reorder
+router.post('/menus', requireCatalogueAction(audienceOfBodyModule), validate(adminSchemas.createMenu), adminController.createMenu);
+router.put('/menus/:menuId', requireCatalogueAction(audienceOfMenuParam), validate(adminSchemas.updateMenu), adminController.updateMenu);
+router.delete('/menus/:menuId', requireCatalogueAction(audienceOfMenuParam), validate(adminSchemas.menuId), adminController.deleteMenu);
 
 // User Management (list also feeds Assign Role)
 router.get('/users', requireAnyMenuAction(['/admin/platform-users', '/admin/system-setup']), adminController.listUsers);
-router.post('/users', requireMenuAction('/admin/platform-users'), adminController.createUser);
-router.post('/users/assign-role', requireMenuAction('/admin/system-setup'), adminController.assignUserToRole);
+router.post('/users', requireMenuAction('/admin/platform-users'), validate(adminSchemas.createUser), adminController.createUser);
+router.post('/users/assign-role', requireMenuAction('/admin/system-setup'), validate(adminSchemas.assignRole), adminController.assignUserToRole);
 // MFA recovery for a locked-out user (incl. Tenant Admins, whom no tenant-side
 // admin can reset) - the platform-side arm of the recovery exception.
-router.post('/users/:userId/mfa/reset', requireAnyMenuAction(['/admin/platform-users', '/admin/subscribers']), adminController.resetUserMfa);
+router.post('/users/:userId/mfa/reset', requireAnyMenuAction(['/admin/platform-users', '/admin/subscribers']), validate(adminSchemas.userIdParam), adminController.resetUserMfa);
 // Read-only audit-trail viewer.
-router.get('/audit-log', requireMenuAction('/admin/audit-log'), adminController.listAuditLog);
+router.get('/audit-log', requireMenuAction('/admin/audit-log'), validate(adminSchemas.listAuditLog), adminController.listAuditLog);
 // Unverified-registrations cleanup utility (manual review page).
 router.get('/unverified-users', requireMenuAction('/admin/unverified-users'), adminController.listUnverifiedUsers);
-router.post('/unverified-users/delete', requireMenuAction('/admin/unverified-users'), adminController.deleteUnverifiedUsers);
-router.patch('/users/:id/status', requireMenuAction('/admin/platform-users'), adminController.setUserStatus);
-router.patch('/users/:id', requireMenuAction('/admin/platform-users'), adminController.updateUser);
+router.post('/unverified-users/delete', requireMenuAction('/admin/unverified-users'), validate(adminSchemas.deleteUnverifiedUsers), adminController.deleteUnverifiedUsers);
+router.patch('/users/:id/status', requireMenuAction('/admin/platform-users'), validate(adminSchemas.setUserStatus), adminController.setUserStatus);
+router.patch('/users/:id', requireMenuAction('/admin/platform-users'), validate(adminSchemas.updateUser), adminController.updateUser);
 
 // Subscription / Subscriber Management (System Admin Portal)
-router.post('/subscriptions', requireMenuAction('/admin/subscribers'), adminController.createSubscription);
+router.post('/subscriptions', requireMenuAction('/admin/subscribers'), validate(adminSchemas.createSubscription), adminController.createSubscription);
 router.get('/subscriptions', requireMenuAction('/admin/subscribers'), adminController.listSubscriptions);
-router.patch('/subscriptions/:id', requireMenuAction('/admin/subscribers'), adminController.updateSubscription);
+router.patch('/subscriptions/:id', requireMenuAction('/admin/subscribers'), validate(adminSchemas.updateSubscription), adminController.updateSubscription);
 // NOTE (role separation, 2026-07-14): the platform deliberately has NO endpoints
 // to edit a subscriber's language/currency selection. Those are tenant
 // self-service only (/auth/account/languages, /auth/account/currencies) - the
@@ -122,60 +133,62 @@ router.patch('/subscriptions/:id', requireMenuAction('/admin/subscribers'), admi
 // Platform email templates (edit defaults, preview, reset, send test)
 router.use('/email-templates', requireMenuAction('/admin/email-templates'));
 router.get('/email-templates', emailTemplateController.listPlatformTemplates);
-router.get('/email-templates/:key', emailTemplateController.getPlatformTemplate);
-router.put('/email-templates/:key', emailTemplateController.updatePlatformTemplate);
-router.post('/email-templates/:key/reset', emailTemplateController.resetPlatformTemplate);
-router.post('/email-templates/:key/preview', emailTemplateController.previewTemplate);
-router.post('/email-templates/:key/test', emailTemplateController.sendTestEmail);
+router.get('/email-templates/:key', validate(emailTemplateSchemas.key), emailTemplateController.getPlatformTemplate);
+router.put('/email-templates/:key', validate(emailTemplateSchemas.update), emailTemplateController.updatePlatformTemplate);
+router.post('/email-templates/:key/reset', validate(emailTemplateSchemas.key), emailTemplateController.resetPlatformTemplate);
+router.post('/email-templates/:key/preview', validate(emailTemplateSchemas.preview), emailTemplateController.previewTemplate);
+router.post('/email-templates/:key/test', validate(emailTemplateSchemas.test), emailTemplateController.sendTestEmail);
 
 // Platform tax schemes (accountId NULL) - the platform's own catalog, e.g. tax on
 // Subscription Fee. Reuses the tax controller under platform scope. `/tax/quote`
 // computes tax on an amount for testing before the billing entity exists.
 router.use('/tax', requireMenuAction('/admin/platform-tax'));
+// The catalog twins reuse the subscriber routes' schemas (tax.schemas.js).
 router.get('/tax/meta', taxController.getMeta);
-router.get('/tax/schemes', asPlatformTax, taxController.listSchemes);
-router.post('/tax/schemes', asPlatformTax, taxController.createScheme);
-router.patch('/tax/schemes/:id', asPlatformTax, taxController.updateScheme);
-router.post('/tax/schemes/:id/rates', asPlatformTax, taxController.addRate);
-router.patch('/tax/rates/:id', asPlatformTax, taxController.updateRate);
-router.delete('/tax/rates/:id', asPlatformTax, taxController.deleteRate);
-router.post('/tax/quote', asPlatformTax, taxController.platformQuote);
+router.get('/tax/schemes', asPlatformTax, validate(taxSchemas.listSchemes), taxController.listSchemes);
+router.post('/tax/schemes', asPlatformTax, validate(taxSchemas.createScheme), taxController.createScheme);
+router.patch('/tax/schemes/:id', asPlatformTax, validate(taxSchemas.updateScheme), taxController.updateScheme);
+router.post('/tax/schemes/:id/rates', asPlatformTax, validate(taxSchemas.addRate), taxController.addRate);
+router.patch('/tax/rates/:id', asPlatformTax, validate(taxSchemas.updateRate), taxController.updateRate);
+router.delete('/tax/rates/:id', asPlatformTax, validate(taxSchemas.id), taxController.deleteRate);
+router.post('/tax/quote', asPlatformTax, validate(taxSchemas.quote), taxController.platformQuote);
 
 // Platform Profile (singleton) - the platform's own "company of record": invoice-issuer
 // identity + the billing country/scheme that anchors the platform's own tax. `/quote`
 // computes a charge's tax via the profile (proves MY charges resolve MY schemes).
 router.use('/platform-profile', requireMenuAction('/admin/platform-profile'));
 router.get('/platform-profile', platformProfileController.getProfile);
-router.put('/platform-profile', platformProfileController.updateProfile);
+router.put('/platform-profile', validate(platformProfileSchemas.update), platformProfileController.updateProfile);
+// Multipart upload: the handler reads req.file (multer), no JSON part - stays bare.
 router.post('/platform-profile/logo', upload.single('logo'), platformProfileController.uploadLogo);
-router.post('/platform-profile/quote', platformProfileController.quoteCharge);
+router.post('/platform-profile/quote', validate(platformProfileSchemas.quote), platformProfileController.quoteCharge);
 
 // Tenant Admin management (platform override for a specific company - part of
 // the Subscriber Management screen)
-router.get('/companies/:companyId/users', requireMenuAction('/admin/subscribers'), adminController.listCompanyUsers);
-router.post('/companies/:companyId/tenant-admin', requireMenuAction('/admin/subscribers'), adminController.setTenantAdmin);
+router.get('/companies/:companyId/users', requireMenuAction('/admin/subscribers'), validate(adminSchemas.companyId), adminController.listCompanyUsers);
+router.post('/companies/:companyId/tenant-admin', requireMenuAction('/admin/subscribers'), validate(adminSchemas.setTenantAdmin), adminController.setTenantAdmin);
 
 // Country reference maintenance (sync from world_countries, list, enable/disable)
 router.use('/countries', requireMenuAction('/admin/countries'));
 router.post('/countries/sync', countryController.syncCountries);
 router.get('/countries', countryController.listAllCountries);
-router.patch('/countries/:alpha2', countryController.updateCountry);
+router.patch('/countries/:alpha2', validate(countrySchemas.update), countryController.updateCountry);
 
 // Language reference maintenance (seed defaults, list, add, edit/enable-disable, delete)
 router.use('/languages', requireMenuAction('/admin/languages'));
 router.post('/languages/seed', languageController.seedLanguages);
 router.get('/languages', languageController.listAllLanguages);
-router.post('/languages', languageController.createLanguage);
-router.patch('/languages/:languageCode', languageController.updateLanguage);
-router.delete('/languages/:languageCode', languageController.deleteLanguage);
+router.post('/languages', validate(languageSchemas.create), languageController.createLanguage);
+router.patch('/languages/:languageCode', validate(languageSchemas.update), languageController.updateLanguage);
+router.delete('/languages/:languageCode', validate(languageSchemas.code), languageController.deleteLanguage);
 
 // Currency reference maintenance (seed ISO 4217 defaults, list, add, edit/enable-disable, delete)
 router.use('/currencies', requireMenuAction('/admin/currencies'));
 router.post('/currencies/seed', currencyController.seedCurrencies);
 router.get('/currencies', currencyController.listAllCurrencies);
-router.post('/currencies', currencyController.createCurrency);
-router.patch('/currencies/:code', currencyController.updateCurrency);
-router.delete('/currencies/:code', currencyController.deleteCurrency);
+router.post('/currencies', validate(currencySchemas.create), currencyController.createCurrency);
+router.patch('/currencies/:code', validate(currencySchemas.update), currencyController.updateCurrency);
+router.delete('/currencies/:code', validate(currencySchemas.code), currencyController.deleteCurrency);
 
 // e-Invoice classification codes - Malaysia LHDN MyInvois reference maintenance
 // (sync from LHDN's published JSON with bundled fallback, list, add, edit/enable-disable, delete)

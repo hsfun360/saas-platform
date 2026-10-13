@@ -58,6 +58,9 @@ module.exports = {
     updateScheme: { ...idParam, body: z.object(schemeHeader) },
     addRate: { ...idParam, body: z.object(rateLine) },
     updateRate: { ...idParam, body: z.object({ ...rateLine, isActive: bool }) },
+    // POST /api/admin/tax/quote - tax on an amount against a PLATFORM-owned
+    // scheme (platformQuote keeps the required-country/code/amount messages).
+    quote: { body: z.object({ countryCode: str(2), taxSchemeCode: str(50), amount: numberish, date: str(10) }) },
     // Per-company adoption: enable flag + { [taxCode]: glAccountCode | null }.
     setAdoption: {
         params: z.object({ taxSchemeId: id }),
