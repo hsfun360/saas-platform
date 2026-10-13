@@ -45,7 +45,7 @@ const DAY_SCOPES: MembershipStatusOption[] = [
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
     OverflowMenuComponent, MenuItemDirective, CanDirective, LocalDatePipe],
   templateUrl: './golf-closures.html',
-  styleUrls: ['../system-setup/system-setup.css', './golf-closures.css'],
+  styleUrls: ['./golf-closures.css'],
 })
 export class GolfClosuresComponent implements OnInit {
   private readonly service = inject(GolfClosureService);

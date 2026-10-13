@@ -19,17 +19,17 @@ import { COUNTRY_CODES } from '../country-codes';
   ],
   template: `
     <div class="phone-field">
-      <select class="phone-field__code" aria-label="Country dialling code"
+      <select #codeSelect class="phone-field__code" aria-label="Country dialling code"
               [value]="code()" [disabled]="disabled()"
-              (change)="onCodeChange($any($event.target).value)" (blur)="onTouchedFn()">
+              (change)="onCodeChange(codeSelect.value)" (blur)="onTouchedFn()">
         @for (c of countries; track c.code) {
           <option [value]="c.code">{{ c.flag }} {{ c.code }}</option>
         }
       </select>
-      <input class="phone-field__number" type="tel" inputmode="tel"
+      <input #numberInput class="phone-field__number" type="tel" inputmode="tel"
              [id]="inputId()" [value]="national()" [disabled]="disabled()"
              [placeholder]="placeholder()"
-             (input)="onNumberInput($any($event.target).value)" (blur)="onTouchedFn()" />
+             (input)="onNumberInput(numberInput.value)" (blur)="onTouchedFn()" />
     </div>
   `,
   styles: [`

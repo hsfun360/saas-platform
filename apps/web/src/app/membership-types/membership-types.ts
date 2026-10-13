@@ -56,7 +56,7 @@ const MONTH_NAMES = [
   standalone: true,
   imports: [MoneyPipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './membership-types.html',
-  styleUrls: ['../system-setup/system-setup.css', './membership-types.css'],
+  styleUrls: ['./membership-types.css'],
 })
 export class MembershipTypesComponent implements OnInit {
   private readonly service = inject(MembershipTypeService);

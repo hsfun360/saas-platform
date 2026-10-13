@@ -39,7 +39,7 @@ import { Country } from '../models/auth.models';
     OverflowMenuComponent, MenuItemDirective, SortMenuComponent, ComboboxComponent,
   ],
   templateUrl: './ar-debtors.html',
-  styleUrls: ['../system-setup/system-setup.css', './ar-debtors.css'],
+  styleUrls: ['./ar-debtors.css'],
 })
 export class ArDebtorsComponent implements OnInit {
   private readonly service = inject(ArService);

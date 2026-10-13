@@ -197,8 +197,10 @@ export interface LeadRegistrationData {
   source?: string;   // acquisition channel, e.g. 'Organic'
 }
 
+// PUT /auth/profile reads camelCase `fullName` (the snake_case key was silently
+// ignored, so the name never saved from the Profile screen until 2026-10-13).
 export interface UpdateProfileData {
-  full_name?: string;
+  fullName?: string;
   phone?: string;
   bio?: string;
 }

@@ -15,7 +15,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, RouterModule],
   templateUrl: './email-templates.html',
-  styleUrls: ['../system-setup/system-setup.css'],
+  styleUrls: [],
 })
 export class EmailTemplatesComponent implements OnInit {
   private readonly service = inject(EmailTemplateService);

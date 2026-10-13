@@ -42,7 +42,10 @@ describe('ScreenTitleService', () => {
     document.title = '';
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([{ path: '**', component: BlankComponent }]),
+        provideRouter([
+          { path: 'approvals', component: BlankComponent, data: { title: 'My Approvals' } },
+          { path: '**', component: BlankComponent },
+        ]),
         { provide: I18nService, useValue: { lang } },
       ],
     });
@@ -89,6 +92,16 @@ describe('ScreenTitleService', () => {
     expect(service.title('fallback')).toBe('Courses'); // no Malay name -> base name
     expect(service.subtitle('Tee sheets')).toBe('Tee sheets'); // no description at all -> fallback
     expect(document.title).toBe('Courses');
+  });
+
+  it('names the tab from the route data.title on a non-menu route, keeping the screen fallback', async () => {
+    await go('/approvals');
+
+    expect(document.title).toBe('My Approvals');
+    expect(service.title('My Approvals (fallback)')).toBe('My Approvals (fallback)');
+
+    await go('/settings'); // no data.title and no menu -> the product name again
+    expect(document.title).toBe('myEasySoft');
   });
 
   it('keeps the tab title in step with navigation', async () => {

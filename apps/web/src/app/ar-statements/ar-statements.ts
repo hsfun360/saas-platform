@@ -47,7 +47,7 @@ const VIEW_COL_ORDER: ArStatementColumnKey[] = ['date', 'docNo', 'details', 'deb
     ComboboxComponent,
   ],
   templateUrl: './ar-statements.html',
-  styleUrls: ['../system-setup/system-setup.css', './ar-statements.css'],
+  styleUrls: ['./ar-statements.css'],
 })
 export class ArStatementsComponent implements OnInit {
   // Month picker options (shared combobox - Firefox has no native month input).

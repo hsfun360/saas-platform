@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { timer } from 'rxjs';
 import { AuthService } from '../auth.service';
 
 @Component({
@@ -16,6 +18,7 @@ export class ResetPasswordComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
 
   private token: string | null = null;
 
@@ -59,7 +62,11 @@ export class ResetPasswordComponent implements OnInit {
       next: () => {
         this.isSubmitting.set(false);
         this.successMessage.set('Your password has been reset. Taking you to the login page…');
-        setTimeout(() => this.router.navigate(['/login']), 3000);
+        // Cancelled with the component, so leaving this page first can never
+        // fire a second navigation.
+        timer(3000)
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe(() => this.router.navigate(['/login']));
       },
       error: (err) => {
         this.isSubmitting.set(false);

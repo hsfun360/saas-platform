@@ -25,7 +25,7 @@ import { CanDirective } from '../shared/can.directive';
   standalone: true,
   imports: [ConfirmDialogComponent, CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './currencies.html',
-  styleUrls: ['../system-setup/system-setup.css'],
+  styleUrls: [],
 })
 export class CurrenciesComponent implements OnInit {
   // Destructive-action confirmation (shared centred dialog; replaces window.confirm).

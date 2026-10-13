@@ -73,6 +73,15 @@ interface NavNode {
     }
 })
 export class Dashboard implements OnInit, OnDestroy {
+  private readonly router = inject(Router);
+  private readonly authService = inject(AuthService);
+  private readonly languageService = inject(LanguageService);
+  readonly i18n = inject(I18nService);
+  readonly notifications = inject(NotificationService);
+  // Instantiated with the shell so screen visits are tracked from the first
+  // navigation (feeds My Dashboard's "continue where you left off" row).
+  private readonly recentScreens = inject(RecentScreensService);
+
   loggedInUser: string | null = '';
   // Updated asynchronously from the avatar$/fullName$ streams, so held in signals
   // to refresh the view without relying on zone-based change detection.
@@ -152,17 +161,6 @@ export class Dashboard implements OnInit, OnDestroy {
   // refreshed on boot and every minute (background jobs notify through this).
   isNotifDropdownOpen = false;
   private notifTimer: ReturnType<typeof setInterval> | null = null;
-
-  constructor(
-    private router: Router,
-    private authService: AuthService,
-    private languageService: LanguageService,
-    public i18n: I18nService,
-    public notifications: NotificationService,
-    // Instantiated with the shell so screen visits are tracked from the first
-    // navigation (feeds the launchpad's "continue where you left off" row).
-    _recentScreens: RecentScreensService,
-  ) {}
 
   ngOnInit(): void {
     const token = localStorage.getItem('token');

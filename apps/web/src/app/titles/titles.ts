@@ -24,7 +24,7 @@ import { CanDirective } from '../shared/can.directive';
   standalone: true,
   imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './titles.html',
-  styleUrls: ['../system-setup/system-setup.css'],
+  styleUrls: [],
 })
 export class TitlesComponent implements OnInit {
   private readonly service = inject(TitleService);

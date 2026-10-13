@@ -55,7 +55,7 @@ function localToday(): string {
     PhoneInputComponent,
   ],
   templateUrl: './golf-bookings.html',
-  styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css', './golf-bookings.css'],
+  styleUrls: ['./golf-bookings.css'],
 })
 export class GolfBookingsComponent implements OnInit, OnDestroy {
   private readonly service = inject(GolfBookingService);

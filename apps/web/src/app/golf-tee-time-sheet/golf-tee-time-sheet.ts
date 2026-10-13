@@ -1,4 +1,4 @@
-import { Component, Injector, OnInit, computed, inject, signal, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ElementRef, Injector, OnInit, afterNextRender, computed, inject, signal, viewChildren, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -86,7 +86,7 @@ function localToday(): string {
     MoneyInputDirective, LocalDatePipe, PhoneInputComponent,
   ],
   templateUrl: './golf-tee-time-sheet.html',
-  styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css', './golf-tee-time-sheet.css'],
+  styleUrls: ['./golf-tee-time-sheet.css'],
 })
 export class GolfTeeTimeSheetComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
@@ -94,6 +94,8 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly returnScroll = inject(ScrollReturnService);
   private readonly injector = inject(Injector);
+  // Every regular flight button on the sheet (the search hit is one of them).
+  private readonly flightEls = viewChildren<ElementRef<HTMLButtonElement>>('flightEl');
 
   readonly loading = signal(false);
   readonly successMessage = signal('');
@@ -152,11 +154,14 @@ export class GolfTeeTimeSheetComponent implements OnInit {
 
   onSearch(value: string): void {
     this.search.set(value);
-    // Bring the first matching flight into view once the classes render.
-    setTimeout(() => {
-      const el = document.querySelector('.fd-flight--hit');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-    });
+    // Bring the first matching flight into view once the hit classes render.
+    afterNextRender(
+      () => {
+        const el = this.flightEls().find((f) => f.nativeElement.classList.contains('fd-flight--hit'));
+        el?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      },
+      { injector: this.injector },
+    );
   }
 
   // ---- seat dots: one per player, coloured by day status ----

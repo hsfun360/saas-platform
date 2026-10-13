@@ -8,6 +8,7 @@ import { CanDirective } from '../shared/can.directive';
 import { ArService } from '../services/ar.service';
 import { ArDesignatedTypeOption, ArSetting, ArStatementColumn, ArStatementColumnKey } from '../models/ar.models';
 import { ComboboxComponent } from '../shared/combobox/combobox';
+import { openBlobInNewTab } from '../shared/open-blob';
 
 // Combobox row for a designated-transaction-type picker: code — description.
 const toTypeChoice = (t: ArDesignatedTypeOption): { value: string; label: string } => ({
@@ -47,7 +48,7 @@ const COLUMN_CATALOG: { key: ArStatementColumnKey; name: string }[] = [
     CanDirective, CdkDropList, CdkDrag, CdkDragHandle, ComboboxComponent,
   ],
   templateUrl: './ar-specification.html',
-  styleUrls: ['../system-setup/system-setup.css', './ar-specification.css'],
+  styleUrls: ['./ar-specification.css'],
 })
 export class ArSpecificationComponent implements OnInit {
   private readonly service = inject(ArService);
@@ -296,9 +297,7 @@ export class ArSpecificationComponent implements OnInit {
     this.service.previewStatementLayout().subscribe({
       next: (blob) => {
         this.previewing.set(false);
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        openBlobInNewTab(blob);
       },
       error: () => {
         this.previewing.set(false);

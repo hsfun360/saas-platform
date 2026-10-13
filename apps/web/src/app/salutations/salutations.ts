@@ -22,7 +22,7 @@ import { CanDirective } from '../shared/can.directive';
   standalone: true,
   imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './salutations.html',
-  styleUrls: ['../system-setup/system-setup.css'],
+  styleUrls: [],
 })
 export class SalutationsComponent implements OnInit {
   private readonly service = inject(SalutationService);

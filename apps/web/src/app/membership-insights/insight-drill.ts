@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, inject, input, signal } from '@angular/core';
 import {
   DashboardMeta,
   DrillMemberRow,
@@ -27,14 +27,15 @@ export interface DrillChip {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [LocalDatePipe],
   templateUrl: './insight-drill.html',
-  // system-setup.css supplies the .flash primitives; insights.css the shared
+  // The .flash snackbar is global (styles.css); insights.css supplies the shared
   // md-card/md-seg/md-empty primitives (component-scoped, so the
   // panel must include them itself - parent styles don't reach child templates).
-  styleUrls: ['../system-setup/system-setup.css', './insights.css', './insight-drill.css'],
+  styleUrls: ['./insights.css', './insight-drill.css'],
 })
 export class InsightDrillComponent {
   private readonly api = inject(MembershipDashboardService);
   private readonly host = inject(ElementRef<HTMLElement>);
+  private readonly injector = inject(Injector);
 
   // Label catalogs + the pages' global class filter (applied to every drill).
   readonly meta = input<DashboardMeta | null>(null);
@@ -85,8 +86,12 @@ export class InsightDrillComponent {
     this.entity.set(chip.entity);
     this.open.set(true);
     this.fetch(0);
-    // Bring the panel into view - it lives below the charts.
-    setTimeout(() => (this.host.nativeElement as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+    // Bring the panel into view - it lives below the charts and only renders
+    // once `open` has been painted, so scroll after the next render.
+    afterNextRender(
+      () => (this.host.nativeElement as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'nearest' }),
+      { injector: this.injector },
+    );
   }
 
   removeChip(key: string): void {

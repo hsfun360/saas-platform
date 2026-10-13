@@ -27,7 +27,7 @@ import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
   standalone: true,
   imports: [CanDirective, LocalDatePipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, ComboboxComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './tax-schemes.html',
-  styleUrls: ['../system-setup/system-setup.css', './tax-schemes.css'],
+  styleUrls: ['./tax-schemes.css'],
 })
 export class TaxSchemesComponent implements OnInit {
   private readonly service = inject(TaxSchemeService);

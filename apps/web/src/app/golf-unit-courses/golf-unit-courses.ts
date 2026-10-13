@@ -78,7 +78,7 @@ const SEQ_OPTIONS = [1, 2, 3, 4, 5];
   imports: [ConfirmDialogComponent, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
     OverflowMenuComponent, MenuItemDirective, CanDirective],
   templateUrl: './golf-unit-courses.html',
-  styleUrls: ['../system-setup/system-setup.css', './golf-unit-courses.css'],
+  styleUrls: ['./golf-unit-courses.css'],
 })
 export class GolfUnitCoursesComponent implements OnInit {
   private readonly service = inject(UnitCourseService);

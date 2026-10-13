@@ -50,7 +50,7 @@ const MSIC_SECTION_NAMES: Record<string, string> = {
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './e-invoice-msic-codes.html',
-  styleUrls: ['../system-setup/system-setup.css'],
+  styleUrls: [],
 })
 export class EInvoiceMsicCodesComponent implements OnInit {
   private readonly eInvoiceMsicCodeService = inject(EInvoiceMsicCodeService);

@@ -44,7 +44,7 @@ type TranslationGroup = FormGroup<{
   standalone: true,
   imports: [CanDirective, FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './countries.html',
-  styleUrls: ['../system-setup/system-setup.css'],
+  styleUrls: [],
 })
 export class CountriesComponent implements OnInit {
   private readonly languageService = inject(LanguageService);

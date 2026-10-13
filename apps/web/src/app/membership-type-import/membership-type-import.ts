@@ -27,7 +27,7 @@ import { TypeImportBatchDetail, TypeImportBatchSummary, TypeImportMigrateResult,
   standalone: true,
   imports: [ConfirmDialogComponent, CommonModule, CanDirective, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './membership-type-import.html',
-  styleUrls: ['../system-setup/system-setup.css', '../membership-import/membership-import.css'],
+  styleUrls: ['../membership-import/membership-import.css'],
 })
 export class MembershipTypeImportComponent {
   // Destructive-action confirmation (shared centred dialog; replaces window.confirm).

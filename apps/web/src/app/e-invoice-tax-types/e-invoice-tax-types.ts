@@ -23,7 +23,7 @@ import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, LocalDatePipe, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './e-invoice-tax-types.html',
-  styleUrls: ['../system-setup/system-setup.css'],
+  styleUrls: [],
 })
 export class EInvoiceTaxTypesComponent implements OnInit {
   private readonly eInvoiceTaxTypeService = inject(EInvoiceTaxTypeService);

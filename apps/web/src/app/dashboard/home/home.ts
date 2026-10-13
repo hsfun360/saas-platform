@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
   CdkDropList,
@@ -48,7 +48,7 @@ interface FavoriteGroup {
   // container/header chrome is global.
   styleUrls: ['./launchpad.css', './home.css'],
 })
-export class HomeComponent {
+export class HomeComponent implements OnInit {
   private readonly i18n = inject(I18nService);
   private readonly help = inject(HelpService);
   private readonly recents = inject(RecentScreensService);
@@ -70,6 +70,10 @@ export class HomeComponent {
 
   constructor() {
     this.favorites.ensureLoaded();
+  }
+
+  // The HTTP work belongs in the lifecycle hook, not the constructor.
+  ngOnInit(): void {
     this.workflow.listMyTasks().subscribe({
       next: (tasks) => {
         // Overdue/due-within-24h rows carry the alert colour and float to the

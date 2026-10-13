@@ -28,7 +28,7 @@ const CLASS_LABELS: Record<string, string> = {
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule],
   templateUrl: './membership-transaction-types.html',
   // membership-types.css supplies the shared .mt-chip pill.
-  styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css'],
+  styleUrls: ['../membership-types/membership-types.css'],
 })
 export class MembershipTransactionTypesComponent implements OnInit {
   private readonly service = inject(TransactionTypeService);

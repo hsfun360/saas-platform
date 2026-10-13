@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, inject, input, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, inject, input, signal, viewChild } from '@angular/core';
 
 // The projected items carry the `appMenuItem` directive from
 // ./menu-item.directive (one directive per file, per the naming convention).
@@ -43,6 +43,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, inject, input, signal, 
 })
 export class OverflowMenuComponent {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
 
   // Accessible name for the icon-only trigger, e.g. "More actions for ACME".
@@ -56,8 +57,9 @@ export class OverflowMenuComponent {
       return;
     }
     this.open.set(true);
-    // Zoneless: the panel renders after this tick; focus the first item then.
-    setTimeout(() => this.focusItem(0));
+    // The panel exists only after the next render; focus the first item then
+    // (same hook the shared dialog uses for its first-field focus).
+    afterNextRender(() => this.focusItem(0), { injector: this.injector });
   }
 
   close(refocusTrigger = false): void {

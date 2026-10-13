@@ -50,7 +50,7 @@ type ModuleRowForm = FormGroup<{
   ],
   templateUrl: './ar-analysis.html',
   // ar-transaction-types.css carries the shared copy-picker row styles.
-  styleUrls: ['../system-setup/system-setup.css', '../ar-transaction-types/ar-transaction-types.css', './ar-analysis.css'],
+  styleUrls: ['../ar-transaction-types/ar-transaction-types.css', './ar-analysis.css'],
 })
 export class ArAnalysisComponent implements OnInit {
   private readonly service = inject(ArService);

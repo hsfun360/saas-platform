@@ -26,7 +26,7 @@ import { CanDirective } from '../shared/can.directive';
   standalone: true,
   imports: [CanDirective, FavStarComponent, LocalDatePipe, ScreenTitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './public-holidays.html',
-  styleUrls: ['../system-setup/system-setup.css'],
+  styleUrls: [],
 })
 export class PublicHolidaysComponent implements OnInit {
   private readonly service = inject(PublicHolidayService);

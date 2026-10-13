@@ -26,7 +26,7 @@ import { CanDirective } from '../shared/can.directive';
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, CanDirective],
   templateUrl: './numbering.html',
   // ar-transaction-types.css carries the shared copy-picker row styles.
-  styleUrls: ['../system-setup/system-setup.css', '../ar-transaction-types/ar-transaction-types.css', './numbering.css'],
+  styleUrls: ['../ar-transaction-types/ar-transaction-types.css', './numbering.css'],
 })
 export class NumberingComponent implements OnInit {
   private readonly service = inject(NumberingService);

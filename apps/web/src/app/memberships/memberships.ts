@@ -45,7 +45,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
   standalone: true,
   imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, MoneyInputDirective, SortMenuComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './memberships.html',
-  styleUrls: ['../system-setup/system-setup.css', './memberships.css'],
+  styleUrls: ['./memberships.css'],
 })
 export class MembershipsComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
@@ -998,6 +998,9 @@ export class MembershipsComponent implements OnInit {
 
 // joinDate + termMonths, minus one day (the term runs THROUGH the day before
 // the anniversary). Month-end clamped; mirrors the server's defaultTermExpiry.
+// Pure calendar arithmetic on a date-only string, done entirely in UTC: no
+// "today" is derived and nothing is displayed, so the UTC slice is correct here
+// (the local-date helpers are for display and today-derivation only).
 function computeTermExpiry(joinDateStr: string, termMonths: number): string {
   const [y, m, d] = joinDateStr.split('-').map(Number);
   const idx = (m - 1) + termMonths;

@@ -17,7 +17,7 @@ import { BillingSchedule, BillingScheduleItem } from '../models/billing.models';
   standalone: true,
   imports: [CommonModule, RouterLink, CanDirective, LocalDatePipe],
   templateUrl: './membership-billing-detail.html',
-  styleUrls: ['../system-setup/system-setup.css', './membership-billing-detail.css'],
+  styleUrls: ['./membership-billing-detail.css'],
 })
 export class MembershipBillingDetailComponent {
   private readonly service = inject(BillingService);

@@ -63,7 +63,7 @@ type EligGroup = FormGroup<{
     CanDirective, OverflowMenuComponent, MenuItemDirective, MoneyInputDirective, LocalDatePipe, ComboboxComponent],
   templateUrl: './golf-transaction-types.html',
   // membership-types.css supplies the shared .mt-chip pill; own css = pricing grid.
-  styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css', './golf-transaction-types.css'],
+  styleUrls: ['../membership-types/membership-types.css', './golf-transaction-types.css'],
 })
 export class GolfTransactionTypesComponent implements OnInit {
   private readonly service = inject(GolfTransactionTypeService);

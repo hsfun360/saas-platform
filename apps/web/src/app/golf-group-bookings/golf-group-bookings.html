@@ -1167,7 +1167,7 @@
       </form>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="flDlg.requestClose()" [disabled]="saving()">Cancel</button>
-        <button type="submit" form="ggbFlights" class="btn btn--primary" [disabled]="saving() || flightsForm.invalid">{{ saving() ? 'Reserving…' : 'Reserve ' + (flightsForm.controls.count.value || 0) + (flightsForm.controls.count.value === 1 ? ' flight' : ' flights') }}</button>
+        <button type="submit" form="ggbFlights" class="btn btn--primary" [disabled]="saving() || flightsForm.invalid">{{ saving() ? 'Reserving…' : 'Reserve ' + flightsCount() + (flightsCount() === 1 ? ' flight' : ' flights') }}</button>
       </ng-container>
     </app-dialog>
   }

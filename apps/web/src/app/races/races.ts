@@ -22,7 +22,7 @@ import { CanDirective } from '../shared/can.directive';
   standalone: true,
   imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './races.html',
-  styleUrls: ['../system-setup/system-setup.css'],
+  styleUrls: [],
 })
 export class RacesComponent implements OnInit {
   private readonly service = inject(RaceService);

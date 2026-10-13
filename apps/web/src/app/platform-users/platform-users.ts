@@ -27,7 +27,7 @@ import { CanDirective } from '../shared/can.directive';
   standalone: true,
   imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './platform-users.html',
-  styleUrls: ['../system-setup/system-setup.css'],
+  styleUrls: [],
 })
 export class PlatformUsersComponent implements OnInit {
   private readonly adminService = inject(AdminService);

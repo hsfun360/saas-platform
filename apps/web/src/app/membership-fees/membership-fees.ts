@@ -42,7 +42,7 @@ function round2(n: number): number {
   standalone: true,
   imports: [MoneyPipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, MoneyInputDirective, CanDirective, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './membership-fees.html',
-  styleUrls: ['../system-setup/system-setup.css', './membership-fees.css'],
+  styleUrls: ['./membership-fees.css'],
 })
 export class MembershipFeesComponent implements OnInit {
   private readonly service = inject(MembershipFeeService);

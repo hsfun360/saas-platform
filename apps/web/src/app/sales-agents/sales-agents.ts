@@ -24,7 +24,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
   standalone: true,
   imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, PhoneInputComponent, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './sales-agents.html',
-  styleUrls: ['../system-setup/system-setup.css', '../memberships/memberships.css'],
+  styleUrls: ['../memberships/memberships.css'],
 })
 export class SalesAgentsComponent implements OnInit {
   private readonly service = inject(SalesService);

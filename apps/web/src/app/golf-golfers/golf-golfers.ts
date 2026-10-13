@@ -20,7 +20,7 @@ import { GolfGolferService, Golfer } from '../services/golf-golfer.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective, DialogComponent],
   templateUrl: './golf-golfers.html',
-  styleUrls: ['../system-setup/system-setup.css'],
+  styleUrls: [],
 })
 export class GolfGolfersComponent implements OnInit {
   private readonly service = inject(GolfGolferService);

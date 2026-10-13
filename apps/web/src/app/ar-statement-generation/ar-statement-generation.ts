@@ -35,7 +35,7 @@ import { ArStatementCategory, ArStatementRun, ArStatementRunPreview } from '../m
     ComboboxComponent,
   ],
   templateUrl: './ar-statement-generation.html',
-  styleUrls: ['../system-setup/system-setup.css', './ar-statement-generation.css'],
+  styleUrls: ['./ar-statement-generation.css'],
 })
 export class ArStatementGenerationComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);

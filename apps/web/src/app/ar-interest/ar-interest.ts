@@ -30,7 +30,7 @@ import { ArAnalysisEntryMeta, ArInterestDetail, ArInterest } from '../models/ar.
     ComboboxComponent,
   ],
   templateUrl: './ar-interest.html',
-  styleUrls: ['../system-setup/system-setup.css', './ar-interest.css'],
+  styleUrls: ['./ar-interest.css'],
 })
 export class ArInterestComponent implements OnInit {
   // Month picker options (shared combobox - Firefox has no native month input).

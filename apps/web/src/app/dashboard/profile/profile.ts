@@ -188,7 +188,7 @@ export class ProfileComponent implements OnInit {
     this.saving.set(true);
     this.successMessage.set('');
     this.errorMessage.set('');
-    this.authService.updateProfile({ full_name: v.fullName, phone: v.phone, bio: v.bio }).subscribe({
+    this.authService.updateProfile({ fullName: v.fullName, phone: v.phone, bio: v.bio }).subscribe({
       next: () => {
         this.saving.set(false);
         this.successMessage.set('Profile saved.');

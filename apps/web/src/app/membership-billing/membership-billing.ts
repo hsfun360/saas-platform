@@ -28,7 +28,7 @@ import { BillingSchedule } from '../models/billing.models';
     ComboboxComponent,
   ],
   templateUrl: './membership-billing.html',
-  styleUrls: ['../system-setup/system-setup.css', './membership-billing.css'],
+  styleUrls: ['./membership-billing.css'],
 })
 export class MembershipBillingComponent implements OnInit {
   // Month picker options (shared combobox - Firefox has no native month input).

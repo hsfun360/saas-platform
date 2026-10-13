@@ -27,7 +27,7 @@ import { CanDirective } from '../shared/can.directive';
   standalone: true,
   imports: [CanDirective, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './company-tax.html',
-  styleUrls: ['../system-setup/system-setup.css', './company-tax.css'],
+  styleUrls: ['./company-tax.css'],
 })
 export class CompanyTaxComponent implements OnInit {
   private readonly service = inject(TaxSchemeService);

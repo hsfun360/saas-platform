@@ -25,7 +25,7 @@ import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
     CanDirective, OverflowMenuComponent, MenuItemDirective],
   templateUrl: './golf-payment-types.html',
   // membership-types.css supplies the shared .mt-chip pill; own css = icon bits.
-  styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css', './golf-payment-types.css'],
+  styleUrls: ['../membership-types/membership-types.css', './golf-payment-types.css'],
 })
 export class GolfPaymentTypesComponent implements OnInit {
   private readonly service = inject(GolfPaymentTypeService);

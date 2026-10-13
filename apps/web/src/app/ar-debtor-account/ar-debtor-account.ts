@@ -47,7 +47,7 @@ const AR_STATUS_LABELS: Record<ArDocStatus, string> = {
     ArRefundDialogComponent, ArDepositDialogComponent, OverflowMenuComponent, MenuItemDirective,
   ],
   templateUrl: './ar-debtor-account.html',
-  styleUrls: ['../system-setup/system-setup.css', './ar-debtor-account.css'],
+  styleUrls: ['./ar-debtor-account.css'],
 })
 export class ArDebtorAccountComponent {
   private readonly service = inject(ArService);

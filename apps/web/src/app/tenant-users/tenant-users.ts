@@ -124,7 +124,8 @@ export class TenantUsersComponent implements OnInit {
   // optional department/position so data scope is complete on day one).
   readonly createForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
-    password: ['', [Validators.required, Validators.minLength(6)]],
+    // The app-wide 8-character password floor (the API enforces it at the boundary).
+    password: ['', [Validators.required, Validators.minLength(8)]],
     fullName: ['', [Validators.required, Validators.maxLength(150)]],
     phone: [''],
     companyId: ['', [Validators.required]],

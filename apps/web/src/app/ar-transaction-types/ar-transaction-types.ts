@@ -24,7 +24,7 @@ import { ArCopyCandidate, ArOption, ArTransactionTypeMeta, ArTransactionTypeRow 
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, OverflowMenuComponent, MenuItemDirective, CanDirective, ComboboxComponent],
   templateUrl: './ar-transaction-types.html',
   // membership-types.css supplies the shared .mt-chip pill.
-  styleUrls: ['../system-setup/system-setup.css', '../membership-types/membership-types.css', './ar-transaction-types.css'],
+  styleUrls: ['../membership-types/membership-types.css', './ar-transaction-types.css'],
 })
 export class ArTransactionTypesComponent implements OnInit {
   private readonly service = inject(ArService);

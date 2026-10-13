@@ -21,7 +21,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent],
   templateUrl: './club-specification.html',
-  styleUrls: ['../system-setup/system-setup.css', '../numbering/numbering.css', './club-specification.css'],
+  styleUrls: ['../numbering/numbering.css', './club-specification.css'],
 })
 export class ClubSpecificationComponent implements OnInit {
   private readonly service = inject(ClubSpecificationService);

@@ -163,7 +163,7 @@ const DOC_TYPES: Record<string, DocTypeCfg> = {
   templateUrl: './ar-transactions.html',
   // ar-interest.css supplies the .ai-lines drill-down grid the Interest
   // breakdown viewer reuses (one look for the same data on both screens).
-  styleUrls: ['../system-setup/system-setup.css', '../ar-interest/ar-interest.css', './ar-transactions.css'],
+  styleUrls: ['../ar-interest/ar-interest.css', './ar-transactions.css'],
 })
 export class ArTransactionsComponent implements OnInit {
   private readonly service = inject(ArService);

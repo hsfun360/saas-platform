@@ -29,7 +29,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
   standalone: true,
   imports: [MoneyPipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, PhoneInputComponent, MoneyInputDirective, ComboboxComponent],
   templateUrl: './platform-profile.html',
-  styleUrls: ['../system-setup/system-setup.css', './platform-profile.css'],
+  styleUrls: ['./platform-profile.css'],
 })
 export class PlatformProfileComponent implements OnInit {
   private readonly service = inject(PlatformProfileService);

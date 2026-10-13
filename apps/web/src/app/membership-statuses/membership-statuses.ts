@@ -25,7 +25,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent, CanDirective, OverflowMenuComponent, MenuItemDirective, ComboboxComponent],
   templateUrl: './membership-statuses.html',
-  styleUrls: ['../system-setup/system-setup.css', './membership-statuses.css'],
+  styleUrls: ['./membership-statuses.css'],
 })
 export class MembershipStatusesComponent implements OnInit {
   private readonly service = inject(MembershipStatusService);

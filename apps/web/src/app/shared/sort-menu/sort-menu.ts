@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, output, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, inject, input, output, signal, viewChild } from '@angular/core';
 
 // One sortable field a listing offers. defaultDir is the direction applied
 // when the field is first selected (e.g. amounts start high-to-low); clicking
@@ -69,6 +69,7 @@ export interface SortValue {
 })
 export class SortMenuComponent {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
 
   readonly options = input.required<SortOption[]>();
@@ -95,8 +96,9 @@ export class SortMenuComponent {
       return;
     }
     this.open.set(true);
-    // Zoneless: the panel renders after this tick; focus the first item then.
-    setTimeout(() => this.items().at(0)?.focus());
+    // The panel exists only after the next render; focus the first item then
+    // (same hook the shared dialog uses for its first-field focus).
+    afterNextRender(() => this.items().at(0)?.focus(), { injector: this.injector });
   }
 
   close(refocusTrigger = false): void {

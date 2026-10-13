@@ -19,14 +19,14 @@
       <div class="flash flash-success" role="status" aria-live="polite">
         <span class="flash-icon">✅</span>
         <span>{{ successMessage() }}</span>
-        <button type="button" class="flash-close" type="button" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+        <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
       </div>
     }
     @if (errorMessage()) {
       <div class="flash flash-error" role="alert" aria-live="assertive">
         <span class="flash-icon">❌</span>
         <span>{{ errorMessage() }}</span>
-        <button type="button" class="flash-close" type="button" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+        <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
       </div>
     }
     @if (configured() && lastError() && !errorMessage()) {

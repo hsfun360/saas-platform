@@ -25,7 +25,7 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, DashChartComponent, InsightDrillComponent],
   templateUrl: './membership-analysis.html',
-  styleUrls: ['../system-setup/system-setup.css', './insights.css'],
+  styleUrls: ['./insights.css'],
 })
 export class MembershipAnalysisComponent implements OnInit {
   private readonly api = inject(MembershipDashboardService);

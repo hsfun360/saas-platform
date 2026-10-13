@@ -67,13 +67,14 @@ const routes: Routes = [
     component: Dashboard,
     canActivate: [authGuard],
     children: [
-      // Account / shared
-      { path: 'home', loadComponent: () => import('./app/dashboard/home/home').then((m) => m.HomeComponent) },
-      { path: 'profile', loadComponent: () => import('./app/dashboard/profile/profile').then((m) => m.ProfileComponent) },
-      { path: 'settings', loadComponent: () => import('./app/dashboard/settings/settings').then((m) => m.SettingsComponent) },
+      // Account / shared. These are not menu-backed, so `data.title` names the
+      // browser tab (ScreenTitleService falls back to it before the app name).
+      { path: 'home', loadComponent: () => import('./app/dashboard/home/home').then((m) => m.HomeComponent), data: { title: 'My Dashboard' } },
+      { path: 'profile', loadComponent: () => import('./app/dashboard/profile/profile').then((m) => m.ProfileComponent), data: { title: 'Profile' } },
+      { path: 'settings', loadComponent: () => import('./app/dashboard/settings/settings').then((m) => m.SettingsComponent), data: { title: 'Settings' } },
       // My Approvals — the caller's personal workflow inbox. Person-scoped like
       // /home (assignee-only, enforced server-side), so no moduleCode guard.
-      { path: 'approvals', loadComponent: () => import('./app/approvals/approvals').then((m) => m.ApprovalsComponent) },
+      { path: 'approvals', loadComponent: () => import('./app/approvals/approvals').then((m) => m.ApprovalsComponent), data: { title: 'My Approvals' } },
 
       // Sample CRUD master–detail screen. Both paths point at the same component;
       // the :id segment ('new' = create) is the single source of truth for the

@@ -48,7 +48,7 @@ import {
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective, ComboboxComponent],
   templateUrl: './golf-settings.html',
-  styleUrls: ['../system-setup/system-setup.css', './golf-settings.css'],
+  styleUrls: ['./golf-settings.css'],
 })
 export class GolfSettingsComponent implements OnInit {
   private readonly service = inject(GolfSettingService);

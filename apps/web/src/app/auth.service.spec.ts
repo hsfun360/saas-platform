@@ -110,6 +110,16 @@ describe('AuthService', () => {
       expect(localStorage.getItem('token')).toBe('jwt');
     });
 
+    it('updateProfile PUTs camelCase fullName, phone and bio to /auth/profile (the API ignores full_name)', () => {
+      service.updateProfile({ fullName: 'Ada Lovelace', phone: '+60123456789', bio: 'Analyst' }).subscribe();
+
+      const req = http.expectOne('/api/auth/profile');
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.body).toEqual({ fullName: 'Ada Lovelace', phone: '+60123456789', bio: 'Analyst' });
+      expect(Object.keys(req.request.body)).not.toContain('full_name');
+      req.flush({ message: 'ok' });
+    });
+
     it('getAccountAuditLog serialises only the filled filters as query params', () => {
       service.getAccountAuditLog({ tableName: 'Member', userEmail: '', page: 2, recordId: undefined }).subscribe();
 

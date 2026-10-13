@@ -41,7 +41,7 @@ const CHANNEL_SERIES = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, DashChartComponent, InsightDrillComponent],
   templateUrl: './agent-performance.html',
-  styleUrls: ['../system-setup/system-setup.css', './insights.css', './agent-performance.css'],
+  styleUrls: ['./insights.css', './agent-performance.css'],
 })
 export class AgentPerformanceComponent implements OnInit {
   private readonly api = inject(MembershipDashboardService);

@@ -50,7 +50,7 @@ type DialogMode = 'definition' | 'step' | 'preview';
     ComboboxComponent,
   ],
   templateUrl: './workflow-setup.html',
-  styleUrls: ['../system-setup/system-setup.css', './workflow-setup.css'],
+  styleUrls: ['./workflow-setup.css'],
 })
 export class WorkflowSetupComponent implements OnInit {
   private readonly service = inject(WorkflowService);

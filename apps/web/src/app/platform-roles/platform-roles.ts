@@ -30,7 +30,7 @@ import { CanDirective } from '../shared/can.directive';
   templateUrl: './platform-roles.html',
   // system-setup.css = the screen chrome; role-management.css = the shared
   // data-scope fieldset styles (.scope-*).
-  styleUrls: ['../system-setup/system-setup.css', '../role-management/role-management.css'],
+  styleUrls: ['../role-management/role-management.css'],
 })
 export class PlatformRolesComponent implements OnInit {
   // Destructive-action confirmation (shared centred dialog; replaces window.confirm).

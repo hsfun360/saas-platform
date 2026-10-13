@@ -30,7 +30,7 @@ function localDate(d: Date): string {
   imports: [CommonModule, ScreenTitlePipe, ScreenSubtitlePipe, FavStarComponent, CanDirective, DialogComponent,
     OverflowMenuComponent, MenuItemDirective, LocalDatePipe],
   templateUrl: './golf-no-show-charges.html',
-  styleUrls: ['../system-setup/system-setup.css', './golf-no-show-charges.css'],
+  styleUrls: ['./golf-no-show-charges.css'],
 })
 export class GolfNoShowChargesComponent implements OnInit {
   private readonly service = inject(GolfNoShowChargeService);

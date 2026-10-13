@@ -165,12 +165,12 @@
           <div class="field">
             <label for="nuPass">Password <span class="req">*</span></label>
             <input id="nuPass" type="password" autocomplete="new-password" formControlName="password"
-                   placeholder="Min 6 characters" minlength="6"
+                   placeholder="Min 8 characters" minlength="8"
                    [attr.aria-invalid]="showError(createForm.controls.password)" aria-describedby="nuPassErr" />
             @if (showError(createForm.controls.password)) {
               <p id="nuPassErr" class="field-error" role="alert">
                 @if (createForm.controls.password.errors?.['required']) { Password is required. }
-                @else { Password must be at least 6 characters. }
+                @else { Password must be at least 8 characters. }
               </p>
             }
           </div>

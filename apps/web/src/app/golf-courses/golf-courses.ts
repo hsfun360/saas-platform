@@ -77,7 +77,7 @@ function toHHMM(minutes: number): string {
   imports: [ConfirmDialogComponent, LocalDatePipe, FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
     OverflowMenuComponent, MenuItemDirective, ComboboxComponent, CanDirective],
   templateUrl: './golf-courses.html',
-  styleUrls: ['../system-setup/system-setup.css', './golf-courses.css'],
+  styleUrls: ['./golf-courses.css'],
 })
 export class GolfCoursesComponent implements OnInit {
   private readonly service = inject(GolfCourseService);

@@ -39,8 +39,7 @@
     "marked": "^18.0.6",
     "rxjs": "~7.8.0",
     "tinymce": "^7.9.3",
-    "tslib": "^2.3.0",
-    "zone.js": "^0.16.0"
+    "tslib": "^2.3.0"
   },
   "devDependencies": {
     "@angular/build": "^21.0.1",

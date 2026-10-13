@@ -3,8 +3,9 @@ import { NavigationEnd, Router } from '@angular/router';
 import { MenuItem } from '../models/auth.models';
 import { I18nService } from './i18n.service';
 
-// The browser-tab title when the route is not a granted menu (login, profile,
-// settings, portals) - the product name from index.html, never a stale screen.
+// The browser-tab title when the route is neither a granted menu nor a route
+// with `data.title` (login, portals) - the product name from index.html, never
+// a stale screen.
 const APP_TITLE = 'myEasySoft';
 
 // Resolves the current screen's header title/subtitle from the granted MENU
@@ -35,18 +36,35 @@ export class ScreenTitleService {
   // Current router URL as a signal, so title()/subtitle() and the tab-title
   // effect below react to navigation as well as to language switches.
   private readonly url = signal(this.router.url);
+  // The deepest activated route's `data.title` - how the non-menu routes (My
+  // Dashboard, My Approvals, Profile, Settings) name the browser tab.
+  private readonly routeTitle = signal(this.currentRouteTitle());
 
   constructor() {
     this.router.events.subscribe((e) => {
-      if (e instanceof NavigationEnd) this.url.set(e.urlAfterRedirects);
+      if (e instanceof NavigationEnd) {
+        this.url.set(e.urlAfterRedirects);
+        this.routeTitle.set(this.currentRouteTitle());
+      }
     });
     // Keep the browser-tab title in step with the screen header: the menu's
-    // translated name when the route is menu-backed, the app default otherwise.
+    // translated name when the route is menu-backed, then the route's own
+    // `data.title`, then the app default.
     effect(() => {
       const lang = this.i18n.lang();
       const menu = this.menuFor(this.path());
-      document.title = (menu && ((menu.names && menu.names[lang]) || menu.name)) || APP_TITLE;
+      document.title =
+        (menu && ((menu.names && menu.names[lang]) || menu.name)) || this.routeTitle() || APP_TITLE;
     });
+  }
+
+  // Walks the router state snapshot to the deepest activated route and reads
+  // its `data.title` (an empty string when no route in the chain declares one).
+  private currentRouteTitle(): string {
+    let route = this.router.routerState.snapshot.root;
+    while (route.firstChild) route = route.firstChild;
+    const title = route.data['title'];
+    return typeof title === 'string' ? title : '';
   }
 
   private path(): string {

@@ -18,7 +18,7 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
   standalone: true,
   imports: [FavStarComponent, LocalDatePipe, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ComboboxComponent],
   templateUrl: './members.html',
-  styleUrls: ['../system-setup/system-setup.css', '../memberships/memberships.css'],
+  styleUrls: ['../memberships/memberships.css'],
 })
 export class MembersComponent implements OnInit {
   private readonly service = inject(MembershipService);

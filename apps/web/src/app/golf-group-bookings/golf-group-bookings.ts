@@ -19,6 +19,7 @@ import { ScrollReturnService } from '../services/scroll-return.service';
 import { MembershipStatusOption } from '../models/auth.models';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import { MoneyPipe } from '../shared/money.pipe';
+import { openBlobInNewTab } from '../shared/open-blob';
 import {
   GolfFolio, GolfFolioDeposit, GolfFolioPaymentLine, GolfFolioRefund, GolfFolioTile, GolfGroupBooking, GolfGroupBookingMeta, GolfGroupBookingRow, GolfGroupBookingService,
   GolfGroupDayPayload, GolfGroupFlight, GolfGroupHeaderPayload, GolfOrganiserKind as GolfGroupOrganiserKind, GolfGroupPlayDay,
@@ -76,7 +77,7 @@ function localDate(d: Date): string {
     PhoneInputComponent, SortMenuComponent,
   ],
   templateUrl: './golf-group-bookings.html',
-  styleUrls: ['../system-setup/system-setup.css', './golf-group-bookings.css'],
+  styleUrls: ['./golf-group-bookings.css'],
 })
 export class GolfGroupBookingsComponent implements OnInit {
   private readonly service = inject(GolfGroupBookingService);
@@ -765,18 +766,13 @@ export class GolfGroupBookingsComponent implements OnInit {
   }
 
   // Printable documents: fetched with the session token and opened in a new
-  // tab as a blob (a plain link could not carry the Authorization header).
-  private openHtml(html: string): void {
-    const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
-    window.open(url, '_blank', 'noopener');
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-  }
-
+  // tab as a blob (shared/open-blob - a plain link could not carry the
+  // Authorization header).
   openProforma(): void {
     const b = this.booking();
     if (!b) return;
     this.service.proformaHtml(b.id).subscribe({
-      next: (html) => this.openHtml(html),
+      next: (html) => openBlobInNewTab(html),
       error: (err) => this.errorMessage.set(err.error?.message || 'The proforma could not be opened.'),
     });
   }
@@ -785,7 +781,7 @@ export class GolfGroupBookingsComponent implements OnInit {
     const b = this.booking();
     if (!b) return;
     this.service.depositHtml(b.id, d.id).subscribe({
-      next: (html) => this.openHtml(html),
+      next: (html) => openBlobInNewTab(html),
       error: (err) => this.errorMessage.set(err.error?.message || 'The deposit bill could not be opened.'),
     });
   }
@@ -1408,8 +1404,10 @@ export class GolfGroupBookingsComponent implements OnInit {
     if (b) this.service.dayShare(b.id, d.id).subscribe({ next: (res) => this.flightShare.set(res.share), error: () => this.flightShare.set(null) });
   }
 
-  // How many flights the dialog's numbers produce.
-  private flightsCount(): number {
+  // How many flights the dialog's numbers produce - the one count the preview
+  // line, the share line AND the footer button all read, so a shotgun day's
+  // button names the real wave total rather than the hidden `count` control.
+  flightsCount(): number {
     const d = this.flightsDay();
     if (!d) return 0;
     const v = this.flightsForm.getRawValue();
