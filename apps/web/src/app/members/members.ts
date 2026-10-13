@@ -2,12 +2,11 @@ import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } 
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
-import { Subject, debounceTime } from 'rxjs';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MembershipService } from '../services/membership.service';
 import { MemberSearchRow, MembersMeta } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ComboboxComponent } from '../shared/combobox/combobox';
+import { onDebounced } from '../shared/debounce';
 
 // Membership Management → Members - the flat, read-only search across every
 // person the company knows: individual members, nominees and dependents.
@@ -42,10 +41,8 @@ export class MembersComponent implements OnInit {
     (this.meta()?.statuses || []).map((s) => ({ value: s.id, label: s.membershipStatus })));
 
   // Server-side search (the list is capped), debounced while typing.
-  private readonly query$ = new Subject<void>();
-
   constructor() {
-    this.query$.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => this.load());
+    onDebounced(this.search, 300, () => this.load());
   }
 
   ngOnInit(): void {
@@ -55,7 +52,6 @@ export class MembersComponent implements OnInit {
 
   onSearchInput(value: string): void {
     this.search.set(value);
-    this.query$.next();
   }
 
   setKind(kind: string): void {

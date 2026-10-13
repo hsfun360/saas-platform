@@ -152,25 +152,26 @@ describe('AuthService', () => {
   });
 
   describe('avatar state', () => {
-    it('broadcasts and persists a new avatar URL', () => {
-      const seen: string[] = [];
-      service.avatar$.subscribe((v) => seen.push(v));
-
+    it('exposes and persists a new avatar URL as a signal', () => {
       service.updateAvatarState('https://cdn/avatar.png');
 
       expect(localStorage.getItem('profilePicture')).toBe('https://cdn/avatar.png');
-      expect(seen.at(-1)).toBe('https://cdn/avatar.png');
+      expect(service.avatar()).toBe('https://cdn/avatar.png');
     });
 
     it('resets to the default avatar and clears storage on an empty value (no lingering SSO picture)', () => {
       localStorage.setItem('profilePicture', 'https://cdn/old.png');
-      const seen: string[] = [];
-      service.avatar$.subscribe((v) => seen.push(v));
 
       service.updateAvatarState('');
 
       expect(localStorage.getItem('profilePicture')).toBeNull();
-      expect(seen.at(-1)).toBe('assets/default-avatar.svg');
+      expect(service.avatar()).toBe('assets/default-avatar.svg');
+    });
+
+    it('exposes the display name as a signal', () => {
+      expect(service.fullName()).toBe('Loading...');
+      service.updateFullNameState('Yap Soon Kum');
+      expect(service.fullName()).toBe('Yap Soon Kum');
     });
   });
 });

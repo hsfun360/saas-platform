@@ -3,7 +3,6 @@ import { ScrollReturnService } from '../services/scroll-return.service';
 import { LocalDatePipe, localDateOnly } from '../shared/local-date.pipe';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CommonModule } from '@angular/common';
-import { Subject, debounceTime } from 'rxjs';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MembershipService } from '../services/membership.service';
@@ -33,6 +32,7 @@ import { SortMenuComponent, SortOption, SortValue } from '../shared/sort-menu/so
 import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
 import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { ComboboxComponent } from '../shared/combobox/combobox';
+import { onDebounced } from '../shared/debounce';
 
 // Membership Management → Memberships (SRS 2.3 Phase 1).
 // The contract list: individual memberships (one auto-created Member) and
@@ -100,10 +100,8 @@ export class MembershipsComponent implements OnInit {
   readonly errorMessage = signal('');
 
   // Debounced server-side search (the list is paginated - never filter client-side).
-  private readonly query$ = new Subject<void>();
-
   constructor() {
-    this.query$.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => this.load(true));
+    onDebounced(this.search, 300, () => this.load(true));
     // Term membership: pre-fill the contract expiry whenever the type or join
     // date changes on CREATE. A value the user typed themself is left alone.
     this.membershipForm.controls.membershipTypeId.valueChanges
@@ -491,7 +489,6 @@ export class MembershipsComponent implements OnInit {
 
   onSearchInput(value: string): void {
     this.search.set(value);
-    this.query$.next();
   }
 
   setClassFilter(cls: string): void {

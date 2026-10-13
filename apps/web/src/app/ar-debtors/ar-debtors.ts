@@ -2,8 +2,6 @@ import { Component, Injector, OnInit, computed, inject, signal, ChangeDetectionS
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Subject, debounceTime } from 'rxjs';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { DialogComponent } from '../shared/dialog/dialog';
@@ -19,6 +17,7 @@ import { CountryService } from '../services/country.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ArDebtor, ArOption, ArDebtorsMeta } from '../models/ar.models';
 import { Country } from '../models/auth.models';
+import { onDebounced } from '../shared/debounce';
 
 // Account Receivable → Debtor Listing.
 // ONE shared listing for all three debtor types (membership contract, member
@@ -94,8 +93,6 @@ export class ArDebtorsComponent implements OnInit {
   readonly backfilling = signal(false);
   readonly hasMore = computed(() => this.rows().length < this.total());
 
-  private readonly query$ = new Subject<void>();
-
   // --- Edit ledger account dialog ---
   readonly editOpen = signal(false);
   readonly editSaving = signal(false);
@@ -146,7 +143,7 @@ export class ArDebtorsComponent implements OnInit {
   readonly autoOtherCode = computed(() => this.meta()?.otherDebtorNumberingMode === 'auto');
 
   constructor() {
-    this.query$.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => this.load(true));
+    onDebounced(this.search, 300, () => this.load(true));
   }
 
   ngOnInit(): void {
@@ -203,7 +200,6 @@ export class ArDebtorsComponent implements OnInit {
 
   onSearch(value: string): void {
     this.search.set(value);
-    this.query$.next();
   }
 
   clearSearch(): void {

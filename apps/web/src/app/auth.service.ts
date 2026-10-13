@@ -1,6 +1,6 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject } from 'rxjs';
+import { Observable } from 'rxjs';
 import { environment } from '../environments/environment';
 import {
   AuthResponse,
@@ -37,11 +37,14 @@ export class AuthService {
   private apiBaseUrl = environment.apiUrl;
   private userEmail: string | null = null;
 
-  private avatarSubject = new BehaviorSubject<string>(localStorage.getItem('profilePicture') || 'assets/default-avatar.svg');
-  avatar$ = this.avatarSubject.asObservable();
+  // The signed-in user's avatar and display name as SIGNALS (the shell header
+  // reads them; the Profile screen and the SSO logins write them). They were
+  // BehaviorSubjects until 2026-10-13; the state model of the app is signals.
+  private readonly avatarState = signal<string>(localStorage.getItem('profilePicture') || 'assets/default-avatar.svg');
+  readonly avatar = this.avatarState.asReadonly();
 
-  private fullNameSubject = new BehaviorSubject<string>('Loading...');
-  fullName$ = this.fullNameSubject.asObservable();
+  private readonly fullNameState = signal<string>('Loading...');
+  readonly fullName = this.fullNameState.asReadonly();
 
   private readonly http = inject(HttpClient);
 
@@ -51,15 +54,15 @@ export class AuthService {
   updateAvatarState(newUrl: string): void {
     if (newUrl) {
       localStorage.setItem('profilePicture', newUrl);
-      this.avatarSubject.next(newUrl);
+      this.avatarState.set(newUrl);
     } else {
       localStorage.removeItem('profilePicture');
-      this.avatarSubject.next('assets/default-avatar.svg');
+      this.avatarState.set('assets/default-avatar.svg');
     }
   }
 
   updateFullNameState(name: string): void {
-    this.fullNameSubject.next(name);
+    this.fullNameState.set(name);
   }
 
   register(email: string, password: string): Observable<AuthResponse> {

@@ -1,6 +1,5 @@
-import { Component, OnDestroy, OnInit, computed, signal, DestroyRef, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, effect, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { ConfirmDialogComponent, ConfirmRequest } from '../shared/confirm-dialog/confirm-dialog';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
@@ -89,17 +88,25 @@ export class Dashboard implements OnInit, OnDestroy {
   private readonly screenTitle = inject(ScreenTitleService);
 
   loggedInUser: string | null = '';
-  // Updated asynchronously from the avatar$/fullName$ streams, so held in signals
-  // to refresh the view without relying on zone-based change detection.
+  // Mirrors of AuthService's avatar and display-name signals. They stay
+  // writable here because the header also resets the picture when the image
+  // fails to load, and hides the name until a real one arrives.
   userFullName = signal<string | null>(null);
   isAppsDropdownOpen = false;
   isSystemAdmin = false;
   userRoleName = 'User';
   profilePictureUrl = signal<string | null>(null);
+  private readonly avatarSync = effect(() => {
+    const url = this.authService.avatar();
+    if (url) this.profilePictureUrl.set(url);
+  });
+  private readonly fullNameSync = effect(() => {
+    const name = this.authService.fullName();
+    if (name && name !== 'Loading...') this.userFullName.set(name);
+  });
   // Shell-level error (switch workspace / invitations) shown by the global flash snackbar.
   readonly shellError = signal('');
   readonly confirmAction = signal<ConfirmRequest | null>(null);
-  private readonly destroyRef = inject(DestroyRef);
   activeCompanyName = 'Loading...';
   allowedMenus: MenuItem[] = [];
   displayedMenus: MenuItem[] = [];
@@ -182,16 +189,6 @@ export class Dashboard implements OnInit, OnDestroy {
     this.loadLanguageOptions();
     this.notifications.load();
     this.notifTimer = setInterval(() => this.notifications.load(), 60 * 1000);
-
-    const savedAvatar = localStorage.getItem('profilePicture');
-    if (savedAvatar) this.profilePictureUrl.set(savedAvatar);
-
-    this.authService.avatar$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(url => {
-      if (url) this.profilePictureUrl.set(url);
-    });
-    this.authService.fullName$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(name => {
-      if (name && name !== 'Loading...') this.userFullName.set(name);
-    });
 
     this.userRoleName = localStorage.getItem('userRole') || 'User';
     this.loggedInUser = localStorage.getItem('userEmail');

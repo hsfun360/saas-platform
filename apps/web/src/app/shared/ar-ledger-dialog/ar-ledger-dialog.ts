@@ -1,7 +1,6 @@
 import { Component, OnInit, computed, effect, inject, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Subject, debounceTime } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DialogComponent } from '../dialog/dialog';
 import { MoneyInputDirective } from '../money-input.directive';
@@ -9,6 +8,7 @@ import { ComboboxComponent, ComboOption } from '../combobox/combobox';
 import { ArService } from '../../services/ar.service';
 import { ArAccountMeta, ArAnalysisEntryMeta, ArDebtor, ArDocListRow, ArLedgerDoc, ArOpenDebit } from '../../models/ar.models';
 import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate, arTrimRate } from '../ar-fx';
+import { onDebounced } from '../debounce';
 
 // The ONE ledger-document entry dialog (Invoice / Debit Note / Credit Note),
 // shared by the Debtor Account screen (debtor known - entry only) and the
@@ -69,8 +69,6 @@ export class ArLedgerDialogComponent implements OnInit {
   readonly pickSearch = signal('');
   readonly pickLoading = signal(false);
   readonly pickRows = signal<ArDebtor[]>([]);
-  private readonly pickQuery$ = new Subject<void>();
-
   readonly activeDebtor = computed(() => this.debtor() || this.pickedDebtor());
   readonly effMeta = computed(() => this.meta() || this.selfMeta());
   // The catalog is AR-owned with per-document classes (2026-08-15): each
@@ -239,7 +237,7 @@ export class ArLedgerDialogComponent implements OnInit {
   readonly baseEquivalent = computed(() => arBaseEquivalent(this.amountSig(), this.rateSig()));
 
   constructor() {
-    this.pickQuery$.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => this.loadPickRows());
+    onDebounced(this.pickSearch, 300, () => this.loadPickRows());
     this.form.controls.amount.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => this.amountSig.set(v));
     this.form.controls.docDate.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => this.docDateSig.set(v));
     this.form.controls.exchangeRate.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => {
@@ -363,7 +361,6 @@ export class ArLedgerDialogComponent implements OnInit {
 
   onPickSearch(value: string): void {
     this.pickSearch.set(value);
-    this.pickQuery$.next();
   }
 
   private loadPickRows(): void {

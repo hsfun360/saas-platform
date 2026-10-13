@@ -2,8 +2,6 @@ import { Component, OnInit, computed, inject, signal, Injector, ChangeDetectionS
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { Subject, debounceTime } from 'rxjs';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { DialogComponent } from '../shared/dialog/dialog';
@@ -18,6 +16,7 @@ import { ArDepositDialogComponent } from '../shared/ar-deposit-dialog/ar-deposit
 import { ArService } from '../services/ar.service';
 import { PermissionsService } from '../services/permissions.service';
 import { ArAccountMeta, ArAllocationRow, ArAllocationOnwardRow, ArDepositConversionRow, ArDocListResult, ArDocListRow, ArDocStatus, ArInterest, ArInterestDetail } from '../models/ar.models';
+import { onDebounced } from '../shared/debounce';
 
 // Account Receivable → per-document-type transaction screens (hybrid design
 // 2026-08-12): each document type is its OWN menu, so RBAC can grant e.g.
@@ -196,8 +195,6 @@ export class ArTransactionsComponent implements OnInit {
   readonly errorMessage = signal('');
   readonly hasMore = computed(() => this.rows().length < this.total());
 
-  private readonly query$ = new Subject<void>();
-
   // Entry dialog (the shared ledger dialog in standalone/pick-debtor mode).
   readonly entryOpen = signal(false);
 
@@ -207,7 +204,7 @@ export class ArTransactionsComponent implements OnInit {
   readonly voidRow = signal<ArDocListRow | null>(null);
 
   constructor() {
-    this.query$.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => this.load(true));
+    onDebounced(this.search, 300, () => this.load(true));
   }
 
   ngOnInit(): void {
@@ -256,7 +253,6 @@ export class ArTransactionsComponent implements OnInit {
 
   onSearch(value: string): void {
     this.search.set(value);
-    this.query$.next();
   }
 
   clearSearch(): void {

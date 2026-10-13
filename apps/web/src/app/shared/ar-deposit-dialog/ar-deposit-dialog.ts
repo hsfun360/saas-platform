@@ -1,7 +1,6 @@
 import { Component, OnInit, computed, effect, inject, input, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Subject, debounceTime } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DialogComponent } from '../dialog/dialog';
 import { MoneyInputDirective } from '../money-input.directive';
@@ -9,6 +8,7 @@ import { ArService } from '../../services/ar.service';
 import { ArAccountMeta, ArDebtor, ArDocListRow } from '../../models/ar.models';
 import { ArLedgerDialogDebtor } from '../ar-ledger-dialog/ar-ledger-dialog';
 import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate, arTrimRate } from '../ar-fx';
+import { onDebounced } from '../debounce';
 
 // The Deposit entry dialog (deposit slice 2026-09-01), shared by the Debtor
 // Account screen (debtor preset) and the standalone Deposit screen. Opening a
@@ -51,8 +51,6 @@ export class ArDepositDialogComponent implements OnInit {
   readonly pickSearch = signal('');
   readonly pickLoading = signal(false);
   readonly pickRows = signal<ArDebtor[]>([]);
-  private readonly pickQuery$ = new Subject<void>();
-
   readonly activeDebtor = computed(() => this.debtor() || this.pickedDebtor());
   readonly effMeta = computed(() => this.meta() || this.selfMeta());
   readonly submitLabel = computed(() => (this.effMeta()?.depositApproval ? 'Submit for Approval' : 'Post deposit'));
@@ -77,7 +75,7 @@ export class ArDepositDialogComponent implements OnInit {
   readonly baseEquivalent = computed(() => arBaseEquivalent(this.amountSig(), this.rateSig()));
 
   constructor() {
-    this.pickQuery$.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => this.loadPickRows());
+    onDebounced(this.pickSearch, 300, () => this.loadPickRows());
     this.form.controls.amount.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => this.amountSig.set(v));
     this.form.controls.docDate.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => this.docDateSig.set(v));
     this.form.controls.exchangeRate.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => {
@@ -161,7 +159,6 @@ export class ArDepositDialogComponent implements OnInit {
 
   onPickSearch(value: string): void {
     this.pickSearch.set(value);
-    this.pickQuery$.next();
   }
 
   private loadPickRows(): void {

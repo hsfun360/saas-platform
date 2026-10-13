@@ -27,7 +27,9 @@
 
 ## 📐 Coding Guidelines & Architecture
 - **State Management:** Use Angular Signals for component state.
-  The dedicated `AuthService` (`src/app/auth.service.ts`) is RxJS-based, not signal-based: it exposes the HTTP calls, owns the token and profile storage, and broadcasts the avatar and full name through two `BehaviorSubject`s (`avatar$`, `fullName$`).
+  The dedicated `AuthService` (`src/app/auth.service.ts`) exposes the HTTP calls, owns the token and profile storage, and publishes the avatar and full name as read-only signals (`avatar()`, `fullName()`); the shell mirrors them with effects.
+  No `Subject` or `BehaviorSubject` remains in the app (2026-10-13): component and service state is signals, and RxJS appears only where Angular itself speaks it (HttpClient observables, form `valueChanges`, router events).
+  A debounced search composes `onDebounced(source, ms, run)` from `shared/debounce.ts` (an effect plus a cleaned-up timer that skips the initial value) rather than a `Subject` with `debounceTime`.
   Components read it through `inject()` and keep their own state in signals.
 - **Forms:** Use **Reactive Forms** (`FormGroup` / `FormBuilder`) for all data-entry, each field carrying its correct HTML5 input type.
   See coding-standards.md → "Forms" for the full standard (canonical reference: `platform-users`).
@@ -311,6 +313,7 @@ The rest:
   Its `tzLabel` pipe (`shared/timezone-label.pipe.ts`, `TimezoneLabelPipe`) is the template form of the same helper; no template consumes it today, so use the pipe when a screen next shows a timezone rather than re-deriving the offset.
 - `shared/user-identity.ts` - `tokenIdentity()` / `identityKey()`, the JWT-derived `{userId, companyId}` that keys every per-user client cache (favorites, recent screens, view preferences); never key such state by the localStorage email.
 - `shared/open-blob.ts` - `openBlobInNewTab()`, the one way to show a downloaded PDF or file blob in a new tab (added 2026-10-13).
+- `shared/debounce.ts` - `onDebounced(source, ms, run)`, the signal debounce behind every search box that reloads from the server (replaced eight `Subject` + `debounceTime(300)` copies on 2026-10-13).
 - `shared/month-options.ts` - `monthComboOptions()` for month pickers (see the combobox section).
 - `i18n/translate.pipe.ts` - the impure `| t` pipe (`'nav.dashboard' | t`, `'greeting' | t: { name }`) that reads the active language signal, so a language switch re-renders zonelessly.
 - `i18n/i18n.service.ts` - the signal-based runtime i18n: flat JSON dictionaries from `public/i18n/<code>.json`, English as the fallback, then the key itself.
