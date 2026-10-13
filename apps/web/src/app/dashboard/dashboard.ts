@@ -6,6 +6,7 @@ import { CommonModule } from '@angular/common';
 import { AuthService } from '../auth.service';
 import { LanguageService } from '../services/language.service';
 import { I18nService } from '../i18n/i18n.service';
+import { ScreenTitleService } from '../i18n/screen-title.service';
 import { NotificationService, AppNotification } from '../services/notification.service';
 import { RecentScreensService } from '../services/recent-screens.service';
 import { TranslatePipe } from '../i18n/translate.pipe';
@@ -81,6 +82,11 @@ export class Dashboard implements OnInit, OnDestroy {
   // Instantiated with the shell so screen visits are tracked from the first
   // navigation (feeds My Dashboard's "continue where you left off" row).
   private readonly recentScreens = inject(RecentScreensService);
+  // Instantiated with the shell so the browser-tab title effect runs on EVERY
+  // shell route: a non-menu screen without a screenTitle pipe (My Dashboard,
+  // Profile, Settings) would otherwise never create the service and keep the
+  // app name as its tab title.
+  private readonly screenTitle = inject(ScreenTitleService);
 
   loggedInUser: string | null = '';
   // Updated asynchronously from the avatar$/fullName$ streams, so held in signals
