@@ -116,3 +116,14 @@ This supersedes any earlier note that suggested Signal Forms for login/registrat
 - Design services around a single responsibility
 - Use the `providedIn: 'root'` option for singleton services
 - Use the `inject()` function instead of constructor injection
+
+## Unit tests
+
+- Every unit ships with a spec beside it (`name.spec.ts`), run with `npx ng test --watch=false` (vitest + jsdom; shims live in `src/test-setup.ts`).
+- A creation-only spec (`expect(service).toBeTruthy()`) is not a test; every `it` pins a documented behaviour.
+- Services: one `HttpTestingController` test per endpoint shape (method, URL, payload keys) so a backend contract change fails here, not on the screen; local storage side effects are asserted too.
+- Pipes, directives, guards and interceptors: a behaviour spec against their documented contract (the `localDate` local-date parsing, the `money` two-decimal string, the `appMoney` select-all and wheel block, a guard's allowed vs denied route).
+- Components: test the documented behaviours - the dirty guard, `showError`, Enter-submit, the single-dialog mode switch - through the rendered DOM with a small host component and the real shared pieces, never the private API alone.
+- Stub only the HTTP layer and the services the unit calls out to; keep the shared primitives (`<app-dialog>`, `<app-combobox>`, `appMoney`) real so a regression in them surfaces.
+- Device-locale output (dates, month labels) is compared against the same `Intl` call, never a hard-coded English string.
+- References: `auth.service.spec.ts`, `access.guard.spec.ts`, `shared/dialog/dialog.spec.ts`, `shared/combobox/combobox.spec.ts`, `memberships/memberships.spec.ts`.
