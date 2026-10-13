@@ -128,7 +128,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     const ctx = this.context();
     return (ctx ? ctx.courses : []).map((c) => ({
       value: c.id,
-      label: `${c.courseCode}${c.description ? ' — ' + c.description : ''}`,
+      label: `${c.courseCode}${c.description ? ' - ' + c.description : ''}`,
     }));
   });
 

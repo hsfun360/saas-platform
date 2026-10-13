@@ -24,7 +24,7 @@
     </div>
   }
 
-  <!-- People (person-centric). No outer card — the search + list sit directly on
+  <!-- People (person-centric). No outer card - the search + list sit directly on
        the page (the Companies standard). -->
   <h2 style="margin: 0 0 var(--space-md); font-size: var(--font-h2); font-weight: var(--weight-semibold); color: var(--text-primary);">People ({{ people().length }})</h2>
 
@@ -62,7 +62,7 @@
                 @if (person.full_name) {
                   <div class="data-card__subline">{{ person.full_name }}</div>
                 }
-                <!-- Each company with the person's role in it — the answer to
+                <!-- Each company with the person's role in it - the answer to
                      "what are they here?" without opening any dialog. -->
                 <div class="data-card__subline person-companies">
                   @for (m of person.memberships; track m.companyId) {
@@ -103,7 +103,7 @@
                 <span class="data-card__reg">{{ inv.roleName || 'No role' }}</span>
               </div>
               <dl class="data-card__meta">
-                <div class="meta"><dt>Expires</dt><dd>{{ inv.expiresAt ? (inv.expiresAt | localDate) : '—' }}</dd></div>
+                <div class="meta"><dt>Expires</dt><dd>{{ inv.expiresAt ? (inv.expiresAt | localDate) : '-' }}</dd></div>
               </dl>
             </div>
             <div class="data-row__actions">
@@ -115,7 +115,7 @@
     </div>
   }
 
-  <!-- Floating actions — Invite (secondary) + Create user (primary). The labels
+  <!-- Floating actions - Invite (secondary) + Create user (primary). The labels
        hide on mobile so both fit in-line as round icon FABs (aria-label keeps the
        accessible name). -->
   <div class="user-fab-group">
@@ -184,7 +184,7 @@
             <label for="nuCompany">Company <span class="req">*</span></label>
             <app-combobox inputId="nuCompany" formControlName="companyId"
                           [options]="companyOptions()"
-                          [allowEmpty]="true" emptyLabel="— Select company —"
+                          [allowEmpty]="true" emptyLabel="- Select company -"
                           placeholder="Type to search…"
                           [invalid]="showError(createForm.controls.companyId)" describedBy="nuCompanyErr" />
             @if (showError(createForm.controls.companyId)) {
@@ -195,25 +195,25 @@
             <label for="nuRole">Role</label>
             <app-combobox inputId="nuRole" formControlName="roleId"
                           [options]="roleOptionsFor(createForm.controls.companyId.value)"
-                          [allowEmpty]="true" emptyLabel="— No role —"
+                          [allowEmpty]="true" emptyLabel="- No role -"
                           placeholder="Type to search…" />
           </div>
         </div>
-        <!-- Optional org placement — feeds the data-scope rule (whose records
+        <!-- Optional org placement - feeds the data-scope rule (whose records
              they may amend), complete from day one instead of a second edit. -->
         <div class="row">
           <div class="field">
             <label for="nuDept">Department</label>
             <app-combobox inputId="nuDept" formControlName="departmentId"
                           [options]="departmentOptions()"
-                          [allowEmpty]="true" emptyLabel="— No department —"
+                          [allowEmpty]="true" emptyLabel="- No department -"
                           placeholder="Type to search…" />
           </div>
           <div class="field">
             <label for="nuPos">Position</label>
             <app-combobox inputId="nuPos" formControlName="positionId"
                           [options]="positionOptions()"
-                          [allowEmpty]="true" emptyLabel="— No position —"
+                          [allowEmpty]="true" emptyLabel="- No position -"
                           placeholder="Type to search…" />
           </div>
         </div>
@@ -235,7 +235,7 @@
                 discardTitle="Discard this new invitation?"
                 discardMessage="You have started entering a new invitation. Leaving now will discard it."
                 (close)="cancelInvite()">
-      <p class="subtle" style="margin-top: 0;">Invite someone by email — e.g. an external consultant. They keep their own identity and must accept before joining.</p>
+      <p class="subtle" style="margin-top: 0;">Invite someone by email - e.g. an external consultant. They keep their own identity and must accept before joining.</p>
       <form id="inviteForm" [formGroup]="inviteForm" (ngSubmit)="onInvite()">
         <div class="row">
           <div class="field">
@@ -254,7 +254,7 @@
             <label for="ivCompany">Company <span class="req">*</span></label>
             <app-combobox inputId="ivCompany" formControlName="companyId"
                           [options]="companyOptions()"
-                          [allowEmpty]="true" emptyLabel="— Select company —"
+                          [allowEmpty]="true" emptyLabel="- Select company -"
                           placeholder="Type to search…"
                           [invalid]="showError(inviteForm.controls.companyId)" describedBy="ivCompanyErr" />
             @if (showError(inviteForm.controls.companyId)) {
@@ -265,7 +265,7 @@
             <label for="ivRole">Role</label>
             <app-combobox inputId="ivRole" formControlName="roleId"
                           [options]="roleOptionsFor(inviteForm.controls.companyId.value)"
-                          [allowEmpty]="true" emptyLabel="— No role —"
+                          [allowEmpty]="true" emptyLabel="- No role -"
                           placeholder="Type to search…" />
           </div>
         </div>
@@ -282,7 +282,7 @@
 
   <!-- ============ Edit profile drawer (visible Edit) ============ -->
   @if (profilePerson(); as person) {
-    <app-dialog #profileDlg variant="drawer" [title]="'Edit — ' + person.email" [busy]="savingProfile()"
+    <app-dialog #profileDlg variant="drawer" [title]="'Edit - ' + person.email" [busy]="savingProfile()"
                 [dirty]="editProfileForm.dirty"
                 (close)="closeProfile()">
       @if (person.profileEditable) {
@@ -330,7 +330,7 @@
         </form>
       } @else {
         <p class="subtle" style="margin-top: 0;">
-          {{ person.full_name || person.email }} — this user also belongs to other accounts, so their profile can't be edited here.
+          {{ person.full_name || person.email }} - this user also belongs to other accounts, so their profile can't be edited here.
           Their companies and roles are still managed under “Companies &amp; placement”.
         </p>
       }
@@ -350,7 +350,7 @@
 
   <!-- ============ Companies & placement drawer (kebab) ============ -->
   @if (placePerson(); as person) {
-    <app-dialog #placeDlg variant="drawer" [title]="'Companies & placement — ' + person.email"
+    <app-dialog #placeDlg variant="drawer" [title]="'Companies & placement - ' + person.email"
                 [dirty]="placementDirty()"
                 discardTitle="Discard placement changes?"
                 discardMessage="You have changed a role or placement without clicking Update. Leaving now will discard it."
@@ -386,21 +386,21 @@
                 <label for="plRole-{{ m.companyId }}">Role</label>
                 <app-combobox inputId="plRole-{{ m.companyId }}" formControlName="roleId"
                               [options]="roleOptionsFor(m.companyId)"
-                              [allowEmpty]="true" emptyLabel="— No role —"
+                              [allowEmpty]="true" emptyLabel="- No role -"
                               placeholder="Type to search…" />
               </div>
               <div class="field">
                 <label for="plDept-{{ m.companyId }}">Department</label>
                 <app-combobox inputId="plDept-{{ m.companyId }}" formControlName="departmentId"
                               [options]="departmentOptions()"
-                              [allowEmpty]="true" emptyLabel="— No department —"
+                              [allowEmpty]="true" emptyLabel="- No department -"
                               placeholder="Type to search…" />
               </div>
               <div class="field">
                 <label for="plPos-{{ m.companyId }}">Position</label>
                 <app-combobox inputId="plPos-{{ m.companyId }}" formControlName="positionId"
                               [options]="positionOptions()"
-                              [allowEmpty]="true" emptyLabel="— No position —"
+                              [allowEmpty]="true" emptyLabel="- No position -"
                               placeholder="Type to search…" />
               </div>
             </div>
@@ -426,14 +426,14 @@
               <label for="plAddCompany">Company</label>
               <app-combobox inputId="plAddCompany" formControlName="companyId"
                             [options]="companyOptionsNotJoined(person)"
-                            [allowEmpty]="true" emptyLabel="— Company —"
+                            [allowEmpty]="true" emptyLabel="- Company -"
                             placeholder="Type to search…" />
             </div>
             <div class="field">
               <label for="plAddRole">Role</label>
               <app-combobox inputId="plAddRole" formControlName="roleId"
                             [options]="roleOptionsFor(placeAddForm.controls.companyId.value)"
-                            [allowEmpty]="true" emptyLabel="— No role —"
+                            [allowEmpty]="true" emptyLabel="- No role -"
                             placeholder="Type to search…" />
             </div>
           </div>

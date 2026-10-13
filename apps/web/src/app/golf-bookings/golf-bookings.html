@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">event_available</span>
       <div>
         <h1>{{ 'Golf Booking' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Search available flights and book tee times — the sheet is computed live from the course setup.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Search available flights and book tee times - the sheet is computed live from the course setup.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -46,7 +46,7 @@
         <div class="data-card" [attr.data-return-id]="b.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ b.startTime }} — {{ b.courseCode }}{{ b.courseDescription ? ' · ' + b.courseDescription : '' }}</div>
+              <div class="data-card__title">{{ b.startTime }} - {{ b.courseCode }}{{ b.courseDescription ? ' · ' + b.courseDescription : '' }}</div>
               <div class="data-card__subline">
                 <span class="data-card__reg">({{ b.bookingNo }})</span>
                 <span>{{ b.holes }} holes</span>
@@ -113,10 +113,10 @@
             @if (context(); as ctx) {
               <div class="gb-member-card" [class.gb-member-card--warn]="ctx.member.actionControl !== 'allow'">
                 <strong>{{ ctx.member.name }}</strong>
-                <span>{{ ctx.member.membershipTypeCategory || '—' }}</span>
+                <span>{{ ctx.member.membershipTypeCategory || '-' }}</span>
                 <span>{{ ctx.member.statusLabel || 'No status' }}</span>
                 @if (!ctx.member.isGolfAllow) {
-                  <span class="gb-tag">No golfing right — member rate applies</span>
+                  <span class="gb-tag">No golfing right - member rate applies</span>
                 }
                 <span class="gb-window">Can book {{ ctx.window.dateFrom | localDate }} – {{ ctx.window.dateTo | localDate }}</span>
               </div>
@@ -174,13 +174,13 @@
             @if (!hasFlights()) {
               <div class="empty-state">
                 <span class="material-icons" aria-hidden="true">search_off</span>
-                <p>No available flight matches this search — try another time, date or course.</p>
+                <p>No available flight matches this search - try another time, date or course.</p>
               </div>
             }
             @for (g of groups(); track g.courseId) {
               @if (g.flights.length > 0) {
                 <div class="gb-course-group">
-                  <h3 class="gb-course-title">{{ g.courseCode }}{{ g.description ? ' — ' + g.description : '' }}</h3>
+                  <h3 class="gb-course-title">{{ g.courseCode }}{{ g.description ? ' - ' + g.description : '' }}</h3>
                   @for (f of g.flights; track f.teeTime) {
                     <div class="gb-flight-row">
                       <span class="gb-flight-time">{{ f.teeTime }}</span>
@@ -210,7 +210,7 @@
           @if (lock(); as lk) {
             <div class="gb-lock-banner" role="status" aria-live="polite">
               <span class="material-icons" aria-hidden="true">lock_clock</span>
-              <span>Flight held — confirm within <strong>{{ countdown() }}</strong></span>
+              <span>Flight held - confirm within <strong>{{ countdown() }}</strong></span>
             </div>
             <div class="gb-summary">
               <span><strong>{{ lockedGroup()?.courseCode }}</strong> · {{ searchForm.controls.playDate.value | localDate }}</span>
@@ -303,7 +303,7 @@
   <!-- ============ Cancel confirmation (centred) ============ -->
   @if (cancelTarget(); as target) {
     <app-dialog title="Cancel booking" [busy]="cancelling() || previewLoading()" (close)="cancelTarget.set(null)">
-      <p>Cancel booking <strong>{{ target.bookingNo }}</strong> — {{ target.startTime }} on {{ target.playDate | localDate }} ({{ target.courseCode }})?
+      <p>Cancel booking <strong>{{ target.bookingNo }}</strong> - {{ target.startTime }} on {{ target.playDate | localDate }} ({{ target.courseCode }})?
         The flight is freed for other bookings.</p>
 
       <!-- Cancellation notice (show expected results before the confirm) -->
@@ -313,7 +313,7 @@
         @if (p.late && p.action === 'refuse') {
           <div class="gb-notice gb-notice--refuse" role="alert">
             <span class="material-icons" aria-hidden="true">block</span>
-            <span>Bookings need <strong>{{ p.noticeHours }} hours'</strong> notice to cancel — the notice period ended
+            <span>Bookings need <strong>{{ p.noticeHours }} hours'</strong> notice to cancel - the notice period ended
               {{ p.deadline?.date | localDate }} {{ p.deadline?.time }}. This booking cannot be cancelled now; players who do not turn up are recorded as no-shows.</span>
           </div>
         } @else if (p.late) {
@@ -325,7 +325,7 @@
                 A late-cancellation charge of <strong>{{ p.charge.totalAmount.toFixed(2) }}</strong>
                 ({{ p.charge.quantity }} × {{ p.charge.unitAmount.toFixed(2) }}{{ p.charge.taxAmount > 0 ? ' + ' + p.charge.taxAmount.toFixed(2) + ' tax' : '' }})
                 will be posted to <strong>{{ p.booker?.name }}</strong>{{ p.booker?.memberNo ? ' (' + p.booker?.memberNo + ')' : '' }}.
-                @if (p.booker && !p.booker.isMember) { The booker is not a member — the charge is recorded as pending for collection at the counter. }
+                @if (p.booker && !p.booker.isMember) { The booker is not a member - the charge is recorded as pending for collection at the counter. }
               } @else {
                 The charge cannot be priced: {{ p.chargeError }}
               }

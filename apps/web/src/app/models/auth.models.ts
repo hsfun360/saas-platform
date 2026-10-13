@@ -224,7 +224,7 @@ export interface Role {
   PermittedMenus?: PermittedMenu[];
 }
 
-// A role together with the exact menu IDs it grants — returned by GET
+// A role together with the exact menu IDs it grants - returned by GET
 // /company/roles/:roleId to prefill the Role Management edit form.
 // One menu grant inside a role: the grant existing = View; the flags refine
 // what the role may do on that screen (missing flag = allowed, the migration
@@ -255,7 +255,7 @@ export interface AdminMenu {
   name: string;
   names?: Record<string, string>;
   // One-liner explaining what the screen does (base + localized, same pattern
-  // as name/names) — shown under the name in the role permission picker.
+  // as name/names) - shown under the name in the role permission picker.
   description?: string | null;
   descriptions?: Record<string, string>;
   route?: string;

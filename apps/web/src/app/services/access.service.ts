@@ -5,7 +5,7 @@ import { MenuItem } from '../models/auth.models';
 // Module.code shipped on each granted menu, plus the admin areas a Tenant
 // Admin / System Admin gets. Used by the route guard so a user can't URL-hop
 // into a system they don't have. The backend remains the authoritative gate on
-// data (requireModule + RBAC) — this is for UX/route safety.
+// data (requireModule + RBAC) - this is for UX/route safety.
 
 // Menu caches stored at login BEFORE Module.code shipped carry only display
 // names. Map those to codes so an already-signed-in user keeps working until

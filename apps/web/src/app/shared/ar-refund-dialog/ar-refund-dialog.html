@@ -1,7 +1,7 @@
 <app-dialog #dlg variant="drawer"
-            [title]="editRow() ? 'Edit Refund — ' + (editRow()?.docNo || 'Draft')
-                     : mode() === 'pick' ? 'New Refund — select debtor'
-                     : mode() === 'kind' ? 'New Refund — what is being refunded?' : 'New Refund'"
+            [title]="editRow() ? 'Edit Refund - ' + (editRow()?.docNo || 'Draft')
+                     : mode() === 'pick' ? 'New Refund - select debtor'
+                     : mode() === 'kind' ? 'New Refund - what is being refunded?' : 'New Refund'"
             [busy]="saving() || metaLoading()"
             [dirty]="mode() === 'entry' && form.dirty"
             discardTitle="Discard this refund?"
@@ -24,7 +24,7 @@
             @for (d of pickRows(); track d.id) {
               <button type="button" class="ald-pick__row" (click)="pick(d)">
                 <span class="ald-pick__who">
-                  <strong>{{ d.no || '—' }}</strong>
+                  <strong>{{ d.no || '-' }}</strong>
                   <span>{{ d.name || 'Unnamed' }}</span>
                 </span>
                 <span class="ald-pick__facts">
@@ -41,11 +41,11 @@
       <!-- The refund-kind class picker (.dlg-pick standard): each option
            states its consequence - the first two move money out through the
            bank, the offset moves none. -->
-      <p class="cell-subtle" style="margin: 0 0 var(--space-md);">Pick what this refund does — it decides which fields the form shows.</p>
+      <p class="cell-subtle" style="margin: 0 0 var(--space-md);">Pick what this refund does - it decides which fields the form shows.</p>
       @for (k of refundKinds; track k.key) {
         <button type="button" class="btn btn--secondary dlg-pick" (click)="chooseKind(k.key)">
           <span class="material-icons" aria-hidden="true">{{ k.icon }}</span>
-          <span class="dlg-pick__text"><strong>{{ k.label }}</strong> — {{ k.caption }}</span>
+          <span class="dlg-pick__text"><strong>{{ k.label }}</strong> - {{ k.caption }}</span>
         </button>
       }
     }
@@ -53,7 +53,7 @@
       @if (activeDebtor(); as who) {
         <div class="ald-debtor">
           <span class="material-icons" aria-hidden="true">account_balance</span>
-          <span class="ald-debtor__name"><strong>{{ who.no || '—' }}</strong> {{ who.name }}</span>
+          <span class="ald-debtor__name"><strong>{{ who.no || '-' }}</strong> {{ who.name }}</span>
           @if (isForeign()) { <span class="ald-debtor__ccy">{{ fxCurrency()?.code }} account</span> }
           @if (!debtor() && !editRow()) {
             <button type="button" class="btn btn--link btn--sm" (click)="changeDebtor()">Change</button>
@@ -72,7 +72,7 @@
                 <button type="button" class="btn btn--link btn--sm" style="padding: 0; min-height: auto;" (click)="changeKind()">Change</button>
               }
               @if (refundKind() === 'offset') {
-                <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">No money moves — a Credit Note posts with the refund and settles open items, oldest first.</p>
+                <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">No money moves - a Credit Note posts with the refund and settles open items, oldest first.</p>
               }
             </div>
             <div class="form-group">
@@ -96,7 +96,7 @@
             <div class="form-group">
               <label for="rfTrxDate">Transaction date (period) <span class="required">*</span></label>
               <input id="rfTrxDate" type="date" formControlName="trxDate" />
-              <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Accounting period — differs from the document date only when back-keying into a closed month.</p>
+              <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Accounting period - differs from the document date only when back-keying into a closed month.</p>
             </div>
           </div>
           @if (needsDeposit()) {
@@ -152,7 +152,7 @@
                   <p id="rfMethodErr" class="field-error" role="alert">Payment method is required.</p>
                 }
                 @if (methodTypes().length === 0) {
-                  <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">No Refund-class entries yet — create payout methods (e.g. BANKOUT) on the AR Transaction Type master.</p>
+                  <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">No Refund-class entries yet - create payout methods (e.g. BANKOUT) on the AR Transaction Type master.</p>
                 }
               </div>
               <div class="form-group">

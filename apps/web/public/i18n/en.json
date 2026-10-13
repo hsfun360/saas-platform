@@ -92,7 +92,7 @@
   "accountLanguages.mustPickOne": "Select at least one language.",
   "accountLanguages.yourList": "Your languages",
   "accountLanguages.yourListHelp": "The languages your organization offers. Click one to make it the ★ default; ✕ removes it.",
-  "accountLanguages.noneSelected": "None selected yet — tick languages from the list below.",
+  "accountLanguages.noneSelected": "None selected yet - tick languages from the list below.",
   "accountLanguages.defaultTag": "Default",
 
   "home.title": "My Dashboard",

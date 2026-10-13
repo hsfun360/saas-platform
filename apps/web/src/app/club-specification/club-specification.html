@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">account_balance</span>
       <div>
         <h1>{{ 'Club Specification' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'What kind of club this is — the membership screens show only the fields that apply.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'What kind of club this is - the membership screens show only the fields that apply.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -38,7 +38,7 @@
                 (click)="toggleSection('clubType')" [attr.aria-expanded]="isExpanded('clubType')">
           <span class="settings-header__text">
             <span class="settings-header__title">Club type</span>
-            <span class="settings-header__sub">What kind of club this is — decides which golfing options exist.</span>
+            <span class="settings-header__sub">What kind of club this is - decides which golfing options exist.</span>
           </span>
           <span class="material-icons settings-header__chevron"
                 [class.settings-header__chevron--open]="isExpanded('clubType')" aria-hidden="true">chevron_right</span>
@@ -66,7 +66,7 @@
                 (click)="toggleSection('admission')" [attr.aria-expanded]="isExpanded('admission')">
           <span class="settings-header__text">
             <span class="settings-header__title">Admission</span>
-            <span class="settings-header__sub">How members join — committee-vouched or commercial pay-to-join.</span>
+            <span class="settings-header__sub">How members join - committee-vouched or commercial pay-to-join.</span>
           </span>
           <span class="material-icons settings-header__chevron"
                 [class.settings-header__chevron--open]="isExpanded('admission')" aria-hidden="true">chevron_right</span>
@@ -95,7 +95,7 @@
                   (click)="toggleSection('sales')" [attr.aria-expanded]="isExpanded('sales')">
             <span class="settings-header__text">
               <span class="settings-header__title">Sales channels</span>
-              <span class="settings-header__sub">Who sells memberships — only the enabled kinds appear on the Sales Agents screen and in the entry pickers.</span>
+              <span class="settings-header__sub">Who sells memberships - only the enabled kinds appear on the Sales Agents screen and in the entry pickers.</span>
             </span>
             <span class="material-icons settings-header__chevron"
                   [class.settings-header__chevron--open]="isExpanded('sales')" aria-hidden="true">chevron_right</span>
@@ -148,7 +148,7 @@
             <span class="cs-option__text">
               <span class="cs-option__title">Members can charge expenses to their account</span>
               <span class="cs-option__hint">
-                Membership entry shows the credit terms — credit limit, terms, statement, arrears reminders and late-payment interest.
+                Membership entry shows the credit terms - credit limit, terms, statement, arrears reminders and late-payment interest.
                 When off those fields are hidden and memberships are saved with a credit limit of 0.
               </span>
             </span>
@@ -185,7 +185,7 @@
               @if (numbering()?.scheme; as s) {
                 <div class="nb-preview cs-numbering__preview">
                   <span class="nb-preview__label">Next number will look like</span>
-                  <span class="nb-preview__value">{{ s.nextPreview || '—' }}</span>
+                  <span class="nb-preview__value">{{ s.nextPreview || '-' }}</span>
                   <span class="nb-hint">Resets {{ resetRuleLabel(s.resetRule) }}</span>
                 </div>
               }

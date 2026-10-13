@@ -25,7 +25,7 @@
 }
 
 .tab-btn {
-  flex: 0 0 auto;                    /* never shrink — enables the scroll */
+  flex: 0 0 auto;                    /* never shrink - enables the scroll */
   scroll-snap-align: start;
   display: inline-flex;
   align-items: center;
@@ -80,11 +80,11 @@
 }
 
 /* Flash messages now live as the GLOBAL floating snackbar standard in
-   src/styles.css (.flash*) — the scoped copy here was removed so it can't
+   src/styles.css (.flash*) - the scoped copy here was removed so it can't
    shadow the global animation/position. */
 
 /* Form-field standard (.saas-form / .form-row / .form-group / inputs / .required /
-   .field-error) now lives as GLOBAL, theme-aware definitions in src/styles.css —
+   .field-error) now lives as GLOBAL, theme-aware definitions in src/styles.css -
    the single source of truth. The scoped duplicate was removed here. */
 
 /* ── BUTTONS ─────────────────────────────────── */

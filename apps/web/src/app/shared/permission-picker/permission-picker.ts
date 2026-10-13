@@ -27,7 +27,7 @@ export interface PickerMenu {
 }
 
 // A node in one module's permission tree (adjacency list over Menu.parentId).
-// A node with children is a pure grouping section — it is NOT selectable: the
+// A node with children is a pure grouping section - it is NOT selectable: the
 // backend re-adds ancestor sections of any granted menu at login, so a role
 // only ever needs (and only ever stores) its leaf menus.
 interface PermTreeNode {
@@ -43,7 +43,7 @@ interface PermModule {
 
 // A flattened display row of the (possibly search-filtered) tree. `leafIds`
 // is the row's selectable leaf set: the leaf itself, or every leaf underneath
-// a group row — what its checkbox toggles and its tri-state derives from.
+// a group row - what its checkbox toggles and its tri-state derives from.
 interface PermRow {
   id: string;
   name: string;
@@ -102,7 +102,7 @@ export class PermissionPickerComponent {
   // The catalogue as one permission tree per module (unfiltered).
   readonly permModules = computed<PermModule[]>(() => this.buildModuleTrees(this.menus()));
 
-  // Grouping (non-leaf) menu ids — never granted; stripped from the output so
+  // Grouping (non-leaf) menu ids - never granted; stripped from the output so
   // legacy parent grants age out on the next save.
   readonly groupIds = computed<ReadonlySet<string>>(() => {
     const ids = new Set<string>();
@@ -133,7 +133,7 @@ export class PermissionPickerComponent {
     return view;
   });
 
-  // "N menus across M modules" — the outcome preview shown next to Save.
+  // "N menus across M modules" - the outcome preview shown next to Save.
   readonly selectionSummary = computed(() => {
     const selected = this.grants();
     let menus = 0;
@@ -168,7 +168,7 @@ export class PermissionPickerComponent {
   // ---------- Permission tree building (module → nested groups → leaves) ----------
 
   // Group the flat catalogue by module (first-seen order) and build each
-  // module's adjacency tree, siblings ordered by sequence then name — the same
+  // module's adjacency tree, siblings ordered by sequence then name - the same
   // shape the sidebar renders. A menu whose parent isn't in the set roots itself.
   private buildModuleTrees(menus: PickerMenu[]): PermModule[] {
     const byModule = new Map<string, PickerMenu[]>();

@@ -14,7 +14,7 @@ import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 
 // MSIC 2008 section names (A-U), display-only: LHDN's JSON carries just the
 // section letter ("MSIC Category Reference"); the names are the standard MSIC
-// 2008 section titles so cards read "C — Manufacturing" instead of a bare "C".
+// 2008 section titles so cards read "C - Manufacturing" instead of a bare "C".
 const MSIC_SECTION_NAMES: Record<string, string> = {
   A: 'Agriculture, Forestry and Fishing',
   B: 'Mining and Quarrying',
@@ -114,12 +114,12 @@ export class EInvoiceMsicCodesComponent implements OnInit {
     this.load();
   }
 
-  // "C — Manufacturing" for a known section letter, the raw value otherwise.
+  // "C - Manufacturing" for a known section letter, the raw value otherwise.
   sectionLabel(code: EInvoiceMsicCode): string {
     const ref = (code.categoryReference || '').trim();
     if (!ref) return '';
     const name = MSIC_SECTION_NAMES[ref];
-    return name ? `${ref} — ${name}` : ref;
+    return name ? `${ref} - ${name}` : ref;
   }
 
   load(): void {

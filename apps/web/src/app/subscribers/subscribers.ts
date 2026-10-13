@@ -32,7 +32,7 @@ function passwordsMatchValidator(group: AbstractControl): ValidationErrors | nul
   return password === confirm ? null : { passwordMismatch: true };
 }
 
-// Subscriber Management — its own screen (split out of the old System Setup tab
+// Subscriber Management - its own screen (split out of the old System Setup tab
 // strip). Lists the subscriber accounts provisioned through this portal, lets a
 // System Admin create a new subscriber (FAB → dialog) and transfer a company's
 // Tenant Admin. Reuses the System Setup stylesheet so the look matches exactly.

@@ -28,7 +28,7 @@
   }
 
   <!-- Live filter over the loaded subscribers (name / plan / status / reg no.).
-       No outer card — search + per-record cards sit directly on the page (the
+       No outer card - search + per-record cards sit directly on the page (the
        Companies standard). -->
   @if (!listLoading() && subscriptions().length > 0) {
     <div class="saas-search">
@@ -140,7 +140,7 @@
     </div>
   }
 
-  <!-- Floating "New subscriber" action — opens the dialog. -->
+  <!-- Floating "New subscriber" action - opens the dialog. -->
   <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="New subscriber">
     <span class="material-icons" aria-hidden="true">add</span>
     New subscriber
@@ -313,7 +313,7 @@
           <div class="form-group">
             <label for="eTz">Timezone</label>
             <app-combobox inputId="eTz" formControlName="timezone" [options]="timezoneComboOptions()"
-                          [allowEmpty]="true" emptyLabel="— Not set —" placeholder="Type to search…" />
+                          [allowEmpty]="true" emptyLabel="- Not set -" placeholder="Type to search…" />
           </div>
         </div>
       </form>

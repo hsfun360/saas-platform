@@ -12,7 +12,7 @@ import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
 import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { CanDirective } from '../shared/can.directive';
 
-// Platform Users — split out of the old System Setup tab strip into its own
+// Platform Users - split out of the old System Setup tab strip into its own
 // screen. Lists local platform users with search and creates them (FAB →
 // dialog). Reuses the System Setup stylesheet.
 //

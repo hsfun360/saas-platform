@@ -99,9 +99,9 @@ export class PlatformProfileComponent implements OnInit {
   readonly countryOptions = computed(() =>
     this.countries().map((c) => ({ value: c.alpha2, label: `${c.flagEmoji ? c.flagEmoji + ' ' : ''}${c.name}` })));
   readonly currencyOptions = computed(() =>
-    this.currencies().map((cur) => ({ value: cur.code, label: `${cur.code} — ${cur.name}` })));
+    this.currencies().map((cur) => ({ value: cur.code, label: `${cur.code} - ${cur.name}` })));
   readonly schemeOptions = computed(() =>
-    this.schemesForCountry().map((s) => ({ value: s.taxSchemeCode, label: `${s.taxSchemeCode} — ${s.name}` })));
+    this.schemesForCountry().map((s) => ({ value: s.taxSchemeCode, label: `${s.taxSchemeCode} - ${s.name}` })));
 
   // ---- Test: quote a charge through the profile ----
   readonly quoteAmount = signal<number>(100);

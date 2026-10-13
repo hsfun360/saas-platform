@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">groups</span>
       <div>
         <h1>{{ 'Members' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Every person across all memberships — individual members, nominees and dependents. Manage them from the Memberships screen.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Every person across all memberships - individual members, nominees and dependents. Manage them from the Memberships screen.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -49,7 +49,7 @@
     <div style="margin-bottom: var(--space-md);">
       <span class="cell-subtle">
         @if (total() > rows().length) {
-          Showing {{ rows().length }} of {{ total() }} members — type to narrow, or load more below.
+          Showing {{ rows().length }} of {{ total() }} members - type to narrow, or load more below.
         } @else {
           {{ total() }} member(s) found.
         }
@@ -79,7 +79,7 @@
                 @if (m.photoUrl) {
                   <img class="ms-avatar" [src]="m.photoUrl" alt="" />
                 }
-                <span>{{ m.memberNo }} — {{ memberName(m) }}</span>
+                <span>{{ m.memberNo }} - {{ memberName(m) }}</span>
               </div>
               <div class="data-card__subline">
                 <span class="ms-class-chip" [class.ms-class-chip--dep]="m.memberKind === 'dependent'">

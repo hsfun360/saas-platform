@@ -48,7 +48,7 @@ export class ItemsComponent implements OnInit {
   readonly successMessage = signal('');
   readonly errorMessage = signal('');
 
-  // Live client-side filter over the already-loaded list — name, description and
+  // Live client-side filter over the already-loaded list - name, description and
   // status. No extra server round-trip; results update as the user types.
   readonly filteredItems = computed(() => {
     const query = this.search().trim().toLowerCase();
@@ -101,7 +101,7 @@ export class ItemsComponent implements OnInit {
       next: (list) => {
         this.items.set(list);
         this.loading.set(false);
-        // A deep link (/items/:id) may have arrived before the list loaded —
+        // A deep link (/items/:id) may have arrived before the list loaded -
         // now that items are in, populate the edit form for the open item.
         this.syncForm();
         // Back on the plain list route: scroll to the row the user came from.
@@ -158,7 +158,7 @@ export class ItemsComponent implements OnInit {
     const editingId = this.selectedItem()?.id;
 
     if (!creating && !editingId) {
-      this.errorMessage.set('Nothing to save — select an item first.');
+      this.errorMessage.set('Nothing to save - select an item first.');
       return;
     }
 

@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">sports_golf</span>
       <div>
         <h1>{{ 'Unit Courses' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'The 9-hole building blocks — pair two nines later to form an 18-hole course. A COMPOSITE nine plays as either the front or the back.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'The 9-hole building blocks - pair two nines later to form an 18-hole course. A COMPOSITE nine plays as either the front or the back.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -33,7 +33,7 @@
       @if (courses().length > 0) {
         {{ courses().length }} unit courses, {{ activeCount() }} active
       } @else {
-        No unit courses yet — use "New unit course" to add one.
+        No unit courses yet - use "New unit course" to add one.
       }
     </span>
   </div>
@@ -55,7 +55,7 @@
   } @else if (courses().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">golf_course</span>
-      <p>No unit courses yet. A unit course is one nine — set them up first, then pair two (OUT + IN) into an 18-hole course.</p>
+      <p>No unit courses yet. A unit course is one nine - set them up first, then pair two (OUT + IN) into an 18-hole course.</p>
     </div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
@@ -86,7 +86,7 @@
                   <dt>Floodlight</dt>
                   <dd>
                     @if (c.hasFloodlight) {
-                      Yes@if (c.floodlightLeadMinutes != null) { — fee from {{ c.floodlightLeadMinutes }} min before dark }
+                      Yes@if (c.floodlightLeadMinutes != null) { - fee from {{ c.floodlightLeadMinutes }} min before dark }
                     } @else {
                       No
                     }
@@ -199,7 +199,7 @@
           <div class="form-group">
             <label class="uc-check">
               <input type="checkbox" formControlName="hasFloodlight" />
-              <span>Floodlit (night golf) — this nine has lighting equipment</span>
+              <span>Floodlit (night golf) - this nine has lighting equipment</span>
             </label>
           </div>
         </div>
@@ -253,13 +253,13 @@
             <div class="uc-hole-row" [formGroupName]="i">
               <span class="uc-hole-num">{{ g.controls.holeNumber.value }}</span>
               <select formControlName="par" [attr.aria-label]="'Hole ' + g.controls.holeNumber.value + ' par'">
-                <option value="">—</option>
+                <option value="">-</option>
                 @for (p of parOptions; track p) {
                   <option [value]="p">{{ p }}</option>
                 }
               </select>
               <select formControlName="handicapIndex" [attr.aria-label]="'Hole ' + g.controls.holeNumber.value + ' handicap index'">
-                <option value="">—</option>
+                <option value="">-</option>
                 @for (n of hcpOptions(g.controls.holeNumber.value); track n) {
                   <option [value]="n">{{ n }}</option>
                 }
@@ -319,7 +319,7 @@
                 <div class="form-group">
                   <label [for]="'teeSeq' + i">Number</label>
                   <select [id]="'teeSeq' + i" formControlName="seq">
-                    <option value="">—</option>
+                    <option value="">-</option>
                     @for (n of seqOptions; track n) {
                       <option [value]="n">{{ n }}</option>
                     }

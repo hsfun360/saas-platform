@@ -37,7 +37,7 @@
       <h2 style="margin: 0 0 var(--space-xs); font-size: var(--font-h3);">Your currencies ({{ selectedCurrencies().length }})</h2>
       <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">The currencies your organization uses. Click one to make it the <strong>★ default</strong> for new companies; ✕ removes it.</p>
       @if (selectedCurrencies().length === 0) {
-        <p class="cell-subtle" style="margin: 0;">None selected yet — tick currencies from the list below.</p>
+        <p class="cell-subtle" style="margin: 0;">None selected yet - tick currencies from the list below.</p>
       } @else {
         <div class="pick-chips">
           @for (c of selectedCurrencies(); track c.code) {
@@ -81,7 +81,7 @@
         @for (c of filteredAvailable(); track c.code) {
           <label class="pick-row" [class.pick-row--on]="isSelected(c.code)">
             <input type="checkbox" [checked]="isSelected(c.code)" (change)="toggle(c.code)" />
-            <span>{{ c.code }} — {{ c.name }} <span class="cell-subtle">@if (c.symbol) { ({{ c.symbol }}) }</span></span>
+            <span>{{ c.code }} - {{ c.name }} <span class="cell-subtle">@if (c.symbol) { ({{ c.symbol }}) }</span></span>
           </label>
         }
       </div>

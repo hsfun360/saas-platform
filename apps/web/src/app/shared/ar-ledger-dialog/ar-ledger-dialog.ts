@@ -81,7 +81,7 @@ export class ArLedgerDialogComponent implements OnInit {
   // type code and description alike).
   readonly txnOptions = computed<ComboOption[]>(() => this.classTypes().map((tt) => ({
     value: tt.id,
-    label: tt.description ? `${tt.transactionType} — ${tt.description}` : tt.transactionType,
+    label: tt.description ? `${tt.transactionType} - ${tt.description}` : tt.transactionType,
   })));
   // ALL three ledger kinds follow the Save (draft) -> Submit lifecycle now
   // (invoice 2026-08-13, credit-note 2026-08-20, debit-note 2026-09-01 - its
@@ -102,7 +102,7 @@ export class ArLedgerDialogComponent implements OnInit {
   });
   // The same list shaped for the constrained combobox ({value, label}).
   readonly targetOptions = computed<ComboOption[]>(() =>
-    this.effOpenDebits().map((d) => ({ value: d.id, label: `${this.kindLabel(d.docType)} ${d.docNo} — open ${this.remaining(d)}` })));
+    this.effOpenDebits().map((d) => ({ value: d.id, label: `${this.kindLabel(d.docType)} ${d.docNo} - open ${this.remaining(d)}` })));
 
   readonly form = this.fb.nonNullable.group({
     docNo: [''],
@@ -168,12 +168,12 @@ export class ArLedgerDialogComponent implements OnInit {
     return dim.options.filter((o) => o.parentOptionId === parentPick);
   }
 
-  // The cascade-filtered options as combobox rows (label = code — description
+  // The cascade-filtered options as combobox rows (label = code - description
   // so type-to-filter matches either).
   comboOptionsFor(dim: ArAnalysisEntryMeta): ComboOption[] {
     return this.optionsFor(dim).map((o) => ({
       value: o.id,
-      label: o.description ? `${o.code} — ${o.description}` : o.code,
+      label: o.description ? `${o.code} - ${o.description}` : o.code,
     }));
   }
 
@@ -427,7 +427,7 @@ export class ArLedgerDialogComponent implements OnInit {
   }
   lockedTargetLabel(): string {
     const target = this.effOpenDebits().find((d) => d.id === this.presetTargetId());
-    return target ? `${this.kindLabel(target.docType)} ${target.docNo} — open ${this.remaining(target)}` : 'Selected document';
+    return target ? `${this.kindLabel(target.docType)} ${target.docNo} - open ${this.remaining(target)}` : 'Selected document';
   }
 
   // A new draft saved by a Submit whose submit step then failed - further

@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">tune</span>
       <div>
         <h1>{{ 'Golf Specification' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Golf-wide settings for this club — booking rules today, more as the module grows.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Golf-wide settings for this club - booking rules today, more as the module grows.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -38,7 +38,7 @@
                 [attr.aria-expanded]="isExpanded('booking')">
           <span class="settings-header__text">
             <span class="settings-header__title">Booking Rules</span>
-            <span class="settings-header__sub">How far in advance flights can be booked — and when the daily window opens.</span>
+            <span class="settings-header__sub">How far in advance flights can be booked - and when the daily window opens.</span>
           </span>
           <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('booking')" aria-hidden="true">chevron_right</span>
         </button>
@@ -52,7 +52,7 @@
                 @if (showError(form.controls.advanceBookingDays)) {
                   <p id="gsDaysErr" class="field-error" role="alert">Enter a whole number between 0 and 365.</p>
                 }
-                <p class="cell-subtle field-hint">The general rule for everyone — members and public golfers.</p>
+                <p class="cell-subtle field-hint">The general rule for everyone - members and public golfers.</p>
               </div>
               <div class="form-group">
                 <label for="gsHours">Advance Booking Hours <span class="required">*</span></label>
@@ -61,7 +61,7 @@
                 @if (showError(form.controls.advanceBookingHours)) {
                   <p id="gsHoursErr" class="field-error" role="alert">Enter a whole number between 0 and 23.</p>
                 }
-                <p class="cell-subtle field-hint">Opens the daily window this many hours before midnight — no need to wait for 12:00am.</p>
+                <p class="cell-subtle field-hint">Opens the daily window this many hours before midnight - no need to wait for 12:00am.</p>
               </div>
             </div>
             @if (windowPreview(); as preview) {
@@ -90,7 +90,7 @@
                     <div class="gs-ov-row" [formGroupName]="i">
                       <app-combobox formControlName="membershipTypeId"
                                     [options]="typeOptions()"
-                                    [allowEmpty]="true" emptyLabel="— Select —"
+                                    [allowEmpty]="true" emptyLabel="- Select -"
                                     [ariaLabel]="'Override ' + (i + 1) + ' membership type'"
                                     placeholder="Type to search…" />
                       <input type="number" inputmode="numeric" min="0" max="365" step="1" formControlName="advanceBookingDays"
@@ -107,7 +107,7 @@
                   Add override
                 </button>
                 @if (overrides.length === 0) {
-                  <p class="cell-subtle field-hint">No overrides yet — every membership type follows the general days.</p>
+                  <p class="cell-subtle field-hint">No overrides yet - every membership type follows the general days.</p>
                 }
               </div>
             }
@@ -120,14 +120,14 @@
                 @if (showError(form.controls.bookingLockMinutes)) {
                   <p id="gsLockErr" class="field-error" role="alert">Enter a whole number between 1 and 60.</p>
                 }
-                <p class="cell-subtle field-hint">A selected flight is held this long while the player list is keyed — a countdown shows on the booking screen.</p>
+                <p class="cell-subtle field-hint">A selected flight is held this long while the player list is keyed - a countdown shows on the booking screen.</p>
               </div>
             </div>
 
             <div class="form-row" style="margin-top: var(--space-md);">
               <label class="gs-check">
                 <input type="checkbox" formControlName="allowBookingMerge" />
-                <span>Allow merge booking — a flight may be shared by players from different bookings</span>
+                <span>Allow merge booking - a flight may be shared by players from different bookings</span>
               </label>
               <p class="cell-subtle field-hint">When off, the first confirmed booking claims the whole flight; more players can only be added to that same booking.</p>
             </div>
@@ -160,7 +160,7 @@
             <div class="gs-sessions" style="margin-top: var(--space-md);">
               <label style="font-weight: var(--weight-semibold);">Sessions</label>
               <p class="cell-subtle field-hint">
-                The club's day parts — e.g. Morning, Afternoon, Evening. "One booking per session" allows one booking in each;
+                The club's day parts - e.g. Morning, Afternoon, Evening. "One booking per session" allows one booking in each;
                 a tee time outside every session is unrestricted.
                 @if (sessionLimitOn() && sessions.length === 0) {
                   <strong>Define at least one session for the per-session limit to constrain anything.</strong>
@@ -196,17 +196,17 @@
             <div class="form-row" style="margin-top: var(--space-md);">
               <label class="gs-check">
                 <input type="checkbox" formControlName="allowSameDayBooking" />
-                <span>Allow same-day booking — today's flights can be booked</span>
+                <span>Allow same-day booking - today's flights can be booked</span>
               </label>
-              <p class="cell-subtle field-hint">When off, bookings start from tomorrow up to the advance window — golfers take today's flights by registering at the front desk.</p>
+              <p class="cell-subtle field-hint">When off, bookings start from tomorrow up to the advance window - golfers take today's flights by registering at the front desk.</p>
             </div>
 
             <div class="form-row" style="margin-top: var(--space-md);">
               <label class="gs-check">
                 <input type="checkbox" formControlName="juniorBookingControlEnabled" />
-                <span>Junior booking control — a junior must play with their principal (parent)</span>
+                <span>Junior booking control - a junior must play with their principal (parent)</span>
               </label>
-              <p class="cell-subtle field-hint">A junior member (a dependent whose relationship is son, daughter or ward) may not be in a booking unless their principal is also a player — or, if no principal is on record, at least one adult member. The booking refuses; the front desk registers with a warning.</p>
+              <p class="cell-subtle field-hint">A junior member (a dependent whose relationship is son, daughter or ward) may not be in a booking unless their principal is also a player - or, if no principal is on record, at least one adult member. The booking refuses; the front desk registers with a warning.</p>
             </div>
           </div>
         }
@@ -218,7 +218,7 @@
                 [attr.aria-expanded]="isExpanded('minPlayers')">
           <span class="settings-header__text">
             <span class="settings-header__title">Minimum Players</span>
-            <span class="settings-header__sub">The fewest golfers a booking must bring — keep flights filled. 1 means no restriction.</span>
+            <span class="settings-header__sub">The fewest golfers a booking must bring - keep flights filled. 1 means no restriction.</span>
           </span>
           <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('minPlayers')" aria-hidden="true">chevron_right</span>
         </button>
@@ -242,7 +242,7 @@
                 }
               </div>
             </div>
-            <p class="cell-subtle" style="margin: var(--space-sm) 0 0;">A booking passes when its own players meet the minimum — or when joining an existing flight brings the flight's total to it.</p>
+            <p class="cell-subtle" style="margin: var(--space-sm) 0 0;">A booking passes when its own players meet the minimum - or when joining an existing flight brings the flight's total to it.</p>
 
             <div class="gs-overrides">
               @if (minPlayerRules.length > 0) {
@@ -287,7 +287,7 @@
                 Add exception
               </button>
               @if (minPlayerRules.length === 0) {
-                <p class="cell-subtle field-hint">No exceptions — every flight follows the two general minimums. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a time band (empty times = whole day); the most specific rule wins.</p>
+                <p class="cell-subtle field-hint">No exceptions - every flight follows the two general minimums. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a time band (empty times = whole day); the most specific rule wins.</p>
               }
             </div>
           </div>
@@ -300,7 +300,7 @@
                 [attr.aria-expanded]="isExpanded('guests')">
           <span class="settings-header__text">
             <span class="settings-header__title">Guest Control</span>
-            <span class="settings-header__sub">When a booking may bring guests — visitors, and members playing as another member's guest.</span>
+            <span class="settings-header__sub">When a booking may bring guests - visitors, and members playing as another member's guest.</span>
           </span>
           <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('guests')" aria-hidden="true">chevron_right</span>
         </button>
@@ -309,7 +309,7 @@
             <div class="form-row">
               <label class="gs-check">
                 <input type="checkbox" formControlName="guestControlEnabled" />
-                <span>Enable guest control — restrict when a booking may bring guests</span>
+                <span>Enable guest control - restrict when a booking may bring guests</span>
               </label>
               <p class="cell-subtle field-hint">Off means no restriction anywhere: guests are always welcome.</p>
             </div>
@@ -386,7 +386,7 @@
                   Add exception
                 </button>
                 @if (guestRules.length === 0) {
-                  <p class="cell-subtle field-hint">No exceptions — the weekday and weekend answers above apply everywhere. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a flight-time band; the most specific rule wins.</p>
+                  <p class="cell-subtle field-hint">No exceptions - the weekday and weekend answers above apply everywhere. Add one for a course, a day (weekday/weekend or a specific day like Sunday) or a flight-time band; the most specific rule wins.</p>
                 }
               </div>
             }
@@ -409,7 +409,7 @@
             <div class="form-row">
               <label class="gs-check">
                 <input type="checkbox" formControlName="handicapControlEnabled" />
-                <span>Enable handicap control — bookings refuse violations; the front desk registers with a warning</span>
+                <span>Enable handicap control - bookings refuse violations; the front desk registers with a warning</span>
               </label>
               <p class="cell-subtle field-hint">Golfers with no handicap recorded are exempt from the limits; only golfers marked Beginner or Provisional need accompanying.</p>
             </div>
@@ -469,7 +469,7 @@
                 Add limit
               </button>
               @if (limitRules.length === 0) {
-                <p class="cell-subtle field-hint">No limits — any handicap may play any time. Add one per gender/day, e.g. Men 36.0 and Ladies 40.0 on weekdays for 18 holes.</p>
+                <p class="cell-subtle field-hint">No limits - any handicap may play any time. Add one per gender/day, e.g. Men 36.0 and Ladies 40.0 on weekdays for 18 holes.</p>
               }
 
               <p class="gs-hc-title" style="margin-top: var(--space-lg);">Beginner &amp; provisional accompaniment</p>
@@ -536,7 +536,7 @@
                 Add rule
               </button>
               @if (accRules.length === 0) {
-                <p class="cell-subtle field-hint">No rules — beginners and provisional golfers play unaccompanied. A rule requires the flight to carry at least the given number of Established golfers under the per-gender handicap caps; the companion is checked across the whole flight.</p>
+                <p class="cell-subtle field-hint">No rules - beginners and provisional golfers play unaccompanied. A rule requires the flight to carry at least the given number of Established golfers under the per-gender handicap caps; the companion is checked across the whole flight.</p>
               }
             }
           </div>
@@ -588,9 +588,9 @@
                 <div class="form-group">
                   <label for="gsNoShowType">No-show Charge <span class="required">*</span></label>
                   <app-combobox inputId="gsNoShowType" [value]="form.controls.noShowTransactionTypeId.value" (valueChange)="setNoShowType($event)"
-                                [options]="noShowTypeOptions()" [allowEmpty]="true" emptyLabel="— Select —"
+                                [options]="noShowTypeOptions()" [allowEmpty]="true" emptyLabel="- Select -"
                                 placeholder="Type to search…" />
-                  <p class="cell-subtle field-hint">A No Show Charges transaction type — its flat price and tax scheme set the penalty (e.g. 80.00 + 5% tax). Maintained under Transaction Type.</p>
+                  <p class="cell-subtle field-hint">A No Show Charges transaction type - its flat price and tax scheme set the penalty (e.g. 80.00 + 5% tax). Maintained under Transaction Type.</p>
                 </div>
                 <div class="form-group">
                   <label for="gsChargeBasis">Charge Basis</label>
@@ -715,7 +715,7 @@
                 [attr.aria-expanded]="isExpanded('teesheet')">
           <span class="settings-header__text">
             <span class="settings-header__title">Tee Sheet</span>
-            <span class="settings-header__sub">Seat-dot colours on the Front Desk sheet — one dot per player, coloured by their status; a blank outline is a free seat.</span>
+            <span class="settings-header__sub">Seat-dot colours on the Front Desk sheet - one dot per player, coloured by their status; a blank outline is a free seat.</span>
           </span>
           <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('teesheet')" aria-hidden="true">chevron_right</span>
         </button>

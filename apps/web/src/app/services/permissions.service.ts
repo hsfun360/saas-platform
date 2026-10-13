@@ -5,7 +5,7 @@ import { AccessService } from './access.service';
 
 // What a role may DO on the current screen, resolved from the granted menus
 // the login stored (each MenuItem now carries `actions`). This powers UI
-// gating only (hide Create/Edit/Delete controls the role doesn't have) — the
+// gating only (hide Create/Edit/Delete controls the role doesn't have) - the
 // backend's requireMenuAction middleware is the authoritative enforcement.
 export type MenuAction = 'create' | 'edit' | 'delete';
 
@@ -29,7 +29,7 @@ export class PermissionsService {
   //
   // Defaults are deliberately permissive: admins (implicit full access), menus
   // cached before actions shipped, and screens that aren't in the menu
-  // catalogue all resolve to true — the backend still enforces. Gating only
+  // catalogue all resolve to true - the backend still enforces. Gating only
   // kicks in when a menu grant explicitly withholds the action.
   can(action: MenuAction, url?: string): boolean {
     if (this.access.isSystemAdmin() || this.access.isTenantAdmin()) return true;

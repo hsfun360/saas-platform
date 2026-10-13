@@ -33,7 +33,7 @@
       @if (currencies().length > 0) {
         {{ currencies().length }} currencies, {{ activeCount() }} active
       } @else {
-        No currencies yet — click "Load defaults" to add the ISO 4217 set, or use "New currency".
+        No currencies yet - click "Load defaults" to add the ISO 4217 set, or use "New currency".
       }
     </span>
     <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="onSeed()" [disabled]="seeding()">
@@ -70,7 +70,7 @@
         <div class="data-card" [attr.data-return-id]="c.code">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ c.code }} — {{ c.name }}</div>
+              <div class="data-card__title">{{ c.code }} - {{ c.name }}</div>
               <div class="data-card__subline">
                 <span class="data-card__reg">
                   @if (c.symbol) { {{ c.symbol }} · } {{ c.minorUnit ?? 2 }} decimal{{ (c.minorUnit ?? 2) === 1 ? '' : 's' }}@if (c.numericCode) { · No. {{ c.numericCode }} }
@@ -164,7 +164,7 @@
 
   <!-- ============ Edit currency dialog ============ -->
   @if (editOpen()) {
-    <app-dialog #editDlg variant="drawer" [title]="'Edit — ' + editingCode()" [busy]="editSaving()" [dirty]="editForm.dirty"
+    <app-dialog #editDlg variant="drawer" [title]="'Edit - ' + editingCode()" [busy]="editSaving()" [dirty]="editForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
                 (close)="closeEdit()">

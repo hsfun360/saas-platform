@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">receipt_long</span>
       <div>
         <h1>{{ 'Statement Listing' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Generated statements of account per debtor — party and letterhead details frozen at generation. Generate months on the Statement Generation screen.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Generated statements of account per debtor - party and letterhead details frozen at generation. Generate months on the Statement Generation screen.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -56,7 +56,7 @@
         <div class="data-card">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ s.statementNo }} — {{ s.billName }}</div>
+              <div class="data-card__title">{{ s.statementNo }} - {{ s.billName }}</div>
               <div class="data-card__subline">
                 @if (s.debtorNo) { <span class="data-card__reg">({{ s.debtorNo }})</span> }
                 <span class="as-cat-chip">{{ categoryLabels[s.debtorCategory] || s.debtorCategory }}</span>
@@ -151,7 +151,7 @@
                   @case ('details') {
                     <span>
                       {{ l.description || l.docType }}
-                      @if (l.incurredByName) { <span class="cell-subtle">— {{ l.incurredByName }}</span> }
+                      @if (l.incurredByName) { <span class="cell-subtle">- {{ l.incurredByName }}</span> }
                     </span>
                   }
                   @case ('debit') { <span class="as-num">{{ l.debit !== '0.00' ? l.debit : '' }}</span> }

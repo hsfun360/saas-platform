@@ -1,7 +1,7 @@
 /* You can add global styles to this file, and also import other style files */
 
 /* ============================================================== */
-/* Base reset — remove the browser's default body margin so the   */
+/* Base reset - remove the browser's default body margin so the   */
 /* app (and the full-width header) sit edge-to-edge with no gap.   */
 /* ============================================================== */
 html,
@@ -44,20 +44,20 @@ textarea[aria-invalid='true'] {
 }
 
 /* ============================================================== */
-/* Design tokens — typography + 8pt spacing scale                 */
+/* Design tokens - typography + 8pt spacing scale                 */
 /* (see docs/project-overview.md → UI/UX Requirements)            */
 /* Prefer these tokens over hard-coded px values.                 */
 /* ============================================================== */
 :root {
   /* Typography scale (mobile-first). Ranges in the doc; tokens use a default. */
-  --font-display: 2.5rem;    /* 40px — hero, login, empty states */
-  --font-h1: 1.75rem;        /* 28px — page titles */
-  --font-h2: 1.375rem;       /* 22px — section / card headers */
-  --font-h3: 1.125rem;       /* 18px — subsections, form labels */
-  --font-body: 1rem;         /* 16px — body, buttons (a11y minimum) */
-  --font-body-2: 0.875rem;   /* 14px — secondary text, helper, captions */
-  --font-caption: 0.75rem;   /* 12px — metadata, badges */
-  --font-overline: 0.625rem; /* 10px — overline / status markers */
+  --font-display: 2.5rem;    /* 40px - hero, login, empty states */
+  --font-h1: 1.75rem;        /* 28px - page titles */
+  --font-h2: 1.375rem;       /* 22px - section / card headers */
+  --font-h3: 1.125rem;       /* 18px - subsections, form labels */
+  --font-body: 1rem;         /* 16px - body, buttons (a11y minimum) */
+  --font-body-2: 0.875rem;   /* 14px - secondary text, helper, captions */
+  --font-caption: 0.75rem;   /* 12px - metadata, badges */
+  --font-overline: 0.625rem; /* 10px - overline / status markers */
 
   /* Font weights */
   --weight-regular: 400;
@@ -71,7 +71,7 @@ textarea[aria-invalid='true'] {
   --space-2xs: 0.125rem; /* 2px - hairline nudge */
   --space-xs: 0.25rem;  /* 4px  */
   --space-sm: 0.5rem;   /* 8px  */
-  --space-md: 1rem;     /* 16px — default */
+  --space-md: 1rem;     /* 16px - default */
   --space-lg: 1.5rem;   /* 24px */
   --space-xl: 2rem;     /* 32px */
   --space-2xl: 3rem;    /* 48px */
@@ -86,7 +86,7 @@ textarea[aria-invalid='true'] {
 }
 
 /* ============================================================== */
-/* Colour tokens — SEMANTIC, theme-aware (spike: dark mode).      */
+/* Colour tokens - SEMANTIC, theme-aware (spike: dark mode).      */
 /* Reference these instead of hard-coding hex, so light + dark    */
 /* both flow from one source. Light values equal the current      */
 /* palette, so light mode is unchanged. The active theme is set   */
@@ -157,7 +157,7 @@ textarea[aria-invalid='true'] {
 
   --text-primary: #e6e9ee;
   --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;     /* ~5:1 on the dark card — AA */
+  --text-muted: #94a3b8;     /* ~5:1 on the dark card - AA */
   --text-on-brand: #ffffff;
 
   --border: #2b3648;
@@ -209,7 +209,7 @@ body {
 }
 
 /* ============================================================== */
-/* Listing-card standard — the ONE card system for every record   */
+/* Listing-card standard - the ONE card system for every record   */
 /* list (Companies, Users, Tax, Membership, …). Global + theme-    */
 /* aware so screens don't hand-roll their own card classes. See    */
 /* docs/project-overview.md → "Data listings". Compose:            */
@@ -226,7 +226,7 @@ body {
   /* Reset so it's safe on a semantic <ul> (no bullets/indent), not just a <div>. */
   list-style: none;
   margin: 0;
-  padding: 0 0 var(--space-lg); /* bottom breathing room; no horizontal inset — flush to the gutter */
+  padding: 0 0 var(--space-lg); /* bottom breathing room; no horizontal inset - flush to the gutter */
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
@@ -275,7 +275,7 @@ body {
   word-break: break-word;
 }
 
-/* Free-text subtitle under a title (e.g. a role description) — no caption. */
+/* Free-text subtitle under a title (e.g. a role description) - no caption. */
 .data-card__desc {
   margin: var(--space-xs) 0 0;
   font-size: var(--font-body-2);
@@ -399,7 +399,7 @@ body {
   .data-row--wide-actions .data-row__actions { justify-self: end; }
 }
 
-/* Status chip — the compact overline pill (active / inactive / disabled), pinned
+/* Status chip - the compact overline pill (active / inactive / disabled), pinned
    top-right in a .data-row--with-badge. App-wide standard, theme-aware.
    Compose: class="status-chip status-chip--on|--off". */
 .status-chip {
@@ -432,7 +432,7 @@ body {
   color: var(--danger-text);
 }
 
-/* Overflow ("kebab") menu — the standard home for a card's SECONDARY actions
+/* Overflow ("kebab") menu - the standard home for a card's SECONDARY actions
    (shared/overflow-menu). The action row keeps ONE visible primary button +
    the kebab; everything else lives in the popover, so rows never grow a
    button per feature. Global (not component-scoped) because the items are
@@ -506,10 +506,10 @@ body {
    inward from the screen edge. */
 
 /* ============================================================== */
-/* Flash message — the ONE success/error message shown after an    */
+/* Flash message - the ONE success/error message shown after an    */
 /* action (save, reset, revert, test). A SNACKBAR: floats bottom-  */
 /* center over the content (GCP-style), so the user sees it        */
-/* without scrolling back to the top — screens scroll to the       */
+/* without scrolling back to the top - screens scroll to the       */
 /* updated record and the confirmation still lands in view.        */
 /* Global + theme-aware; do NOT redefine it per screen. Compose:   */
 /*   <div class="flash flash-success" role="status">               */
@@ -598,7 +598,7 @@ body {
   opacity: 1;
 }
 /* Slides UP from below (snackbar). Keeps the -50% horizontal centering in
-   both frames — animating `transform` would otherwise cancel it mid-flight.
+   both frames - animating `transform` would otherwise cancel it mid-flight.
    (.flash--static sets animation: none, so this only runs on the snackbar.) */
 @keyframes flashSlideIn {
   from { opacity: 0; transform: translate(-50%, 10px); }
@@ -606,7 +606,7 @@ body {
 }
 
 /* ============================================================== */
-/* Form-field standard — the ONE styling for every New/Edit form   */
+/* Form-field standard - the ONE styling for every New/Edit form   */
 /* field (dialogs + inline forms). Global + theme-aware so every    */
 /* form looks identical in light and dark; do NOT inline-style      */
 /* inputs per screen. Compose:                                      */
@@ -841,7 +841,7 @@ textarea:disabled {
 }
 
 /* ============================================================== */
-/* Shared button system — use across all screens.                 */
+/* Shared button system - use across all screens.                 */
 /* One source of truth so Edit / Delete / Save / etc. look the    */
 /* same everywhere. Every button keeps a >= 44px touch target     */
 /* (CLAUDE.md / WCAG) regardless of viewport.                     */
@@ -880,7 +880,7 @@ textarea:disabled {
   font-size: var(--icon-sm);
   /* Pin the icon to a fixed square and clip the literal ligature name that
      shows before the Material Icons font loads (FOUT). Without this the button
-     reflows when the font swaps in — on first load that horizontal shift can
+     reflows when the font swaps in - on first load that horizontal shift can
      move an adjacent button under the cursor and cause a mis-click. */
   width: var(--icon-sm);
   height: var(--icon-sm);
@@ -891,7 +891,7 @@ textarea:disabled {
   flex-shrink: 0;
 }
 
-/* Primary — the main call to action. */
+/* Primary - the main call to action. */
 .btn--primary {
   background: var(--brand);
   color: var(--text-on-brand);
@@ -902,7 +902,7 @@ textarea:disabled {
   border-color: var(--brand-hover);
 }
 
-/* Secondary — bordered, lower emphasis (e.g. Edit, Cancel). */
+/* Secondary - bordered, lower emphasis (e.g. Edit, Cancel). */
 .btn--secondary {
   background: var(--surface-card);
   color: var(--brand-text); /* AA on the card in both themes */
@@ -913,7 +913,7 @@ textarea:disabled {
   border-color: var(--text-muted);
 }
 
-/* Danger — destructive / deactivating actions (Delete, Revoke, Disable). */
+/* Danger - destructive / deactivating actions (Delete, Revoke, Disable). */
 .btn--danger {
   background: var(--surface-card);
   color: var(--danger-text); /* AA on the card in both themes */
@@ -924,7 +924,7 @@ textarea:disabled {
   border-color: var(--danger-text);
 }
 
-/* Success — affirmative / activating actions (Enable, Approve, Activate).
+/* Success - affirmative / activating actions (Enable, Approve, Activate).
    Mirrors --danger so an Enable/Disable pair reads green vs red at a glance. */
 .btn--success {
   background: var(--surface-card);
@@ -936,7 +936,7 @@ textarea:disabled {
   border-color: var(--success-text);
 }
 
-/* Link — looks like inline text but keeps the 44px target + a11y. */
+/* Link - looks like inline text but keeps the 44px target + a11y. */
 .btn--link {
   background: transparent;
   color: var(--brand-text);
@@ -948,7 +948,7 @@ textarea:disabled {
   text-decoration: underline;
 }
 
-/* Small — denser padding/text, but still a 44px-tall touch target. */
+/* Small - denser padding/text, but still a 44px-tall touch target. */
 .btn--sm {
   padding: var(--space-xs) var(--space-sm);
   font-size: var(--font-body-2);
@@ -989,7 +989,7 @@ textarea:disabled {
   }
 }
 
-/* Dialog footer actions (app-dialog) stay inline on ONE line — opt out of the
+/* Dialog footer actions (app-dialog) stay inline on ONE line - opt out of the
    mobile full-width submit rule below. Higher specificity (.dlg__footer .btn)
    wins over `button[type="submit"]`, so Cancel + Save sit side by side at every
    width. Global (not scoped) so it reaches the projected footer buttons. */
@@ -998,7 +998,7 @@ textarea:disabled {
 }
 
 /* Page wrapper padding. Desktop: comfortable padding. Mobile: drop the
-   HORIZONTAL padding so content (cards, lists) uses the full width — the shell's
+   HORIZONTAL padding so content (cards, lists) uses the full width - the shell's
    content-area already supplies a ~16px gutter on mobile, so a second screen-level
    gutter just wastes space (mirrors mobile Gmail's edge-to-edge lists). Vertical
    breathing room is kept. Apply to a screen's top-level wrapper; pair with an
@@ -1211,7 +1211,7 @@ textarea:disabled {
   color: var(--brand-text);
 }
 
-/* Dialog class-picker step — THE standard for the first view of a create
+/* Dialog class-picker step - THE standard for the first view of a create
    dialog where the user declares the record's class before the form shows
    (AR Transaction Type, New membership). One option per row, composed as
    class="btn btn--secondary dlg-pick": an optional leading Material icon,
@@ -1236,7 +1236,7 @@ textarea:disabled {
   color: var(--brand-text);
 }
 
-/* Section card with a header band — THE standard for grouped settings/options
+/* Section card with a header band - THE standard for grouped settings/options
    on a form or settings screen (canonical look: the Settings screen; also
    Club Specification). Moved here from dashboard/settings/settings.css so
    every screen composes ONE definition. Structure:
@@ -1311,20 +1311,20 @@ textarea:disabled {
 }
 
 /* ============================================================== */
-/* RESPONSIVE STRATEGY — THREE TIERS (see docs/project-overview.md)*/
-/*   Mobile   < 768px   — single column, drawer + bottom nav       */
-/*   Tablet   768–1023px — 2 columns, collapsible (rail) sidebar   */
-/*   Desktop  >= 1024px  — multi-column, persistent sidebar, more  */
+/* RESPONSIVE STRATEGY - THREE TIERS (see docs/project-overview.md)*/
+/*   Mobile   < 768px   - single column, drawer + bottom nav       */
+/*   Tablet   768–1023px - 2 columns, collapsible (rail) sidebar   */
+/*   Desktop  >= 1024px  - multi-column, persistent sidebar, more  */
 /*                         spacing                                 */
 /* Media queries can't read CSS vars, so these pixel boundaries    */
-/* (767 / 768 / 1023 / 1024) are the ONE source of truth — reuse   */
+/* (767 / 768 / 1023 / 1024) are the ONE source of truth - reuse   */
 /* exactly these values everywhere; never invent new breakpoints.  */
 /* ============================================================== */
 
 /* Multi-column grid utility that follows the three tiers: 1 col on mobile,
    2 on tablet, 3 on desktop. Use for dense listing/card grids that benefit from
    a 3rd column on wide screens. (Forms stay 2-column via an inline
-   `minmax(0,1fr) minmax(0,1fr)` grid — do NOT force 3 columns on a form.) */
+   `minmax(0,1fr) minmax(0,1fr)` grid - do NOT force 3 columns on a form.) */
 .grid-3 {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">emoji_people</span>
       <div>
         <h1>{{ 'Salutations' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Your subscription\'s salutation list — shared by all companies and used across systems.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Your subscription\'s salutation list - shared by all companies and used across systems.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -33,7 +33,7 @@
       @if (salutations().length > 0) {
         {{ salutations().length }} salutations, {{ activeCount() }} active
       } @else {
-        No salutations yet — use "New salutation" to add one.
+        No salutations yet - use "New salutation" to add one.
       }
     </span>
   </div>
@@ -53,7 +53,7 @@
   @if (loading()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading salutations…</p></div>
   } @else if (salutations().length === 0) {
-    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No salutations yet. Use "New salutation" to add one (e.g. MR — Mr, DATUK — Datuk).</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No salutations yet. Use "New salutation" to add one (e.g. MR - Mr, DATUK - Datuk).</p></div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">search_off</span>

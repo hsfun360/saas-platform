@@ -21,10 +21,10 @@ import { ComboboxComponent } from '../shared/combobox/combobox';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe, formatLocalDate } from '../shared/local-date.pipe';
 
-// Combobox row for a nine picker: code — description (both filterable).
+// Combobox row for a nine picker: code - description (both filterable).
 const toNineOption = (u: UnitCourse): { value: string; label: string } => ({
   value: u.id,
-  label: u.description ? `${u.unitCourseCode} — ${u.description}` : u.unitCourseCode,
+  label: u.description ? `${u.unitCourseCode} - ${u.description}` : u.unitCourseCode,
 });
 
 // One slot row in the flight-times editor: a typed FormGroup inside the
@@ -154,12 +154,12 @@ export class GolfCoursesComponent implements OnInit {
   // Title / dirty / busy for the single tee-times dialog, per view.
   readonly ttTitle = computed(() => {
     const code = this.ttCourse()?.courseCode || '';
-    if (this.ttMode() === 'form') return this.ttEditSetId() ? `Edit tee-time set — ${code}` : `New tee-time set — ${code}`;
+    if (this.ttMode() === 'form') return this.ttEditSetId() ? `Edit tee-time set - ${code}` : `New tee-time set - ${code}`;
     if (this.ttMode() === 'slots') {
       const s = this.ttSlotSet();
-      return s ? `Flight times — ${this.scopeLabel(s.dayScope)} from ${formatLocalDate(s.effectiveDate)}` : 'Flight times';
+      return s ? `Flight times - ${this.scopeLabel(s.dayScope)} from ${formatLocalDate(s.effectiveDate)}` : 'Flight times';
     }
-    return `Tee times — ${code}`;
+    return `Tee times - ${code}`;
   });
   readonly ttBusy = computed(() => this.ttLoading() || this.ttSaving() || this.ttSlotsSaving());
   // Method (not computed): ttForm.dirty is not a signal, but template bindings

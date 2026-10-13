@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">point_of_sale</span>
       <div>
         <h1>{{ 'Tee Time Sheet' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Register arriving golfers — booked or walk-in — bill each player and settle.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Register arriving golfers - booked or walk-in - bill each player and settle.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -63,7 +63,7 @@
   } @else if (sheet().length === 0) {
     <div class="empty-state">
       <span class="material-icons" aria-hidden="true">golf_course</span>
-      <p>No course operates on {{ listDate() | localDate }} — no tee-time set covers this date.</p>
+      <p>No course operates on {{ listDate() | localDate }} - no tee-time set covers this date.</p>
     </div>
   } @else {
     @if (searchActive() && matchKeys().size === 0) {
@@ -182,7 +182,7 @@
                       }
                     }
                     @if (f.nineHolesOnly && !f.closed && !f.crossoverOnly && !f.offGrid) {
-                      <span class="fd-flight__nine" title="18 holes not available from this tee time — the second nine is closed, or the day ends before the crossover">9H only</span>
+                      <span class="fd-flight__nine" title="18 holes not available from this tee time - the second nine is closed, or the day ends before the crossover">9H only</span>
                     }
                     @if (f.crossCount > 0) {
                       <span class="fd-cross" [title]="f.crossCount + ' player(s) crossing over onto this nine here'">↷{{ f.crossCount }}</span>
@@ -344,7 +344,7 @@
         <!-- ---- Free-form walk-in registration (the FAB) ---- -->
         @case ('walkin') {
           <form id="fdWalkin" [formGroup]="walkinForm" (ngSubmit)="submitWalkIn()" class="saas-form saas-form--dialog">
-            <p class="cell-subtle" style="margin: 0 0 var(--space-md);">Registers directly on {{ listDate() | localDate }} — the desk needs only a free seat on the flight.</p>
+            <p class="cell-subtle" style="margin: 0 0 var(--space-md);">Registers directly on {{ listDate() | localDate }} - the desk needs only a free seat on the flight.</p>
             <div class="fd-grid">
               <div class="form-group">
                 <label for="fdwCourse">Course <span class="required">*</span></label>
@@ -410,7 +410,7 @@
             </div>
 
             @if (b.items.length === 0) {
-              <p class="cell-subtle">No items yet — add from the tiles below.</p>
+              <p class="cell-subtle">No items yet - add from the tiles below.</p>
             } @else {
               <div class="fd-items">
                 <div class="fd-item fd-item--head" aria-hidden="true">
@@ -535,7 +535,7 @@
             @if (r.bookings.length === 0) {
               <div class="empty-state">
                 <span class="material-icons" aria-hidden="true">how_to_reg</span>
-                <p>Nothing to record — every booked player whose tee time has passed is registered or cancelled.</p>
+                <p>Nothing to record - every booked player whose tee time has passed is registered or cancelled.</p>
               </div>
             }
             <!-- Reactive FormArray (house standard): one group per booking, index-aligned with
@@ -558,11 +558,11 @@
                 @if (r.controlled) {
                   <div class="fd-noshow__charge">
                     @if (b.charge) {
-                      <span>Booker <strong>{{ b.booker?.name || '—' }}</strong>{{ b.booker?.memberNo ? ' (' + b.booker?.memberNo + ')' : '' }}
-                        — {{ b.charge.description }} {{ b.charge.quantity }} × {{ b.charge.unitAmount.toFixed(2) }}{{ b.charge.taxAmount > 0 ? ' + ' + b.charge.taxAmount.toFixed(2) + ' tax' : '' }}
+                      <span>Booker <strong>{{ b.booker?.name || '-' }}</strong>{{ b.booker?.memberNo ? ' (' + b.booker?.memberNo + ')' : '' }}
+                        - {{ b.charge.description }} {{ b.charge.quantity }} × {{ b.charge.unitAmount.toFixed(2) }}{{ b.charge.taxAmount > 0 ? ' + ' + b.charge.taxAmount.toFixed(2) + ' tax' : '' }}
                         = <strong>{{ b.charge.totalAmount.toFixed(2) }}</strong></span>
                       @if (b.booker && !b.booker.isMember) {
-                        <span class="cell-subtle">Not a member — recorded as pending for collection at the counter.</span>
+                        <span class="cell-subtle">Not a member - recorded as pending for collection at the counter.</span>
                       }
                       <label class="fd-noshow__waive">
                         <input type="checkbox" formControlName="waive" />
@@ -574,7 +574,7 @@
                                [attr.aria-label]="'Waive reason for booking ' + b.bookingNo" />
                       }
                     } @else {
-                      <span class="fd-noshow__error">Cannot be charged: {{ b.chargeError }} — the no-show is recorded without a charge.</span>
+                      <span class="fd-noshow__error">Cannot be charged: {{ b.chargeError }} - the no-show is recorded without a charge.</span>
                     }
                   </div>
                 }
@@ -593,7 +593,7 @@
             @if (confirmKind() === 'void-bill') {
               <p>Void bill <strong>{{ target.bill?.billNo }}</strong> for {{ target.playerName }}? Its items are discarded; the registration stays.</p>
             } @else if (target.kind === 'booked') {
-              <p>Cancel registration <strong>{{ target.registration?.registrationNo }}</strong> for {{ target.playerName }}? The player goes back to booked — the booking keeps the seat.</p>
+              <p>Cancel registration <strong>{{ target.registration?.registrationNo }}</strong> for {{ target.playerName }}? The player goes back to booked - the booking keeps the seat.</p>
             } @else {
               <p>Cancel registration <strong>{{ target.registration?.registrationNo }}</strong> for {{ target.playerName }}? The seat is freed.</p>
             }

@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">workspace_premium</span>
       <div>
         <h1>{{ 'Membership Type' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Membership type setup for this company — rights, term, limits and defaults.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Membership type setup for this company - rights, term, limits and defaults.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -33,7 +33,7 @@
       @if (types().length > 0) {
         {{ types().length }} types, {{ activeCount() }} active
       } @else {
-        No types yet — use "New type" to add one.
+        No types yet - use "New type" to add one.
       }
     </span>
   </div>
@@ -106,7 +106,7 @@
             </div>
             <div class="data-row__actions">
               <!-- Row-level data scope: the server flags rows this user's role
-                   may not amend (canModify=false) — hide the actions entirely. -->
+                   may not amend (canModify=false) - hide the actions entirely. -->
               @if (t.canModify !== false) {
                 <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">Edit</button>
                 <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + t.category">
@@ -191,7 +191,7 @@
             <div class="form-group form-group--narrow">
               <label for="tGuestQuota">Golf guest quota (per booking)</label>
               <input id="tGuestQuota" type="number" inputmode="numeric" formControlName="guestQuota" min="0" step="1" placeholder="No limit" />
-              <p class="mt-hint">Guests a member of this type may bring on one booking — members playing as guests count. Blank = no limit, 0 = cannot bring guests.</p>
+              <p class="mt-hint">Guests a member of this type may bring on one booking - members playing as guests count. Blank = no limit, 0 = cannot bring guests.</p>
             </div>
           }
         </details>
@@ -212,7 +212,7 @@
                 }
               </div>
             } @else {
-              <p class="mt-hint" style="margin: 0;">Lifetime — no fixed period.</p>
+              <p class="mt-hint" style="margin: 0;">Lifetime - no fixed period.</p>
             }
           </div>
         </details>
@@ -223,14 +223,14 @@
             <label for="tStatus">Default membership status</label>
             <app-combobox inputId="tStatus" formControlName="defaultMembershipStatusId"
                           [options]="defaultStatusOptions()"
-                          [allowEmpty]="true" emptyLabel="— None —"
+                          [allowEmpty]="true" emptyLabel="- None -"
                           placeholder="Type to search…" />
           </div>
           <div class="form-group">
             <label for="tFee">Default membership fee</label>
             <app-combobox inputId="tFee" formControlName="defaultMembershipFeeId"
                           [options]="defaultFeeOptions()"
-                          [allowEmpty]="true" emptyLabel="— None —"
+                          [allowEmpty]="true" emptyLabel="- None -"
                           placeholder="Type to search…" />
           </div>
         </div>
@@ -250,7 +250,7 @@
 
         <!-- Type conversion -->
         <details class="dlg-sec" open>
-          <summary><h3 class="dlg-section">Type conversion — can convert to</h3></summary>
+          <summary><h3 class="dlg-section">Type conversion - can convert to</h3></summary>
           @if (otherTypes().length === 0) {
             <p class="mt-hint">No other membership types yet to convert into.</p>
           } @else {
@@ -258,7 +258,7 @@
               @for (t of otherTypes(); track t.id) {
                 <label class="mt-check">
                   <input type="checkbox" [checked]="isConversionSelected(t.id)" (change)="toggleConversion(t.id)" />
-                  <span>{{ t.category }}@if (t.description) { — {{ t.description }} }</span>
+                  <span>{{ t.category }}@if (t.description) { - {{ t.description }} }</span>
                 </label>
               }
             </div>
@@ -301,7 +301,7 @@
                 <label for="tNomCat">Nominee membership type</label>
                 <app-combobox inputId="tNomCat" formControlName="nomineeCategoryId"
                               [options]="otherTypeOptions()"
-                              [allowEmpty]="true" emptyLabel="— None —"
+                              [allowEmpty]="true" emptyLabel="- None -"
                               placeholder="Type to search…" />
               </div>
             </div>
@@ -320,7 +320,7 @@
 
   <!-- ============ Joining fees dialog (A) ============ -->
   @if (feesOpen()) {
-    <app-dialog #feesDlg variant="drawer" [title]="'Joining fees — ' + (feesType()?.category || '')" [busy]="feesSaving()" [dirty]="feeLines.dirty"
+    <app-dialog #feesDlg variant="drawer" [title]="'Joining fees - ' + (feesType()?.category || '')" [busy]="feesSaving()" [dirty]="feeLines.dirty"
                 discardTitle="Discard joining-fee changes?"
                 discardMessage="You have unsaved changes to these joining fees. Leaving now will discard them."
                 (close)="closeFees()">
@@ -329,7 +329,7 @@
       <div class="saas-form saas-form--dialog" formArrayName="fees">
         <p class="mt-hint" style="margin: 0 0 var(--space-sm);">One-time charges billed when someone joins as a new member under this type. A type can carry more than one (e.g. processing fee + entrance fee).</p>
         @if (joiningFeeTxTypes().length === 0) {
-          <p class="mt-hint" style="margin: 0 0 var(--space-sm);"><span class="material-icons inline-icon" aria-hidden="true">warning</span> No usable transaction types yet — set them up in the Transaction Type master first (Membership Fee and Absentee Fee types are not offered here).</p>
+          <p class="mt-hint" style="margin: 0 0 var(--space-sm);"><span class="material-icons inline-icon" aria-hidden="true">warning</span> No usable transaction types yet - set them up in the Transaction Type master first (Membership Fee and Absentee Fee types are not offered here).</p>
         }
         <!-- Additional fees (Category Details - Fee) -->
         <details class="dlg-sec" open>
@@ -394,16 +394,16 @@
 
   <!-- ============ Standing charges dialog (B) ============ -->
   @if (chargesOpen()) {
-    <app-dialog #chargesDlg variant="drawer" [title]="'Standing charges — ' + (chargesType()?.category || '')" [busy]="chargesSaving()" [dirty]="standingRows.dirty"
+    <app-dialog #chargesDlg variant="drawer" [title]="'Standing charges - ' + (chargesType()?.category || '')" [busy]="chargesSaving()" [dirty]="standingRows.dirty"
                 discardTitle="Discard standing-charge changes?"
                 discardMessage="You have unsaved changes to these standing charges. Leaving now will discard them."
                 (close)="closeCharges()">
       <!-- Reactive FormArray editor (house standard): rows live in `standingRows`, its dirty state feeds the guard, Enter submits. -->
       <form id="mtCharges" [formGroup]="chargesForm" (ngSubmit)="saveCharges()">
       <div class="saas-form saas-form--dialog" formArrayName="charges">
-        <p class="mt-hint" style="margin: 0 0 var(--space-sm);">Recurring charges raised from the member's status at the point the charge is billed. Use "Add charge" per charge — a status can carry more than one, and statuses you never charge (deceased, terminated, resigned, …) simply have no rows.</p>
+        <p class="mt-hint" style="margin: 0 0 var(--space-sm);">Recurring charges raised from the member's status at the point the charge is billed. Use "Add charge" per charge - a status can carry more than one, and statuses you never charge (deceased, terminated, resigned, …) simply have no rows.</p>
         @if (standingTxTypes().length === 0) {
-          <p class="mt-hint" style="margin: 0 0 var(--space-sm);"><span class="material-icons inline-icon" aria-hidden="true">warning</span> No transaction types with charge type "Standing Charges" yet — set them up in the Transaction Type master first.</p>
+          <p class="mt-hint" style="margin: 0 0 var(--space-sm);"><span class="material-icons inline-icon" aria-hidden="true">warning</span> No transaction types with charge type "Standing Charges" yet - set them up in the Transaction Type master first.</p>
         }
         <!-- Standing charges: explicit rows, added like joining fees -->
         <details class="dlg-sec" open>

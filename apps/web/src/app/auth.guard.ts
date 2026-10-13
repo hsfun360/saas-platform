@@ -2,14 +2,14 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 
 // Gate for the authenticated shell: requires a token that is present AND not
-// expired. (HTTP 401s are also handled by the interceptor, which logs out — this
+// expired. (HTTP 401s are also handled by the interceptor, which logs out - this
 // rejects a stale token up front so the shell never even renders for it.)
 export const authGuard: CanActivateFn = () => {
   const router = inject(Router);
   const token = localStorage.getItem('token');
 
   if (token && !isTokenExpired(token)) {
-    // Purpose-scoped tokens must never enter the shell — each goes to its own
+    // Purpose-scoped tokens must never enter the shell - each goes to its own
     // flow (onboarding wizard / forced MFA enrollment); anything else → login.
     const purpose = tokenPurpose(token);
     if (purpose === 'onboarding') {
@@ -25,7 +25,7 @@ export const authGuard: CanActivateFn = () => {
     return true;
   }
 
-  // No token, or expired / malformed — drop it and send to login.
+  // No token, or expired / malformed - drop it and send to login.
   localStorage.removeItem('token');
   return router.parseUrl('/login');
 };

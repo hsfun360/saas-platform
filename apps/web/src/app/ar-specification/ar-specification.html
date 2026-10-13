@@ -181,14 +181,14 @@
                   <label for="arspInterestType">Interest run posts under</label>
                   <app-combobox inputId="arspInterestType" formControlName="interestTransactionTypeId"
                                 [options]="interestTypeChoices()"
-                                [allowEmpty]="true" emptyLabel="— Seeded INTEREST type —"
+                                [allowEmpty]="true" emptyLabel="- Seeded INTEREST type -"
                                 placeholder="Type to search…" />
                 </div>
                 <div class="form-group">
                   <label for="arspDepConvType">Deposit conversions post under</label>
                   <app-combobox inputId="arspDepConvType" formControlName="depositConversionTransactionTypeId"
                                 [options]="depConvTypeChoices()"
-                                [allowEmpty]="true" emptyLabel="— Seeded DEPCONV type —"
+                                [allowEmpty]="true" emptyLabel="- Seeded DEPCONV type -"
                                 placeholder="Type to search…" />
                 </div>
               </div>
@@ -240,7 +240,7 @@
                 <label for="arspFxType">Exchange difference posts under</label>
                 <app-combobox inputId="arspFxType" formControlName="fxTransactionTypeId"
                               [options]="forexTypeChoices()"
-                              [allowEmpty]="true" emptyLabel="— Not set —"
+                              [allowEmpty]="true" emptyLabel="- Not set -"
                               placeholder="Type to search…" />
               </div>
             </div>

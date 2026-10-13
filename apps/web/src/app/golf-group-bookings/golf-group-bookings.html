@@ -83,7 +83,7 @@
                   <span class="data-card__reg">{{ b.courses.join(', ') }}</span>
                 </div>
                 <dl class="data-card__meta">
-                  <div class="meta"><dt>Organiser</dt><dd>{{ b.organiserName || '—' }}</dd></div>
+                  <div class="meta"><dt>Organiser</dt><dd>{{ b.organiserName || '-' }}</dd></div>
                   <div class="meta"><dt>Days</dt><dd>{{ b.dayCount }}</dd></div>
                   <div class="meta"><dt>Roster</dt><dd>{{ b.rosterCount }}{{ b.expectedPlayers ? ' of ' + b.expectedPlayers : '' }}</dd></div>
                 </dl>
@@ -151,13 +151,13 @@
               </p>
             }
             <dl class="data-card__meta ggb-meta">
-              <div class="meta"><dt>Organiser</dt><dd>{{ b.organiserName || '—' }}</dd></div>
+              <div class="meta"><dt>Organiser</dt><dd>{{ b.organiserName || '-' }}</dd></div>
               <div class="meta"><dt>Billing party</dt><dd>{{ b.debtorType === 'other' ? 'City ledger (Other Debtor)' : (b.debtorType ? 'Member account' : 'Cash only - no account') }}</dd></div>
-              <div class="meta"><dt>Contact</dt><dd>{{ b.contactPerson || '—' }}{{ b.contactMobile ? ' · ' + b.contactMobile : '' }}{{ b.contactEmail ? ' · ' + b.contactEmail : '' }}</dd></div>
-              <div class="meta"><dt>Expected players</dt><dd>{{ b.expectedPlayers ?? '—' }}</dd></div>
+              <div class="meta"><dt>Contact</dt><dd>{{ b.contactPerson || '-' }}{{ b.contactMobile ? ' · ' + b.contactMobile : '' }}{{ b.contactEmail ? ' · ' + b.contactEmail : '' }}</dd></div>
+              <div class="meta"><dt>Expected players</dt><dd>{{ b.expectedPlayers ?? '-' }}</dd></div>
               <div class="meta"><dt>Roster</dt><dd>{{ b.rosterCount }} listed</dd></div>
               @if (b.remarks) { <div class="meta"><dt>Remarks</dt><dd>{{ b.remarks }}</dd></div> }
-              @if (b.status === 'cancelled') { <div class="meta"><dt>Cancelled</dt><dd>{{ b.cancelReason || '—' }}</dd></div> }
+              @if (b.status === 'cancelled') { <div class="meta"><dt>Cancelled</dt><dd>{{ b.cancelReason || '-' }}</dd></div> }
             </dl>
             @if (b.canModify !== false && (can('editHeader') || can('submit') || can('recall') || can('reopen') || can('cancel'))) {
               <div class="ggb-actions" *appCan="'edit'">
@@ -335,8 +335,8 @@
                     <span class="ggb-roster__no">{{ i + 1 }}</span>
                     <span class="ggb-roster__name">{{ p.playerName }}@if (p.memberNo) { <span class="data-card__reg">({{ p.memberNo }})</span> }</span>
                     <span>{{ playerTypeLabel(p.playerType) }}</span>
-                    <span>{{ p.handicap ?? '—' }}</span>
-                    <span>{{ p.teamName || '—' }}</span>
+                    <span>{{ p.handicap ?? '-' }}</span>
+                    <span>{{ p.teamName || '-' }}</span>
                     <span class="ggb-roster__drawn">{{ p.status === 'withdrawn' ? 'Withdrawn' : drawnSummary(p) }}</span>
                     <span class="ggb-roster__actions">
                       @if (can('editRoster') && b.canModify !== false) {
@@ -424,7 +424,7 @@
                             <span class="ggb-draw__fixed"><span class="material-icons" aria-hidden="true">lock</span> {{ registeredFlightLabel(p) }} · registered</span>
                           } @else {
                             <select [formControlName]="p.id" [attr.aria-label]="'Flight for ' + p.playerName">
-                              <option value="">— Not drawn —</option>
+                              <option value="">- Not drawn -</option>
                               @for (f of day.flights; track f.id) {
                                 <option [value]="f.id">{{ flightTitle(f, day) }} ({{ drawLoad()[f.id] || 0 }}/{{ f.capacity }})</option>
                               }
@@ -1236,7 +1236,7 @@
         @for (d of p.days; track d.playDate) {
           <div class="ggb-share">
             <span>{{ d.playDate | localDate:'weekday' }}@if (d.dayType === 'weekend') { <span class="data-card__reg">weekend / holiday</span> }</span>
-            <span>{{ d.courseCode || '—' }} · {{ formatLabel(d.startFormat) }}</span>
+            <span>{{ d.courseCode || '-' }} · {{ formatLabel(d.startFormat) }}</span>
             <span class="ggb-share__num"><span class="ggb-share__k">Flights</span>{{ d.flights }}</span>
             <span class="ggb-share__num"><span class="ggb-share__k">This group</span>{{ d.sharePct }}%</span>
             <span class="ggb-share__num"><span class="ggb-share__k">All groups</span>{{ d.groupSharePct }}%@if (d.cap > 0) { <span class="data-card__reg">cap {{ d.cap }}%</span> }</span>

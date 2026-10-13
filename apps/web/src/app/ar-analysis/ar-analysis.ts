@@ -188,7 +188,7 @@ export class ArAnalysisComponent implements OnInit {
   });
   // Combobox rows for the parent-option picker.
   readonly parentOptionChoiceOptions = computed(() =>
-    this.parentOptionChoices().map((p) => ({ value: p.id, label: p.description ? `${p.code} — ${p.description}` : p.code })));
+    this.parentOptionChoices().map((p) => ({ value: p.id, label: p.description ? `${p.code} - ${p.description}` : p.code })));
   readonly parentCategoryName = computed(() => {
     const cat = this.selected();
     if (!cat?.parentCategoryId) return '';

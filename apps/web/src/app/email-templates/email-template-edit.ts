@@ -12,8 +12,8 @@ import { EmailTemplateDetail, EmailTemplateVariable } from '../models/auth.model
 import { EmailHtmlEditorComponent } from '../shared/email-html-editor/email-html-editor';
 import { VariableMenuComponent } from '../shared/variable-menu/variable-menu';
 
-// System Admin: edit ONE platform email template — subject/body (Handlebars),
-// from-name, active + tenant-overridable toggles — with a variables reference,
+// System Admin: edit ONE platform email template - subject/body (Handlebars),
+// from-name, active + tenant-overridable toggles - with a variables reference,
 // a debounced live preview, reset-to-default, and a queued test send.
 @Component({
   selector: 'app-email-template-edit',

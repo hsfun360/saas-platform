@@ -71,7 +71,7 @@ export class NationalitiesComponent implements OnInit {
   readonly activeCount = computed(() => this.nationalities().filter((n) => n.isActive !== false).length);
 
   readonly dialogTitle = computed(() =>
-    this.editId() ? `Edit — ${this.formValue().nationalityCode ?? ''}` : 'New nationality',
+    this.editId() ? `Edit - ${this.formValue().nationalityCode ?? ''}` : 'New nationality',
   );
 
   ngOnInit(): void {

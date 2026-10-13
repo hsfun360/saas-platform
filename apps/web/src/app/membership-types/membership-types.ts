@@ -163,7 +163,7 @@ export class MembershipTypesComponent implements OnInit {
 
   readonly dialogTitle = computed(() => (this.editId() ? 'Edit membership type' : 'New membership type'));
 
-  // Other types (exclude the one being edited) — for conversion targets + nominee.
+  // Other types (exclude the one being edited) - for conversion targets + nominee.
   readonly otherTypes = computed(() => {
     const id = this.editId();
     return this.types().filter((t) => t.id !== id);
@@ -264,7 +264,7 @@ export class MembershipTypesComponent implements OnInit {
     const taxCode = this.txTypes().find((t) => t.transactionType === code)?.taxSchemeCode;
     if (!taxCode) return 'No tax';
     const s = this.taxSchemes().find((x) => x.taxSchemeCode === taxCode);
-    return s ? `${s.taxSchemeCode}${s.name ? ' — ' + s.name : ''}` : taxCode;
+    return s ? `${s.taxSchemeCode}${s.name ? ' - ' + s.name : ''}` : taxCode;
   }
 
   loadMeta(): void {
@@ -290,9 +290,9 @@ export class MembershipTypesComponent implements OnInit {
   readonly otherTypeOptions = computed(() =>
     this.otherTypes().map((t) => ({ value: t.id, label: t.category })));
   readonly joiningFeeTxOptions = computed(() =>
-    this.joiningFeeTxTypes().map((t) => ({ value: t.transactionType, label: t.description ? `${t.transactionType} — ${t.description}` : t.transactionType })));
+    this.joiningFeeTxTypes().map((t) => ({ value: t.transactionType, label: t.description ? `${t.transactionType} - ${t.description}` : t.transactionType })));
   readonly standingTxOptions = computed(() =>
-    this.standingTxTypes().map((t) => ({ value: t.transactionType, label: t.description ? `${t.transactionType} — ${t.description}` : t.transactionType })));
+    this.standingTxTypes().map((t) => ({ value: t.transactionType, label: t.description ? `${t.transactionType} - ${t.description}` : t.transactionType })));
   readonly currencyOptions = computed(() =>
     this.currencies().map((c) => ({ value: c.code, label: c.symbol ? `${c.code} (${c.symbol})` : c.code })));
   readonly activeStatusOptions = computed(() =>

@@ -45,7 +45,7 @@ export class CompaniesComponent implements OnInit {
   // Loaded lazily the first time the edit-details dialog opens (1174 rows).
   readonly msicOptions = signal<EInvoiceMsicCode[]>([]);
 
-  // Currencies the subscriber (account) opted into — the choices for a company's
+  // Currencies the subscriber (account) opted into - the choices for a company's
   // default currency. Empty until loaded / if the account selected none.
   readonly accountCurrencies = signal<Currency[]>([]);
 
@@ -79,7 +79,7 @@ export class CompaniesComponent implements OnInit {
   readonly timezoneComboOptions = computed(() =>
     this.timezoneOptions().map((tz) => ({ value: tz, label: timezoneWithOffset(tz) })));
   readonly currencyComboOptions = computed(() =>
-    this.accountCurrencies().map((cur) => ({ value: cur.code, label: `${cur.code} — ${cur.name}` })));
+    this.accountCurrencies().map((cur) => ({ value: cur.code, label: `${cur.code} - ${cur.name}` })));
 
   // Curated timezone list for a country, keyed by ISO alpha-2 code (the value the
   // picker now stores). "Others"/blank/unknown codes have no linkage -> free text.

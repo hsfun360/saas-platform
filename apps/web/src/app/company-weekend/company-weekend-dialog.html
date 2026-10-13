@@ -1,10 +1,10 @@
-<app-dialog #wkDlg variant="drawer" [title]="'Weekend days — ' + company().name" [busy]="saving()" [dirty]="form.dirty"
+<app-dialog #wkDlg variant="drawer" [title]="'Weekend days - ' + company().name" [busy]="saving()" [dirty]="form.dirty"
             discardTitle="Discard your changes?" discardMessage="You have unsaved weekend-day changes. Leaving now will discard them." (close)="onClose()">
   @if (loading()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading…</p></div>
   } @else {
     <p class="wk-hint">
-      Tick the day(s) that count as this company's weekend / rest days — e.g. Friday &amp; Saturday in Johor or Kedah,
+      Tick the day(s) that count as this company's weekend / rest days - e.g. Friday &amp; Saturday in Johor or Kedah,
       Saturday &amp; Sunday in KL. Weekday/weekend pricing (such as golf green fees) uses this setting.
     </p>
 
@@ -38,9 +38,9 @@
       <!-- The concrete outcome, before it commits -->
       <div class="wk-summary" aria-live="polite">
         @if (selectedLabels().length > 0) {
-          Weekend: <strong>{{ selectedLabels().join(' & ') }}</strong> — these days will take weekend rates.
+          Weekend: <strong>{{ selectedLabels().join(' & ') }}</strong> - these days will take weekend rates.
         } @else {
-          No weekend days selected — weekend pricing will never apply for this company.
+          No weekend days selected - weekend pricing will never apply for this company.
         }
       </div>
     </form>

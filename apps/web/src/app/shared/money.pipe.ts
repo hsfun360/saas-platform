@@ -7,7 +7,7 @@ import { Pipe, PipeTransform } from '@angular/core';
 // `toLocaleString`, which groups digits differently per device.
 //   {{ row.amount | money }}        -> "1234.50"
 //   {{ null | money }}              -> ""
-//   {{ row.amount | money:'—' }}    -> "—" when empty
+//   {{ row.amount | money:'-' }}    -> "-" when empty
 @Pipe({ name: 'money', standalone: true })
 export class MoneyPipe implements PipeTransform {
   transform(value: number | string | null | undefined, empty = ''): string {

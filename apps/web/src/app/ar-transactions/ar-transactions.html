@@ -84,7 +84,7 @@
         <div class="data-card" [attr.data-return-id]="doc.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ docRef(doc) }} — {{ doc.debtor.name || 'Unknown debtor' }}</div>
+              <div class="data-card__title">{{ docRef(doc) }} - {{ doc.debtor.name || 'Unknown debtor' }}</div>
               <div class="data-card__subline">
                 @if (doc.debtor.no) { <span class="data-card__reg">({{ doc.debtor.no }})</span> }
                 @if (isForeignDoc(doc)) { <span class="art-ccy-chip">{{ doc.currencyCode }}</span> }
@@ -235,7 +235,7 @@
   <!-- ============ Allocations drill-down (posted documents; viewer) ============ -->
   <!-- ============ Interest breakdown viewer (interest rows only) ============ -->
   @if (breakdownOpen()) {
-    <app-dialog #breakdownDlg [title]="'Interest breakdown — ' + docRef(breakdownDoc()!)" [busy]="breakdownLoading()" (close)="closeBreakdown()">
+    <app-dialog #breakdownDlg [title]="'Interest breakdown - ' + docRef(breakdownDoc()!)" [busy]="breakdownLoading()" (close)="closeBreakdown()">
       @if (breakdownLoading()) {
         <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
       } @else {
@@ -258,7 +258,7 @@
             </div>
           }
           <div class="ai-line ai-line--total">
-            <span>Total — {{ breakdownIncluded() }} of {{ breakdownDetails().length }} line(s) included</span><span></span><span></span>
+            <span>Total - {{ breakdownIncluded() }} of {{ breakdownDetails().length }} line(s) included</span><span></span><span></span>
             <span class="ai-num">{{ breakdownGen()?.totalOverdue }}</span>
             <span class="ai-num">{{ breakdownGen()?.interestAmount }}</span>
           </div>
@@ -271,11 +271,11 @@
   }
 
   @if (allocOpen()) {
-    <app-dialog #allocDlg [title]="'Allocations — ' + docRef(allocDoc()!)" [busy]="allocLoading()" (close)="closeAllocations()">
+    <app-dialog #allocDlg [title]="'Allocations - ' + docRef(allocDoc()!)" [busy]="allocLoading()" (close)="closeAllocations()">
       @if (allocLoading()) {
         <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
       } @else if (allocRows().length === 0 && allocConversions().length === 0) {
-        <p class="cell-subtle" style="margin: 0;">No allocations yet — nothing has been applied to or settled by this document.</p>
+        <p class="cell-subtle" style="margin: 0;">No allocations yet - nothing has been applied to or settled by this document.</p>
       } @else {
         <div class="art-allocs">
           @for (a of allocRows(); track a.id) {

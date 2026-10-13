@@ -32,9 +32,9 @@ import { systemAccessGuard } from './app/access.guard';
 //
 // The authenticated app is a SHELL LAYOUT at the root path. Each "system" is a
 // top-level namespace under it:
-//   /home /profile /settings            — account / shared
-//   /platform  /admin/*                 — Platform Administration (Control Plane)
-//   /membership  /golf  /facility       — core product systems
+//   /home /profile /settings            - account / shared
+//   /platform  /admin/*                 - Platform Administration (Control Plane)
+//   /membership  /golf  /facility       - core product systems
 // A system's landing route IS its dashboard. Public routes are matched first.
 const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -61,7 +61,7 @@ const routes: Routes = [
   { path: 'agent/register', loadComponent: () => import('./app/agent-portal/agent-register').then((m) => m.AgentRegisterComponent) },
   { path: 'agent', loadComponent: () => import('./app/agent-portal/agent-home').then((m) => m.AgentHomeComponent), canActivate: [authGuard] },
   {
-    // Shell layout — wraps the whole authenticated tree (top bar + sidebar +
+    // Shell layout - wraps the whole authenticated tree (top bar + sidebar +
     // <router-outlet>). Children are reached at the root (e.g. /golf, /admin/roles).
     path: '',
     component: Dashboard,
@@ -72,18 +72,18 @@ const routes: Routes = [
       { path: 'home', loadComponent: () => import('./app/dashboard/home/home').then((m) => m.HomeComponent), data: { title: 'My Dashboard' } },
       { path: 'profile', loadComponent: () => import('./app/dashboard/profile/profile').then((m) => m.ProfileComponent), data: { title: 'Profile' } },
       { path: 'settings', loadComponent: () => import('./app/dashboard/settings/settings').then((m) => m.SettingsComponent), data: { title: 'Settings' } },
-      // My Approvals — the caller's personal workflow inbox. Person-scoped like
+      // My Approvals - the caller's personal workflow inbox. Person-scoped like
       // /home (assignee-only, enforced server-side), so no moduleCode guard.
       { path: 'approvals', loadComponent: () => import('./app/approvals/approvals').then((m) => m.ApprovalsComponent), data: { title: 'My Approvals' } },
 
       // Sample CRUD master–detail screen. Both paths point at the same component;
       // the :id segment ('new' = create) is the single source of truth for the
-      // open item — deep-linkable, with working back/forward. No moduleCode
+      // open item - deep-linkable, with working back/forward. No moduleCode
       // guard: it's a demo screen everyone may see (like home/profile).
       { path: 'items', loadComponent: () => import('./app/items/items').then((m) => m.ItemsComponent) },
       { path: 'items/:id', loadComponent: () => import('./app/items/items').then((m) => m.ItemsComponent) },
 
-      // Platform Administration (Control Plane) — admin screens.
+      // Platform Administration (Control Plane) - admin screens.
       // `data.moduleCode` + systemAccessGuard block users without that access.
       // NOTE: there are no per-system landing routes (/platform, /membership,
       // /golf, /facility) anymore - switching systems lands on /home
@@ -110,10 +110,10 @@ const routes: Routes = [
       { path: 'admin/workflows', loadComponent: () => import('./app/workflow-setup/workflow-setup').then((m) => m.WorkflowSetupComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
       { path: 'admin/account-email-templates', loadComponent: () => import('./app/account-email-templates/account-email-templates').then((m) => m.AccountEmailTemplatesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
       { path: 'admin/account-email-templates/:key', loadComponent: () => import('./app/account-email-templates/account-email-template-edit').then((m) => m.AccountEmailTemplateEditComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
-      // Tax Setup — subscriber-owned tax-scheme catalog (master–detail; :id opens a scheme).
+      // Tax Setup - subscriber-owned tax-scheme catalog (master–detail; :id opens a scheme).
       { path: 'admin/tax-schemes', loadComponent: () => import('./app/tax-schemes/tax-schemes').then((m) => m.TaxSchemesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
       { path: 'admin/tax-schemes/:id', loadComponent: () => import('./app/tax-schemes/tax-schemes').then((m) => m.TaxSchemesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
-      // Company Tax — per active company: which schemes it uses + GL overrides.
+      // Company Tax - per active company: which schemes it uses + GL overrides.
       { path: 'admin/company-tax', loadComponent: () => import('./app/company-tax/company-tax').then((m) => m.CompanyTaxComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'TENANT_ADMIN' } },
       // Platform Tax - the platform's own tax catalog (accountId NULL), SaaS Admin.
       // Reuses the Tax Setup screen at platform scope via data.taxScope.

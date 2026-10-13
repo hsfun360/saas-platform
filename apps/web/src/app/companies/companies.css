@@ -2,7 +2,7 @@
 
 /* The "New company" FAB composes the global .saas-fab (styles.css).
    The listing cards use the shared, theme-aware .data-card / .data-row--with-badge
-   / .status-chip standard in styles.css — no screen-specific card CSS here.
+   / .status-chip standard in styles.css - no screen-specific card CSS here.
    The create / edit dialogs use the shared <app-dialog> component. */
 
 /* Logo upload: a compact button (label) wrapping a visually-hidden file input.

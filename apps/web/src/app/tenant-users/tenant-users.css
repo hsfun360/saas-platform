@@ -64,9 +64,9 @@
 
 /* Buttons now come from the shared .btn system in styles.css. */
 
-/* Listing search — icon left, optional clear (✕) right. */
+/* Listing search - icon left, optional clear (✕) right. */
 
-/* Floating actions group — pinned bottom-right, below the shell drawer (1000) /
+/* Floating actions group - pinned bottom-right, below the shell drawer (1000) /
    backdrop (999) / header (1100). Invite (secondary) sits left of Create user
    (primary), in-line at every width. */
 .user-fab-group {
@@ -193,5 +193,5 @@
 }
 
 /* Flash messages now live as the GLOBAL floating snackbar standard in
-   src/styles.css (.flash*) — the scoped copy here was removed so it can't
+   src/styles.css (.flash*) - the scoped copy here was removed so it can't
    shadow the global sizing/position. */

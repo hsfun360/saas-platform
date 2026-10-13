@@ -65,7 +65,7 @@ export class ArReceiptDialogComponent implements OnInit {
   // Combobox rows for the payment-method picker (type-to-filter).
   readonly methodOptions = computed<ComboOption[]>(() => this.methodTypes().map((tt) => ({
     value: tt.id,
-    label: tt.description ? `${tt.transactionType} — ${tt.description}` : tt.transactionType,
+    label: tt.description ? `${tt.transactionType} - ${tt.description}` : tt.transactionType,
   })));
   // Collectable deposits only (the meta ships every open deposit with both
   // counters; the Refund dialog filters by heldAmount instead).
@@ -186,7 +186,7 @@ export class ArReceiptDialogComponent implements OnInit {
   }
 
   depositLabel(d: { docNo: string | null; balanceAmount: string }): string {
-    return `${d.docNo} — to collect ${Number(d.balanceAmount).toFixed(2)}`;
+    return `${d.docNo} - to collect ${Number(d.balanceAmount).toFixed(2)}`;
   }
 
   // --- Debtor picker ---

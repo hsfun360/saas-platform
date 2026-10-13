@@ -12,7 +12,7 @@
   padding: var(--space-lg);
 }
 
-/* Panel: a flex column — sticky header, scrollable body, fixed footer.
+/* Panel: a flex column - sticky header, scrollable body, fixed footer.
    position: relative anchors the discard-confirmation overlay to the panel. */
 .dlg {
   position: relative;
@@ -83,7 +83,7 @@
   background: var(--surface-card);
 }
 
-/* Drawer variant — the desktop standard for create/edit forms. The overlay
+/* Drawer variant - the desktop standard for create/edit forms. The overlay
    pins the panel to the RIGHT edge; the panel takes the full viewport height
    at the ONE standard width, 800px (~350px per column for two-field rows).
    Deliberately NOT the 1140px card/content cap: at that width the page
@@ -117,7 +117,7 @@
   .dlg--drawer .dlg__footer { padding: var(--space-md) var(--space-xl); }
 }
 
-/* Discard-changes confirmation — a small card layered over the whole panel so
+/* Discard-changes confirmation - a small card layered over the whole panel so
    the form behind it can't be touched until the user chooses. */
 .dlg__confirm {
   position: absolute;
@@ -156,7 +156,7 @@
 }
 
 /* Full-screen on mobile: the dialog IS the screen, edge to edge. The width
-   override also covers the drawer variant — its 480px cap must not leave a
+   override also covers the drawer variant - its 480px cap must not leave a
    scrim strip on 480-767px viewports. */
 @media (max-width: 767px) {
   .dlg-overlay {

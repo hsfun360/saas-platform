@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 
 // Placeholder shown (inside the dashboard shell) for any menu whose route has no
-// component built yet — instead of silently bouncing to Home. Wired as the shell's
+// component built yet - instead of silently bouncing to Home. Wired as the shell's
 // child wildcard route, so the header + sidebar stay and the user keeps context.
 @Component({
   selector: 'app-under-construction',

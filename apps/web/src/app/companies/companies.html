@@ -106,7 +106,7 @@
     </ul>
   }
 
-  <!-- Floating "New company" action — pinned bottom-right, opens the dialog. -->
+  <!-- Floating "New company" action - pinned bottom-right, opens the dialog. -->
   <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="New company">
     <span class="material-icons" aria-hidden="true">add</span>
     New company
@@ -231,7 +231,7 @@
                           [allowEmpty]="true" emptyLabel="Not specified"
                           placeholder="Type to search…" />
             @if (accountCurrencies().length === 0) {
-              <span style="font-size: var(--font-caption); color: var(--text-muted);">No currencies set for your organization yet — add them under System Setup → Currencies.</span>
+              <span style="font-size: var(--font-caption); color: var(--text-muted);">No currencies set for your organization yet - add them under System Setup → Currencies.</span>
             }
           </div>
         </div>
@@ -277,7 +277,7 @@
 
   <!-- ============ Edit modules dialog ============ -->
   @if (editingCompanyId(); as cid) {
-    <app-dialog #modDlg variant="drawer" [title]="'Edit modules — ' + (editingCompany()?.name || '')" [busy]="savingModules()" [dirty]="editModulesDirty()" (close)="cancelEditModules()">
+    <app-dialog #modDlg variant="drawer" [title]="'Edit modules - ' + (editingCompany()?.name || '')" [busy]="savingModules()" [dirty]="editModulesDirty()" (close)="cancelEditModules()">
       <div style="font-size: var(--font-body-2); font-weight: var(--weight-semibold); color: var(--text-secondary); margin-bottom: var(--space-sm);">
         Modules ({{ editCount() }} selected)
       </div>
@@ -313,7 +313,7 @@
 
   <!-- ============ Edit details dialog ============ -->
   @if (editingProfileCompanyId(); as pid) {
-    <app-dialog #detailsDlg variant="drawer" [title]="'Edit details — ' + (editingProfileCompany()?.name || '')" [busy]="savingProfile()"
+    <app-dialog #detailsDlg variant="drawer" [title]="'Edit details - ' + (editingProfileCompany()?.name || '')" [busy]="savingProfile()"
                 [dirty]="profileForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this company. Leaving now will discard them."
@@ -432,7 +432,7 @@
                           [allowEmpty]="true" emptyLabel="Not specified"
                           placeholder="Type to search…" />
             @if (accountCurrencies().length === 0) {
-              <span style="font-size: var(--font-caption); color: var(--text-muted);">No currencies set for your organization yet — add them under System Setup → Currencies.</span>
+              <span style="font-size: var(--font-caption); color: var(--text-muted);">No currencies set for your organization yet - add them under System Setup → Currencies.</span>
             }
           </div>
         </div>
@@ -461,7 +461,7 @@
         <div class="form-row">
           <div class="form-group">
             <label for="cd-activity">Business activity description</label>
-            <input id="cd-activity" type="text" formControlName="businessActivityDescription" placeholder="Auto-filled from the MSIC code — editable" maxlength="300" />
+            <input id="cd-activity" type="text" formControlName="businessActivityDescription" placeholder="Auto-filled from the MSIC code - editable" maxlength="300" />
           </div>
         </div>
         <div class="form-row">

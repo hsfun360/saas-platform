@@ -5,7 +5,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">handshake</span>
       <div>
         <h1>{{ 'Sales Agents' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Everyone who promotes your memberships — agency staff, external individuals and your own sales team. Invite each agent to their portal login.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Everyone who promotes your memberships - agency staff, external individuals and your own sales team. Invite each agent to their portal login.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -61,7 +61,7 @@
         <div class="data-card" [attr.data-return-id]="r.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ r.agentCode }} — {{ r.name }}</div>
+              <div class="data-card__title">{{ r.agentCode }} - {{ r.name }}</div>
               <div class="data-card__subline">
                 <span class="ms-class-chip">{{ kindLabel(r.agentKind) }}</span>
                 @if (r.salesAgencyId) { <span class="data-card__reg">{{ agencyName(r.salesAgencyId) }}</span> }
@@ -140,7 +140,7 @@
               <label for="saAgency">Agency <span class="required">*</span></label>
               <app-combobox inputId="saAgency" formControlName="salesAgencyId"
                             [options]="agencyOptions()"
-                            [allowEmpty]="true" emptyLabel="— Select an agency —"
+                            [allowEmpty]="true" emptyLabel="- Select an agency -"
                             placeholder="Type to search…" />
             </div>
           }
@@ -149,7 +149,7 @@
             <input id="saEmail" type="email" inputmode="email" formControlName="email" autocomplete="off" maxlength="255"
                    [attr.aria-invalid]="showError(form.controls.email)" aria-describedby="saEmailErr" />
             @if (showError(form.controls.email)) {
-              <p id="saEmailErr" class="field-error" role="alert">A valid email is required — it receives the login invitation.</p>
+              <p id="saEmailErr" class="field-error" role="alert">A valid email is required - it receives the login invitation.</p>
             }
           </div>
           <div class="form-group">

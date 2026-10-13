@@ -6,7 +6,7 @@
    Moved here from role-management.css when the picker was shared with the
    platform System Roles editor. All colours are theme tokens. */
 
-/* Catalogue search — icon left, optional clear (✕) right. */
+/* Catalogue search - icon left, optional clear (✕) right. */
 .perm-search {
   position: relative;
   margin-bottom: var(--space-md);

@@ -83,7 +83,7 @@ export class GolfTransactionTypesComponent implements OnInit {
   // Constrained-combobox rows (house standard for long reference lists):
   // code AND name in the label so type-to-filter matches both.
   readonly taxSchemeOptions = computed(() =>
-    this.taxSchemes().map((s) => ({ value: s.taxSchemeCode, label: s.name ? `${s.taxSchemeCode} — ${s.name}` : s.taxSchemeCode })));
+    this.taxSchemes().map((s) => ({ value: s.taxSchemeCode, label: s.name ? `${s.taxSchemeCode} - ${s.name}` : s.taxSchemeCode })));
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);
 
@@ -116,7 +116,7 @@ export class GolfTransactionTypesComponent implements OnInit {
   });
   // The same list shaped for the constrained combobox ({value, label}).
   readonly elementComboOptions = computed(() =>
-    this.elementOptions().map((o) => ({ value: o.id, label: o.description ? `${o.transactionType} — ${o.description}` : o.transactionType })));
+    this.elementOptions().map((o) => ({ value: o.id, label: o.description ? `${o.transactionType} - ${o.description}` : o.transactionType })));
 
   // ---- Pricing dialog (single instance, 'list' ↔ 'form' views) ----
   readonly prOpen = signal(false);
@@ -170,9 +170,9 @@ export class GolfTransactionTypesComponent implements OnInit {
   });
   readonly prTitle = computed(() => {
     const code = this.prType()?.transactionType || '';
-    if (this.prMode() === 'form') return this.prEditId() ? `Edit price — ${code}` : `New price — ${code}`;
-    if (this.prMode() === 'delete') return `Delete price — ${code}`;
-    return `Default Price — ${code}`;
+    if (this.prMode() === 'form') return this.prEditId() ? `Edit price - ${code}` : `New price - ${code}`;
+    if (this.prMode() === 'delete') return `Delete price - ${code}`;
+    return `Default Price - ${code}`;
   });
   readonly prBusy = computed(() => this.prLoading() || this.prSaving());
   // Method (not computed): rateForm.dirty is not a signal, but template
@@ -322,7 +322,7 @@ export class GolfTransactionTypesComponent implements OnInit {
   // names its local nationality, e.g. MAS - Malaysian).
   readonly nationalities = signal<{ nationalityCode: string; description?: string | null }[]>([]);
   readonly nationalityOptions = computed(() =>
-    this.nationalities().map((n) => ({ value: n.nationalityCode, label: `${n.nationalityCode}${n.description ? ' — ' + n.description : ''}` })),
+    this.nationalities().map((n) => ({ value: n.nationalityCode, label: `${n.nationalityCode}${n.description ? ' - ' + n.description : ''}` })),
   );
 
   nationalityLabel(code: string): string {
@@ -359,7 +359,7 @@ export class GolfTransactionTypesComponent implements OnInit {
   taxSchemeName(code: string | null | undefined): string {
     if (!code) return '';
     const s = this.taxSchemes().find((t) => t.taxSchemeCode === code);
-    return s ? `${s.taxSchemeCode}${s.name ? ' — ' + s.name : ''}` : code;
+    return s ? `${s.taxSchemeCode}${s.name ? ' - ' + s.name : ''}` : code;
   }
 
   load(): void {
@@ -680,7 +680,7 @@ export class GolfTransactionTypesComponent implements OnInit {
   }
 
   fmt(n: number | null | undefined): string {
-    return n === null || n === undefined ? '—' : n.toFixed(2);
+    return n === null || n === undefined ? '-' : n.toFixed(2);
   }
 
   // 'YYYY-MM-DD' of today in the DEVICE's timezone (date-only strings are

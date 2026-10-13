@@ -13,14 +13,14 @@ import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
 import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { CanDirective } from '../shared/can.directive';
 
-// Platform (system-level) Roles — split out of the old System Setup tab strip
+// Platform (system-level) Roles - split out of the old System Setup tab strip
 // into its own screen. Lists system roles with search and creates/edits them
 // (FAB → dialog) from the PLATFORM menu catalogue (the SaaS Administration
 // module; GET /admin/menus is audience-filtered server-side).
 //
 // The permission selection is the SHARED <app-permission-picker> (same tree /
 // tri-state / Create-Edit-Delete toggles as tenant Role Management), and roles
-// carry a data scope — platform RBAC mirrors the tenant model exactly. The
+// carry a data scope - platform RBAC mirrors the tenant model exactly. The
 // seeded "System Admin" role is implicit-full-access and stays system-managed.
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,

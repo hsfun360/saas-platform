@@ -81,7 +81,7 @@ export class TitlesComponent implements OnInit {
   readonly activeCount = computed(() => this.titles().filter((t) => t.isActive !== false).length);
 
   readonly dialogTitle = computed(() =>
-    this.editId() ? `Edit — ${this.formValue().titleCode ?? ''}` : 'New title',
+    this.editId() ? `Edit - ${this.formValue().titleCode ?? ''}` : 'New title',
   );
 
   ngOnInit(): void {

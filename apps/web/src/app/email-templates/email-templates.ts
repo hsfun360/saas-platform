@@ -8,7 +8,7 @@ import { EmailTemplateSummary } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 
 // System Admin: the platform email templates. A fixed catalogue (no create /
-// delete) — each row opens the editor. Reuses the shared admin-screen styles.
+// delete) - each row opens the editor. Reuses the shared admin-screen styles.
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-email-templates',

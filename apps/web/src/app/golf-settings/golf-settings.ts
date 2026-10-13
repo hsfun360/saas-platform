@@ -143,21 +143,21 @@ export class GolfSettingsComponent implements OnInit {
   readonly noShowTypeOptions = computed(() =>
     this.noShowTypes().map((t) => ({
       value: t.id,
-      label: `${t.transactionType}${t.description ? ' — ' + t.description : ''}${t.isActive ? '' : ' (inactive)'}`,
+      label: `${t.transactionType}${t.description ? ' - ' + t.description : ''}${t.isActive ? '' : ' (inactive)'}`,
     })),
   );
 
   readonly typeOptions = computed(() =>
     this.membershipTypes().map((t) => ({
       value: t.id,
-      label: `${t.category}${t.description ? ' — ' + t.description : ''}${t.isGolfAllow ? '' : ' (no golfing right)'}`,
+      label: `${t.category}${t.description ? ' - ' + t.description : ''}${t.isGolfAllow ? '' : ' (no golfing right)'}`,
     })),
   );
 
   readonly courseOptions = computed(() =>
     this.courses().map((c) => ({
       value: c.id,
-      label: `${c.courseCode}${c.description ? ' — ' + c.description : ''}${c.isActive ? '' : ' (inactive)'}`,
+      label: `${c.courseCode}${c.description ? ' - ' + c.description : ''}${c.isActive ? '' : ' (inactive)'}`,
     })),
   );
 
@@ -444,7 +444,7 @@ export class GolfSettingsComponent implements OnInit {
     for (const [label, scoped] of [['minimum-players', rules], ['guest-control', guestRules], ['accompaniment', accRules]] as const) {
       for (const r of scoped) {
         if (!!r.startTime !== !!r.endTime) {
-          this.errorMessage.set(`A ${label} rule needs both From and To times — or neither for the whole day.`);
+          this.errorMessage.set(`A ${label} rule needs both From and To times - or neither for the whole day.`);
           return;
         }
         if (r.startTime && r.endTime && r.startTime >= r.endTime) {

@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">tag</span>
       <div>
         <h1>{{ 'Numbering Control' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'How this company numbers its records — auto-generate on save, or key in manually.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'How this company numbers its records - auto-generate on save, or key in manually.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -179,7 +179,7 @@
 
   <!-- ============ Copy from company (centered preview + selection picker) ============ -->
   @if (copyOpen()) {
-    <app-dialog #copyDlg [title]="copyView() === 'company' ? 'Copy numbering — select company' : 'Copy from ' + (copySource()?.name || '')"
+    <app-dialog #copyDlg [title]="copyView() === 'company' ? 'Copy numbering - select company' : 'Copy from ' + (copySource()?.name || '')"
                 [busy]="copyBusy()" (close)="closeCopy()">
       @if (copyLoading()) {
         <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
@@ -197,7 +197,7 @@
         @if (copyCandidates().length === 0) {
           <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>{{ copySource()?.name }} has no active numbering schemes to copy.</p></div>
         } @else {
-          <p class="cell-subtle" style="margin-top: 0;">The copy brings the configuration only — numbering here always starts fresh from the starting number.</p>
+          <p class="cell-subtle" style="margin-top: 0;">The copy brings the configuration only - numbering here always starts fresh from the starting number.</p>
           <label class="att-copy__all">
             <input type="checkbox" [checked]="allCopySelected()" (change)="toggleAllCopy()"
                    [disabled]="copySelectableCount() === 0" />
@@ -215,7 +215,7 @@
                     </span>
                   </span>
                   @if (c.exists) {
-                    <span class="att-copy__note">Already configured here — will be skipped.</span>
+                    <span class="att-copy__note">Already configured here - will be skipped.</span>
                   }
                 </span>
               </label>

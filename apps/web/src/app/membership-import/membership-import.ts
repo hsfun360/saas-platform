@@ -94,7 +94,7 @@ export class MembershipImportComponent implements OnInit {
   }
 
   memberName(r: ImportRow): string {
-    return [r.data['firstName'], r.data['lastName']].filter(Boolean).join(' ') || '—';
+    return [r.data['firstName'], r.data['lastName']].filter(Boolean).join(' ') || '-';
   }
 
   // --- data loads ---

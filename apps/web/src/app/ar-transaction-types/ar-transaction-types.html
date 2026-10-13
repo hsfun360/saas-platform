@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">receipt_long</span>
       <div>
         <h1>{{ 'Transaction Type' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'The AR billing and receipting catalog — each entry belongs to a document class, carries the tax scheme, and can be opened to producer modules.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'The AR billing and receipting catalog - each entry belongs to a document class, carries the tax scheme, and can be opened to producer modules.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -33,7 +33,7 @@
       @if (rows().length > 0) {
         {{ rows().length }} transaction types, {{ activeCount() }} active
       } @else {
-        No transaction types yet — use "New transaction type" to add one.
+        No transaction types yet - use "New transaction type" to add one.
       }
     </span>
     <button *appCan="'create'" type="button" class="btn btn--secondary btn--sm" (click)="openCopy()">
@@ -57,7 +57,7 @@
   @if (loading()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading transaction types…</p></div>
   } @else if (rows().length === 0) {
-    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No transaction types yet. Use "New transaction type" to add one (e.g. OTH — Miscellaneous Fee under Invoice, CASH — Cash under Receipt).</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No transaction types yet. Use "New transaction type" to add one (e.g. OTH - Miscellaneous Fee under Invoice, CASH - Cash under Receipt).</p></div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
@@ -125,12 +125,12 @@
         <!-- Step 1 (create only): pick the document class - it decides which
              fields the form shows at all. -->
         <div class="saas-form saas-form--dialog">
-          <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Pick the document class this item belongs to — it decides which fields the form shows.</p>
+          <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Pick the document class this item belongs to - it decides which fields the form shows.</p>
           <div style="display: grid; gap: var(--space-sm);">
             @for (c of trxClasses(); track c.key) {
               <button type="button" class="btn btn--secondary dlg-pick" (click)="pickClass(c.key)">
                 <span class="material-icons" aria-hidden="true">{{ trxClassIcons[c.key] || 'receipt_long' }}</span>
-                <span class="dlg-pick__text"><strong>{{ c.label }}</strong>@if (trxClassHints[c.key]) { — {{ trxClassHints[c.key] }}}</span>
+                <span class="dlg-pick__text"><strong>{{ c.label }}</strong>@if (trxClassHints[c.key]) { - {{ trxClassHints[c.key] }}}</span>
               </button>
             }
           </div>
@@ -175,9 +175,9 @@
                    is unbounded reference data, so the picker is type-to-filter. -->
               <app-combobox inputId="attTax" formControlName="taxSchemeCode"
                             [options]="taxSchemeOptions()"
-                            [allowEmpty]="true" emptyLabel="— None —"
+                            [allowEmpty]="true" emptyLabel="- None -"
                             placeholder="Type to search…" />
-              <p class="cell-subtle field-hint">The single source of tax for this item — every consumer inherits it.</p>
+              <p class="cell-subtle field-hint">The single source of tax for this item - every consumer inherits it.</p>
             </div>
           </div>
         }
@@ -188,7 +188,7 @@
               <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
                 <input type="radio" name="attModule" [checked]="selectedModule() === ''" (change)="pickModule('')"
                        style="width: 18px; height: 18px; accent-color: var(--brand);" />
-                None — AR internal only
+                None - AR internal only
               </label>
               @for (m of modules(); track m.key) {
                 <label style="display: inline-flex; align-items: center; gap: var(--space-sm); min-height: 44px; cursor: pointer;">
@@ -223,7 +223,7 @@
                 <label for="attEinv">Classification code <span class="required">*</span></label>
                 <app-combobox inputId="attEinv" formControlName="eInvoiceClassificationCode"
                               [options]="einvComboOptions()"
-                              [allowEmpty]="true" emptyLabel="— Select —"
+                              [allowEmpty]="true" emptyLabel="- Select -"
                               placeholder="Type to search…" />
                 <p class="cell-subtle field-hint">Snapshotted onto document lines for the e-Invoice submission. Maintain the list under e-Invoice Classifications.</p>
               }
@@ -247,7 +247,7 @@
 
   <!-- ============ Copy from company (centered preview + selection picker) ============ -->
   @if (copyOpen()) {
-    <app-dialog #copyDlg [title]="copyView() === 'company' ? 'Copy transaction types — select company' : 'Copy from ' + (copySource()?.name || '')"
+    <app-dialog #copyDlg [title]="copyView() === 'company' ? 'Copy transaction types - select company' : 'Copy from ' + (copySource()?.name || '')"
                 [busy]="copyBusy()" (close)="closeCopy()">
       @if (copyLoading()) {
         <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
@@ -281,11 +281,11 @@
                     @if (c.description) { <span class="cell-subtle">{{ c.description }}</span> }
                   </span>
                   @if (c.exists) {
-                    <span class="att-copy__note">Already exists here — will be skipped.</span>
+                    <span class="att-copy__note">Already exists here - will be skipped.</span>
                   } @else {
-                    @if (c.taxSchemeDropped) { <span class="att-copy__note">Tax scheme {{ c.taxSchemeCode }} is not available here — copies without it.</span> }
-                    @if (c.modulesDropped) { <span class="att-copy__note">Module usability not subscribed here — dropped.</span> }
-                    @if (c.eInvoiceDropped) { <span class="att-copy__note">e-Invoice does not apply here — dropped.</span> }
+                    @if (c.taxSchemeDropped) { <span class="att-copy__note">Tax scheme {{ c.taxSchemeCode }} is not available here - copies without it.</span> }
+                    @if (c.modulesDropped) { <span class="att-copy__note">Module usability not subscribed here - dropped.</span> }
+                    @if (c.eInvoiceDropped) { <span class="att-copy__note">e-Invoice does not apply here - dropped.</span> }
                   }
                 </span>
               </label>

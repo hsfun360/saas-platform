@@ -5,7 +5,7 @@
   width: 100%;
   /* Single source of truth for the header height. Anything that must sit BELOW
      the header (the mobile drawer, its backdrop, header dropdowns) offsets by
-     this — change it here only, so they can never drift apart again.
+     this - change it here only, so they can never drift apart again.
      Header content is vertically centred (align-items: center); the tallest
      items (~60px two-line brand stack, 48px icon buttons) stay clear of the
      top/bottom edges at this height. */
@@ -46,7 +46,7 @@
   color: var(--text-on-brand);
   height: var(--header-height);
   /* Never let the fixed-height column flex compress the header when a tall
-     route fills the content area — it must stay a constant height. */
+     route fills the content area - it must stay a constant height. */
   flex-shrink: 0;
   /* The header is the app bar: it must stack ABOVE the mobile drawer (z-index
      1000) and its backdrop (999) so the apps switcher / avatar are never covered.
@@ -823,7 +823,7 @@
 /* becomes an off-canvas drawer + a fixed bottom navigation bar.  */
 /* ============================================================== */
 
-/* Bottom navigation bar — hidden on desktop, shown on mobile. */
+/* Bottom navigation bar - hidden on desktop, shown on mobile. */
 .bottom-nav {
   display: none;
   position: fixed;
@@ -867,7 +867,7 @@
   white-space: nowrap;
 }
 
-/* Backdrop behind the mobile drawer — hidden unless mobile (below). */
+/* Backdrop behind the mobile drawer - hidden unless mobile (below). */
 .sidebar-backdrop {
   display: none;
 }
@@ -877,7 +877,7 @@
   .sidebar {
     position: fixed;
     top: var(--header-height); /* drawer slides in BELOW the header */
-    /* …and STOPS above the fixed bottom nav — otherwise the drawer runs to the
+    /* …and STOPS above the fixed bottom nav - otherwise the drawer runs to the
        viewport bottom and the bottom nav (same z-index, later in the DOM) paints
        over its last 60px, hiding the final menu items once an expanded menu makes
        the list scroll. Reference the var so it can't drift from the bar's height. */
@@ -945,7 +945,7 @@
 /* THREE-TIER RESPONSIVE SIDEBAR                                  */
 /*  - Mobile   (<768px):    off-canvas drawer + bottom nav (above)*/
 /*  - Tablet   (768-1023px): icon RAIL (72px), hover/pin expands  */
-/*    to 256px — the collapsible middle tier (base rules above).  */
+/*    to 256px - the collapsible middle tier (base rules above).  */
 /*  - Desktop  (>=1024px):  starts PINNED (256px); the hamburger  */
 /*    collapses to the rail (Gmail) + larger content spacing.     */
 /* ============================================================== */

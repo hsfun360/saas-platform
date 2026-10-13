@@ -1,6 +1,6 @@
 <app-dialog #dlg variant="drawer"
-            [title]="editRow() ? 'Edit ' + kindLabel() + ' — ' + (editRow()?.docNo || 'Draft')
-                     : mode() === 'pick' ? 'New ' + kindLabel() + ' — select debtor' : 'New ' + kindLabel()"
+            [title]="editRow() ? 'Edit ' + kindLabel() + ' - ' + (editRow()?.docNo || 'Draft')
+                     : mode() === 'pick' ? 'New ' + kindLabel() + ' - select debtor' : 'New ' + kindLabel()"
             [busy]="saving() || metaLoading()"
             [dirty]="mode() === 'entry' && form.dirty"
             discardTitle="Discard this document?"
@@ -23,7 +23,7 @@
             @for (d of pickRows(); track d.id) {
               <button type="button" class="ald-pick__row" (click)="pick(d)">
                 <span class="ald-pick__who">
-                  <strong>{{ d.no || '—' }}</strong>
+                  <strong>{{ d.no || '-' }}</strong>
                   <span>{{ d.name || 'Unnamed' }}</span>
                 </span>
                 <span class="ald-pick__facts">
@@ -40,7 +40,7 @@
       @if (activeDebtor(); as who) {
         <div class="ald-debtor">
           <span class="material-icons" aria-hidden="true">account_balance</span>
-          <span class="ald-debtor__name"><strong>{{ who.no || '—' }}</strong> {{ who.name }}</span>
+          <span class="ald-debtor__name"><strong>{{ who.no || '-' }}</strong> {{ who.name }}</span>
           @if (isForeign()) { <span class="ald-debtor__ccy">{{ fxCurrency()?.code }} account</span> }
           @if (!debtor() && !editRow()) {
             <button type="button" class="btn btn--link btn--sm" (click)="changeDebtor()">Change</button>
@@ -85,7 +85,7 @@
             <div class="form-group">
               <label for="ldTrxDate">Transaction date (period) <span class="required">*</span></label>
               <input id="ldTrxDate" type="date" formControlName="trxDate" />
-              <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Accounting period — differs from the document date only when back-keying into a closed month.</p>
+              <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Accounting period - differs from the document date only when back-keying into a closed month.</p>
             </div>
           </div>
           <div class="form-grid">
@@ -131,9 +131,9 @@
                 } @else {
                   <app-combobox inputId="ldTarget" formControlName="targetLedgerId"
                                 [options]="targetOptions()"
-                                [allowEmpty]="true" emptyLabel="— Leave as available credit —"
+                                [allowEmpty]="true" emptyLabel="- Leave as available credit -"
                                 placeholder="Type to search…" />
-                  <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">No target — the amount stays on the account as available credit.</p>
+                  <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">No target - the amount stays on the account as available credit.</p>
                 }
               </div>
             </div>

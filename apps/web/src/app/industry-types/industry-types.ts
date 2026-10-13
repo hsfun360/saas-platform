@@ -70,7 +70,7 @@ export class IndustryTypesComponent implements OnInit {
   readonly activeCount = computed(() => this.types().filter((t) => t.isActive !== false).length);
 
   readonly dialogTitle = computed(() =>
-    this.editId() ? `Edit — ${this.formValue().industryTypeCode ?? ''}` : 'New industry type',
+    this.editId() ? `Edit - ${this.formValue().industryTypeCode ?? ''}` : 'New industry type',
   );
 
   ngOnInit(): void {

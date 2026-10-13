@@ -5,7 +5,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">apartment</span>
       <div>
         <h1>{{ 'Sales Agencies' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Outsourced agency companies promoting your memberships — their staff are added as Sales Agents.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Outsourced agency companies promoting your memberships - their staff are added as Sales Agents.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -52,7 +52,7 @@
         <div class="data-card" [attr.data-return-id]="r.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ r.agencyCode }} — {{ r.agencyName }}</div>
+              <div class="data-card__title">{{ r.agencyCode }} - {{ r.agencyName }}</div>
               <div class="data-card__subline">
                 @if (r.registrationNo) { <span class="data-card__reg">({{ r.registrationNo }})</span> }
                 @if (r.contactPerson) { <span class="data-card__reg">{{ r.contactPerson }}</span> }
@@ -139,7 +139,7 @@
             <label for="agAddrCountry">Country</label>
             <app-combobox inputId="agAddrCountry" formControlName="countryCode"
                           [options]="countryOptions()"
-                          [allowEmpty]="true" emptyLabel="—"
+                          [allowEmpty]="true" emptyLabel="-"
                           placeholder="Type to search…" />
           </div>
         </div>

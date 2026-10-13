@@ -122,7 +122,7 @@ export class GolfUnitCoursesComponent implements OnInit {
   readonly holesCourse = signal<UnitCourse | null>(null);
   readonly holeRows: FormArray<HoleGroup> = this.fb.array<HoleGroup>([]);
   readonly holesForm = this.fb.group({ holes: this.holeRows });
-  readonly holesTitle = computed(() => `Holes — ${this.holesCourse()?.unitCourseCode || ''}`);
+  readonly holesTitle = computed(() => `Holes - ${this.holesCourse()?.unitCourseCode || ''}`);
   // Method, not computed: form values are not signals; template bindings
   // re-evaluate every CD pass (the same way the dialogs bind form.dirty).
   totalPar(): number {
@@ -140,7 +140,7 @@ export class GolfUnitCoursesComponent implements OnInit {
   readonly teesCourse = signal<UnitCourse | null>(null);
   readonly teeRows: FormArray<TeeBoxGroup> = this.fb.array<TeeBoxGroup>([]);
   readonly teesForm = this.fb.group({ tees: this.teeRows });
-  readonly teesTitle = computed(() => `Tee boxes — ${this.teesCourse()?.unitCourseCode || ''}`);
+  readonly teesTitle = computed(() => `Tee boxes - ${this.teesCourse()?.unitCourseCode || ''}`);
 
   // (Closures moved to the standalone Course Closure menu 2026-09-30, so
   // closure keying is grantable without this screen.)
@@ -363,7 +363,7 @@ export class GolfUnitCoursesComponent implements OnInit {
   holesHint(c: UnitCourse | null): string {
     if (!c) return '';
     const r = this.holeRange(c.courseType);
-    return `${this.typeLabel(c.courseType)} unit course — holes ${r.from}–${r.to}. Numbering is fixed by the type; set par, handicap index (HCP) and remarks per hole.`;
+    return `${this.typeLabel(c.courseType)} unit course - holes ${r.from}–${r.to}. Numbering is fixed by the type; set par, handicap index (HCP) and remarks per hole.`;
   }
 
   // HCP choices for a hole: front-nine holes (1-9) take the ODD indexes,

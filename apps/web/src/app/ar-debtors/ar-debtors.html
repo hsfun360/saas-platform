@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">account_balance</span>
       <div>
         <h1>{{ 'Debtor Listing' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Every ledger account in one list — membership, member and other debtors — with credit terms and outstanding.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Every ledger account in one list - membership, member and other debtors - with credit terms and outstanding.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -81,7 +81,7 @@
   } @else if (rows().length === 0 && !hasFilter()) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
-      <p>No debtors yet. Ledger accounts open automatically when a membership or nominee activates — use "Provision from Membership" for records that were active before the AR module, or "New Other Debtor" for a city-ledger account.</p>
+      <p>No debtors yet. Ledger accounts open automatically when a membership or nominee activates - use "Provision from Membership" for records that were active before the AR module, or "New Other Debtor" for a city-ledger account.</p>
     </div>
   } @else if (rows().length === 0) {
     <div class="empty-state">
@@ -95,7 +95,7 @@
         <div class="data-card" [attr.data-return-id]="d.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ d.no || '—' }}@if (d.name) { — {{ d.name }}}</div>
+              <div class="data-card__title">{{ d.no || '-' }}@if (d.name) { - {{ d.name }}}</div>
               <div class="data-card__subline">
                 <span class="ard-type-chip" [class.ard-type-chip--other]="d.debtorType === 'other'">{{ typeLabel(d.debtorType) }}</span>
                 @if (multiCurrency() && d.currencyCode) {
@@ -195,13 +195,13 @@
 
   <!-- ============ Edit ledger account dialog ============ -->
   @if (editOpen()) {
-    <app-dialog #editDlg variant="drawer" [title]="'Edit debtor — ' + (editRow()?.no || '')" [busy]="editSaving()" [dirty]="editForm.dirty"
+    <app-dialog #editDlg variant="drawer" [title]="'Edit debtor - ' + (editRow()?.no || '')" [busy]="editSaving()" [dirty]="editForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
                 (close)="closeEdit()">
       <form id="editDebtorForm" [formGroup]="editForm" (ngSubmit)="onSaveEdit()" class="saas-form saas-form--dialog">
         <p class="cell-subtle" style="margin-top: 0;">
-          {{ editRow()?.name }} — {{ typeLabel(editRow()?.debtorType || '') }}.
+          {{ editRow()?.name }} - {{ typeLabel(editRow()?.debtorType || '') }}.
           @if (editIsMemberAccount()) {
             Terms and status are maintained here; the credit limit and party profile stay with the membership/member record.
           } @else {
@@ -253,7 +253,7 @@
   <!-- ============ Other Debtor dialog (create + edit via mode) ============ -->
   @if (otherOpen()) {
     <app-dialog #otherDlg variant="drawer"
-                [title]="otherMode() === 'create' ? 'New Other Debtor' : 'Edit — ' + otherCode" [busy]="otherSaving()" [dirty]="otherForm.dirty"
+                [title]="otherMode() === 'create' ? 'New Other Debtor' : 'Edit - ' + otherCode" [busy]="otherSaving()" [dirty]="otherForm.dirty"
                 [discardTitle]="otherMode() === 'create' ? 'Discard this new Other Debtor?' : 'Discard your changes?'"
                 [discardMessage]="otherMode() === 'create' ? 'You have started entering a new Other Debtor. Leaving now will discard it.' : 'You have unsaved changes. Leaving now will discard them.'"
                 (close)="closeOther()">
@@ -293,7 +293,7 @@
                               placeholder="Type to search…" />
                 <p class="cell-subtle field-hint">
                   @if (otherCurrencyLocked()) {
-                    Locked — this account already has documents. Open a separate Other Debtor for another currency.
+                    Locked - this account already has documents. Open a separate Other Debtor for another currency.
                   } @else {
                     Every document on this account is in this currency; it locks once the first document is saved.
                   }
@@ -374,7 +374,7 @@
           </div>
 
           @if (otherMode() === 'create') {
-            <p class="cell-subtle">Ledger account — editable later via the debtor's Edit button.</p>
+            <p class="cell-subtle">Ledger account - editable later via the debtor's Edit button.</p>
             <div class="form-grid">
               <div class="form-group">
                 <label for="odTerms">Terms (days)</label>

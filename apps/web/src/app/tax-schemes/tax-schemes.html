@@ -104,7 +104,7 @@
                   <span class="tx-row__flag" aria-hidden="true">{{ countryFlag(s.countryCode) }}</span>
                 }
                 <span class="tx-row__text">
-                  <span class="tx-row__title">{{ s.taxSchemeCode }} — {{ s.name }}</span>
+                  <span class="tx-row__title">{{ s.taxSchemeCode }} - {{ s.name }}</span>
                   <span class="tx-row__sub">
                     {{ ieFlagLabel(s.ieFlag) }} · {{ taxClassLabel(s.taxClass) }}
                     @if (hasServiceCharge(s)) {
@@ -135,7 +135,7 @@
         </div>
       }
 
-      <!-- New scheme FAB — inside the master pane, so it hides with the master on mobile detail view -->
+      <!-- New scheme FAB - inside the master pane, so it hides with the master on mobile detail view -->
       <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAddScheme()" aria-label="New scheme">
         <span class="material-icons" aria-hidden="true">add</span>
         <span>New scheme</span>
@@ -162,7 +162,7 @@
               @if (countryFlag(selectedScheme()!.countryCode)) {
                 <span class="tx-detail-flag" aria-hidden="true">{{ countryFlag(selectedScheme()!.countryCode) }}</span>
               }
-              <h2>{{ selectedScheme()!.taxSchemeCode }} — {{ selectedScheme()!.name }}</h2>
+              <h2>{{ selectedScheme()!.taxSchemeCode }} - {{ selectedScheme()!.name }}</h2>
               @if (selectedScheme()!.isActive === false) {
                 <span class="status-chip status-chip--off">Disabled</span>
               } @else {
@@ -239,7 +239,7 @@
 
   <!-- ============ Scheme add/edit dialog ============ -->
   @if (schemeDialogOpen()) {
-    <app-dialog #schemeDlg variant="drawer" [title]="schemeEditId ? ('Edit — ' + schemeForm.controls.taxSchemeCode.value) : 'New tax scheme'"
+    <app-dialog #schemeDlg variant="drawer" [title]="schemeEditId ? ('Edit - ' + schemeForm.controls.taxSchemeCode.value) : 'New tax scheme'"
                 [busy]="schemeSaving()" [dirty]="schemeForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."
@@ -323,7 +323,7 @@
 
   <!-- ============ Rate add/edit dialog ============ -->
   @if (rateDialogOpen()) {
-    <app-dialog #rateDlg variant="drawer" [title]="rateEditId ? ('Edit rate — ' + rateForm.controls.taxCode.value) : 'Add rate line'"
+    <app-dialog #rateDlg variant="drawer" [title]="rateEditId ? ('Edit rate - ' + rateForm.controls.taxCode.value) : 'Add rate line'"
                 [busy]="rateSaving()" [dirty]="rateForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes to this form. Leaving now will discard them."
@@ -459,7 +459,7 @@
           </div>
 
           <p class="cell-subtle" style="margin: 0 0 var(--space-xs);">
-            {{ loadSelectedCount() }} selected — you'll get exactly these:
+            {{ loadSelectedCount() }} selected - you'll get exactly these:
           </p>
 
           @if (filteredLoadTemplates().length === 0) {
@@ -479,7 +479,7 @@
                           [attr.title]="countryName(t.countryCode)">{{ countryFlag(t.countryCode) }}</span>
                   }
                   <span class="tx-load-item__text">
-                    <span class="tx-load-item__title">{{ t.taxSchemeCode }} — {{ t.name }}</span>
+                    <span class="tx-load-item__title">{{ t.taxSchemeCode }} - {{ t.name }}</span>
                     <span class="tx-load-item__sub">
                       {{ t.ieFlag }} · {{ t.taxClass }}@if (templateRateSummary(t)) { · {{ templateRateSummary(t) }} }
                     </span>

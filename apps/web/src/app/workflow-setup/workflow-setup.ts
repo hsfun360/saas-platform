@@ -153,8 +153,8 @@ export class WorkflowSetupComponent implements OnInit {
         const i = this.editingStepIndex();
         return i === null ? 'Add step' : `Edit step ${i + 1}`;
       }
-      case 'preview': return `Preview — ${this.preview()?.definitionName ?? 'approval chain'}`;
-      default: return this.editId() ? `Edit — ${this.formValue().name ?? ''}` : 'New approval workflow';
+      case 'preview': return `Preview - ${this.preview()?.definitionName ?? 'approval chain'}`;
+      default: return this.editId() ? `Edit - ${this.formValue().name ?? ''}` : 'New approval workflow';
     }
   });
 

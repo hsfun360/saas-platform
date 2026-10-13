@@ -42,7 +42,7 @@ export class EmailTemplateService {
     return this.http.post<{ message: string; template: EmailTemplateDetail }>(`${this.base}/${key}/reset`, {});
   }
 
-  // Compile (possibly unsaved) content against sample data — no send. Brand
+  // Compile (possibly unsaved) content against sample data - no send. Brand
   // settings are sent so the preview reflects the current (unsaved) header/colour.
   preview(
     key: string,

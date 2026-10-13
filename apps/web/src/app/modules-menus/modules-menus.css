@@ -25,7 +25,7 @@
 }
 
 /* The module name is a button that selects the module (loads its menus).
-   It fills its grid cell by default (justify-self: stretch) — no width:100%,
+   It fills its grid cell by default (justify-self: stretch) - no width:100%,
    which would feed the button's preferred width back into track sizing. */
 .mm-row__select {
   display: flex;
@@ -47,15 +47,15 @@
   overflow-wrap: anywhere; /* never let a long token overflow the cell */
 }
 
-/* Listing search — icon left, optional clear (✕) right. */
+/* Listing search - icon left, optional clear (✕) right. */
 
-/* Mobile "back to master" button — hidden on desktop where both panes show. */
+/* Mobile "back to master" button - hidden on desktop where both panes show. */
 .mm-back {
   display: none;
   margin-bottom: var(--space-md);
 }
 
-/* Floating add actions — pinned bottom-right, below the shell drawer (1000) /
+/* Floating add actions - pinned bottom-right, below the shell drawer (1000) /
    backdrop (999) / header (1100). On desktop both panes are visible, so the two
    FABs sit SIDE BY SIDE in this flex group; "Add menu" only exists once a module
    is selected. Each composes .btn .btn--primary. */
@@ -178,7 +178,7 @@
   margin-top: var(--space-xs);
 }
 
-/* Drag handle — a small grab affordance; keeps the 44px target via padding. */
+/* Drag handle - a small grab affordance; keeps the 44px target via padding. */
 .mm-grip {
   display: inline-flex;
   align-items: center;

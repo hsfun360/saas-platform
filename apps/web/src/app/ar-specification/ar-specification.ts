@@ -10,10 +10,10 @@ import { ArDesignatedTypeOption, ArSetting, ArStatementColumn, ArStatementColumn
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { openBlobInNewTab } from '../shared/open-blob';
 
-// Combobox row for a designated-transaction-type picker: code — description.
+// Combobox row for a designated-transaction-type picker: code - description.
 const toTypeChoice = (t: ArDesignatedTypeOption): { value: string; label: string } => ({
   value: t.id,
-  label: t.description ? `${t.transactionType} — ${t.description}` : t.transactionType,
+  label: t.description ? `${t.transactionType} - ${t.description}` : t.transactionType,
 });
 
 // The lines-table column catalogue (mirrors the PDF renderer's BASE_COLS).

@@ -104,7 +104,7 @@ export class ArInterestComponent implements OnInit {
   readonly orderedDimMeta = computed(() => [...this.dimMeta()].sort((a, b) =>
     (a.displaySeq ?? a.dimensionNo) - (b.displaySeq ?? b.dimensionNo)));
   dimOptions(dim: ArAnalysisEntryMeta): { value: string; label: string }[] {
-    return dim.options.map((o) => ({ value: o.id, label: o.description ? `${o.code} — ${o.description}` : o.code }));
+    return dim.options.map((o) => ({ value: o.id, label: o.description ? `${o.code} - ${o.description}` : o.code }));
   }
   dimValue(no: number): string {
     return this.runAnalysis()[String(no)] || '';

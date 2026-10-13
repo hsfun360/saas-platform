@@ -33,7 +33,7 @@
         <strong>Not migrated:</strong>
         <ul class="mi-fails">
           @for (r of lastResults(); track r.membershipNo) {
-            <li>{{ r.membershipNo }} — {{ r.message }}</li>
+            <li>{{ r.membershipNo }} - {{ r.message }}</li>
           }
         </ul>
       </div>
@@ -116,7 +116,7 @@
         <h2 class="mi-file">{{ d.fileName }}</h2>
         <p class="mi-counts">
           {{ d.totalMemberships }} membership(s), {{ d.totalMembers }} member(s) in the file.
-          Tick the memberships to migrate — a membership moves together with all its members.
+          Tick the memberships to migrate - a membership moves together with all its members.
           Rows with errors cannot be selected.
         </p>
       </div>
@@ -208,7 +208,7 @@
             @for (m of d.orphans; track m.id) {
               <li>
                 <span class="mi-member__kind">{{ m.data['kind'] }}</span>
-                <span class="mi-member__no">{{ m.memberNo || '—' }}</span>
+                <span class="mi-member__no">{{ m.memberNo || '-' }}</span>
                 <span class="mi-member__name">{{ memberName(m) }}</span>
                 <span class="data-card__reg">Membership No '{{ m.membershipNo }}' · row {{ m.rowNo }}</span>
               </li>

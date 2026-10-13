@@ -42,7 +42,7 @@ export class ApprovalsComponent implements OnInit {
   readonly dialogTitle = computed(() => {
     const t = this.activeTask();
     const label = t?.entityLabel || t?.entityType || '';
-    return this.decision() === 'approve' ? `Approve — ${label}` : `Reject — ${label}`;
+    return this.decision() === 'approve' ? `Approve - ${label}` : `Reject - ${label}`;
   });
 
   ngOnInit(): void {

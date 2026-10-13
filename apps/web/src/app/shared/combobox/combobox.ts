@@ -47,7 +47,7 @@ export class ComboboxComponent implements OnDestroy, ControlValueAccessor {
   readonly ariaLabel = input<string>('');
   readonly placeholder = input<string>('Type to search…');
   readonly allowEmpty = input<boolean>(true);
-  readonly emptyLabel = input<string>('— None —');
+  readonly emptyLabel = input<string>('- None -');
   readonly disabled = input<boolean>(false);
   // Validation display (reactive-form callers): aria wiring for the error <p>.
   readonly invalid = input<boolean>(false);

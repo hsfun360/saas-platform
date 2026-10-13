@@ -7,7 +7,7 @@ import { Role, UserSummary } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 
-// Assign Role — the last of the old System Setup tabs, now its own single-purpose
+// Assign Role - the last of the old System Setup tabs, now its own single-purpose
 // screen (Roles and Users were split into /admin/system-roles and
 // /admin/platform-users). Grants a platform role to a user.
 @Component({
@@ -30,7 +30,7 @@ export class SystemSetupComponent implements OnInit {
   // Combobox options (house standard: long reference lists get the shared
   // constrained combobox). Labels mirror what the old <select> options rendered.
   readonly userOptions = computed(() =>
-    this.users().map((u) => ({ value: u.id, label: u.full_name ? `${u.full_name} — ${u.email}` : u.email })));
+    this.users().map((u) => ({ value: u.id, label: u.full_name ? `${u.full_name} - ${u.email}` : u.email })));
   readonly roleOptions = computed(() =>
     this.roles().map((role) => ({ value: role.id, label: role.name })));
 

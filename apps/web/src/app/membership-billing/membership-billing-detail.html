@@ -5,7 +5,7 @@
     <div class="saas-header-left">
       <span class="saas-icon material-icons" aria-hidden="true">request_quote</span>
       <div>
-        <h1>{{ schedule() ? typeLabel(schedule()!.billingType) : 'Billing Schedule' }}@if (schedule()) { — {{ schedule()!.periodMonth | localDate }}}</h1>
+        <h1>{{ schedule() ? typeLabel(schedule()!.billingType) : 'Billing Schedule' }}@if (schedule()) { - {{ schedule()!.periodMonth | localDate }}}</h1>
         <p class="saas-subtitle">
           Review the holding items, skip what shouldn't bill, then post the selection.
           <button type="button" class="btn btn--link mbd-back" routerLink="/membership/billing">
@@ -55,7 +55,7 @@
         </label>
         <button type="button" class="btn btn--primary btn--sm" (click)="onPost()"
                 [disabled]="posting() || selectedCount() === 0">
-          {{ posting() ? 'Posting…' : 'Post ' + selectedCount() + ' Invoice(s) — ' + totalSelected() }}
+          {{ posting() ? 'Posting…' : 'Post ' + selectedCount() + ' Invoice(s) - ' + totalSelected() }}
         </button>
       </div>
     }

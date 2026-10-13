@@ -5,9 +5,9 @@
     <div class="saas-header-left">
       <span class="saas-icon material-icons" aria-hidden="true">account_balance</span>
       <div>
-        <h1>{{ account()?.debtor?.no || 'Debtor' }}@if (account()?.debtor?.name) { — {{ account()?.debtor?.name }}}</h1>
+        <h1>{{ account()?.debtor?.no || 'Debtor' }}@if (account()?.debtor?.name) { - {{ account()?.debtor?.name }}}</h1>
         <p class="saas-subtitle">
-          Debtor account — documents, receipts and deposits.
+          Debtor account - documents, receipts and deposits.
           <button type="button" class="btn btn--link ara-back" routerLink="/ar/debtors">
             <span class="material-icons" aria-hidden="true">arrow_back</span> Back to Debtor Listing
           </button>
@@ -88,7 +88,7 @@
       <button type="button" class="settings-header settings-header--button" (click)="toggleSection('ledger')" [attr.aria-expanded]="isExpanded('ledger')">
         <span class="settings-header__text">
           <span class="settings-header__title">Documents</span>
-          <span class="settings-header__sub">Invoices, debit notes and credit notes — the open-item ledger.</span>
+          <span class="settings-header__sub">Invoices, debit notes and credit notes - the open-item ledger.</span>
         </span>
         <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('ledger')" aria-hidden="true">chevron_right</span>
       </button>
@@ -204,7 +204,7 @@
       <button type="button" class="settings-header settings-header--button" (click)="toggleSection('deposits')" [attr.aria-expanded]="isExpanded('deposits')">
         <span class="settings-header__text">
           <span class="settings-header__title">Deposits</span>
-          <span class="settings-header__sub">Security deposits held as collateral — collected via Official Receipt; paid back or applied to outstanding through a Refund.</span>
+          <span class="settings-header__sub">Security deposits held as collateral - collected via Official Receipt; paid back or applied to outstanding through a Refund.</span>
         </span>
         <span class="settings-header__chevron material-icons" [class.settings-header__chevron--open]="isExpanded('deposits')" aria-hidden="true">chevron_right</span>
       </button>

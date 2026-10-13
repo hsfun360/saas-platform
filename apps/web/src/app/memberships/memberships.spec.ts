@@ -160,7 +160,7 @@ describe('MembershipsComponent members dialog', () => {
     await openMembersDialog();
 
     expect(queryAll('app-dialog').length).toBe(1);
-    expect(query('app-dialog')?.textContent).toContain('Members — CORP-126-000003');
+    expect(query('app-dialog')?.textContent).toContain('Members - CORP-126-000003');
     expect(query('app-dialog')?.textContent).toContain('SUFFIX-TEST-NOMINEE');
     const editBtn = queryAll('app-dialog .data-row__actions button').find((b) => b.textContent?.trim() === 'Edit');
     expect(editBtn).toBeTruthy();
@@ -216,7 +216,7 @@ describe('MembershipsComponent members dialog', () => {
     // Back on the list view of the one dialog, reloaded.
     expect(component.memberDialogMode()).toBeNull();
     expect(queryAll('app-dialog').length).toBe(1);
-    expect(query('app-dialog')?.textContent).toContain('Members — CORP-126-000003');
+    expect(query('app-dialog')?.textContent).toContain('Members - CORP-126-000003');
     expect(getCalls).toBeGreaterThan(1);
   });
 

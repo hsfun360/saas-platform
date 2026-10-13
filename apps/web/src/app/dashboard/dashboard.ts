@@ -102,7 +102,7 @@ export class Dashboard implements OnInit, OnDestroy {
   // Ids of the sections the user has collapsed (a signal so toggling re-renders).
   collapsedGroups = signal<Set<string>>(new Set());
 
-  // Bottom-nav (mobile) shows only real destinations — leaf menus with a route,
+  // Bottom-nav (mobile) shows only real destinations - leaf menus with a route,
   // never the code-defined section headers (which have no route).
   get primaryDestinations(): MenuItem[] {
     return this.displayedMenus.filter((m) => !!m.route);
@@ -217,7 +217,7 @@ export class Dashboard implements OnInit, OnDestroy {
     this.availableModules = Array.from(moduleMap.entries()).map(([name, v]) => ({ name, icon: v.icon, names: v.names }));
 
     // Active system follows the URL (deep link / refresh / back-forward) so the
-    // correct sidebar shows on load. We never auto-navigate here — that would
+    // correct sidebar shows on load. We never auto-navigate here - that would
     // fight a deep link and surprise users on login.
     const fallbackModule = this.availableModules[0]?.name;
     const initialModule = this.moduleForUrl(this.router.url) || fallbackModule;
@@ -252,7 +252,7 @@ export class Dashboard implements OnInit, OnDestroy {
 
   // Build the sidebar tree from the flat menu list (adjacency list): group menus
   // by parentId, ordered by sequence. A menu whose parent isn't in the visible
-  // set is treated as a root (defensive — the login already ships ancestors).
+  // set is treated as a root (defensive - the login already ships ancestors).
   private buildNavTree(menus: MenuItem[]): NavNode[] {
     const bySeq = (a: NavNode, b: NavNode) => (a.menu.sequence ?? 0) - (b.menu.sequence ?? 0);
     const nodes = new Map<string, NavNode>();
@@ -523,7 +523,7 @@ export class Dashboard implements OnInit, OnDestroy {
       next: () => {
         this.respondingInvitationId.set(null);
         this.myInvitations.update((list) => list.filter((i) => i.id !== id));
-        // The user now has a new workspace — refresh the switcher list.
+        // The user now has a new workspace - refresh the switcher list.
         this.loadWorkspaces();
       },
       error: (err) => {

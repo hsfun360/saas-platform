@@ -28,7 +28,7 @@
   }
 
   <!-- Live filter over the loaded users (email / name / auth method). No outer
-       card — search + per-record cards sit directly on the page (Companies standard). -->
+       card - search + per-record cards sit directly on the page (Companies standard). -->
   @if (!usersLoading() && users().length > 0) {
     <div class="saas-search">
       <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
@@ -100,7 +100,7 @@
     </div>
   }
 
-  <!-- Floating "Create user" action — opens the dialog. -->
+  <!-- Floating "Create user" action - opens the dialog. -->
   <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="Create user">
     <span class="material-icons" aria-hidden="true">add</span>
     Create user

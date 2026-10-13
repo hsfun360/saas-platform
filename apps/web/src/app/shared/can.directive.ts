@@ -3,7 +3,7 @@ import { MenuAction, PermissionsService } from '../services/permissions.service'
 
 // Structural permission gate: renders its host only when the current user's
 // role allows the action on the CURRENT screen (resolved from the granted
-// menus' action flags). UI-gating only — the backend's requireMenuAction
+// menus' action flags). UI-gating only - the backend's requireMenuAction
 // middleware stays the authoritative check.
 //
 //   <button *appCan="'create'" class="btn btn--primary fab">New fee</button>
@@ -11,7 +11,7 @@ import { MenuAction, PermissionsService } from '../services/permissions.service'
 //   <button *appCan="'delete'" (click)="onDelete(row)">Delete</button>
 //
 // The directive evaluates once per instantiation, which is per navigation for
-// route-bound screens — permissions only change on login/role switch, so no
+// route-bound screens - permissions only change on login/role switch, so no
 // live re-evaluation is needed.
 @Directive({
   selector: '[appCan]',

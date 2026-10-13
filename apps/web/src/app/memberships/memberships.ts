@@ -314,11 +314,11 @@ export class MembershipsComponent implements OnInit {
   readonly statusWithClassOptions = computed(() =>
     (this.options()?.statuses || []).map((s) => ({ value: s.id, label: `${s.membershipStatus} (${s.statusClass})` })));
   readonly feeOptions = computed(() =>
-    (this.options()?.fees || []).map((f) => ({ value: f.id, label: f.description ? `${f.membershipFeeCode} — ${f.description}` : f.membershipFeeCode })));
+    (this.options()?.fees || []).map((f) => ({ value: f.id, label: f.description ? `${f.membershipFeeCode} - ${f.description}` : f.membershipFeeCode })));
   readonly agentOptions = computed(() =>
-    (this.options()?.agents || []).map((a) => ({ value: a.id, label: `${a.agentCode} — ${a.name}` })));
+    (this.options()?.agents || []).map((a) => ({ value: a.id, label: `${a.agentCode} - ${a.name}` })));
   readonly classTypeOptions = computed(() =>
-    this.classTypes().map((t) => ({ value: t.id, label: t.description ? `${t.category} — ${t.description}` : t.category })));
+    this.classTypes().map((t) => ({ value: t.id, label: t.description ? `${t.category} - ${t.description}` : t.category })));
   readonly countryOptions = computed(() =>
     this.countries().map((c) => ({ value: c.alpha2, label: c.flagEmoji ? `${c.flagEmoji} ${c.name}` : c.name })));
   readonly salutationOptions = computed(() =>
@@ -364,7 +364,7 @@ export class MembershipsComponent implements OnInit {
 
   readonly membershipDialogTitle = computed(() => {
     const editing = this.editMembership();
-    if (editing) return `Edit — ${editing.membershipNo}`;
+    if (editing) return `Edit - ${editing.membershipNo}`;
     const cls = this.pickedClass();
     return cls ? `New ${this.classLabel(cls).toLowerCase()} membership` : 'New membership';
   });
@@ -374,15 +374,15 @@ export class MembershipsComponent implements OnInit {
     if (mode === 'nominee') return 'New nominee';
     if (mode === 'dependent') {
       const p = this.dependentPrincipal();
-      return `New dependent — principal: ${p ? this.memberName(p) : ''}`;
+      return `New dependent - principal: ${p ? this.memberName(p) : ''}`;
     }
     const m = this.editMember();
-    return m ? `Edit — ${this.memberName(m)}` : 'Edit member';
+    return m ? `Edit - ${this.memberName(m)}` : 'Edit member';
   });
 
   // The one Members dialog: title follows the active view.
   readonly membersDialogTitle = computed(() =>
-    this.memberDialogMode() ? this.memberDialogTitle() : `Members — ${this.membersTitleNo()}`);
+    this.memberDialogMode() ? this.memberDialogTitle() : `Members - ${this.membersTitleNo()}`);
 
   // Dirty only applies to the form view (form.dirty is not a signal, so this is
   // a method the template re-reads each check - same shape as golf-courses).

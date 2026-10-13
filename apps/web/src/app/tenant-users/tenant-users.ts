@@ -51,7 +51,7 @@ export class TenantUsersComponent implements OnInit {
   readonly companies = signal<AccountCompany[]>([]);
   readonly people = signal<AccountPerson[]>([]);
   readonly invitations = signal<AccountPendingInvite[]>([]);
-  // Account-level roles — any role can be assigned in any company (roles are no
+  // Account-level roles - any role can be assigned in any company (roles are no
   // longer company-scoped), so every assignment dropdown uses this one list.
   readonly accountRoles = signal<Role[]>([]);
   readonly loading = signal(false);
@@ -85,7 +85,7 @@ export class TenantUsersComponent implements OnInit {
   // fresh after each reload (and auto-closes if they lose all access).
   readonly profilePersonId = signal<string | null>(null);
   readonly profilePerson = computed(() => this.people().find((p) => p.id === this.profilePersonId()) ?? null);
-  // The open person's global profile fields — seeded via reset() on open.
+  // The open person's global profile fields - seeded via reset() on open.
   readonly editProfileForm = this.fb.nonNullable.group({
     fullName: ['', [Validators.required, Validators.maxLength(150)]],
     email: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
@@ -107,7 +107,7 @@ export class TenantUsersComponent implements OnInit {
     roleId: [''],
   });
 
-  // Key of the action in flight (e.g. `role:<userId>:<companyId>`) — disables that button.
+  // Key of the action in flight (e.g. `role:<userId>:<companyId>`) - disables that button.
   readonly pendingKey = signal<string | null>(null);
 
   // "Remove from company" confirmation is a VIEW inside the placement drawer

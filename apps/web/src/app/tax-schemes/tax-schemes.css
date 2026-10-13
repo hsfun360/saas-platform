@@ -1,4 +1,4 @@
-/* Tax Setup screen — master–detail (scheme list + selected scheme), on top of the
+/* Tax Setup screen - master–detail (scheme list + selected scheme), on top of the
    shared System Setup look. Mirrors the modules-menus sliding-pane behaviour:
    side-by-side on desktop, one pane at a time on mobile (detail covers master when
    a scheme is open, driven by the URL param). */

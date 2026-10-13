@@ -101,7 +101,7 @@ export class PublicHolidaysComponent implements OnInit {
   readonly activeCount = computed(() => this.holidays().filter((h) => h.isActive !== false).length);
 
   readonly dialogTitle = computed(() =>
-    this.editId() ? `Edit — ${this.formValue().description ?? ''}` : 'New public holiday',
+    this.editId() ? `Edit - ${this.formValue().description ?? ''}` : 'New public holiday',
   );
 
   ngOnInit(): void {

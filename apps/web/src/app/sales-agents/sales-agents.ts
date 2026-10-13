@@ -76,7 +76,7 @@ export class SalesAgentsComponent implements OnInit {
   readonly activeAgencies = computed(() => (this.meta()?.agencies || []).filter((a) => a.isActive));
   // Combobox options for the Agency picker ({value, label}).
   readonly agencyOptions = computed(() =>
-    this.activeAgencies().map((a) => ({ value: a.id, label: `${a.agencyCode} — ${a.agencyName}` })));
+    this.activeAgencies().map((a) => ({ value: a.id, label: `${a.agencyCode} - ${a.agencyName}` })));
 
   ngOnInit(): void {
     this.service.agentsMeta().subscribe({ next: (m) => this.meta.set(m), error: () => {} });

@@ -5,7 +5,7 @@ import { Item, ItemInput } from './item.model';
 
 // In-memory data source so the screen builds and runs with NO backend.
 // It returns Observables (with a small simulated latency) so the component's
-// subscribe/next/error code is identical to the real thing — to go live, swap
+// subscribe/next/error code is identical to the real thing - to go live, swap
 // these method bodies for HttpClient calls and delete the seed/store. The
 // shapes ({ item, message } / { message }) mirror the app's auth.service.
 @Injectable({ providedIn: 'root' })

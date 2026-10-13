@@ -57,7 +57,7 @@ type TranslationGroup = FormGroup<{
 //
 // Navigation follows the web SlidingPaneLayout pattern:
 //  - The selected module lives in the URL (/admin/modules-menus/:moduleId)
-//    as the single source of truth — deep-linkable, with working back/forward.
+//    as the single source of truth - deep-linkable, with working back/forward.
 //  - CSS shows both panes side-by-side on desktop, but one-at-a-time on mobile
 //    (the detail pane covers the master once a module is picked).
 @Component({
@@ -307,7 +307,7 @@ export class ModulesMenusComponent implements OnInit {
     });
   }
 
-  // Navigate to a module's detail view — selection state then flows back in via
+  // Navigate to a module's detail view - selection state then flows back in via
   // the route param subscription above.
   selectModule(moduleId: string): void {
     this.router.navigate([...this.basePath, moduleId]);
@@ -538,7 +538,7 @@ export class ModulesMenusComponent implements OnInit {
     const walk = (nodes: MenuTreeNode[], depth: number) => {
       for (const node of nodes) {
         if (node.menu.id === excludeId) continue; // skip the menu and its whole subtree
-        out.push({ id: node.menu.id, label: `${'— '.repeat(depth)}${node.menu.name}` });
+        out.push({ id: node.menu.id, label: `${'- '.repeat(depth)}${node.menu.name}` });
         walk(node.children, depth + 1);
       }
     };
@@ -631,7 +631,7 @@ export class ModulesMenusComponent implements OnInit {
     if (event.previousContainer !== event.container) return;
     if (event.previousIndex === event.currentIndex) return;
     moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
-    this.tree.set([...this.tree()]); // array was mutated in place — refresh view
+    this.tree.set([...this.tree()]); // array was mutated in place - refresh view
     this.persistOrder(event.container.data);
   }
 

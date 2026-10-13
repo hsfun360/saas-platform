@@ -21,7 +21,7 @@
 /* Item rows compose the global .data-card + .data-row grid (styles.css). */
 
 /* The item name is a button that opens its detail. It fills its grid cell by
-   default (justify-self: stretch) — no width:100%, which would feed the
+   default (justify-self: stretch) - no width:100%, which would feed the
    button's preferred width back into track sizing. */
 .it-row__select {
   display: flex;
@@ -43,7 +43,7 @@
   overflow-wrap: anywhere; /* never let a long token overflow the cell */
 }
 
-/* Search field — icon on the left, optional clear (✕) on the right. */
+/* Search field - icon on the left, optional clear (✕) on the right. */
 
 
 
@@ -51,7 +51,7 @@
 /* The "New item" FAB composes the global .saas-fab and the row status pill the
    global .status-chip (both in styles.css). */
 
-/* Mobile "back to list" button — hidden on desktop where both panes show. */
+/* Mobile "back to list" button - hidden on desktop where both panes show. */
 .it-back {
   display: none;
   margin-bottom: var(--space-md);

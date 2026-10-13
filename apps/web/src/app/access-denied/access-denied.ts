@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 
 // Shown (inside the dashboard shell) when a user navigates to a system/area they
-// don't have access to — see access.guard.ts. The backend is still the
+// don't have access to - see access.guard.ts. The backend is still the
 // authoritative gate on data; this is the friendly UX when route access is denied.
 @Component({
   selector: 'app-access-denied',

@@ -34,7 +34,7 @@ function round2(n: number): number {
 // hand-rolled in onSave), `form.dirty` feeds the shared dialog's unsaved-changes
 // guard, and every field carries its correct HTML5 input type. The optional
 // installment fields (noOfInstallment / installmentInterval) become required and
-// enabled only while "Allow installment" is on — wired through the checkbox
+// enabled only while "Allow installment" is on - wired through the checkbox
 // control's valueChanges.
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -61,12 +61,12 @@ export class MembershipFeesComponent implements OnInit {
   // reference lists: type-to-filter matches code and description alike).
   readonly txnOptions = computed<ComboOption[]>(() => this.typeOptions().map((t) => ({
     value: t.id,
-    label: t.description ? `${t.transactionType} — ${t.description}` : t.transactionType,
+    label: t.description ? `${t.transactionType} - ${t.description}` : t.transactionType,
   })));
   // Tax Scheme picker options (same combobox standard).
   readonly taxSchemeOptions = computed<ComboOption[]>(() => this.taxSchemes().map((t) => ({
     value: t.taxSchemeCode,
-    label: `${t.taxSchemeCode} — ${t.name}`,
+    label: `${t.taxSchemeCode} - ${t.name}`,
   })));
   readonly countrySet = signal(true);
   readonly loading = signal(false);
@@ -93,7 +93,7 @@ export class MembershipFeesComponent implements OnInit {
     installmentInterval: this.fb.control<string>({ value: '', disabled: true }),
   });
 
-  // Installment stages (Membership Fee Scheme detail) — not a form control; the
+  // Installment stages (Membership Fee Scheme detail) - not a form control; the
   // rows are generated then edited in place.
   readonly stages = signal<StageRow[]>([]);
 
@@ -126,7 +126,7 @@ export class MembershipFeesComponent implements OnInit {
   readonly activeCount = computed(() => this.fees().filter((f) => f.isActive !== false).length);
 
   readonly dialogTitle = computed(() =>
-    this.editId() ? `Edit — ${this.formValue().membershipFeeCode ?? ''}` : 'New membership fee',
+    this.editId() ? `Edit - ${this.formValue().membershipFeeCode ?? ''}` : 'New membership fee',
   );
 
   // Live total of the installment stages, for the sum-must-match hint.

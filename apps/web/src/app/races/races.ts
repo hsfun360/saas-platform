@@ -70,7 +70,7 @@ export class RacesComponent implements OnInit {
   readonly activeCount = computed(() => this.races().filter((r) => r.isActive !== false).length);
 
   readonly dialogTitle = computed(() =>
-    this.editId() ? `Edit — ${this.formValue().raceCode ?? ''}` : 'New race',
+    this.editId() ? `Edit - ${this.formValue().raceCode ?? ''}` : 'New race',
   );
 
   ngOnInit(): void {

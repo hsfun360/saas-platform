@@ -68,11 +68,11 @@ export class ArDebtorsComponent implements OnInit {
   readonly baseCurrency = computed(() => this.meta()?.baseCurrencyCode || '');
   readonly currencies = computed(() => this.meta()?.currencies || []);
   // Combobox rows: the toolbar filter shows the bare code, the account picker
-  // shows code — name (the labels the old selects rendered).
+  // shows code - name (the labels the old selects rendered).
   readonly currencyFilterOptions = computed(() =>
     this.currencies().map((c) => ({ value: c.code, label: c.isBase ? `${c.code} (base)` : c.code })));
   readonly currencyOptions = computed(() =>
-    this.currencies().map((c) => ({ value: c.code, label: `${c.code} — ${c.name}${c.isBase ? ' (base)' : ''}` })));
+    this.currencies().map((c) => ({ value: c.code, label: `${c.code} - ${c.name}${c.isBase ? ' (base)' : ''}` })));
   readonly countryOptions = computed(() =>
     this.countries().map((c) => ({ value: c.alpha2, label: `${c.flagEmoji} ${c.name}` })));
   // Edit mode: the account already has documents - currency is immutable.

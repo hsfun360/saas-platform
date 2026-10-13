@@ -46,7 +46,7 @@
       @if (rows().length > 0) {
         {{ rows().length }} rate{{ rows().length === 1 ? '' : 's' }} across {{ currencyCount() }} currenc{{ currencyCount() === 1 ? 'y' : 'ies' }}@if (baseCurrency()) {, against {{ baseCurrency() }}}
       } @else {
-        No exchange rates yet — use "New exchange rate" to add one.
+        No exchange rates yet - use "New exchange rate" to add one.
       }
     </span>
   </div>
@@ -79,7 +79,7 @@
         <div class="data-card" [attr.data-return-id]="r.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ r.currencyCode }}@if (currencyName(r.currencyCode)) {<span class="data-card__reg">&nbsp;— {{ currencyName(r.currencyCode) }}</span>}</div>
+              <div class="data-card__title">{{ r.currencyCode }}@if (currencyName(r.currencyCode)) {<span class="data-card__reg">&nbsp;- {{ currencyName(r.currencyCode) }}</span>}</div>
               <div class="data-card__subline">
                 <span class="mt-chip xr-rate">1 {{ r.currencyCode }} = {{ fmtRate(r.rate) }} {{ baseCurrency() || '' }}</span>
                 <span class="data-card__reg">Effective {{ r.effectiveDate | localDate }}</span>
@@ -128,7 +128,7 @@
             <div class="form-group">
               <label for="xrCurrency">Currency <span class="required">*</span></label>
               @if (editId()) {
-                <input id="xrCurrency" type="text" [value]="form.controls.currencyCode.value + (currencyName(form.controls.currencyCode.value) ? ' — ' + currencyName(form.controls.currencyCode.value) : '')" disabled />
+                <input id="xrCurrency" type="text" [value]="form.controls.currencyCode.value + (currencyName(form.controls.currencyCode.value) ? ' - ' + currencyName(form.controls.currencyCode.value) : '')" disabled />
               } @else {
                 <app-combobox inputId="xrCurrency" formControlName="currencyCode"
                               [options]="currencyOptions()"

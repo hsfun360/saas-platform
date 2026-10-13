@@ -62,7 +62,7 @@
               <span>
                 <span style="font-weight: var(--weight-semibold); color: var(--text-primary);">{{ role.name }}</span>
                 @if (role.description) {
-                  <span style="color: var(--text-muted); font-size: var(--font-body-2);"> — {{ role.description }}</span>
+                  <span style="color: var(--text-muted); font-size: var(--font-body-2);"> - {{ role.description }}</span>
                 }
               </span>
               <span style="font-size: var(--font-caption); color: var(--text-muted);">
@@ -158,7 +158,7 @@
           <input type="radio" formControlName="dataScope" value="department">
           <span class="scope-option__text">
             <span class="scope-option__name">Department (senior over junior)</span>
-            <span class="scope-option__desc">Own records, plus records created in the user's department by someone of a lower position rank — e.g. a Supervisor or Manager amending a Staff entry. Colleagues of the same rank cannot amend each other's records.</span>
+            <span class="scope-option__desc">Own records, plus records created in the user's department by someone of a lower position rank - e.g. a Supervisor or Manager amending a Staff entry. Colleagues of the same rank cannot amend each other's records.</span>
           </span>
         </label>
         <label class="scope-option">
@@ -174,7 +174,7 @@
         <label style="display: block; font-weight: var(--weight-bold); margin-bottom: var(--space-xs); color: var(--text-secondary); font-size: var(--font-h3);">Assign Permissions</label>
         <p style="color: var(--text-muted); font-size: var(--font-body-2); margin-bottom: var(--space-md); margin-top: 0;">
           Select which menus this role is allowed to access.
-          Ticking a menu grants viewing plus full Create / Edit / Delete — untick the actions the role should not have.
+          Ticking a menu grants viewing plus full Create / Edit / Delete - untick the actions the role should not have.
         </p>
 
         <!-- The shared role-builder picker (also used by the platform System

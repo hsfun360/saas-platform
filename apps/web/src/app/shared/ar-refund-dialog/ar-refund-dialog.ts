@@ -40,7 +40,7 @@ const REFUND_KINDS: RefundKindDef[] = [
   },
   {
     key: 'offset', label: 'Deposit to outstanding', icon: 'swap_horiz',
-    caption: 'applies a deposit’s held balance to open items through a Credit Note — no money leaves the bank.',
+    caption: 'applies a deposit’s held balance to open items through a Credit Note - no money leaves the bank.',
   },
 ];
 
@@ -91,7 +91,7 @@ export class ArRefundDialogComponent implements OnInit {
     (this.effMeta()?.transactionTypes || []).filter((t) => t.trxClass === 'refund'));
   readonly methodOptions = computed<ComboOption[]>(() => this.methodTypes().map((tt) => ({
     value: tt.id,
-    label: tt.description ? `${tt.transactionType} — ${tt.description}` : tt.transactionType,
+    label: tt.description ? `${tt.transactionType} - ${tt.description}` : tt.transactionType,
   })));
   // Refundable deposits: open, with a HELD balance to draw on.
   readonly refundableDeposits = computed(() =>
@@ -242,7 +242,7 @@ export class ArRefundDialogComponent implements OnInit {
   }
 
   depositLabel(d: { docNo: string | null; heldAmount?: string | null }): string {
-    return `${d.docNo} — held ${Number(d.heldAmount ?? 0).toFixed(2)}`;
+    return `${d.docNo} - held ${Number(d.heldAmount ?? 0).toFixed(2)}`;
   }
 
   // --- Debtor picker ---

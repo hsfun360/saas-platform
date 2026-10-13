@@ -84,7 +84,7 @@ export class PositionsComponent implements OnInit {
   readonly activeCount = computed(() => this.positions().filter((p) => p.isActive !== false).length);
 
   readonly dialogTitle = computed(() =>
-    this.editId() ? `Edit — ${this.formValue().positionCode ?? ''}` : 'New position',
+    this.editId() ? `Edit - ${this.formValue().positionCode ?? ''}` : 'New position',
   );
 
   ngOnInit(): void {

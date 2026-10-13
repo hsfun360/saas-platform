@@ -353,7 +353,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     const m = this.meta();
     return (m ? m.courses : []).map((c) => ({
       value: c.id,
-      label: `${c.courseCode}${c.description ? ' — ' + c.description : ''}`,
+      label: `${c.courseCode}${c.description ? ' - ' + c.description : ''}`,
     }));
   });
 
@@ -361,7 +361,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     const m = this.meta();
     return (m ? m.paymentTypes : []).map((t) => ({
       value: t.id,
-      label: `${t.paymentType}${t.description ? ' — ' + t.description : ''}`,
+      label: `${t.paymentType}${t.description ? ' - ' + t.description : ''}`,
     }));
   });
 

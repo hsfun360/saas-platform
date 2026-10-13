@@ -14,7 +14,7 @@ const STORAGE_KEY = 'appTheme';
 export class ThemeService {
   // The user's choice.
   readonly mode = signal<ThemeMode>('system');
-  // The theme actually in effect after resolving 'system' — for the UI to reflect.
+  // The theme actually in effect after resolving 'system' - for the UI to reflect.
   readonly resolved = signal<'light' | 'dark'>('light');
 
   private readonly media = window.matchMedia('(prefers-color-scheme: dark)');

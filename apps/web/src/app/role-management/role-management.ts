@@ -14,7 +14,7 @@ import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
 import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 
 // Account-level Role Management. A Role is just a named set of menu permissions
-// (RBAC) — NOT tied to a company. Company enters only at entitlement (module
+// (RBAC) - NOT tied to a company. Company enters only at entitlement (module
 // subscription) and assignment (user↔role within a company). The permission
 // catalogue is the subscriber account's entitled menus.
 //

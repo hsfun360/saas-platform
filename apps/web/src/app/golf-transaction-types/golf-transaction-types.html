@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">receipt_long</span>
       <div>
         <h1>{{ 'Transaction Type' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'The golf billing-item catalog — each carries its charge type, the tax scheme applied when it is billed, and its effective-dated prices.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'The golf billing-item catalog - each carries its charge type, the tax scheme applied when it is billed, and its effective-dated prices.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -33,7 +33,7 @@
       @if (rows().length > 0) {
         {{ rows().length }} transaction types, {{ activeCount() }} active
       } @else {
-        No transaction types yet — use "New transaction type" to add one.
+        No transaction types yet - use "New transaction type" to add one.
       }
     </span>
   </div>
@@ -53,7 +53,7 @@
   @if (loading()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading transaction types…</p></div>
   } @else if (rows().length === 0) {
-    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No transaction types yet. Use "New transaction type" to add one (e.g. GF18 — 18 Holes Green Fee, CADDY — Caddy Fee).</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No transaction types yet. Use "New transaction type" to add one (e.g. GF18 - 18 Holes Green Fee, CADDY - Caddy Fee).</p></div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
@@ -169,7 +169,7 @@
             <label for="gttChargeType">Charge Type <span class="required">*</span></label>
             <select id="gttChargeType" formControlName="chargeType"
                     [attr.aria-invalid]="showError(form.controls.chargeType)" aria-describedby="gttChargeTypeErr">
-              <option value="">— Select —</option>
+              <option value="">- Select -</option>
               @for (c of chargeTypes(); track c.key) {
                 <option [value]="c.key">{{ c.label }}</option>
               }
@@ -184,7 +184,7 @@
             <div class="form-group">
               <label for="gttGolferType">Default for golfer type</label>
               <select id="gttGolferType" formControlName="golferType">
-                <option value="">— None — billing item for everyone</option>
+                <option value="">- None - billing item for everyone</option>
                 @for (g of golferTypes(); track g.key) {
                   <option [value]="g.key">{{ g.label }}</option>
                 }
@@ -192,7 +192,7 @@
               @if (form.controls.chargeType.value === 'green-fee') {
                 <p class="cell-subtle field-hint">Optional: makes this the green fee auto-charged at registration for that golfer type (one active default each). Leave as None for manual items like group-booking or tournament green fees. Members with golfing right are never auto-charged; Member prices members without the right.</p>
               } @else {
-                <p class="cell-subtle field-hint">Optional: makes this the only {{ form.controls.chargeType.value === 'buggy-fee' ? 'buggy' : 'caddy' }} tile that golfer type sees on the bill (one active default each) — e.g. a member rate and a visitor rate resolve by the player being billed. Leave as None for an item every golfer may be billed.</p>
+                <p class="cell-subtle field-hint">Optional: makes this the only {{ form.controls.chargeType.value === 'buggy-fee' ? 'buggy' : 'caddy' }} tile that golfer type sees on the bill (one active default each) - e.g. a member rate and a visitor rate resolve by the player being billed. Leave as None for an item every golfer may be billed.</p>
               }
             </div>
           </div>
@@ -208,12 +208,12 @@
             <label for="gttTax">Tax Scheme</label>
             <app-combobox inputId="gttTax" formControlName="taxSchemeCode"
                           [options]="taxSchemeOptions()"
-                          [allowEmpty]="true" emptyLabel="— None —"
+                          [allowEmpty]="true" emptyLabel="- None -"
                           placeholder="Type to search…" />
             @if (isPackageForm()) {
-              <p class="cell-subtle field-hint">Applied to EVERY bill line generated from this package (element lines and the auto balance line) — the elements' own tax schemes are ignored for package billing.</p>
+              <p class="cell-subtle field-hint">Applied to EVERY bill line generated from this package (element lines and the auto balance line) - the elements' own tax schemes are ignored for package billing.</p>
             } @else {
-              <p class="cell-subtle field-hint">The single source of tax for this billing item — green-fee and charge setups inherit it.</p>
+              <p class="cell-subtle field-hint">The single source of tax for this billing item - green-fee and charge setups inherit it.</p>
             }
           </div>
         </div>
@@ -223,7 +223,7 @@
               <label for="gttAutoType">Auto Transaction Type <span class="required">*</span></label>
               <app-combobox inputId="gttAutoType" formControlName="autoTransactionTypeId"
                             [options]="elementComboOptions()"
-                            [allowEmpty]="true" emptyLabel="— Select —"
+                            [allowEmpty]="true" emptyLabel="- Select -"
                             placeholder="Type to search…" />
               <p class="cell-subtle field-hint">Billing adds an automatic line to this transaction type for the balance: package price minus the elements total (e.g. PAK1 450.00 − 169.00 → GF1 281.00).</p>
             </div>
@@ -231,7 +231,7 @@
           <div class="form-row">
             <div class="form-group">
               <label>Package Elements <span class="required">*</span></label>
-              <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Pick existing billing items with quantity and per-unit price — these bill as-is; the remainder of the package price posts to the Auto Transaction Type.</p>
+              <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Pick existing billing items with quantity and per-unit price - these bill as-is; the remainder of the package price posts to the Auto Transaction Type.</p>
               @if (pkgLines.length > 0) {
                 <div class="pkg-row pkg-row--head" aria-hidden="true">
                   <span>Element</span>
@@ -245,7 +245,7 @@
                   <div class="pkg-row" [formGroupName]="i">
                     <app-combobox formControlName="elementTransactionTypeId"
                                   [options]="elementComboOptions()"
-                                  [allowEmpty]="true" emptyLabel="— Select —"
+                                  [allowEmpty]="true" emptyLabel="- Select -"
                                   [ariaLabel]="'Package element ' + (i + 1)"
                                   placeholder="Type to search…" />
                     <input type="number" inputmode="numeric" min="1" max="99" step="1" formControlName="quantity"
@@ -268,13 +268,13 @@
                   <span class="pkg-sum">Elements total: <strong>{{ fmt(pkgSum()) }}</strong></span>
                 }
               </div>
-              <p class="cell-subtle field-hint">The package's own selling price is set under Default Price — the elements total shows how it breaks down (e.g. Twin Package 200.00 = 1 × buggy 100.00 + 2 × caddy 50.00).</p>
+              <p class="cell-subtle field-hint">The package's own selling price is set under Default Price - the elements total shows how it breaks down (e.g. Twin Package 200.00 = 1 × buggy 100.00 + 2 × caddy 50.00).</p>
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label>Eligibility</label>
-              <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Who may be billed this package. Each condition is one way to qualify — a golfer needs to meet every part of ONE condition. No conditions = everyone, any time. On the bill, a package the golfer does not qualify for shows greyed out with the reason.</p>
+              <p class="cell-subtle" style="margin: 0 0 var(--space-sm);">Who may be billed this package. Each condition is one way to qualify - a golfer needs to meet every part of ONE condition. No conditions = everyone, any time. On the bill, a package the golfer does not qualify for shows greyed out with the reason.</p>
               <div formArrayName="eligibility">
               @for (g of eligLines.controls; track g; let i = $index) {
                 <div class="elig-row" [formGroupName]="i">
@@ -411,9 +411,9 @@
               <div class="empty-state">
                 <span class="material-icons empty-icon" aria-hidden="true">sell</span>
                 @if (prIsMatrix()) {
-                  <p>No prices yet. Use "New price" to set the 9/18-hole weekday/weekend prices — a later effective date lets you pre-set a future price change.</p>
+                  <p>No prices yet. Use "New price" to set the 9/18-hole weekday/weekend prices - a later effective date lets you pre-set a future price change.</p>
                 } @else {
-                  <p>No prices yet. Use "New price" to set the amount — a later effective date lets you pre-set a future price change.</p>
+                  <p>No prices yet. Use "New price" to set the amount - a later effective date lets you pre-set a future price change.</p>
                 }
               </div>
             } @else {

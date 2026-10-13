@@ -69,9 +69,9 @@ export class ArExchangeRatesComponent implements OnInit {
 
   readonly baseCurrency = computed(() => this.meta()?.baseCurrencyCode || null);
   readonly currencies = computed(() => this.meta()?.currencies || []);
-  // Combobox rows for the currency picker (code — name so both match).
+  // Combobox rows for the currency picker (code - name so both match).
   readonly currencyOptions = computed(() =>
-    this.currencies().map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` })));
+    this.currencies().map((c) => ({ value: c.code, label: `${c.code} - ${c.name}` })));
   readonly multiCurrencyEnabled = computed(() => this.meta()?.multiCurrencyEnabled === true);
 
   // Today's local date (ISO) - decides which row is the CURRENT rate per

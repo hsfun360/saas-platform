@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">badge</span>
       <div>
         <h1>{{ 'Memberships' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Individual and corporate memberships — the members, nominees and dependents under each.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Individual and corporate memberships - the members, nominees and dependents under each.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -31,9 +31,9 @@
   <div style="margin-bottom: var(--space-md);">
     <span class="cell-subtle">
       @if (totalKnown() > 0) {
-        {{ totalKnown() }} memberships — {{ individualCount() }} individual, {{ corporateCount() }} corporate
+        {{ totalKnown() }} memberships - {{ individualCount() }} individual, {{ corporateCount() }} corporate
       } @else {
-        No memberships yet — use "New membership" to create the first one.
+        No memberships yet - use "New membership" to create the first one.
       }
     </span>
   </div>
@@ -70,7 +70,7 @@
   @if (loading()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading memberships…</p></div>
   } @else if (totalKnown() === 0) {
-    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No memberships yet. Use "New membership" — an individual membership creates its member automatically; a corporate membership takes nominees.</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No memberships yet. Use "New membership" - an individual membership creates its member automatically; a corporate membership takes nominees.</p></div>
   } @else if (rows().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
@@ -83,7 +83,7 @@
         <div class="data-card" [attr.data-return-id]="ms.id">
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
-              <div class="data-card__title">{{ ms.membershipNo }}@if (ms.displayName) { — {{ ms.displayName }}}</div>
+              <div class="data-card__title">{{ ms.membershipNo }}@if (ms.displayName) { - {{ ms.displayName }}}</div>
               <div class="data-card__subline">
                 <span class="ms-class-chip" [class.ms-class-chip--corp]="ms.membershipClass === 'corporate'">{{ classLabel(ms.membershipClass) }}</span>
                 <span class="data-card__reg">{{ typeCategory(ms.membershipTypeId) }}</span>
@@ -176,7 +176,7 @@
             <label [for]="prefix + 'Country' + i">Country</label>
             <app-combobox [inputId]="prefix + 'Country' + i" formControlName="countryCode"
                           [options]="countryOptions()"
-                          [allowEmpty]="true" emptyLabel="—"
+                          [allowEmpty]="true" emptyLabel="-"
                           placeholder="Type to search…" />
           </div>
         </div>
@@ -230,14 +230,14 @@
           <label for="mSalutation">Salutation</label>
           <app-combobox inputId="mSalutation" formControlName="salutationCode"
                         [options]="salutationOptions()"
-                        [allowEmpty]="true" emptyLabel="—"
+                        [allowEmpty]="true" emptyLabel="-"
                         placeholder="Type to search…" />
         </div>
         <div class="form-group">
           <label for="mTitle">Title</label>
           <app-combobox inputId="mTitle" formControlName="titleCode"
                         [options]="titleOptions()"
-                        [allowEmpty]="true" emptyLabel="—"
+                        [allowEmpty]="true" emptyLabel="-"
                         placeholder="Type to search…" />
         </div>
         <div class="form-group">
@@ -273,7 +273,7 @@
         <div class="form-group">
           <label for="mGender">Gender</label>
           <select id="mGender" formControlName="gender">
-            <option value="">—</option>
+            <option value="">-</option>
             @for (g of meta()?.genders; track g.key) {
               <option [value]="g.key">{{ g.label }}</option>
             }
@@ -291,20 +291,20 @@
           <label for="mNationality">Nationality</label>
           <app-combobox inputId="mNationality" formControlName="nationalityCode"
                         [options]="nationalityOptions()"
-                        [allowEmpty]="true" emptyLabel="—"
+                        [allowEmpty]="true" emptyLabel="-"
                         placeholder="Type to search…" />
         </div>
         <div class="form-group">
           <label for="mRace">Race</label>
           <app-combobox inputId="mRace" formControlName="raceCode"
                         [options]="raceOptions()"
-                        [allowEmpty]="true" emptyLabel="—"
+                        [allowEmpty]="true" emptyLabel="-"
                         placeholder="Type to search…" />
         </div>
         <div class="form-group">
           <label for="mMarital">Marital status</label>
           <select id="mMarital" formControlName="maritalStatus">
-            <option value="">—</option>
+            <option value="">-</option>
             @for (m of meta()?.maritalStatuses; track m.key) {
               <option [value]="m.key">{{ m.label }}</option>
             }
@@ -360,7 +360,7 @@
           <label for="mIndustry">Industry</label>
           <app-combobox inputId="mIndustry" formControlName="industryTypeCode"
                         [options]="industryTypeOptions()"
-                        [allowEmpty]="true" emptyLabel="—"
+                        [allowEmpty]="true" emptyLabel="-"
                         placeholder="Type to search…" />
         </div>
       </div>
@@ -395,11 +395,11 @@
           <div style="display: grid; gap: var(--space-sm);">
             <button type="button" class="btn btn--secondary dlg-pick" (click)="pickClass('individual')">
               <span class="material-icons" aria-hidden="true">person</span>
-              <span class="dlg-pick__text"><strong>Individual</strong> — one person holds the membership; their profile is captured now.</span>
+              <span class="dlg-pick__text"><strong>Individual</strong> - one person holds the membership; their profile is captured now.</span>
             </button>
             <button type="button" class="btn btn--secondary dlg-pick" (click)="pickClass('corporate')">
               <span class="material-icons" aria-hidden="true">business</span>
-              <span class="dlg-pick__text"><strong>Corporate</strong> — a company holds the membership; nominees are added after saving.</span>
+              <span class="dlg-pick__text"><strong>Corporate</strong> - a company holds the membership; nominees are added after saving.</span>
             </button>
           </div>
         </div>
@@ -427,7 +427,7 @@
             } @else {
               <app-combobox inputId="msType" formControlName="membershipTypeId"
                             [options]="classTypeOptions()"
-                            [allowEmpty]="true" emptyLabel="— Select a type —"
+                            [allowEmpty]="true" emptyLabel="- Select a type -"
                             placeholder="Type to search…"
                             [invalid]="showError(membershipForm.controls.membershipTypeId)" describedBy="msTypeErr" />
               @if (showError(membershipForm.controls.membershipTypeId)) {
@@ -449,14 +449,14 @@
             <label for="msStatus">Status</label>
             <app-combobox inputId="msStatus" formControlName="membershipStatusId"
                           [options]="statusWithClassOptions()"
-                          [allowEmpty]="true" emptyLabel="— Type default —"
+                          [allowEmpty]="true" emptyLabel="- Type default -"
                           placeholder="Type to search…" />
           </div>
           <div class="form-group">
             <label for="msFee">Membership fee</label>
             <app-combobox inputId="msFee" formControlName="membershipFeeId"
                           [options]="feeOptions()"
-                          [allowEmpty]="true" emptyLabel="— None —"
+                          [allowEmpty]="true" emptyLabel="- None -"
                           placeholder="Type to search…" />
           </div>
           <div class="form-group">
@@ -472,7 +472,7 @@
               <label for="msExpiryDate">Expiry date</label>
               <input id="msExpiryDate" type="date" formControlName="expiryDate" />
               @if (!editMembership() && selectedType()?.termMonths) {
-                <p class="cell-subtle field-hint">Pre-filled from the {{ selectedType()?.termMonths }}-month term — adjust if needed.</p>
+                <p class="cell-subtle field-hint">Pre-filled from the {{ selectedType()?.termMonths }}-month term - adjust if needed.</p>
               }
             </div>
           }
@@ -496,7 +496,7 @@
                 <div class="form-group">
                   <label for="msCreditFlag">Credit flag</label>
                   <select id="msCreditFlag" formControlName="creditFlag">
-                    <option value="">—</option>
+                    <option value="">-</option>
                     @for (o of meta()?.creditFlags; track o.key) {
                       <option [value]="o.key">{{ o.label }}</option>
                     }
@@ -517,7 +517,7 @@
               <div class="form-group">
                 <label for="msStatement">Statement</label>
                 <select id="msStatement" formControlName="statementMode">
-                  <option value="">—</option>
+                  <option value="">-</option>
                   @for (o of meta()?.statementModes; track o.key) {
                     <option [value]="o.key">{{ o.label }}</option>
                   }
@@ -562,14 +562,14 @@
                 <label for="msSales">Sales agent (closed the sale)</label>
                 <app-combobox inputId="msSales" formControlName="salesAgentId"
                               [options]="agentOptions()"
-                              [allowEmpty]="true" emptyLabel="—"
+                              [allowEmpty]="true" emptyLabel="-"
                               placeholder="Type to search…" />
               </div>
               <div class="form-group">
                 <label for="msFollowupSales">Follow-up sales agent</label>
                 <app-combobox inputId="msFollowupSales" formControlName="followupSalesAgentId"
                               [options]="agentOptions()"
-                              [allowEmpty]="true" emptyLabel="—"
+                              [allowEmpty]="true" emptyLabel="-"
                               placeholder="Type to search…" />
               </div>
             }
@@ -621,7 +621,7 @@
               <label for="msIndustry">Industry</label>
               <app-combobox inputId="msIndustry" formControlName="industryTypeCode"
                             [options]="industryTypeOptions()"
-                            [allowEmpty]="true" emptyLabel="—"
+                            [allowEmpty]="true" emptyLabel="-"
                             placeholder="Type to search…" />
             </div>
           </div>
@@ -649,7 +649,7 @@
           <ng-container [ngTemplateOutlet]="profileFields"></ng-container>
         }
         @if (!editMembership() && !dialogClass()) {
-          <p class="cell-subtle" style="margin-top: var(--space-md);">Select a membership type to continue — the type decides whether this is an individual or a corporate membership.</p>
+          <p class="cell-subtle" style="margin-top: var(--space-md);">Select a membership type to continue - the type decides whether this is an individual or a corporate membership.</p>
         }
         @if (editMembership() && dialogClass() === 'individual') {
           <details class="dlg-sec" open>
@@ -804,7 +804,7 @@
             <label for="memStatus">Status <span class="required">*</span></label>
             <app-combobox inputId="memStatus" formControlName="memberStatusId"
                           [options]="statusWithClassOptions()"
-                          [allowEmpty]="true" emptyLabel="— Select —"
+                          [allowEmpty]="true" emptyLabel="- Select -"
                           placeholder="Type to search…"
                           [invalid]="showError(memberMetaForm.controls.memberStatusId)" describedBy="memStatusErr" />
             @if (showError(memberMetaForm.controls.memberStatusId)) {

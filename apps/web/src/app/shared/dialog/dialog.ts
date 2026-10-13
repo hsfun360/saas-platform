@@ -16,27 +16,27 @@ import {
 // Reusable modal dialog: a popup that covers the whole viewport (full-screen on
 // mobile) so the content reads as its own screen. It owns the chrome (overlay,
 // title bar, scrollable body, fixed footer) and the accessibility behaviour
-// required by docs/coding-standards.md — focus moves in on open, is trapped
+// required by docs/coding-standards.md - focus moves in on open, is trapped
 // while open, Esc closes, and focus returns to the trigger on close.
 //
 // Two desktop presentations, chosen by [variant]:
 // - 'drawer' (the standard for create/edit FORMS): a full-height panel that
-//   slides in from the RIGHT edge at the ONE standard width, 800px — form
+//   slides in from the RIGHT edge at the ONE standard width, 800px - form
 //   fields fill the panel instead of swimming in a wide centred box, and
 //   desktop matches the full-screen feel users get on mobile. There is
 //   deliberately NO per-screen width option (a 'size' input was removed when
-//   the user standardized on one width, 2026-08-19) — every drawer is 800px
+//   the user standardized on one width, 2026-08-19) - every drawer is 800px
 //   so screens never drift.
-// - 'center' (the default): the centred card — for short interrupting
+// - 'center' (the default): the centred card - for short interrupting
 //   decisions and non-form content where a slide-in would feel wrong.
 // Both collapse to the same edge-to-edge full-screen on mobile.
 //
 // Unsaved-changes guard (opt-in): bind [dirty] to whether the projected form
-// currently holds unsaved edits — `form.dirty` for a reactive FormGroup, or
+// currently holds unsaved edits - `form.dirty` for a reactive FormGroup, or
 // `f.dirty` from a template ref `#f="ngForm"` for a template-driven form (both
 // stay pristine until the user actually edits a field). When it is true, any
-// attempt to leave — Cancel (routed through requestClose), the ✕, Esc, the
-// browser Back button / mobile back gesture, or a browser refresh / tab close —
+// attempt to leave - Cancel (routed through requestClose), the ✕, Esc, the
+// browser Back button / mobile back gesture, or a browser refresh / tab close -
 // is intercepted: in-app closes and Back show a styled "discard?" confirmation
 // over the form, and a browser unload triggers the native "Leave site?" prompt.
 //
@@ -46,7 +46,7 @@ import {
 // on a dirty form it shows the discard confirmation. The pushed entry is
 // cleaned up when the dialog closes by any other path.
 //
-// Usage (the footer keeps its buttons inline — opt the submit out of the mobile
+// Usage (the footer keeps its buttons inline - opt the submit out of the mobile
 // full-width rule via the global `.dlg__footer .btn`):
 //   @if (show()) {
 //     <app-dialog #dlg title="New item" [busy]="saving()"
@@ -72,7 +72,7 @@ import {
 })
 export class DialogComponent implements OnDestroy {
   readonly title = input.required<string>();
-  // Desktop presentation — see the class comment. Mobile is identical for both.
+  // Desktop presentation - see the class comment. Mobile is identical for both.
   readonly variant = input<'center' | 'drawer'>('center');
   readonly busy = input(false); // while true, the ✕ and Esc are inert (mid-save)
   readonly close = output<void>();
@@ -82,7 +82,7 @@ export class DialogComponent implements OnDestroy {
   // is open. See project-overview.md "Flash messages" - do not re-add an
   // in-dialog error bar (a briefly-lived [error] input was removed for this).
 
-  // Unsaved-changes guard — see the class comment. Default: never dirty (off).
+  // Unsaved-changes guard - see the class comment. Default: never dirty (off).
   // Typed nullable because NgForm.dirty is `boolean | null`; every read is a
   // truthy check so null/undefined behave as "not dirty".
   readonly dirty = input<boolean | null | undefined>(false);
@@ -100,7 +100,7 @@ export class DialogComponent implements OnDestroy {
   // Captured at construction (during the click that opened the dialog) so focus
   // can return to the opener on close.
   private readonly trigger = document.activeElement as HTMLElement | null;
-  // The last field the user was in inside the form body — so "Keep editing"
+  // The last field the user was in inside the form body - so "Keep editing"
   // returns the cursor exactly where they left off, not to the first field.
   private lastBodyFocus: HTMLElement | null = null;
   // True while a same-URL history entry we pushed to trap the browser Back
@@ -128,7 +128,7 @@ export class DialogComponent implements OnDestroy {
   ngOnDestroy(): void {
     window.removeEventListener('popstate', this.onPopState);
     // If the dialog is closing by any path OTHER than Back (Cancel / ✕ / Esc /
-    // Discard / save), our trap entry is still in history — consume it so a later
+    // Discard / save), our trap entry is still in history - consume it so a later
     // Back press isn't a dead no-op. The listener is already removed and the URL
     // is unchanged, so this neither re-enters here nor triggers a route change.
     // Guard on our own history-state marker so that if the dialog was instead
@@ -248,7 +248,7 @@ export class DialogComponent implements OnDestroy {
   }
 
   // Initial focus lands on the first form FIELD (input/select/textarea) so the
-  // user can start typing immediately — buttons that happen to precede the
+  // user can start typing immediately - buttons that happen to precede the
   // first field (e.g. a "Change" chip action) don't steal it. Falls back to
   // the first non-✕ focusable, then the ✕.
   private firstFocusable(): HTMLElement | null {

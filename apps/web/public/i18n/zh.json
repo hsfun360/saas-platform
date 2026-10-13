@@ -92,7 +92,7 @@
   "accountLanguages.mustPickOne": "请至少选择一种语言。",
   "accountLanguages.yourList": "您的语言",
   "accountLanguages.yourListHelp": "您的组织提供的语言。点击某项设为 ★ 默认；✕ 可移除。",
-  "accountLanguages.noneSelected": "尚未选择 — 请从下方列表勾选语言。",
+  "accountLanguages.noneSelected": "尚未选择 - 请从下方列表勾选语言。",
   "accountLanguages.defaultTag": "默认",
 
   "home.title": "我的仪表板",

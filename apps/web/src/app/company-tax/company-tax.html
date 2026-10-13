@@ -68,7 +68,7 @@
           <div class="data-card" [attr.data-return-id]="a.id" [class.ct-card--off]="!a.isEnabled">
             <div class="data-row data-row--with-badge">
               <div class="data-row__main">
-                <div class="data-card__title">{{ a.taxSchemeCode }} — {{ a.name }}</div>
+                <div class="data-card__title">{{ a.taxSchemeCode }} - {{ a.name }}</div>
                 <div class="data-card__subline">
                   <span class="data-card__reg">{{ a.ieFlag }} · {{ a.taxClass }}</span>
                 </div>
@@ -117,7 +117,7 @@
 
   <!-- ============ Edit adoption dialog ============ -->
   @if (editOpen() && editScheme(); as a) {
-    <app-dialog #ctDlg variant="drawer" [title]="'Company tax — ' + a.taxSchemeCode" [busy]="editSaving()" [dirty]="editForm.dirty"
+    <app-dialog #ctDlg variant="drawer" [title]="'Company tax - ' + a.taxSchemeCode" [busy]="editSaving()" [dirty]="editForm.dirty"
                 discardTitle="Discard your changes?"
                 discardMessage="You have unsaved changes. Leaving now will discard them."
                 (close)="closeEdit()">
@@ -131,7 +131,7 @@
 
         @if (a.components.length) {
           <p class="cell-subtle" style="margin: var(--space-sm) 0 var(--space-xs);">
-            GL account per component — leave blank to use the subscriber default (shown as the placeholder).
+            GL account per component - leave blank to use the subscriber default (shown as the placeholder).
           </p>
           <div class="ct-gl-list" formGroupName="gl">
             @for (c of a.components; track c.taxCode) {

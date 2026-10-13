@@ -1,6 +1,6 @@
 <app-dialog #dlg variant="drawer"
-            [title]="editRow() ? 'Edit Deposit — ' + (editRow()?.docNo || 'Draft')
-                     : mode() === 'pick' ? 'New Deposit — select debtor' : 'New Deposit'"
+            [title]="editRow() ? 'Edit Deposit - ' + (editRow()?.docNo || 'Draft')
+                     : mode() === 'pick' ? 'New Deposit - select debtor' : 'New Deposit'"
             [busy]="saving() || metaLoading()"
             [dirty]="mode() === 'entry' && form.dirty"
             discardTitle="Discard this deposit?"
@@ -23,7 +23,7 @@
             @for (d of pickRows(); track d.id) {
               <button type="button" class="ald-pick__row" (click)="pick(d)">
                 <span class="ald-pick__who">
-                  <strong>{{ d.no || '—' }}</strong>
+                  <strong>{{ d.no || '-' }}</strong>
                   <span>{{ d.name || 'Unnamed' }}</span>
                 </span>
                 <span class="ald-pick__facts">
@@ -40,7 +40,7 @@
       @if (activeDebtor(); as who) {
         <div class="ald-debtor">
           <span class="material-icons" aria-hidden="true">account_balance</span>
-          <span class="ald-debtor__name"><strong>{{ who.no || '—' }}</strong> {{ who.name }}</span>
+          <span class="ald-debtor__name"><strong>{{ who.no || '-' }}</strong> {{ who.name }}</span>
           @if (isForeign()) { <span class="ald-debtor__ccy">{{ fxCurrency()?.code }} account</span> }
           @if (!debtor() && !editRow()) {
             <button type="button" class="btn btn--link btn--sm" (click)="changeDebtor()">Change</button>
@@ -81,7 +81,7 @@
             <div class="form-group">
               <label for="dpTrxDate">Transaction date (period) <span class="required">*</span></label>
               <input id="dpTrxDate" type="date" formControlName="trxDate" />
-              <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Accounting period — differs from the document date only when back-keying into a closed month.</p>
+              <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Accounting period - differs from the document date only when back-keying into a closed month.</p>
             </div>
           </div>
           @if (isForeign()) {

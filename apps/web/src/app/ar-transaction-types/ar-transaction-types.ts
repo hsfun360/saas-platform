@@ -41,7 +41,7 @@ export class ArTransactionTypesComponent implements OnInit {
   // Constrained-combobox options (house standard for long reference lists):
   // code AND name in the label so type-to-filter matches both.
   readonly taxSchemeOptions = computed(() =>
-    this.taxSchemes().map((s) => ({ value: s.taxSchemeCode, label: s.name ? `${s.taxSchemeCode} — ${s.name}` : s.taxSchemeCode })));
+    this.taxSchemes().map((s) => ({ value: s.taxSchemeCode, label: s.name ? `${s.taxSchemeCode} - ${s.name}` : s.taxSchemeCode })));
   readonly loading = signal(false);
   readonly togglingId = signal<string | null>(null);
 
@@ -82,7 +82,7 @@ export class ArTransactionTypesComponent implements OnInit {
   readonly einvOptions = computed(() =>
     (this.meta()?.eInvoiceClassifications || []).map((c) => ({
       code: c.code,
-      label: `${c.code} — ${(c.description || '').length > 80 ? (c.description || '').slice(0, 80) + '…' : (c.description || '')}`,
+      label: `${c.code} - ${(c.description || '').length > 80 ? (c.description || '').slice(0, 80) + '…' : (c.description || '')}`,
     })));
   // The same list shaped for the constrained combobox ({value, label}).
   readonly einvComboOptions = computed(() =>
@@ -162,7 +162,7 @@ export class ArTransactionTypesComponent implements OnInit {
   taxSchemeName(code: string | null | undefined): string {
     if (!code) return '';
     const s = this.taxSchemes().find((t) => t.taxSchemeCode === code);
-    return s ? `${s.taxSchemeCode}${s.name ? ' — ' + s.name : ''}` : code;
+    return s ? `${s.taxSchemeCode}${s.name ? ' - ' + s.name : ''}` : code;
   }
 
   // --- Copy from another company (2026-09-05) ---------------------------------

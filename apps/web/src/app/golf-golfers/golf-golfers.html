@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">sports_golf</span>
       <div>
         <h1>{{ 'Golfers' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Every golfer identity — maintain the handicap index and status the handicap-control rules read.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Every golfer identity - maintain the handicap index and status the handicap-control rules read.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -42,7 +42,7 @@
                 <span class="data-card__reg">{{ typeLabel(g.golferType) }}{{ g.memberNo ? ' · ' + g.memberNo : '' }}</span>
               </div>
               <dl class="data-card__meta">
-                <div class="meta"><dt>Handicap</dt><dd>{{ g.handicapIndex === null ? '—' : g.handicapIndex.toFixed(1) }}</dd></div>
+                <div class="meta"><dt>Handicap</dt><dd>{{ g.handicapIndex === null ? '-' : g.handicapIndex.toFixed(1) }}</dd></div>
                 <div class="meta"><dt>Status</dt><dd>{{ statusLabel(g.handicapStatus) }}</dd></div>
                 @if (g.remarks) {
                   <div class="meta"><dt>Remarks</dt><dd>{{ g.remarks }}</dd></div>
@@ -69,7 +69,7 @@
   }
 
   @if (editing(); as golfer) {
-    <app-dialog #dlg variant="drawer" [title]="'Handicap — ' + golfer.name" [busy]="saving()" [dirty]="form.dirty"
+    <app-dialog #dlg variant="drawer" [title]="'Handicap - ' + golfer.name" [busy]="saving()" [dirty]="form.dirty"
                 (close)="closeEdit()">
       <form id="golferForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form">
         <div class="form-grid">

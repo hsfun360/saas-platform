@@ -77,7 +77,7 @@ export class NumberingComponent implements OnInit {
   });
 
   readonly dialogTitle = computed(() =>
-    this.editId() ? `Edit — ${this.purposeLabel(this.formValue().purpose ?? 'membership')}` : 'New numbering scheme',
+    this.editId() ? `Edit - ${this.purposeLabel(this.formValue().purpose ?? 'membership')}` : 'New numbering scheme',
   );
 
   // Live sample of the next number as the user edits (auto mode only). Mirrors

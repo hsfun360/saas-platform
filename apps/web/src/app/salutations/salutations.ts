@@ -70,7 +70,7 @@ export class SalutationsComponent implements OnInit {
   readonly activeCount = computed(() => this.salutations().filter((s) => s.isActive !== false).length);
 
   readonly dialogTitle = computed(() =>
-    this.editId() ? `Edit — ${this.formValue().salutationCode ?? ''}` : 'New salutation',
+    this.editId() ? `Edit - ${this.formValue().salutationCode ?? ''}` : 'New salutation',
   );
 
   ngOnInit(): void {

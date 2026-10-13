@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">account_tree</span>
       <div>
         <h1>{{ 'Departments' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'Your subscription\'s department list — shared by all companies, assigned to users in User Management.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'Your subscription\'s department list - shared by all companies, assigned to users in User Management.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -33,7 +33,7 @@
       @if (departments().length > 0) {
         {{ departments().length }} departments, {{ activeCount() }} active
       } @else {
-        No departments yet — use "New department" to add one.
+        No departments yet - use "New department" to add one.
       }
     </span>
   </div>

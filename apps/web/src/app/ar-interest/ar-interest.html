@@ -96,7 +96,7 @@
       </label>
       <button *appCan="'create'" type="button" class="btn btn--primary btn--sm" (click)="onConfirmSelected()"
               [disabled]="confirming() || selectedCount() === 0">
-        {{ confirming() ? 'Posting…' : 'Post ' + selectedCount() + (selectedCount() === 1 ? ' interest document' : ' interest documents') + ' — ' + totalSelected() }}
+        {{ confirming() ? 'Posting…' : 'Post ' + selectedCount() + (selectedCount() === 1 ? ' interest document' : ' interest documents') + ' - ' + totalSelected() }}
       </button>
     }
   </div>
@@ -106,7 +106,7 @@
   } @else if (rows().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
-      <p>No interest generations for this month yet. Use "Generate" above — the holding list shows exactly what will be posted before anything commits.</p>
+      <p>No interest generations for this month yet. Use "Generate" above - the holding list shows exactly what will be posted before anything commits.</p>
     </div>
   } @else {
     <div class="data-list">
@@ -121,7 +121,7 @@
                            [attr.aria-label]="'Select ' + (g.debtor?.no || 'debtor')" />
                   </label>
                 }
-                {{ g.debtor?.no || '—' }}@if (g.debtor?.name) { — {{ g.debtor?.name }}}
+                {{ g.debtor?.no || '-' }}@if (g.debtor?.name) { - {{ g.debtor?.name }}}
                 @if (g.currencyCode) { <span class="ai-ccy-chip">{{ g.currencyCode }}</span> }
               </div>
               <dl class="data-card__meta">
@@ -156,12 +156,12 @@
 
   <!-- ============ Drill-down dialog ============ -->
   @if (detailOpen()) {
-    <app-dialog #detailDlg [title]="'Interest — ' + (detailGen()?.debtor?.no || '')" [busy]="detailLoading()" (close)="closeDetail()">
+    <app-dialog #detailDlg [title]="'Interest - ' + (detailGen()?.debtor?.no || '')" [busy]="detailLoading()" (close)="closeDetail()">
       @if (detailLoading()) {
         <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading…</p></div>
       } @else {
         <p class="cell-subtle" style="margin-top: 0;">
-          {{ detailGen()?.debtor?.name }} — rate {{ detailGen()?.interestRate }}% flat, cutoff {{ detailGen()?.cutoffDate | localDate }}.
+          {{ detailGen()?.debtor?.name }} - rate {{ detailGen()?.interestRate }}% flat, cutoff {{ detailGen()?.cutoffDate | localDate }}.
           @if (detailGen()?.currencyCode) { Amounts in {{ detailGen()?.currencyCode }}. }
           Interest = overdue × rate, rounded per line; the posted total equals this drill-down exactly.
         </p>
@@ -189,7 +189,7 @@
             </div>
           }
           <div class="ai-line ai-line--total">
-            <span>Total — {{ includedCount() }} of {{ details().length }} line(s) included</span><span></span><span></span>
+            <span>Total - {{ includedCount() }} of {{ details().length }} line(s) included</span><span></span><span></span>
             <span class="ai-num">{{ detailGen()?.totalOverdue }}</span>
             <span class="ai-num">{{ detailGen()?.interestAmount }}</span>
             @if (detailGen()?.status === 'pending') { <span></span> }

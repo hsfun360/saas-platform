@@ -10,7 +10,7 @@ export interface Item {
   updatedAt: string; // ISO timestamp, set by the data source on write
 }
 
-// Shape accepted by create/update — everything the user edits, no server fields.
+// Shape accepted by create/update - everything the user edits, no server fields.
 export interface ItemInput {
   name: string;
   description: string;

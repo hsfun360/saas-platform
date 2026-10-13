@@ -6,7 +6,7 @@
       <span class="saas-icon material-icons" aria-hidden="true">payments</span>
       <div>
         <h1>{{ 'Payment Type' | screenTitle }}<app-fav-star /></h1>
-        <p class="saas-subtitle">{{ 'The settlement-tender catalog — how bills are paid at the golf front desk, each with its payment class.' | screenSubtitle }}</p>
+        <p class="saas-subtitle">{{ 'The settlement-tender catalog - how bills are paid at the golf front desk, each with its payment class.' | screenSubtitle }}</p>
       </div>
     </div>
   </div>
@@ -33,7 +33,7 @@
       @if (rows().length > 0) {
         {{ rows().length }} payment types, {{ activeCount() }} active
       } @else {
-        No payment types yet — use "New payment type" to add one.
+        No payment types yet - use "New payment type" to add one.
       }
     </span>
   </div>
@@ -53,7 +53,7 @@
   @if (loading()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading payment types…</p></div>
   } @else if (rows().length === 0) {
-    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No payment types yet. Use "New payment type" to add one (e.g. CASH — Cash, VISA — Visa Card).</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No payment types yet. Use "New payment type" to add one (e.g. CASH - Cash, VISA - Visa Card).</p></div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
@@ -137,7 +137,7 @@
             <label for="gptClass">Payment Class <span class="required">*</span></label>
             <select id="gptClass" formControlName="paymentClass"
                     [attr.aria-invalid]="showError(form.controls.paymentClass)" aria-describedby="gptClassErr">
-              <option value="">— Select —</option>
+              <option value="">- Select -</option>
               @for (c of paymentClasses(); track c.key) {
                 <option [value]="c.key">{{ c.label }}</option>
               }

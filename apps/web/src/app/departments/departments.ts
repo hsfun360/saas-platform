@@ -70,7 +70,7 @@ export class DepartmentsComponent implements OnInit {
   readonly activeCount = computed(() => this.departments().filter((d) => d.isActive !== false).length);
 
   readonly dialogTitle = computed(() =>
-    this.editId() ? `Edit — ${this.formValue().departmentCode ?? ''}` : 'New department',
+    this.editId() ? `Edit - ${this.formValue().departmentCode ?? ''}` : 'New department',
   );
 
   ngOnInit(): void {

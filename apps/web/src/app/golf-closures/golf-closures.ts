@@ -114,10 +114,10 @@ export class GolfClosuresComponent implements OnInit {
   readonly dialogTitle = computed(() => {
     if (this.dlgMode() === 'days') {
       const p = this.dayPlan();
-      return p ? `Closure days — ${this.nineCode(p)} · ${p.description}` : 'Closure days';
+      return p ? `Closure days - ${this.nineCode(p)} · ${p.description}` : 'Closure days';
     }
     const p = this.editPlan();
-    return p ? `Edit closure plan — ${this.nineCode(p)}` : 'New closure plan';
+    return p ? `Edit closure plan - ${this.nineCode(p)}` : 'New closure plan';
   });
   readonly busy = computed(() => this.saving() || this.daysSaving() || this.generating());
   isDirty(): boolean {
@@ -141,7 +141,7 @@ export class GolfClosuresComponent implements OnInit {
   nineLabel(p: UnitCourseClosurePlan): string {
     const u = p.UnitCourse;
     if (!u) return '';
-    return u.description ? `${u.unitCourseCode} — ${u.description}` : u.unitCourseCode;
+    return u.description ? `${u.unitCourseCode} - ${u.description}` : u.unitCourseCode;
   }
 
   scopeLabel(key: string): string {

@@ -27,7 +27,7 @@
     </div>
   }
 
-  <!-- Live filter over the loaded roles (name / description). No outer card —
+  <!-- Live filter over the loaded roles (name / description). No outer card -
        search + per-record cards sit directly on the page (the Companies standard). -->
   @if (!rolesLoading() && roles().length > 0) {
     <div class="saas-search">
@@ -93,7 +93,7 @@
     </div>
   }
 
-  <!-- Floating "Create role" action — opens the dialog. -->
+  <!-- Floating "Create role" action - opens the dialog. -->
   <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openCreate()" aria-label="Create role">
     <span class="material-icons" aria-hidden="true">add</span>
     Create role
@@ -161,7 +161,7 @@
         <div class="form-group">
           <label>Menu Permissions</label>
           <p class="cell-subtle" style="margin-top: 0;">
-            Ticking a menu grants viewing plus full Create / Edit / Delete — untick the actions the role should not have.
+            Ticking a menu grants viewing plus full Create / Edit / Delete - untick the actions the role should not have.
           </p>
           <app-permission-picker
             [menus]="menus()"

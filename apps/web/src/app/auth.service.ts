@@ -181,7 +181,7 @@ export class AuthService {
     return this.http.post<{ message: string }>(`${this.apiBaseUrl}/auth/change-password`, passwordData);
   }
 
-  // --- Account-level Roles (RBAC) — a Role is an account-wide named set of menu
+  // --- Account-level Roles (RBAC) - a Role is an account-wide named set of menu
   // permissions, NOT tied to a company. Company enters only at entitlement
   // (module subscription) and assignment (user↔role within a company). ---
 
@@ -195,7 +195,7 @@ export class AuthService {
     return this.http.post<{ message: string; role: Role }>(`${this.apiBaseUrl}/auth/account/roles`, { roleName, description, permissions, dataScope });
   }
 
-  // A single role with the exact menu grants (+ action flags) — prefills the edit form.
+  // A single role with the exact menu grants (+ action flags) - prefills the edit form.
   getRoleDetail(roleId: string): Observable<RoleDetail> {
     return this.http.get<RoleDetail>(`${this.apiBaseUrl}/auth/account/roles/${roleId}`);
   }

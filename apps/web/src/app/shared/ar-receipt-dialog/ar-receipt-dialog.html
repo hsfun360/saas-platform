@@ -1,6 +1,6 @@
 <app-dialog #dlg variant="drawer"
-            [title]="editRow() ? 'Edit Official Receipt — ' + (editRow()?.docNo || 'Draft')
-                     : mode() === 'pick' ? 'New Official Receipt — select debtor' : 'New Official Receipt'"
+            [title]="editRow() ? 'Edit Official Receipt - ' + (editRow()?.docNo || 'Draft')
+                     : mode() === 'pick' ? 'New Official Receipt - select debtor' : 'New Official Receipt'"
             [busy]="saving() || metaLoading()"
             [dirty]="mode() === 'entry' && form.dirty"
             discardTitle="Discard this receipt?"
@@ -23,7 +23,7 @@
             @for (d of pickRows(); track d.id) {
               <button type="button" class="ald-pick__row" (click)="pick(d)">
                 <span class="ald-pick__who">
-                  <strong>{{ d.no || '—' }}</strong>
+                  <strong>{{ d.no || '-' }}</strong>
                   <span>{{ d.name || 'Unnamed' }}</span>
                 </span>
                 <span class="ald-pick__facts">
@@ -40,7 +40,7 @@
       @if (activeDebtor(); as who) {
         <div class="ald-debtor">
           <span class="material-icons" aria-hidden="true">account_balance</span>
-          <span class="ald-debtor__name"><strong>{{ who.no || '—' }}</strong> {{ who.name }}</span>
+          <span class="ald-debtor__name"><strong>{{ who.no || '-' }}</strong> {{ who.name }}</span>
           @if (isForeign()) { <span class="ald-debtor__ccy">{{ fxCurrency()?.code }} account</span> }
           @if (!debtor() && !editRow()) {
             <button type="button" class="btn btn--link btn--sm" (click)="changeDebtor()">Change</button>
@@ -76,7 +76,7 @@
                 <p id="rcMethodErr" class="field-error" role="alert">Payment method is required.</p>
               }
               @if (methodTypes().length === 0) {
-                <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">No Receipt-class entries yet — create payment methods (e.g. CASH) on the AR Transaction Type master.</p>
+                <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">No Receipt-class entries yet - create payment methods (e.g. CASH) on the AR Transaction Type master.</p>
               }
             </div>
           </div>
@@ -88,7 +88,7 @@
             <div class="form-group">
               <label for="rcTrxDate">Transaction date (period) <span class="required">*</span></label>
               <input id="rcTrxDate" type="date" formControlName="trxDate" />
-              <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Accounting period — differs from the document date only when back-keying into a closed month.</p>
+              <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Accounting period - differs from the document date only when back-keying into a closed month.</p>
             </div>
           </div>
           <div class="form-grid">
@@ -131,7 +131,7 @@
                 <label for="rcDeposit">Collect deposit</label>
                 <app-combobox inputId="rcDeposit" formControlName="collectDepositId"
                               [options]="openDepositOptions()"
-                              [allowEmpty]="true" emptyLabel="— No deposit collection —"
+                              [allowEmpty]="true" emptyLabel="- No deposit collection -"
                               placeholder="Type to search…" />
                 <p class="cell-subtle" style="margin: var(--space-2xs) 0 0;">Pays the billed deposit in first; the remainder settles open items, oldest first.</p>
               </div>
