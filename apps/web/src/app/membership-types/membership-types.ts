@@ -13,7 +13,8 @@ import { CanDirective } from '../shared/can.directive';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import { ClubSettings, Currency, MembershipType, MembershipStatus, MembershipFee, MembershipStatusOption, TaxSchemeRef, TransactionTypePickerRow } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // Editable joining-fee row (amounts kept as strings for the inputs). The

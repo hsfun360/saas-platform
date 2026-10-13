@@ -15,25 +15,25 @@
     <div class="flash flash-success" role="status" aria-live="polite">
       <span class="flash-icon">✅</span>
       <span>{{ successMessage() }}</span>
-      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
   @if (errorMessage()) {
     <div class="flash flash-error" role="alert" aria-live="assertive">
       <span class="flash-icon">❌</span>
       <span>{{ errorMessage() }}</span>
-      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
 
   <!-- FILTERS: play-date range + status (server) · search (client) -->
   <div class="nsc-filter">
     <label for="nscFrom">Play date from</label>
-    <input id="nscFrom" type="date" [value]="dateFrom()" (change)="setDateFrom($any($event.target).value)" />
+    <input #fromInput id="nscFrom" type="date" [value]="dateFrom()" (change)="setDateFrom(fromInput.value)" />
     <label for="nscTo">to</label>
-    <input id="nscTo" type="date" [value]="dateTo()" (change)="setDateTo($any($event.target).value)" />
+    <input #toInput id="nscTo" type="date" [value]="dateTo()" (change)="setDateTo(toInput.value)" />
     <label for="nscStatus">Status</label>
-    <select id="nscStatus" [value]="status()" (change)="setStatus($any($event.target).value)">
+    <select #statusSel id="nscStatus" [value]="status()" (change)="setStatus(statusSel.value)">
       <option value="">All</option>
       @for (s of statuses(); track s.key) {
         <option [value]="s.key">{{ s.label }}</option>
@@ -42,7 +42,7 @@
   </div>
   <div class="saas-search">
     <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
-    <input class="saas-search__input" type="search" [value]="search()" (input)="search.set($any($event.target).value)"
+    <input #searchInput class="saas-search__input" type="search" [value]="search()" (input)="search.set(searchInput.value)"
            placeholder="Search by booking no, booker, member no, player or invoice…" aria-label="Search no-show charges" />
     @if (search()) {
       <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
@@ -121,8 +121,8 @@
         on booking <strong>{{ target.bookingNo }}</strong> ({{ target.bookerName }})? The no-show stays on record; nothing is posted to the account.</p>
       <div class="form-group">
         <label for="nscWaiveReason">Reason <span class="required">*</span></label>
-        <textarea id="nscWaiveReason" rows="2" wrap="off" [value]="waiveReason()"
-                  (input)="waiveReason.set($any($event.target).value)"></textarea>
+        <textarea #waiveInput id="nscWaiveReason" rows="2" wrap="off" [value]="waiveReason()"
+                  (input)="waiveReason.set(waiveInput.value)"></textarea>
       </div>
       <ng-container dialogFooter>
         <button type="button" class="btn btn--secondary" (click)="waiveTarget.set(null)" [disabled]="working()">Keep charge</button>

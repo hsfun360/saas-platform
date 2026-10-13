@@ -5,14 +5,27 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { ArLedgerDialogComponent, ArLedgerDialogDebtor } from '../shared/ar-ledger-dialog/ar-ledger-dialog';
 import { ArReceiptDialogComponent } from '../shared/ar-receipt-dialog/ar-receipt-dialog';
 import { ArRefundDialogComponent } from '../shared/ar-refund-dialog/ar-refund-dialog';
 import { ArDepositDialogComponent } from '../shared/ar-deposit-dialog/ar-deposit-dialog';
 import { ArService } from '../services/ar.service';
 import { PermissionsService } from '../services/permissions.service';
-import { ArAccount, ArAccountMeta, ArDepositDoc, ArLedgerDoc, ArReceiptDoc } from '../models/ar.models';
+import { ArAccount, ArAccountMeta, ArDepositDoc, ArDocStatus, ArLedgerDoc, ArReceiptDoc } from '../models/ar.models';
+
+// Display words for the document statuses - the same vocabulary the AR
+// Transactions screen's statusLabel() renders, so a chip reads identically on
+// the account and on the per-document listings (raw keys never reach the UI).
+const AR_STATUS_LABELS: Record<ArDocStatus, string> = {
+  'draft': 'Open',
+  'pending-approval': 'Pending Approval',
+  'open': 'Posted',
+  'settled': 'Posted',
+  'closed': 'Closed',
+  'void': 'Void',
+};
 
 // Account Receivable → Debtor Account (the Debtor Listing's detail surface,
 // same '/ar/debtors' menu). Shows the ledger account's balances and its three
@@ -145,17 +158,17 @@ export class ArDebtorAccountComponent {
   ledgerDocRef(doc: ArLedgerDoc): string {
     return doc.docNo || 'Draft';
   }
-  // Receipt lifecycle display (2026-08-20): draft="Open", open="Posted".
+  // Receipt lifecycle display (2026-08-20): draft="Open", open="Posted"; the
+  // other states carry the same display words as the AR Transactions screen.
   receiptStatusLabel(doc: ArReceiptDoc): string {
-    return doc.status === 'draft' ? 'Open' : doc.status === 'open' ? 'Posted' : doc.status;
+    return doc.status === 'draft' ? 'Open' : doc.status === 'open' ? 'Posted' : AR_STATUS_LABELS[doc.status];
   }
   // Deposit lifecycle display (2026-09-01): same vocabulary; 'closed' (fully
   // collected and drawn down) keeps its own word - it explains why the row
   // offers no actions.
   depositStatusLabel(d: ArDepositDoc): string {
     return d.status === 'draft' ? 'Open'
-      : d.status === 'pending-approval' ? 'Pending Approval'
-      : d.status === 'open' ? 'Posted' : d.status;
+      : d.status === 'open' ? 'Posted' : AR_STATUS_LABELS[d.status];
   }
   // Debit documents (Invoice / Debit Note since its slice 2026-09-01):
   // draft-only void (posted = Credit Note territory). CN drafts void like

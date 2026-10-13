@@ -15,12 +15,17 @@
     <div class="flash flash-error" role="alert" aria-live="assertive">
       <span class="flash-icon">❌</span>
       <span>{{ errorMessage() }}</span>
-      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
 
   @if (loading()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading templates…</p></div>
+  } @else if (templates().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">inbox</span>
+      <p>No email templates yet. The platform seeds them on boot.</p>
+    </div>
   } @else {
     <div class="data-list">
       @for (t of templates(); track t.key) {

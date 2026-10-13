@@ -2,6 +2,13 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../auth.service';
+import { MfaEnableResponse } from '../models/auth.models';
+
+// Type guard: the enable response carries the full login only on the
+// forced-enrollment token; a self-service enable returns recovery codes alone.
+function hasSessionToken(res: MfaEnableResponse): res is MfaEnableResponse & { token: string } {
+  return typeof res.token === 'string' && res.token.length > 0;
+}
 
 // Forced MFA enrollment for administrator accounts (System Admin / Tenant
 // Admin without MFA). Runs full-screen OUTSIDE the shell on the 'mfa-enroll'
@@ -32,7 +39,8 @@ export class MfaSetupComponent implements OnInit {
 
   // After enabling: show the recovery codes ONCE, then continue into the app.
   readonly recoveryCodes = signal<string[]>([]);
-  private pendingSession: { token: string } & Record<string, unknown> | null = null;
+  // The completed login the forced-enrollment flow returns (token present).
+  private pendingSession: (MfaEnableResponse & { token: string }) | null = null;
 
   ngOnInit(): void {
     this.auth.mfaSetup().subscribe({
@@ -59,9 +67,9 @@ export class MfaSetupComponent implements OnInit {
       next: (res) => {
         this.submitting.set(false);
         this.recoveryCodes.set(res.recoveryCodes || []);
-        if (res.token) {
+        if (hasSessionToken(res)) {
           // Forced-enrollment flow: the response IS the completed login.
-          this.pendingSession = res as unknown as { token: string } & Record<string, unknown>;
+          this.pendingSession = res;
         }
       },
       error: (err) => {
@@ -73,15 +81,15 @@ export class MfaSetupComponent implements OnInit {
 
   continueToApp(): void {
     const res = this.pendingSession;
-    if (res && typeof res['token'] === 'string') {
-      localStorage.setItem('token', res['token'] as string);
-      localStorage.setItem('userEmail', (res['email'] as string) || this.userEmail);
-      localStorage.setItem('userRole', (res['roleName'] as string) || 'User');
-      localStorage.setItem('userFullName', (res['fullName'] as string) || 'User');
-      localStorage.setItem('userProfilePicture', (res['profilePicture'] as string) || '');
-      this.auth.storeUserMenus(res['menus'] as never);
-      this.auth.updateAvatarState((res['profilePicture'] as string) || '');
-      if (res['fullName']) this.auth.updateFullNameState(res['fullName'] as string);
+    if (res) {
+      localStorage.setItem('token', res.token);
+      localStorage.setItem('userEmail', res.email || this.userEmail);
+      localStorage.setItem('userRole', res.roleName || 'User');
+      localStorage.setItem('userFullName', res.fullName || 'User');
+      localStorage.setItem('userProfilePicture', res.profilePicture || '');
+      this.auth.storeUserMenus(res.menus || []);
+      this.auth.updateAvatarState(res.profilePicture || '');
+      if (res.fullName) this.auth.updateFullNameState(res.fullName);
       this.router.navigate(['/home']);
     } else {
       // No session in the response (shouldn't happen on this flow) - re-login.

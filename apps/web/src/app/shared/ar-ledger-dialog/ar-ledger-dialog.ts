@@ -7,7 +7,7 @@ import { DialogComponent } from '../dialog/dialog';
 import { MoneyInputDirective } from '../money-input.directive';
 import { ComboboxComponent, ComboOption } from '../combobox/combobox';
 import { ArService } from '../../services/ar.service';
-import { ArAccountMeta, ArAnalysisEntryMeta, ArDebtor, ArDocListRow, ArLedgerDoc } from '../../models/ar.models';
+import { ArAccountMeta, ArAnalysisEntryMeta, ArDebtor, ArDocListRow, ArLedgerDoc, ArOpenDebit } from '../../models/ar.models';
 import { AR_RATE_PATTERN, arBaseEquivalent, arRateForDate, arTrimRate } from '../ar-fx';
 
 // The ONE ledger-document entry dialog (Invoice / Debit Note / Credit Note),
@@ -95,10 +95,10 @@ export class ArLedgerDialogComponent implements OnInit {
   });
   // "Apply against" choices: the account screen's live ledger when provided,
   // else the open debits shipped on the self-loaded meta.
-  readonly effOpenDebits = computed<ArLedgerDoc[]>(() => {
+  readonly effOpenDebits = computed<ArOpenDebit[]>(() => {
     const provided = this.openDebits();
     if (provided.length) return provided;
-    return (this.effMeta()?.openDebits || []) as unknown as ArLedgerDoc[];
+    return this.effMeta()?.openDebits || [];
   });
   // The same list shaped for the constrained combobox ({value, label}).
   readonly targetOptions = computed<ComboOption[]>(() =>
@@ -351,7 +351,7 @@ export class ArLedgerDialogComponent implements OnInit {
     return k === 'invoice' ? 'Invoice' : k === 'debit-note' ? 'Debit Note' : k === 'credit-note' ? 'Credit Note' : k;
   }
 
-  remaining(doc: ArLedgerDoc): string {
+  remaining(doc: ArOpenDebit): string {
     return Number(doc.balanceAmount).toFixed(2);
   }
 

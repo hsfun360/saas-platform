@@ -17,7 +17,8 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
 import { CanDirective } from '../shared/can.directive';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // System Setup → Workflow Setup (/admin/workflows). The approval-chain

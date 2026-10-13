@@ -1,15 +1,8 @@
-import { ChangeDetectionStrategy, Component, Directive, ElementRef, inject, input, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, inject, input, signal, viewChild } from '@angular/core';
 
-// Marks a projected button as an overflow-menu item: shared styling (global
-// .overflow-menu__item in styles.css) + menu a11y semantics. Items are
-// tabindex=-1 because the MENU manages focus (arrow keys), not the tab order.
-@Directive({
-  selector: 'button[appMenuItem]',
-  standalone: true,
-  host: { class: 'overflow-menu__item', role: 'menuitem', tabindex: '-1' },
-})
-export class MenuItemDirective {}
-
+// The projected items carry the `appMenuItem` directive from
+// ./menu-item.directive (one directive per file, per the naming convention).
+//
 // The standard kebab ("⋮") overflow menu for a card's SECONDARY actions - the
 // list/card action-row keeps one visible primary button and folds the rest in
 // here, so rows don't accumulate a button per feature. Project the actions as

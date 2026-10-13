@@ -15,7 +15,8 @@ import { timezoneWithOffset } from '../shared/timezone';
 import { COUNTRY_TIMEZONES, FALLBACK_COUNTRIES } from '../shared/countries';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { CanDirective } from '../shared/can.directive';
 
 // Tenant Admin view: create and list companies (business entities) under the

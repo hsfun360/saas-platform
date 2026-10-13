@@ -416,6 +416,11 @@ export interface ArAccountCurrency {
   rates: { effectiveDate: string; rate: string }[];
 }
 
+// The open-debit summary the account meta ships for the Credit Note "Apply
+// against" picker: just the ledger columns the picker reads (the API selects
+// exactly these five), so a full ArLedgerDoc satisfies it too.
+export type ArOpenDebit = Pick<ArLedgerDoc, 'id' | 'docType' | 'docNo' | 'grossAmount' | 'balanceAmount'>;
+
 export interface ArAccountMeta {
   currency?: ArAccountCurrency;
   // Slot-assigned analysis dimensions (empty = no pickers rendered).
@@ -430,7 +435,7 @@ export interface ArAccountMeta {
   refundApproval?: boolean;
   depositApproval?: boolean;
   // The debtor's open debits - the CN entry's "Apply against" choices.
-  openDebits?: { id: string; docType: string; docNo: string | null; grossAmount: string; balanceAmount: string }[];
+  openDebits?: ArOpenDebit[];
   // The debtor's OPEN deposits with both counters: the Receipt dialog offers
   // balanceAmount > 0 (collectable), the Refund dialog heldAmount > 0
   // (refundable) - each filters client-side.

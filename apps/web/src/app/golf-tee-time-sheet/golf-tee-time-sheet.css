@@ -216,8 +216,10 @@
   opacity: 0.6; /* dimmed but still AA-readable */
 }
 .fd-flight--hit {
+  /* The field halo: a BLURRED glow, never a hard spread ring (it rasterises
+     into a flat offset box at fractional display scaling). */
   border-color: var(--brand);
-  box-shadow: 0 0 0 2px var(--focus-glow);
+  box-shadow: 0 0 0 1px var(--focus-glow), 0 0 7px 2px var(--focus-glow);
 }
 .fd-flight__top {
   display: flex;

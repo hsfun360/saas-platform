@@ -5,7 +5,8 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { ArService } from '../services/ar.service';
 import { DialogComponent } from '../shared/dialog/dialog';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { CanDirective } from '../shared/can.directive';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ComboboxComponent } from '../shared/combobox/combobox';

@@ -9,7 +9,8 @@ import { EInvoiceTaxType } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 
 // System Admin: maintain the Malaysia LHDN e-Invoice tax-type reference table
 // (the MyInvois document code list: '01' Sales Tax .. '06' Not Applicable, 'E'

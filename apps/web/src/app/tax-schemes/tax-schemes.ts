@@ -13,7 +13,8 @@ import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe, localDateOnly } from '../shared/local-date.pipe';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 
 // System Setup → Tax Setup (subscriber-owned catalog).
 // Master–detail: the scheme list is the master; the selected scheme (its header +
@@ -440,6 +441,9 @@ export class TaxSchemesComponent implements OnInit {
       next: (data) => {
         this.schemes.set(data);
         if (wasCreate) this.select(id); // open the new scheme's detail
+      },
+      error: (err) => {
+        this.errorMessage.set(err.error?.message || 'Failed to load tax schemes.');
       },
     });
   }

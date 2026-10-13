@@ -9,7 +9,8 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { Role, RoleDataScope, RoleMenuPermission, AdminMenu } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { FULL_ACCESS, GrantFlags, PermissionPickerComponent } from '../shared/permission-picker/permission-picker';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { CanDirective } from '../shared/can.directive';
 
 // Platform (system-level) Roles — split out of the old System Setup tab strip

@@ -16,24 +16,24 @@
     <div class="flash flash-success" role="status" aria-live="polite">
       <span class="flash-icon">✅</span>
       <span>{{ successMessage() }}</span>
-      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
   @if (errorMessage()) {
     <div class="flash flash-error" role="alert" aria-live="assertive">
       <span class="flash-icon">❌</span>
       <span>{{ errorMessage() }}</span>
-      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
 
   <!-- DATE + SEARCH TOOLBAR -->
   <div class="fd-filter">
     <label for="fdDate">Play date</label>
-    <input id="fdDate" type="date" [value]="listDate()" (change)="setListDate($any($event.target).value)" />
+    <input #dateInput id="fdDate" type="date" [value]="listDate()" (change)="setListDate(dateInput.value)" />
     <div class="saas-search">
       <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
-      <input id="fdSearch" class="saas-search__input" type="search" [value]="search()" (input)="onSearch($any($event.target).value)"
+      <input #searchInput id="fdSearch" class="saas-search__input" type="search" [value]="search()" (input)="onSearch(searchInput.value)"
              placeholder="Find by name, member no or booking no…" aria-label="Find a golfer or booking" />
       @if (search()) {
         <button type="button" class="saas-search__clear" (click)="onSearch('')" aria-label="Clear search">✕</button>
@@ -424,12 +424,12 @@
                       @if (i.priceOverridden) { <span class="fd-tag">amended</span> }
                     </span>
                     @if (billOpen() && !i.packageGroupId) {
-                      <input type="number" inputmode="numeric" min="1" max="99" step="1" [value]="i.quantity"
-                             (change)="setItemQuantity(i.id, $any($event.target).value)"
+                      <input #qtyInput type="number" inputmode="numeric" min="1" max="99" step="1" [value]="i.quantity"
+                             (change)="setItemQuantity(i.id, qtyInput.value)"
                              [attr.aria-label]="'Quantity for ' + i.description" />
-                      <input type="number" inputmode="decimal" min="0" step="0.01" appMoney [moneyValue]="i.unitAmount"
+                      <input #priceInput type="number" inputmode="decimal" min="0" step="0.01" appMoney [moneyValue]="i.unitAmount"
                              [disabled]="!tileAllowsOverride(i.transactionTypeId)"
-                             (change)="setItemPrice(i.id, $any($event.target).value)"
+                             (change)="setItemPrice(i.id, priceInput.value)"
                              [attr.aria-label]="'Unit price for ' + i.description" />
                     } @else {
                       <span>{{ i.quantity }}</span>
@@ -600,8 +600,8 @@
           }
           <div class="form-group">
             <label for="fdConfirmReason">Reason</label>
-            <textarea id="fdConfirmReason" rows="2" wrap="off" [value]="confirmReason()"
-                      (input)="confirmReason.set($any($event.target).value)"></textarea>
+            <textarea #confirmInput id="fdConfirmReason" rows="2" wrap="off" [value]="confirmReason()"
+                      (input)="confirmReason.set(confirmInput.value)"></textarea>
           </div>
         }
       }

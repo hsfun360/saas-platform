@@ -66,10 +66,11 @@
   background: var(--surface-input);
   color: var(--text-primary);
 }
-.et-hint {
+/* A caption-level aside inside a semibold label / preview head keeps regular
+   weight (the global .cell-subtle supplies size + colour). */
+.et-field label .cell-subtle,
+.et-preview__head .cell-subtle {
   font-weight: var(--weight-regular);
-  color: var(--text-muted);
-  font-size: var(--font-caption);
 }
 
 /* Scope picker: which company's version is being edited (tenant screen only). */

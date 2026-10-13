@@ -27,6 +27,14 @@ import { ThemeService } from '../../services/theme.service';
 // for the commercial key + add `mergetags` to `plugins`, and replace the hand-built
 // `mergevars` menu below. Nothing else changes.
 
+// The self-hosted script registers itself on window; declare that one global
+// so the loader reads a typed surface instead of casting.
+declare global {
+  interface Window {
+    tinymce?: TinyMCE;
+  }
+}
+
 const CHIP_CLASS = 'mce-var';
 
 const CHIP_CSS = `.${CHIP_CLASS}{background:#eef2ff;color:#3730a3;padding:1px 6px;border-radius:4px;` +
@@ -37,7 +45,7 @@ let tinymceLoader: Promise<TinyMCE> | null = null;
 
 /** Load the self-hosted TinyMCE script once, resolving with the global. */
 function loadTinymce(): Promise<TinyMCE> {
-  const existing = (window as unknown as { tinymce?: TinyMCE }).tinymce;
+  const existing = window.tinymce;
   if (existing) return Promise.resolve(existing);
   if (tinymceLoader) return tinymceLoader;
   tinymceLoader = new Promise<TinyMCE>((resolve, reject) => {
@@ -45,7 +53,7 @@ function loadTinymce(): Promise<TinyMCE> {
     script.src = '/tinymce/tinymce.min.js';
     script.referrerPolicy = 'origin';
     script.onload = () => {
-      const t = (window as unknown as { tinymce?: TinyMCE }).tinymce;
+      const t = window.tinymce;
       t ? resolve(t) : reject(new Error('TinyMCE loaded but the global was not found.'));
     };
     script.onerror = () => reject(new Error('Failed to load the TinyMCE script from /tinymce.'));

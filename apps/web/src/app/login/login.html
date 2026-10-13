@@ -62,7 +62,7 @@
     <!-- Pre-login language switcher -->
     <div class="login-lang">
       <span class="material-icons" aria-hidden="true">language</span>
-      <select id="login-lang" [value]="i18n.lang()" (change)="switchLoginLanguage($any($event.target).value)"
+      <select #loginLang id="login-lang" [value]="i18n.lang()" (change)="switchLoginLanguage(loginLang.value)"
               [attr.aria-label]="'language.switch' | t">
         @for (l of loginLanguages(); track l.languageCode) {
           <option [value]="l.languageCode">{{ l.name }}</option>

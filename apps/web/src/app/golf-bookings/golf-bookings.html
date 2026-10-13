@@ -16,21 +16,21 @@
     <div class="flash flash-success" role="status" aria-live="polite">
       <span class="flash-icon">✅</span>
       <span>{{ successMessage() }}</span>
-      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
   @if (errorMessage()) {
     <div class="flash flash-error" role="alert" aria-live="assertive">
       <span class="flash-icon">❌</span>
       <span>{{ errorMessage() }}</span>
-      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
 
   <!-- DATE FILTER -->
   <div class="gb-filter">
     <label for="gbDate">Play date</label>
-    <input id="gbDate" type="date" [value]="listDate()" (change)="setListDate($any($event.target).value)" />
+    <input #dateInput id="gbDate" type="date" [value]="listDate()" (change)="setListDate(dateInput.value)" />
   </div>
 
   @if (loading()) {
@@ -333,14 +333,14 @@
           </div>
           @if (p.charge) {
             <label class="gb-check">
-              <input type="checkbox" [checked]="waiveCharge()" (change)="waiveCharge.set($any($event.target).checked)" />
+              <input #waiveChk type="checkbox" [checked]="waiveCharge()" (change)="waiveCharge.set(waiveChk.checked)" />
               <span>Waive the late-cancellation charge</span>
             </label>
             @if (waiveCharge()) {
               <div class="form-group">
                 <label for="gbWaiveReason">Waive reason <span class="required">*</span></label>
-                <textarea id="gbWaiveReason" rows="2" wrap="off" [value]="waiveReason()"
-                          (input)="waiveReason.set($any($event.target).value)"></textarea>
+                <textarea #waiveInput id="gbWaiveReason" rows="2" wrap="off" [value]="waiveReason()"
+                          (input)="waiveReason.set(waiveInput.value)"></textarea>
               </div>
             }
           }
@@ -350,8 +350,8 @@
       @if (!cancelRefused()) {
         <div class="form-group">
           <label for="gbCancelReason">Reason</label>
-          <textarea id="gbCancelReason" rows="2" wrap="off" [value]="cancelReason()"
-                    (input)="cancelReason.set($any($event.target).value)"></textarea>
+          <textarea #cancelInput id="gbCancelReason" rows="2" wrap="off" [value]="cancelReason()"
+                    (input)="cancelReason.set(cancelInput.value)"></textarea>
         </div>
       }
       <ng-container dialogFooter>

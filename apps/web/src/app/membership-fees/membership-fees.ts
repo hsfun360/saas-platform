@@ -11,7 +11,8 @@ import { CanDirective } from '../shared/can.directive';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import { MembershipFee, MembershipStatusOption, TaxSchemeRef } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { ComboboxComponent, ComboOption } from '../shared/combobox/combobox';
 
 interface StageRow {

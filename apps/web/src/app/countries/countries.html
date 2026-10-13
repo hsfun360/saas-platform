@@ -16,14 +16,14 @@
     <div class="flash flash-success" role="status" aria-live="polite">
       <span class="flash-icon">✅</span>
       <span>{{ successMessage() }}</span>
-      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
   @if (errorMessage()) {
     <div class="flash flash-error" role="alert" aria-live="assertive">
       <span class="flash-icon">❌</span>
       <span>{{ errorMessage() }}</span>
-      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
 
@@ -71,10 +71,9 @@
           <div class="data-row data-row--with-badge">
             <div class="data-row__main">
               <div class="data-card__title" style="display: flex; align-items: center; gap: var(--space-xs);">
-                <img [src]="'https://flagcdn.com/24x18/' + c.alpha2 + '.png'"
-                     [attr.srcset]="'https://flagcdn.com/48x36/' + c.alpha2 + '.png 2x'"
-                     width="24" height="18" alt="" loading="lazy"
-                     style="border-radius: 2px; flex: 0 0 auto;">
+                @if (c.flagEmoji) {
+                  <span aria-hidden="true" style="font-size: var(--icon-lg); line-height: 1; flex: 0 0 auto;">{{ c.flagEmoji }}</span>
+                }
                 <span>{{ c.name }}</span>
               </div>
               <div class="data-card__subline">

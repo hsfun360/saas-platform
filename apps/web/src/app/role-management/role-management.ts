@@ -10,7 +10,8 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { FULL_ACCESS, GrantFlags, PermissionPickerComponent } from '../shared/permission-picker/permission-picker';
 import { CanDirective } from '../shared/can.directive';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 
 // Account-level Role Management. A Role is just a named set of menu permissions
 // (RBAC) — NOT tied to a company. Company enters only at entitlement (module

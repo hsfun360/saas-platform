@@ -11,7 +11,8 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // Membership Management → Sales Agents (SRS 2.2). Every salesperson - agency

@@ -23,13 +23,13 @@
     @if (successMessage()) {
       <div class="flash flash-success" role="status" aria-live="polite">
         <span class="flash-icon">✅</span><span>{{ successMessage() }}</span>
-        <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+        <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
       </div>
     }
     @if (errorMessage()) {
       <div class="flash flash-error" role="alert" aria-live="assertive">
         <span class="flash-icon">❌</span><span>{{ errorMessage() }}</span>
-        <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+        <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
       </div>
     }
 
@@ -45,8 +45,8 @@
             <div class="et-field">
               <label for="et-brandcolor">Brand colour</label>
               <div class="et-brand__color">
-                <input id="et-brandcolor" type="color" [value]="form.controls.brandColor.value"
-                       (input)="form.controls.brandColor.setValue($any($event.target).value)" aria-label="Brand colour picker">
+                <input #brandPicker id="et-brandcolor" type="color" [value]="form.controls.brandColor.value"
+                       (input)="form.controls.brandColor.setValue(brandPicker.value)" aria-label="Brand colour picker">
                 <input type="text" formControlName="brandColor" class="et-brand__hex" spellcheck="false"
                        autocomplete="off" aria-label="Brand colour hex" placeholder="#2563eb">
               </div>
@@ -58,7 +58,7 @@
                   @if (companyLogoUrl()) {
                     <img [src]="companyLogoUrl()!" alt="Platform logo">
                   } @else {
-                    <span class="et-hint">No logo</span>
+                    <span class="cell-subtle">No logo</span>
                   }
                 </div>
                 <label class="et-brand__check">
@@ -68,7 +68,7 @@
               </div>
             </div>
           </div>
-          <p class="et-hint field-hint">
+          <p class="cell-subtle field-hint">
             The logo is the platform's own logo (Platform Profile → Logo). Tick to centre it in the brand-colour header band.
           </p>
         </div>
@@ -82,14 +82,14 @@
         </div>
 
         <div class="et-field">
-          <label for="et-from">From name <span class="et-hint">(optional; the sender display name)</span></label>
+          <label for="et-from">From name <span class="cell-subtle">(optional; the sender display name)</span></label>
           <input id="et-from" type="text" formControlName="fromName" placeholder="Your App Name">
         </div>
 
         <div class="et-field">
           <label id="et-body-label">Body</label>
           <app-email-html-editor formControlName="bodyHtml" [variables]="variables()" aria-labelledby="et-body-label"></app-email-html-editor>
-          <p class="et-hint field-hint">
+          <p class="cell-subtle field-hint">
             Add merge fields with <strong>Insert&nbsp;variable</strong>. Use <code>{{ '{{#if x}}' }}…{{ '{{/if}}' }}</code>
             for optional blocks, and <strong>&lt;/&gt;</strong> to edit the raw HTML.
           </p>
@@ -98,11 +98,11 @@
         <div class="et-toggles">
           <label class="et-check">
             <input type="checkbox" formControlName="isActive">
-            <span>Active <span class="et-hint">(unchecked suppresses this email)</span></span>
+            <span>Active <span class="cell-subtle">(unchecked suppresses this email)</span></span>
           </label>
           <label class="et-check">
             <input type="checkbox" formControlName="tenantOverridable">
-            <span>Tenant-overridable <span class="et-hint">(subscribers may customise it)</span></span>
+            <span>Tenant-overridable <span class="cell-subtle">(subscribers may customise it)</span></span>
           </label>
         </div>
 
@@ -124,7 +124,7 @@
               {{ testing() ? 'Queuing…' : 'Send test' }}
             </button>
           </div>
-          <p class="et-hint field-hint">Uses the current (unsaved) content and sample data. Delivered via the outbox worker.</p>
+          <p class="cell-subtle field-hint">Uses the current (unsaved) content and sample data. Delivered via the outbox worker.</p>
         </div>
       </form>
 
@@ -132,16 +132,16 @@
       <div class="et-preview">
         <div class="et-preview__head">
           <span class="material-icons" aria-hidden="true" style="font-size: var(--icon-sm);">visibility</span>
-          Live preview <span class="et-hint">(sample data)</span>
+          Live preview <span class="cell-subtle">(sample data)</span>
         </div>
         @if (previewError()) {
           <div class="flash flash-error" role="alert" aria-live="assertive">
             <span class="flash-icon">❌</span>
             <span>{{ previewError() }}</span>
-            <button class="flash-close" (click)="previewError.set('')" aria-label="Dismiss">✕</button>
+            <button type="button" class="flash-close" (click)="previewError.set('')" aria-label="Dismiss">✕</button>
           </div>
         }
-        <div class="et-preview__subject"><span class="et-hint">Subject:</span> {{ previewSubject() }}</div>
+        <div class="et-preview__subject"><span class="cell-subtle">Subject:</span> {{ previewSubject() }}</div>
         <iframe class="et-preview__frame" [srcdoc]="previewHtml()" title="Email preview" sandbox=""></iframe>
       </div>
     </div>

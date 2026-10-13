@@ -15,13 +15,13 @@
   @if (successMessage()) {
     <div class="flash flash-success" role="status" aria-live="polite">
       <span class="flash-icon">✅</span><span>{{ successMessage() }}</span>
-      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
   @if (errorMessage()) {
     <div class="flash flash-error" role="alert" aria-live="assertive">
       <span class="flash-icon">❌</span><span>{{ errorMessage() }}</span>
-      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
 
@@ -449,8 +449,8 @@
           </div>
           <div class="form-group">
             <label for="cd-msic">MSIC code</label>
-            <input id="cd-msic" type="text" formControlName="msicCode" list="cd-msic-list" placeholder="e.g. 93110" maxlength="20" autocomplete="off"
-                   (change)="onMsicChange($any($event.target).value)" />
+            <input #msicInput id="cd-msic" type="text" formControlName="msicCode" list="cd-msic-list" placeholder="e.g. 93110" maxlength="20" autocomplete="off"
+                   (change)="onMsicChange(msicInput.value)" />
             <datalist id="cd-msic-list">
               @for (m of msicOptions(); track m.code) {
                 <option [value]="m.code">{{ m.description }}</option>

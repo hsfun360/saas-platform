@@ -31,14 +31,17 @@
     <div class="flash flash-error" role="alert" aria-live="assertive">
       <span class="flash-icon">❌</span>
       <span>{{ errorMessage() }}</span>
-      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
 
   @if (loading()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading audit entries…</p></div>
   } @else if (rows().length === 0) {
-    <p style="color: var(--text-muted); margin-top: var(--space-lg);">No audit entries match the current filters.</p>
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No audit entries match the current filters.</p>
+    </div>
   } @else {
     <p style="color: var(--text-secondary); font-size: var(--font-body-2);">{{ total() }} entr{{ total() === 1 ? 'y' : 'ies' }} · page {{ page() }} of {{ totalPages() }}</p>
 

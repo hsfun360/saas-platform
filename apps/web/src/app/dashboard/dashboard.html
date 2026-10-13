@@ -3,7 +3,7 @@
   <header class="google-topbar" [class.google-topbar--admin]="isSystemAdmin">
 
     <div class="topbar-left">
-      <button class="menu-btn" (click)="toggleSidebar()" aria-label="Toggle navigation menu" [attr.aria-expanded]="isSidebarPinned"><span class="material-icons" aria-hidden="true">menu</span></button>
+      <button type="button" class="menu-btn" (click)="toggleSidebar()" aria-label="Toggle navigation menu" [attr.aria-expanded]="isSidebarPinned"><span class="material-icons" aria-hidden="true">menu</span></button>
       <div class="brand-stack">
         <!-- The active MODULE title lives at the top of the sidebar (.sidebar-module),
              not here - keeps the header compact, especially on mobile. -->
@@ -90,7 +90,7 @@
 
         <!-- Notification bell: background jobs (statement runs etc.) alert here -->
         <div style="position: relative; display: flex; align-items: center;">
-          <button class="icon-btn notif-bell" title="Notifications" aria-label="Notifications"
+          <button type="button" class="icon-btn notif-bell" title="Notifications" aria-label="Notifications"
                   aria-haspopup="true" [attr.aria-expanded]="isNotifDropdownOpen"
                   (click)="toggleNotifDropdown($event)">
             <span class="material-icons" aria-hidden="true">notifications</span>
@@ -144,7 +144,7 @@
              switching remains available in Settings via the avatar menu). -->
         @if (languageOptions().length > 1) {
           <div class="hide-mobile topbar-lang">
-            <button class="icon-btn" [title]="'language.switch' | t" [attr.aria-label]="'language.switch' | t"
+            <button type="button" class="icon-btn" [title]="'language.switch' | t" [attr.aria-label]="'language.switch' | t"
                     aria-haspopup="true" [attr.aria-expanded]="isLanguageDropdownOpen"
                     (click)="toggleLanguageDropdown($event)">
               <span class="material-icons" aria-hidden="true">language</span>
@@ -169,7 +169,7 @@
         }
 
         <div style="position: relative; display: flex; align-items: center;">
-          <button class="icon-btn" title="Apps" aria-label="Apps" aria-haspopup="true" [attr.aria-expanded]="isAppsDropdownOpen" (click)="toggleAppsDropdown($event)">
+          <button type="button" class="icon-btn" title="Apps" aria-label="Apps" aria-haspopup="true" [attr.aria-expanded]="isAppsDropdownOpen" (click)="toggleAppsDropdown($event)">
             <span class="material-icons" aria-hidden="true">apps</span>
           </button>
 
@@ -306,7 +306,7 @@
         <div class="flash flash-error" role="alert" aria-live="assertive">
           <span class="flash-icon">❌</span>
           <span>{{ shellError() }}</span>
-          <button class="flash-close" type="button" (click)="shellError.set('')" aria-label="Dismiss">✕</button>
+          <button type="button" class="flash-close" type="button" (click)="shellError.set('')" aria-label="Dismiss">✕</button>
         </div>
       }
 

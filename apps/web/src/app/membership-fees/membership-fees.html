@@ -16,14 +16,14 @@
     <div class="flash flash-success" role="status" aria-live="polite">
       <span class="flash-icon">✅</span>
       <span>{{ successMessage() }}</span>
-      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
   @if (errorMessage()) {
     <div class="flash flash-error" role="alert" aria-live="assertive">
       <span class="flash-icon">❌</span>
       <span>{{ errorMessage() }}</span>
-      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
 
@@ -171,7 +171,7 @@
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm); align-items: end;">
+        <div class="form-grid" style="align-items: end;">
           <div class="form-group">
             <label for="fAmount">Amount <span class="required">*</span></label>
             <input id="fAmount" type="number" inputmode="decimal" appMoney formControlName="amount" min="0" step="0.01"
@@ -233,8 +233,8 @@
                 @for (s of stages(); track s.stageNo; let i = $index) {
                   <div class="mf-stage">
                     <span class="mf-stage__no">Stage {{ s.stageNo }}</span>
-                    <input class="mf-stage__amt" type="number" inputmode="decimal" min="0" step="0.01"
-                           appMoney [moneyValue]="s.amount" (input)="updateStageAmount(i, $any($event.target).value)"
+                    <input #stageAmt class="mf-stage__amt" type="number" inputmode="decimal" min="0" step="0.01"
+                           appMoney [moneyValue]="s.amount" (input)="updateStageAmount(i, stageAmt.value)"
                            [attr.aria-label]="'Stage ' + s.stageNo + ' amount'" />
                     @if (s.isPosted) {
                       <span class="status-chip status-chip--on">Posted</span>

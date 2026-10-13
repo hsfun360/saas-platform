@@ -16,14 +16,14 @@
     <div class="flash flash-success" role="status" aria-live="polite">
       <span class="flash-icon">✅</span>
       <span>{{ successMessage() }}</span>
-      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
   @if (errorMessage()) {
     <div class="flash flash-error" role="alert" aria-live="assertive">
       <span class="flash-icon">❌</span>
       <span>{{ errorMessage() }}</span>
-      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
 
@@ -219,7 +219,7 @@
         </div>
         @if (isPackageForm()) {
           <div class="form-row">
-            <div class="form-group" style="max-width: 420px;">
+            <div class="form-group form-group--medium">
               <label for="gttAutoType">Auto Transaction Type <span class="required">*</span></label>
               <app-combobox inputId="gttAutoType" formControlName="autoTransactionTypeId"
                             [options]="elementComboOptions()"
@@ -302,15 +302,15 @@
                   <div class="elig-grid">
                     <label class="elig-field">
                       <span>Tee-off from</span>
-                      <input type="time" formControlName="startTime" />
+                      <input type="time" formControlName="startTime" [attr.aria-label]="'Condition ' + (i + 1) + ' tee-off from'" />
                     </label>
                     <label class="elig-field">
                       <span>to</span>
-                      <input type="time" formControlName="endTime" />
+                      <input type="time" formControlName="endTime" [attr.aria-label]="'Condition ' + (i + 1) + ' tee-off to'" />
                     </label>
                     <label class="elig-field">
                       <span>Holes</span>
-                      <select formControlName="holes">
+                      <select formControlName="holes" [attr.aria-label]="'Condition ' + (i + 1) + ' holes'">
                         <option value="">Any</option>
                         <option value="9">9</option>
                         <option value="18">18</option>
@@ -318,15 +318,15 @@
                     </label>
                     <label class="elig-field">
                       <span>Age from</span>
-                      <input type="number" inputmode="numeric" min="0" max="120" step="1" formControlName="minAge" placeholder="any" />
+                      <input type="number" inputmode="numeric" min="0" max="120" step="1" formControlName="minAge" placeholder="any" [attr.aria-label]="'Condition ' + (i + 1) + ' age from'" />
                     </label>
                     <label class="elig-field">
                       <span>Age to</span>
-                      <input type="number" inputmode="numeric" min="0" max="120" step="1" formControlName="maxAge" placeholder="any" />
+                      <input type="number" inputmode="numeric" min="0" max="120" step="1" formControlName="maxAge" placeholder="any" [attr.aria-label]="'Condition ' + (i + 1) + ' age to'" />
                     </label>
                     <label class="elig-field">
                       <span>Gender</span>
-                      <select formControlName="gender">
+                      <select formControlName="gender" [attr.aria-label]="'Condition ' + (i + 1) + ' gender'">
                         <option value="">Any</option>
                         <option value="male">Men</option>
                         <option value="female">Ladies</option>
@@ -485,7 +485,7 @@
           @case ('form') {
             <form id="gttRateForm" [formGroup]="rateForm" (ngSubmit)="onSaveRate()">
               <div class="form-row">
-                <div class="form-group" style="max-width: 260px;">
+                <div class="form-group form-group--narrow">
                   <label for="prEffDate">Effective Date <span class="required">*</span></label>
                   <input id="prEffDate" type="date" formControlName="effectiveDate"
                          [attr.aria-invalid]="showError(rateForm.controls.effectiveDate)" aria-describedby="prEffDateErr" />
@@ -530,7 +530,7 @@
                 </div>
               } @else {
                 <div class="form-row">
-                  <div class="form-group" style="max-width: 260px;">
+                  <div class="form-group form-group--narrow">
                     <label for="prFlat">Amount <span class="required">*</span></label>
                     <input id="prFlat" type="number" inputmode="decimal" appMoney formControlName="flatAmount" min="0" step="0.01"
                            [attr.aria-invalid]="showError(rateForm.controls.flatAmount)" aria-describedby="prFlatErr" />

@@ -16,14 +16,14 @@
     <div class="flash flash-success" role="status" aria-live="polite">
       <span class="flash-icon">✅</span>
       <span>{{ successMessage() }}</span>
-      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
   @if (errorMessage()) {
     <div class="flash flash-error" role="alert" aria-live="assertive">
       <span class="flash-icon">❌</span>
       <span>{{ errorMessage() }}</span>
-      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
 
@@ -152,7 +152,7 @@
                           [allowEmpty]="true" emptyLabel="Select a country…"
                           placeholder="Type to search…"
                           (valueChange)="onCountryChange()" />
-            <p class="pp-field-hint">Also the platform's tax country - it determines which tax schemes apply below.</p>
+            <p class="cell-subtle field-hint">Also the platform's tax country - it determines which tax schemes apply below.</p>
           </div>
         </div>
       </section>
@@ -177,7 +177,7 @@
                           [allowEmpty]="true" [emptyLabel]="countryCode() ? 'No tax (none)' : 'Select a country first'"
                           placeholder="Type to search…" />
             @if (countryCode() && schemesForCountry().length === 0) {
-              <p class="pp-field-hint">No platform tax schemes for {{ countryName(countryCode()) }} yet - add them in Platform Tax.</p>
+              <p class="cell-subtle field-hint">No platform tax schemes for {{ countryName(countryCode()) }} yet - add them in Platform Tax.</p>
             }
           </div>
         </div>
@@ -195,8 +195,8 @@
           </div>
           <div class="form-group">
             <label for="ppMsic">MSIC code</label>
-            <input id="ppMsic" type="text" formControlName="msicCode" list="pp-msic-list" placeholder="e.g. 62011" maxlength="20" autocomplete="off"
-                   (change)="onMsicChange($any($event.target).value)" />
+            <input #msicInput id="ppMsic" type="text" formControlName="msicCode" list="pp-msic-list" placeholder="e.g. 62011" maxlength="20" autocomplete="off"
+                   (change)="onMsicChange(msicInput.value)" />
             <datalist id="pp-msic-list">
               @for (m of msicOptions(); track m.code) {
                 <option [value]="m.code">{{ m.description }}</option>
@@ -246,7 +246,7 @@
       </div>
 
       @if (quoteError()) {
-        <p class="pp-field-hint pp-field-hint--error">{{ quoteError() }}</p>
+        <p class="field-error" role="alert">{{ quoteError() }}</p>
       }
       @if (quoteResult(); as q) {
         <div class="pp-quote-result">

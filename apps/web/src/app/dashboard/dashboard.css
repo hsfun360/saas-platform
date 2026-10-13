@@ -1154,8 +1154,10 @@
 }
 .avatar-trigger:hover .avatar-ring,
 .avatar-trigger:focus-visible .avatar-ring {
+  /* Non-field control: the offset ring, not the field halo. */
   border-color: var(--text-on-brand);
-  box-shadow: 0 0 0 2px var(--focus-glow);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 .avatar-img {
   width: 36px;

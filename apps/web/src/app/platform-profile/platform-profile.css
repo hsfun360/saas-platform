@@ -28,15 +28,6 @@
   margin: 0 0 var(--space-md);
 }
 
-.pp-field-hint {
-  font-size: var(--font-caption);
-  color: var(--text-muted);
-  margin: var(--space-xs) 0 0;
-}
-.pp-field-hint--error {
-  color: var(--danger-text);
-}
-
 /* Logo upload: preview (or placeholder) + a compact "Choose logo" button that wraps a
    visually-hidden file input (avoids the native file input's wide box), + Remove.
    Mirrors the Company logo control. */

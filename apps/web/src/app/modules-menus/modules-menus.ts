@@ -28,7 +28,8 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 import { CanDirective } from '../shared/can.directive';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 
 // A node in the module's menu tree (adjacency list). `children` are the menus
 // whose parentId is this menu, ordered by sequence. Held as plain objects whose

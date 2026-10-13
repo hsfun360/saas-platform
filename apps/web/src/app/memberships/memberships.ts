@@ -30,7 +30,8 @@ import {
 } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { SortMenuComponent, SortOption, SortValue } from '../shared/sort-menu/sort-menu';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { ComboboxComponent } from '../shared/combobox/combobox';
 
 // Membership Management → Memberships (SRS 2.3 Phase 1).

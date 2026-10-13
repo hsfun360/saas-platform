@@ -8,7 +8,8 @@ import { DialogComponent } from '../shared/dialog/dialog';
 import { CanDirective } from '../shared/can.directive';
 import { GolfPaymentType, MembershipStatusOption } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 
 // Golf Management → Master File Setup → Payment Type.
 // Per-company settlement-tender catalog: code + payment class (fixed

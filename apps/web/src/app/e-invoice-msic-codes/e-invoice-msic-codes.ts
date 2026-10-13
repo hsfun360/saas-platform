@@ -9,7 +9,8 @@ import { EInvoiceMsicCode } from '../models/auth.models';
 import { FavStarComponent } from '../shared/fav-star/fav-star';
 import { CanDirective } from '../shared/can.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
-import { OverflowMenuComponent, MenuItemDirective } from '../shared/overflow-menu/overflow-menu';
+import { OverflowMenuComponent } from '../shared/overflow-menu/overflow-menu';
+import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 
 // MSIC 2008 section names (A-U), display-only: LHDN's JSON carries just the
 // section letter ("MSIC Category Reference"); the names are the standard MSIC

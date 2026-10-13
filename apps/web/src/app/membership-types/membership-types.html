@@ -16,14 +16,14 @@
     <div class="flash flash-success" role="status" aria-live="polite">
       <span class="flash-icon">✅</span>
       <span>{{ successMessage() }}</span>
-      <button class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
   @if (errorMessage()) {
     <div class="flash flash-error" role="alert" aria-live="assertive">
       <span class="flash-icon">❌</span>
       <span>{{ errorMessage() }}</span>
-      <button class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
     </div>
   }
 
@@ -188,7 +188,7 @@
             <label class="mt-check"><input type="checkbox" formControlName="transferRight" /><span>Transfer right</span></label>
           </div>
           @if (showGolf()) {
-            <div class="form-group" style="max-width: 280px; margin-top: var(--space-sm);">
+            <div class="form-group form-group--narrow">
               <label for="tGuestQuota">Golf guest quota (per booking)</label>
               <input id="tGuestQuota" type="number" inputmode="numeric" formControlName="guestQuota" min="0" step="1" placeholder="No limit" />
               <p class="mt-hint">Guests a member of this type may bring on one booking — members playing as guests count. Blank = no limit, 0 = cannot bring guests.</p>
@@ -269,7 +269,7 @@
         @if (isPersonal()) {
           <details class="dlg-sec" open>
             <summary><h3 class="dlg-section">Individual</h3></summary>
-            <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-sm);">
+            <div class="form-grid">
               <div class="form-group">
                 <label for="tAgeFrom">Child age from</label>
                 <input id="tAgeFrom" type="number" inputmode="numeric" formControlName="childAgeFrom" min="0" step="1" />
