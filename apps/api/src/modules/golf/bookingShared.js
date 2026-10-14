@@ -267,7 +267,10 @@ async function sessionBookingConflict(companyId, standing, playDate, teeTime, se
 // changeCount } resolved by the listing in one pass.
 function bookingDto(profile, records, courseByIdMap, extras = {}) {
     const course = courseByIdMap ? courseByIdMap.get(profile.courseId) : null;
-    const rows = records || [];
+    // Players DROPPED by a change (status cancelled while the booking stays
+    // booked) leave the listing; a whole-booking cancel keeps its lines so
+    // the cancelled card still names who was on it.
+    const rows = (records || []).filter((r) => profile.status !== 'booked' || r.status !== 'cancelled');
     const firsts = rows.filter((r) => Number(r.secondNineFlag) === 0)
         .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : (a.id < b.id ? -1 : 1)));
     const seconds = rows.filter((r) => Number(r.secondNineFlag) === 1);
