@@ -17,5 +17,10 @@ router.get('/', validate(s.list), controller.list);
 router.post('/', validate(s.create), controller.create);
 router.get('/:id/cancel-preview', validate(s.id), controller.cancelPreview);
 router.post('/:id/cancel', validate(s.cancel), controller.cancel);
+// Change booking (2026-10-14): preview states the outcome, apply re-judges
+// it under the day lock; the history lists every amendment of the booking.
+router.post('/:id/change-preview', validate(s.change), controller.changePreview);
+router.post('/:id/change', validate(s.change), controller.change);
+router.get('/:id/changes', validate(s.id), controller.listChanges);
 
 module.exports = router;

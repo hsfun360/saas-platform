@@ -3,7 +3,7 @@
 > **Where:** Golf Management → Golf Booking
 >
 > **Who can use it:** users whose role includes the Golf Management module.
-> The New booking button needs the Create permission; Cancel booking needs the Edit permission and the booking must be within your data scope.
+> The New booking button needs the Create permission; Change booking and Cancel booking need the Edit permission and the booking must be within your data scope.
 
 ## What this option is for
 
@@ -11,7 +11,7 @@ The Golf Booking screen is where staff take advance tee-time bookings for member
 A booking is made in three steps: key in the member who is booking and check their standing, search the available flights nearest the time they want, then hold a flight while you key in the players and confirm.
 The available flights are computed live from the Course setup, the Course Closure plans, the holds of group bookings and the booking rules in Golf Specification (advance window, merge rule, minimum players, guest control, booking limits, handicap and junior control), so what the screen offers is what the club allows.
 A group's shotgun window blocks the course's nines like a closure, and a group's reserved flight holds its whole tee-time cell, so neither is ever offered here.
-Staff also come here to cancel a booking; the confirmation tells you beforehand whether the cancellation is inside the notice period and what charge, if any, the booker will bear.
+Staff also come here to change a booking (move it to another flight, add or drop players, update the contact details) or cancel it; in both cases the screen tells you beforehand whether the action is inside the notice period and what charge, if any, the booker will bear.
 Group and tournament bookings are made on the Group Bookings screen, and same-day walk-ins are registered at the Tee Time Sheet.
 
 ## The screen at a glance
@@ -22,7 +22,7 @@ Group and tournament bookings are made on the Group Bookings screen, and same-da
   With nothing on that date the screen reads "No bookings for <date> yet. Use 'New booking' to make the first one."
 - Each booking is a card titled with the tee time and the course, then the booking number, the holes (9 or 18), the crossover time for an 18-hole flight, the contact mobile, and the players ("3 player(s): Ahmad Faizal, Lim Wei, Guest").
 - A status chip at the top right shows **BOOKED** (green), **CANCELLED** or **NO SHOW** (grey); NO SHOW appears when every player of the booking was recorded as a no-show at the front desk.
-- A booked card has a ⋮ menu holding **Cancel booking**.
+- A booked card has a ⋮ menu holding **Change booking** and **Cancel booking**; a booking that has been changed also shows a blue **Changed ×n** chip and a **Change history** item in the menu.
 - The **New booking** button floats at the bottom right of the screen.
 
 ## Common tasks
@@ -60,6 +60,42 @@ Group and tournament bookings are made on the Group Bookings screen, and same-da
 The system re-checks every rule at this moment, issues the Booking No., saves the booking and sends one confirmation email addressed to every player who has an email on their member record.
 The list jumps to the play date with the new booking highlighted.
 Clicking **« Back** on the players step releases the hold; closing the dialog before confirming asks "Abandon this booking?" because the flight is released.
+
+### Change a booking
+
+[Screenshot: Change booking dialog - current flight and players]
+
+1. Open the booked card's ⋮ menu and click **Change booking**.
+   The dialog opens on the booking's players: a **Current flight** card at the top (course, tee time, crossover time, holes, date and who booked), then one line per player and the Contact Mobile and Remarks fields.
+2. To move the flight, click **Move flight**.
+   The search form opens pre-filled with the booker, date, time, party size and holes; change what you need and click **Search flights**, then **Move here** on the flight you want.
+   The new flight is held with a countdown exactly like a new booking, and the players step shows "Moving from <current flight> to <new flight>"; **Keep the current flight instead** releases the hold and goes back.
+   The booking's own seats never count against the flights offered, so the booking can move to an emptier time on the same flight's day or to another day inside the booker's window.
+3. To drop a player, click the ✕ on their line.
+   An existing player is shown read-only; to correct a name or number, drop the line and add a new one.
+   A player who is already **Registered** at the front desk shows a Desk tag and cannot be dropped, and a booking with a registered player cannot be moved.
+4. To add a player, click **Add player** and key in the line as for a new booking (up to the seats left on the held flight, or ten in total).
+5. Update the **Contact Mobile** or **Remarks** if needed, then click **Review change**.
+
+[Screenshot: Confirm change view]
+
+6. Read the review; it states the outcome in one sentence ("Moved from 24 Oct 2026 07:15 (E1, 18 holes) to 24 Oct 2026 08:30 (E2, 18 holes); 1 player(s) dropped: Lim Wei.") and lists the flight before and after, the players kept, the players added (green) and the players dropped (red).
+   While the Cancellation & No-show rules are switched on and the original flight is inside its notice period, a notice explains the rule that applies:
+   - Moving to another flight on the **same day** is free: "This change is free: a move to another flight on the same day carries no charge."
+   - Moving to **another day** is treated as a late cancellation of the original flight: with **Allow the cancellation and charge the no-show penalty** the notice prices the charge for the booked players ("A late-change charge of 168.00 (2 × 80.00 + 8.00 tax) for Ahmad Faizal, Lim Wei will be posted to <booker>"); with **Refuse** the move is refused before the review opens ("Bookings need 24 hours' notice to move to another day - the notice period has ended. The booking may still move to another flight on the same day.").
+   - **Dropping players** inside the notice period is charged per dropped player when the charge basis is **Per no-show player**, is free on a partial drop when the basis is **Per booking**, and is refused under **Refuse** ("Bookings need 24 hours' notice to drop players - the notice period has ended.").
+   Tick **Waive the late-change charge** and give a **Waive reason** to change without charging.
+7. Optionally enter a **Reason**; it is kept in the booking's change history.
+8. Click the button; it reads **Move booking**, **Confirm change**, **Change and charge 168.00** or **Change and waive charge** according to the outcome, or **« Back** to adjust.
+
+The booking keeps its number, the list jumps to the new play date with the booking highlighted, the card gains the **Changed ×n** chip, and one email goes to every affected player with an email address, dropped players included.
+Dropped players are released from the flight; a posted charge is shown on the No-show Charges screen.
+Closing the dialog before confirming asks "Abandon this change?" and leaves the booking as it was.
+
+### See a booking's change history
+
+1. Open the card's ⋮ menu and click **Change history** (shown once the booking has been changed).
+2. Each change is a card numbered #1, #2, ... with its kind (Flight moved, Players changed, Details updated, Flight and players changed), when it was made, the confirmed sentence and the reason.
 
 ### Cancel a booking
 
@@ -104,6 +140,17 @@ A posted charge is shown on the No-show Charges screen.
 | **Contact Mobile** | No | A mobile number for the booking; pick the country code, then type the number. | Up to 30 characters. |
 | **Remarks** | No | Any note for the front desk. | Up to 255 characters. |
 
+### Change booking dialog
+
+| Field | Required | What to enter | Rules |
+| --- | --- | --- | --- |
+| **Move flight** | - | Opens the search for another flight; the booker, date, time, party and holes start from the current booking. | The booking's own seats are not counted against the flights offered; a booking with a registered player cannot be moved. |
+| Player lines | - | Existing players are read-only with a ✕ to drop them; new lines take a **Type** and a **Member ID / Guest Name** as on a new booking. | A registered player cannot be dropped; dropping every player is a cancellation, use Cancel booking instead; lines cannot exceed the seats left on the held flight. |
+| **Contact Mobile**, **Remarks** | No | The booking's contact and note. | Up to 30 and 255 characters. |
+| **Waive the late-change charge** | No | Tick to change inside the notice period without charging the booker. | Shown only when a charge would apply. |
+| **Waive reason** | Yes when waiving | Why the charge is waived. | Up to 255 characters; kept on the charge record. |
+| **Reason** | No | Why the booking is changed. | Up to 255 characters; kept in the change history. |
+
 ### Cancel booking dialog
 
 | Field | Required | What to enter | Rules |
@@ -131,7 +178,14 @@ A posted charge is shown on the No-show Charges screen.
 - If you see "X is a junior member and must play with their principal (parent), who is not in this booking." or "...must be accompanied by an adult member." add the parent or an adult member to the booking.
 - If you see "Configure the Booking No. numbering scheme first (Golf Management → Numbering Control)." or "The Booking No. scheme is manual - key in a booking number." set the Booking No. series to Auto-generate on Numbering Control.
 - If you see "Player n: key in the member number." or "Player n: key in the guest name (or 'Guest')." a player line is incomplete.
-- If you see "Only a booked booking can be cancelled." the booking is already cancelled.
+- If you see "Only a booked booking can be cancelled." or "Only a booked booking can be changed." the booking is already cancelled.
+- If you see "Nothing changed." the review was requested without moving the flight, changing a player line or editing the contact details.
+- If you see "A registered player cannot be dropped - the desk already processed them." or "A booking with a registered player cannot be moved." the front desk has registered that player; changes to registered players are made on the Tee Time Sheet.
+- If you see "Dropping every player is a cancellation - use Cancel booking." remove the booking through Cancel booking instead.
+- If you see "The flight has no room for n player(s)." or "The crossover flight has no room for n player(s)." the roster after the change does not fit the flight; drop a player or move to another flight.
+- If you see "Bookings need n hours' notice to move to another day - the notice period has ended. ..." or "... to drop players ..." the club refuses that change inside the notice period; a move to another flight on the same day is still allowed.
+- If you see "The late change cannot be charged: ..." the No-show Charge type has no price in force or is not set; fix it in Golf Specification or Transaction Type, or waive.
+- If you see "Player n is not on this booking any more - reload the booking." someone else changed the booking meanwhile; close the dialog and open Change booking again.
 - If you see "Bookings need n hours' notice to cancel - the notice period for X ended ..." the club refuses late cancellations; the booking stands and no-shows are recorded at the front desk.
 - If you see "Give a reason for waiving the late-cancellation charge." the Waive reason box is empty.
 - If you see "Late cancellation cannot be charged: ..." the No-show Charge type has no price in force or is not set; fix it in Golf Specification or Transaction Type, or waive.

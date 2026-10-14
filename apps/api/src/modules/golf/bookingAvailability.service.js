@@ -298,10 +298,16 @@ function crossBlocked(ctx, course, ctMinutes) {
 // (dayContext) an 18-hole flight's crossover landing cell is held the same
 // way until the draw's crossover records exist. Pass `ctx` wherever one is
 // at hand (availability search, lock, save, desk walk-in).
-async function occupancy(companyId, playDate, { transaction, ctx = null } = {}) {
+// `excludeBookingProfileId` (change booking, 2026-10-14) leaves ONE booking's
+// own records out of the counts, so a booking being amended sees the seats it
+// already holds as free - on its own flight (adding players) and on any flight
+// it may move to on the same day.
+async function occupancy(companyId, playDate, { transaction, ctx = null, excludeBookingProfileId = null } = {}) {
     const map = new Map();
+    const where = { companyId, playDate, status: { [Op.in]: ACTIVE_PLAYER_STATUS_KEYS } };
+    if (excludeBookingProfileId) where.bookingProfileId = { [Op.or]: [{ [Op.ne]: excludeBookingProfileId }, { [Op.is]: null }] };
     const rows = await Player.findAll({
-        where: { companyId, playDate, status: { [Op.in]: ACTIVE_PLAYER_STATUS_KEYS } },
+        where,
         attributes: ['bookingProfileId', 'unitCourseId', 'teeTime', 'groupFlightId', 'secondNineFlag'],
         transaction,
     });
@@ -509,12 +515,13 @@ function nearestFlights(flights, requestedTime, n) {
 // rule's evidence. Counted: profiles they made (bookerGolferId) and profiles
 // where they appear as a 'member' player record; member-as-guest records are
 // NOT counted, cancelled bookings free the day.
-async function memberDayBookings(companyId, golferId, playDate, { transaction } = {}) {
+// `excludeProfileId` (change booking) leaves the booking being amended out,
+// so moving it within the day never trips its own one-per-day rule.
+async function memberDayBookings(companyId, golferId, playDate, { transaction, excludeProfileId = null } = {}) {
     if (!golferId) return [];
-    const asBooker = await BookingProfile.findAll({
-        where: { companyId, playDate, status: 'booked', bookerGolferId: golferId },
-        transaction,
-    });
+    const bookerWhere = { companyId, playDate, status: 'booked', bookerGolferId: golferId };
+    if (excludeProfileId) bookerWhere.id = { [Op.ne]: excludeProfileId };
+    const asBooker = await BookingProfile.findAll({ where: bookerWhere, transaction });
     const lines = await Player.findAll({
         where: {
             companyId,
@@ -522,7 +529,7 @@ async function memberDayBookings(companyId, golferId, playDate, { transaction } 
             golferId,
             playerType: 'member',
             secondNineFlag: 0,
-            bookingProfileId: { [Op.ne]: null },
+            bookingProfileId: excludeProfileId ? { [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: excludeProfileId }] } : { [Op.ne]: null },
             status: { [Op.in]: ACTIVE_PLAYER_STATUS_KEYS },
         },
         attributes: ['bookingProfileId'],

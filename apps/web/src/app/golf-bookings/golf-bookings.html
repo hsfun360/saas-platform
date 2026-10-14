@@ -56,19 +56,36 @@
                 @if (b.contactMobile) {
                   <span class="data-card__reg">{{ b.contactMobile }}</span>
                 }
+                @if (b.changeCount > 0) {
+                  <span class="status-chip status-chip--info">Changed ×{{ b.changeCount }}</span>
+                }
               </div>
               <div class="data-card__desc">{{ b.players.length }} player(s): {{ playerSummary(b) }}</div>
             </div>
             <span class="data-row__badge status-chip" [class.status-chip--on]="b.status === 'booked'" [class.status-chip--off]="b.status !== 'booked'">
               {{ statusLabel(b.status) }}
             </span>
-            @if (b.status === 'booked' && b.canModify !== false) {
+            @if ((b.status === 'booked' && b.canModify !== false) || b.changeCount > 0) {
               <div class="data-row__actions" *appCan="'edit'">
                 <app-overflow-menu [label]="'More actions for booking ' + b.bookingNo">
-                  <button type="button" appMenuItem (click)="openCancel(b)">
-                    <span class="material-icons" aria-hidden="true">cancel</span>
-                    Cancel booking
-                  </button>
+                  @if (b.status === 'booked' && b.canModify !== false) {
+                    <button type="button" appMenuItem (click)="openChange(b)">
+                      <span class="material-icons" aria-hidden="true">edit_calendar</span>
+                      Change booking
+                    </button>
+                  }
+                  @if (b.changeCount > 0) {
+                    <button type="button" appMenuItem (click)="openHistory(b)">
+                      <span class="material-icons" aria-hidden="true">history</span>
+                      Change history
+                    </button>
+                  }
+                  @if (b.status === 'booked' && b.canModify !== false) {
+                    <button type="button" appMenuItem (click)="openCancel(b)">
+                      <span class="material-icons" aria-hidden="true">cancel</span>
+                      Cancel booking
+                    </button>
+                  }
                 </app-overflow-menu>
               </div>
             }
@@ -83,11 +100,11 @@
     New booking
   </button>
 
-  <!-- ============ Booking wizard (single drawer dialog, 3 views) ============ -->
+  <!-- ============ Booking wizard (single drawer dialog; new = 3 views, change = 4 views) ============ -->
   @if (dialogOpen()) {
     <app-dialog #bdlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="isDirty()"
-                discardTitle="Abandon this booking?"
-                discardMessage="The booking has not been confirmed. Leaving now releases the flight."
+                [discardTitle]="isChange() ? 'Abandon this change?' : 'Abandon this booking?'"
+                [discardMessage]="isChange() ? 'The change has not been applied - the booking stays as it is.' : 'The booking has not been confirmed. Leaving now releases the flight.'"
                 (close)="closeDialog()">
 
       @switch (step()) {
@@ -95,11 +112,14 @@
         <!-- ---- STEP 1: Search ---- -->
         @case ('search') {
           <form id="gbSearch" [formGroup]="searchForm" (ngSubmit)="search()" class="saas-form saas-form--dialog">
+            @if (isChange()) {
+              <p class="cell-subtle field-hint">Moving booking <strong>{{ changeTarget()?.bookingNo }}</strong> from {{ currentFlight() }} on {{ changeTarget()?.playDate | localDate }}. Inside the cancellation notice a move to another flight on the SAME day is free.</p>
+            }
             <div class="form-group">
               <label for="gbMember">Member No <span class="required">*</span></label>
               <div class="gb-member-row">
                 <input id="gbMember" type="text" formControlName="memberNo" autocomplete="off" maxlength="50"
-                       placeholder="e.g. A0018" (blur)="loadContext()"
+                       placeholder="e.g. A0018" (blur)="loadContext()" [readonly]="isChange()"
                        [attr.aria-invalid]="showError(searchForm.controls.memberNo)" aria-describedby="gbMemberErr" />
                 <button type="button" class="btn btn--secondary btn--sm" (click)="loadContext()" [disabled]="contextLoading()">
                   {{ contextLoading() ? 'Checking…' : 'Check' }}
@@ -118,7 +138,7 @@
                 @if (!ctx.member.isGolfAllow) {
                   <span class="gb-tag">No golfing right - member rate applies</span>
                 }
-                <span class="gb-window">Can book {{ ctx.window.dateFrom | localDate }} – {{ ctx.window.dateTo | localDate }}</span>
+                <span class="gb-window">Can book {{ ctx.window.dateFrom | localDate }} - {{ ctx.window.dateTo | localDate }}</span>
               </div>
               @if (memberWarning()) {
                 <p class="gb-warning" role="alert">{{ memberWarning() }}</p>
@@ -192,7 +212,7 @@
                         @if (f.isFrontDesk) { · front desk }
                       </span>
                       <button type="button" class="btn btn--primary btn--sm" (click)="pickFlight(g, f.teeTime)" [disabled]="searching()">
-                        Book
+                        {{ isChange() ? 'Move here' : 'Book' }}
                       </button>
                     </div>
                   }
@@ -202,7 +222,7 @@
           </div>
         }
 
-        <!-- ---- STEP 3: Players + confirm ---- -->
+        <!-- ---- STEP 3: Players + confirm (new) / the booking's roster (change) ---- -->
         @case ('players') {
           <!-- Reactive form (house standard): player lines are a FormArray, contact + remarks
                sit beside it; the form's dirty state feeds the guard and Enter submits. -->
@@ -210,16 +230,36 @@
           @if (lock(); as lk) {
             <div class="gb-lock-banner" role="status" aria-live="polite">
               <span class="material-icons" aria-hidden="true">lock_clock</span>
-              <span>Flight held - confirm within <strong>{{ countdown() }}</strong></span>
+              <span>{{ isChange() ? 'New flight held' : 'Flight held' }} - confirm within <strong>{{ countdown() }}</strong></span>
             </div>
             <div class="gb-summary">
+              @if (isChange()) {
+                <span class="cell-subtle">Moving from {{ currentFlight() }} on {{ changeTarget()?.playDate | localDate }} to:</span>
+              }
               <span><strong>{{ lockedGroup()?.courseCode }}</strong> · {{ searchForm.controls.playDate.value | localDate }}</span>
               <span>Tee time <strong>{{ lk.teeTime }}</strong>{{ lk.crossTime ? ' · cross over ' + lk.crossTime : '' }} · {{ searchForm.controls.holes.value }} holes</span>
               @if (lk.existingPlayers > 0) {
                 <span>{{ lk.existingPlayers }} player(s) already booked on this flight</span>
               }
+              @if (isChange()) {
+                <button type="button" class="btn btn--link btn--sm" (click)="keepCurrentFlight()">Keep the current flight instead</button>
+              }
             </div>
+          } @else if (isChange() && changeTarget(); as target) {
+            <div class="gb-current">
+              <div>
+                <span class="gb-current__label">Current flight</span>
+                <strong>{{ currentFlight() }}</strong>
+                <span class="cell-subtle">{{ target.playDate | localDate }} · booked by {{ target.bookerName || target.bookerMemberNo || 'member' }}</span>
+              </div>
+              <button type="button" class="btn btn--secondary btn--sm" (click)="moveFlight()" [disabled]="contextLoading()">
+                <span class="material-icons" aria-hidden="true">swap_horiz</span>
+                {{ contextLoading() ? 'Checking…' : 'Move flight' }}
+              </button>
+            </div>
+          }
 
+          @if (lock() || isChange()) {
             <div class="gb-players" formArrayName="lines">
               <div class="gb-player-row gb-player-row--head" aria-hidden="true">
                 <span></span>
@@ -230,28 +270,45 @@
               @for (g of playerLines.controls; track g; let i = $index) {
                 <div class="gb-player-row" [formGroupName]="i">
                   <span class="gb-player-no">{{ i + 1 }}</span>
-                  <select formControlName="playerType" [attr.aria-label]="'Player ' + (i + 1) + ' type'">
-                    <option value="member">Member</option>
-                    <option value="member-guest">Member as Guest</option>
-                    <option value="guest">Guest</option>
-                  </select>
-                  @if (g.controls.playerType.value === 'guest') {
-                    <input type="text" formControlName="guestName" maxlength="100" placeholder="Guest name (or 'Guest')"
-                           [attr.aria-label]="'Player ' + (i + 1) + ' guest name'" />
+                  @if (isExistingLine(g)) {
+                    <span class="gb-line-static">{{ g.controls.playerType.value === 'member' ? 'Member' : (g.controls.playerType.value === 'member-guest' ? 'Member as Guest' : 'Guest') }}</span>
+                    <span class="gb-line-static">
+                      {{ g.controls.playerName.value }}{{ g.controls.memberNo.value ? ' (' + g.controls.memberNo.value + ')' : '' }}
+                      @if (g.controls.status.value === 'registered') {
+                        <span class="status-chip status-chip--on">Registered</span>
+                      }
+                    </span>
+                    @if (g.controls.status.value !== 'registered') {
+                      <button type="button" class="btn btn--danger btn--sm" (click)="removeLine(i)" [attr.aria-label]="'Drop ' + g.controls.playerName.value">
+                        <span class="material-icons" aria-hidden="true">close</span>
+                      </button>
+                    } @else {
+                      <span class="gb-booker-tag">Desk</span>
+                    }
                   } @else {
-                    <input type="text" formControlName="memberNo" maxlength="50" placeholder="Member No"
-                           [attr.aria-label]="'Player ' + (i + 1) + ' member number'" />
-                  }
-                  @if (i > 0) {
-                    <button type="button" class="btn btn--danger btn--sm" (click)="removeLine(i)" [attr.aria-label]="'Remove player ' + (i + 1)">
-                      <span class="material-icons" aria-hidden="true">close</span>
-                    </button>
-                  } @else {
-                    <span class="gb-booker-tag">Booker</span>
+                    <select formControlName="playerType" [attr.aria-label]="'Player ' + (i + 1) + ' type'">
+                      <option value="member">Member</option>
+                      <option value="member-guest">Member as Guest</option>
+                      <option value="guest">Guest</option>
+                    </select>
+                    @if (g.controls.playerType.value === 'guest') {
+                      <input type="text" formControlName="guestName" maxlength="100" placeholder="Guest name (or 'Guest')"
+                             [attr.aria-label]="'Player ' + (i + 1) + ' guest name'" />
+                    } @else {
+                      <input type="text" formControlName="memberNo" maxlength="50" placeholder="Member No"
+                             [attr.aria-label]="'Player ' + (i + 1) + ' member number'" />
+                    }
+                    @if (i > 0 || isChange()) {
+                      <button type="button" class="btn btn--danger btn--sm" (click)="removeLine(i)" [attr.aria-label]="'Remove player ' + (i + 1)">
+                        <span class="material-icons" aria-hidden="true">close</span>
+                      </button>
+                    } @else {
+                      <span class="gb-booker-tag">Booker</span>
+                    }
                   }
                 </div>
               }
-              @if (playerLines.length < lk.seatsLeft) {
+              @if (playerLines.length < seatCap()) {
                 <button type="button" class="btn btn--secondary btn--sm" (click)="addLine()">
                   <span class="material-icons" aria-hidden="true">add</span>
                   Add player
@@ -272,12 +329,75 @@
           }
           </form>
         }
+
+        <!-- ---- STEP 4 (change only): review the server's preview, then confirm ---- -->
+        @case ('review') {
+          @if (changePreview(); as p) {
+            <div class="gb-review">
+              <p class="gb-review__summary">{{ p.summary }}</p>
+
+              @if (p.moved) {
+                <dl class="gb-review__flights">
+                  <div><dt>From</dt><dd>{{ p.before.playDate | localDate }} {{ p.before.teeTime }}{{ p.before.crossTime ? ' (cross over ' + p.before.crossTime + ')' : '' }} · {{ p.before.courseName }} · {{ p.before.holes }} holes</dd></div>
+                  <div><dt>To</dt><dd>{{ p.after.playDate | localDate }} {{ p.after.teeTime }}{{ p.after.crossTime ? ' (cross over ' + p.after.crossTime + ')' : '' }} · {{ p.after.courseName }} · {{ p.after.holes }} holes</dd></div>
+                </dl>
+              }
+
+              <div class="gb-review__roster">
+                @for (k of p.kept; track k.playerId) {
+                  <span class="gb-review__line">{{ k.playerName }}{{ k.memberNo ? ' (' + k.memberNo + ')' : '' }}</span>
+                }
+                @for (a of p.added; track $index) {
+                  <span class="gb-review__line gb-review__line--added">+ {{ a.playerName }}{{ a.memberNo ? ' (' + a.memberNo + ')' : '' }}</span>
+                }
+                @for (d of p.dropped; track d.playerId) {
+                  <span class="gb-review__line gb-review__line--dropped">- {{ d.playerName }}{{ d.memberNo ? ' (' + d.memberNo + ')' : '' }}</span>
+                }
+              </div>
+
+              @if (p.controlled && p.late) {
+                <div class="gb-notice" [class.gb-notice--charge]="!!p.charge" role="status">
+                  <span class="material-icons" aria-hidden="true">{{ p.charge ? 'warning' : 'info' }}</span>
+                  <span>
+                    Within the <strong>{{ p.noticeHours }}-hour</strong> notice of the original flight (ended {{ p.deadline?.date | localDate }} {{ p.deadline?.time }}).
+                    @if (p.charge) {
+                      A late-change charge of <strong>{{ p.charge.totalAmount.toFixed(2) }}</strong>
+                      ({{ p.charge.quantity }} × {{ p.charge.unitAmount.toFixed(2) }}{{ p.charge.taxAmount > 0 ? ' + ' + p.charge.taxAmount.toFixed(2) + ' tax' : '' }})
+                      for {{ p.charge.players.join(', ') }} will be posted to <strong>{{ p.charge.booker.name }}</strong>{{ p.charge.booker.memberNo ? ' (' + p.charge.booker.memberNo + ')' : '' }}.
+                    } @else {
+                      This change is free: a move to another flight on the same day carries no charge.
+                    }
+                  </span>
+                </div>
+                @if (p.charge) {
+                  <label class="gb-check">
+                    <input #waiveChg type="checkbox" [checked]="changeWaive()" (change)="changeWaive.set(waiveChg.checked)" />
+                    <span>Waive the late-change charge</span>
+                  </label>
+                  @if (changeWaive()) {
+                    <div class="form-group">
+                      <label for="gbChangeWaiveReason">Waive reason <span class="required">*</span></label>
+                      <textarea #waiveChgInput id="gbChangeWaiveReason" rows="2" wrap="off" [value]="changeWaiveReason()"
+                                (input)="changeWaiveReason.set(waiveChgInput.value)"></textarea>
+                    </div>
+                  }
+                }
+              }
+
+              <div class="form-group">
+                <label for="gbChangeReason">Reason</label>
+                <textarea #changeReasonInput id="gbChangeReason" rows="2" wrap="off" [value]="changeReason()"
+                          (input)="changeReason.set(changeReasonInput.value)" placeholder="Optional - kept in the booking's change history"></textarea>
+              </div>
+            </div>
+          }
+        }
       }
 
       <ng-container dialogFooter>
         @switch (step()) {
           @case ('search') {
-            <button type="button" class="btn btn--secondary" (click)="bdlg.requestClose()">Cancel</button>
+            <button type="button" class="btn btn--secondary" (click)="isChange() ? keepCurrentFlight() : bdlg.requestClose()">{{ isChange() ? '« Back' : 'Cancel' }}</button>
             <button type="submit" form="gbSearch" class="btn btn--primary"
                     [disabled]="searching() || contextLoading() || (context() && context()!.member.actionControl === 'barred')">
               {{ searching() ? 'Searching…' : 'Search flights' }}
@@ -290,12 +410,55 @@
             </button>
           }
           @case ('players') {
-            <button type="button" class="btn btn--secondary" (click)="backToFlights()" [disabled]="saving()">« Back</button>
-            <button type="submit" form="gbPlayers" class="btn btn--primary" [disabled]="saving() || !lock()">
-              {{ saving() ? 'Confirming…' : 'Confirm booking' }}
+            @if (isChange()) {
+              <button type="button" class="btn btn--secondary" (click)="bdlg.requestClose()" [disabled]="saving()">Cancel</button>
+              <button type="submit" form="gbPlayers" class="btn btn--primary" [disabled]="saving()">
+                {{ saving() ? 'Reviewing…' : 'Review change' }}
+              </button>
+            } @else {
+              <button type="button" class="btn btn--secondary" (click)="backToFlights()" [disabled]="saving()">« Back</button>
+              <button type="submit" form="gbPlayers" class="btn btn--primary" [disabled]="saving() || !lock()">
+                {{ saving() ? 'Confirming…' : 'Confirm booking' }}
+              </button>
+            }
+          }
+          @case ('review') {
+            <button type="button" class="btn btn--secondary" (click)="backToPlayers()" [disabled]="saving()">« Back</button>
+            <button type="button" class="btn btn--primary" (click)="confirmChange()" [disabled]="saving()">
+              {{ saving() ? 'Applying…' : changeConfirmLabel() }}
             </button>
           }
         }
+      </ng-container>
+    </app-dialog>
+  }
+
+  <!-- ============ Change history (centred viewer) ============ -->
+  @if (historyTarget(); as target) {
+    <app-dialog [title]="'Change history - ' + target.bookingNo" [busy]="historyLoading()" (close)="historyTarget.set(null)">
+      @if (historyLoading()) {
+        <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading changes…</p></div>
+      } @else if (historyRows().length === 0) {
+        <div class="empty-state">
+          <span class="material-icons empty-icon" aria-hidden="true">history</span>
+          <p>No changes recorded for this booking.</p>
+        </div>
+      } @else {
+        <div class="data-list">
+          @for (c of historyRows(); track c.id) {
+            <div class="data-card">
+              <div class="data-card__title">#{{ c.changeNo }} · {{ changeTypeLabel(c.changeType) }}</div>
+              <div class="data-card__subline"><span class="data-card__reg">{{ c.changedAt | localDate:'datetime' }}</span></div>
+              <div class="data-card__desc">{{ c.summary }}</div>
+              @if (c.reason) {
+                <div class="data-card__desc cell-subtle">Reason: {{ c.reason }}</div>
+              }
+            </div>
+          }
+        </div>
+      }
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="historyTarget.set(null)">Close</button>
       </ng-container>
     </app-dialog>
   }

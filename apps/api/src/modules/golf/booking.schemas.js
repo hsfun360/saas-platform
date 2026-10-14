@@ -34,8 +34,10 @@ const idParam = { params: z.object({ id }) };
 
 module.exports = {
     context: { query: z.object({ memberNo: str(50) }) },
-    availability: { body: z.object({ ...search, time: str(8), courseId: str(64) }) },
-    lock: { body: z.object({ ...search, teeTime: str(8), courseId: str(64) }) },
+    // `excludeBookingId` (change booking): the booking being moved is left out
+    // of the capacity counts and its own one-per-day / session evidence.
+    availability: { body: z.object({ ...search, time: str(8), courseId: str(64), excludeBookingId: str(64) }) },
+    lock: { body: z.object({ ...search, teeTime: str(8), courseId: str(64), excludeBookingId: str(64) }) },
     // The lock group id is the FlightLock.groupId UUID minted at lock time.
     releaseLock: { params: z.object({ groupId: id }) },
     list: { query: z.object({ playDate: str(10) }) },
@@ -51,4 +53,21 @@ module.exports = {
     },
     id: idParam,
     cancel: { ...idParam, body: z.object({ reason: str(255), waiveCharge: z.boolean().optional(), waiveReason: str(255) }) },
+    // Change booking (2026-10-14): the roster after the change (a line with
+    // playerId keeps that player, a line without one adds a player), the
+    // lock of the flight it moves to (absent = same flight), header edits
+    // (absent = unchanged, so presence semantics are kept), the reason and
+    // the waive of a late-change charge. Preview and apply share the body.
+    change: {
+        ...idParam,
+        body: z.object({
+            lockGroupId: str(64),
+            players: z.array(playerLine.extend({ playerId: str(64) })).max(20),
+            contactMobile: str(30),
+            remarks: str(255),
+            reason: str(255),
+            waiveCharge: z.boolean().optional(),
+            waiveReason: str(255),
+        }),
+    },
 };

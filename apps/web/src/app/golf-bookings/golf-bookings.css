@@ -235,3 +235,103 @@
   height: var(--icon-sm);
   flex-shrink: 0;
 }
+
+/* Change booking (2026-10-14): the current-flight card on the Players view
+   (Move flight beside it), read-only cells of an existing player line, and
+   the review view (the server's preview before the change applies). */
+.gb-current {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm);
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.gb-current > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+.gb-current strong {
+  color: var(--text-primary);
+}
+.gb-current__label {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.gb-line-static {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 40px;
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  min-width: 0;
+}
+.gb-review__summary {
+  margin: 0 0 var(--space-md);
+  font-size: var(--font-body);
+  color: var(--text-primary);
+}
+.gb-review__flights {
+  margin: 0 0 var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.gb-review__flights div {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: var(--space-sm);
+  padding: var(--space-2xs) 0;
+}
+.gb-review__flights dt {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.gb-review__flights dd {
+  margin: 0;
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+}
+.gb-review__roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+.gb-review__line {
+  padding: var(--space-2xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}
+.gb-review__line--added {
+  border-color: var(--success-border);
+  background: var(--success-surface);
+  color: var(--success-text);
+}
+.gb-review__line--dropped {
+  border-color: var(--danger-border);
+  background: var(--danger-surface);
+  color: var(--danger-text);
+  text-decoration: line-through;
+}
+@media (max-width: 767px) {
+  .gb-current {
+    grid-template-columns: 1fr;
+  }
+  .gb-line-static {
+    grid-column: 2 / 4;
+  }
+}

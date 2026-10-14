@@ -58,6 +58,16 @@ export interface GolfBookingPlayerLine {
   guestName?: string;
 }
 
+export interface GolfBookingPlayer {
+  playerId: string;
+  sortOrder: number;
+  playerType: string;
+  memberNo: string | null;
+  playerName: string;
+  status: string;
+  registrationNo: string | null;
+}
+
 export interface GolfBookingRow {
   id: string;
   bookingNo: string;
@@ -73,7 +83,10 @@ export interface GolfBookingRow {
   status: string;
   cancelReason: string | null;
   canModify?: boolean;
-  players: { sortOrder: number; playerType: string; memberNo: string | null; playerName: string }[];
+  bookerMemberNo: string | null;
+  bookerName: string | null;
+  changeCount: number;
+  players: GolfBookingPlayer[];
 }
 
 export interface GolfSearchPayload {
@@ -83,6 +96,69 @@ export interface GolfSearchPayload {
   time: string;
   players: number;
   holes: number;
+  // Change booking: the booking being moved is left out of the counts.
+  excludeBookingId?: string;
+}
+
+// ---- change booking (2026-10-14) ----
+export interface GolfChangeLine {
+  playerId?: string;
+  playerType?: 'member' | 'member-guest' | 'guest';
+  memberNo?: string;
+  guestName?: string;
+}
+
+export interface GolfChangePayload {
+  lockGroupId?: string | null;
+  players: GolfChangeLine[];
+  contactMobile?: string | null;
+  remarks?: string | null;
+  reason?: string;
+  waiveCharge?: boolean;
+  waiveReason?: string;
+}
+
+export interface GolfChangeFlight {
+  courseId: string;
+  courseCode: string | null;
+  courseName: string;
+  playDate: string;
+  teeTime: string;
+  crossTime: string | null;
+  holes: number;
+}
+
+export interface GolfChangePreview {
+  bookingNo: string;
+  changeType: 'move' | 'roster' | 'header' | 'mixed';
+  summary: string;
+  moved: boolean;
+  before: GolfChangeFlight;
+  after: GolfChangeFlight;
+  kept: { playerId: string; playerName: string; memberNo: string | null; playerType: string; status: string }[];
+  dropped: { playerId: string; playerName: string; memberNo: string | null; playerType: string }[];
+  added: { playerName: string; memberNo: string | null; playerType: string }[];
+  controlled: boolean;
+  late: boolean;
+  deadline: { date: string; time: string } | null;
+  noticeHours: number | null;
+  charge: {
+    description: string; quantity: number; unitAmount: number; amount: number; taxAmount: number; totalAmount: number;
+    players: string[]; booker: { name: string; memberNo: string | null };
+  } | null;
+}
+
+export interface GolfBookingChange {
+  id: string;
+  changeNo: number;
+  changeType: 'move' | 'roster' | 'header' | 'mixed';
+  summary: string;
+  reason: string | null;
+  before: GolfChangeFlight & { contactMobile: string | null; remarks: string | null; players: { playerName: string; memberNo: string | null; playerType: string }[] };
+  after: GolfChangeFlight & { contactMobile: string | null; remarks: string | null; players: { playerName: string; memberNo: string | null; playerType: string }[] };
+  noShowChargeId: string | null;
+  changedAt: string;
+  changedBy: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -135,6 +211,21 @@ export class GolfBookingService {
       waiveCharge: !!waive,
       waiveReason: waive ? waive.waiveReason : undefined,
     });
+  }
+
+  // Change booking: the preview states the outcome (moved flight, players
+  // added or dropped, the notice-window verdict and any late-change charge)
+  // before the change is applied; apply re-judges it under the day lock.
+  changePreview(id: string, payload: GolfChangePayload): Observable<GolfChangePreview> {
+    return this.http.post<GolfChangePreview>(`${this.base}/${id}/change-preview`, payload);
+  }
+
+  change(id: string, payload: GolfChangePayload): Observable<{ message: string; changeId: string; summary: string }> {
+    return this.http.post<{ message: string; changeId: string; summary: string }>(`${this.base}/${id}/change`, payload);
+  }
+
+  changes(id: string): Observable<{ changes: GolfBookingChange[] }> {
+    return this.http.get<{ changes: GolfBookingChange[] }>(`${this.base}/${id}/changes`);
   }
 }
 

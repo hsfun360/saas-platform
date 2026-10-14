@@ -19,10 +19,24 @@ const PLAYER_TYPE_KEYS = PLAYER_TYPES.map((t) => t.key);
 
 const HOLES_OPTIONS = [9, 18];
 
+// Change-booking kinds (2026-10-14): what one amendment of a flight booking
+// touched. 'move' = another course / date / tee time / holes, 'roster' =
+// players added or dropped, 'header' = contact or remarks only, 'mixed' =
+// more than one of those.
+const CHANGE_TYPES = [
+    { key: 'move', label: 'Flight moved' },
+    { key: 'roster', label: 'Players changed' },
+    { key: 'header', label: 'Details updated' },
+    { key: 'mixed', label: 'Flight and players changed' },
+];
+const CHANGE_TYPE_KEYS = CHANGE_TYPES.map((t) => t.key);
+
 module.exports = {
     BOOKING_STATUSES,
     BOOKING_STATUS_KEYS,
     PLAYER_TYPES,
     PLAYER_TYPE_KEYS,
     HOLES_OPTIONS,
+    CHANGE_TYPES,
+    CHANGE_TYPE_KEYS,
 };

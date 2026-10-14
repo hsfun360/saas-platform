@@ -429,6 +429,49 @@ module.exports = [
         `),
     },
     {
+        key: 'golf.booking.changed',
+        name: 'Golf booking change',
+        description: 'Sent to every player with an email address (dropped players included) when a golf booking is changed - moved to another flight, players added or dropped, or its details updated.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'bookingNo', description: 'The booking number (unchanged by the change).' },
+            { name: 'changeSummary', description: "What changed, e.g. 'Moved from 24 Oct 2026 07:15 (E1) to 24 Oct 2026 08:30 (E2); 1 player dropped'." },
+            { name: 'previousFlight', description: "The flight before the change, e.g. '24 Oct 2026 07:15 - E1 East Course'." },
+            { name: 'playDateText', description: "The play date after the change, e.g. '27 Sept 2026'." },
+            { name: 'teeTime', description: "The tee-off time after the change, e.g. '08:05'." },
+            { name: 'crossTime', description: 'The 18-hole cross-over time (empty for 9 holes).' },
+            { name: 'courseName', description: 'The course after the change, e.g. WEST - West Course.' },
+            { name: 'holes', description: '9 or 18.' },
+            { name: 'playersTable', description: 'The players of the flight AFTER the change as an HTML table (insert with triple braces).' },
+            { name: 'chargeText', description: "The late-change charge sentence, or empty when nothing is charged." },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: {
+            bookingNo: 'B260900001',
+            changeSummary: 'Moved from 27 Sept 2026 08:05 (WEST) to 27 Sept 2026 09:15 (WEST); 1 player added',
+            previousFlight: '27 Sept 2026 08:05 - WEST - West Course',
+            playDateText: '27 Sept 2026', teeTime: '09:15', crossTime: '11:15', courseName: 'WEST - West Course', holes: 18,
+            playersTable: '<table style="border-collapse: collapse; width: 100%;"><tr><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">1</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">Ahmad Faizal</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">A0018</td><td style="border: 1px solid #e2e8f0; padding: 6px 10px;">Member</td></tr></table>',
+            chargeText: '',
+            companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: 'Booking {{bookingNo}} changed - {{playDateText}} {{teeTime}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Booking changed</h2>
+            <p>Dear Player(s),</p>
+            <p>Booking <strong>{{bookingNo}}</strong> at <strong>{{companyName}}</strong> has been changed. This email is sent to every player affected who has an email address on record.</p>
+            <p><strong>What changed:</strong> {{changeSummary}}</p>
+            <p>
+                <strong>Previously:</strong> {{previousFlight}}<br>
+                <strong>Now:</strong> {{playDateText}} {{teeTime}} · {{holes}} holes{{#if crossTime}} · cross over {{crossTime}}{{/if}} · {{courseName}}
+            </p>
+            {{{playersTable}}}
+            {{#if chargeText}}<p style="margin-top: 12px;">{{chargeText}}</p>{{/if}}
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">If you were dropped from this flight, the table above no longer lists you. Contact the front desk for any further changes.</p>
+        `),
+    },
+    {
         key: 'golf.booking.confirmed',
         name: 'Golf booking confirmation',
         description: 'Sent to every player with an email address when a golf booking is confirmed.',

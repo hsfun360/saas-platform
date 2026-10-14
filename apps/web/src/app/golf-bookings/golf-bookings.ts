@@ -20,6 +20,10 @@ import {
   GolfFlightLock,
   GolfBookingPlayerLine,
   GolfCancelPreview,
+  GolfChangeLine,
+  GolfChangePayload,
+  GolfChangePreview,
+  GolfBookingChange,
 } from '../services/golf-booking.service';
 
 // Golf Management → Booking (/golf/bookings) - the make-booking flow against
@@ -31,11 +35,22 @@ import {
 // rule is re-validated server-side at save; the screen only mirrors them.
 // One player line: a typed FormGroup inside the players form's FormArray (house
 // standard - the form's own dirty state feeds the unsaved-changes guard).
+//
+// CHANGE BOOKING (2026-10-14) reuses the same drawer in 'change' mode: it
+// opens on the Players view showing the CURRENT flight and roster (existing
+// lines keep their playerId and can be dropped; new lines are added), "Move
+// flight" walks the Search → Flights steps with the booking's own seats
+// excluded and locks the new flight, and "Review change" shows the server's
+// preview (what moves, who is added or dropped, the notice-window verdict and
+// any late-change charge) as the 'review' view before the change is applied.
 type PlayerType = 'member' | 'member-guest' | 'guest';
 type PlayerLineGroup = FormGroup<{
+  playerId: FormControl<string>;
   playerType: FormControl<PlayerType>;
   memberNo: FormControl<string>;
   guestName: FormControl<string>;
+  playerName: FormControl<string>;
+  status: FormControl<string>;
 }>;
 
 // The DEVICE-local calendar date as 'YYYY-MM-DD'. toISOString() would give
@@ -73,7 +88,9 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
 
   // ---- wizard dialog ----
   readonly dialogOpen = signal(false);
-  readonly step = signal<'search' | 'flights' | 'players'>('search');
+  readonly mode = signal<'new' | 'change'>('new');
+  readonly changeTarget = signal<GolfBookingRow | null>(null);
+  readonly step = signal<'search' | 'flights' | 'players' | 'review'>('search');
   readonly saving = signal(false);
   readonly searching = signal(false);
 
@@ -104,6 +121,17 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     remarks: ['', [Validators.maxLength(255)]],
   });
 
+  // ---- change review (the server's preview, shown before the change applies) ----
+  readonly changePreview = signal<GolfChangePreview | null>(null);
+  readonly changeReason = signal('');
+  readonly changeWaive = signal(false);
+  readonly changeWaiveReason = signal('');
+
+  // ---- change history viewer ----
+  readonly historyTarget = signal<GolfBookingRow | null>(null);
+  readonly historyRows = signal<GolfBookingChange[]>([]);
+  readonly historyLoading = signal(false);
+
   // ---- cancel dialog ----
   readonly cancelTarget = signal<GolfBookingRow | null>(null);
   readonly cancelReason = signal('');
@@ -132,12 +160,37 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     }));
   });
 
+  readonly isChange = computed(() => this.mode() === 'change');
+
   readonly dialogTitle = computed(() => {
+    const target = this.changeTarget();
+    if (this.isChange() && target) {
+      switch (this.step()) {
+        case 'search': return 'Move flight';
+        case 'flights': return 'Available flights';
+        case 'review': return 'Confirm change';
+        default: return `Change booking ${target.bookingNo}`;
+      }
+    }
     switch (this.step()) {
       case 'flights': return 'Available flights';
       case 'players': return 'Key in players';
       default: return 'New booking';
     }
+  });
+
+  // The flight the booking occupies right now (change mode, before any move).
+  readonly currentFlight = computed(() => {
+    const b = this.changeTarget();
+    if (!b) return '';
+    return `${b.courseCode}${b.courseDescription ? ' - ' + b.courseDescription : ''} · ${b.startTime}${b.crossTime ? ' (cross over ' + b.crossTime + ')' : ''} · ${b.holes} holes`;
+  });
+
+  // The seats the roster may grow to: a locked flight's free seats (the
+  // booking's own seats excluded on a change), else the wizard ceiling.
+  readonly seatCap = computed(() => {
+    const lock = this.lock();
+    return lock ? lock.seatsLeft : 10;
   });
 
   ngOnInit(): void {
@@ -183,6 +236,8 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
 
   openDialog(): void {
     this.clearMessages();
+    this.mode.set('new');
+    this.changeTarget.set(null);
     this.searchForm.reset({ memberNo: '', playDate: '', time: '08:00', players: 4, holes: 18 });
     this.courseId.set('');
     this.context.set(null);
@@ -191,6 +246,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     this.lock.set(null);
     this.playerLines.clear();
     this.playersForm.reset({ lines: [], contactMobile: '', remarks: '' });
+    this.changePreview.set(null);
     this.step.set('search');
     this.dialogOpen.set(true);
   }
@@ -199,16 +255,20 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     const lock = this.lock();
     if (lock) this.service.releaseLock(lock.groupId).subscribe({ next: () => {}, error: () => {} });
     this.stopCountdown();
+    this.lock.set(null);
     this.dialogOpen.set(false);
+    this.mode.set('new');
+    this.changeTarget.set(null);
   }
 
   isDirty(): boolean {
+    if (this.isChange()) return this.playersForm.dirty || !!this.lock();
     return this.searchForm.dirty || this.playersForm.dirty;
   }
 
   // Member No keyed → resolve standing + window; the Date and Course fields
   // depend on it (2006 flow: filter eligible dates/courses per member).
-  loadContext(): void {
+  loadContext(afterLoad?: () => void): void {
     const memberNo = this.searchForm.controls.memberNo.value.trim();
     if (!memberNo) {
       this.searchForm.controls.memberNo.markAsTouched();
@@ -228,6 +288,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
         } else if (ctx.member.actionControl === 'warning') {
           this.memberWarning.set(`Member status '${ctx.member.statusLabel}' carries a warning - proceed with care.`);
         }
+        if (afterLoad) afterLoad();
       },
       error: (err) => {
         this.contextLoading.set(false);
@@ -239,6 +300,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
 
   private searchPayload() {
     const v = this.searchForm.getRawValue();
+    const target = this.changeTarget();
     return {
       memberNo: v.memberNo.trim(),
       playDate: v.playDate,
@@ -246,6 +308,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
       time: v.time,
       players: Number(v.players),
       holes: Number(v.holes),
+      excludeBookingId: this.isChange() && target ? target.id : undefined,
     };
   }
 
@@ -292,13 +355,15 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
         this.searching.set(false);
         this.lock.set(lock);
         this.lockedGroup.set(group);
-        const count = Math.min(Number(this.searchForm.controls.players.value) || 1, lock.seatsLeft);
-        const booker = this.context();
-        this.playerLines.clear();
-        for (let i = 0; i < count; i += 1) {
-          this.playerLines.push(this.newLineGroup(i === 0 ? (booker ? booker.member.memberNo : '') : '', i === 0));
+        if (!this.isChange()) {
+          const count = Math.min(Number(this.searchForm.controls.players.value) || 1, lock.seatsLeft);
+          const booker = this.context();
+          this.playerLines.clear();
+          for (let i = 0; i < count; i += 1) {
+            this.playerLines.push(this.newLineGroup(i === 0 ? (booker ? booker.member.memberNo : '') : '', i === 0));
+          }
+          this.playersForm.markAsPristine();
         }
-        this.playersForm.markAsPristine();
         this.startCountdown(lock);
         this.step.set('players');
       },
@@ -349,9 +414,12 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
 
   private newLineGroup(memberNo: string, booker: boolean): PlayerLineGroup {
     const g: PlayerLineGroup = this.fb.nonNullable.group({
+      playerId: [''],
       playerType: ['member' as PlayerType],
       memberNo: [memberNo],
       guestName: [''],
+      playerName: [''],
+      status: ['booked'],
     });
     if (booker) {
       // Player 1 is the booker: identity fixed by the search step.
@@ -361,39 +429,72 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     return g;
   }
 
+  // An EXISTING player of the booking being changed: identity fixed (drop
+  // and re-add to change it), shown read-only with its status.
+  private existingLineGroup(p: GolfBookingRow['players'][number]): PlayerLineGroup {
+    const g: PlayerLineGroup = this.fb.nonNullable.group({
+      playerId: [p.playerId],
+      playerType: [p.playerType as PlayerType],
+      memberNo: [p.memberNo || ''],
+      guestName: [p.playerType === 'guest' ? p.playerName : ''],
+      playerName: [p.playerName],
+      status: [p.status],
+    });
+    g.controls.playerType.disable();
+    g.controls.memberNo.disable();
+    g.controls.guestName.disable();
+    return g;
+  }
+
   addLine(): void {
-    const lock = this.lock();
-    if (lock && this.playerLines.length >= lock.seatsLeft) return;
+    if (this.playerLines.length >= this.seatCap()) return;
     this.playerLines.push(this.newLineGroup('', false));
     this.playerLines.markAsDirty();
   }
 
   removeLine(index: number): void {
-    if (index === 0) return; // player 1 is the booker
+    const line = this.playerLines.at(index);
+    if (!line) return;
+    if (!this.isChange() && index === 0) return; // player 1 is the booker
+    if (line.controls.status.value === 'registered') return; // the desk already processed them
     this.playerLines.removeAt(index);
     this.playerLines.markAsDirty();
   }
 
-  confirm(): void {
-    this.clearMessages();
-    const lock = this.lock();
-    if (!lock) return;
+  isExistingLine(g: PlayerLineGroup): boolean {
+    return !!g.controls.playerId.value;
+  }
+
+  private validateLines(): GolfBookingPlayerLine[] | null {
     const lines = this.playerLines.controls.map((g) => g.getRawValue());
     for (let i = 0; i < lines.length; i += 1) {
       const l = lines[i];
+      if (l.playerId) continue;
       if (l.playerType === 'guest') {
         if (!l.guestName.trim()) {
           this.errorMessage.set(`Player ${i + 1}: key in the guest name (or 'Guest').`);
-          return;
+          return null;
         }
       } else if (!l.memberNo.trim()) {
         this.errorMessage.set(`Player ${i + 1}: key in the member number.`);
-        return;
+        return null;
       }
     }
-    const players: GolfBookingPlayerLine[] = lines.map((l) => (l.playerType === 'guest'
+    return lines.map((l) => (l.playerType === 'guest'
       ? { playerType: l.playerType, guestName: l.guestName.trim() }
       : { playerType: l.playerType, memberNo: l.memberNo.trim() }));
+  }
+
+  confirm(): void {
+    if (this.isChange()) {
+      this.reviewChange();
+      return;
+    }
+    this.clearMessages();
+    const lock = this.lock();
+    if (!lock) return;
+    const players = this.validateLines();
+    if (!players) return;
     this.saving.set(true);
     this.service.create({
       lockGroupId: lock.groupId,
@@ -422,6 +523,167 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
           this.step.set('flights');
           this.search();
         }
+      },
+    });
+  }
+
+  // ---------- change booking ----------
+
+  openChange(b: GolfBookingRow): void {
+    this.clearMessages();
+    this.mode.set('change');
+    this.changeTarget.set(b);
+    this.searchForm.reset({
+      memberNo: b.bookerMemberNo || (b.players[0] ? b.players[0].memberNo || '' : ''),
+      playDate: b.playDate,
+      time: b.startTime,
+      players: b.players.length,
+      holes: b.holes,
+    });
+    this.searchForm.markAsPristine();
+    this.courseId.set('');
+    this.context.set(null);
+    this.memberWarning.set('');
+    this.groups.set([]);
+    this.lock.set(null);
+    this.lockedGroup.set(null);
+    this.playerLines.clear();
+    for (const p of b.players) this.playerLines.push(this.existingLineGroup(p));
+    this.playersForm.reset({ lines: [], contactMobile: b.contactMobile || '', remarks: b.remarks || '' });
+    this.playersForm.markAsPristine();
+    this.changePreview.set(null);
+    this.changeReason.set('');
+    this.changeWaive.set(false);
+    this.changeWaiveReason.set('');
+    this.step.set('players');
+    this.dialogOpen.set(true);
+  }
+
+  // "Move flight": walk the search → flights steps as the booker, the
+  // booking's own seats and day-limit evidence excluded server-side.
+  moveFlight(): void {
+    this.clearMessages();
+    const go = () => {
+      this.searchForm.controls.players.setValue(this.playerLines.length);
+      this.step.set('search');
+    };
+    if (this.context()) go();
+    else this.loadContext(go);
+  }
+
+  // Back on the Players view without moving: release the held flight.
+  keepCurrentFlight(): void {
+    const lock = this.lock();
+    if (lock) this.service.releaseLock(lock.groupId).subscribe({ next: () => {}, error: () => {} });
+    this.lock.set(null);
+    this.lockedGroup.set(null);
+    this.stopCountdown();
+    this.step.set('players');
+  }
+
+  private changePayload(): GolfChangePayload | null {
+    const lines = this.validateLines();
+    if (!lines) return null;
+    const raw = this.playerLines.controls.map((g) => g.getRawValue());
+    const players: GolfChangeLine[] = raw.map((l, i) => (l.playerId ? { playerId: l.playerId } : lines[i]));
+    const lock = this.lock();
+    return {
+      lockGroupId: lock ? lock.groupId : null,
+      players,
+      contactMobile: this.playersForm.controls.contactMobile.value.trim() || null,
+      remarks: this.playersForm.controls.remarks.value.trim() || null,
+      reason: this.changeReason().trim() || undefined,
+      waiveCharge: this.changeWaive(),
+      waiveReason: this.changeWaive() ? this.changeWaiveReason().trim() : undefined,
+    };
+  }
+
+  reviewChange(): void {
+    this.clearMessages();
+    const target = this.changeTarget();
+    const payload = this.changePayload();
+    if (!target || !payload) return;
+    this.saving.set(true);
+    this.service.changePreview(target.id, payload).subscribe({
+      next: (p) => {
+        this.saving.set(false);
+        this.changePreview.set(p);
+        this.step.set('review');
+      },
+      error: (err) => {
+        this.saving.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to review the change.');
+      },
+    });
+  }
+
+  backToPlayers(): void {
+    this.step.set('players');
+  }
+
+  confirmChange(): void {
+    this.clearMessages();
+    const target = this.changeTarget();
+    const preview = this.changePreview();
+    const payload = this.changePayload();
+    if (!target || !preview || !payload) return;
+    if (preview.charge && this.changeWaive() && !this.changeWaiveReason().trim()) {
+      this.errorMessage.set('Give a reason for waiving the late-change charge.');
+      return;
+    }
+    this.saving.set(true);
+    this.service.change(target.id, payload).subscribe({
+      next: (res) => {
+        this.saving.set(false);
+        this.lock.set(null);
+        this.stopCountdown();
+        this.dialogOpen.set(false);
+        this.mode.set('new');
+        this.successMessage.set(res.message);
+        this.listDate.set(preview.after.playDate);
+        this.returnScroll.remember('/golf/bookings', target.id);
+        this.load();
+      },
+      error: (err) => {
+        this.saving.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to change the booking.');
+        if (err.status === 409) this.step.set('players');
+      },
+    });
+  }
+
+  changeConfirmLabel(): string {
+    const p = this.changePreview();
+    if (!p) return 'Confirm change';
+    if (p.charge && !this.changeWaive()) return `Change and charge ${p.charge.totalAmount.toFixed(2)}`;
+    if (p.charge && this.changeWaive()) return 'Change and waive charge';
+    return p.moved ? 'Move booking' : 'Confirm change';
+  }
+
+  changeTypeLabel(t: string): string {
+    switch (t) {
+      case 'move': return 'Flight moved';
+      case 'roster': return 'Players changed';
+      case 'header': return 'Details updated';
+      default: return 'Flight and players changed';
+    }
+  }
+
+  // ---------- change history ----------
+
+  openHistory(b: GolfBookingRow): void {
+    this.clearMessages();
+    this.historyTarget.set(b);
+    this.historyRows.set([]);
+    this.historyLoading.set(true);
+    this.service.changes(b.id).subscribe({
+      next: (res) => {
+        this.historyRows.set(res.changes);
+        this.historyLoading.set(false);
+      },
+      error: (err) => {
+        this.historyLoading.set(false);
+        this.errorMessage.set(err.error?.message || 'Failed to load the change history.');
       },
     });
   }

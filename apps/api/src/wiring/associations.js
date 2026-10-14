@@ -143,6 +143,9 @@ const GolfBillPayment = require('../modules/golf/billPayment.model');
 // penalised booking, charged to the booker through arGateway. Booking,
 // golfer and transaction-type refs stay plain value refs - no associations.
 const GolfNoShowCharge = require('../modules/golf/noShowCharge.model');
+// Change-booking history (2026-10-14): one row per amendment of a flight
+// booking; booking and charge refs are plain value refs - no associations.
+const GolfBookingChange = require('../modules/golf/bookingChange.model');
 
 GolfBill.hasMany(GolfBillItem, { foreignKey: 'billId', as: 'items', onDelete: 'CASCADE' });
 GolfBillItem.belongsTo(GolfBill, { foreignKey: 'billId', as: 'bill' });
