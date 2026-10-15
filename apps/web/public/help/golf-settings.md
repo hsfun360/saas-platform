@@ -7,7 +7,7 @@
 ## What this option is for
 
 The Golf Specification holds the club-wide golf rules that the Booking and Front Desk screens apply automatically.
-There is one specification per club (company): how far in advance members may book, how many players a booking must bring, when guests are allowed, handicap limits, the cancellation notice and no-show penalty, whether group bookings go through holds, approval and a deposit deadline, and the colours of the Front Desk tee sheet.
+There is one specification per club (company): how far in advance members may book, how many players a booking must bring, when guests are allowed, handicap limits, the cancellation notice and no-show penalty, whether rain checks may be issued and what they are worth, whether group bookings go through holds, approval and a deposit deadline, and the colours of the Front Desk tee sheet.
 Staff come here when the club changes a policy - the next booking or registration follows the new rule straight away.
 Nothing here edits existing bookings; the rules are read at the moment a booking is made, cancelled or registered.
 
@@ -15,7 +15,7 @@ Nothing here edits existing bookings; the rules are read at the moment a booking
 
 [Screenshot: Golf Specification screen with all sections expanded]
 
-- The screen is one form made of seven collapsible sections: **Booking Rules**, **Minimum Players**, **Guest Control**, **Handicap Control**, **Cancellation & No-show**, **Group Bookings** and **Tee Sheet**.
+- The screen is one form made of eight collapsible sections: **Booking Rules**, **Minimum Players**, **Guest Control**, **Handicap Control**, **Cancellation & No-show**, **Rain Checks**, **Group Bookings** and **Tee Sheet**.
 - Click a section's header band to fold it away or open it again; folding never loses what you typed.
 - Each section mixes plain fields with switches (tick boxes); some switches reveal more fields when turned on.
 - Several sections carry an exception table (**Add exception**, **Add limit**, **Add rule**, **Add session**, **Add override**) - rows you add, edit in place and remove with the red cross.
@@ -95,6 +95,21 @@ The Booking screen refuses a flight that breaks a rule; the Front Desk still reg
 
 The penalty is never charged silently: the Booking screen shows the exact amount before a late cancellation is confirmed, and the Tee Time Sheet's **No-shows** review lists who did not register before anything is recorded.
 Charges are posted to the booker's member account and can be followed up on the No-show Charges screen.
+
+### Allow rain checks for abandoned rounds
+
+[Screenshot: Rain Checks section with the switch on]
+
+1. Open **Rain Checks** and tick **Enable rain checks**.
+   Turning it on reveals the three fields below and adds **Issue rain check** to the Tee Time Sheet's ⋮ menu of a registered player whose bill is settled.
+2. Enter **Valid for (days)** - how long an issued rain check can be redeemed, counted from the day of issue (`90` for three months).
+3. Choose the **Value Basis**: **Green-fee lines only** credits the green fee paid and treats caddy, buggy and food as consumed; **The whole bill** credits everything on the settled bill.
+4. Tick or untick **Prorate by holes not played**: ticked, the value is the basis times the share of holes not played (the desk keys the holes played when issuing); unticked, the full basis is credited whatever was played.
+   A preview sentence restates the rule on a worked example, for example "A rain check is worth the settled bill's green-fee lines, prorated by the holes not played (6 of 18 holes played on a 90.00 green fee = 60.00); the desk may lower it, never raise it. It can be redeemed once, on one later bill of the same golfer, within 90 days of issue."
+5. Click **Save**.
+
+The three fields are kept while the switch is off, so a club can prepare the rule before switching it on.
+A rain check needs a Rain Check No. series under Numbering Control, and redeeming one needs a payment type of class Rain Check.
 
 ### Control group bookings
 
@@ -192,6 +207,15 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 | **No-show Charge** | Yes (while on) | The Transaction Type of charge type No Show Charges that prices the penalty. | Must be one of this club's No Show Charges types and active while the control is on. |
 | **Charge Basis** | Yes | Per no-show player, or Per booking. | |
 
+### Rain Checks
+
+| Field | Required | What to enter | Rules |
+| --- | --- | --- | --- |
+| **Enable rain checks** | No | The master switch; off = the Tee Time Sheet offers no Issue rain check. | Open rain checks already issued can still be redeemed. |
+| **Valid for (days)** | Yes (while on) | Days from issue until an unredeemed rain check expires, e.g. `90`. | Whole number from 1 to 730. |
+| **Value Basis** | Yes | Green-fee lines only, or The whole bill. | |
+| **Prorate by holes not played** | No | Ticked = value times the unplayed share; unticked = the full basis. | On by default. |
+
 ### Group Bookings
 
 | Field | Required | What to enter | Rules |
@@ -226,6 +250,8 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 - If you see "Pick the no-show transaction type before switching cancellation & no-show control on", create a Transaction Type with charge type No Show Charges (with a flat price) first, then select it here.
 - If you see "The no-show transaction type is inactive", re-enable that type or pick another before switching the control on.
 - The no-show penalty posts to the booker's account only when an Account Receivable invoice transaction type is opened to the Golf module; until then charges wait as Pending on the No-show Charges screen.
+- If you see "Rain check validity must be a whole number of days between 1 and 730.", correct the **Valid for (days)** field.
+- Switching rain checks off does not void rain checks already issued; cancel those on the Rain Checks screen if they should not stand.
 - A preview under the advance-booking fields disappears while a number is out of range - fix the red field message first.
 
 ## Related options
@@ -233,6 +259,7 @@ Each player on the tee sheet appears as one dot in the colour of their state; a 
 - Golf Management → Golf Booking - applies the window, limits, minimum players, guest, handicap and junior rules, and shows the late-cancellation charge before a cancel is confirmed.
 - Golf Management → Front Desk → Tee Time Sheet - registers with warnings, uses the tee-sheet colours, and runs the **No-shows** review.
 - Golf Management → Front Desk → No-show Charges - the penalties raised under the Cancellation & No-show rules.
+- Golf Management → Front Desk → Rain Checks - the rain checks issued under the Rain Checks rule.
 - Golf Management → Transaction Type - the No Show Charges type and its price card.
 - Golf Management → Golfers - handicap index and status read by Handicap Control.
 - Golf Management → Group Bookings - follows the Group Bookings control: tentative holds, submission for approval, the deposit deadline and lapse.

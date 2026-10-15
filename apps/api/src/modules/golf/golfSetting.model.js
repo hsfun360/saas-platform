@@ -219,6 +219,30 @@ const GolfSetting = sequelize.define('GolfSetting', {
         allowNull: false,
         defaultValue: 'player',
     },
+    // Rain checks (user decisions 2026-10-15): the master switch, how long an
+    // issued rain check stays redeemable, what its value is computed from
+    // ('green-fee' lines of the settled bill or the whole 'bill') and whether
+    // that value is prorated by the unplayed holes.
+    rainCheckEnabled: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
+    rainCheckValidityDays: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 90,
+    },
+    rainCheckBasis: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+        defaultValue: 'green-fee',
+    },
+    rainCheckProrate: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+    },
     // Group booking control (user decisions 2026-10-11) - the master switch
     // for the SALES-club lifecycle (groupBooking.constants). OFF = a group
     // booking is booked at creation, nothing expires, no approval, no deposit

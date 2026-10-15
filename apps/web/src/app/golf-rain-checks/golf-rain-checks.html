@@ -1,0 +1,133 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">umbrella</span>
+      <div>
+        <h1>{{ 'Rain Checks' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'Credits issued to golfers for abandoned paid rounds - see what is open, redeemed or expired, and cancel an issued rain check.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- FILTERS: play-date range + status (server) · search (client) -->
+  <div class="rc-filter">
+    <label for="rcFrom">Play date from</label>
+    <input #fromInput id="rcFrom" type="date" [value]="dateFrom()" (change)="setDateFrom(fromInput.value)" />
+    <label for="rcTo">to</label>
+    <input #toInput id="rcTo" type="date" [value]="dateTo()" (change)="setDateTo(toInput.value)" />
+    <label for="rcStatus">Status</label>
+    <select #statusSel id="rcStatus" [value]="status()" (change)="setStatus(statusSel.value)">
+      <option value="">All</option>
+      @for (s of statuses(); track s.key) {
+        <option [value]="s.key">{{ s.label }}</option>
+      }
+    </select>
+  </div>
+  <div class="saas-search">
+    <span class="material-icons saas-search__icon" aria-hidden="true">search</span>
+    <input #searchInput class="saas-search__input" type="search" [value]="search()" (input)="search.set(searchInput.value)"
+           placeholder="Search by rain check no, golfer, member no or bill…" aria-label="Search rain checks" />
+    @if (search()) {
+      <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+    }
+  </div>
+
+  <p class="rc-count">{{ rainChecks().length }} rain check{{ rainChecks().length === 1 ? '' : 's' }} · {{ openCount() }} open · open value {{ openTotal().toFixed(2) }}</p>
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner"></div><p>Loading rain checks…</p></div>
+  } @else if (rainChecks().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">umbrella</span>
+      <p>No rain checks in this period. Rain checks are issued from the Tee Time Sheet on a registered player whose bill is settled.</p>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No rain checks match "{{ search() }}"</p>
+      <button type="button" class="btn btn--secondary" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (r of filtered(); track r.id) {
+        <div class="data-card" [attr.data-return-id]="r.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ r.rainCheckNo }} - {{ r.golferName }}{{ r.memberNo ? ' (' + r.memberNo + ')' : '' }} - {{ r.amount.toFixed(2) }}</div>
+              <div class="data-card__subline">
+                <span class="data-card__reg">{{ r.playDate | localDate }} · {{ r.holesPlayed }} of {{ r.holesRegistered }} holes played · bill {{ r.billNo }}</span>
+                @if (r.reason) { <span class="data-card__reg">{{ r.reason }}</span> }
+              </div>
+              <dl class="data-card__meta">
+                <div class="meta"><dt>Value</dt><dd>{{ r.amount.toFixed(2) }} of {{ r.basisAmount.toFixed(2) }} · issued {{ r.issuedAt | localDate:'datetime' }}</dd></div>
+                @if (r.status === 'issued') {
+                  <div class="meta"><dt>Valid until</dt><dd>{{ r.expiryDate | localDate }}</dd></div>
+                }
+                @if (r.status === 'redeemed') {
+                  <div class="meta"><dt>Redeemed</dt><dd>{{ r.redeemedBillNo }} · {{ r.redeemedAt | localDate:'datetime' }} · applied {{ (r.redeemedAmount || 0).toFixed(2) }}{{ (r.forfeitedAmount || 0) > 0 ? ' · forfeited ' + (r.forfeitedAmount || 0).toFixed(2) : '' }}</dd></div>
+                }
+                @if (r.status === 'expired') {
+                  <div class="meta"><dt>Expired</dt><dd>{{ r.expiryDate | localDate }} · unredeemed</dd></div>
+                }
+                @if (r.status === 'cancelled') {
+                  <div class="meta"><dt>Cancelled</dt><dd>{{ r.cancelReason }} · {{ r.cancelledAt | localDate:'datetime' }}</dd></div>
+                }
+              </dl>
+            </div>
+            <div class="data-card__badge data-row__badge">
+              <span class="status-chip" [class.status-chip--on]="r.status === 'redeemed'" [class.status-chip--info]="r.status === 'issued'" [class.status-chip--off]="r.status === 'expired' || r.status === 'cancelled'">
+                {{ statusLabel(r.status) }}
+              </span>
+            </div>
+            @if (r.status === 'issued' && r.canModify !== false) {
+              <div class="data-row__actions" *appCan="'edit'">
+                <app-overflow-menu [label]="'More actions for rain check ' + r.rainCheckNo">
+                  <button type="button" appMenuItem (click)="openCancel(r)">
+                    <span class="material-icons" aria-hidden="true">block</span>
+                    Cancel rain check
+                  </button>
+                </app-overflow-menu>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ============ Cancel confirmation (centred) ============ -->
+  @if (cancelTarget(); as target) {
+    <app-dialog title="Cancel rain check" [busy]="working()" (close)="cancelTarget.set(null)">
+      <p>Cancel rain check <strong>{{ target.rainCheckNo }}</strong> worth <strong>{{ target.amount.toFixed(2) }}</strong>
+        issued to {{ target.golferName }}? It can no longer be redeemed; the settled bill it came from is not changed.</p>
+      <div class="form-group">
+        <label for="rcCancelReason">Reason <span class="required">*</span></label>
+        <textarea #cancelInput id="rcCancelReason" rows="2" wrap="off" [value]="cancelReason()"
+                  (input)="cancelReason.set(cancelInput.value)"></textarea>
+      </div>
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="cancelTarget.set(null)" [disabled]="working()">Keep rain check</button>
+        <button type="button" class="btn btn--danger" (click)="confirmCancel()" [disabled]="working()">
+          {{ working() ? 'Cancelling…' : 'Cancel rain check' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+</div>

@@ -33,6 +33,7 @@ import {
   GolfNoShowTypeOption,
   GolfLateCancellationAction,
   GolfNoShowChargeBasis,
+  GolfRainCheckBasis,
 } from '../services/golf-setting.service';
 
 // Golf Management → Golf Specification (/golf/settings) - the per-company
@@ -64,7 +65,7 @@ export class GolfSettingsComponent implements OnInit {
   readonly noShowTypes = signal<GolfNoShowTypeOption[]>([]);
 
   // Collapsible section state (section-card standard; sections start open).
-  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true, handicap: true, noshow: true, groups: true, teesheet: true });
+  readonly expanded = signal<Record<string, boolean>>({ booking: true, minPlayers: true, guests: true, handicap: true, noshow: true, raincheck: true, groups: true, teesheet: true });
 
   readonly form = this.fb.nonNullable.group({
     advanceBookingDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
@@ -89,6 +90,11 @@ export class GolfSettingsComponent implements OnInit {
     lateCancellationAction: ['charge'],
     noShowTransactionTypeId: [''],
     noShowChargeBasis: ['player'],
+    // Rain checks (2026-10-15).
+    rainCheckEnabled: [false],
+    rainCheckValidityDays: [90, [Validators.required, Validators.min(1), Validators.max(730)]],
+    rainCheckBasis: ['green-fee'],
+    rainCheckProrate: [true],
     teeSheetColorBooked: ['#2563eb'],
     teeSheetColorRegistered: ['#f59e0b'],
     teeSheetColorBilled: ['#8b5cf6'],
@@ -139,6 +145,11 @@ export class GolfSettingsComponent implements OnInit {
     { key: 'player', label: 'Per no-show player' },
     { key: 'booking', label: 'Per booking' },
   ];
+  // Rain check value basis (fixed enum - native select).
+  readonly rainCheckBases: { key: GolfRainCheckBasis; label: string }[] = [
+    { key: 'green-fee', label: 'Green-fee lines only' },
+    { key: 'bill', label: 'The whole bill' },
+  ];
 
   readonly noShowTypeOptions = computed(() =>
     this.noShowTypes().map((t) => ({
@@ -187,6 +198,23 @@ export class GolfSettingsComponent implements OnInit {
 
   groupControlOn(): boolean {
     return this.form.controls.groupBookingControlEnabled.value === true;
+  }
+
+  rainCheckOn(): boolean {
+    return this.form.controls.rainCheckEnabled.value === true;
+  }
+
+  // What a rain check will be worth with the current settings (show the
+  // expected result), on a worked example; hidden while the days are invalid.
+  rainCheckPreview(): string {
+    const c = this.form.controls;
+    if (c.rainCheckValidityDays.invalid) return '';
+    const days = Number(c.rainCheckValidityDays.value) || 0;
+    const basis = c.rainCheckBasis.value === 'bill' ? 'the whole settled bill' : "the settled bill's green-fee lines";
+    const value = c.rainCheckProrate.value
+      ? 'prorated by the holes not played (6 of 18 holes played on a 90.00 green fee = 60.00)'
+      : 'in full whatever was played (a 90.00 green fee = 90.00)';
+    return `A rain check is worth ${basis}, ${value}; the desk may lower it, never raise it. It can be redeemed once, on one later bill of the same golfer, within ${days} day${days === 1 ? '' : 's'} of issue.`;
   }
 
   // What the group-booking timers mean with the current numbers (show the
@@ -268,6 +296,10 @@ export class GolfSettingsComponent implements OnInit {
           lateCancellationAction: doc.setting.lateCancellationAction || 'charge',
           noShowTransactionTypeId: doc.setting.noShowTransactionTypeId || '',
           noShowChargeBasis: doc.setting.noShowChargeBasis || 'player',
+          rainCheckEnabled: doc.setting.rainCheckEnabled === true,
+          rainCheckValidityDays: doc.setting.rainCheckValidityDays ?? 90,
+          rainCheckBasis: doc.setting.rainCheckBasis || 'green-fee',
+          rainCheckProrate: doc.setting.rainCheckProrate !== false,
           teeSheetColorBooked: doc.setting.teeSheetColorBooked || '#2563eb',
           teeSheetColorRegistered: doc.setting.teeSheetColorRegistered || '#f59e0b',
           teeSheetColorBilled: doc.setting.teeSheetColorBilled || '#8b5cf6',
@@ -504,6 +536,10 @@ export class GolfSettingsComponent implements OnInit {
       lateCancellationAction: v.lateCancellationAction as GolfLateCancellationAction,
       noShowTransactionTypeId: v.noShowTransactionTypeId || null,
       noShowChargeBasis: v.noShowChargeBasis as GolfNoShowChargeBasis,
+      rainCheckEnabled: v.rainCheckEnabled,
+      rainCheckValidityDays: v.rainCheckValidityDays,
+      rainCheckBasis: v.rainCheckBasis as GolfRainCheckBasis,
+      rainCheckProrate: v.rainCheckProrate,
       teeSheetColorBooked: v.teeSheetColorBooked,
       teeSheetColorRegistered: v.teeSheetColorRegistered,
       teeSheetColorBilled: v.teeSheetColorBilled,

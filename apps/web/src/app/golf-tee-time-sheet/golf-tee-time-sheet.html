@@ -250,6 +250,7 @@
                     @else if (e.bookingNo) { · {{ e.bookingNo }} }
                     @if (e.registration) { · {{ e.registration.registrationNo }} }
                     @if (e.bill) { · {{ e.bill.billNo }} ({{ e.bill.totalAmount.toFixed(2) }}) }
+                    @if (e.rainCheck) { · rain check {{ e.rainCheck.rainCheckNo }} ({{ e.rainCheck.amount.toFixed(2) }}{{ e.rainCheck.status === 'redeemed' ? ', redeemed' : '' }}) }
                   </span>
                 </span>
                 <span class="fd-slot__status" [style.color]="colorFor(statusOf(e))">{{ statusLabel(statusOf(e)).toUpperCase() }}</span>
@@ -259,17 +260,23 @@
                   } @else if (e.bill?.status === 'settled') {
                     <button type="button" class="btn btn--secondary btn--sm" (click)="openBill(e)" [disabled]="busy()">View</button>
                   }
-                  @if (e.registration && (!e.bill || e.bill.status === 'open')) {
+                  @if (e.registration && (!e.bill || e.bill.status === 'open' || canIssueRainCheck(e))) {
                     <app-overflow-menu *appCan="'edit'" [label]="'More actions for ' + e.playerName">
                       @if (!e.bill) {
                         <button type="button" appMenuItem (click)="askCancelRegistration(e)">
                           <span class="material-icons" aria-hidden="true">person_off</span>
                           Cancel registration
                         </button>
-                      } @else {
+                      } @else if (e.bill.status === 'open') {
                         <button type="button" appMenuItem (click)="askVoidBill(e)">
                           <span class="material-icons" aria-hidden="true">block</span>
                           Void bill
+                        </button>
+                      }
+                      @if (canIssueRainCheck(e)) {
+                        <button type="button" appMenuItem (click)="askRainCheck(e)">
+                          <span class="material-icons" aria-hidden="true">umbrella</span>
+                          Issue rain check
                         </button>
                       }
                     </app-overflow-menu>
@@ -507,12 +514,26 @@
                                 [ariaLabel]="'Payment ' + (i + 1) + ' type'" placeholder="Type to search…" />
                   <input type="number" inputmode="decimal" min="0.01" step="0.01" appMoney formControlName="amount"
                          [attr.aria-label]="'Payment ' + (i + 1) + ' amount'" />
-                  <input type="text" formControlName="reference" maxlength="100" placeholder="Reference"
-                         [attr.aria-label]="'Payment ' + (i + 1) + ' reference'" />
+                  @if (isRainCheckLine(i)) {
+                    <!-- Rain Check class: pick which of the golfer's open rain checks the line redeems. -->
+                    <app-combobox [value]="g.controls.rainCheckId.value" (valueChange)="onRainCheckPicked(i, $event)"
+                                  [options]="rainCheckOptions()" [allowEmpty]="false"
+                                  [ariaLabel]="'Payment ' + (i + 1) + ' rain check'" placeholder="Pick a rain check…" />
+                  } @else {
+                    <input type="text" formControlName="reference" maxlength="100" placeholder="Reference"
+                           [attr.aria-label]="'Payment ' + (i + 1) + ' reference'" />
+                  }
                   <button type="button" class="btn btn--danger btn--sm" (click)="removePayment(i)"
                           [attr.aria-label]="'Remove payment ' + (i + 1)">
                     <span class="material-icons" aria-hidden="true">close</span>
                   </button>
+                  @if (isRainCheckLine(i)) {
+                    @if (rainCheckOptions().length === 0) {
+                      <p class="cell-subtle fd-pay-line__hint">This golfer has no open rain check.</p>
+                    } @else if (rainCheckLineHint(i); as hint) {
+                      <p class="cell-subtle fd-pay-line__hint">{{ hint }}</p>
+                    }
+                  }
                 </div>
               }
             </div>
@@ -520,7 +541,7 @@
               <span class="material-icons" aria-hidden="true">add</span>
               Add payment
             </button>
-            <p class="cell-subtle" style="margin: var(--space-md) 0 0;">Member class charges the bill to the member's own account (credit checked); cash-like tenders just record the payment.</p>
+            <p class="cell-subtle" style="margin: var(--space-md) 0 0;">Member class charges the bill to the member's own account (credit checked); a Rain Check tender redeems one of this golfer's open rain checks (single use - value above the line is forfeited); cash-like tenders just record the payment.</p>
           }
           </form>
         }
@@ -587,6 +608,46 @@
           }
         }
 
+        <!-- ---- Issue rain check: a settled registered player's abandoned round ---- -->
+        @case ('raincheck') {
+          <form id="fdRainCheck" [formGroup]="rainCheckForm" (ngSubmit)="issueRainCheck()" class="saas-form saas-form--dialog">
+            @if (rainCheckTarget(); as target) {
+              <p>Rain check for <strong>{{ target.playerName }}</strong>{{ target.memberNo ? ' (' + target.memberNo + ')' : '' }} on bill <strong>{{ target.bill?.billNo }}</strong>, {{ target.holes }} holes registered. The credit is owed to this golfer only and can be redeemed once on a later bill.</p>
+            }
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="fdRcHoles">Holes played <span class="required">*</span></label>
+                <input id="fdRcHoles" type="number" inputmode="numeric" min="0" [max]="rainCheckTarget()?.holes || 18" step="1" formControlName="holesPlayed"
+                       [attr.aria-invalid]="showError(rainCheckForm.controls.holesPlayed)" aria-describedby="fdRcHolesErr" />
+                @if (showError(rainCheckForm.controls.holesPlayed)) {
+                  <p id="fdRcHolesErr" class="field-error" role="alert">Enter a whole number from 0 to {{ rainCheckTarget()?.holes || 18 }}.</p>
+                }
+                <p class="cell-subtle field-hint">Holes completed before play stopped; the value is prorated by the rest when Golf Specification says so.</p>
+              </div>
+              <div class="form-group">
+                <label for="fdRcAmount">Amount</label>
+                <input id="fdRcAmount" type="number" inputmode="decimal" min="0" step="0.01" appMoney formControlName="amount"
+                       [placeholder]="rainCheckQuote() ? rainCheckQuote()!.computedAmount.toFixed(2) : '0.00'" />
+                <p class="cell-subtle field-hint">Leave blank for the computed value; you may lower it, never raise it.</p>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="fdRcReason">Reason</label>
+              <textarea id="fdRcReason" rows="2" wrap="off" formControlName="reason" maxlength="255" placeholder="e.g. Thunderstorm - course closed at the 7th"></textarea>
+            </div>
+            @if (rainCheckQuoteError(); as qerr) {
+              <p class="field-error" role="alert">{{ qerr }}</p>
+            } @else if (rainCheckQuote(); as q) {
+              <dl class="fd-rc-quote">
+                <div><dt>Basis</dt><dd>{{ q.basis === 'bill' ? 'Whole bill' : 'Green-fee lines' }} {{ q.basisAmount.toFixed(2) }}</dd></div>
+                <div><dt>Computed</dt><dd>{{ q.computedAmount.toFixed(2) }}{{ q.prorate ? ' (' + (q.holesRegistered - q.holesPlayed) + ' of ' + q.holesRegistered + ' holes unplayed)' : '' }}</dd></div>
+                <div><dt>Rain check</dt><dd><strong>{{ q.amount.toFixed(2) }}</strong></dd></div>
+                <div><dt>Valid until</dt><dd>{{ q.expiryDate | localDate }} ({{ q.validityDays }} days)</dd></div>
+              </dl>
+            }
+          </form>
+        }
+
         <!-- ---- Confirm (cancel registration / void bill) ---- -->
         @case ('confirm') {
           @if (confirmTarget(); as target) {
@@ -648,6 +709,12 @@
                 {{ busy() ? 'Recording…' : 'Record ' + noShowPlayerCount() + ' no-show' + (noShowPlayerCount() === 1 ? '' : 's') + (noShowReview()?.controlled && noShowChargeTotal() > 0 ? ' · charge ' + noShowChargeTotal().toFixed(2) : '') }}
               </button>
             }
+          }
+          @case ('raincheck') {
+            <button type="button" class="btn btn--secondary" (click)="keepRainCheck()" [disabled]="busy()">« Back</button>
+            <button type="submit" form="fdRainCheck" class="btn btn--primary" [disabled]="busy() || !rainCheckQuote()">
+              {{ busy() ? 'Issuing…' : (rainCheckQuote() ? 'Issue rain check ' + rainCheckQuote()!.amount.toFixed(2) : 'Issue rain check') }}
+            </button>
           }
           @case ('confirm') {
             <button type="button" class="btn btn--secondary" (click)="keepConfirm()" [disabled]="busy()">Keep</button>

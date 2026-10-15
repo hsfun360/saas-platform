@@ -1,5 +1,6 @@
 import { Component, ElementRef, Injector, OnInit, afterNextRender, computed, inject, signal, viewChildren, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { debounceTime } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ScreenTitlePipe, ScreenSubtitlePipe } from '../i18n/screen-title.pipe';
@@ -24,6 +25,8 @@ import {
   GolfBillDoc,
   WalkInPayload,
   FrontDeskNoShowReview,
+  GolfRainCheck,
+  GolfRainCheckQuote,
 } from '../services/golf-frontdesk.service';
 
 // Per-booking decision in the no-show review: include it, charge the
@@ -55,11 +58,14 @@ interface PaymentLine {
   paymentTypeId: string;
   amount: number;
   reference: string;
+  // Rain Check-class line (2026-10-15): the golfer's rain check it redeems.
+  rainCheckId: string;
 }
 type PayGroup = FormGroup<{
   paymentTypeId: FormControl<string>;
   amount: FormControl<number>;
   reference: FormControl<string>;
+  rainCheckId: FormControl<string>;
 }>;
 
 type PlayerDayStatus = 'booked' | 'registered' | 'billed' | 'settled';
@@ -210,7 +216,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   }
 
   // ---- the one drawer dialog: mode + per-mode state ----
-  readonly dlgMode = signal<'flight' | 'walkin' | 'bill' | 'settle' | 'confirm' | 'noshows' | null>(null);
+  readonly dlgMode = signal<'flight' | 'walkin' | 'bill' | 'settle' | 'confirm' | 'noshows' | 'raincheck' | null>(null);
   readonly busy = signal(false);
 
   // The open flight, tracked by reference so a reload refreshes it in place.
@@ -316,6 +322,27 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   // feeds the unsaved-changes guard and Enter submits the settle form.
   readonly payLines = this.fb.array<PayGroup>([]);
   readonly settleForm = this.fb.group({ lines: this.payLines });
+  // The billed golfer's open rain checks (2026-10-15), offered on a Rain
+  // Check-class payment line; loaded with the bill.
+  readonly openRainChecks = signal<GolfRainCheck[]>([]);
+  readonly rainCheckOptions = computed(() => this.openRainChecks().map((r) => ({
+    value: r.id,
+    label: `${r.rainCheckNo} - ${r.amount.toFixed(2)} - valid until ${r.expiryDate}`,
+  })));
+
+  // Issue rain check (2026-10-15): an in-drawer view on a registered player
+  // whose bill is SETTLED - holes played, an optional lowered amount and the
+  // reason; the server's quote states the value and the expiry before the
+  // issue commits (show the expected result).
+  readonly rainCheckTarget = signal<FrontDeskEntry | null>(null);
+  readonly rainCheckQuote = signal<GolfRainCheckQuote | null>(null);
+  readonly rainCheckQuoteError = signal('');
+  readonly rainCheckForm = this.fb.nonNullable.group({
+    holesPlayed: [0, [Validators.required, Validators.min(0), Validators.max(18)]],
+    amount: [null as number | null],
+    reason: [''],
+  });
+  readonly rainCheckEnabled = computed(() => this.meta()?.rainCheckEnabled === true);
 
   // In-dialog confirm view: cancel a registration or void a bill.
   readonly confirmKind = signal<'cancel-registration' | 'void-bill' | null>(null);
@@ -386,6 +413,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       case 'walkin': return 'Walk-in registration';
       case 'noshows': return 'No-shows';
       case 'settle': return `Settle bill ${this.bill()?.billNo || ''}`;
+      case 'raincheck': return `Issue rain check · ${this.rainCheckTarget()?.playerName || ''}`;
       case 'confirm': return this.confirmKind() === 'void-bill' ? 'Void bill' : 'Cancel registration';
       default: return `Bill ${this.bill()?.billNo || ''}`;
     }
@@ -394,6 +422,11 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   ngOnInit(): void {
     this.load();
     this.service.meta().subscribe({ next: (m) => this.meta.set(m), error: () => {} });
+    // The rain-check quote follows the holes and amount as the clerk types
+    // (form valueChanges is one of the sanctioned RxJS boundaries).
+    this.rainCheckForm.valueChanges.pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      if (this.dlgMode() === 'raincheck') this.previewRainCheck();
+    });
   }
 
   showError(control: AbstractControl): boolean {
@@ -659,6 +692,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
         this.busy.set(false);
         this.bill.set(res.bill);
         this.ineligible.set(res.ineligible || {});
+        this.openRainChecks.set(res.openRainChecks || []);
         for (const w of res.warnings || []) this.errorMessage.set(w);
         this.resetPayLines();
         this.fromFlight.set(this.dlgMode() === 'flight');
@@ -741,7 +775,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     if (!b || !this.billOpen() || b.items.length === 0) return;
     // Seed one line for the whole total (pristine: the guard only engages once the clerk edits).
     if (this.payLines.length === 0) {
-      this.payLines.push(this.newPayGroup({ paymentTypeId: '', amount: b.totalAmount, reference: '' }), { emitEvent: false });
+      this.payLines.push(this.newPayGroup({ paymentTypeId: '', amount: b.totalAmount, reference: '', rainCheckId: '' }), { emitEvent: false });
       this.payLines.markAsPristine();
     }
     this.dlgMode.set('settle');
@@ -756,7 +790,46 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       paymentTypeId: [l.paymentTypeId],
       amount: [l.amount],
       reference: [l.reference],
+      rainCheckId: [l.rainCheckId],
     });
+  }
+
+  // The payment class of a tender (meta), '' when unknown.
+  tenderClass(paymentTypeId: string): string {
+    const m = this.meta();
+    const t = m ? m.paymentTypes.find((x) => x.id === paymentTypeId) : null;
+    return t ? t.paymentClass : '';
+  }
+
+  // Method, not computed: reads a form control.
+  isRainCheckLine(i: number): boolean {
+    const g = this.payLines.at(i);
+    return !!g && this.tenderClass(g.controls.paymentTypeId.value) === 'raincheck';
+  }
+
+  // Picking a rain check fills the line with what it can cover: its value,
+  // capped at what the other lines leave (a rain check is single use - any
+  // value above the bill is forfeited, so the clerk sees the cap at once).
+  onRainCheckPicked(i: number, id: string): void {
+    const g = this.payLines.at(i);
+    if (!g) return;
+    g.controls.rainCheckId.setValue(id);
+    const rc = this.openRainChecks().find((r) => r.id === id);
+    if (!rc) return;
+    const b = this.bill();
+    const others = this.payLines.controls.reduce((s, x, idx) => idx === i ? s : s + (Number(x.controls.amount.value) || 0), 0);
+    const room = Math.max(0, Math.round(((b ? b.totalAmount : 0) - others) * 100) / 100);
+    g.controls.amount.setValue(Math.min(rc.amount, room));
+    g.markAsDirty();
+  }
+
+  rainCheckLineHint(i: number): string {
+    const g = this.payLines.at(i);
+    const rc = g ? this.openRainChecks().find((r) => r.id === g.controls.rainCheckId.value) : null;
+    if (!g || !rc) return '';
+    const applied = Number(g.controls.amount.value) || 0;
+    const forfeited = Math.round((rc.amount - applied) * 100) / 100;
+    return forfeited > 0 ? `${rc.rainCheckNo} is worth ${rc.amount.toFixed(2)}; ${forfeited.toFixed(2)} is forfeited (single use).` : `${rc.rainCheckNo} is used in full.`;
   }
 
   private resetPayLines(): void {
@@ -765,7 +838,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
   }
 
   addPayment(): void {
-    this.payLines.push(this.newPayGroup({ paymentTypeId: '', amount: Math.max(this.remaining(), 0), reference: '' }));
+    this.payLines.push(this.newPayGroup({ paymentTypeId: '', amount: Math.max(this.remaining(), 0), reference: '', rainCheckId: '' }));
     this.payLines.markAsDirty();
   }
 
@@ -783,6 +856,10 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       this.errorMessage.set('Every payment line needs a payment type.');
       return;
     }
+    if (rows.some((r) => this.tenderClass(r.paymentTypeId) === 'raincheck' && !r.rainCheckId)) {
+      this.errorMessage.set('Pick the rain check to redeem on the Rain Check payment line.');
+      return;
+    }
     if (this.remaining() !== 0) {
       this.errorMessage.set('Payments must equal the bill total.');
       return;
@@ -792,6 +869,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       paymentTypeId: r.paymentTypeId,
       amount: Number(r.amount) || 0,
       reference: r.reference.trim() || undefined,
+      rainCheckId: this.tenderClass(r.paymentTypeId) === 'raincheck' ? r.rainCheckId : undefined,
     }))).subscribe({
       next: (res) => {
         this.busy.set(false);
@@ -809,6 +887,84 @@ export class GolfTeeTimeSheetComponent implements OnInit {
         this.errorMessage.set(err.error?.message || 'Failed to settle the bill.');
       },
     });
+  }
+
+  // ---------- rain checks ----------
+
+  // The desk door: the control is ON, the player is registered, the bill is
+  // settled and no rain check was issued for it yet.
+  canIssueRainCheck(e: FrontDeskEntry): boolean {
+    return this.rainCheckEnabled() && !!e.registration && e.bill?.status === 'settled' && !e.rainCheck;
+  }
+
+  askRainCheck(entry: FrontDeskEntry): void {
+    this.clearMessages();
+    if (!entry.registration) return;
+    this.rainCheckTarget.set(entry);
+    this.rainCheckQuote.set(null);
+    this.rainCheckQuoteError.set('');
+    this.rainCheckForm.reset({ holesPlayed: 0, amount: null, reason: '' }, { emitEvent: false });
+    this.rainCheckForm.controls.holesPlayed.setValidators([Validators.required, Validators.min(0), Validators.max(entry.holes || 18)]);
+    this.rainCheckForm.controls.holesPlayed.updateValueAndValidity({ emitEvent: false });
+    this.dlgMode.set('raincheck');
+    this.previewRainCheck();
+  }
+
+  private rainCheckPayload(): { holesPlayed: number; amount: number | null; reason: string } {
+    const v = this.rainCheckForm.getRawValue();
+    const amount = v.amount === null || v.amount === undefined || (v.amount as unknown) === '' ? null : Number(v.amount);
+    return { holesPlayed: Number(v.holesPlayed) || 0, amount, reason: v.reason.trim() };
+  }
+
+  previewRainCheck(): void {
+    const target = this.rainCheckTarget();
+    if (!target || !target.registration) return;
+    const p = this.rainCheckPayload();
+    this.service.rainCheckPreview(target.registration.id, { holesPlayed: p.holesPlayed, amount: p.amount }).subscribe({
+      next: (q) => {
+        this.rainCheckQuote.set(q);
+        this.rainCheckQuoteError.set('');
+      },
+      error: (err) => {
+        this.rainCheckQuote.set(null);
+        this.rainCheckQuoteError.set(err.error?.message || 'The rain check could not be valued.');
+      },
+    });
+  }
+
+  issueRainCheck(): void {
+    const target = this.rainCheckTarget();
+    const q = this.rainCheckQuote();
+    if (!target || !target.registration || !q) return;
+    if (this.rainCheckForm.invalid) {
+      this.rainCheckForm.markAllAsTouched();
+      return;
+    }
+    this.clearMessages();
+    this.busy.set(true);
+    const p = this.rainCheckPayload();
+    this.service.issueRainCheck(target.registration.id, { holesPlayed: p.holesPlayed, amount: p.amount, reason: p.reason || undefined }).subscribe({
+      next: (res) => {
+        this.busy.set(false);
+        this.rainCheckForm.markAsPristine();
+        this.successMessage.set(res.message);
+        this.rainCheckTarget.set(null);
+        this.rainCheckQuote.set(null);
+        this.dlgMode.set('flight');
+        this.load();
+      },
+      error: (err) => {
+        this.busy.set(false);
+        this.errorMessage.set(err.error?.message || 'The rain check could not be issued.');
+      },
+    });
+  }
+
+  keepRainCheck(): void {
+    this.rainCheckTarget.set(null);
+    this.rainCheckQuote.set(null);
+    this.rainCheckForm.markAsPristine();
+    this.dlgMode.set('flight');
   }
 
   // ---------- in-dialog confirmations ----------
@@ -957,8 +1113,12 @@ export class GolfTeeTimeSheetComponent implements OnInit {
     this.fromFlight.set(false);
     this.bill.set(null);
     this.resetPayLines();
+    this.openRainChecks.set([]);
     this.confirmKind.set(null);
     this.confirmTarget.set(null);
+    this.rainCheckTarget.set(null);
+    this.rainCheckQuote.set(null);
+    this.rainCheckForm.markAsPristine();
     this.slotWalkinOpen.set(false);
     this.selected.set(new Set());
     this.noShowReview.set(null);
@@ -971,6 +1131,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       case 'flight': return this.slotWalkinOpen() && this.slotWalkinForm.dirty;
       case 'walkin': return this.walkinForm.dirty;
       case 'settle': return this.payLines.dirty;
+      case 'raincheck': return this.rainCheckForm.dirty;
       case 'noshows': return this.noShowLines.dirty;
       default: return false; // bill items save immediately
     }

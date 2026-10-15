@@ -13,6 +13,7 @@ const GolfSession = require('./golfSession.model');
 const Course = require('./course.model');
 const GolfTransactionType = require('./transactionType.model');
 const { LATE_CANCELLATION_ACTION_KEYS, NO_SHOW_CHARGE_BASIS_KEYS } = require('./noShowCharge.constants');
+const { RAIN_CHECK_BASIS_KEYS } = require('./rainCheck.constants');
 const { sequelize } = require('../../platform/db');
 const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
 const { listMembershipTypes } = require('../../platform/membershipGateway');
@@ -30,6 +31,7 @@ const DEFAULTS = {
     handicapControlEnabled: false, juniorBookingControlEnabled: false,
     noShowControlEnabled: false, cancellationNoticeHours: 24, lateCancellationAction: 'charge',
     noShowTransactionTypeId: null, noShowChargeBasis: 'player',
+    rainCheckEnabled: false, rainCheckValidityDays: 90, rainCheckBasis: 'green-fee', rainCheckProrate: true,
     teeSheetColorBooked: '#2563eb', teeSheetColorRegistered: '#f59e0b',
     teeSheetColorBilled: '#8b5cf6', teeSheetColorSettled: '#16a34a',
     groupBookingControlEnabled: false, groupTentativeHoldHours: 72, groupDepositDueDays: 7, groupDefaultDepositPct: 30,
@@ -61,6 +63,10 @@ function settingDto(row) {
         lateCancellationAction: LATE_CANCELLATION_ACTION_KEYS.includes(row.lateCancellationAction) ? row.lateCancellationAction : 'charge',
         noShowTransactionTypeId: row.noShowTransactionTypeId || null,
         noShowChargeBasis: NO_SHOW_CHARGE_BASIS_KEYS.includes(row.noShowChargeBasis) ? row.noShowChargeBasis : 'player',
+        rainCheckEnabled: row.rainCheckEnabled === true,
+        rainCheckValidityDays: row.rainCheckValidityDays === null || row.rainCheckValidityDays === undefined ? DEFAULTS.rainCheckValidityDays : row.rainCheckValidityDays,
+        rainCheckBasis: RAIN_CHECK_BASIS_KEYS.includes(row.rainCheckBasis) ? row.rainCheckBasis : 'green-fee',
+        rainCheckProrate: row.rainCheckProrate !== false,
         teeSheetColorBooked: row.teeSheetColorBooked || DEFAULTS.teeSheetColorBooked,
         teeSheetColorRegistered: row.teeSheetColorRegistered || DEFAULTS.teeSheetColorRegistered,
         teeSheetColorBilled: row.teeSheetColorBilled || DEFAULTS.teeSheetColorBilled,
@@ -514,6 +520,14 @@ exports.save = async (req, res) => {
         } else if (noShowControlEnabled) {
             return res.status(400).json({ message: 'Pick the no-show transaction type before switching cancellation & no-show control on.' });
         }
+        // Rain checks (user decisions 2026-10-15): the knobs are stored even
+        // while the switch is OFF (staging); the desk door opens only ON.
+        const rainCheckEnabled = req.body.rainCheckEnabled === true;
+        const rainCheckValidityDays = parseIntIn(req.body.rainCheckValidityDays === undefined ? DEFAULTS.rainCheckValidityDays : req.body.rainCheckValidityDays, 1, 730);
+        if (rainCheckValidityDays === undefined) return res.status(400).json({ message: 'Rain check validity must be a whole number of days between 1 and 730.' });
+        const rainCheckBasis = RAIN_CHECK_BASIS_KEYS.includes(req.body.rainCheckBasis) ? req.body.rainCheckBasis : (req.body.rainCheckBasis === undefined ? 'green-fee' : undefined);
+        if (!rainCheckBasis) return res.status(400).json({ message: 'The rain check value basis must be the green-fee lines or the whole bill.' });
+        const rainCheckProrate = req.body.rainCheckProrate !== false;
         // Group booking control (user decisions 2026-10-11): the timers are
         // stored even while the control is OFF (staging), they only run ON.
         const groupBookingControlEnabled = req.body.groupBookingControlEnabled === true;
@@ -557,6 +571,7 @@ exports.save = async (req, res) => {
                 guestControlEnabled, allowGuestWeekday, allowMemberGuestWeekday, allowGuestWeekend, allowMemberGuestWeekend,
                 handicapControlEnabled, juniorBookingControlEnabled,
                 noShowControlEnabled, cancellationNoticeHours, lateCancellationAction, noShowTransactionTypeId, noShowChargeBasis,
+                rainCheckEnabled, rainCheckValidityDays, rainCheckBasis, rainCheckProrate,
                 groupBookingControlEnabled, groupTentativeHoldHours, groupDepositDueDays, groupDefaultDepositPct,
                 groupShareCapWeekday, groupShareCapWeekend, groupMaxTentativePerUser, groupNextInLineHours,
                 ...colors,

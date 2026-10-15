@@ -51,6 +51,7 @@ const {
 const PaymentType = require('./paymentType.model');
 const UnitCourse = require('./unitCourse.model');
 const noShow = require('./noShowCharge.service');
+const rainCheck = require('./rainCheck.service');
 const { companyTimezone } = require('../../platform/calendarGateway');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -214,6 +215,11 @@ exports.getDay = async (req, res) => {
             ? await Bill.findAll({ where: { companyId, playerId: { [Op.in]: firsts.map((r) => r.id) }, status: { [Op.ne]: 'voided' } } })
             : [];
         const billByPlayer = new Map(bills.map((b) => [b.playerId, b]));
+        // Rain checks (2026-10-15): the one already issued per player (the
+        // sheet shows its number instead of offering Issue again) + whether
+        // the desk door is open at all.
+        const rainCheckByPlayer = await rainCheck.issuedByPlayer(companyId, firsts.map((r) => r.id));
+        const rainCheckCfg = await rainCheck.config(companyId);
 
         // The day's grids, closures and GROUP HOLDS (ctx.holds: the planned
         // group play days + their reserved flights; shotgun-format days are
@@ -254,6 +260,7 @@ exports.getDay = async (req, res) => {
                 holes: shape.holes,
                 registration: r.status === 'registered' ? registrationDto(r, shape) : null,
                 bill: bill ? { id: bill.id, billNo: bill.billNo, status: bill.status, totalAmount: Number(bill.totalAmount) } : null,
+                rainCheck: rainCheckByPlayer.get(r.id) || null,
             };
         };
         for (const r of firsts) {
@@ -537,6 +544,8 @@ exports.getMeta = async (req, res) => {
             holesOptions: HOLES_OPTIONS,
             playerStatuses: PLAYER_STATUSES,
             billStatuses: BILL_STATUSES,
+            // Rain checks (2026-10-15): the desk's Issue door opens only ON.
+            rainCheckEnabled: !!(setting && setting.rainCheckEnabled === true),
             // Seat-dot colours for the tee sheet (Golf Specification; user
             // request 2026-09-29). Blank outline = free seat.
             teeSheetColors: {
@@ -1227,7 +1236,12 @@ exports.openBill = async (req, res) => {
         if (registration.status !== 'registered') return res.status(400).json({ message: 'This player is not registered.' });
 
         const existing = await Bill.findOne({ where: { companyId, playerId: registration.id, status: { [Op.ne]: 'voided' } } });
-        if (existing) return res.status(200).json({ bill: await billDto(existing), warnings: [], ineligible: await ineligibleTiles(req, companyId, registration) });
+        if (existing) {
+            return res.status(200).json({
+                bill: await billDto(existing), warnings: [], ineligible: await ineligibleTiles(req, companyId, registration),
+                openRainChecks: existing.status === 'open' ? await rainCheck.openFor(companyId, registration.golferId) : [],
+            });
+        }
 
         const stamps = await callerStamps(req);
         const dayType = await dayTypeOf(req, String(registration.playDate));
@@ -1281,7 +1295,11 @@ exports.openBill = async (req, res) => {
             return { bill };
         });
         if (result.fail) return res.status(result.status).json({ message: result.fail });
-        res.status(201).json({ bill: await billDto(result.bill), warnings, ineligible: await ineligibleTiles(req, companyId, registration) });
+        res.status(201).json({
+            bill: await billDto(result.bill), warnings, ineligible: await ineligibleTiles(req, companyId, registration),
+            // The golfer's open rain checks, offered as Rain Check-class tenders.
+            openRainChecks: await rainCheck.openFor(companyId, registration.golferId),
+        });
     } catch (error) {
         console.error('Error opening golf bill:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -1310,6 +1328,9 @@ exports.getBill = async (req, res) => {
             bill: await billDto(found.bill),
             registration: found.registration ? registrationDto(found.registration, shape) : null,
             ineligible: found.registration ? await ineligibleTiles(req, found.companyId, found.registration) : {},
+            // The golfer's open rain checks, offered as Rain Check-class
+            // tenders while the bill is open.
+            openRainChecks: found.bill.status === 'open' ? await rainCheck.openFor(found.companyId, found.bill.golferId || (found.registration ? found.registration.golferId : null)) : [],
         });
     } catch (error) {
         console.error('Error loading golf bill:', error);
@@ -1475,12 +1496,24 @@ exports.settleBill = async (req, res) => {
                 tender,
                 amount,
                 reference: line.reference ? String(line.reference).slice(0, 100) : null,
+                rainCheckId: tender.paymentClass === 'raincheck' && line.rainCheckId ? String(line.rainCheckId) : null,
             });
         }
         const paySum = round2(lines.reduce((s, l) => s + l.amount, 0));
         const total = round2(Number(bill.totalAmount));
         if (cents(paySum) !== cents(total)) {
             return res.status(400).json({ message: `Payments (${paySum.toFixed(2)}) must equal the bill total (${total.toFixed(2)}).` });
+        }
+
+        // Rain Check-class lines (2026-10-15): each redeems ONE open rain
+        // check of the billed golfer, at most its value. Checked here before
+        // any AR posting, and again inside the settle transaction where the
+        // rain checks are marked redeemed (single use, surplus forfeited).
+        const rainCheckLines = lines.filter((l) => l.tender.paymentClass === 'raincheck');
+        const billedGolferId = bill.golferId || registration.golferId || null;
+        if (rainCheckLines.length) {
+            const pre = await rainCheck.resolveTenderLines(companyId, billedGolferId, rainCheckLines);
+            if (pre.error) return res.status(400).json({ message: pre.error });
         }
 
         // Member-class lines: resolve + post to AR BEFORE the settle commits
@@ -1533,6 +1566,15 @@ exports.settleBill = async (req, res) => {
 
         const stamps = await callerStamps(req);
         await sequelize.transaction(async (transaction) => {
+            if (rainCheckLines.length) {
+                const resolved = await rainCheck.resolveTenderLines(companyId, billedGolferId, rainCheckLines, { transaction });
+                if (resolved.error) {
+                    const err = new Error(resolved.error);
+                    err.httpStatus = 409;
+                    throw err;
+                }
+                await rainCheck.markRedeemed(resolved.lines, bill, stamps.updatedBy, { transaction });
+            }
             for (const line of lines) {
                 await BillPayment.create({
                     billId: bill.id,
@@ -1545,6 +1587,7 @@ exports.settleBill = async (req, res) => {
                     arDocNo: line.arDocNo || null,
                     debtorType: line.debtorType || null,
                     debtorSourceId: line.debtorSourceId || null,
+                    rainCheckId: line.rainCheckId || null,
                     ...stamps,
                 }, { transaction });
             }
@@ -1555,6 +1598,7 @@ exports.settleBill = async (req, res) => {
         });
         res.status(200).json({ message: `Bill ${bill.billNo} settled.`, bill: await billDto(bill) });
     } catch (error) {
+        if (error && error.httpStatus) return res.status(error.httpStatus).json({ message: error.message });
         console.error('Error settling golf bill:', error);
         res.status(500).json({ message: 'Internal server error' });
     }

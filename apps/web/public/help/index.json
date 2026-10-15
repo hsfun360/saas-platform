@@ -20,6 +20,9 @@
   "golf-no-show-charges": {
     "title": "No-show Charges"
   },
+  "golf-rain-checks": {
+    "title": "Rain Checks"
+  },
   "golf-transaction-types": {
     "title": "Transaction Type"
   },

@@ -47,6 +47,65 @@ export interface FrontDeskEntry {
   holes: number;
   registration: FrontDeskRegistration | null;
   bill: FrontDeskBillSummary | null;
+  // Rain check (2026-10-15): the one already issued against this player's
+  // settled bill, if any (the sheet shows it instead of offering Issue).
+  rainCheck?: { rainCheckNo: string; status: string; amount: number } | null;
+}
+
+// A golfer's rain check (golf.RainCheck): a credit for an abandoned paid
+// round, redeemable once as a tender on a later bill of the same golfer.
+export interface GolfRainCheck {
+  id: string;
+  rainCheckNo: string;
+  golferId: string;
+  golferName: string;
+  memberNo: string | null;
+  playerId: string;
+  billId: string;
+  billNo: string;
+  playDate: string;
+  courseId: string | null;
+  holesRegistered: number;
+  holesPlayed: number;
+  basisAmount: number;
+  amount: number;
+  reason: string | null;
+  remarks: string | null;
+  issuedAt: string;
+  expiryDate: string;
+  status: 'issued' | 'redeemed' | 'expired' | 'cancelled';
+  redeemedBillId: string | null;
+  redeemedBillNo: string | null;
+  redeemedAt: string | null;
+  redeemedAmount: number | null;
+  forfeitedAmount: number | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  canModify?: boolean;
+}
+
+// The issue preview: what the rain check will be worth and until when.
+export interface GolfRainCheckQuote {
+  golfer: { id: string; name: string; memberNo: string | null; golferType: string };
+  bill: { id: string; billNo: string; totalAmount: number };
+  playDate: string;
+  courseCode: string | null;
+  holesRegistered: number;
+  holesPlayed: number;
+  basis: 'green-fee' | 'bill';
+  prorate: boolean;
+  basisAmount: number;
+  computedAmount: number;
+  amount: number;
+  validityDays: number;
+  expiryDate: string;
+}
+
+export interface GolfRainCheckIssuePayload {
+  holesPlayed: number;
+  amount?: number | null;
+  reason?: string;
+  rainCheckNo?: string;
 }
 
 // One row of a course's tee sheet: capacity + occupancy + closure state with
@@ -167,6 +226,8 @@ export interface FrontDeskMeta {
   playerTypes: { key: string; label: string }[];
   holesOptions: number[];
   teeSheetColors?: TeeSheetColors;
+  // Rain checks switched on in Golf Specification (the Issue door).
+  rainCheckEnabled?: boolean;
 }
 
 export interface GolfBillItemRow {
@@ -194,6 +255,7 @@ export interface GolfBillPaymentRow {
   amount: number;
   reference: string | null;
   arDocNo: string | null;
+  rainCheckId?: string | null;
 }
 
 export interface GolfBillDoc {
@@ -324,12 +386,24 @@ export class GolfFrontDeskService {
   // `ineligible` = the tiles this golfer does not qualify for (package
   // eligibility): { [transactionTypeId]: reason } - shown disabled with the
   // reason; the server refuses them too.
-  openBill(registrationId: string): Observable<{ bill: GolfBillDoc; warnings: string[]; ineligible?: Record<string, string> }> {
-    return this.http.post<{ bill: GolfBillDoc; warnings: string[]; ineligible?: Record<string, string> }>(`${this.base}/registrations/${registrationId}/bills`, {});
+  // `openRainChecks` = the golfer's issued, unexpired rain checks, offered as
+  // Rain Check-class tenders at settlement.
+  openBill(registrationId: string): Observable<{ bill: GolfBillDoc; warnings: string[]; ineligible?: Record<string, string>; openRainChecks?: GolfRainCheck[] }> {
+    return this.http.post<{ bill: GolfBillDoc; warnings: string[]; ineligible?: Record<string, string>; openRainChecks?: GolfRainCheck[] }>(`${this.base}/registrations/${registrationId}/bills`, {});
   }
 
-  getBill(billId: string): Observable<{ bill: GolfBillDoc; registration: FrontDeskRegistration | null; ineligible?: Record<string, string> }> {
-    return this.http.get<{ bill: GolfBillDoc; registration: FrontDeskRegistration | null; ineligible?: Record<string, string> }>(`${this.base}/bills/${billId}`);
+  getBill(billId: string): Observable<{ bill: GolfBillDoc; registration: FrontDeskRegistration | null; ineligible?: Record<string, string>; openRainChecks?: GolfRainCheck[] }> {
+    return this.http.get<{ bill: GolfBillDoc; registration: FrontDeskRegistration | null; ineligible?: Record<string, string>; openRainChecks?: GolfRainCheck[] }>(`${this.base}/bills/${billId}`);
+  }
+
+  // Rain checks (2026-10-15): preview then issue, against a registered
+  // player's SETTLED bill.
+  rainCheckPreview(registrationId: string, payload: GolfRainCheckIssuePayload): Observable<GolfRainCheckQuote> {
+    return this.http.post<GolfRainCheckQuote>(`${this.base}/registrations/${registrationId}/rain-check-preview`, payload);
+  }
+
+  issueRainCheck(registrationId: string, payload: GolfRainCheckIssuePayload): Observable<{ message: string; rainCheck: GolfRainCheck }> {
+    return this.http.post<{ message: string; rainCheck: GolfRainCheck }>(`${this.base}/registrations/${registrationId}/rain-check`, payload);
   }
 
   addItem(billId: string, transactionTypeId: string, quantity: number): Observable<{ bill: GolfBillDoc }> {
@@ -344,7 +418,7 @@ export class GolfFrontDeskService {
     return this.http.delete<{ bill: GolfBillDoc }>(`${this.base}/bills/${billId}/items/${itemId}`);
   }
 
-  settle(billId: string, payments: { paymentTypeId: string; amount: number; reference?: string }[]): Observable<{ message: string; bill: GolfBillDoc }> {
+  settle(billId: string, payments: { paymentTypeId: string; amount: number; reference?: string; rainCheckId?: string }[]): Observable<{ message: string; bill: GolfBillDoc }> {
     return this.http.post<{ message: string; bill: GolfBillDoc }>(`${this.base}/bills/${billId}/settle`, { payments });
   }
 

@@ -1,0 +1,40 @@
+/* Rain Checks - standalone menu (2026-10-15). Composes the shared
+   listing/dialog primitives; only the screen-specific bits live here. */
+
+.rc-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  flex-wrap: wrap;
+}
+.rc-filter label {
+  font-size: var(--font-body-2);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+/* Same shared input standard as .form-group fields (base + focus) - the
+   toolbar controls sit outside a form group, so they opt in explicitly. */
+.rc-filter input[type='date'],
+.rc-filter select {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  font-size: var(--font-body);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.rc-filter input[type='date']:focus,
+.rc-filter select:focus {
+  background: var(--surface-card);
+  border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
+}
+
+.rc-count {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-body-2);
+  color: var(--text-secondary);
+}

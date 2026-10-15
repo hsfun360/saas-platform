@@ -611,9 +611,47 @@
   background: var(--surface-card);
   border-color: var(--brand); /* encapsulated base ties global :focus - see styles.css GOTCHA */
 }
+/* A Rain Check line's note (what the pick covers / forfeits) spans the row. */
+.fd-pay-line__hint {
+  grid-column: 1 / -1;
+  margin: 0;
+}
 @media (max-width: 767px) {
   .fd-pay-line {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* Issue rain check: the server's quote (basis, computed, value, expiry). */
+.fd-rc-quote {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm) var(--space-md);
+  margin: var(--space-md) 0 0;
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+}
+.fd-rc-quote div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+.fd-rc-quote dt {
+  font-size: var(--font-caption);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.fd-rc-quote dd {
+  margin: 0;
+  font-size: var(--font-body-2);
+  color: var(--text-primary);
+}
+@media (max-width: 767px) {
+  .fd-rc-quote {
+    grid-template-columns: 1fr;
   }
 }
 

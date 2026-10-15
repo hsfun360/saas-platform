@@ -74,6 +74,10 @@ export type GolfBookingLimit = 'none' | 'day' | 'session';
 export type GolfLateCancellationAction = 'charge' | 'refuse';
 export type GolfNoShowChargeBasis = 'player' | 'booking';
 
+// Rain checks (2026-10-15): what an issued rain check's value is computed
+// from - the settled bill's green-fee lines or the whole bill.
+export type GolfRainCheckBasis = 'green-fee' | 'bill';
+
 export interface GolfNoShowTypeOption {
   id: string;
   transactionType: string;
@@ -105,6 +109,12 @@ export interface GolfSettingDoc {
     lateCancellationAction: GolfLateCancellationAction;
     noShowTransactionTypeId: string | null;
     noShowChargeBasis: GolfNoShowChargeBasis;
+    // Rain checks (2026-10-15): the switch, validity, value basis and whether
+    // the value is prorated by the unplayed holes.
+    rainCheckEnabled: boolean;
+    rainCheckValidityDays: number;
+    rainCheckBasis: GolfRainCheckBasis;
+    rainCheckProrate: boolean;
     teeSheetColorBooked: string;
     teeSheetColorRegistered: string;
     teeSheetColorBilled: string;
@@ -199,6 +209,10 @@ export class GolfSettingService {
     lateCancellationAction: GolfLateCancellationAction;
     noShowTransactionTypeId: string | null;
     noShowChargeBasis: GolfNoShowChargeBasis;
+    rainCheckEnabled: boolean;
+    rainCheckValidityDays: number;
+    rainCheckBasis: GolfRainCheckBasis;
+    rainCheckProrate: boolean;
     teeSheetColorBooked: string;
     teeSheetColorRegistered: string;
     teeSheetColorBilled: string;

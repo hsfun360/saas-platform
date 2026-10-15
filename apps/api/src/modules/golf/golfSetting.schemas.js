@@ -86,6 +86,11 @@ const saveBody = z.object({
     lateCancellationAction: str(20),
     noShowTransactionTypeId: str(64),
     noShowChargeBasis: str(20),
+    // Rain checks (2026-10-15)
+    rainCheckEnabled: bool,
+    rainCheckValidityDays: numberish,
+    rainCheckBasis: str(20),
+    rainCheckProrate: bool,
     // Tee-sheet colours (#rrggbb)
     teeSheetColorBooked: str(20),
     teeSheetColorRegistered: str(20),

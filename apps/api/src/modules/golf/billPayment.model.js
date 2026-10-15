@@ -49,6 +49,9 @@ const BillPayment = sequelize.define('GolfBillPayment', {
     // 'deposit' class only (group final bill, 2026-10-07): the settled
     // deposit bill this line draws on.
     appliedDepositBillId: { type: DataTypes.UUID, allowNull: true },
+    // 'raincheck' class only (2026-10-15): the golfer's rain check this line
+    // redeems (value ref to golf.RainCheck).
+    rainCheckId: { type: DataTypes.UUID, allowNull: true },
     // Ownership stamps (RBAC data scope + future workflow).
     createdBy: { type: DataTypes.UUID, allowNull: true },
     createdByDepartmentId: { type: DataTypes.UUID, allowNull: true },

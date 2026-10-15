@@ -429,6 +429,41 @@ module.exports = [
         `),
     },
     {
+        key: 'golf.raincheck.issued',
+        name: 'Golf rain check issued',
+        description: 'Sent to the golfer when the front desk issues a rain check for an abandoned round.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'golferName', description: "The golfer's name." },
+            { name: 'rainCheckNo', description: 'The rain check number.' },
+            { name: 'amount', description: "The credit value, e.g. '60.00'." },
+            { name: 'playDateText', description: "The abandoned round's date, e.g. '15 Oct 2026'." },
+            { name: 'holesPlayed', description: 'Holes played before play stopped.' },
+            { name: 'holesRegistered', description: 'Holes registered (9 or 18).' },
+            { name: 'expiryDateText', description: "The last day the rain check can be redeemed, e.g. '13 Jan 2027'." },
+            { name: 'reason', description: 'Why play was abandoned (may be empty).' },
+            { name: 'companyName', description: "The club's name." },
+        ],
+        sample: {
+            golferName: 'Ahmad Faizal', rainCheckNo: 'RC261000001', amount: '60.00', playDateText: '15 Oct 2026',
+            holesPlayed: 6, holesRegistered: 18, expiryDateText: '13 Jan 2027', reason: 'Thunderstorm - course closed',
+            companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: 'Rain check {{rainCheckNo}} - {{amount}} credit at {{companyName}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Your rain check</h2>
+            <p>Dear {{golferName}},</p>
+            <p>Play on {{playDateText}} was stopped after {{holesPlayed}} of {{holesRegistered}} holes{{#if reason}} ({{reason}}){{/if}}. <strong>{{companyName}}</strong> has issued you a rain check.</p>
+            <p>
+                <strong>Rain check No.:</strong> {{rainCheckNo}}<br>
+                <strong>Value:</strong> {{amount}}<br>
+                <strong>Valid until:</strong> {{expiryDateText}}
+            </p>
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">Quote the rain check number at the front desk when you pay for your next round. It is for your own use, can be redeemed once, and any value above that bill is not carried over.</p>
+        `),
+    },
+    {
         key: 'golf.booking.changed',
         name: 'Golf booking change',
         description: 'Sent to every player with an email address (dropped players included) when a golf booking is changed - moved to another flight, players added or dropped, or its details updated.',

@@ -332,6 +332,7 @@ function paymentDto(p) {
         arDocId: p.arDocId,
         arDocNo: p.arDocNo,
         appliedDepositBillId: p.appliedDepositBillId || null,
+        rainCheckId: p.rainCheckId || null,
     };
 }
 

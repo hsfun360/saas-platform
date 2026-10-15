@@ -607,6 +607,62 @@
         }
       </div>
 
+      <!-- ============ Rain Checks (abandoned-round credit) ============ -->
+      <div class="settings-card">
+        <button type="button" class="settings-header settings-header--button" (click)="toggleSection('raincheck')"
+                [attr.aria-expanded]="isExpanded('raincheck')">
+          <span class="settings-header__text">
+            <span class="settings-header__title">Rain Checks</span>
+            <span class="settings-header__sub">Whether the front desk may issue a rain check when a paid round is abandoned, how its value is worked out and how long it stays redeemable.</span>
+          </span>
+          <span class="material-icons settings-header__chevron" [class.settings-header__chevron--open]="isExpanded('raincheck')" aria-hidden="true">chevron_right</span>
+        </button>
+        @if (isExpanded('raincheck')) {
+          <div class="settings-body">
+            <div class="form-row">
+              <label class="gs-check">
+                <input type="checkbox" formControlName="rainCheckEnabled" />
+                <span>Enable rain checks</span>
+              </label>
+              <p class="cell-subtle field-hint">On: the Tee Time Sheet offers Issue rain check on a registered player whose bill is settled, and a Rain Check payment type can redeem it on a later bill of the same golfer. A rain check is used once; value above that bill is forfeited.</p>
+            </div>
+
+            @if (rainCheckOn()) {
+              <div class="gs-grid" style="margin-top: var(--space-md);">
+                <div class="form-group">
+                  <label for="gsRcDays">Valid for (days) <span class="required">*</span></label>
+                  <input id="gsRcDays" type="number" inputmode="numeric" min="1" max="730" step="1" formControlName="rainCheckValidityDays"
+                         [attr.aria-invalid]="showError(form.controls.rainCheckValidityDays)" aria-describedby="gsRcDaysErr" />
+                  @if (showError(form.controls.rainCheckValidityDays)) {
+                    <p id="gsRcDaysErr" class="field-error" role="alert">Enter a whole number between 1 and 730.</p>
+                  }
+                  <p class="cell-subtle field-hint">Counted from the day of issue; an unredeemed rain check expires after this and the issuer is notified.</p>
+                </div>
+                <div class="form-group">
+                  <label for="gsRcBasis">Value Basis</label>
+                  <select id="gsRcBasis" formControlName="rainCheckBasis">
+                    @for (b of rainCheckBases; track b.key) {
+                      <option [value]="b.key">{{ b.label }}</option>
+                    }
+                  </select>
+                  <p class="cell-subtle field-hint">Green-fee lines only treats caddy, buggy and food as consumed; the whole bill credits everything paid.</p>
+                </div>
+              </div>
+              <div class="form-row" style="margin-top: var(--space-md);">
+                <label class="gs-check">
+                  <input type="checkbox" formControlName="rainCheckProrate" />
+                  <span>Prorate by holes not played</span>
+                </label>
+                <p class="cell-subtle field-hint">Ticked: the value is the basis times the unplayed share (the desk keys the holes played). Unticked: the full basis whatever was played.</p>
+              </div>
+              @if (rainCheckPreview(); as preview) {
+                <p class="cell-subtle field-hint">{{ preview }}</p>
+              }
+            }
+          </div>
+        }
+      </div>
+
       <!-- ============ Group Bookings (lifecycle control) ============ -->
       <div class="settings-card">
         <button type="button" class="settings-header settings-header--button" (click)="toggleSection('groups')"

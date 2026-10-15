@@ -48,6 +48,8 @@ const paymentLine = z.object({
     paymentTypeId: str(64),
     amount: numberish,
     reference: str(100),
+    // 'raincheck' class only: the golfer's rain check the line redeems.
+    rainCheckId: str(64),
 });
 
 const idParam = { params: z.object({ id }) };

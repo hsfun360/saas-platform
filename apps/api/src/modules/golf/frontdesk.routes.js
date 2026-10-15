@@ -27,5 +27,12 @@ router.put('/bills/:billId/items/:itemId', validate(s.updateItem), controller.up
 router.delete('/bills/:billId/items/:itemId', validate(s.item), controller.removeItem);
 router.post('/bills/:billId/settle', validate(s.settle), controller.settleBill);
 router.post('/bills/:billId/void', validate(s.voidBill), controller.voidBill);
+// Rain checks (2026-10-15): issued from the flight workspace against a
+// registered player's SETTLED bill; redeemed as a Rain Check-class tender at
+// settle (the bill GET lists the golfer's open rain checks).
+const rainChecks = require('./rainCheck.controller');
+const rs = require('./rainCheck.schemas');
+router.post('/registrations/:id/rain-check-preview', validate(rs.preview), rainChecks.preview);
+router.post('/registrations/:id/rain-check', validate(rs.issue), rainChecks.issue);
 
 module.exports = router;

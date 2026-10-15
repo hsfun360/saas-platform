@@ -74,6 +74,10 @@ router.use('/front-desk', requireMenuAction('/golf/tee-time-sheet'), require('./
 // charges without the tee-sheet grants ---
 router.use('/no-show-charges', requireMenuAction('/golf/no-show-charges'), require('./noShowCharges.routes'));
 
+// --- Rain Checks (user decisions 2026-10-15) - the standalone listing; the
+// issue and redeem doors live on the front desk (Tee Time Sheet grant) ---
+router.use('/rain-checks', requireMenuAction('/golf/rain-checks'), require('./rainChecks.routes'));
+
 // --- Numbering Control (golf-owned series: booking / registration / bill /
 // rain check; split per module 2026-08-05) ---
 const { makeNumberingRouter } = require('../../platform/numberingController');

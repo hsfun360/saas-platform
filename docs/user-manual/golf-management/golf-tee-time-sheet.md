@@ -7,7 +7,7 @@
 ## What this option is for
 
 The Tee Time Sheet is the Front Desk's working view of one play day: every course on its own card, every flight time with a coloured dot per player, so staff see at a glance who is booked, who has registered, who has an open bill and who has settled.
-From a flight, staff register arriving golfers (booked or walk-in), open each player's bill, add items from the billing tiles, settle with one or more tenders, and - once tee times have passed - record the players who never turned up.
+From a flight, staff register arriving golfers (booked or walk-in), open each player's bill, add items from the billing tiles, settle with one or more tenders (a golfer's open rain check among them), issue a rain check when a paid round is abandoned, and - once tee times have passed - record the players who never turned up.
 Bookings are made elsewhere (Golf Booking); this screen is where the day actually happens.
 
 ## The screen at a glance
@@ -93,6 +93,28 @@ Returning guests are matched by identity number, then mobile, so one guest profi
 A **Member**-class payment charges the amount to the member's own account (one invoice posts to Account Receivable; the member must be allowed to charge to account and have a ledger account); cash-like tenders simply record the payment.
 A settled bill shows its payments and can only be viewed.
 
+### Redeem a rain check
+
+1. In the Settle view pick a payment type of class **Rain Check** on a line; the reference box becomes a **rain check** picker listing this golfer's open rain checks (number, value, valid until).
+2. Pick the rain check; the line's amount fills with what it can cover - its value, capped at what the other lines leave.
+   A note under the line says whether the rain check is used in full or how much is forfeited.
+3. Add other tenders for any remainder until **Remaining** reads 0.00, then click **Settle bill**.
+
+A rain check is single use: once redeemed, any value above the line is forfeited and recorded on the rain check.
+Only the golfer it was issued to can redeem it, and only while it is issued and within its validity.
+
+### Issue a rain check
+
+[Screenshot: Issue rain check view]
+
+1. With rain checks switched on in Golf Specification, open the flight workspace, find a registered player whose bill is **settled**, open the ⋮ menu and click **Issue rain check**.
+2. The drawer switches to **Issue rain check · <player>**: enter the **Holes played** before play stopped (0 to the holes registered); the quote box underneath restates the basis (green-fee lines or the whole bill), the computed value, the rain check value and the valid-until date, and the footer button names the amount, e.g. **Issue rain check 60.00**.
+3. Optionally lower the **Amount** (leave it blank for the computed value - you cannot raise it) and type the **Reason**.
+4. Click **Issue rain check <amount>**.
+
+The rain check is numbered from the Rain Check No. series, the player's row shows "rain check RC... (60.00)", and the golfer receives an email with the number, value and expiry when an address is on record.
+One rain check per settled bill; the ⋮ item disappears once it is issued.
+
 ### Cancel a registration or void a bill
 
 - In the flight workspace, open the player's ⋮ menu and click **Cancel registration** (a registration without a bill) or **Void bill** (an open bill).
@@ -143,8 +165,17 @@ With the rule off, no-shows are recorded without charges.
 | Field | Required | What to enter | Rules |
 | --- | --- | --- | --- |
 | **Payment type** | Yes | The tender, from the Payment Type catalog. | Debtor-class tenders are not supported yet. |
-| **Amount** | Yes | The amount paid with this tender. | More than 0.00; all lines must total the bill exactly; up to 10 lines. |
-| **Reference** | No | A slip, voucher or approval number. | Up to 100 characters. |
+| **Amount** | Yes | The amount paid with this tender. | More than 0.00; all lines must total the bill exactly; up to 10 lines; a Rain Check line cannot exceed the rain check's value. |
+| **Reference** | No | A slip, voucher or approval number. | Up to 100 characters; not shown on a Rain Check line. |
+| **Rain check** | Rain Check class: Yes | One of this golfer's open rain checks. | Each rain check once per settlement; it must belong to the billed golfer and be issued and unexpired. |
+
+### Issue rain check
+
+| Field | Required | What to enter | Rules |
+| --- | --- | --- | --- |
+| **Holes played** | Yes | Holes completed before play was abandoned. | Whole number from 0 to the holes registered (9 or 18). |
+| **Amount** | No | A lower value than the computed one. | 0.00 or more; cannot exceed the computed value; blank = the computed value. |
+| **Reason** | No | Why play was abandoned. | Up to 255 characters; quoted in the golfer's email. |
 
 ### Confirm (cancel registration / void bill)
 
@@ -173,12 +204,21 @@ With the rule off, no-shows are recorded without charges.
 - If you see "Payments (x) must equal the bill total (y)", adjust the amounts until Remaining reads 0.00.
 - If you see "Charge to member account needs a member bill", "Member ... is barred from charging to account", "Open an AR invoice transaction type to the Golf module first" or "Several AR transaction types are opened to Golf", the Member tender cannot post - settle with another tender or fix the setup.
 - "This bill is settled and cannot be amended" - a settled bill is final; corrections go through Account Receivable.
+- If you see "Rain checks are switched off on Golf Specification.", turn on the Rain Checks section there first.
+- If you see "A rain check needs a SETTLED bill - the round must have been paid for.", settle the player's bill before issuing.
+- If you see "Rain check RC... was already issued for bill G...", the round already has its rain check - see the Rain Checks screen.
+- If you see "Bill G... has no green-fee line to credit.", the bill carries no green fee and the value basis is green-fee lines; change the basis on Golf Specification or there is nothing to credit.
+- If you see "The rain check amount cannot exceed the computed value ...", lower the amount or leave it blank.
+- If you see "Configure the Rain Check No. numbering scheme first", set the series under Numbering Control.
+- If you see "Payment n: rain check RC... belongs to <name>, not to the billed golfer." or "Payment n: rain check RC... is redeemed", pick one of this golfer's own open rain checks or another tender.
+- If you see "Pick the rain check to redeem on the Rain Check payment line.", choose a rain check on that line or change its payment type.
 - Leaving the drawer scrolls the flight you were working on back into view.
 
 ## Related options
 
 - Golf Management → Golf Booking - the bookings that appear as booked players here.
 - Golf Management → Front Desk → No-show Charges - follow-up of the charges raised by the No-shows review.
+- Golf Management → Front Desk → Rain Checks - every rain check issued here, with its redemption, expiry or cancellation.
 - Golf Management → Common Setup → Transaction Type - the billing tiles, prices, golfer-type defaults and package eligibility.
 - Golf Management → Common Setup → Payment Type - the tenders offered at settlement.
 - Golf Management → Common Setup → Golf Specification - the dot colours, the handicap / junior warnings and the Cancellation & No-show rule.

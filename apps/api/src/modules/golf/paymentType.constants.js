@@ -16,6 +16,9 @@ const PAYMENT_CLASSES = [
     // Group booking (2026-10-07): apply a HELD DEPOSIT (a settled deposit
     // bill of the folio) to the final group bill - no money moves.
     { key: 'deposit', label: 'Deposit' },
+    // Rain check (2026-10-15): redeem a golfer's issued rain check against
+    // their bill - single use, no money moves.
+    { key: 'raincheck', label: 'Rain Check' },
 ];
 
 const PAYMENT_CLASS_KEYS = PAYMENT_CLASSES.map((c) => c.key);

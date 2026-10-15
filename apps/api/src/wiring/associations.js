@@ -146,6 +146,9 @@ const GolfNoShowCharge = require('../modules/golf/noShowCharge.model');
 // Change-booking history (2026-10-14): one row per amendment of a flight
 // booking; booking and charge refs are plain value refs - no associations.
 const GolfBookingChange = require('../modules/golf/bookingChange.model');
+// Rain checks (2026-10-15): a credit owed to a golfer, redeemed once on a
+// later bill; golfer, bill and player refs are plain value refs.
+const GolfRainCheck = require('../modules/golf/rainCheck.model');
 
 GolfBill.hasMany(GolfBillItem, { foreignKey: 'billId', as: 'items', onDelete: 'CASCADE' });
 GolfBillItem.belongsTo(GolfBill, { foreignKey: 'billId', as: 'bill' });
