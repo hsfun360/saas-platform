@@ -108,6 +108,12 @@ function expiryDateFor(issuedOn, validityDays) {
     return availability.addDays(issuedOn, validityDays);
 }
 
+// A date-only string as '13 Jan 2027' for messages and emails (never a raw
+// ISO date in anything a person reads).
+function dateText(dateOnly) {
+    return new Date(`${dateOnly}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
 // ---- issue -----------------------------------------------------------------
 
 // The registered player + settled bill a rain check is issued against.
@@ -195,7 +201,7 @@ async function issue(req, playerId, body) {
     });
     if (result.error) return result;
     await notifyIssued(result.companyId, result.row, golferForEmail).catch((err) => console.warn('[GOLF RAIN CHECK] issue email failed:', err.message));
-    return { message: `Rain check ${result.row.rainCheckNo} issued for ${Number(result.row.amount).toFixed(2)} to ${result.row.golferName}, valid until ${result.row.expiryDate}.`, rainCheck: dto(result.row) };
+    return { message: `Rain check ${result.row.rainCheckNo} issued for ${Number(result.row.amount).toFixed(2)} to ${result.row.golferName}, valid until ${dateText(result.row.expiryDate)}.`, rainCheck: dto(result.row) };
 }
 
 // The golfer's address: a member's through the membership seam, a visitor's
@@ -221,10 +227,10 @@ async function notifyIssued(companyId, row, golfer) {
             golferName: row.golferName,
             rainCheckNo: row.rainCheckNo,
             amount: Number(row.amount).toFixed(2),
-            playDateText: new Date(`${row.playDate}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }),
+            playDateText: dateText(row.playDate),
             holesPlayed: row.holesPlayed,
             holesRegistered: row.holesRegistered,
-            expiryDateText: new Date(`${row.expiryDate}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }),
+            expiryDateText: dateText(row.expiryDate),
             reason: row.reason || '',
             companyName: company ? company.name : '',
         },
@@ -314,7 +320,7 @@ async function scanRainChecks() {
             await notifyUser({
                 userId: row.createdBy, companyId: row.companyId, type: 'golf.raincheck.expired',
                 title: `Rain check ${row.rainCheckNo} expired`,
-                body: `${row.golferName}'s rain check for ${Number(row.amount).toFixed(2)} expired on ${row.expiryDate} unredeemed.`,
+                body: `${row.golferName}'s rain check for ${Number(row.amount).toFixed(2)} expired on ${dateText(row.expiryDate)} unredeemed.`,
                 linkRoute: '/golf/rain-checks',
             }).catch(() => {});
         }
