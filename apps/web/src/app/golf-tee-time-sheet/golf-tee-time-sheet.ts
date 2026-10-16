@@ -14,6 +14,7 @@ import { MoneyInputDirective } from '../shared/money-input.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { ScrollReturnService } from '../services/scroll-return.service';
+import { playerTypeNeedsGuestName, playerTypeLabel } from '../services/golf-player-type.service';
 import {
   GolfFrontDeskService,
   FrontDeskCourseSheet,
@@ -435,8 +436,12 @@ export class GolfTeeTimeSheetComponent implements OnInit {
 
   playerTypeLabel(key: string): string {
     const m = this.meta();
-    const t = m ? m.playerTypes.find((p) => p.key === key) : null;
-    return t ? t.label : key;
+    return playerTypeLabel(m ? (m.allPlayerTypes || m.playerTypes) : [], key);
+  }
+
+  // A guest-base type takes a name, the member bases a member number.
+  needsGuestName(code: string): boolean {
+    return playerTypeNeedsGuestName(this.meta()?.playerTypes, code);
   }
 
   setListDate(value: string): void {
@@ -579,7 +584,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       holes: Number(v.holes),
       playerType: v.playerType,
     };
-    if (v.playerType === 'guest') {
+    if (this.needsGuestName(v.playerType)) {
       if (!v.guestName.trim()) {
         this.errorMessage.set("Key in the guest name (or 'Guest').");
         return;
@@ -645,7 +650,7 @@ export class GolfTeeTimeSheetComponent implements OnInit {
       holes: Number(v.holes),
       playerType: v.playerType,
     };
-    if (v.playerType === 'guest') {
+    if (this.needsGuestName(v.playerType)) {
       if (!v.guestName.trim()) {
         this.errorMessage.set("Key in the guest name (or 'Guest').");
         return;

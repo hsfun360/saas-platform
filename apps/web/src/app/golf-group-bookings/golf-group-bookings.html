@@ -1187,7 +1187,7 @@
             <select formControlName="playerType" [attr.aria-label]="'Player ' + (i + 1) + ' type'">
               @for (t of option(meta()?.playerTypes); track t.key) { <option [value]="t.key">{{ t.label }}</option> }
             </select>
-            @if (g.controls.playerType.value === 'guest') {
+            @if (needsGuestName(g.controls.playerType.value)) {
               <input type="text" formControlName="playerName" maxlength="255" placeholder="Guest name" [attr.aria-label]="'Player ' + (i + 1) + ' name'" />
             } @else {
               <input type="text" formControlName="memberNo" maxlength="50" placeholder="Member No" [attr.aria-label]="'Player ' + (i + 1) + ' member number'" />

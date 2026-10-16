@@ -27,7 +27,8 @@ const { getGolfMemberStanding } = require('../../platform/membershipGateway');
 const { companyTimezone } = require('../../platform/calendarGateway');
 const availability = require('./bookingAvailability.service');
 const shared = require('./bookingShared');
-const { PLAYER_TYPE_KEYS } = require('./booking.constants');
+// Player types come from the club's master (2026-10-15), judged by base identity.
+const playerTypes = require('./playerType.service');
 const BookingProfile = require('./bookingProfile.model');
 const Player = require('./player.model');
 const FlightLock = require('./flightLock.model');
@@ -166,6 +167,7 @@ async function resolveRoster(companyId, firsts, rawPlayers) {
     const keptIds = new Set();
     const added = [];
     const raw = Array.isArray(rawPlayers) ? rawPlayers : [];
+    const types = playerTypes.pickable(await playerTypes.catalog(companyId));
     for (let i = 0; i < raw.length; i += 1) {
         const line = raw[i] || {};
         const playerId = line.playerId ? String(line.playerId) : '';
@@ -175,8 +177,8 @@ async function resolveRoster(companyId, firsts, rawPlayers) {
             continue;
         }
         const playerType = String(line.playerType || '');
-        if (!PLAYER_TYPE_KEYS.includes(playerType)) return fail(`Player ${i + 1}: pick a player type.`);
-        if (playerType === 'guest') {
+        if (!playerTypes.findType(types, playerType)) return fail(`Player ${i + 1}: pick a player type.`);
+        if (playerTypes.needsGuestName(types, playerType)) {
             const guestName = String(line.guestName || '').trim();
             if (!guestName) return fail(`Player ${i + 1}: key in the guest name (or 'Guest').`);
             added.push({ sortOrder: i + 1, playerType, standing: null, playerName: guestName, memberNo: null });
@@ -290,10 +292,11 @@ async function validateTarget(req, { companyId, profile, booker, standing, targe
     }
 
     const gc = availability.resolveGuestControl(setting, guestRules, course.id, dayType, t, dayOfWeek);
-    const rosterTypes = [...kept.map((r) => r.playerType), ...added.map((l) => l.playerType)];
-    if (!gc.allowGuest && rosterTypes.includes('guest')) return { fail: 'Guests are not allowed on this flight (guest control).' };
-    if (!gc.allowMemberGuest && rosterTypes.includes('member-guest')) return { fail: 'Members as guests are not allowed on this flight (guest control).' };
-    const guestCount = rosterTypes.filter((k) => k === 'guest' || k === 'member-guest').length;
+    const types = await playerTypes.catalog(companyId, { transaction });
+    const rosterBases = [...kept.map((r) => r.playerType), ...added.map((l) => l.playerType)].map((k) => playerTypes.baseOf(types, k));
+    if (!gc.allowGuest && rosterBases.some((b) => b === 'guest' || b === 'affiliate')) return { fail: 'Guests are not allowed on this flight (guest control).' };
+    if (!gc.allowMemberGuest && rosterBases.includes('member-guest')) return { fail: 'Members as guests are not allowed on this flight (guest control).' };
+    const guestCount = rosterBases.filter((b) => b === 'guest' || b === 'member-guest' || b === 'affiliate').length;
     const quota = standing.guestQuota;
     if (guestCount > 0 && quota !== null && quota !== undefined && guestCount > quota) {
         return {
@@ -342,10 +345,10 @@ async function validateTarget(req, { companyId, profile, booker, standing, targe
     const limitMode = shared.bookingLimitFor(setting, dayType);
     const memberChecks = [{ golferId: booker.id, label: standing.memberNo, prefix: '' }];
     for (const r of kept) {
-        if (r.playerType === 'member' && r.golferId && r.golferId !== booker.id) memberChecks.push({ golferId: r.golferId, label: r.memberNo, prefix: `${r.playerName}: ` });
+        if (playerTypes.isMemberBase(types, r.playerType) && r.golferId && r.golferId !== booker.id) memberChecks.push({ golferId: r.golferId, label: r.memberNo, prefix: `${r.playerName}: ` });
     }
     for (const line of added) {
-        if (line.playerType !== 'member' || !line.standing) continue;
+        if (!playerTypes.isMemberBase(types, line.playerType) || !line.standing) continue;
         const g = golferByMemberId.get(line.standing.memberId);
         if (g && g.id !== booker.id) memberChecks.push({ golferId: g.id, label: line.memberNo, prefix: `Player ${line.sortOrder}: ` });
     }
@@ -590,7 +593,7 @@ async function apply(req, id, body) {
                 previousFlight: `${shared.playDateText(p.flight.playDate)} ${p.flight.teeTime} - ${p.flight.courseName}`,
                 playDateText: shared.playDateText(after.playDate), teeTime: after.teeTime, crossTime: after.crossTime || '',
                 courseName: after.courseName, holes: after.holes,
-                playersTable: shared.playersTableHtml([...kept, ...added].map((x, i) => ({ sortOrder: i + 1, playerName: x.playerName, memberNo: x.memberNo, playerType: x.playerType }))),
+                playersTable: shared.playersTableHtml([...kept, ...added].map((x, i) => ({ sortOrder: i + 1, playerName: x.playerName, memberNo: x.memberNo, playerType: x.playerType })), playerTypes.labelsOf(await playerTypes.catalog(companyId))),
                 chargeText,
             },
             transaction,

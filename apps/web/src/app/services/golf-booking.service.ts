@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { GolfPlayerTypeOption } from './golf-player-type.service';
 
 // Golf Booking - the make-booking flow against the DYNAMIC tee sheet:
 // context (member + window) → availability (5 nearest flights per course) →
@@ -53,7 +54,8 @@ export interface GolfFlightLock {
 }
 
 export interface GolfBookingPlayerLine {
-  playerType: 'member' | 'member-guest' | 'guest';
+  // A player-type code of the club's catalog (the listing ships the pickable ones).
+  playerType: string;
   memberNo?: string;
   guestName?: string;
 }
@@ -103,7 +105,7 @@ export interface GolfSearchPayload {
 // ---- change booking (2026-10-14) ----
 export interface GolfChangeLine {
   playerId?: string;
-  playerType?: 'member' | 'member-guest' | 'guest';
+  playerType?: string;
   memberNo?: string;
   guestName?: string;
 }
@@ -194,8 +196,9 @@ export class GolfBookingService {
     return this.http.post<{ message: string; booking: GolfBookingRow }>(this.base, payload);
   }
 
-  list(playDate: string): Observable<{ bookings: GolfBookingRow[] }> {
-    return this.http.get<{ bookings: GolfBookingRow[] }>(this.base, { params: { playDate } });
+  // `playerTypes` = the club's pickable player types (code, label, base identity).
+  list(playDate: string): Observable<{ bookings: GolfBookingRow[]; playerTypes: GolfPlayerTypeOption[] }> {
+    return this.http.get<{ bookings: GolfBookingRow[]; playerTypes: GolfPlayerTypeOption[] }>(this.base, { params: { playDate } });
   }
 
   // What cancelling NOW means under the cancellation-notice rule (show

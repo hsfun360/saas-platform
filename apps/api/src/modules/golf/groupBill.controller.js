@@ -18,7 +18,8 @@ const { classifyDateRange } = require('../../platform/calendarGateway');
 const arGateway = require('../../platform/arGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const billing = require('./billing.service');
-const { PACKAGE_CHARGE_TYPE_KEY, DEPOSIT_CHARGE_TYPE_KEY, GOLFER_TYPES } = require('./transactionType.constants');
+const { PACKAGE_CHARGE_TYPE_KEY, DEPOSIT_CHARGE_TYPE_KEY } = require('./transactionType.constants');
+const playerTypes = require('./playerType.service');
 const { ACCOUNT_PAYMENT_CLASSES } = require('./paymentType.constants');
 const { GROUP_BOOKING_TYPE_KEYS, GROUP_REFUND_STATUS_KEYS } = require('./groupBooking.constants');
 const lifecycle = require('./groupLifecycle.service');
@@ -120,14 +121,15 @@ async function ensureGroupBill(req, companyId, profile, stamps) {
 // ---------------------------------------------------------------------------
 // DTOs
 
-function tileDto(t) {
+// `labels` = the club's player-type labels by code (playerType.service labelsOf).
+function tileDto(t, labels = new Map()) {
     return {
         id: t.id,
         transactionType: t.transactionType,
         description: t.description,
         chargeType: t.chargeType,
         golferType: t.golferType || null,
-        golferTypeLabel: t.golferType ? ((GOLFER_TYPES.find((g) => g.key === t.golferType) || {}).label || t.golferType) : null,
+        golferTypeLabel: t.golferType ? (labels.get(t.golferType) || t.golferType) : null,
         iconUrl: t.iconUrl,
         allowPriceOverride: t.allowPriceOverride === true,
     };
@@ -209,14 +211,15 @@ async function folioDto(req, companyId, profile, bill) {
         : [];
     const facts = await playFactsOf(req, profile);
     const depositType = types.find((t) => t.chargeType === DEPOSIT_CHARGE_TYPE_KEY) || null;
+    const typeLabels = playerTypes.labelsOf(await playerTypes.catalog(companyId));
     return {
         bill: bill ? await billing.billDto(bill) : null,
         play: facts,
-        tiles: types.filter((t) => t.chargeType !== DEPOSIT_CHARGE_TYPE_KEY && t.chargeType !== 'no-show').map(tileDto),
+        tiles: types.filter((t) => t.chargeType !== DEPOSIT_CHARGE_TYPE_KEY && t.chargeType !== 'no-show').map((t) => tileDto(t, typeLabels)),
         // Every tender for the final bill (Deposit class draws on a held
         // deposit); the Record-deposit dialog filters out the deposit class.
         tenders: tenders.filter((t) => t.paymentClass !== 'suspend').map(tenderDto),
-        depositType: depositType ? tileDto(depositType) : null,
+        depositType: depositType ? tileDto(depositType, typeLabels) : null,
         deposits,
         depositTotal: round2(live.reduce((s, d) => s + d.amount, 0)),
         depositUnapplied: round2(live.reduce((s, d) => s + d.unappliedAmount, 0)),

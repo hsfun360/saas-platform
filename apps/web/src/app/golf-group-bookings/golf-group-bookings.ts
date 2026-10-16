@@ -17,6 +17,7 @@ import { LocalDatePipe, formatLocalDate } from '../shared/local-date.pipe';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { MembershipStatusOption } from '../models/auth.models';
+import { playerTypeNeedsGuestName } from '../services/golf-player-type.service';
 import { MoneyInputDirective } from '../shared/money-input.directive';
 import { MoneyPipe } from '../shared/money.pipe';
 import { openBlobInNewTab } from '../shared/open-blob';
@@ -56,7 +57,7 @@ type SettleLineGroup = FormGroup<{
 }>;
 
 type RosterGroup = FormGroup<{
-  playerType: FormControl<'member' | 'member-guest' | 'guest'>;
+  playerType: FormControl<string>;
   memberNo: FormControl<string>;
   playerName: FormControl<string>;
   handicap: FormControl<string>;
@@ -424,6 +425,11 @@ export class GolfGroupBookingsComponent implements OnInit {
 
   playerTypeLabel(key: string): string {
     return this.meta()?.playerTypes.find((t) => t.key === key)?.label || key;
+  }
+
+  // A guest-base or affiliate-base type takes a name, the member bases a member number.
+  needsGuestName(code: string): boolean {
+    return playerTypeNeedsGuestName(this.meta()?.playerTypes, code);
   }
 
   isHold(format: string): boolean {
@@ -1477,7 +1483,7 @@ export class GolfGroupBookingsComponent implements OnInit {
 
   private newRosterGroup(): RosterGroup {
     return this.fb.nonNullable.group({
-      playerType: ['guest' as 'member' | 'member-guest' | 'guest', Validators.required],
+      playerType: ['guest', Validators.required],
       memberNo: ['', Validators.maxLength(50)],
       playerName: ['', Validators.maxLength(255)],
       handicap: [''],
@@ -1518,12 +1524,13 @@ export class GolfGroupBookingsComponent implements OnInit {
 
   private rosterLinePayload(g: RosterGroup): GolfGroupRosterLine | null {
     const v = g.getRawValue();
-    const hasIdentity = v.playerType === 'guest' ? !!v.playerName.trim() : !!v.memberNo.trim();
+    const guestLike = this.needsGuestName(v.playerType);
+    const hasIdentity = guestLike ? !!v.playerName.trim() : !!v.memberNo.trim();
     if (!hasIdentity) return null;
     return {
       playerType: v.playerType,
-      memberNo: v.playerType === 'guest' ? undefined : v.memberNo.trim(),
-      playerName: v.playerType === 'guest' ? v.playerName.trim() : undefined,
+      memberNo: guestLike ? undefined : v.memberNo.trim(),
+      playerName: guestLike ? v.playerName.trim() : undefined,
       handicap: v.handicap.trim() === '' ? null : Number(v.handicap),
       teamName: v.teamName.trim() || undefined,
     };

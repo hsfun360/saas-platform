@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { GolfPlayerTypeOption } from './golf-player-type.service';
 import { MembershipStatusOption } from '../models/auth.models';
 
 // Group / Tournament Booking (user decisions 2026-10-07, slice 1): the
@@ -26,7 +27,7 @@ export interface GolfGroupBookingMeta {
   bookingTypes: MembershipStatusOption[];
   startFormats: MembershipStatusOption[];
   holdFormats: string[];
-  playerTypes: MembershipStatusOption[];
+  playerTypes: GolfPlayerTypeOption[];
   holesOptions: number[];
   statuses: MembershipStatusOption[];
   playDayStatuses: MembershipStatusOption[];
@@ -111,7 +112,7 @@ export interface GolfGroupRosterPlayer {
   golferId: string | null;
   playerName: string;
   memberNo: string | null;
-  playerType: 'member' | 'member-guest' | 'guest';
+  playerType: string;
   handicap: number | null;
   teamName: string | null;
   contactMobile: string | null;
@@ -239,7 +240,7 @@ export interface GolfGroupHeaderPayload {
 }
 
 export interface GolfGroupRosterLine {
-  playerType: 'member' | 'member-guest' | 'guest';
+  playerType: string;
   memberNo?: string;
   playerName?: string;
   handicap?: number | null;

@@ -24,9 +24,11 @@ const arGateway = require('../../platform/arGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const availability = require('./bookingAvailability.service');
 const lifecycle = require('./groupLifecycle.service');
-const { PLAYER_TYPES, PLAYER_TYPE_KEYS, HOLES_OPTIONS } = require('./booking.constants');
+const { HOLES_OPTIONS } = require('./booking.constants');
+// Player types come from the club's master (2026-10-15), judged by base identity.
+const playerTypes = require('./playerType.service');
 const { PLAYER_STATUSES, BILL_STATUSES, ACTIVE_PLAYER_STATUS_KEYS } = require('./registration.constants');
-const { PACKAGE_CHARGE_TYPE_KEY, GOLFER_TYPES } = require('./transactionType.constants');
+const { PACKAGE_CHARGE_TYPE_KEY } = require('./transactionType.constants');
 const { GROUP_BOOKING_TYPE_KEYS, COURSE_HOLD_FORMATS } = require('./groupBooking.constants');
 // Charge types the per-player desk bill never offers: the group folio's
 // 'deposit' item and the system-raised 'no-show' penalty.
@@ -540,7 +542,10 @@ exports.getMeta = async (req, res) => {
             tiles: types.filter((t) => !DESK_HIDDEN_CHARGE_TYPES.includes(t.chargeType)),
             paymentTypes: tenders,
             courses,
-            playerTypes: PLAYER_TYPES,
+            // The club's pickable player types (active, not affiliate-base) for
+            // the walk-in forms; every active type for the label lookups.
+            playerTypes: playerTypes.asVocabulary(playerTypes.pickable(await playerTypes.catalog(companyId))),
+            allPlayerTypes: playerTypes.asVocabulary(await playerTypes.catalog(companyId)),
             holesOptions: HOLES_OPTIONS,
             playerStatuses: PLAYER_STATUSES,
             billStatuses: BILL_STATUSES,
@@ -673,7 +678,8 @@ async function juniorWarnings({ companyId, unitCourseId, playDate, teeTime, tran
 // Resolve the golfer identity + snapshots for a player being registered.
 // Returns { golfer, playerName, memberNo, standing } or { error }.
 async function resolvePlayerIdentity({ req, companyId, playerType, memberNo, guest, fallbackName, stamps, transaction }) {
-    if (playerType === 'guest') {
+    const types = await playerTypes.catalog(companyId, { transaction });
+    if (playerTypes.needsGuestName(types, playerType)) {
         const name = (guest && typeof guest.name === 'string' && guest.name.trim()) || fallbackName || 'Guest';
         const { golfer } = await guestGolfer({
             companyId,
@@ -789,7 +795,7 @@ exports.register = async (req, res) => {
         if (!DATE_RE.test(playDate)) return res.status(400).json({ message: 'Pick a play date.' });
         if (!TIME_RE.test(teeTime)) return res.status(400).json({ message: 'Pick a flight time.' });
         if (!HOLES_OPTIONS.includes(holes)) return res.status(400).json({ message: 'Pick 9 or 18 holes.' });
-        if (!PLAYER_TYPE_KEYS.includes(playerType)) return res.status(400).json({ message: 'Pick a player type.' });
+        if (!playerTypes.findType(playerTypes.pickable(await playerTypes.catalog(companyId)), playerType)) return res.status(400).json({ message: 'Pick a player type.' });
         const course = await Course.findOne({ where: { companyId, id: String(w.courseId || ''), isActive: true } });
         if (!course) return res.status(400).json({ message: 'Pick a course.' });
         const dayType = await dayTypeOf(req, playDate);
@@ -1270,7 +1276,7 @@ exports.openBill = async (req, res) => {
             // (2026-10-07) get NO auto-charge - their package is billed on
             // the group folio; this bill is for the player's own extras.
             let category = registration.groupPlayerId ? null : registration.playerType;
-            if (registration.playerType === 'member') {
+            if (playerTypes.isMemberBase(await playerTypes.catalog(companyId, { transaction }), registration.playerType)) {
                 const standing = registration.memberNo ? await getGolfMemberStanding(companyId, registration.memberNo) : null;
                 if (standing && standing.isGolfAllow) category = null; // no green fee
             }
@@ -1355,8 +1361,9 @@ exports.addItem = async (req, res) => {
         // of ONE category - the screen hides the others, the server refuses
         // them (2026-10-06): a visitor-priced buggy never lands on a member.
         if (type.golferType && type.golferType !== registration.playerType) {
-            const itemCat = (GOLFER_TYPES.find((g) => g.key === type.golferType) || {}).label || type.golferType;
-            const playerCat = (PLAYER_TYPES.find((p) => p.key === registration.playerType) || {}).label || registration.playerType;
+            const types = await playerTypes.catalog(companyId);
+            const itemCat = playerTypes.labelOf(types, type.golferType);
+            const playerCat = playerTypes.labelOf(types, registration.playerType);
             return res.status(400).json({ message: `'${type.transactionType}' is the ${itemCat} item - this player is billed as ${playerCat}.` });
         }
         const quantity = Number.isInteger(Number(req.body.quantity)) ? Number(req.body.quantity) : 1;
@@ -1521,7 +1528,7 @@ exports.settleBill = async (req, res) => {
         // the whole settlement).
         const memberLines = lines.filter((l) => l.tender.paymentClass === 'member');
         if (memberLines.length) {
-            if (!['member', 'member-guest'].includes(registration.playerType) || !registration.memberNo) {
+            if (!playerTypes.hasMemberStanding(await playerTypes.catalog(companyId), registration.playerType) || !registration.memberNo) {
                 return res.status(400).json({ message: 'Charge to member account needs a member bill.' });
             }
             const standing = await getGolfMemberStanding(companyId, registration.memberNo);

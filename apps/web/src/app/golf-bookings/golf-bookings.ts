@@ -11,6 +11,7 @@ import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { PhoneInputComponent } from '../shared/phone-input/phone-input';
 import { ScrollReturnService } from '../services/scroll-return.service';
+import { GolfPlayerTypeOption, playerTypeNeedsGuestName, playerTypeLabel } from '../services/golf-player-type.service';
 import { Injector } from '@angular/core';
 import {
   GolfBookingService,
@@ -43,7 +44,9 @@ import {
 // excluded and locks the new flight, and "Review change" shows the server's
 // preview (what moves, who is added or dropped, the notice-window verdict and
 // any late-change charge) as the 'review' view before the change is applied.
-type PlayerType = 'member' | 'member-guest' | 'guest';
+// A player-type code of the club's catalog (the listing ships the pickable
+// ones with their base identity; the three system codes are the defaults).
+type PlayerType = string;
 type PlayerLineGroup = FormGroup<{
   playerId: FormControl<string>;
   playerType: FormControl<PlayerType>;
@@ -218,6 +221,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     this.service.list(this.listDate()).subscribe({
       next: (res) => {
         this.bookings.set(res.bookings);
+        this.playerTypes.set(res.playerTypes || []);
         this.loading.set(false);
         this.returnScroll.consume('/golf/bookings', this.injector);
       },
@@ -436,7 +440,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
       playerId: [p.playerId],
       playerType: [p.playerType as PlayerType],
       memberNo: [p.memberNo || ''],
-      guestName: [p.playerType === 'guest' ? p.playerName : ''],
+      guestName: [this.needsGuestName(p.playerType) ? p.playerName : ''],
       playerName: [p.playerName],
       status: [p.status],
     });
@@ -461,6 +465,16 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     this.playerLines.markAsDirty();
   }
 
+  // The club's pickable player types (from the listing); a guest-base or
+  // affiliate-base type takes a name, the member bases a member number.
+  readonly playerTypes = signal<GolfPlayerTypeOption[]>([]);
+  needsGuestName(code: string): boolean {
+    return playerTypeNeedsGuestName(this.playerTypes(), code);
+  }
+  playerTypeLabel(code: string): string {
+    return playerTypeLabel(this.playerTypes(), code);
+  }
+
   isExistingLine(g: PlayerLineGroup): boolean {
     return !!g.controls.playerId.value;
   }
@@ -470,7 +484,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
     for (let i = 0; i < lines.length; i += 1) {
       const l = lines[i];
       if (l.playerId) continue;
-      if (l.playerType === 'guest') {
+      if (this.needsGuestName(l.playerType)) {
         if (!l.guestName.trim()) {
           this.errorMessage.set(`Player ${i + 1}: key in the guest name (or 'Guest').`);
           return null;
@@ -480,7 +494,7 @@ export class GolfBookingsComponent implements OnInit, OnDestroy {
         return null;
       }
     }
-    return lines.map((l) => (l.playerType === 'guest'
+    return lines.map((l) => (this.needsGuestName(l.playerType)
       ? { playerType: l.playerType, guestName: l.guestName.trim() }
       : { playerType: l.playerType, memberNo: l.memberNo.trim() }));
   }

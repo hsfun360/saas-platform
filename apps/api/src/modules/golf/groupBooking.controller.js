@@ -27,7 +27,9 @@ const arGateway = require('../../platform/arGateway');
 const availability = require('./bookingAvailability.service');
 const lifecycle = require('./groupLifecycle.service');
 const workflowGateway = require('../../platform/workflowGateway');
-const { PLAYER_TYPES, PLAYER_TYPE_KEYS, HOLES_OPTIONS } = require('./booking.constants');
+const { HOLES_OPTIONS } = require('./booking.constants');
+// Player types come from the club's master (2026-10-15), judged by base identity.
+const playerTypes = require('./playerType.service');
 const { ACTIVE_PLAYER_STATUS_KEYS } = require('./registration.constants');
 const {
     GROUP_BOOKING_TYPES, GROUP_BOOKING_TYPE_KEYS, START_FORMATS, START_FORMAT_KEYS, COURSE_HOLD_FORMATS,
@@ -290,7 +292,7 @@ exports.getMeta = async (req, res) => {
             bookingTypes: GROUP_BOOKING_TYPES,
             startFormats: START_FORMATS,
             holdFormats: COURSE_HOLD_FORMATS,
-            playerTypes: PLAYER_TYPES,
+            playerTypes: playerTypes.asVocabulary(playerTypes.pickable(await playerTypes.catalog(companyId))),
             holesOptions: HOLES_OPTIONS,
             statuses: GROUP_BOOKING_STATUSES,
             playDayStatuses: PLAY_DAY_STATUSES,
@@ -1171,7 +1173,8 @@ exports.removeFlight = async (req, res) => {
 // snapshot + golfer identity), guests by name.
 async function parseRosterLine(companyId, line, i, stamps, transaction) {
     const playerType = String(line.playerType || 'guest');
-    if (!PLAYER_TYPE_KEYS.includes(playerType)) return { error: `Player ${i + 1}: pick a player type.` };
+    const types = playerTypes.pickable(await playerTypes.catalog(companyId, { transaction }));
+    if (!playerTypes.findType(types, playerType)) return { error: `Player ${i + 1}: pick a player type.` };
     const handicapRaw = line.handicap === null || line.handicap === undefined || line.handicap === '' ? null : Number(line.handicap);
     if (handicapRaw !== null && (!Number.isFinite(handicapRaw) || handicapRaw < -10 || handicapRaw > 54)) return { error: `Player ${i + 1}: handicap must be -10 to 54.` };
     const common = {
@@ -1181,7 +1184,7 @@ async function parseRosterLine(companyId, line, i, stamps, transaction) {
         contactMobile: str(line.contactMobile, 30),
         remarks: str(line.remarks, 255),
     };
-    if (playerType === 'guest') {
+    if (playerTypes.needsGuestName(types, playerType)) {
         const playerName = str(line.playerName, 255);
         if (!playerName) return { error: `Player ${i + 1}: key in the guest name.` };
         return { ...common, playerName, memberNo: null, golferId: null };

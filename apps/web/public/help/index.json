@@ -98,6 +98,9 @@
   "golf-payment-types": {
     "title": "Payment Type"
   },
+  "golf-player-types": {
+    "title": "Player Types"
+  },
   "membership-settings": {
     "title": "Club Specification"
   },

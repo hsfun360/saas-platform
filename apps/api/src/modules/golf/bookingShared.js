@@ -12,7 +12,6 @@ const { getUserContext, getCompanyProfile } = require('../../platform/serviceCon
 const { emailAddress } = require('../../platform/notificationGateway');
 const { classifyDateRange } = require('../../platform/calendarGateway');
 const availability = require('./bookingAvailability.service');
-const { PLAYER_TYPES } = require('./booking.constants');
 const Player = require('./player.model');
 const FlightLock = require('./flightLock.model');
 const Course = require('./course.model');
@@ -107,22 +106,22 @@ async function queueBookingEmail({ companyId, templateKey, recipients, data, tra
     }
 }
 
-const PLAYER_TYPE_LABELS = new Map(PLAYER_TYPES.map((t) => [t.key, t.label]));
-
 function escapeHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&quot;');
 }
 
 // The flight's player list as an email-safe HTML table (inline styles - email
 // clients ignore stylesheets). Injected into the templates via {{{playersTable}}}.
-function playersTableHtml(players) {
+// `labels` = the club's player-type labels by code (playerType.service
+// labelsOf); a code without a label prints as itself.
+function playersTableHtml(players, labels = new Map()) {
     const td = 'border: 1px solid #e2e8f0; padding: 6px 10px; font-size: 14px;';
     const th = `${td} background-color: #f8fafc; text-align: left;`;
     const rows = players.map((p, i) => `<tr>`
         + `<td style='${td}'>${p.sortOrder || i + 1}</td>`
         + `<td style='${td}'>${escapeHtml(p.playerName)}</td>`
         + `<td style='${td}'>${p.memberNo ? escapeHtml(p.memberNo) : '-'}</td>`
-        + `<td style='${td}'>${PLAYER_TYPE_LABELS.get(p.playerType) || p.playerType}</td>`
+        + `<td style='${td}'>${escapeHtml(labels.get(p.playerType) || p.playerType)}</td>`
         + `</tr>`).join('');
     return `<table style='border-collapse: collapse; width: 100%; margin-top: 8px;'>`
         + `<tr><th style='${th}'>#</th><th style='${th}'>Player</th><th style='${th}'>Member No</th><th style='${th}'>Type</th></tr>`
@@ -313,7 +312,7 @@ function bookingDto(profile, records, courseByIdMap, extras = {}) {
 
 module.exports = {
     companyIdOf, DATE_RE, TIME_RE, advisoryLock, sweepExpiredLocks, dayTypeOf, ensureMemberGolfer,
-    playDateText, queueBookingEmail, PLAYER_TYPE_LABELS, escapeHtml, playersTableHtml, firstNineRecords,
+    playDateText, queueBookingEmail, escapeHtml, playersTableHtml, firstNineRecords,
     describeDayBookings, dayBookingConflict, juniorViolation, bookingLimitFor, sessionOf, memberDaySessions,
     sessionBookingConflict, bookingDto,
 };

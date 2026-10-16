@@ -304,7 +304,7 @@
                         <option [ngValue]="18" [disabled]="flight()?.nineHolesOnly === true">18 holes</option>
                       </select>
                     </div>
-                    @if (slotWalkinForm.controls.playerType.value === 'guest') {
+                    @if (needsGuestName(slotWalkinForm.controls.playerType.value)) {
                       <div class="form-group">
                         <label for="fdswGName">Guest Name <span class="required">*</span></label>
                         <input id="fdswGName" type="text" formControlName="guestName" maxlength="100" autocomplete="off" />
@@ -385,7 +385,7 @@
                   }
                 </select>
               </div>
-              @if (walkinForm.controls.playerType.value === 'guest') {
+              @if (needsGuestName(walkinForm.controls.playerType.value)) {
                 <div class="form-group">
                   <label for="fdwGName">Guest Name <span class="required">*</span></label>
                   <input id="fdwGName" type="text" formControlName="guestName" maxlength="100" autocomplete="off" />

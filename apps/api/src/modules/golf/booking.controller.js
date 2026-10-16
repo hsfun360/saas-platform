@@ -21,7 +21,9 @@ const { getGolfMemberStanding } = require('../../platform/membershipGateway');
 const { companyTimezone } = require('../../platform/calendarGateway');
 const numberingGateway = require('../../platform/numberingGateway');
 const availability = require('./bookingAvailability.service');
-const { BOOKING_STATUSES, PLAYER_TYPES, PLAYER_TYPE_KEYS, HOLES_OPTIONS } = require('./booking.constants');
+const { BOOKING_STATUSES, HOLES_OPTIONS } = require('./booking.constants');
+// Player types come from the club's master (2026-10-15), judged by base identity.
+const playerTypes = require('./playerType.service');
 const BookingProfile = require('./bookingProfile.model');
 const Player = require('./player.model');
 const FlightLock = require('./flightLock.model');
@@ -290,11 +292,12 @@ exports.create = async (req, res) => {
         if (!rawPlayers.length) return res.status(400).json({ message: 'Key in at least one player.' });
         if (rawPlayers.length > 10) return res.status(400).json({ message: 'Too many players.' });
         const lines = [];
+        const types = playerTypes.pickable(await playerTypes.catalog(companyId));
         for (let i = 0; i < rawPlayers.length; i += 1) {
             const line = rawPlayers[i] || {};
             const playerType = String(line.playerType || '');
-            if (!PLAYER_TYPE_KEYS.includes(playerType)) return res.status(400).json({ message: `Player ${i + 1}: pick a player type.` });
-            if (playerType === 'guest') {
+            if (!playerTypes.findType(types, playerType)) return res.status(400).json({ message: `Player ${i + 1}: pick a player type.` });
+            if (playerTypes.needsGuestName(types, playerType)) {
                 const guestName = String(line.guestName || '').trim();
                 if (!guestName) return res.status(400).json({ message: `Player ${i + 1}: key in the guest name (or 'Guest').` });
                 lines.push({ sortOrder: i + 1, playerType, standing: null, playerName: guestName, memberNo: null });
@@ -395,17 +398,18 @@ exports.create = async (req, res) => {
             // Guest control for this course/day/time (day-of-week rules beat
             // weekday/weekend, e.g. a Sunday guest ban).
             const gc = availability.resolveGuestControl(setting, guestRules, course.id, dayType, t, dayOfWeek);
-            if (!gc.allowGuest && lines.some((l) => l.playerType === 'guest')) {
+            const baseOf = (l) => playerTypes.baseOf(types, l.playerType);
+            if (!gc.allowGuest && lines.some((l) => baseOf(l) === 'guest' || baseOf(l) === 'affiliate')) {
                 return { fail: 'Guests are not allowed on this flight (guest control).', status: 400 };
             }
-            if (!gc.allowMemberGuest && lines.some((l) => l.playerType === 'member-guest')) {
+            if (!gc.allowMemberGuest && lines.some((l) => baseOf(l) === 'member-guest')) {
                 return { fail: 'Members as guests are not allowed on this flight (guest control).', status: 400 };
             }
 
             // Guest quota (user decision 2026-09-28): the BOOKER's membership
             // type caps how many guests one booking may carry - member-as-
             // guest lines COUNT toward it. NULL = no limit; 0 = none at all.
-            const guestCount = lines.filter((l) => l.playerType === 'guest' || l.playerType === 'member-guest').length;
+            const guestCount = lines.filter((l) => playerTypes.isGuestLike(types, l.playerType)).length;
             const quota = standing.guestQuota;
             if (guestCount > 0 && quota !== null && quota !== undefined && guestCount > quota) {
                 return {
@@ -472,7 +476,7 @@ exports.create = async (req, res) => {
                     return { fail: `${standing.memberNo} already has a booking on ${playDate} - ${await describeDayBookings(companyId, bookerRows, { transaction })}.`, status: 400 };
                 }
                 for (const line of lines) {
-                    if (!line.standing || line.playerType !== 'member') continue;
+                    if (!line.standing || !playerTypes.isMemberBase(types, line.playerType)) continue;
                     const g = golferByMemberId.get(line.standing.memberId);
                     if (!g || g.id === booker.id) continue;
                     const rows = await availability.memberDayBookings(companyId, g.id, playDate, { transaction });
@@ -487,7 +491,7 @@ exports.create = async (req, res) => {
                 if (session) {
                     const checks = [{ golfer: booker, label: standing.memberNo, prefix: '' }];
                     for (const line of lines) {
-                        if (!line.standing || line.playerType !== 'member') continue;
+                        if (!line.standing || !playerTypes.isMemberBase(types, line.playerType)) continue;
                         const g = golferByMemberId.get(line.standing.memberId);
                         if (!g || g.id === booker.id) continue;
                         checks.push({ golfer: g, label: line.memberNo, prefix: `Player ${line.sortOrder}: ` });
@@ -600,7 +604,7 @@ exports.create = async (req, res) => {
                     crossTime: crossTime || '',
                     courseName: `${course.courseCode}${course.description ? ' - ' + course.description : ''}`,
                     holes,
-                    playersTable: playersTableHtml(lines),
+                    playersTable: playersTableHtml(lines, playerTypes.labelsOf(types)),
                 },
                 transaction,
             });
@@ -671,7 +675,8 @@ exports.list = async (req, res) => {
         res.status(200).json({
             bookings: dtos,
             statuses: BOOKING_STATUSES,
-            playerTypes: PLAYER_TYPES,
+            // The club's pickable player types (active, not affiliate-base).
+            playerTypes: playerTypes.asVocabulary(playerTypes.pickable(await playerTypes.catalog(companyId))),
         });
     } catch (error) {
         console.error('Error listing golf bookings:', error);
@@ -828,7 +833,7 @@ exports.cancel = async (req, res) => {
                     teeTime: startTime,
                     courseName: course ? `${course.courseCode}${course.description ? ' - ' + course.description : ''}` : '',
                     cancelReason: profile.cancelReason || '',
-                    playersTable: playersTableHtml(firsts),
+                    playersTable: playersTableHtml(firsts, playerTypes.labelsOf(await playerTypes.catalog(companyId))),
                 },
                 transaction,
             });

@@ -1,0 +1,198 @@
+<div class="saas-container">
+
+  <!-- HEADER -->
+  <div class="saas-header">
+    <div class="saas-header-left">
+      <span class="saas-icon material-icons" aria-hidden="true">groups</span>
+      <div>
+        <h1>{{ 'Player Types' | screenTitle }}<app-fav-star /></h1>
+        <p class="saas-subtitle">{{ 'The club\'s player categories - what the rate card prices by and what every booking and registration line carries, each behaving as one base identity.' | screenSubtitle }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGES -->
+  @if (successMessage()) {
+    <div class="flash flash-success" role="status" aria-live="polite">
+      <span class="flash-icon">✅</span>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="flash-close" (click)="successMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="flash flash-error" role="alert" aria-live="assertive">
+      <span class="flash-icon">❌</span>
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="flash-close" (click)="errorMessage.set('')" aria-label="Dismiss">✕</button>
+    </div>
+  }
+
+  <!-- Count line -->
+  <div style="margin-bottom: var(--space-md);">
+    <span class="cell-subtle">
+      @if (rows().length > 0) {
+        {{ rows().length }} player types, {{ activeCount() }} active
+      } @else {
+        Loading the club's player types…
+      }
+    </span>
+  </div>
+
+  <!-- Live filter -->
+  @if (!loading() && rows().length > 0) {
+    <div class="saas-search">
+      <span class="saas-search__icon material-icons" aria-hidden="true">search</span>
+      <input #gplSearchBox type="search" [value]="search()" (input)="search.set(gplSearchBox.value)"
+             placeholder="Search player types…" aria-label="Search player types" class="saas-search__input">
+      @if (search()) {
+        <button type="button" class="saas-search__clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading player types…</p></div>
+  } @else if (filtered().length === 0) {
+    <div class="empty-state">
+      <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
+      <p>No player types match "{{ search() }}".</p>
+      <button type="button" class="btn btn--secondary btn--sm" (click)="clearSearch()">Clear search</button>
+    </div>
+  } @else {
+    <div class="data-list">
+      @for (t of filtered(); track t.id) {
+        <div class="data-card" [attr.data-return-id]="t.id">
+          <div class="data-row data-row--with-badge">
+            <div class="data-row__main">
+              <div class="data-card__title">{{ t.code }} - {{ t.description }}</div>
+              <div class="data-card__subline">
+                <span class="mt-chip">{{ baseLabel(t.baseIdentity) }}</span>
+                @if (t.isSystem) { <span class="data-card__reg">System type - code fixed</span> }
+                @if (t.requiresApproval) { <span class="data-card__reg">Bookings need approval</span> }
+              </div>
+            </div>
+            <div class="data-row__badge">
+              @if (t.isActive === false) {
+                <span class="status-chip status-chip--off">Disabled</span>
+              } @else {
+                <span class="status-chip status-chip--on">Active</span>
+              }
+            </div>
+            <div class="data-row__actions">
+              @if (t.canModify !== false) {
+                <button *appCan="'edit'" type="button" class="btn btn--secondary btn--sm" (click)="openEdit(t)">
+                  <span class="material-icons" aria-hidden="true">edit</span>
+                  Edit
+                </button>
+                @if (!t.isSystem) {
+                  <ng-container *appCan="'edit'">
+                    <app-overflow-menu [label]="'More actions for ' + t.code">
+                      <button type="button" appMenuItem (click)="toggleActive(t)" [disabled]="togglingId() === t.id">
+                        <span class="material-icons" aria-hidden="true">{{ t.isActive === false ? 'check_circle' : 'block' }}</span>
+                        {{ t.isActive === false ? 'Enable' : 'Disable' }}
+                      </button>
+                      <button *appCan="'delete'" type="button" appMenuItem (click)="askDelete(t)" [disabled]="togglingId() === t.id">
+                        <span class="material-icons" aria-hidden="true">delete</span>
+                        Delete
+                      </button>
+                    </app-overflow-menu>
+                  </ng-container>
+                }
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- New player type FAB -->
+  <button *appCan="'create'" type="button" class="btn btn--primary saas-fab" (click)="openAdd()" aria-label="New player type">
+    <span class="material-icons" aria-hidden="true">add</span>
+    <span>New player type</span>
+  </button>
+
+  <!-- ============ Add / edit dialog ============ -->
+  @if (dialogOpen()) {
+    <app-dialog #dlg variant="drawer" [title]="dialogTitle()" [busy]="saving()" [dirty]="form.dirty"
+                discardTitle="Discard your changes?"
+                discardMessage="You have unsaved changes to this player type. Leaving now will discard them."
+                (close)="closeDialog()">
+      <form id="gplForm" [formGroup]="form" (ngSubmit)="onSave()" class="saas-form saas-form--dialog">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="gplCode">Code <span class="required">*</span></label>
+            <input id="gplCode" type="text" formControlName="code" placeholder="e.g. MGA" autocomplete="off" maxlength="20"
+                   style="text-transform: uppercase;"
+                   [attr.aria-invalid]="showError(form.controls.code)" aria-describedby="gplCodeErr" />
+            @if (showError(form.controls.code)) {
+              <p id="gplCodeErr" class="field-error" role="alert">
+                @if (form.controls.code.errors?.['required']) { Code is required. }
+                @else if (form.controls.code.errors?.['pattern']) { Use letters, digits and hyphens only. }
+                @else { Use 20 characters or fewer. }
+              </p>
+            }
+            @if (editSystem()) {
+              <p class="cell-subtle field-hint">A system type keeps its code - the rate card and every line already carry it.</p>
+            } @else {
+              <p class="cell-subtle field-hint">Stored in capitals; it becomes the category on the Transaction Type rate card.</p>
+            }
+          </div>
+          <div class="form-group">
+            <label for="gplBase">Base Identity <span class="required">*</span></label>
+            <select id="gplBase" formControlName="baseIdentity"
+                    [attr.aria-invalid]="showError(form.controls.baseIdentity)" aria-describedby="gplBaseErr">
+              <option value="">- Select -</option>
+              @for (b of baseIdentities(); track b.key) {
+                <option [value]="b.key">{{ b.label }}</option>
+              }
+            </select>
+            @if (showError(form.controls.baseIdentity)) {
+              <p id="gplBaseErr" class="field-error" role="alert">Select the base identity.</p>
+            }
+            @if (baseHint(); as hint) {
+              <p class="cell-subtle field-hint">{{ hint }}</p>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="gplDesc">Description <span class="required">*</span></label>
+            <input id="gplDesc" type="text" formControlName="description" placeholder="e.g. MGA affiliate" maxlength="255"
+                   [attr.aria-invalid]="showError(form.controls.description)" aria-describedby="gplDescErr" />
+            @if (showError(form.controls.description)) {
+              <p id="gplDescErr" class="field-error" role="alert">Description is required (255 characters or fewer).</p>
+            }
+            <p class="cell-subtle field-hint">The label the pickers, the tee sheet and the emails show for this type.</p>
+          </div>
+          <div class="form-group form-group--narrow">
+            <label for="gplSort">Sort Order <span class="required">*</span></label>
+            <input id="gplSort" type="number" inputmode="numeric" min="1" max="999" step="1" formControlName="sortOrder"
+                   [attr.aria-invalid]="showError(form.controls.sortOrder)" aria-describedby="gplSortErr" />
+            @if (showError(form.controls.sortOrder)) {
+              <p id="gplSortErr" class="field-error" role="alert">Enter a whole number between 1 and 999.</p>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="gpl-check">
+            <input type="checkbox" formControlName="requiresApproval" />
+            <span>Bookings with a player of this type need approval</span>
+          </label>
+          <p class="cell-subtle field-hint">The booking is held pending approval and routes through the Workflow engine (purpose Golf flight booking); with no chain configured it approves at once.</p>
+        </div>
+      </form>
+
+      <ng-container dialogFooter>
+        <button type="button" class="btn btn--secondary" (click)="dlg.requestClose()" [disabled]="saving()">Cancel</button>
+        <button type="submit" form="gplForm" class="btn btn--primary" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save' }}
+        </button>
+      </ng-container>
+    </app-dialog>
+  }
+
+  @if (confirmAction(); as c) {
+    <app-confirm-dialog [request]="c" (cancelled)="confirmAction.set(null)" />
+  }
+</div>

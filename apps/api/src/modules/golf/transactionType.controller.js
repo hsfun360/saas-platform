@@ -6,6 +6,7 @@
 const { Storage } = require('@google-cloud/storage');
 const { Op } = require('sequelize');
 const GolfTransactionType = require('./transactionType.model');
+const playerTypes = require('./playerType.service');
 const GolfTransactionTypeElement = require('./transactionTypeElement.model');
 const GolfTransactionTypeEligibility = require('./transactionTypeEligibility.model');
 const { DAY_KEYS } = require('./eligibility.service');
@@ -22,8 +23,6 @@ const {
     CHARGE_TYPE_KEYS,
     MATRIX_CHARGE_TYPE_KEYS,
     PACKAGE_CHARGE_TYPE_KEY,
-    GOLFER_TYPES,
-    GOLFER_TYPE_KEYS,
     GOLFER_TYPED_CHARGE_TYPE_KEYS,
 } = require('./transactionType.constants');
 
@@ -175,7 +174,9 @@ async function writeEligibility(row, rows, callerId, departmentId, transaction) 
 }
 
 // Validate + normalise a payload. Returns { value } or { error }.
-function normalizeBody(body) {
+// `types` = the club's player-type catalog (the golfer-type default must
+// name one of its codes - active or not, a disabled type keeps its history).
+function normalizeBody(body, types = []) {
     const transactionType = str(body.transactionType);
     if (!transactionType) return { error: 'Transaction type is required.' };
     if (transactionType.length > 50) return { error: 'Transaction type must be 50 characters or fewer.' };
@@ -191,7 +192,7 @@ function normalizeBody(body) {
     if (GOLFER_TYPED_CHARGE_TYPE_KEYS.includes(chargeType)) {
         const raw = str(body.golferType);
         if (raw) {
-            if (!GOLFER_TYPE_KEYS.includes(raw)) return { error: 'Select a valid golfer type for the default.' };
+            if (!playerTypes.findType(types, raw)) return { error: 'Select a valid player type for the default.' };
             golferType = raw;
         }
     }
@@ -225,7 +226,7 @@ async function activeDefaultConflict(companyId, chargeType, golferType, selfId) 
     if (selfId) where.id = { [Op.ne]: selfId };
     const clash = await GolfTransactionType.findOne({ where });
     if (!clash) return null;
-    const label = (GOLFER_TYPES.find((g) => g.key === golferType) || {}).label || golferType;
+    const label = playerTypes.labelOf(await playerTypes.catalog(companyId), golferType);
     const kind = (CHARGE_TYPES.find((c) => c.key === chargeType) || {}).label || chargeType;
     return `'${clash.transactionType}' is already the default ${kind.toLowerCase()} for ${label} - disable it first or clear the golfer-type default.`;
 }
@@ -314,10 +315,19 @@ async function validateTaxScheme(req, taxSchemeCode) {
     return ok ? null : 'Tax scheme not found for this company (or is an INPUT scheme).';
 }
 
-// GET /api/golf/transaction-types/meta - the charge-type options, plus which
-// of them price by the 8-cell matrix (the rest take a flat amount).
+// GET /api/golf/transaction-types/meta - the charge-type options, which of
+// them price by the matrix (the rest take a flat amount), and the club's
+// ACTIVE player types for the golfer-type default (affiliate-base included:
+// their green fee is a rate card too).
 exports.getMeta = async (req, res) => {
-    res.status(200).json({ chargeTypes: CHARGE_TYPES, matrixChargeTypes: MATRIX_CHARGE_TYPE_KEYS, golferTypes: GOLFER_TYPES });
+    try {
+        const companyId = companyIdOf(req);
+        const golferTypes = companyId ? playerTypes.asVocabulary(await playerTypes.catalog(companyId, { activeOnly: true })) : [];
+        res.status(200).json({ chargeTypes: CHARGE_TYPES, matrixChargeTypes: MATRIX_CHARGE_TYPE_KEYS, golferTypes });
+    } catch (error) {
+        console.error('Error loading golf transaction-type meta:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 };
 
 // GET /api/golf/transaction-types/tax-schemes - the company's usable OUTPUT
@@ -388,7 +398,7 @@ exports.create = async (req, res) => {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
 
-        const parsed = normalizeBody(req.body);
+        const parsed = normalizeBody(req.body, await playerTypes.catalog(companyId));
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         const v = parsed.value;
 
@@ -454,7 +464,7 @@ exports.update = async (req, res) => {
             return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         }
 
-        const parsed = normalizeBody(req.body);
+        const parsed = normalizeBody(req.body, await playerTypes.catalog(companyId));
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         const v = parsed.value;
 

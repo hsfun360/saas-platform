@@ -271,7 +271,7 @@
                 <div class="gb-player-row" [formGroupName]="i">
                   <span class="gb-player-no">{{ i + 1 }}</span>
                   @if (isExistingLine(g)) {
-                    <span class="gb-line-static">{{ g.controls.playerType.value === 'member' ? 'Member' : (g.controls.playerType.value === 'member-guest' ? 'Member as Guest' : 'Guest') }}</span>
+                    <span class="gb-line-static">{{ playerTypeLabel(g.controls.playerType.value) }}</span>
                     <span class="gb-line-static">
                       {{ g.controls.playerName.value }}{{ g.controls.memberNo.value ? ' (' + g.controls.memberNo.value + ')' : '' }}
                       @if (g.controls.status.value === 'registered') {
@@ -287,11 +287,11 @@
                     }
                   } @else {
                     <select formControlName="playerType" [attr.aria-label]="'Player ' + (i + 1) + ' type'">
-                      <option value="member">Member</option>
-                      <option value="member-guest">Member as Guest</option>
-                      <option value="guest">Guest</option>
+                      @for (t of playerTypes(); track t.key) {
+                        <option [value]="t.key">{{ t.label }}</option>
+                      }
                     </select>
-                    @if (g.controls.playerType.value === 'guest') {
+                    @if (needsGuestName(g.controls.playerType.value)) {
                       <input type="text" formControlName="guestName" maxlength="100" placeholder="Guest name (or 'Guest')"
                              [attr.aria-label]="'Player ' + (i + 1) + ' guest name'" />
                     } @else {

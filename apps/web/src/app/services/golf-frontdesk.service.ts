@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { GolfPlayerTypeOption } from './golf-player-type.service';
 
 // Golf Front Desk - registration, billing and settlement for a play day.
 
@@ -223,7 +224,10 @@ export interface FrontDeskMeta {
   tiles: FrontDeskTile[];
   paymentTypes: FrontDeskTender[];
   courses: { id: string; courseCode: string; description?: string | null }[];
-  playerTypes: { key: string; label: string }[];
+  // The club's pickable player types for the walk-in forms, and every active
+  // type (affiliate bases included) for the row labels.
+  playerTypes: GolfPlayerTypeOption[];
+  allPlayerTypes?: GolfPlayerTypeOption[];
   holesOptions: number[];
   teeSheetColors?: TeeSheetColors;
   // Rain checks switched on in Golf Specification (the Issue door).

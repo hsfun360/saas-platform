@@ -35,6 +35,8 @@ router.use('/courses', requireMenuAction('/golf/courses'), courseRoutes);
 router.use('/closures', requireMenuAction('/golf/closures'), require('./closures.routes'));
 router.use('/transaction-types', requireMenuAction('/golf/transaction-types'), transactionTypesRoutes);
 router.use('/payment-types', requireMenuAction('/golf/payment-types'), require('./paymentTypes.routes'));
+// Player Type master (spec 2.3.1, 2026-10-15): the club's player categories.
+router.use('/player-types', requireMenuAction('/golf/player-types'), require('./playerTypes.routes'));
 
 // --- Golfers master (handicap index + status maintenance; user decisions
 // 2026-09-29 - the fields the handicap-control rules read) ---

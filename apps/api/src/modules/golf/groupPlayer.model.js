@@ -37,7 +37,8 @@ const GroupPlayer = sequelize.define('GolfGroupPlayer', {
         type: DataTypes.STRING(50),
         allowNull: true,
     },
-    // 'member' | 'member-guest' | 'guest' (booking.constants PLAYER_TYPE_KEYS).
+    // A golf.PlayerType code of the company (the three system codes 'member'
+    // | 'member-guest' | 'guest', or a club-defined one; 2026-10-15).
     playerType: {
         type: DataTypes.STRING(20),
         allowNull: false,
