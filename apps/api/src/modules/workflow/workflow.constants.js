@@ -124,14 +124,15 @@ const PURPOSES = [
             { name: 'approvalTypes', label: 'The player type codes that required this approval', type: 'string' },
         ],
     },
-    // Affiliated / reciprocal club visit (user decisions 2026-10-15): a visit
-    // request from a club or player type that requires approval routes here
-    // on Confirm; approval confirms and books it, rejection declines it.
+    // Affiliated / reciprocal club visit (user decisions 2026-10-15; owned by
+    // Membership since 2026-10-16): an inbound visit request from a club or
+    // player type that requires approval routes here on Confirm; approval
+    // confirms and books it, rejection declines it.
     {
-        key: 'golf-affiliated-visit',
-        name: 'Golf affiliated visit',
-        entityType: 'GolfAffiliatedVisit',
-        documentRoute: '/golf/affiliated-visits',
+        key: 'membership-affiliated-visit',
+        name: 'Affiliated club visit',
+        entityType: 'MembershipAffiliatedVisit',
+        documentRoute: '/membership/affiliated-visits',
         entityRouteParam: true,
         contextFields: [
             { name: 'clubKind', label: 'Arrangement (affiliate | reciprocal)', type: 'string' },
@@ -140,7 +141,8 @@ const PURPOSES = [
             { name: 'playerCount', label: 'Golf party size', type: 'number' },
             { name: 'guestCount', label: 'Guests in the party', type: 'number' },
             { name: 'visitsThisPeriod', label: 'Visits by this member in the cap period, this one included', type: 'number' },
-            { name: 'facilities', label: 'Facilities requested (golf | dining | accommodation | other, comma separated)', type: 'string' },
+            { name: 'clubVisitsThisYear', label: 'Inbound visits from this club this year, this one included', type: 'number' },
+            { name: 'facilities', label: 'Facilities requested (golf | dining | accommodation | sports | other, comma separated)', type: 'string' },
         ],
     },
     {

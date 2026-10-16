@@ -21,6 +21,8 @@ const RESET_RULES = [
 // prerequisite). The gateway routes a purpose to its owner's table.
 const MEMBERSHIP_NUMBERING_PURPOSES = [
     { key: 'membership', label: 'Membership No.' },
+    // Affiliated / reciprocal club visits and letters of introduction (2026-10-16).
+    { key: 'membership-visit', label: 'Visit / Letter No.' },
 ];
 // Golf-owned series (user decision 2026-09-14), ordered by the flight
 // lifecycle: book -> register -> bill -> rain check.
@@ -34,8 +36,6 @@ const GOLF_NUMBERING_PURPOSES = [
     { key: 'golf-proforma', label: 'Proforma No.' },
     // Group booking refund requests to Finance (slice 4).
     { key: 'golf-refund', label: 'Refund Request No.' },
-    // Affiliated / reciprocal club visits under a letter of introduction (2026-10-15).
-    { key: 'golf-visit', label: 'Visit No.' },
 ];
 // Ordered to mirror the AR transaction CLASS list (invoice, DN, CN, interest,
 // deposit, receipt, refund) so the two vocabularies read in step.

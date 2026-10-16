@@ -18,7 +18,7 @@ const { sequelize } = require('../../platform/db');
 const {
     getUserContext, getCallerPlacement, canModifyRecord,
 } = require('../../platform/serviceContext');
-const { getGolfMemberStanding, getChargeTarget } = require('../../platform/membershipGateway');
+const { getGolfMemberStanding, getChargeTarget, affiliatedVisitsByBooking, affiliatedVisitRegistrationGate, completeAffiliatedVisitIfSettled, receiveAffiliatedVisit } = require('../../platform/membershipGateway');
 const { classifyDateRange } = require('../../platform/calendarGateway');
 const arGateway = require('../../platform/arGateway');
 const numberingGateway = require('../../platform/numberingGateway');
@@ -54,9 +54,9 @@ const PaymentType = require('./paymentType.model');
 const UnitCourse = require('./unitCourse.model');
 const noShow = require('./noShowCharge.service');
 const rainCheck = require('./rainCheck.service');
-// Affiliated visits (2026-10-15): the arrival gate on registration, the
-// day's visit tags, completion on settlement.
-const visits = require('./affiliatedVisit.service');
+// Affiliated visits (2026-10-15; owned by Membership since 2026-10-16 and
+// read through the membership seam): the arrival gate on registration, the
+// day's visit tags, the visitor's fee item, completion on settlement.
 const { companyTimezone } = require('../../platform/calendarGateway');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -227,7 +227,7 @@ exports.getDay = async (req, res) => {
         const rainCheckCfg = await rainCheck.config(companyId);
         // Affiliated visits (2026-10-15): the visit behind a booking, so the
         // sheet tags the line and offers the arrival check.
-        const visitByBooking = await visits.byBooking(companyId, [...new Set(firsts.map((r) => r.bookingProfileId).filter(Boolean))]);
+        const visitByBooking = await affiliatedVisitsByBooking(companyId, [...new Set(firsts.map((r) => r.bookingProfileId).filter(Boolean))]);
 
         // The day's grids, closures and GROUP HOLDS (ctx.holds: the planned
         // group play days + their reserved flights; shotgun-format days are
@@ -271,7 +271,9 @@ exports.getDay = async (req, res) => {
                 registration: r.status === 'registered' ? registrationDto(r, shape) : null,
                 bill: bill ? { id: bill.id, billNo: bill.billNo, status: bill.status, totalAmount: Number(bill.totalAmount) } : null,
                 rainCheck: rainCheckByPlayer.get(r.id) || null,
-                visit: r.bookingProfileId ? (visitByBooking.get(r.bookingProfileId) || null) : null,
+                visit: r.bookingProfileId && visitByBooking.get(r.bookingProfileId)
+                    ? (({ id, visitNo, status, visitorName }) => ({ id, visitNo, status, visitorName }))(visitByBooking.get(r.bookingProfileId))
+                    : null,
             };
         };
         for (const r of firsts) {
@@ -720,7 +722,7 @@ async function resolvePlayerIdentity({ req, companyId, playerType, memberNo, gue
 async function registerBookedRecord({ req, companyId, row, guest, manualRegistrationNo, stamps, transaction }) {
     // A visiting affiliate's booking registers only once the desk has
     // recorded the arrival (letter and ID sighted).
-    const gate = await visits.registrationGate(companyId, row.bookingProfileId, { transaction });
+    const gate = await affiliatedVisitRegistrationGate(companyId, row.bookingProfileId, { transaction });
     if (gate) return { fail: gate, status: 409 };
     const identity = await resolvePlayerIdentity({
         req, companyId, playerType: row.playerType, memberNo: row.memberNo,
@@ -1320,6 +1322,19 @@ exports.openBill = async (req, res) => {
                     }
                 }
             }
+            // Affiliated visit fee (2026-10-16): the host's per-visit fee, on the
+            // VISITING MEMBER's bill only (guests pay no fee), from the club record.
+            if (registration.bookingProfileId) {
+                const visit = (await affiliatedVisitsByBooking(companyId, [registration.bookingProfileId], { transaction })).get(registration.bookingProfileId);
+                if (visit && visit.visitFeeTransactionTypeId && visit.golferId && visit.golferId === registration.golferId) {
+                    const feeType = await GolfTransactionType.findOne({ where: { companyId, id: visit.visitFeeTransactionTypeId, isActive: true }, transaction });
+                    if (!feeType) warnings.push(`The visit fee item of ${visit.clubName || 'the home club'} is missing or disabled - fee not charged.`);
+                    else {
+                        const added = await addOrdinaryItem({ req, bill, play, type: feeType, quantity: 1, dayType, stamps, transaction, allowMissingPrice: true });
+                        if (added.error) warnings.push(added.error);
+                    }
+                }
+            }
             await recomputeTotals(bill, transaction);
             return { bill };
         });
@@ -1627,7 +1642,7 @@ exports.settleBill = async (req, res) => {
             await bill.save({ transaction });
             // An affiliated visit completes once every registered player of
             // its booking has settled.
-            await visits.completeIfSettled(companyId, registration.bookingProfileId, { transaction });
+            await completeAffiliatedVisitIfSettled(companyId, registration.bookingProfileId, { transaction });
         });
         res.status(200).json({ message: `Bill ${bill.billNo} settled.`, bill: await billDto(bill) });
     } catch (error) {
@@ -1654,6 +1669,20 @@ exports.voidBill = async (req, res) => {
         res.status(200).json({ message: `Bill ${bill.billNo} voided.` });
     } catch (error) {
         console.error('Error voiding golf bill:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// POST /front-desk/visits/:id/arrive { letterSighted, idSighted } - the desk
+// receives a confirmed affiliated visitor (the visit lives in Membership and
+// is reached through the membership seam).
+exports.receiveVisit = async (req, res) => {
+    try {
+        const out = await receiveAffiliatedVisit(req, req.params.id, req.body);
+        if (out.error) return res.status(out.status || 400).json({ message: out.error });
+        res.status(200).json(out);
+    } catch (error) {
+        console.error('Error receiving affiliated visitor:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };

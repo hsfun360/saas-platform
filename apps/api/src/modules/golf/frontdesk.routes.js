@@ -36,8 +36,7 @@ router.post('/registrations/:id/rain-check-preview', validate(rs.preview), rainC
 router.post('/registrations/:id/rain-check', validate(rs.issue), rainChecks.issue);
 // Affiliated visits (2026-10-15): the desk receives a confirmed visitor
 // (letter of introduction and ID sighted) before their line can register.
-const visitController = require('./affiliatedVisit.controller');
-const vs = require('./affiliatedVisit.schemas');
-router.post('/visits/:id/arrive', validate(vs.arrive), visitController.arrive);
+const { z } = require('../../platform/validate');
+router.post('/visits/:id/arrive', validate({ params: z.object({ id: z.string().uuid() }), body: z.object({ letterSighted: z.boolean().optional(), idSighted: z.boolean().optional() }) }), controller.receiveVisit);
 
 module.exports = router;

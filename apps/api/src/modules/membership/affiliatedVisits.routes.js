@@ -1,8 +1,8 @@
-// Affiliated Visits routes (mounted at /api/golf/affiliated-visits behind
-// requireMenuAction('/golf/affiliated-visits') - see golf.routes.js). Every
-// route that reads a request part validates it at the boundary
-// (platform/validate, schemas in affiliatedVisit.schemas.js); /meta reads
-// nothing and the letter upload is multipart bounded by multer.
+// Affiliated Visits routes (mounted at /api/membership/affiliated-visits
+// behind requireMenuAction('/membership/affiliated-visits') - see
+// membership.routes.js). Every route that reads a request part validates it
+// at the boundary (platform/validate, schemas in affiliatedVisit.schemas.js);
+// /meta reads nothing and the letter upload is multipart bounded by multer.
 const express = require('express');
 const multer = require('multer');
 const { validate } = require('../../platform/validate');
@@ -22,6 +22,7 @@ router.get('/:id', validate(s.id), controller.get);
 router.put('/:id', validate(s.update), controller.update);
 router.get('/:id/confirm-preview', validate(s.id), controller.preview);
 router.post('/:id/confirm', validate(s.id), controller.confirm);
+router.post('/:id/issue', validate(s.id), controller.issue);
 router.post('/:id/decline', validate(s.reason), controller.decline);
 router.post('/:id/cancel', validate(s.reason), controller.cancel);
 router.post('/:id/arrive', validate(s.arrive), controller.arrive);

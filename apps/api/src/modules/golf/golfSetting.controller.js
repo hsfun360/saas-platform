@@ -17,9 +17,9 @@ const { RAIN_CHECK_BASIS_KEYS } = require('./rainCheck.constants');
 // Playing rights + round quotas (2026-10-15).
 const PlayingRightRule = require('./playingRightRule.model');
 const RoundQuotaRule = require('./roundQuotaRule.model');
-const AffiliatedClub = require('./affiliatedClub.model');
 const { QUOTA_PERIOD_KEYS, QUOTA_PERIODS } = require('./playingRights.constants');
 const playerTypes = require('./playerType.service');
+const { listAffiliatedClubs } = require('../../platform/membershipGateway');
 const { sequelize } = require('../../platform/db');
 const { getUserContext, getCallerPlacement } = require('../../platform/serviceContext');
 const { listMembershipTypes } = require('../../platform/membershipGateway');
@@ -255,7 +255,7 @@ exports.getRuleTargets = async (req, res) => {
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
         const [types, clubs] = await Promise.all([
             playerTypes.catalog(companyId, { activeOnly: true }),
-            AffiliatedClub.findAll({ where: { companyId, isActive: true }, attributes: ['id', 'code', 'name', 'kind'], order: [['sortOrder', 'ASC'], ['name', 'ASC']] }),
+            listAffiliatedClubs(companyId, { activeOnly: true }),
         ]);
         res.status(200).json({
             playerTypes: types.map((t) => ({ id: t.id, code: t.code, description: t.description, baseIdentity: t.baseIdentity })),
@@ -659,7 +659,7 @@ exports.save = async (req, res) => {
         const ruleTypes = await playerTypes.catalog(companyId);
         const ruleTargets = {
             typesById: new Map(ruleTypes.map((t) => [t.id, t])),
-            clubIds: new Set((await AffiliatedClub.findAll({ where: { companyId }, attributes: ['id'] })).map((c) => c.id)),
+            clubIds: new Set((await listAffiliatedClubs(companyId, { activeOnly: false })).map((c) => c.id)),
             membershipTypeIds: new Set((await listMembershipTypes(companyId)).map((t) => t.id)),
         };
         const rightsResult = normalizePlayingRightRules(Array.isArray(req.body.playingRightRules) ? req.body.playingRightRules : [], knownCourseIds, ruleTargets);

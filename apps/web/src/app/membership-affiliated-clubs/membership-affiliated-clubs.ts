@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   GolfAffiliatedClubService, GolfAffiliatedClub, GolfAffiliatedClubKind, GolfVisitCapPeriod, GolfAffiliatedClubMeta,
-} from '../services/golf-affiliated-club.service';
+} from '../services/membership-affiliated-club.service';
 import { CountryService } from '../services/country.service';
 import { ScrollReturnService } from '../services/scroll-return.service';
 import { DialogComponent } from '../shared/dialog/dialog';
@@ -19,8 +19,9 @@ import { MenuItemDirective } from '../shared/overflow-menu/menu-item.directive';
 import { LocalDatePipe } from '../shared/local-date.pipe';
 import { addressLines } from '../shared/address';
 
-// Golf Management → Common Setup → Affiliated Clubs (/golf/affiliated-clubs;
-// user decisions 2026-10-15). The associations and reciprocal clubs whose
+// Membership Management → Common Setup → Affiliated Clubs
+// (/membership/affiliated-clubs; user decisions 2026-10-15, re-homed to the
+// Membership Department 2026-10-16). The associations and reciprocal clubs whose
 // members this club admits under a letter of introduction, with the terms
 // of each arrangement: the affiliate player type its visitors are billed
 // as, the agreement's validity, whether charges may be signed back to the
@@ -28,21 +29,21 @@ import { addressLines } from '../shared/address';
 // approval flag. The visits themselves are recorded on Affiliated Visits.
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  selector: 'app-golf-affiliated-clubs',
+  selector: 'app-membership-affiliated-clubs',
   standalone: true,
   imports: [FavStarComponent, ScreenTitlePipe, ScreenSubtitlePipe, CommonModule, ReactiveFormsModule, DialogComponent,
     ConfirmDialogComponent, ComboboxComponent, PhoneInputComponent, CanDirective, OverflowMenuComponent, MenuItemDirective, LocalDatePipe],
-  templateUrl: './golf-affiliated-clubs.html',
+  templateUrl: './membership-affiliated-clubs.html',
   // membership-types.css supplies the shared .mt-chip pill; own css = the switch rows.
-  styleUrls: ['../membership-types/membership-types.css', './golf-affiliated-clubs.css'],
+  styleUrls: ['../membership-types/membership-types.css', './membership-affiliated-clubs.css'],
 })
-export class GolfAffiliatedClubsComponent implements OnInit {
+export class MembershipAffiliatedClubsComponent implements OnInit {
   private readonly service = inject(GolfAffiliatedClubService);
   private readonly countryService = inject(CountryService);
   private readonly fb = inject(FormBuilder);
   private readonly returnScroll = inject(ScrollReturnService);
   private readonly injector = inject(Injector);
-  private static readonly LIST_PATH = '/golf/affiliated-clubs';
+  private static readonly LIST_PATH = '/membership/affiliated-clubs';
 
   readonly rows = signal<GolfAffiliatedClub[]>([]);
   readonly kinds = signal<MembershipStatusOption[]>([]);
@@ -68,6 +69,8 @@ export class GolfAffiliatedClubsComponent implements OnInit {
     maxGuestsPerVisit: [null as number | null, [Validators.min(0), Validators.max(99)]],
     maxVisitsPerPlayer: [null as number | null, [Validators.min(1), Validators.max(999)]],
     maxVisitsPeriod: ['year' as GolfVisitCapPeriod | ''],
+    maxVisitsPerYear: [null as number | null, [Validators.min(1), Validators.max(9999)]],
+    visitFeeTransactionTypeId: [''],
     requiresApproval: [false],
     contactName: [''],
     contactEmail: ['', [Validators.email]],
@@ -91,6 +94,10 @@ export class GolfAffiliatedClubsComponent implements OnInit {
     label: `${t.code} - ${t.description}${t.isActive ? '' : ' (disabled)'}`,
   })));
   readonly countryOptions = computed(() => this.countries().map((c) => ({ value: c.alpha2, label: `${c.flagEmoji} ${c.name}` })));
+  readonly visitFeeOptions = computed(() => (this.meta()?.visitFeeTypes || []).map((t) => ({
+    value: t.id,
+    label: `${t.transactionType}${t.description ? ' - ' + t.description : ''}${t.isActive ? '' : ' (disabled)'}`,
+  })));
 
   // Active before disabled, then sort order + name.
   readonly filtered = computed(() => {
@@ -140,7 +147,9 @@ export class GolfAffiliatedClubsComponent implements OnInit {
     const parts: string[] = [];
     if (c.agreementFrom || c.agreementTo) parts.push(`agreement ${c.agreementFrom || '…'} to ${c.agreementTo || 'open'}`);
     parts.push(c.maxVisitsPerPlayer ? `${c.maxVisitsPerPlayer} visit${c.maxVisitsPerPlayer === 1 ? '' : 's'} ${this.periodLabel(c.maxVisitsPeriod)} per player` : 'no visit cap');
+    if (c.maxVisitsPerYear) parts.push(`${c.maxVisitsPerYear} inbound visits a year in all`);
     parts.push(c.maxGuestsPerVisit === null ? 'guests unlimited' : (c.maxGuestsPerVisit === 0 ? 'no guests' : `up to ${c.maxGuestsPerVisit} guest${c.maxGuestsPerVisit === 1 ? '' : 's'} per visit`));
+    if (c.visitFeeLabel) parts.push(`visit fee ${c.visitFeeLabel}`);
     parts.push(c.allowChargeToHomeClub ? 'charges may be signed back' : 'settle before leaving');
     if (c.requiresApproval) parts.push('visits need approval');
     return parts.join(' · ');
@@ -160,7 +169,7 @@ export class GolfAffiliatedClubsComponent implements OnInit {
         this.kinds.set(res.kinds);
         this.periods.set(res.periods);
         this.loading.set(false);
-        this.returnScroll.consume(GolfAffiliatedClubsComponent.LIST_PATH, this.injector);
+        this.returnScroll.consume(MembershipAffiliatedClubsComponent.LIST_PATH, this.injector);
       },
       error: (err) => {
         this.loading.set(false);
@@ -174,7 +183,7 @@ export class GolfAffiliatedClubsComponent implements OnInit {
     this.editId.set(null);
     this.form.reset({
       code: '', name: '', kind: '', playerTypeId: '', agreementFrom: '', agreementTo: '', allowChargeToHomeClub: false,
-      maxGuestsPerVisit: null, maxVisitsPerPlayer: null, maxVisitsPeriod: 'year', requiresApproval: false,
+      maxGuestsPerVisit: null, maxVisitsPerPlayer: null, maxVisitsPeriod: 'year', maxVisitsPerYear: null, visitFeeTransactionTypeId: '', requiresApproval: false,
       contactName: '', contactEmail: '', contactPhone: '', addressLine1: '', addressLine2: '', city: '', state: '', postalCode: '', countryCode: '',
       remarks: '', sortOrder: 100,
     });
@@ -188,6 +197,7 @@ export class GolfAffiliatedClubsComponent implements OnInit {
       code: c.code, name: c.name, kind: c.kind, playerTypeId: c.playerTypeId,
       agreementFrom: c.agreementFrom || '', agreementTo: c.agreementTo || '', allowChargeToHomeClub: c.allowChargeToHomeClub,
       maxGuestsPerVisit: c.maxGuestsPerVisit, maxVisitsPerPlayer: c.maxVisitsPerPlayer, maxVisitsPeriod: c.maxVisitsPeriod || 'year',
+      maxVisitsPerYear: c.maxVisitsPerYear, visitFeeTransactionTypeId: c.visitFeeTransactionTypeId || '',
       requiresApproval: c.requiresApproval,
       contactName: c.contactName || '', contactEmail: c.contactEmail || '', contactPhone: c.contactPhone || '',
       addressLine1: c.address.line1 || '', addressLine2: c.address.line2 || '', city: c.address.city || '', state: c.address.state || '',
@@ -220,6 +230,8 @@ export class GolfAffiliatedClubsComponent implements OnInit {
       maxGuestsPerVisit: numOrNull(v.maxGuestsPerVisit),
       maxVisitsPerPlayer: numOrNull(v.maxVisitsPerPlayer),
       maxVisitsPeriod: numOrNull(v.maxVisitsPerPlayer) === null ? null : v.maxVisitsPeriod,
+      maxVisitsPerYear: numOrNull(v.maxVisitsPerYear),
+      visitFeeTransactionTypeId: v.visitFeeTransactionTypeId || null,
       requiresApproval: v.requiresApproval,
       contactName: v.contactName.trim() || null,
       contactEmail: v.contactEmail.trim() || null,
@@ -242,7 +254,7 @@ export class GolfAffiliatedClubsComponent implements OnInit {
         this.saving.set(false);
         this.form.markAsPristine();
         this.dialogOpen.set(false);
-        this.returnScroll.remember(GolfAffiliatedClubsComponent.LIST_PATH, res.club.id);
+        this.returnScroll.remember(MembershipAffiliatedClubsComponent.LIST_PATH, res.club.id);
         this.load();
       },
       error: (err) => {
@@ -260,7 +272,7 @@ export class GolfAffiliatedClubsComponent implements OnInit {
       next: () => {
         this.successMessage.set(`${c.code} ${next ? 'enabled' : 'disabled'}.`);
         this.togglingId.set(null);
-        this.returnScroll.remember(GolfAffiliatedClubsComponent.LIST_PATH, c.id);
+        this.returnScroll.remember(MembershipAffiliatedClubsComponent.LIST_PATH, c.id);
         this.load();
       },
       error: (err) => {
@@ -274,7 +286,7 @@ export class GolfAffiliatedClubsComponent implements OnInit {
     this.clearMessages();
     this.confirmAction.set({
       title: 'Delete affiliated club',
-      message: `Delete ${c.code} (${c.name})? It is refused while any visiting golfer is on record for this club; disable it instead to keep history.`,
+      message: `Delete ${c.code} (${c.name})? It is refused while any visit is on record for this club; disable it instead to keep history.`,
       confirmLabel: 'Delete club',
       run: () => {
         this.confirmAction.set(null);

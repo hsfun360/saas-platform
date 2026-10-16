@@ -1,6 +1,6 @@
 // Affiliated / Reciprocal Club master file. Mounted at
-// /api/golf/affiliated-clubs behind verifyToken + requireModule +
-// requireMenuAction('/golf/affiliated-clubs'). Every route that reads a
+// /api/membership/affiliated-clubs behind verifyToken + requireModule +
+// requireMenuAction('/membership/affiliated-clubs'). Every route that reads a
 // request part validates it at the boundary (platform/validate, schemas in
 // affiliatedClub.schemas.js); /meta and the list read nothing and stay bare.
 const express = require('express');

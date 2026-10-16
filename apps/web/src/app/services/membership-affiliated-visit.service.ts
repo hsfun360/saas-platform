@@ -3,15 +3,17 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { MembershipStatusOption } from '../models/auth.models';
-import { GolfAffiliatedClubKind, GolfVisitCapPeriod } from './golf-affiliated-club.service';
+import { GolfAffiliatedClubKind, GolfVisitCapPeriod } from './membership-affiliated-club.service';
 
-export type GolfVisitStatus = 'requested' | 'pending-approval' | 'confirmed' | 'declined' | 'arrived' | 'completed' | 'cancelled' | 'expired';
+export type GolfVisitStatus = 'requested' | 'pending-approval' | 'confirmed' | 'issued' | 'declined' | 'arrived' | 'completed' | 'cancelled' | 'expired';
+export type GolfVisitDirection = 'inbound' | 'outbound';
 
 // What the letter asks for; golf is the part the system books.
 export interface GolfVisitFacilities {
   golf?: { courseId: string | null; teeTime: string | null; holes: number } | null;
   dining?: string | null;
   accommodation?: string | null;
+  sports?: string | null;
   other?: string | null;
 }
 
@@ -19,6 +21,8 @@ export interface GolfVisitFacilities {
 export interface GolfAffiliatedVisit {
   id: string;
   visitNo: string;
+  // inbound = their member visits us; outbound = our member visits them (we issue the letter).
+  direction: GolfVisitDirection;
   affiliatedClubId: string;
   club: { id: string; code: string; name: string; kind: GolfAffiliatedClubKind; allowChargeToHomeClub: boolean } | null;
   status: GolfVisitStatus;
@@ -27,6 +31,7 @@ export interface GolfAffiliatedVisit {
   visitorIdentityNo: string | null;
   visitorMobile: string | null;
   visitorEmail: string | null;
+  memberId: string | null;
   golferId: string | null;
   loiReference: string | null;
   loiDocumentUrl: string | null;
@@ -39,6 +44,8 @@ export interface GolfAffiliatedVisit {
   bookingProfileId: string | null;
   bookingNo: string | null;
   confirmedAt: string | null;
+  issuedAt: string | null;
+  sentTo: string | null;
   declinedAt: string | null;
   declineReason: string | null;
   cancelledAt: string | null;
@@ -53,10 +60,13 @@ export interface GolfAffiliatedVisit {
 }
 
 export interface GolfVisitPayload {
+  direction: GolfVisitDirection;
   affiliatedClubId: string;
   visitNo?: string;
+  // Inbound: the letter's visitor. Outbound: our member's number.
   visitorName: string;
   visitorMemberNo: string;
+  memberNo?: string;
   visitorIdentityNo: string | null;
   visitorMobile: string | null;
   visitorEmail: string | null;
@@ -80,15 +90,18 @@ export interface GolfVisitClubOption {
   maxGuestsPerVisit: number | null;
   maxVisitsPerPlayer: number | null;
   maxVisitsPeriod: GolfVisitCapPeriod | null;
+  maxVisitsPerYear: number | null;
   requiresApproval: boolean;
   allowChargeToHomeClub: boolean;
   contactEmail: string | null;
+  hasVisitFee: boolean;
 }
 
 export interface GolfVisitMeta {
   clubs: GolfVisitClubOption[];
   courses: { id: string; courseCode: string; description: string | null }[];
   statuses: MembershipStatusOption[];
+  directions: MembershipStatusOption[];
   facilities: MembershipStatusOption[];
   kinds: MembershipStatusOption[];
 }
@@ -101,26 +114,35 @@ export interface GolfVisitConfirmPreview {
   chain: { steps?: { stepNo?: number; name?: string; approvers?: string[] }[] } | null;
   flight: { courseId: string; courseCode: string; courseName: string; teeTime: string; crossTime: string | null; holes: number; seatsLeft: number; dayType: string } | null;
   visitsThisPeriod: number;
+  clubVisitsThisYear: number | null;
+  visitFee: string | null;
   summary: string;
 }
 
-// Affiliated Visits (Golf Management → Front Desk): the letter-of-introduction
-// document on the HOST side. Behind the Golf entitlement + '/golf/affiliated-visits'.
+// Affiliated Visits (Membership Management): the letter-of-introduction
+// document, inbound (their member visits us) and outbound (we issue the letter).
+// Behind the Membership entitlement + '/membership/affiliated-visits'.
 @Injectable({ providedIn: 'root' })
 export class GolfAffiliatedVisitService {
   private readonly http = inject(HttpClient);
-  private readonly base = `${environment.apiUrl}/golf/affiliated-visits`;
+  private readonly base = `${environment.apiUrl}/membership/affiliated-visits`;
 
   meta(): Observable<GolfVisitMeta> {
     return this.http.get<GolfVisitMeta>(`${this.base}/meta`);
   }
 
-  list(filter: { dateFrom?: string; dateTo?: string; status?: string }): Observable<{ visits: GolfAffiliatedVisit[]; statuses: MembershipStatusOption[] }> {
+  list(filter: { dateFrom?: string; dateTo?: string; status?: string; direction?: string }): Observable<{ visits: GolfAffiliatedVisit[]; statuses: MembershipStatusOption[]; directions: MembershipStatusOption[] }> {
     let params = new HttpParams();
     if (filter.dateFrom) params = params.set('dateFrom', filter.dateFrom);
     if (filter.dateTo) params = params.set('dateTo', filter.dateTo);
     if (filter.status) params = params.set('status', filter.status);
-    return this.http.get<{ visits: GolfAffiliatedVisit[]; statuses: MembershipStatusOption[] }>(this.base, { params });
+    if (filter.direction) params = params.set('direction', filter.direction);
+    return this.http.get<{ visits: GolfAffiliatedVisit[]; statuses: MembershipStatusOption[]; directions: MembershipStatusOption[] }>(this.base, { params });
+  }
+
+  // Outbound: issue our letter of introduction and email it.
+  issue(id: string): Observable<{ message: string; visit: GolfAffiliatedVisit }> {
+    return this.http.post<{ message: string; visit: GolfAffiliatedVisit }>(`${this.base}/${id}/issue`, {});
   }
 
   create(payload: GolfVisitPayload): Observable<{ message: string; visit: GolfAffiliatedVisit }> {

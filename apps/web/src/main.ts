@@ -176,6 +176,9 @@ const routes: Routes = [
       { path: 'membership/billing/:id', loadComponent: () => import('./app/membership-billing/membership-billing-detail').then((m) => m.MembershipBillingDetailComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       { path: 'membership/sales-agencies', loadComponent: () => import('./app/sales-agencies/sales-agencies').then((m) => m.SalesAgenciesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       { path: 'membership/sales-agents', loadComponent: () => import('./app/sales-agents/sales-agents').then((m) => m.SalesAgentsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      // Affiliated / reciprocal clubs and the letter-of-introduction visits (the Membership Department's desk, 2026-10-16).
+      { path: 'membership/affiliated-clubs', loadComponent: () => import('./app/membership-affiliated-clubs/membership-affiliated-clubs').then((m) => m.MembershipAffiliatedClubsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
+      { path: 'membership/affiliated-visits', loadComponent: () => import('./app/membership-affiliated-visits/membership-affiliated-visits').then((m) => m.MembershipAffiliatedVisitsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'MEMBERSHIP' } },
       // Account Receivable → Debtor Listing (all three debtor types in one
       // list; Other Debtors managed from the same screen).
       { path: 'ar/debtors', loadComponent: () => import('./app/ar-debtors/ar-debtors').then((m) => m.ArDebtorsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'AR' } },
@@ -218,8 +221,6 @@ const routes: Routes = [
       { path: 'golf/payment-types', loadComponent: () => import('./app/golf-payment-types/golf-payment-types').then((m) => m.GolfPaymentTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Common Setup → Player Types (spec 2.3.1, 2026-10-15): the club's player categories.
       { path: 'golf/player-types', loadComponent: () => import('./app/golf-player-types/golf-player-types').then((m) => m.GolfPlayerTypesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
-      // Common Setup → Affiliated Clubs (2026-10-15): the arrangements whose members visit under a letter of introduction.
-      { path: 'golf/affiliated-clubs', loadComponent: () => import('./app/golf-affiliated-clubs/golf-affiliated-clubs').then((m) => m.GolfAffiliatedClubsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       { path: 'golf/golfers', loadComponent: () => import('./app/golf-golfers/golf-golfers').then((m) => m.GolfGolfersComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Course Closure - standalone menu so closure keying is grantable
       // without the Unit Course setup screen (2026-09-30).
@@ -232,8 +233,6 @@ const routes: Routes = [
       // No-show Charges - standalone menu so finance can post/waive the
       // penalties without the tee-sheet or booking grants (2026-10-06).
       { path: 'golf/no-show-charges', loadComponent: () => import('./app/golf-no-show-charges/golf-no-show-charges').then((m) => m.GolfNoShowChargesComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
-      // Front Desk → Affiliated Visits (2026-10-15): letters of introduction, host side.
-      { path: 'golf/affiliated-visits', loadComponent: () => import('./app/golf-affiliated-visits/golf-affiliated-visits').then((m) => m.GolfAffiliatedVisitsComponent), canActivate: [systemAccessGuard], data: { moduleCode: 'GOLF' } },
       // Front Desk → Rain Checks (2026-10-15): the standalone listing of the
       // credits issued for abandoned paid rounds; issue and redeem happen on
       // the Tee Time Sheet.

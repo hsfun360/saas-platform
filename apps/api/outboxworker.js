@@ -50,14 +50,14 @@ async function scanRainChecks() {
     }
 }
 
-// Golf affiliated visits (2026-10-15): open visits whose date passed without
-// an arrival expire on the tick (club-local date), with a bell to the office.
+// Affiliated visits (Membership, 2026-10-15/16): open visits whose date passed
+// without an arrival expire on the tick (club-local date), with a bell to the office.
 async function scanVisits() {
     try {
-        const { scanVisits: scan } = require('./src/modules/golf/affiliatedVisit.service');
+        const { scanVisits: scan } = require('./src/modules/membership/affiliatedVisit.service');
         return await scan();
     } catch (err) {
-        console.error('[GOLF VISIT] expiry scan failed:', err);
+        console.error('[MEMBERSHIP VISIT] expiry scan failed:', err);
         return null;
     }
 }

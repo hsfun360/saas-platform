@@ -342,6 +342,54 @@ async function getChargeTarget(companyId, memberId) {
     };
 }
 
+// ---- Affiliated / reciprocal clubs and letters of introduction (the
+// Membership Department's desk, 2026-10-16) - read by golf for the tee
+// sheet's visit tags, the registration gate, the visitor's fee item, the
+// playing-right targets and the completion-on-settlement hook. WHEN SPLIT:
+// GET/POST {internalServiceUrl('membership')}/internal/affiliated-visits/...
+
+async function listAffiliatedClubs(companyId, { activeOnly = true } = {}) {
+    const AffiliatedClub = require('../modules/membership/affiliatedClub.model');
+    const where = { companyId };
+    if (activeOnly) where.isActive = true;
+    const rows = await AffiliatedClub.findAll({ where, attributes: ['id', 'code', 'name', 'kind', 'isActive'], order: [['sortOrder', 'ASC'], ['name', 'ASC']] });
+    return rows.map((c) => ({ id: c.id, code: c.code, name: c.name, kind: c.kind, isActive: c.isActive !== false }));
+}
+
+async function getAffiliatedClub(companyId, id) {
+    if (!companyId || !id) return null;
+    const AffiliatedClub = require('../modules/membership/affiliatedClub.model');
+    const c = await AffiliatedClub.findOne({ where: { companyId, id }, attributes: ['id', 'code', 'name', 'kind', 'playerTypeId', 'visitFeeTransactionTypeId', 'allowChargeToHomeClub', 'isActive'] });
+    return c ? { id: c.id, code: c.code, name: c.name, kind: c.kind, playerTypeId: c.playerTypeId, visitFeeTransactionTypeId: c.visitFeeTransactionTypeId, allowChargeToHomeClub: c.allowChargeToHomeClub === true, isActive: c.isActive !== false } : null;
+}
+
+// The visit behind each booking of a day: Map(bookingProfileId -> { id,
+// visitNo, status, visitorName, golferId, clubName, visitFeeTransactionTypeId,
+// allowChargeToHomeClub }).
+async function affiliatedVisitsByBooking(companyId, bookingProfileIds, opts = {}) {
+    const visits = require('../modules/membership/affiliatedVisit.service');
+    return visits.byBooking(companyId, bookingProfileIds, opts);
+}
+
+// A booked line of a visit's booking registers only once the visit is
+// arrived: an error string, or null.
+async function affiliatedVisitRegistrationGate(companyId, bookingProfileId, opts = {}) {
+    const visits = require('../modules/membership/affiliatedVisit.service');
+    return visits.registrationGate(companyId, bookingProfileId, opts);
+}
+
+// After a settlement: completes the visit once its booking is fully settled.
+async function completeAffiliatedVisitIfSettled(companyId, bookingProfileId, opts = {}) {
+    const visits = require('../modules/membership/affiliatedVisit.service');
+    return visits.completeIfSettled(companyId, bookingProfileId, opts);
+}
+
+// The desk receives a confirmed visitor (letter and ID sighted).
+async function receiveAffiliatedVisit(req, visitId, body) {
+    const visits = require('../modules/membership/affiliatedVisit.service');
+    return visits.arrive(req, visitId, body);
+}
+
 module.exports = {
     lookupPartyDisplay,
     searchPartyIds,
@@ -352,4 +400,10 @@ module.exports = {
     classifyParties,
     listMembershipTypes,
     getGolfMemberStanding,
+    listAffiliatedClubs,
+    getAffiliatedClub,
+    affiliatedVisitsByBooking,
+    affiliatedVisitRegistrationGate,
+    completeAffiliatedVisitIfSettled,
+    receiveAffiliatedVisit,
 };

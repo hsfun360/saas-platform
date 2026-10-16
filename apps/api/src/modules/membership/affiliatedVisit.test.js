@@ -16,8 +16,8 @@ test('visitCapWindow: calendar month and year', () => {
 });
 
 test('facilitiesText reads the request as one sentence, golf optional', () => {
-    const f = { golf: { holes: 18, teeTime: '08:04', courseId: 'x' }, dining: 'lunch for 3', accommodation: null, other: '' };
-    assert.strictEqual(facilitiesText(f), 'Golf: 18 holes at 08:04; Dining: lunch for 3');
-    assert.strictEqual(facilitiesText(f, { golf: false }), 'Dining: lunch for 3');
+    const f = { golf: { holes: 18, teeTime: '08:04', courseId: 'x' }, dining: 'lunch for 3', accommodation: null, sports: 'tennis court', other: '' };
+    assert.strictEqual(facilitiesText(f), 'Golf: 18 holes at 08:04; Dining: lunch for 3; Sports: tennis court');
+    assert.strictEqual(facilitiesText(f, { golf: false }), 'Dining: lunch for 3; Sports: tennis court');
     assert.strictEqual(facilitiesText({ golf: null }), '');
 });

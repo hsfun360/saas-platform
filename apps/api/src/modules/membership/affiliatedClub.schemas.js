@@ -22,6 +22,8 @@ const clubBody = z.object({
     maxGuestsPerVisit: numberish,
     maxVisitsPerPlayer: numberish,
     maxVisitsPeriod: str(10),
+    maxVisitsPerYear: numberish,
+    visitFeeTransactionTypeId: str(64),
     requiresApproval: bool,
     contactName: str(255),
     contactEmail: str(255),

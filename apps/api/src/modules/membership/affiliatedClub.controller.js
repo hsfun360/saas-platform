@@ -1,12 +1,13 @@
-// Affiliated / Reciprocal Club master file (Golf Management → Common Setup →
-// Affiliated Clubs; user decisions 2026-10-15). The other clubs and
-// associations whose members this club admits, with the arrangement's terms
-// the visit document and the desk enforce. The visit flow itself lives in
-// affiliatedVisit.service.js.
+// Affiliated / Reciprocal Club master file (Membership Management → Common
+// Setup → Affiliated Clubs; user decisions 2026-10-15 / 16). The other clubs
+// and associations whose members this club admits, with the arrangement's
+// terms the visit document and the desks enforce. The golf-side pickers (the
+// affiliate player type its visitors are billed as, the visit fee item) are
+// read through platform/golfGateway.js - never the golf models.
 
 const { Op } = require('sequelize');
-const GolfAffiliatedClub = require('./affiliatedClub.model');
-const OtherGolfer = require('./otherGolfer.model');
+const AffiliatedClub = require('./affiliatedClub.model');
+const AffiliatedVisit = require('./affiliatedVisit.model');
 const {
     getUserContext,
     getCallerPlacement,
@@ -14,10 +15,10 @@ const {
     annotateCanModify,
 } = require('../../platform/serviceContext');
 const { withCountryName } = require('../../platform/addressFormat');
+const golfGateway = require('../../platform/golfGateway');
 const {
     AFFILIATED_CLUB_KINDS, AFFILIATED_CLUB_KIND_KEYS, VISIT_CAP_PERIODS, VISIT_CAP_PERIOD_KEYS,
 } = require('./affiliatedClub.constants');
-const playerTypes = require('./playerType.service');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -39,8 +40,9 @@ function intOrNull(v, min, max, label) {
     return { value: n };
 }
 
-async function toDto(c, types, canModify = true) {
+async function toDto(c, types, feeTypes, canModify = true) {
     const t = types.find((x) => x.id === c.playerTypeId) || null;
+    const fee = c.visitFeeTransactionTypeId ? (feeTypes.find((x) => x.id === c.visitFeeTransactionTypeId) || null) : null;
     return {
         id: c.id,
         canModify,
@@ -56,6 +58,9 @@ async function toDto(c, types, canModify = true) {
         maxGuestsPerVisit: c.maxGuestsPerVisit,
         maxVisitsPerPlayer: c.maxVisitsPerPlayer,
         maxVisitsPeriod: c.maxVisitsPeriod,
+        maxVisitsPerYear: c.maxVisitsPerYear,
+        visitFeeTransactionTypeId: c.visitFeeTransactionTypeId,
+        visitFeeLabel: fee ? `${fee.transactionType}${fee.description ? ' - ' + fee.description : ''}` : null,
         requiresApproval: c.requiresApproval === true,
         contactName: c.contactName,
         contactEmail: c.contactEmail,
@@ -69,9 +74,9 @@ async function toDto(c, types, canModify = true) {
     };
 }
 
-// Validate + normalise a payload against the club's affiliate-base player
-// types. Returns { value } or { error }.
-function normalizeBody(body, types) {
+// Validate + normalise a payload against the golf pickers. Returns { value }
+// or { error }.
+function normalizeBody(body, types, feeTypes) {
     const code = str(body.code).toUpperCase();
     if (!code) return { error: 'Code is required.' };
     if (code.length > 20) return { error: 'Code must be 20 characters or fewer.' };
@@ -82,9 +87,14 @@ function normalizeBody(body, types) {
     if (!AFFILIATED_CLUB_KIND_KEYS.includes(kind)) return { error: 'Select whether this is an affiliated association or a reciprocal club.' };
     const playerTypeId = str(body.playerTypeId);
     const type = types.find((t) => t.id === playerTypeId);
-    if (!type) return { error: 'Pick the player type this club\'s visitors are billed as.' };
-    if (type.baseIdentity !== 'affiliate') return { error: `'${type.code}' is not an affiliated / reciprocal player type.` };
+    if (!type) return { error: 'Pick the golf player type this club\'s visitors are billed as.' };
     if (type.isActive === false) return { error: `Player type '${type.code}' is disabled - enable it or pick another.` };
+    const visitFeeTransactionTypeId = strOrNull(body.visitFeeTransactionTypeId);
+    if (visitFeeTransactionTypeId) {
+        const fee = feeTypes.find((f) => f.id === visitFeeTransactionTypeId);
+        if (!fee) return { error: 'The visit fee must be one of this company\'s miscellaneous golf transaction types.' };
+        if (fee.isActive === false) return { error: `Visit fee item '${fee.transactionType}' is disabled - enable it or pick another.` };
+    }
     const agreementFrom = strOrNull(body.agreementFrom);
     const agreementTo = strOrNull(body.agreementTo);
     if (agreementFrom && !DATE_RE.test(agreementFrom)) return { error: 'Agreement from must be a date.' };
@@ -92,7 +102,7 @@ function normalizeBody(body, types) {
     if (agreementFrom && agreementTo && agreementTo < agreementFrom) return { error: 'The agreement cannot end before it starts.' };
     const guests = intOrNull(body.maxGuestsPerVisit, 0, 99, 'Guests per visit');
     if (guests.error) return { error: guests.error };
-    const visits = intOrNull(body.maxVisitsPerPlayer, 1, 999, 'Visits per player');
+    const visits = intOrNull(body.maxVisitsPerPlayer, 1, 999, 'Visits per member');
     if (visits.error) return { error: visits.error };
     let maxVisitsPeriod = strOrNull(body.maxVisitsPeriod);
     if (visits.value !== null) {
@@ -100,6 +110,8 @@ function normalizeBody(body, types) {
     } else {
         maxVisitsPeriod = null;
     }
+    const yearly = intOrNull(body.maxVisitsPerYear, 1, 9999, 'Visits per year (club-wide)');
+    if (yearly.error) return { error: yearly.error };
     const contactEmail = strOrNull(body.contactEmail);
     if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) return { error: 'The contact email is not a valid address.' };
     let countryCode = strOrNull(body.countryCode);
@@ -114,6 +126,8 @@ function normalizeBody(body, types) {
             maxGuestsPerVisit: guests.value,
             maxVisitsPerPlayer: visits.value,
             maxVisitsPeriod,
+            maxVisitsPerYear: yearly.value,
+            visitFeeTransactionTypeId,
             requiresApproval: body.requiresApproval === true,
             contactName: strOrNull(body.contactName),
             contactEmail,
@@ -130,102 +144,103 @@ function normalizeBody(body, types) {
     };
 }
 
-// GET /api/golf/affiliated-clubs/meta - the vocabularies + the affiliate-base
-// player types (served here so the screen needs no Player Types grant).
+async function pickers(companyId) {
+    const [types, feeTypes] = await Promise.all([golfGateway.listAffiliatePlayerTypes(companyId), golfGateway.listVisitFeeTypes(companyId)]);
+    return { types, feeTypes };
+}
+
+// GET /api/membership/affiliated-clubs/meta - the vocabularies + the golf
+// pickers (affiliate-base player types, miscellaneous fee items), served
+// here through the golf seam so the screen needs no golf grants.
 exports.getMeta = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const types = (await playerTypes.catalog(companyId)).filter((t) => t.baseIdentity === 'affiliate');
-        res.status(200).json({
-            kinds: AFFILIATED_CLUB_KINDS,
-            periods: VISIT_CAP_PERIODS,
-            playerTypes: types.map((t) => ({ id: t.id, code: t.code, description: t.description, isActive: t.isActive })),
-        });
+        const { types, feeTypes } = await pickers(companyId);
+        res.status(200).json({ kinds: AFFILIATED_CLUB_KINDS, periods: VISIT_CAP_PERIODS, playerTypes: types, visitFeeTypes: feeTypes });
     } catch (error) {
-        console.error('Error loading golf affiliated-club meta:', error);
+        console.error('Error loading affiliated-club meta:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// GET /api/golf/affiliated-clubs - every club of the company.
+// GET /api/membership/affiliated-clubs - every club of the company.
 exports.list = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const [rows, types] = await Promise.all([
-            GolfAffiliatedClub.findAll({ where: { companyId }, order: [['sortOrder', 'ASC'], ['name', 'ASC']] }),
-            playerTypes.catalog(companyId),
+        const [rows, { types, feeTypes }] = await Promise.all([
+            AffiliatedClub.findAll({ where: { companyId }, order: [['sortOrder', 'ASC'], ['name', 'ASC']] }),
+            pickers(companyId),
         ]);
         const flags = await annotateCanModify(req, rows);
         const clubs = [];
-        for (let i = 0; i < rows.length; i += 1) clubs.push(await toDto(rows[i], types, flags[i]));
+        for (let i = 0; i < rows.length; i += 1) clubs.push(await toDto(rows[i], types, feeTypes, flags[i]));
         res.status(200).json({ clubs, kinds: AFFILIATED_CLUB_KINDS, periods: VISIT_CAP_PERIODS });
     } catch (error) {
-        console.error('Error listing golf affiliated clubs:', error);
+        console.error('Error listing affiliated clubs:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// POST /api/golf/affiliated-clubs
+// POST /api/membership/affiliated-clubs
 exports.create = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const types = await playerTypes.catalog(companyId);
-        const parsed = normalizeBody(req.body, types);
+        const { types, feeTypes } = await pickers(companyId);
+        const parsed = normalizeBody(req.body, types, feeTypes);
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         const v = parsed.value;
-        const existing = await GolfAffiliatedClub.findOne({ where: { companyId, code: v.code } });
+        const existing = await AffiliatedClub.findOne({ where: { companyId, code: v.code } });
         if (existing) return res.status(409).json({ message: `Affiliated club '${v.code}' already exists.` });
         const placement = await getCallerPlacement(req);
         const callerId = getUserContext(req).userId;
-        const row = await GolfAffiliatedClub.create({
+        const row = await AffiliatedClub.create({
             companyId, ...v, isActive: true,
             createdBy: callerId, createdByDepartmentId: placement.departmentId, updatedBy: callerId,
         });
-        res.status(201).json({ message: `Affiliated club '${row.code}' created.`, club: await toDto(row, types) });
+        res.status(201).json({ message: `Affiliated club '${row.code}' created.`, club: await toDto(row, types, feeTypes) });
     } catch (error) {
-        console.error('Error creating golf affiliated club:', error);
+        console.error('Error creating affiliated club:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// PUT /api/golf/affiliated-clubs/:id - full update (the code stays once
-// visitors reference the club).
+// PUT /api/membership/affiliated-clubs/:id - full update.
 exports.update = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const row = await GolfAffiliatedClub.findOne({ where: { id: req.params.id, companyId } });
+        const row = await AffiliatedClub.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Affiliated club not found.' });
         if (!(await canModifyRecord(req, row))) {
             return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         }
-        const types = await playerTypes.catalog(companyId);
-        const parsed = normalizeBody(req.body, types);
+        const { types, feeTypes } = await pickers(companyId);
+        const parsed = normalizeBody(req.body, types, feeTypes);
         if (parsed.error) return res.status(400).json({ message: parsed.error });
         const v = parsed.value;
         if (v.code !== row.code) {
-            const clash = await GolfAffiliatedClub.findOne({ where: { companyId, code: v.code, id: { [Op.ne]: row.id } } });
+            const clash = await AffiliatedClub.findOne({ where: { companyId, code: v.code, id: { [Op.ne]: row.id } } });
             if (clash) return res.status(409).json({ message: `Affiliated club '${v.code}' already exists.` });
         }
         Object.assign(row, v);
         row.updatedBy = getUserContext(req).userId;
         await row.save();
-        res.status(200).json({ message: `Affiliated club '${row.code}' updated.`, club: await toDto(row, types) });
+        res.status(200).json({ message: `Affiliated club '${row.code}' updated.`, club: await toDto(row, types, feeTypes) });
     } catch (error) {
-        console.error('Error updating golf affiliated club:', error);
+        console.error('Error updating affiliated club:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// PATCH /api/golf/affiliated-clubs/:id - toggle isActive only.
+// PATCH /api/membership/affiliated-clubs/:id - toggle isActive only.
 exports.setActive = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const row = await GolfAffiliatedClub.findOne({ where: { id: req.params.id, companyId } });
+        const row = await AffiliatedClub.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Affiliated club not found.' });
         if (!(await canModifyRecord(req, row))) {
             return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
@@ -235,29 +250,30 @@ exports.setActive = async (req, res) => {
             row.updatedBy = getUserContext(req).userId;
             await row.save();
         }
-        res.status(200).json({ message: `Affiliated club '${row.code}' updated.`, club: await toDto(row, await playerTypes.catalog(companyId)) });
+        const { types, feeTypes } = await pickers(companyId);
+        res.status(200).json({ message: `Affiliated club '${row.code}' updated.`, club: await toDto(row, types, feeTypes) });
     } catch (error) {
-        console.error('Error updating golf affiliated club:', error);
+        console.error('Error updating affiliated club:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-// DELETE /api/golf/affiliated-clubs/:id - a club no visitor references.
+// DELETE /api/membership/affiliated-clubs/:id - a club with no visit on record.
 exports.remove = async (req, res) => {
     try {
         const companyId = companyIdOf(req);
         if (!companyId) return res.status(400).json({ message: 'Select a workspace first.' });
-        const row = await GolfAffiliatedClub.findOne({ where: { id: req.params.id, companyId } });
+        const row = await AffiliatedClub.findOne({ where: { id: req.params.id, companyId } });
         if (!row) return res.status(404).json({ message: 'Affiliated club not found.' });
         if (!(await canModifyRecord(req, row))) {
             return res.status(403).json({ message: "Your role's data scope does not allow amending this record." });
         }
-        const golfers = await OtherGolfer.count({ where: { companyId, affiliatedClubId: row.id } });
-        if (golfers) return res.status(409).json({ message: `Affiliated club '${row.code}' has ${golfers} visiting golfer(s) on record - disable it instead.` });
+        const visitCount = await AffiliatedVisit.count({ where: { companyId, affiliatedClubId: row.id } });
+        if (visitCount) return res.status(409).json({ message: `Affiliated club '${row.code}' has ${visitCount} visit(s) on record - disable it instead.` });
         await row.destroy();
         res.status(200).json({ message: `Affiliated club '${row.code}' deleted.` });
     } catch (error) {
-        console.error('Error deleting golf affiliated club:', error);
+        console.error('Error deleting affiliated club:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };

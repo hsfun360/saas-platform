@@ -53,8 +53,8 @@ export interface FrontDeskEntry {
   // Rain check (2026-10-15): the one already issued against this player's
   // settled bill, if any (the sheet shows it instead of offering Issue).
   rainCheck?: { rainCheckNo: string; status: string; amount: number } | null;
-  // Affiliated visit (2026-10-15): the letter-of-introduction visit this
-  // booking belongs to; a confirmed one must be received at the desk
+  // Affiliated visit (2026-10-15; a Membership document): the letter-of-
+  // introduction visit this booking belongs to; a confirmed one must be received at the desk
   // (letter and ID sighted) before the line can register.
   visit?: { id: string; visitNo: string; status: string; visitorName: string } | null;
 }

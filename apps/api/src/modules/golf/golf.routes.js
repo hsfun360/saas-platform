@@ -37,11 +37,9 @@ router.use('/transaction-types', requireMenuAction('/golf/transaction-types'), t
 router.use('/payment-types', requireMenuAction('/golf/payment-types'), require('./paymentTypes.routes'));
 // Player Type master (spec 2.3.1, 2026-10-15): the club's player categories.
 router.use('/player-types', requireMenuAction('/golf/player-types'), require('./playerTypes.routes'));
-// Affiliated / Reciprocal Clubs (2026-10-15): the arrangements whose members
-// visit under a letter of introduction.
-router.use('/affiliated-clubs', requireMenuAction('/golf/affiliated-clubs'), require('./affiliatedClubs.routes'));
-// Affiliated Visits (2026-10-15): the letter-of-introduction document, host side.
-router.use('/affiliated-visits', requireMenuAction('/golf/affiliated-visits'), require('./affiliatedVisits.routes'));
+// Affiliated / reciprocal clubs and the letter-of-introduction visits moved
+// to the Membership service on 2026-10-16 (/api/membership/affiliated-*);
+// golf books the visit's flight through platform/golfGateway.js.
 
 // --- Golfers master (handicap index + status maintenance; user decisions
 // 2026-09-29 - the fields the handicap-control rules read) ---

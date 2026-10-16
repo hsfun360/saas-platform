@@ -429,8 +429,8 @@ module.exports = [
         `),
     },
     {
-        key: 'golf.visit.confirmed',
-        name: 'Golf affiliated visit confirmed',
+        key: 'membership.visit.confirmed',
+        name: 'Affiliated visit confirmed',
         description: 'Sent to the visiting member and their home club when the host club confirms a visit under a letter of introduction.',
         tenantOverridable: true,
         variables: [
@@ -463,8 +463,8 @@ module.exports = [
         `),
     },
     {
-        key: 'golf.visit.declined',
-        name: 'Golf affiliated visit declined',
+        key: 'membership.visit.declined',
+        name: 'Affiliated visit declined',
         description: 'Sent to the visiting member and their home club when the host club declines a visit request.',
         tenantOverridable: true,
         variables: [
@@ -487,6 +487,40 @@ module.exports = [
             <p><strong>{{companyName}}</strong> is sorry to say that the visit requested for <strong>{{visitDateText}}</strong> under the letter of introduction from {{clubName}} (visit no. {{visitNo}}) cannot be confirmed.</p>
             <p><strong>Reason:</strong> {{reason}}</p>
             <p style="font-size: 12px; color: #666; margin-top: 16px;">Your home club may write again with another date.</p>
+        `),
+    },
+    {
+        key: 'membership.visit.loi',
+        name: 'Letter of introduction (outbound)',
+        description: 'The letter the Membership Department issues to a partner club when one of our members visits it; sent to the partner\'s contact and to the member.',
+        tenantOverridable: true,
+        variables: [
+            { name: 'memberName', description: "Our member's name." },
+            { name: 'memberNo', description: "Our member's number." },
+            { name: 'clubName', description: 'The partner club or association.' },
+            { name: 'visitNo', description: 'The letter number.' },
+            { name: 'visitDateText', description: "The intended visit date, e.g. '22 Oct 2026'." },
+            { name: 'alternateDateText', description: 'An alternate date, or empty.' },
+            { name: 'facilitiesText', description: 'The facilities requested (golf with holes and preferred time, dining, accommodation, sports, other).' },
+            { name: 'playerCount', description: 'The golf party size.' },
+            { name: 'guestCount', description: 'Guests in the party.' },
+            { name: 'visitsThisPeriod', description: 'Visits by the member to this club in the cap period, this one included.' },
+            { name: 'companyName', description: "Our club's name." },
+        ],
+        sample: {
+            memberName: 'Ahmad Faizal', memberNo: 'A0018', clubName: 'Saujana Golf & Country Club', visitNo: 'L261000001', visitDateText: '22 Oct 2026', alternateDateText: '23 Oct 2026',
+            facilitiesText: 'Golf: 18 holes at 08:00; Dining: lunch for 2', playerCount: 2, guestCount: 1, visitsThisPeriod: 3, companyName: 'Kuala Lumpur Golf & Country Club',
+        },
+        fromName: null,
+        subject: 'Letter of introduction {{visitNo}} - {{memberName}} ({{companyName}}) on {{visitDateText}}',
+        bodyHtml: card(`
+            <h2 style="color: #1e293b; margin-top: 0;">Letter of introduction</h2>
+            <p>To the Membership Office, <strong>{{clubName}}</strong>,</p>
+            <p><strong>{{companyName}}</strong> is pleased to introduce our member <strong>{{memberName}}</strong> (membership no. {{memberNo}}), who is in good standing with us, and requests the courtesies of your club under our arrangement on <strong>{{visitDateText}}</strong>{{#if alternateDateText}} (alternatively {{alternateDateText}}){{/if}}.</p>
+            {{#if facilitiesText}}<p><strong>Facilities requested:</strong> {{facilitiesText}}</p>{{/if}}
+            <p><strong>Party:</strong> {{playerCount}} player(s){{#if guestCount}}, of whom {{guestCount}} guest(s){{/if}}. This is visit {{visitsThisPeriod}} by this member in the current period of the arrangement.</p>
+            <p>Letter no. {{visitNo}}. Our member will present this letter, their membership card and a passport or ID on arrival, and will settle all charges before leaving unless the arrangement provides otherwise.</p>
+            <p style="font-size: 12px; color: #666; margin-top: 16px;">Please reply to this email to confirm the visit. Thank you for extending the courtesies of your club.</p>
         `),
     },
     {

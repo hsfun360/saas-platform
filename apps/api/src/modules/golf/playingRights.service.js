@@ -21,11 +21,11 @@ const PlayingRightRule = require('./playingRightRule.model');
 const RoundQuotaRule = require('./roundQuotaRule.model');
 const Player = require('./player.model');
 const BookingProfile = require('./bookingProfile.model');
-const AffiliatedClub = require('./affiliatedClub.model');
 const Course = require('./course.model');
 const availability = require('./bookingAvailability.service');
 const playerTypes = require('./playerType.service');
 const { classifyDateRangeForCompany } = require('../../platform/calendarGateway');
+const { getAffiliatedClub } = require('../../platform/membershipGateway');
 
 function toMinutes(t) {
     return availability.toMinutes(String(t).slice(0, 5));
@@ -210,7 +210,7 @@ async function deskWarnings({ companyId, courseId, playDate, teeTime, playerIds,
                     const og = await OtherGolfer.findOne({ where: { companyId, id: g.sourceId }, attributes: ['affiliatedClubId'], transaction });
                     if (og && og.affiliatedClubId) {
                         affiliatedClubId = og.affiliatedClubId;
-                        const club = await AffiliatedClub.findOne({ where: { companyId, id: og.affiliatedClubId }, attributes: ['name'], transaction });
+                        const club = await getAffiliatedClub(companyId, og.affiliatedClubId);
                         clubName = club ? club.name : null;
                     }
                 }

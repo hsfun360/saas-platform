@@ -25,6 +25,10 @@ const membershipSettingsRoutes = require('./membershipSettings.routes');
 const membershipImportsRoutes = require('./membershipImports.routes');
 const membershipTypeImportsRoutes = require('./membershipTypeImports.routes');
 const dashboardRoutes = require('./dashboard.routes');
+// Affiliated / reciprocal clubs and the letter-of-introduction visits (the
+// Membership Department's desk, 2026-10-16).
+const affiliatedClubsRoutes = require('./affiliatedClubs.routes');
+const affiliatedVisitsRoutes = require('./affiliatedVisits.routes');
 
 // Liveness probe - unauthenticated, so the gateway/monitoring can check the seam.
 router.get('/health', (req, res) => res.json({ service: 'membership', status: 'ok' }));
@@ -72,6 +76,10 @@ router.use('/transaction-types', requireMenuAction('/membership/transaction-type
 // --- Sales Management (SRS 2.2) ---
 router.use('/sales-agencies', requireMenuAction('/membership/sales-agencies'), salesAgenciesRoutes);
 router.use('/sales-agents', requireMenuAction('/membership/sales-agents'), salesAgentsRoutes);
+
+// --- Affiliated / reciprocal clubs + letters of introduction (2026-10-16) ---
+router.use('/affiliated-clubs', requireMenuAction('/membership/affiliated-clubs'), affiliatedClubsRoutes);
+router.use('/affiliated-visits', requireMenuAction('/membership/affiliated-visits'), affiliatedVisitsRoutes);
 
 // --- Membership import (Excel -> staging -> selective migration) ---
 router.use('/imports', requireMenuAction('/membership/import'), membershipImportsRoutes);

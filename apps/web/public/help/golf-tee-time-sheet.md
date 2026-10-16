@@ -230,7 +230,7 @@ With the rule off, no-shows are recorded without charges.
 - Golf Management → Golf Booking - the bookings that appear as booked players here.
 - Golf Management → Front Desk → No-show Charges - follow-up of the charges raised by the No-shows review.
 - Golf Management → Front Desk → Rain Checks - every rain check issued here, with its redemption, expiry or cancellation.
-- Golf Management → Front Desk → Affiliated Visits - the letters of introduction whose visitors are received here.
+- Membership Management → Affiliated Visits - the letters of introduction whose visitors are received here.
 - Golf Management → Common Setup → Transaction Type - the billing tiles, prices, golfer-type defaults and package eligibility.
 - Golf Management → Common Setup → Payment Type - the tenders offered at settlement.
 - Golf Management → Common Setup → Golf Specification - the dot colours, the handicap / junior warnings and the Cancellation & No-show rule.

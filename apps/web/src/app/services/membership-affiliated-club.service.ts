@@ -23,6 +23,10 @@ export interface GolfAffiliatedClub {
   maxGuestsPerVisit: number | null;
   maxVisitsPerPlayer: number | null;
   maxVisitsPeriod: GolfVisitCapPeriod | null;
+  // The club-wide annual inbound quota and the host's per-visit fee item (a golf transaction type).
+  maxVisitsPerYear: number | null;
+  visitFeeTransactionTypeId: string | null;
+  visitFeeLabel: string | null;
   requiresApproval: boolean;
   contactName: string | null;
   contactEmail: string | null;
@@ -45,6 +49,8 @@ export interface GolfAffiliatedClubPayload {
   maxGuestsPerVisit: number | null;
   maxVisitsPerPlayer: number | null;
   maxVisitsPeriod: GolfVisitCapPeriod | '' | null;
+  maxVisitsPerYear: number | null;
+  visitFeeTransactionTypeId: string | null;
   requiresApproval: boolean;
   contactName: string | null;
   contactEmail: string | null;
@@ -62,15 +68,18 @@ export interface GolfAffiliatedClubPayload {
 export interface GolfAffiliatedClubMeta {
   kinds: MembershipStatusOption[];
   periods: MembershipStatusOption[];
-  // The affiliate-base player types (served here, no Player Types grant needed).
+  // The affiliate-base golf player types and the miscellaneous golf fee items
+  // (served here through the golf seam, no golf grants needed).
   playerTypes: { id: string; code: string; description: string; isActive: boolean }[];
+  visitFeeTypes: { id: string; transactionType: string; description: string | null; isActive: boolean }[];
 }
 
-// Affiliated / Reciprocal Club master file (Golf Management → Common Setup).
+// Affiliated / Reciprocal Club master file (Membership Management → Common Setup; the
+// Membership Department governs the club-to-club arrangements).
 @Injectable({ providedIn: 'root' })
 export class GolfAffiliatedClubService {
   private readonly http = inject(HttpClient);
-  private readonly base = `${environment.apiUrl}/golf/affiliated-clubs`;
+  private readonly base = `${environment.apiUrl}/membership/affiliated-clubs`;
 
   meta(): Observable<GolfAffiliatedClubMeta> {
     return this.http.get<GolfAffiliatedClubMeta>(`${this.base}/meta`);

@@ -70,6 +70,22 @@
   flex-wrap: wrap;
 }
 
+/* The direction picker (dlg-pick rows side by side on desktop). */
+.gav-direction {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+.gav-direction--on {
+  border-color: var(--brand);
+  background: var(--surface-selected);
+}
+@media (max-width: 767px) {
+  .gav-direction {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* The confirm preview: what Confirm will do. */
 .gav-preview {
   display: grid;

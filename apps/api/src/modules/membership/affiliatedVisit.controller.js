@@ -1,7 +1,7 @@
-// Affiliated Visits - the Letter-of-Introduction document (Golf Management →
-// Front Desk → Affiliated Visits; host side only, user decisions 2026-10-15).
-// The service owns every rule; the letter upload lands in the per-env assets
-// bucket like the course photo.
+// Affiliated Visits - the Letter-of-Introduction document (Membership
+// Management → Affiliated Visits; user decisions 2026-10-15 / 16). The
+// service owns every rule; the letter upload lands in the per-env assets
+// bucket like every other upload.
 const { Storage } = require('@google-cloud/storage');
 const visits = require('./affiliatedVisit.service');
 const { getUserContext } = require('../../platform/serviceContext');
@@ -35,6 +35,7 @@ exports.create = handler('recording affiliated visit', (req) => visits.create(re
 exports.update = handler('updating affiliated visit', (req) => visits.update(req, req.params.id, req.body));
 exports.preview = handler('previewing affiliated visit confirmation', (req) => visits.preview(req, req.params.id));
 exports.confirm = handler('confirming affiliated visit', (req) => visits.confirm(req, req.params.id));
+exports.issue = handler('issuing letter of introduction', (req) => visits.issue(req, req.params.id));
 exports.decline = handler('declining affiliated visit', (req) => visits.decline(req, req.params.id, req.body));
 exports.cancel = handler('cancelling affiliated visit', (req) => visits.cancel(req, req.params.id, req.body));
 exports.arrive = handler('receiving affiliated visit', (req) => visits.arrive(req, req.params.id, req.body));
@@ -49,7 +50,7 @@ exports.uploadLetter = async (req, res) => {
         if (!req.file) return res.status(400).json({ message: 'No file uploaded.' });
         const bucket = assetsBucket();
         const ext = (req.file.originalname.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
-        const blob = bucket.file(`golf-visit-letter-${companyId}-${Date.now()}.${ext}`);
+        const blob = bucket.file(`membership-visit-letter-${companyId}-${Date.now()}.${ext}`);
         await blob.save(req.file.buffer, { resumable: false, contentType: req.file.mimetype });
         res.status(200).json({ message: 'Letter uploaded.', url: `https://storage.googleapis.com/${bucket.name}/${blob.name}` });
     } catch (error) {

@@ -77,7 +77,6 @@ Each manual is also published as an in-app guide: a static copy lives at `apps/w
 - [Unit Courses](golf-management/golf-unit-courses.md) - the 9-hole building blocks: holes (par/HCP) and tee boxes (colours + per-hole distances), with Edit plus the Holes / Tees / Enable / Disable / Delete menu.
 - [Golf Specification](golf-management/golf-settings.md) - the club-wide golf rules: advance window, booking limits and sessions, minimum players, guest control, handicap control, cancellation notice + no-show penalty, tee-sheet colours.
 - [No-show Charges](golf-management/golf-no-show-charges.md) - the penalties raised against bookers for no-shows and late cancellations: post pending charges to the account or waive them.
-- [Affiliated Visits](golf-management/golf-affiliated-visits.md) - letters of introduction from affiliated and reciprocal clubs: record the request, confirm with a preview of the flight it books, decline or cancel with a reason, receive the visitor at the desk.
 - [Rain Checks](golf-management/golf-rain-checks.md) - the credits issued to golfers for abandoned paid rounds: what is open, redeemed or expired, and cancelling an issued rain check.
 - [Transaction Type](golf-management/golf-transaction-types.md) - the golf billing-item catalog: charge types, tax scheme, Default Price cards, golfer-type defaults, packages and their eligibility conditions.
 - [Tee Time Sheet](golf-management/golf-tee-time-sheet.md) - the Front Desk's play-day view: register booked players, groups and walk-ins, bill from the tiles, settle, record no-shows.
@@ -88,7 +87,6 @@ Each manual is also published as an in-app guide: a static copy lives at `apps/w
 - [Golfers](golf-management/golf-golfers.md) - Every member and public golfer identity, with the golf-owned handicap index, handicap status and remarks the Handicap Control rules read.
 - [Numbering Control](golf-management/golf-numbering.md) - How the six golf document series (Booking, Registration, Bill, Rain Check, Proforma, Refund Request) are numbered: auto-generate format and counter or manual entry, plus copy from another company.
 - [Payment Type](golf-management/golf-payment-types.md) - The settlement-tender catalog for golf bills - code, payment class (Cash, Member, Debtor, Deposit, etc.), description and tile icon; enable or disable.
-- [Affiliated Clubs](golf-management/golf-affiliated-clubs.md) - The associations and reciprocal clubs whose members visit under a letter of introduction: the player type they are billed as, agreement dates, visit and guest caps, charge-back and approval terms, contact and address.
 - [Player Types](golf-management/golf-player-types.md) - The club's player categories: code, base identity (member, member as guest, guest, affiliated or reciprocal), description and the approval flag; the three built-in types plus the club's own.
 
 ## Membership Management
@@ -100,6 +98,8 @@ Each manual is also published as an in-app guide: a static copy lives at `apps/w
 - [Transaction Type](membership-management/membership-transaction-types.md) - Read-only view of the AR billing-item catalog entries opened to Membership (maintained on Account Receivable → Transaction Type).
 - [Numbering Control](membership-management/membership-numbering.md) - The Membership No. series: auto-generate vs manual, prefix/format/tokens/padding/reset, and copying a configuration from another company.
 - [Sales Agencies](membership-management/membership-sales-agencies.md) - The outsourced agency companies that sell memberships: code, name, office address, contact, enable/disable.
+- [Affiliated Clubs](membership-management/membership-affiliated-clubs.md) - The associations and reciprocal clubs the club has arrangements with: the golf player type their visitors are billed as, agreement dates, per-member and club-wide visit caps, guests, the visit fee, charge-back and approval terms, contact and address.
+- [Affiliated Visits](membership-management/membership-affiliated-visits.md) - Letters of introduction both ways: record and confirm a partner member's visit (with a preview of the flight it books), issue our letter for our member, decline or cancel with a reason; the front desk receives inbound visitors.
 - [Sales Agents](membership-management/membership-sales-agents.md) - Every salesperson by kind (agency staff, external, internal), with the invite-to-portal-login flow.
 - [Memberships](membership-management/membership-memberships.md) - The core CRM: creating individual and corporate memberships, editing, the Members dialog (nominees, dependents, edit, photo), addresses and credit terms.
 - [Members](membership-management/membership-members.md) - The read-only server-side search across every person (individual members, nominees, dependents) with kind and status filters.

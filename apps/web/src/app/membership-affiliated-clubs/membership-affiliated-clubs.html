@@ -53,7 +53,7 @@
   @if (loading()) {
     <div class="loading-state" role="status" aria-live="polite"><div class="spinner large"></div><p>Loading affiliated clubs…</p></div>
   } @else if (rows().length === 0) {
-    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No affiliated clubs yet. Add the associations and reciprocal clubs whose members the club admits; each needs an affiliate player type first (Player Types).</p></div>
+    <div class="empty-state"><span class="material-icons empty-icon" aria-hidden="true">inbox</span><p>No affiliated clubs yet. Add the associations and reciprocal clubs the club has arrangements with; each needs an affiliate golf player type first (Golf Management → Player Types).</p></div>
   } @else if (filtered().length === 0) {
     <div class="empty-state">
       <span class="material-icons empty-icon" aria-hidden="true">search_off</span>
@@ -170,7 +170,7 @@
               @if (showError(form.controls.playerTypeId)) {
                 <p id="gacTypeErr" class="field-error" role="alert">Pick the affiliate player type.</p>
               }
-              <p class="cell-subtle field-hint">An Affiliated / Reciprocal base player type (Player Types); its green-fee rate card prices this club's visitors.</p>
+              <p class="cell-subtle field-hint">A golf player type of base Affiliated / Reciprocal (Golf Management → Player Types); its green-fee rate card prices this club's visitors.</p>
             </div>
           </div>
         </details>
@@ -205,6 +205,22 @@
                 }
               </select>
               <p class="cell-subtle field-hint">e.g. 14 visits per year: the 15th visit request from the same member in a calendar year is refused.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="gacYear">Inbound visits per year (club-wide)</label>
+              <input id="gacYear" type="number" inputmode="numeric" min="1" max="9999" step="1" formControlName="maxVisitsPerYear" placeholder="No cap"
+                     [attr.aria-invalid]="showError(form.controls.maxVisitsPerYear)" aria-describedby="gacYearErr" />
+              @if (showError(form.controls.maxVisitsPerYear)) {
+                <p id="gacYearErr" class="field-error" role="alert">Enter a whole number between 1 and 9999, or leave blank.</p>
+              }
+              <p class="cell-subtle field-hint">The partnership's annual quota: how many visits from this club the arrangement admits in a calendar year, all members together.</p>
+            </div>
+            <div class="form-group">
+              <label for="gacFee">Visit fee item</label>
+              <app-combobox inputId="gacFee" formControlName="visitFeeTransactionTypeId" [options]="visitFeeOptions()" [allowEmpty]="true" emptyLabel="No visit fee" placeholder="Type to search…" />
+              <p class="cell-subtle field-hint">A miscellaneous golf transaction type (flat priced); charged on the visiting member's bill at registration, never on their guests.</p>
             </div>
           </div>
           <div class="form-grid">
@@ -256,7 +272,7 @@
               @if (showError(form.controls.contactEmail)) {
                 <p id="gacEmailErr" class="field-error" role="alert">Enter a valid email address.</p>
               }
-              <p class="cell-subtle field-hint">Confirmations and declines of visit requests are sent here.</p>
+              <p class="cell-subtle field-hint">Confirmations and declines of their visits, and our letters of introduction, are sent here.</p>
             </div>
           </div>
           <div class="form-grid">
